@@ -6,19 +6,21 @@ import { format as formatCSV } from "fast-csv";
 import { 
   merchants as merchantsTable, 
   transactions as transactionsTable,
+  uploadedFiles as uploadedFilesTable,
   Merchant,
   Transaction,
   InsertMerchant,
   InsertTransaction,
-  merchantsSchema,
-  transactionsSchema
+  InsertUploadedFile,
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, gt, gte, and, or, count, desc, sql, between } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
-    merchants: Merchant[];
+    merchants: any[];
     pagination: {
       currentPage: number;
       totalPages: number;
@@ -42,121 +44,131 @@ export interface IStorage {
   generateMerchantsExport(): Promise<string>;
 }
 
-// In-memory storage implementation
-export class MemStorage implements IStorage {
-  private merchants: Map<string, Merchant>;
-  private transactions: Map<string, Transaction>;
-  private uploadedFiles: Map<string, { path: string; type: string; processed: boolean; filename: string }>;
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
   private lastMerchantId: number;
-
+  
   constructor() {
-    this.merchants = new Map();
-    this.transactions = new Map();
-    this.uploadedFiles = new Map();
     this.lastMerchantId = 1000;
-    
-    // Initialize with some demo data
-    this.initializeData();
+    // Initialize with some demo data if database is empty
+    this.checkAndInitializeData();
   }
-
+  
+  // Check if we need to initialize data
+  private async checkAndInitializeData() {
+    try {
+      // Check if merchants table is empty
+      const merchantCount = await db.select({ count: count() }).from(merchantsTable);
+      
+      if (parseInt(merchantCount[0].count.toString(), 10) === 0) {
+        console.log("Database is empty, initializing with sample data...");
+        await this.initializeData();
+      }
+    } catch (error) {
+      console.error("Error checking database:", error);
+    }
+  }
+  
   // Initialize with some demo data
   private async initializeData() {
-    // Add some sample merchants
-    const demoMerchants: Merchant[] = [
-      {
-        id: "M2358",
-        name: "City Supermarket",
-        status: "Active",
-        address: "123 Main St",
-        city: "New York",
-        state: "NY",
-        zipCode: "10001",
-        category: "Grocery",
-        lastUploadDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-        createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString() // 60 days ago
-      },
-      {
-        id: "M1157",
-        name: "Fresh Foods Market",
-        status: "Active",
-        address: "456 Park Ave",
-        city: "Chicago",
-        state: "IL",
-        zipCode: "60601",
-        category: "Grocery",
-        lastUploadDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Yesterday
-        createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString() // 45 days ago
-      },
-      {
-        id: "M4592",
-        name: "Tech Corner",
-        status: "Pending",
-        address: "789 Tech Blvd",
-        city: "San Francisco",
-        state: "CA",
-        zipCode: "94107",
-        category: "Electronics",
-        lastUploadDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days ago
-      },
-      {
-        id: "M3721",
-        name: "Fashion Corner",
-        status: "Inactive",
-        address: "101 Fashion St",
-        city: "Los Angeles",
-        state: "CA",
-        zipCode: "90210",
-        category: "Apparel",
-        lastUploadDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 2 weeks ago
-        createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() // 90 days ago
-      },
-      {
-        id: "M9053",
-        name: "Health & Care",
-        status: "Active",
-        address: "202 Health Ave",
-        city: "Boston",
-        state: "MA",
-        zipCode: "02108",
-        category: "Healthcare",
-        lastUploadDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() // 15 days ago
+    try {
+      // Add some sample merchants
+      const demoMerchants: InsertMerchant[] = [
+        {
+          id: "M2358",
+          name: "City Supermarket",
+          status: "Active",
+          address: "123 Main St",
+          city: "New York",
+          state: "NY",
+          zipCode: "10001",
+          category: "Grocery",
+          lastUploadDate: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+        },
+        {
+          id: "M1157",
+          name: "Fresh Foods Market",
+          status: "Active",
+          address: "456 Park Ave",
+          city: "Chicago",
+          state: "IL",
+          zipCode: "60601",
+          category: "Grocery",
+          lastUploadDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000)
+        },
+        {
+          id: "M4592",
+          name: "Tech Corner",
+          status: "Pending",
+          address: "789 Tech Blvd",
+          city: "San Francisco",
+          state: "CA",
+          zipCode: "94107",
+          category: "Electronics",
+          lastUploadDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        },
+        {
+          id: "M3721",
+          name: "Fashion Corner",
+          status: "Inactive",
+          address: "101 Fashion St",
+          city: "Los Angeles",
+          state: "CA",
+          zipCode: "90210",
+          category: "Apparel",
+          lastUploadDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        },
+        {
+          id: "M9053",
+          name: "Health & Care",
+          status: "Active",
+          address: "202 Health Ave",
+          city: "Boston",
+          state: "MA",
+          zipCode: "02108",
+          category: "Healthcare",
+          lastUploadDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
+        }
+      ];
+      
+      // Insert merchants into database
+      for (const merchant of demoMerchants) {
+        await db.insert(merchantsTable).values(merchant);
       }
-    ];
-
-    // Add merchants to storage
-    for (const merchant of demoMerchants) {
-      this.merchants.set(merchant.id, merchant);
-    }
-
-    // Add some sample transactions
-    const now = new Date();
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const oneMonthAgoDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    const today = todayDate.toISOString();
-    const oneMonthAgo = oneMonthAgoDate.toISOString();
-
-    // Generate random transactions for each merchant
-    for (let i = 0; i < 5000; i++) {
-      const merchantIds = Array.from(this.merchants.keys());
-      const randomMerchantIndex = Math.floor(Math.random() * merchantIds.length);
-      const merchantId = merchantIds[randomMerchantIndex];
       
-      // Random date between one month ago and now
-      const randomDate = new Date(
-        oneMonthAgoDate.getTime() + Math.random() * (todayDate.getTime() - oneMonthAgoDate.getTime())
-      ).toISOString();
+      // Generate random transactions for each merchant
+      const now = new Date();
+      const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const oneMonthAgoDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       
-      const transaction: Transaction = {
-        id: `T${Math.floor(Math.random() * 1000000)}`,
-        merchantId,
-        amount: Math.round(Math.random() * 1000 * 100) / 100, // Random amount up to $1000 with 2 decimal places
-        date: randomDate,
-        type: Math.random() > 0.2 ? "Sale" : "Refund"
-      };
-      
-      this.transactions.set(transaction.id, transaction);
+      // Only generate 500 transactions for sample data to keep it manageable
+      for (let i = 0; i < 500; i++) {
+        const merchantIds = demoMerchants.map(m => m.id);
+        const randomMerchantIndex = Math.floor(Math.random() * merchantIds.length);
+        const merchantId = merchantIds[randomMerchantIndex];
+        
+        // Random date between one month ago and now
+        const randomDate = new Date(
+          oneMonthAgoDate.getTime() + Math.random() * (todayDate.getTime() - oneMonthAgoDate.getTime())
+        );
+        
+        const transaction: InsertTransaction = {
+          id: `T${Math.floor(Math.random() * 1000000)}`,
+          merchantId,
+          amount: Math.round(Math.random() * 1000 * 100) / 100, // Random amount up to $1000 with 2 decimal places
+          date: randomDate,
+          type: Math.random() > 0.2 ? "Sale" : "Refund"
+        };
+        
+        await db.insert(transactionsTable).values(transaction);
+      }
+    } catch (error) {
+      console.error("Error initializing data:", error);
     }
   }
 
@@ -167,7 +179,7 @@ export class MemStorage implements IStorage {
     status: string = "All", 
     lastUpload: string = "Any time"
   ): Promise<{
-    merchants: Merchant[];
+    merchants: any[];
     pagination: {
       currentPage: number;
       totalPages: number;
@@ -175,97 +187,110 @@ export class MemStorage implements IStorage {
       itemsPerPage: number;
     };
   }> {
-    let filteredMerchants = Array.from(this.merchants.values());
-    
-    // Apply status filter
-    if (status !== "All") {
-      filteredMerchants = filteredMerchants.filter(merchant => merchant.status === status);
-    }
-    
-    // Apply last upload filter
-    if (lastUpload !== "Any time") {
-      const now = new Date();
-      let cutoffDate: Date;
+    try {
+      // Create a base query
+      let query = db.select().from(merchantsTable);
       
-      switch(lastUpload) {
-        case "Last 24 hours":
-          cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          break;
-        case "Last 7 days":
-          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "Last 30 days":
-          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case "Never":
-          filteredMerchants = filteredMerchants.filter(merchant => !merchant.lastUploadDate);
-          break;
-        default:
-          cutoffDate = new Date(0); // Beginning of time
+      // Apply status filter
+      if (status !== "All") {
+        query = query.where(eq(merchantsTable.status, status));
       }
       
-      if (lastUpload !== "Never") {
-        filteredMerchants = filteredMerchants.filter(merchant => 
-          merchant.lastUploadDate && new Date(merchant.lastUploadDate) >= cutoffDate
-        );
-      }
-    }
-    
-    // Calculate pagination
-    const totalItems = filteredMerchants.length;
-    const totalPages = Math.ceil(totalItems / limit);
-    const offset = (page - 1) * limit;
-    
-    // Get paginated merchants
-    const paginatedMerchants = filteredMerchants.slice(offset, offset + limit);
-    
-    // Calculate stats for each merchant
-    const merchantsWithStats = await Promise.all(paginatedMerchants.map(async (merchant) => {
-      const stats = await this.getMerchantStats(merchant.id);
-      
-      // Format last upload date
-      let lastUpload = "Never";
-      if (merchant.lastUploadDate) {
-        const lastUploadDate = new Date(merchant.lastUploadDate);
+      // Apply last upload filter
+      if (lastUpload !== "Any time") {
         const now = new Date();
-        const diffInHours = Math.floor((now.getTime() - lastUploadDate.getTime()) / (1000 * 60 * 60));
+        let cutoffDate: Date;
         
-        if (diffInHours < 1) {
-          lastUpload = "Just now";
-        } else if (diffInHours < 24) {
-          lastUpload = `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
-        } else {
-          const diffInDays = Math.floor(diffInHours / 24);
-          if (diffInDays < 7) {
-            lastUpload = `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
-          } else if (diffInDays < 30) {
-            const diffInWeeks = Math.floor(diffInDays / 7);
-            lastUpload = `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
-          } else {
-            lastUpload = lastUploadDate.toLocaleDateString();
-          }
+        switch(lastUpload) {
+          case "Last 24 hours":
+            cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            break;
+          case "Last 7 days":
+            cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            break;
+          case "Last 30 days":
+            cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            break;
+          case "Never":
+            query = query.where(sql`${merchantsTable.lastUploadDate} IS NULL`);
+            break;
         }
       }
       
+      // Get total count for pagination
+      const countResult = await db.select({ count: count() }).from(merchantsTable);
+      const totalItems = parseInt(countResult[0].count.toString(), 10);
+      const totalPages = Math.ceil(totalItems / limit);
+      const offset = (page - 1) * limit;
+      
+      // Apply pagination
+      query = query.limit(limit).offset(offset);
+      
+      // Execute query
+      const merchants = await query;
+      
+      // Calculate stats for each merchant and format lastUploadDate
+      const merchantsWithStats = await Promise.all(merchants.map(async (merchant) => {
+        const stats = await this.getMerchantStats(merchant.id);
+        
+        // Format last upload date
+        let lastUpload = "Never";
+        if (merchant.lastUploadDate) {
+          const lastUploadDate = new Date(merchant.lastUploadDate);
+          const now = new Date();
+          const diffInHours = Math.floor((now.getTime() - lastUploadDate.getTime()) / (1000 * 60 * 60));
+          
+          if (diffInHours < 1) {
+            lastUpload = "Just now";
+          } else if (diffInHours < 24) {
+            lastUpload = `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+          } else {
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) {
+              lastUpload = `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+            } else if (diffInDays < 30) {
+              const diffInWeeks = Math.floor(diffInDays / 7);
+              lastUpload = `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
+            } else {
+              lastUpload = lastUploadDate.toLocaleDateString();
+            }
+          }
+        }
+        
+        return {
+          id: merchant.id,
+          name: merchant.name,
+          status: merchant.status,
+          lastUpload,
+          dailyStats: stats.daily,
+          monthlyStats: stats.monthly
+        };
+      }));
+      
       return {
-        id: merchant.id,
-        name: merchant.name,
-        status: merchant.status,
-        lastUpload,
-        dailyStats: stats.daily,
-        monthlyStats: stats.monthly
+        merchants: merchantsWithStats,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
       };
-    }));
-    
-    return {
-      merchants: merchantsWithStats,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalItems,
-        itemsPerPage: limit
-      }
-    };
+    } catch (error) {
+      console.error("Error fetching merchants:", error);
+      return {
+        merchants: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: limit
+        }
+      };
+    }
   }
 
   // Calculate stats for a merchant
@@ -273,43 +298,56 @@ export class MemStorage implements IStorage {
     daily: { transactions: number; revenue: number };
     monthly: { transactions: number; revenue: number };
   }> {
-    const allTransactions = Array.from(this.transactions.values())
-      .filter(tx => tx.merchantId === merchantId);
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    
-    // Calculate daily stats
-    const dailyTransactions = allTransactions.filter(tx => {
-      const txDate = new Date(tx.date);
-      return txDate >= today;
-    });
-    
-    const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
-      return sum + (tx.type === "Sale" ? tx.amount : -tx.amount);
-    }, 0);
-    
-    // Calculate monthly stats
-    const monthlyTransactions = allTransactions.filter(tx => {
-      const txDate = new Date(tx.date);
-      return txDate >= oneMonthAgo;
-    });
-    
-    const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
-      return sum + (tx.type === "Sale" ? tx.amount : -tx.amount);
-    }, 0);
-    
-    return {
-      daily: {
-        transactions: dailyTransactions.length,
-        revenue: Number(dailyRevenue.toFixed(2))
-      },
-      monthly: {
-        transactions: monthlyTransactions.length,
-        revenue: Number(monthlyRevenue.toFixed(2))
-      }
-    };
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      // Get daily transactions
+      const dailyTransactions = await db.select()
+        .from(transactionsTable)
+        .where(and(
+          eq(transactionsTable.merchantId, merchantId),
+          gte(transactionsTable.date, today)
+        ));
+        
+      // Calculate daily revenue
+      const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.toString());
+        return sum + (tx.type === "Sale" ? amount : -amount);
+      }, 0);
+      
+      // Get monthly transactions
+      const monthlyTransactions = await db.select()
+        .from(transactionsTable)
+        .where(and(
+          eq(transactionsTable.merchantId, merchantId),
+          gte(transactionsTable.date, oneMonthAgo)
+        ));
+        
+      // Calculate monthly revenue
+      const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.toString());
+        return sum + (tx.type === "Sale" ? amount : -amount);
+      }, 0);
+      
+      return {
+        daily: {
+          transactions: dailyTransactions.length,
+          revenue: Number(dailyRevenue.toFixed(2))
+        },
+        monthly: {
+          transactions: monthlyTransactions.length,
+          revenue: Number(monthlyRevenue.toFixed(2))
+        }
+      };
+    } catch (error) {
+      console.error(`Error calculating stats for merchant ${merchantId}:`, error);
+      return {
+        daily: { transactions: 0, revenue: 0 },
+        monthly: { transactions: 0, revenue: 0 }
+      };
+    }
   }
 
   // Get dashboard stats
@@ -319,36 +357,52 @@ export class MemStorage implements IStorage {
     dailyTransactions: number;
     monthlyRevenue: number;
   }> {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    
-    // Calculate total merchants
-    const totalMerchants = this.merchants.size;
-    
-    // Calculate new merchants in the last 30 days
-    const newMerchants = Array.from(this.merchants.values()).filter(merchant => {
-      return new Date(merchant.createdAt) >= oneMonthAgo;
-    }).length;
-    
-    // Calculate daily transactions
-    const dailyTransactions = Array.from(this.transactions.values()).filter(tx => {
-      return new Date(tx.date) >= today;
-    }).length;
-    
-    // Calculate monthly revenue
-    const monthlyRevenue = Array.from(this.transactions.values())
-      .filter(tx => new Date(tx.date) >= oneMonthAgo)
-      .reduce((sum, tx) => {
-        return sum + (tx.type === "Sale" ? tx.amount : -tx.amount);
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      // Get total merchants count
+      const merchantCount = await db.select({ count: count() }).from(merchantsTable);
+      const totalMerchants = parseInt(merchantCount[0].count.toString(), 10);
+      
+      // Get new merchants in the last 30 days
+      const newMerchantsResult = await db.select({ count: count() })
+        .from(merchantsTable)
+        .where(gte(merchantsTable.createdAt, oneMonthAgo));
+      const newMerchants = parseInt(newMerchantsResult[0].count.toString(), 10);
+      
+      // Get daily transaction count
+      const dailyTransactionsResult = await db.select({ count: count() })
+        .from(transactionsTable)
+        .where(gte(transactionsTable.date, today));
+      const dailyTransactions = parseInt(dailyTransactionsResult[0].count.toString(), 10);
+      
+      // Get monthly transactions and calculate revenue
+      const monthlyTransactions = await db.select()
+        .from(transactionsTable)
+        .where(gte(transactionsTable.date, oneMonthAgo));
+        
+      const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.toString());
+        return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
-    
-    return {
-      totalMerchants,
-      newMerchants,
-      dailyTransactions,
-      monthlyRevenue: Number(monthlyRevenue.toFixed(2))
-    };
+      
+      return {
+        totalMerchants,
+        newMerchants,
+        dailyTransactions,
+        monthlyRevenue: Number(monthlyRevenue.toFixed(2))
+      };
+    } catch (error) {
+      console.error("Error getting dashboard stats:", error);
+      return {
+        totalMerchants: 0,
+        newMerchants: 0,
+        dailyTransactions: 0,
+        monthlyRevenue: 0
+      };
+    }
   }
 
   // Process an uploaded CSV file
@@ -357,46 +411,60 @@ export class MemStorage implements IStorage {
     type: string, 
     originalFilename: string
   ): Promise<string> {
-    // Generate a unique file ID
-    const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Store file info
-    this.uploadedFiles.set(fileId, {
-      path: filePath,
-      type,
-      processed: false,
-      filename: originalFilename
-    });
-    
-    return fileId;
+    try {
+      // Generate a unique file ID
+      const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Store file info in database
+      await db.insert(uploadedFilesTable).values({
+        id: fileId,
+        originalFilename,
+        storagePath: filePath,
+        fileType: type,
+        uploadedAt: new Date(),
+        processed: false
+      });
+      
+      return fileId;
+    } catch (error) {
+      console.error("Error processing uploaded file:", error);
+      throw new Error("Failed to process uploaded file");
+    }
   }
 
   // Combine and process uploaded files
   async combineAndProcessUploads(fileIds: string[]): Promise<void> {
-    const merchantFiles = fileIds
-      .filter(id => this.uploadedFiles.has(id) && this.uploadedFiles.get(id)?.type === "merchant")
-      .map(id => this.uploadedFiles.get(id)?.path || "");
-    
-    const transactionFiles = fileIds
-      .filter(id => this.uploadedFiles.has(id) && this.uploadedFiles.get(id)?.type === "transaction")
-      .map(id => this.uploadedFiles.get(id)?.path || "");
-    
-    // Process merchant demographics files
-    for (const filePath of merchantFiles) {
-      await this.processMerchantFile(filePath);
-    }
-    
-    // Process transaction files
-    for (const filePath of transactionFiles) {
-      await this.processTransactionFile(filePath);
-    }
-    
-    // Mark files as processed
-    for (const fileId of fileIds) {
-      if (this.uploadedFiles.has(fileId)) {
-        const fileInfo = this.uploadedFiles.get(fileId)!;
-        this.uploadedFiles.set(fileId, { ...fileInfo, processed: true });
+    try {
+      // Get file information for the provided IDs
+      const files = await db.select()
+        .from(uploadedFilesTable)
+        .where(sql`${uploadedFilesTable.id} IN (${fileIds.join(',')})`);
+      
+      const merchantFiles = files.filter(file => file.fileType === "merchant")
+        .map(file => file.storagePath);
+      
+      const transactionFiles = files.filter(file => file.fileType === "transaction")
+        .map(file => file.storagePath);
+      
+      // Process merchant demographics files
+      for (const filePath of merchantFiles) {
+        await this.processMerchantFile(filePath);
       }
+      
+      // Process transaction files
+      for (const filePath of transactionFiles) {
+        await this.processTransactionFile(filePath);
+      }
+      
+      // Mark files as processed
+      for (const fileId of fileIds) {
+        await db.update(uploadedFilesTable)
+          .set({ processed: true })
+          .where(eq(uploadedFilesTable.id, fileId));
+      }
+    } catch (error) {
+      console.error("Error combining and processing uploads:", error);
+      throw new Error("Failed to process uploaded files");
     }
   }
 
@@ -419,13 +487,13 @@ export class MemStorage implements IStorage {
             id: row.merchantId || `M${++this.lastMerchantId}`,
             name: row.name || "Unknown Merchant",
             status: row.status || "Pending",
-            address: row.address || "",
-            city: row.city || "",
-            state: row.state || "",
-            zipCode: row.zip || "",
-            category: row.category || "Other",
-            createdAt: new Date().toISOString(),
-            lastUploadDate: new Date().toISOString()
+            address: row.address || null,
+            city: row.city || null,
+            state: row.state || null,
+            zipCode: row.zip || null,
+            category: row.category || null,
+            createdAt: new Date(),
+            lastUploadDate: new Date()
           };
           
           merchants.push(merchantData);
@@ -439,13 +507,39 @@ export class MemStorage implements IStorage {
         reject(error);
       });
       
-      parser.on("end", () => {
-        // Update merchants in storage
-        for (const merchant of merchants) {
-          this.merchants.set(merchant.id, merchant);
+      parser.on("end", async () => {
+        try {
+          // Insert or update merchants in database
+          for (const merchant of merchants) {
+            // Check if merchant exists
+            const existingMerchant = await db.select()
+              .from(merchantsTable)
+              .where(eq(merchantsTable.id, merchant.id));
+              
+            if (existingMerchant.length > 0) {
+              // Update existing merchant
+              await db.update(merchantsTable)
+                .set({
+                  name: merchant.name,
+                  status: merchant.status,
+                  address: merchant.address,
+                  city: merchant.city,
+                  state: merchant.state,
+                  zipCode: merchant.zipCode,
+                  category: merchant.category,
+                  lastUploadDate: merchant.lastUploadDate
+                })
+                .where(eq(merchantsTable.id, merchant.id));
+            } else {
+              // Insert new merchant
+              await db.insert(merchantsTable).values(merchant);
+            }
+          }
+          resolve();
+        } catch (error) {
+          console.error("Error updating merchants:", error);
+          reject(error);
         }
-        
-        resolve();
       });
     });
   }
@@ -464,42 +558,18 @@ export class MemStorage implements IStorage {
       
       parser.on("data", (row) => {
         try {
-          // Check if merchant exists, if not create a placeholder
+          // Check if merchant exists
           const merchantId = row.merchantId;
-          if (merchantId && !this.merchants.has(merchantId)) {
-            this.merchants.set(merchantId, {
-              id: merchantId,
-              name: `Merchant ${merchantId}`,
-              status: "Pending",
-              address: "",
-              city: "",
-              state: "",
-              zipCode: "",
-              category: "Other",
-              createdAt: new Date().toISOString(),
-              lastUploadDate: new Date().toISOString()
-            });
-          }
           
-          // Validate and transform the row data
-          const transactionData: InsertTransaction = {
+          const transaction: InsertTransaction = {
             id: row.transactionId || `T${Math.floor(Math.random() * 1000000)}`,
-            merchantId: row.merchantId,
+            merchantId,
             amount: parseFloat(row.amount) || 0,
-            date: row.date ? new Date(row.date).toISOString() : new Date().toISOString(),
+            date: row.date ? new Date(row.date) : new Date(),
             type: row.type || "Sale"
           };
           
-          transactions.push(transactionData);
-          
-          // Update merchant's last upload date
-          if (merchantId && this.merchants.has(merchantId)) {
-            const merchant = this.merchants.get(merchantId)!;
-            this.merchants.set(merchantId, {
-              ...merchant,
-              lastUploadDate: new Date().toISOString()
-            });
-          }
+          transactions.push(transaction);
         } catch (error) {
           console.error("Error processing transaction row:", error);
           // Continue with next row
@@ -510,100 +580,123 @@ export class MemStorage implements IStorage {
         reject(error);
       });
       
-      parser.on("end", () => {
-        // Update transactions in storage
-        for (const transaction of transactions) {
-          this.transactions.set(transaction.id, transaction);
+      parser.on("end", async () => {
+        try {
+          // Process transactions
+          for (const transaction of transactions) {
+            // Check if merchant exists
+            const existingMerchant = await db.select()
+              .from(merchantsTable)
+              .where(eq(merchantsTable.id, transaction.merchantId));
+              
+            // Create placeholder merchant if needed
+            if (existingMerchant.length === 0) {
+              await db.insert(merchantsTable).values({
+                id: transaction.merchantId,
+                name: `Merchant ${transaction.merchantId}`,
+                status: "Pending",
+                createdAt: new Date(),
+                lastUploadDate: new Date()
+              });
+            } else {
+              // Update lastUploadDate for merchant
+              await db.update(merchantsTable)
+                .set({ lastUploadDate: new Date() })
+                .where(eq(merchantsTable.id, transaction.merchantId));
+            }
+            
+            // Insert transaction
+            await db.insert(transactionsTable).values(transaction);
+          }
+          resolve();
+        } catch (error) {
+          console.error("Error processing transactions:", error);
+          reject(error);
         }
-        
-        resolve();
       });
     });
   }
 
-  // Generate a combined transactions export file
+  // Generate CSV export of all transactions
   async generateTransactionsExport(): Promise<string> {
-    const tempFilePath = path.join(os.tmpdir(), `combined_transactions_${Date.now()}.csv`);
-    
-    return new Promise((resolve, reject) => {
+    try {
       // Get all transactions
-      const allTransactions = Array.from(this.transactions.values());
-      
-      // Create a CSV writer
-      const writer = formatCSV({ headers: true });
-      const outputStream = createWriteStream(tempFilePath);
-      
-      writer.pipe(outputStream);
-      
-      // Write transactions to CSV
-      for (const transaction of allTransactions) {
-        const merchant = this.merchants.get(transaction.merchantId);
+      const transactions = await db.select({
+        id: transactionsTable.id,
+        merchantId: transactionsTable.merchantId,
+        amount: transactionsTable.amount,
+        date: transactionsTable.date,
+        type: transactionsTable.type,
+        merchantName: merchantsTable.name
+      }).from(transactionsTable)
+        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+        .orderBy(desc(transactionsTable.date));
         
-        writer.write({
-          transaction_id: transaction.id,
-          merchant_id: transaction.merchantId,
-          merchant_name: merchant ? merchant.name : "Unknown Merchant",
-          amount: transaction.amount.toFixed(2),
-          date: new Date(transaction.date).toISOString().split("T")[0],
-          type: transaction.type
-        });
-      }
+      // Create a temporary file to store the CSV
+      const tempFilePath = path.join(os.tmpdir(), `transactions_export_${Date.now()}.csv`);
+      const csvFileStream = createWriteStream(tempFilePath);
       
-      writer.end();
+      // Format transactions for CSV
+      const formattedTransactions = transactions.map(transaction => ({
+        Transaction_ID: transaction.id,
+        Merchant_ID: transaction.merchantId,
+        Merchant_Name: transaction.merchantName,
+        Amount: transaction.amount,
+        Date: new Date(transaction.date).toISOString().split("T")[0],
+        Type: transaction.type
+      }));
       
-      outputStream.on("finish", () => {
-        resolve(tempFilePath);
+      // Generate CSV file
+      return new Promise((resolve, reject) => {
+        formatCSV(formattedTransactions)
+          .pipe(csvFileStream)
+          .on("finish", () => resolve(tempFilePath))
+          .on("error", reject);
       });
-      
-      outputStream.on("error", (error) => {
-        reject(error);
-      });
-    });
+    } catch (error) {
+      console.error("Error generating transactions export:", error);
+      throw new Error("Failed to generate transactions export");
+    }
   }
 
-  // Generate a merchants export file
+  // Generate CSV export of all merchants
   async generateMerchantsExport(): Promise<string> {
-    const tempFilePath = path.join(os.tmpdir(), `merchant_demographics_${Date.now()}.csv`);
-    
-    return new Promise((resolve, reject) => {
+    try {
       // Get all merchants
-      const allMerchants = Array.from(this.merchants.values());
+      const merchants = await db.select().from(merchantsTable);
       
-      // Create a CSV writer
-      const writer = formatCSV({ headers: true });
-      const outputStream = createWriteStream(tempFilePath);
+      // Create a temporary file to store the CSV
+      const tempFilePath = path.join(os.tmpdir(), `merchants_export_${Date.now()}.csv`);
+      const csvFileStream = createWriteStream(tempFilePath);
       
-      writer.pipe(outputStream);
+      // Format merchants for CSV
+      const formattedMerchants = merchants.map(merchant => ({
+        Merchant_ID: merchant.id,
+        Name: merchant.name,
+        Status: merchant.status,
+        Address: merchant.address || "",
+        City: merchant.city || "",
+        State: merchant.state || "",
+        Zip: merchant.zipCode || "",
+        Category: merchant.category || "",
+        Created_Date: new Date(merchant.createdAt).toISOString().split("T")[0],
+        Last_Upload: merchant.lastUploadDate 
+          ? new Date(merchant.lastUploadDate).toISOString().split("T")[0] 
+          : "Never"
+      }));
       
-      // Write merchants to CSV
-      for (const merchant of allMerchants) {
-        writer.write({
-          merchant_id: merchant.id,
-          name: merchant.name,
-          status: merchant.status,
-          address: merchant.address,
-          city: merchant.city,
-          state: merchant.state,
-          zip_code: merchant.zipCode,
-          category: merchant.category,
-          created_at: new Date(merchant.createdAt).toISOString().split("T")[0],
-          last_upload: merchant.lastUploadDate 
-            ? new Date(merchant.lastUploadDate).toISOString().split("T")[0] 
-            : ""
-        });
-      }
-      
-      writer.end();
-      
-      outputStream.on("finish", () => {
-        resolve(tempFilePath);
+      // Generate CSV file
+      return new Promise((resolve, reject) => {
+        formatCSV(formattedMerchants)
+          .pipe(csvFileStream)
+          .on("finish", () => resolve(tempFilePath))
+          .on("error", reject);
       });
-      
-      outputStream.on("error", (error) => {
-        reject(error);
-      });
-    });
+    } catch (error) {
+      console.error("Error generating merchants export:", error);
+      throw new Error("Failed to generate merchants export");
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
