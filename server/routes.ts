@@ -104,10 +104,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const database = dbUrl.pathname.substring(1);
       const user = dbUrl.username;
       
-      // Create backup using pg_dump
-      const pgDumpCmd = `PGPASSWORD="${dbUrl.password}" pg_dump -h ${host} -p ${port} -U ${user} -d ${database} -f ${backupFilePath}`;
+      // Create backup using pg_dump - fix command format
+      // If port is empty, we need to handle it differently
+      const portOption = port ? `-p ${port}` : '';
+      const pgDumpCmd = `PGPASSWORD="${dbUrl.password}" pg_dump -h ${host} ${portOption} -U "${user}" -d "${database}" -f "${backupFilePath}"`;
       
-      await execPromise(pgDumpCmd);
+      console.log("Executing backup command (credentials redacted)");
+      try {
+        await execPromise(pgDumpCmd);
+      } catch (execError) {
+        console.error("pg_dump execution error:", execError.message);
+        throw new Error(`Backup failed: ${execError.message}`);
+      }
       
       // Save backup timestamp
       fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_time.txt'), new Date().toISOString());
