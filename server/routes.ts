@@ -44,28 +44,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalSizeBytes = 0;
       
       for (const tableName of tables) {
-        // Get row count for each table
-        const rowCountResult = await db.select({ count: count() }).from(
-          tableName === 'merchants' ? merchantsTable : 
-          tableName === 'transactions' ? transactionsTable : 
-          tableName === 'backup_history' ? backupHistoryTable : uploadedFilesTable
-        );
-        const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
-        
-        // Get table size in bytes
-        const sizeResult = await pool.query(`
-          SELECT pg_total_relation_size('${tableName}') as size
-        `);
-        const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
-        
-        tableStats.push({
-          name: tableName,
-          rowCount,
-          sizeBytes
-        });
-        
-        totalRows += rowCount;
-        totalSizeBytes += sizeBytes;
+        try {
+          console.log(`Processing table: ${tableName}`);
+          // Get row count for each table
+          const table = 
+            tableName === 'merchants' ? merchantsTable : 
+            tableName === 'transactions' ? transactionsTable : 
+            tableName === 'backup_history' ? backupHistoryTable : uploadedFilesTable;
+          
+          console.log(`Selected table object for ${tableName}`);
+          
+          const rowCountResult = await db.select({ count: count() }).from(table);
+          console.log(`Row count result for ${tableName}:`, rowCountResult);
+          
+          const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
+          
+          // Get table size in bytes
+          const sizeResult = await pool.query(`
+            SELECT pg_total_relation_size('${tableName}') as size
+          `);
+          console.log(`Size result for ${tableName}:`, sizeResult.rows);
+          
+          const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
+          
+          tableStats.push({
+            name: tableName,
+            rowCount,
+            sizeBytes
+          });
+          console.log(`Added ${tableName} to tableStats`);
+          
+          totalRows += rowCount;
+          totalSizeBytes += sizeBytes;
+        } catch (error) {
+          console.error(`Error processing table ${tableName}:`, error);
+          // If we can't get stats for this table, still add a placeholder
+          tableStats.push({
+            name: tableName,
+            rowCount: 0,
+            sizeBytes: 0
+          });
+        }
       }
       
       // Get last backup info from database
