@@ -206,27 +206,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if we should include deleted backups
       const includeDeleted = req.query.includeDeleted === 'true';
       
-      // Create query builder
-      let query = db
-        .select({
-          id: backupHistoryTable.id,
-          timestamp: backupHistoryTable.timestamp,
-          fileName: backupHistoryTable.fileName,
-          size: backupHistoryTable.size,
-          tables: backupHistoryTable.tables,
-          downloaded: backupHistoryTable.downloaded,
-          deleted: backupHistoryTable.deleted
-        })
-        .from(backupHistoryTable)
-        .orderBy(desc(backupHistoryTable.timestamp))
-        .limit(20);
+      let backupRecords;
       
-      // Filter out deleted backups unless specifically requested
-      if (!includeDeleted) {
-        query = query.where(eq(backupHistoryTable.deleted, false));
+      if (includeDeleted) {
+        // If including deleted, get all records
+        backupRecords = await db
+          .select({
+            id: backupHistory.id,
+            timestamp: backupHistory.timestamp,
+            fileName: backupHistory.fileName,
+            size: backupHistory.size,
+            tables: backupHistory.tables,
+            downloaded: backupHistory.downloaded,
+            deleted: backupHistory.deleted
+          })
+          .from(backupHistory)
+          .orderBy(desc(backupHistory.timestamp))
+          .limit(20);
+      } else {
+        // If not including deleted, filter out deleted records
+        backupRecords = await db
+          .select({
+            id: backupHistory.id,
+            timestamp: backupHistory.timestamp,
+            fileName: backupHistory.fileName,
+            size: backupHistory.size,
+            tables: backupHistory.tables,
+            downloaded: backupHistory.downloaded,
+            deleted: backupHistory.deleted
+          })
+          .from(backupHistory)
+          .where(eq(backupHistory.deleted, false))
+          .orderBy(desc(backupHistory.timestamp))
+          .limit(20);
       }
-      
-      const backupRecords = await query;
       
       res.json(backupRecords);
     } catch (error) {
@@ -246,8 +259,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find the backup record in the database
       const [backup] = await db
         .select()
-        .from(backupHistoryTable)
-        .where(eq(backupHistoryTable.id, backupId));
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
       
       if (!backup) {
         return res.status(404).json({ 
