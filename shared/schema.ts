@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -36,6 +36,18 @@ export const uploadedFiles = pgTable("uploaded_files", {
   processingErrors: text("processing_errors")
 });
 
+// Backup history table
+export const backupHistory = pgTable("backup_history", {
+  id: text("id").primaryKey(),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  size: integer("size").notNull(),
+  tables: jsonb("tables").notNull(), // Store table counts as JSON
+  notes: text("notes"),
+  downloaded: boolean("downloaded").default(false).notNull()
+});
+
 // Zod schemas for merchants
 export const merchantsSchema = createInsertSchema(merchants);
 export const insertMerchantSchema = merchantsSchema.omit({ id: true });
@@ -48,6 +60,10 @@ export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 export const uploadedFilesSchema = createInsertSchema(uploadedFiles);
 export const insertUploadedFileSchema = uploadedFilesSchema.omit({ id: true });
 
+// Zod schemas for backup history
+export const backupHistorySchema = createInsertSchema(backupHistory);
+export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
+
 // Export types
 export type Merchant = typeof merchants.$inferSelect;
 export type InsertMerchant = typeof merchants.$inferInsert;
@@ -55,3 +71,5 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;
 export type InsertUploadedFile = typeof uploadedFiles.$inferInsert;
+export type BackupHistory = typeof backupHistory.$inferSelect;
+export type InsertBackupHistory = typeof backupHistory.$inferInsert;

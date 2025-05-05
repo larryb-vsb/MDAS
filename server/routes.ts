@@ -12,8 +12,14 @@ import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count } from "drizzle-orm";
-import { merchants as merchantsTable, transactions as transactionsTable, uploadedFiles as uploadedFilesTable } from "@shared/schema";
+import { count, desc } from "drizzle-orm";
+import { 
+  merchants as merchantsTable, 
+  transactions as transactionsTable, 
+  uploadedFiles as uploadedFilesTable,
+  backupHistory as backupHistoryTable,
+  InsertBackupHistory
+} from "@shared/schema";
 
 const execPromise = promisify(exec);
 
