@@ -63,9 +63,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get last backup info if exists
       let lastBackup = null;
-      const backupTimePath = path.join(os.tmpdir(), 'last_backup_time.txt');
-      if (fs.existsSync(backupTimePath)) {
-        lastBackup = fs.readFileSync(backupTimePath, 'utf8');
+      const backupInfoPath = path.join(os.tmpdir(), 'last_backup_info.json');
+      if (fs.existsSync(backupInfoPath)) {
+        const backupInfoContent = fs.readFileSync(backupInfoPath, 'utf8');
+        try {
+          const backupInfo = JSON.parse(backupInfoContent);
+          lastBackup = backupInfo.timestamp;
+        } catch (e) {
+          console.error('Error parsing backup info:', e);
+        }
       }
       
       res.json({
