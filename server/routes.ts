@@ -38,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const version = versionResult.rows[0].version.split(" ")[1];
       
       // Get table information
-      const tables = ['merchants', 'transactions', 'uploaded_files'];
+      const tables = ['merchants', 'transactions', 'uploaded_files', 'backup_history'];
       const tableStats = [];
       let totalRows = 0;
       let totalSizeBytes = 0;
@@ -47,7 +47,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get row count for each table
         const rowCountResult = await db.select({ count: count() }).from(
           tableName === 'merchants' ? merchantsTable : 
-          tableName === 'transactions' ? transactionsTable : uploadedFilesTable
+          tableName === 'transactions' ? transactionsTable : 
+          tableName === 'backup_history' ? backupHistoryTable : uploadedFilesTable
         );
         const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
         
