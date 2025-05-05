@@ -134,6 +134,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_info.json'), JSON.stringify(backupInfo));
       
+      // Add to backup history log
+      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
+      let backupHistory = [];
+      
+      // Read existing history if available
+      if (fs.existsSync(backupLogPath)) {
+        try {
+          const existingData = fs.readFileSync(backupLogPath, 'utf8');
+          backupHistory = JSON.parse(existingData);
+        } catch (err) {
+          console.error('Error reading backup history:', err);
+        }
+      }
+      
+      // Add new backup to history with size information
+      const stats = fs.statSync(backupFilePath);
+      backupHistory.push({
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        fileName: backupFileName,
+        filePath: backupFilePath,
+        size: stats.size,
+        tables: {
+          merchants: backupData.merchants.length,
+          transactions: backupData.transactions.length,
+          uploadedFiles: backupData.uploadedFiles.length
+        }
+      });
+      
+      // Sort by timestamp descending (newest first)
+      backupHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      // Keep only the last 20 backups in history
+      if (backupHistory.length > 20) {
+        backupHistory = backupHistory.slice(0, 20);
+      }
+      
+      // Save updated history
+      fs.writeFileSync(backupLogPath, JSON.stringify(backupHistory, null, 2));
+      
       // Success response
       res.json({
         success: true,
@@ -147,6 +187,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to create database backup" 
+      });
+    }
+  });
+  
+  // Get backup history
+  app.get("/api/settings/backup/history", async (req, res) => {
+    try {
+      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
+      
+      // Return empty array if no history exists yet
+      if (!fs.existsSync(backupLogPath)) {
+        return res.json([]);
+      }
+      
+      // Read and return backup history
+      const historyData = fs.readFileSync(backupLogPath, 'utf8');
+      const backupHistory = JSON.parse(historyData);
+      
+      // Return history without full file paths for security
+      const safeHistory = backupHistory.map(backup => ({
+        id: backup.id,
+        timestamp: backup.timestamp,
+        fileName: backup.fileName,
+        size: backup.size,
+        tables: backup.tables
+      }));
+      
+      res.json(safeHistory);
+    } catch (error) {
+      console.error("Error retrieving backup history:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to retrieve backup history" 
+      });
+    }
+  });
+  
+  // Download a specific backup by ID
+  app.get("/api/settings/backup/download/:id", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
+      
+      if (!fs.existsSync(backupLogPath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "No backup history found." 
+        });
+      }
+      
+      // Find the backup with matching ID
+      const historyData = fs.readFileSync(backupLogPath, 'utf8');
+      const backupHistory = JSON.parse(historyData);
+      const backup = backupHistory.find(b => b.id === backupId);
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      if (!fs.existsSync(backup.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
+      }
+      
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${backup.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(backup.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
       });
     }
   });

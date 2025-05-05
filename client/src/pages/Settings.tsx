@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, Database, Download, DownloadCloud, HardDrive, RefreshCw, Server } from "lucide-react";
+import { AlertCircle, Database, Download, DownloadCloud, HardDrive, List, RefreshCw, Server } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -264,16 +265,20 @@ export default function Settings() {
               </div>
             )}
             
-            {/* Download backup button */}
+            {/* Backup history and download buttons */}
             {(hasBackup || dbStats?.lastBackup) && !isBackingUp && (
-              <Button 
-                className="w-full" 
-                variant="outline" 
-                onClick={downloadBackup}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Latest Backup
-              </Button>
+              <div className="flex gap-2 w-full">
+                <Button 
+                  className="flex-1" 
+                  variant="outline" 
+                  onClick={downloadBackup}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Latest Backup
+                </Button>
+                
+                <BackupHistoryDialog />
+              </div>
             )}
           </CardFooter>
         </Card>
