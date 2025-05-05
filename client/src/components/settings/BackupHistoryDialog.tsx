@@ -15,7 +15,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, List, RefreshCw } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { Download, List, RefreshCw, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface BackupHistoryProps {
@@ -32,6 +33,7 @@ type BackupHistoryItem = {
     transactions: number;
     uploadedFiles: number;
   };
+  downloaded: boolean;
 };
 
 export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
@@ -58,6 +60,16 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
   const handleDownload = (backupId: string) => {
     // Create a direct download link to the specific backup file
     window.location.href = `/api/settings/backup/download/${backupId}`;
+    
+    // Schedule a refresh after a short delay to update the downloaded status
+    setTimeout(() => {
+      refetch();
+    }, 2000);
+    
+    toast({
+      title: "Download started",
+      description: "Your backup file is being downloaded."
+    });
   };
   
   const handleRefresh = () => {
@@ -137,7 +149,15 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
                             </div>
                           </TableCell>
                           <TableCell className="font-mono text-sm">
-                            {backup.fileName}
+                            <div className="flex items-center gap-2">
+                              {backup.fileName}
+                              {backup.downloaded && (
+                                <Badge variant="outline" className="flex items-center gap-1 text-green-500 border-green-200">
+                                  <CheckCircle className="h-3 w-3" />
+                                  <span className="text-xs">Downloaded</span>
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-xs">
@@ -153,11 +173,11 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
                           <TableCell>{formatBytes(backup.size)}</TableCell>
                           <TableCell>
                             <Button
-                              variant="ghost"
+                              variant={backup.downloaded ? "outline" : "ghost"}
                               size="sm"
-                              className="h-8 w-8 p-0"
+                              className={`h-8 w-8 p-0 ${backup.downloaded ? "bg-green-50 border-green-200 text-green-600" : ""}`}
                               onClick={() => handleDownload(backup.id)}
-                              title="Download Backup"
+                              title={backup.downloaded ? "Download Again" : "Download Backup"}
                             >
                               <Download className="h-4 w-4" />
                               <span className="sr-only">Download</span>
