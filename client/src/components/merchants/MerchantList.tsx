@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import {
   Table,
   TableBody,
@@ -8,6 +9,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Eye, Upload, Edit } from "lucide-react";
 import MerchantPagination from "./MerchantPagination";
 import { Merchant, Pagination } from "@/lib/types";
 
@@ -26,6 +35,7 @@ export default function MerchantList({
   onPageChange,
   toggleUploadModal,
 }: MerchantListProps) {
+  const [, setLocation] = useLocation();
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
@@ -165,25 +175,59 @@ export default function MerchantList({
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                         <div className="flex items-center justify-end space-x-3">
-                          <button className="text-blue-600 hover:text-blue-900">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-900">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button 
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={toggleUploadModal}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                          </button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
+                                  onClick={() => setLocation(`/merchants/${merchant.id}`)}
+                                >
+                                  <Eye className="w-5 h-5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>View Details</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                  onClick={() => setLocation(`/merchants/${merchant.id}?tab=details`)}
+                                >
+                                  <Edit className="w-5 h-5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit Merchant</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
+                                  onClick={toggleUploadModal}
+                                >
+                                  <Upload className="w-5 h-5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Upload Data</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -7,11 +7,13 @@ import Dashboard from "@/pages/Dashboard";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
 import Exports from "@/pages/Exports";
+import MerchantDetail from "@/pages/MerchantDetail";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/merchants/:id" component={MerchantDetail} />
       <Route path="/settings" component={Settings} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/exports" component={Exports} />
