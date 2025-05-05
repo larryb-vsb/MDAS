@@ -90,32 +90,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Create database backup
+  // Create database backup using direct SQL queries
   app.post("/api/settings/backup", async (req, res) => {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupFileName = `mms_backup_${timestamp}.sql`;
+      const backupFileName = `mms_backup_${timestamp}.json`;
       const backupFilePath = path.join(os.tmpdir(), backupFileName);
       
-      // Get database connection details from env
-      const dbUrl = new URL(process.env.DATABASE_URL || "");
-      const host = dbUrl.hostname;
-      const port = dbUrl.port;
-      const database = dbUrl.pathname.substring(1);
-      const user = dbUrl.username;
+      // Create backup by directly querying tables
+      const backupData = {
+        timestamp,
+        merchants: [],
+        transactions: [],
+        uploadedFiles: []
+      };
       
-      // Create backup using pg_dump - fix command format
-      // If port is empty, we need to handle it differently
-      const portOption = port ? `-p ${port}` : '';
-      const pgDumpCmd = `PGPASSWORD="${dbUrl.password}" pg_dump -h ${host} ${portOption} -U "${user}" -d "${database}" -f "${backupFilePath}"`;
+      // Get merchants data
+      const merchantsData = await db.select().from(merchantsTable);
+      backupData.merchants = merchantsData;
       
-      console.log("Executing backup command (credentials redacted)");
-      try {
-        await execPromise(pgDumpCmd);
-      } catch (execError) {
-        console.error("pg_dump execution error:", execError.message);
-        throw new Error(`Backup failed: ${execError.message}`);
-      }
+      // Get transactions data
+      const transactionsData = await db.select().from(transactionsTable);
+      backupData.transactions = transactionsData;
+      
+      // Get uploaded files data
+      const uploadedFilesData = await db.select().from(uploadedFilesTable);
+      backupData.uploadedFiles = uploadedFilesData;
+      
+      // Write backup to file as JSON
+      fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2));
       
       // Save backup timestamp
       fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_time.txt'), new Date().toISOString());
@@ -124,7 +127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         message: "Database backup created successfully",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        backupPath: backupFilePath
       });
     } catch (error) {
       console.error("Error creating database backup:", error);
