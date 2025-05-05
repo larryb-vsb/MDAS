@@ -322,6 +322,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Restore a backup from trash
+  app.post("/api/settings/backup/:id/restore", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      
+      // Find the backup record
+      const [backup] = await db
+        .select()
+        .from(backupHistoryTable)
+        .where(eq(backupHistoryTable.id, backupId));
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      // Mark the backup as not deleted (restore)
+      await db
+        .update(backupHistoryTable)
+        .set({ deleted: false })
+        .where(eq(backupHistoryTable.id, backupId));
+      
+      res.json({ 
+        success: true, 
+        message: "Backup restored successfully" 
+      });
+    } catch (error) {
+      console.error("Error restoring backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to restore backup" 
+      });
+    }
+  });
+  
   // Download the latest database backup
   app.get("/api/settings/backup/download", async (req, res) => {
     try {

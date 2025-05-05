@@ -51,7 +51,9 @@ type BackupHistoryItem = {
 export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
   const [activeTab, setActiveTab] = useState("history");
   const [backupToDelete, setBackupToDelete] = useState<string | null>(null);
+  const [backupToRestore, setBackupToRestore] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   
   const {
     data: backupHistory,
@@ -59,8 +61,23 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
     isError,
     refetch
   } = useQuery<BackupHistoryItem[]>({
-    queryKey: ["/api/settings/backup/history"],
+    queryKey: ["/api/settings/backup/history", false],
+    queryFn: () => fetch("/api/settings/backup/history").then(res => res.json()),
     staleTime: 1000 * 60, // 1 minute
+  });
+  
+  const {
+    data: deletedBackups,
+    isLoading: isLoadingDeleted,
+    isError: isErrorDeleted,
+    refetch: refetchDeleted
+  } = useQuery<BackupHistoryItem[]>({
+    queryKey: ["/api/settings/backup/history", true],
+    queryFn: () => fetch("/api/settings/backup/history?includeDeleted=true").then(res => {
+      return res.json().then(data => data.filter((backup: BackupHistoryItem) => backup.deleted));
+    }),
+    staleTime: 1000 * 60, // 1 minute
+    enabled: activeTab === "trash" // Only fetch when trash tab is active
   });
   
   const formatBytes = (bytes: number) => {
@@ -121,11 +138,53 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
   };
   
   const handleRefresh = () => {
-    refetch();
-    toast({
-      title: "Refreshed",
-      description: "Backup history has been refreshed.",
-    });
+    if (activeTab === "history") {
+      refetch();
+      toast({
+        title: "Refreshed",
+        description: "Backup history has been refreshed.",
+      });
+    } else {
+      refetchDeleted();
+      toast({
+        title: "Refreshed",
+        description: "Trash has been refreshed.",
+      });
+    }
+  };
+  
+  const handleRestore = async () => {
+    if (!backupToRestore) return;
+    
+    setIsRestoring(true);
+    
+    try {
+      const response = await fetch(`/api/settings/backup/${backupToRestore}/restore`, {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to restore backup: ${response.statusText}`);
+      }
+      
+      // Invalidate both queries to refresh lists
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/backup/history"] });
+      
+      toast({
+        title: "Backup restored",
+        description: "The backup file has been restored successfully."
+      });
+    } catch (error) {
+      console.error("Error restoring backup:", error);
+      toast({
+        title: "Error",
+        description: "Failed to restore the backup file.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRestoring(false);
+      setBackupToRestore(null);
+    }
   };
   
   return (
@@ -164,6 +223,40 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={!!backupToRestore} onOpenChange={(open) => !open && setBackupToRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore backup?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This backup will be restored from trash and will appear in the backup history again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRestoring}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleRestore();
+              }} 
+              disabled={isRestoring}
+              className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
+            >
+              {isRestoring ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Restore backup
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog>
         <DialogTrigger asChild>
@@ -184,7 +277,9 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList>
                 <TabsTrigger value="history">History</TabsTrigger>
+                <TabsTrigger value="trash">Trash</TabsTrigger>
               </TabsList>
+              
               <TabsContent value="history" className="mt-4">
                 <div className="flex justify-end mb-2">
                   <Button variant="outline" size="sm" onClick={handleRefresh}>
@@ -284,6 +379,102 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                             No backup history found. Create a backup first.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </TabsContent>
+              
+              <TabsContent value="trash" className="mt-4">
+                <div className="flex justify-end mb-2">
+                  <Button variant="outline" size="sm" onClick={handleRefresh}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+                
+                <ScrollArea className="h-[350px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>File</TableHead>
+                        <TableHead>Records</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingDeleted ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            <RefreshCw className="h-5 w-5 mx-auto animate-spin text-muted-foreground" />
+                            <span className="mt-2 block text-sm text-muted-foreground">Loading trash...</span>
+                          </TableCell>
+                        </TableRow>
+                      ) : isErrorDeleted ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-destructive">
+                            Failed to load trash.
+                          </TableCell>
+                        </TableRow>
+                      ) : deletedBackups && deletedBackups.length > 0 ? (
+                        deletedBackups.map((backup) => (
+                          <TableRow key={backup.id} className="text-muted-foreground">
+                            <TableCell>
+                              <div className="font-medium">
+                                {format(new Date(backup.timestamp), 'MMM d, yyyy')}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(backup.timestamp), 'h:mm a')}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(backup.timestamp), { addSuffix: true })}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <div className="flex items-center gap-2">
+                                {backup.fileName}
+                                {backup.downloaded && (
+                                  <Badge variant="outline" className="flex items-center gap-1 text-green-500 border-green-200">
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span className="text-xs">Downloaded</span>
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs">
+                                <span className="font-medium">Merchants:</span> {backup.tables.merchants}
+                              </div>
+                              <div className="text-xs">
+                                <span className="font-medium">Transactions:</span> {backup.tables.transactions}
+                              </div>
+                              <div className="text-xs">
+                                <span className="font-medium">Files:</span> {backup.tables.uploadedFiles}
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatBytes(backup.size)}</TableCell>
+                            <TableCell className="space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-green-500 hover:text-green-600 hover:bg-green-50"
+                                onClick={() => setBackupToRestore(backup.id)}
+                                title="Restore backup"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="sr-only">Restore</span>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            Trash is empty.
                           </TableCell>
                         </TableRow>
                       )}
