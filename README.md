@@ -32,8 +32,8 @@ A comprehensive dashboard for managing merchants, processing transactions, and a
 
 1. Clone the repository:
 ```
-git clone https://github.com/yourusername/merchant-management-system.git
-cd merchant-management-system
+git clone https://github.com/larryb-vsb/MMS.git
+cd MMS
 ```
 
 2. Install dependencies:
