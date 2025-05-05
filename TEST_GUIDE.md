@@ -1,79 +1,174 @@
 # Testing Guide for Merchant Management System
 
-This guide explains how to run and write tests for the Merchant Management System.
+This guide provides instructions for running and writing tests for the Merchant Management System.
 
-## Testing Setup
+## Testing Stack
 
-The project uses Jest and React Testing Library for testing. The test configuration includes:
+The project uses the following testing tools:
 
-- **Jest**: JavaScript testing framework
-- **React Testing Library**: DOM testing utilities for React components
-- **User Event**: Simulating user interactions
-- **Jest DOM**: Custom Jest matchers for DOM testing
-- **Babel**: For transpiling TypeScript and JSX in tests
+- **Jest**: Test runner and assertion library
+- **React Testing Library**: For testing React components
+- **MSW (Mock Service Worker)**: For mocking API requests during tests
 
 ## Running Tests
 
-To run the tests, use the provided script:
+### Running All Tests
 
-```bash
-./run-tests.sh
+To run all tests in the project:
+
+```
+npm test
 ```
 
-This will run all test files with the `.test.ts` or `.test.tsx` extension in the `client/src/__tests__` directory.
+### Running Specific Tests
+
+To run a specific test file:
+
+```
+npm test -- client/src/__tests__/Settings.test.tsx
+```
+
+Or to run tests matching a specific pattern:
+
+```
+npm test -- -t "BackupHistoryDialog"
+```
+
+### Running Tests in Watch Mode
+
+For development, you can run tests in watch mode, which will automatically rerun tests when files change:
+
+```
+npm test -- --watch
+```
 
 ## Test Structure
 
-Tests are organized in the following structure:
+### Component Tests
 
-```
-client/src/__tests__/
-├── __mocks__/           # Mock data and handlers
-├── utils/               # Test utilities
-│   └── test-utils.tsx   # Custom render function with providers
-├── Settings.test.tsx    # Tests for Settings page
-├── BackupHistoryDialog.test.tsx  # Tests for backup history dialog
-└── database.test.ts     # Tests for database module
-```
+Component tests are located in `client/src/__tests__/` and follow this structure:
 
-## Writing New Tests
+```jsx
+// Import the component and testing utilities
+import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders } from './utils/test-utils';
+import MyComponent from '@/components/path/to/MyComponent';
 
-When writing new tests:
+// Setup mock handlers if needed
+jest.mock('@/lib/queryClient', () => ({
+  // Mock implementation
+}));
 
-1. Create test files with `.test.tsx` or `.test.ts` extension
-2. Use the `render` function from `test-utils.tsx` to include necessary providers
-3. Mock API requests using Jest's mocking capabilities
-4. Assertions should use Jest DOM matchers
+describe('MyComponent', () => {
+  // Setup before each test if needed
+  beforeEach(() => {
+    // Setup code
+  });
 
-Example:
-
-```tsx
-import { screen } from '@testing-library/react';
-import { render } from './utils/test-utils';
-import YourComponent from '@/components/YourComponent';
-
-describe('YourComponent', () => {
   it('renders correctly', () => {
-    render(<YourComponent />);
+    renderWithProviders(<MyComponent />);
+    
+    // Make assertions about what appears in the document
     expect(screen.getByText('Expected Text')).toBeInTheDocument();
+  });
+
+  it('handles user interactions', () => {
+    renderWithProviders(<MyComponent />);
+    
+    // Simulate user actions
+    fireEvent.click(screen.getByRole('button', { name: 'Click Me' }));
+    
+    // Assert the expected outcome
+    expect(screen.getByText('Result')).toBeInTheDocument();
   });
 });
 ```
 
-## Mocks
+### API/Integration Tests
 
-The test setup includes mocks for:
+For testing API integration:
 
-- API requests via `@/lib/queryClient`
-- Common UI components (Sidebar, Header, etc.)
-- Browser APIs (window.location, IntersectionObserver)
+```jsx
+import { server, rest } from './utils/server';
+import { renderWithProviders } from './utils/test-utils';
+import { waitFor } from '@testing-library/react';
 
-To add new mocks, create mock implementations in the `__mocks__` directory.
+// Setup handlers for this specific test
+beforeEach(() => {
+  server.use(
+    rest.get('/api/endpoint', (req, res, ctx) => {
+      return res(ctx.json({ data: 'mocked response' }));
+    })
+  );
+});
 
-## Testing Best Practices
+it('fetches and displays data', async () => {
+  renderWithProviders(<ComponentThatFetchesData />);
+  
+  await waitFor(() => {
+    expect(screen.getByText('mocked response')).toBeInTheDocument();
+  });
+});
+```
 
-- Test component rendering, user interactions, and state changes
-- Mock external dependencies (API calls, complex UI components)
-- Write focused tests that target specific functionality
-- Use descriptive test and assertion messages
-- Ensure tests are independent and don't rely on external state
+## Testing Utilities
+
+### `renderWithProviders`
+
+A helper function that wraps components with necessary providers (React Query, etc.):
+
+```jsx
+// Usage
+import { renderWithProviders } from './__tests__/utils/test-utils';
+
+test('my test', () => {
+  renderWithProviders(<MyComponent />);
+  // Make assertions...
+});
+```
+
+### Mock Handlers
+
+We use MSW to intercept and mock API requests:
+
+```jsx
+// Example mock handler
+rest.get('/api/merchants', (req, res, ctx) => {
+  return res(ctx.json({
+    merchants: mockMerchants,
+    pagination: { ... }
+  }));
+});
+```
+
+## Test Coverage
+
+To generate a test coverage report:
+
+```
+npm test -- --coverage
+```
+
+This will create a coverage report in the `coverage` directory, which you can view by opening `coverage/lcov-report/index.html` in your browser.
+
+## Best Practices
+
+1. **Test behavior, not implementation**: Focus on what the component does, not how it does it.
+2. **Use user-centric queries**: Prefer `getByRole`, `getByLabelText`, etc. over `getByTestId`.
+3. **Test edge cases**: Include tests for loading states, error states, and boundary conditions.
+4. **Keep tests independent**: Each test should be able to run independently of others.
+5. **Mock external dependencies**: Use jest.mock() for external services and APIs.
+6. **Avoid testing implementation details**: Focus on testing the public API of your components.
+
+## Debugging Tests
+
+If a test is failing, you can use these strategies to debug:
+
+1. Use `screen.debug()` to print the current DOM state.
+2. Use `console.log()` to inspect variables during test execution.
+3. Run a single test with `--verbose` to see more details.
+4. Use `test.only()` to run just one test in a file.
+
+## Continuous Integration
+
+Tests are automatically run in our CI pipeline (GitHub Actions) for every pull request and push to main.

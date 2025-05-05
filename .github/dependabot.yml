@@ -1,0 +1,35 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    # Look for `package.json` and `lock` files in the `root` directory
+    directory: "/"
+    # Check for updates once a week
+    schedule:
+      interval: "weekly"
+    # Limit the number of open pull requests for npm dependencies
+    open-pull-requests-limit: 10
+    # Add assignees
+    assignees:
+      - "octocat"
+    # Add reviewers
+    reviewers:
+      - "octocat"
+    # Label PRs with `dependencies`
+    labels:
+      - "dependencies"
+    # Specify the target branch
+    target-branch: "main"
+    # Allow up-to-date PRs to be auto-merged
+    versioning-strategy: auto
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Limit the number of open pull requests for GitHub Actions
+    open-pull-requests-limit: 5
+    # Label PRs with `actions-dependencies`
+    labels:
+      - "actions-dependencies"
