@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db, pool } from "./db";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
@@ -9,6 +10,12 @@ import { parse as parseCSV } from "csv-parse";
 import { format as formatCSV } from "csv-format";
 import multer from "multer";
 import os from "os";
+import { promisify } from "util";
+import { exec } from "child_process";
+import { count } from "drizzle-orm";
+import { merchants as merchantsTable, transactions as transactionsTable, uploadedFiles as uploadedFilesTable } from "@shared/schema";
+
+const execPromise = promisify(exec);
 
 // Set up multer for file uploads
 const upload = multer({ 
@@ -17,6 +24,109 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get database statistics and info for settings page
+  app.get("/api/settings/database", async (req, res) => {
+    try {
+      // Get PostgreSQL version
+      const versionResult = await pool.query("SELECT version()");
+      const version = versionResult.rows[0].version.split(" ")[1];
+      
+      // Get table information
+      const tables = ['merchants', 'transactions', 'uploaded_files'];
+      const tableStats = [];
+      let totalRows = 0;
+      let totalSizeBytes = 0;
+      
+      for (const tableName of tables) {
+        // Get row count for each table
+        const rowCountResult = await db.select({ count: count() }).from(
+          tableName === 'merchants' ? merchantsTable : 
+          tableName === 'transactions' ? transactionsTable : uploadedFilesTable
+        );
+        const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
+        
+        // Get table size in bytes
+        const sizeResult = await pool.query(`
+          SELECT pg_total_relation_size('${tableName}') as size
+        `);
+        const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
+        
+        tableStats.push({
+          name: tableName,
+          rowCount,
+          sizeBytes
+        });
+        
+        totalRows += rowCount;
+        totalSizeBytes += sizeBytes;
+      }
+      
+      // Get last backup info if exists
+      let lastBackup = null;
+      const backupTimePath = path.join(os.tmpdir(), 'last_backup_time.txt');
+      if (fs.existsSync(backupTimePath)) {
+        lastBackup = fs.readFileSync(backupTimePath, 'utf8');
+      }
+      
+      res.json({
+        connectionStatus: "connected",
+        version,
+        tables: tableStats,
+        totalRows,
+        totalSizeBytes,
+        lastBackup
+      });
+    } catch (error) {
+      console.error("Error getting database information:", error);
+      res.status(500).json({ 
+        connectionStatus: "error",
+        version: "Unknown",
+        tables: [],
+        totalRows: 0,
+        totalSizeBytes: 0,
+        lastBackup: null,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Create database backup
+  app.post("/api/settings/backup", async (req, res) => {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFileName = `mms_backup_${timestamp}.sql`;
+      const backupFilePath = path.join(os.tmpdir(), backupFileName);
+      
+      // Get database connection details from env
+      const dbUrl = new URL(process.env.DATABASE_URL || "");
+      const host = dbUrl.hostname;
+      const port = dbUrl.port;
+      const database = dbUrl.pathname.substring(1);
+      const user = dbUrl.username;
+      
+      // Create backup using pg_dump
+      const pgDumpCmd = `PGPASSWORD="${dbUrl.password}" pg_dump -h ${host} -p ${port} -U ${user} -d ${database} -f ${backupFilePath}`;
+      
+      await execPromise(pgDumpCmd);
+      
+      // Save backup timestamp
+      fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_time.txt'), new Date().toISOString());
+      
+      // Success response
+      res.json({
+        success: true,
+        message: "Database backup created successfully",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error creating database backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to create database backup" 
+      });
+    }
+  });
+  
   // Get dashboard stats
   app.get("/api/stats", async (req, res) => {
     try {
