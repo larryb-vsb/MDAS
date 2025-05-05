@@ -120,21 +120,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Write backup to file as JSON
       fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2));
       
-      // Save backup timestamp
-      fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_time.txt'), new Date().toISOString());
+      // Save backup timestamp and filename for later download
+      const backupInfo = {
+        timestamp: new Date().toISOString(),
+        filePath: backupFilePath,
+        fileName: backupFileName
+      };
+      fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_info.json'), JSON.stringify(backupInfo));
       
       // Success response
       res.json({
         success: true,
         message: "Database backup created successfully",
         timestamp: new Date().toISOString(),
-        backupPath: backupFilePath
+        backupPath: backupFilePath,
+        fileName: backupFileName
       });
     } catch (error) {
       console.error("Error creating database backup:", error);
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to create database backup" 
+      });
+    }
+  });
+  
+  // Download the latest database backup
+  app.get("/api/settings/backup/download", async (req, res) => {
+    try {
+      // Check if backup info exists
+      const backupInfoPath = path.join(os.tmpdir(), 'last_backup_info.json');
+      
+      if (!fs.existsSync(backupInfoPath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "No backup found. Please create a backup first." 
+        });
+      }
+      
+      // Get backup info
+      const backupInfoContent = fs.readFileSync(backupInfoPath, 'utf8');
+      const backupInfo = JSON.parse(backupInfoContent);
+      
+      if (!fs.existsSync(backupInfo.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
+      }
+      
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${backupInfo.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(backupInfo.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
       });
     }
   });

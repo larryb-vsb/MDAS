@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, Database, DownloadCloud, HardDrive, RefreshCw, Server } from "lucide-react";
+import { AlertCircle, Database, Download, DownloadCloud, HardDrive, RefreshCw, Server } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -27,6 +27,7 @@ interface DatabaseStats {
 export default function Settings() {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupProgress, setBackupProgress] = useState(0);
+  const [hasBackup, setHasBackup] = useState(false);
   
   // Fetch database statistics
   const {
@@ -53,10 +54,16 @@ export default function Settings() {
         });
       }, 500);
       
-      await apiRequest("/api/settings/backup", "POST");
+      const response = await apiRequest("POST", "/api/settings/backup");
+      const responseData = await response.json();
       
       clearInterval(interval);
       setBackupProgress(100);
+      
+      // Set hasBackup to true if the backup was created successfully
+      if (responseData && responseData.success) {
+        setHasBackup(true);
+      }
       
       toast({
         title: "Backup created successfully",
@@ -77,6 +84,11 @@ export default function Settings() {
         setBackupProgress(0);
       }, 1000);
     }
+  };
+  
+  const downloadBackup = () => {
+    // Create a direct download link to the backup file
+    window.location.href = "/api/settings/backup/download";
   };
   
   const formatBytes = (bytes: number) => {
@@ -250,6 +262,18 @@ export default function Settings() {
                 </div>
                 <Progress value={backupProgress} className="w-full" />
               </div>
+            )}
+            
+            {/* Download backup button */}
+            {(hasBackup || dbStats?.lastBackup) && !isBackingUp && (
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={downloadBackup}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Latest Backup
+              </Button>
             )}
           </CardFooter>
         </Card>
