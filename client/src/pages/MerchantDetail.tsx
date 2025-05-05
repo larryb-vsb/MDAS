@@ -132,7 +132,7 @@ export default function MerchantDetail() {
     mutationFn: (values: MerchantFormValues) => {
       return apiRequest(`/api/merchants/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(values)
+        body: values
       });
     },
     onSuccess: () => {
