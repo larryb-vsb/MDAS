@@ -45,7 +45,8 @@ export const backupHistory = pgTable("backup_history", {
   size: integer("size").notNull(),
   tables: jsonb("tables").notNull(), // Store table counts as JSON
   notes: text("notes"),
-  downloaded: boolean("downloaded").default(false).notNull()
+  downloaded: boolean("downloaded").default(false).notNull(),
+  deleted: boolean("deleted").default(false).notNull()
 });
 
 // Zod schemas for merchants

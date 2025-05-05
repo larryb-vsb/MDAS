@@ -203,19 +203,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get backup history
   app.get("/api/settings/backup/history", async (req, res) => {
     try {
-      // Get backup history from database, ordered by most recent first
-      const backupRecords = await db
+      // Check if we should include deleted backups
+      const includeDeleted = req.query.includeDeleted === 'true';
+      
+      // Create query builder
+      let query = db
         .select({
           id: backupHistoryTable.id,
           timestamp: backupHistoryTable.timestamp,
           fileName: backupHistoryTable.fileName,
           size: backupHistoryTable.size,
           tables: backupHistoryTable.tables,
-          downloaded: backupHistoryTable.downloaded
+          downloaded: backupHistoryTable.downloaded,
+          deleted: backupHistoryTable.deleted
         })
         .from(backupHistoryTable)
         .orderBy(desc(backupHistoryTable.timestamp))
         .limit(20);
+      
+      // Filter out deleted backups unless specifically requested
+      if (!includeDeleted) {
+        query = query.where(eq(backupHistoryTable.deleted, false));
+      }
+      
+      const backupRecords = await query;
       
       res.json(backupRecords);
     } catch (error) {
@@ -270,6 +281,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to download backup file" 
+      });
+    }
+  });
+  
+  // Soft delete a backup
+  app.delete("/api/settings/backup/:id", async (req, res) => {
+    try {
+      const backupId = req.params.id;
+      
+      // Find the backup record
+      const [backup] = await db
+        .select()
+        .from(backupHistoryTable)
+        .where(eq(backupHistoryTable.id, backupId));
+      
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
+      }
+      
+      // Mark the backup as deleted (soft delete)
+      await db
+        .update(backupHistoryTable)
+        .set({ deleted: true })
+        .where(eq(backupHistoryTable.id, backupId));
+      
+      res.json({ 
+        success: true, 
+        message: "Backup moved to trash successfully" 
+      });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to delete backup" 
       });
     }
   });
