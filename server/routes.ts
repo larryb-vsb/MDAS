@@ -500,6 +500,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Get merchant details by ID
+  app.get("/api/merchants/:id", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      const merchantDetails = await storage.getMerchantById(merchantId);
+      res.json(merchantDetails);
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant details" 
+      });
+    }
+  });
+  
+  // Update merchant details
+  app.put("/api/merchants/:id", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      const schema = z.object({
+        name: z.string().optional(),
+        status: z.string().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      const updatedMerchant = await storage.updateMerchant(merchantId, merchantData);
+      
+      res.json({ 
+        success: true, 
+        merchant: updatedMerchant 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update merchant" 
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

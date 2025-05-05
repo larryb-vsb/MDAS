@@ -29,6 +29,30 @@ export interface IStorage {
     };
   }>;
   
+  // Get merchant by ID with transactions
+  getMerchantById(merchantId: string): Promise<{
+    merchant: any;
+    transactions: any[];
+    analytics: {
+      dailyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      monthlyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      transactionHistory: {
+        name: string;
+        transactions: number;
+        revenue: number;
+      }[];
+    };
+  }>;
+  
+  // Update merchant details
+  updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any>;
+  
   // Dashboard stats
   getDashboardStats(): Promise<{
     totalMerchants: number;
@@ -293,6 +317,149 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Get merchant by ID with transactions and analytics
+  async getMerchantById(merchantId: string): Promise<{
+    merchant: any;
+    transactions: any[];
+    analytics: {
+      dailyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      monthlyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      transactionHistory: {
+        name: string;
+        transactions: number;
+        revenue: number;
+      }[];
+    };
+  }> {
+    try {
+      // Get merchant details
+      const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      
+      if (!merchant) {
+        throw new Error(`Merchant with ID ${merchantId} not found`);
+      }
+      
+      // Get merchant transactions
+      const transactions = await db.select()
+        .from(transactionsTable)
+        .where(eq(transactionsTable.merchantId, merchantId))
+        .orderBy(desc(transactionsTable.date))
+        .limit(100);
+      
+      // Get merchant stats
+      const stats = await this.getMerchantStats(merchantId);
+      
+      // Generate transaction history by month for the last 6 months
+      const transactionHistory = await this.getTransactionHistoryByMonth(merchantId, 6);
+      
+      // Format transactions for display
+      const formattedTransactions = transactions.map(t => ({
+        transactionId: t.id,
+        merchantId: t.merchantId,
+        amount: parseFloat(t.amount.toString()),
+        date: t.date.toISOString(),
+        type: t.type
+      }));
+      
+      return {
+        merchant: {
+          id: merchant.id,
+          name: merchant.name,
+          status: merchant.status,
+          address: merchant.address || '',
+          city: merchant.city || '',
+          state: merchant.state || '',
+          zipCode: merchant.zipCode || '',
+          category: merchant.category || ''
+        },
+        transactions: formattedTransactions,
+        analytics: {
+          dailyStats: stats.daily,
+          monthlyStats: stats.monthly,
+          transactionHistory
+        }
+      };
+    } catch (error) {
+      console.error(`Error fetching merchant ${merchantId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Update merchant details
+  async updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any> {
+    try {
+      // Check if merchant exists
+      const [existingMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      
+      if (!existingMerchant) {
+        throw new Error(`Merchant with ID ${merchantId} not found`);
+      }
+      
+      // Update merchant
+      await db.update(merchantsTable)
+        .set(merchantData)
+        .where(eq(merchantsTable.id, merchantId));
+      
+      // Get updated merchant
+      const [updatedMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      
+      return updatedMerchant;
+    } catch (error) {
+      console.error(`Error updating merchant ${merchantId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Get transaction history by month
+  private async getTransactionHistoryByMonth(merchantId: string, months: number): Promise<{
+    name: string;
+    transactions: number;
+    revenue: number;
+  }[]> {
+    try {
+      const now = new Date();
+      const result = [];
+      
+      for (let i = 0; i < months; i++) {
+        const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        
+        // Get transactions for this month
+        const monthTransactions = await db.select()
+          .from(transactionsTable)
+          .where(and(
+            eq(transactionsTable.merchantId, merchantId),
+            between(transactionsTable.date, month, nextMonth)
+          ));
+        
+        // Calculate revenue
+        const revenue = monthTransactions.reduce((sum, tx) => {
+          const amount = parseFloat(tx.amount.toString());
+          return sum + (tx.type === "Sale" ? amount : -amount);
+        }, 0);
+        
+        // Add to result
+        result.push({
+          name: month.toLocaleString('default', { month: 'short' }),
+          transactions: monthTransactions.length,
+          revenue: Number(revenue.toFixed(2))
+        });
+      }
+      
+      // Reverse to get chronological order
+      return result.reverse();
+    } catch (error) {
+      console.error(`Error getting transaction history for merchant ${merchantId}:`, error);
+      return [];
+    }
+  }
+  
   // Calculate stats for a merchant
   private async getMerchantStats(merchantId: string): Promise<{
     daily: { transactions: number; revenue: number };
