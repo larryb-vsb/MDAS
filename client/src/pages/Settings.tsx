@@ -274,7 +274,7 @@ export default function Settings() {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Environment:</span>
-                <span>{process.env.NODE_ENV}</span>
+                <span>{import.meta.env.MODE || "development"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Database Type:</span>
@@ -283,8 +283,8 @@ export default function Settings() {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="font-medium">Node.js Version:</span>
-                <span>{process.version}</span>
+                <span className="font-medium">Frontend Framework:</span>
+                <span>React + Vite</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Host:</span>
