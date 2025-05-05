@@ -17,7 +17,7 @@ import {
   merchants as merchantsTable, 
   transactions as transactionsTable, 
   uploadedFiles as uploadedFilesTable,
-  backupHistory as backupHistoryTable,
+  backupHistory,
   InsertBackupHistory
 } from "@shared/schema";
 
@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const table = 
             tableName === 'merchants' ? merchantsTable : 
             tableName === 'transactions' ? transactionsTable : 
-            tableName === 'backup_history' ? backupHistoryTable : uploadedFilesTable;
+            tableName === 'backup_history' ? backupHistory : uploadedFilesTable;
           
           console.log(`Selected table object for ${tableName}`);
           
@@ -91,9 +91,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let lastBackup = null;
       try {
         const [latestBackup] = await db
-          .select({ timestamp: backupHistoryTable.timestamp })
-          .from(backupHistoryTable)
-          .orderBy(desc(backupHistoryTable.timestamp))
+          .select({ timestamp: backupHistory.timestamp })
+          .from(backupHistory)
+          .orderBy(desc(backupHistory.timestamp))
           .limit(1);
         
         if (latestBackup) {
@@ -172,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Insert backup record into database
-      await db.insert(backupHistoryTable).values({
+      await db.insert(backupHistory).values({
         id: backupId,
         fileName: backupFileName,
         filePath: backupFilePath,
@@ -282,9 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update the downloaded status
       await db
-        .update(backupHistoryTable)
+        .update(backupHistory)
         .set({ downloaded: true })
-        .where(eq(backupHistoryTable.id, backupId));
+        .where(eq(backupHistory.id, backupId));
       
       // Stream the file to client
       const fileStream = fs.createReadStream(backup.filePath);
@@ -306,8 +306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find the backup record
       const [backup] = await db
         .select()
-        .from(backupHistoryTable)
-        .where(eq(backupHistoryTable.id, backupId));
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
       
       if (!backup) {
         return res.status(404).json({ 
@@ -318,9 +318,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Mark the backup as deleted (soft delete)
       await db
-        .update(backupHistoryTable)
+        .update(backupHistory)
         .set({ deleted: true })
-        .where(eq(backupHistoryTable.id, backupId));
+        .where(eq(backupHistory.id, backupId));
       
       res.json({ 
         success: true, 
@@ -343,8 +343,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find the backup record
       const [backup] = await db
         .select()
-        .from(backupHistoryTable)
-        .where(eq(backupHistoryTable.id, backupId));
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
       
       if (!backup) {
         return res.status(404).json({ 
@@ -355,9 +355,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Mark the backup as not deleted (restore)
       await db
-        .update(backupHistoryTable)
+        .update(backupHistory)
         .set({ deleted: false })
-        .where(eq(backupHistoryTable.id, backupId));
+        .where(eq(backupHistory.id, backupId));
       
       res.json({ 
         success: true, 
@@ -378,8 +378,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the most recent backup from the database
       const [latestBackup] = await db
         .select()
-        .from(backupHistoryTable)
-        .orderBy(desc(backupHistoryTable.timestamp))
+        .from(backupHistory)
+        .orderBy(desc(backupHistory.timestamp))
         .limit(1);
       
       if (!latestBackup) {
@@ -402,9 +402,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update the downloaded status
       await db
-        .update(backupHistoryTable)
+        .update(backupHistory)
         .set({ downloaded: true })
-        .where(eq(backupHistoryTable.id, latestBackup.id));
+        .where(eq(backupHistory.id, latestBackup.id));
       
       // Stream the file to client
       const fileStream = fs.createReadStream(latestBackup.filePath);
