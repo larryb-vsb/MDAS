@@ -54,6 +54,13 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
   const [backupToRestore, setBackupToRestore] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [open, setOpen] = useState(false);
+  
+  // Combine the external onClose with our local state management
+  const handleClose = () => {
+    setOpen(false);
+    if (onClose) onClose();
+  };
   
   const {
     data: backupHistory,
@@ -258,9 +265,9 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
             <List className="h-4 w-4 mr-2" />
             View Backup History
           </Button>
@@ -486,7 +493,7 @@ export default function BackupHistoryDialog({ onClose }: BackupHistoryProps) {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={handleClose}>
               Close
             </Button>
           </DialogFooter>
