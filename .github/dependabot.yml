@@ -11,10 +11,10 @@ updates:
     open-pull-requests-limit: 10
     # Add assignees
     assignees:
-      - "octocat"
+      - "larryb-vsb"
     # Add reviewers
     reviewers:
-      - "octocat"
+      - "larryb-vsb"
     # Label PRs with `dependencies`
     labels:
       - "dependencies"
