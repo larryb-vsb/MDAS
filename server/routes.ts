@@ -150,6 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Add new backup to history with size information
       const stats = fs.statSync(backupFilePath);
+      
+      // Count the number of uploaded files that have been processed
+      const processedFiles = backupData.uploadedFiles.filter(file => file.processed).length;
+      
       backupHistory.push({
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
@@ -159,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tables: {
           merchants: backupData.merchants.length,
           transactions: backupData.transactions.length,
-          uploadedFiles: backupData.uploadedFiles.length
+          uploadedFiles: processedFiles
         }
       });
       
