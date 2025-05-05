@@ -12,7 +12,7 @@ import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count, desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { 
   merchants as merchantsTable, 
   transactions as transactionsTable, 
@@ -67,17 +67,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSizeBytes += sizeBytes;
       }
       
-      // Get last backup info if exists
+      // Get last backup info from database
       let lastBackup = null;
-      const backupInfoPath = path.join(os.tmpdir(), 'last_backup_info.json');
-      if (fs.existsSync(backupInfoPath)) {
-        const backupInfoContent = fs.readFileSync(backupInfoPath, 'utf8');
-        try {
-          const backupInfo = JSON.parse(backupInfoContent);
-          lastBackup = backupInfo.timestamp;
-        } catch (e) {
-          console.error('Error parsing backup info:', e);
+      try {
+        const [latestBackup] = await db
+          .select({ timestamp: backupHistoryTable.timestamp })
+          .from(backupHistoryTable)
+          .orderBy(desc(backupHistoryTable.timestamp))
+          .limit(1);
+        
+        if (latestBackup) {
+          lastBackup = latestBackup.timestamp.toISOString();
         }
+      } catch (e) {
+        console.error('Error getting latest backup info:', e);
       }
       
       res.json({
@@ -132,57 +135,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Write backup to file as JSON
       fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2));
       
-      // Save backup timestamp and filename for later download
-      const backupInfo = {
-        timestamp: new Date().toISOString(),
-        filePath: backupFilePath,
-        fileName: backupFileName
-      };
-      fs.writeFileSync(path.join(os.tmpdir(), 'last_backup_info.json'), JSON.stringify(backupInfo));
+      // No need to save backup info to a separate file anymore as we're using the database
       
-      // Add to backup history log
-      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
-      let backupHistory = [];
-      
-      // Read existing history if available
-      if (fs.existsSync(backupLogPath)) {
-        try {
-          const existingData = fs.readFileSync(backupLogPath, 'utf8');
-          backupHistory = JSON.parse(existingData);
-        } catch (err) {
-          console.error('Error reading backup history:', err);
-        }
-      }
-      
-      // Add new backup to history with size information
+      // Get information about the backup
       const stats = fs.statSync(backupFilePath);
       
       // Count the number of uploaded files that have been processed
       const processedFiles = backupData.uploadedFiles.filter(file => file.processed).length;
       
-      backupHistory.push({
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
+      // Store backup in database history
+      const backupId = Date.now().toString();
+      const tables = {
+        merchants: backupData.merchants.length,
+        transactions: backupData.transactions.length,
+        uploadedFiles: processedFiles
+      };
+      
+      // Insert backup record into database
+      await db.insert(backupHistoryTable).values({
+        id: backupId,
         fileName: backupFileName,
         filePath: backupFilePath,
+        timestamp: new Date(),
         size: stats.size,
-        tables: {
-          merchants: backupData.merchants.length,
-          transactions: backupData.transactions.length,
-          uploadedFiles: processedFiles
-        }
+        tables: tables,
+        notes: "Created via API",
+        downloaded: false
       });
-      
-      // Sort by timestamp descending (newest first)
-      backupHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
-      // Keep only the last 20 backups in history
-      if (backupHistory.length > 20) {
-        backupHistory = backupHistory.slice(0, 20);
-      }
-      
-      // Save updated history
-      fs.writeFileSync(backupLogPath, JSON.stringify(backupHistory, null, 2));
       
       // Success response
       res.json({
@@ -204,27 +183,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get backup history
   app.get("/api/settings/backup/history", async (req, res) => {
     try {
-      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
+      // Get backup history from database, ordered by most recent first
+      const backupRecords = await db
+        .select({
+          id: backupHistoryTable.id,
+          timestamp: backupHistoryTable.timestamp,
+          fileName: backupHistoryTable.fileName,
+          size: backupHistoryTable.size,
+          tables: backupHistoryTable.tables,
+          downloaded: backupHistoryTable.downloaded
+        })
+        .from(backupHistoryTable)
+        .orderBy(desc(backupHistoryTable.timestamp))
+        .limit(20);
       
-      // Return empty array if no history exists yet
-      if (!fs.existsSync(backupLogPath)) {
-        return res.json([]);
-      }
-      
-      // Read and return backup history
-      const historyData = fs.readFileSync(backupLogPath, 'utf8');
-      const backupHistory = JSON.parse(historyData);
-      
-      // Return history without full file paths for security
-      const safeHistory = backupHistory.map(backup => ({
-        id: backup.id,
-        timestamp: backup.timestamp,
-        fileName: backup.fileName,
-        size: backup.size,
-        tables: backup.tables
-      }));
-      
-      res.json(safeHistory);
+      res.json(backupRecords);
     } catch (error) {
       console.error("Error retrieving backup history:", error);
       res.status(500).json({ 
@@ -238,19 +211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/settings/backup/download/:id", async (req, res) => {
     try {
       const backupId = req.params.id;
-      const backupLogPath = path.join(os.tmpdir(), 'backup_history.json');
       
-      if (!fs.existsSync(backupLogPath)) {
-        return res.status(404).json({ 
-          success: false, 
-          error: "No backup history found." 
-        });
-      }
-      
-      // Find the backup with matching ID
-      const historyData = fs.readFileSync(backupLogPath, 'utf8');
-      const backupHistory = JSON.parse(historyData);
-      const backup = backupHistory.find(b => b.id === backupId);
+      // Find the backup record in the database
+      const [backup] = await db
+        .select()
+        .from(backupHistoryTable)
+        .where(eq(backupHistoryTable.id, backupId));
       
       if (!backup) {
         return res.status(404).json({ 
@@ -270,6 +236,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Disposition', `attachment; filename=${backup.fileName}`);
       res.setHeader('Content-Type', 'application/json');
       
+      // Update the downloaded status
+      await db
+        .update(backupHistoryTable)
+        .set({ downloaded: true })
+        .where(eq(backupHistoryTable.id, backupId));
+      
       // Stream the file to client
       const fileStream = fs.createReadStream(backup.filePath);
       fileStream.pipe(res);
@@ -285,21 +257,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Download the latest database backup
   app.get("/api/settings/backup/download", async (req, res) => {
     try {
-      // Check if backup info exists
-      const backupInfoPath = path.join(os.tmpdir(), 'last_backup_info.json');
+      // Get the most recent backup from the database
+      const [latestBackup] = await db
+        .select()
+        .from(backupHistoryTable)
+        .orderBy(desc(backupHistoryTable.timestamp))
+        .limit(1);
       
-      if (!fs.existsSync(backupInfoPath)) {
+      if (!latestBackup) {
         return res.status(404).json({ 
           success: false, 
           error: "No backup found. Please create a backup first." 
         });
       }
       
-      // Get backup info
-      const backupInfoContent = fs.readFileSync(backupInfoPath, 'utf8');
-      const backupInfo = JSON.parse(backupInfoContent);
-      
-      if (!fs.existsSync(backupInfo.filePath)) {
+      if (!fs.existsSync(latestBackup.filePath)) {
         return res.status(404).json({ 
           success: false, 
           error: "Backup file not found. The temporary file may have been deleted." 
@@ -307,11 +279,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Set download headers
-      res.setHeader('Content-Disposition', `attachment; filename=${backupInfo.fileName}`);
+      res.setHeader('Content-Disposition', `attachment; filename=${latestBackup.fileName}`);
       res.setHeader('Content-Type', 'application/json');
       
+      // Update the downloaded status
+      await db
+        .update(backupHistoryTable)
+        .set({ downloaded: true })
+        .where(eq(backupHistoryTable.id, latestBackup.id));
+      
       // Stream the file to client
-      const fileStream = fs.createReadStream(backupInfo.filePath);
+      const fileStream = fs.createReadStream(latestBackup.filePath);
       fileStream.pipe(res);
     } catch (error) {
       console.error("Error downloading backup:", error);
