@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
@@ -9,6 +10,8 @@ interface DashboardStatsProps {
 }
 
 export default function DashboardStats({ isLoading, stats }: DashboardStatsProps) {
+  const [, setLocation] = useLocation();
+  
   const statCards = [
     {
       title: "Total Merchants",
@@ -19,8 +22,9 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
         </svg>
       ),
       bgColor: "bg-blue-500",
-      link: "#",
+      link: "/",
       linkText: "View all",
+      onClick: () => setLocation("/")
     },
     {
       title: "New Merchants (30d)",
@@ -31,8 +35,9 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
         </svg>
       ),
       bgColor: "bg-green-500",
-      link: "#",
+      link: "/exports",
       linkText: "View report",
+      onClick: () => setLocation("/exports")
     },
     {
       title: "Transactions (Today)",
@@ -43,8 +48,9 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
         </svg>
       ),
       bgColor: "bg-purple-500",
-      link: "#",
+      link: "/exports",
       linkText: "View details",
+      onClick: () => setLocation("/exports")
     },
     {
       title: "Monthly Revenue",
@@ -55,8 +61,9 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
         </svg>
       ),
       bgColor: "bg-yellow-500",
-      link: "#",
+      link: "/analytics",
       linkText: "View analytics",
+      onClick: () => setLocation("/analytics")
     },
   ];
 
@@ -85,7 +92,14 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
           </CardContent>
           <CardFooter className="px-5 py-3 bg-gray-50">
             <div className="text-sm">
-              <a href={stat.link} className="font-medium text-blue-600 hover:text-blue-500">
+              <a 
+                href={stat.link} 
+                className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  stat.onClick();
+                }}
+              >
                 {stat.linkText}
               </a>
             </div>
