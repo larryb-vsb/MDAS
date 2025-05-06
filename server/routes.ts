@@ -788,6 +788,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Delete multiple merchants
+  app.post("/api/merchants/delete", async (req, res) => {
+    try {
+      const { merchantIds } = req.body;
+      
+      if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: merchantIds must be a non-empty array" });
+      }
+      
+      await storage.deleteMerchants(merchantIds);
+      res.json({ success: true, message: `Successfully deleted ${merchantIds.length} merchants` });
+    } catch (error) {
+      console.error('Error deleting merchants:', error);
+      res.status(500).json({ error: "Failed to delete merchants" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
