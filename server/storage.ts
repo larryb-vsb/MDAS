@@ -931,27 +931,47 @@ export class DatabaseStorage implements IStorage {
                 const nameParts = similarMerchants[0].name.split(' ');
                 const merchantName = `${nameParts[0]} ${transaction.merchantId}`;
                 
-                // Create new merchant with derived name
+                // Create new merchant with derived name and sample data based on similar merchants
                 console.log(`Creating new merchant with derived name: ${merchantName} and ID: ${transaction.merchantId}`);
+                
+                // Get sample data from the similar merchant to use as template
+                const templateMerchant = similarMerchants[0];
+                
                 await db.insert(merchantsTable).values({
                   id: transaction.merchantId,
                   name: merchantName,
+                  clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
                   status: "Active",
+                  address: templateMerchant.address || "123 Business St",
+                  city: templateMerchant.city,
+                  state: templateMerchant.state,
+                  zipCode: templateMerchant.zipCode,
+                  country: templateMerchant.country || "US",
+                  category: templateMerchant.category || "Retail",
                   createdAt: new Date(),
-                  lastUploadDate: new Date()
+                  lastUploadDate: new Date(),
+                  editDate: new Date()
                 });
                 createdMerchants++;
               } else {
-                // No similar merchants found, create with default name
+                // No similar merchants found, create with default values
                 console.log(`Creating placeholder merchant for ID: ${transaction.merchantId}`);
                 createdMerchants++;
                 
                 await db.insert(merchantsTable).values({
                   id: transaction.merchantId,
                   name: `Merchant ${transaction.merchantId}`,
-                  status: "Pending",
+                  clientMID: `CM-${transaction.merchantId}`,
+                  status: "Pending", 
+                  address: "100 Main Street",
+                  city: "Chicago",
+                  state: "IL",
+                  zipCode: "60601",
+                  country: "US",
+                  category: "General",
                   createdAt: new Date(),
-                  lastUploadDate: new Date()
+                  lastUploadDate: new Date(),
+                  editDate: new Date()
                 });
               }
             } else {
