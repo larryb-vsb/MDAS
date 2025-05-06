@@ -489,11 +489,23 @@ export class DatabaseStorage implements IStorage {
       // Generate a unique transaction ID
       const transactionId = `T${Math.floor(Math.random() * 1000000)}`;
       
+      // Adjust amount based on transaction type
+      let adjustedAmount = transactionData.amount;
+      if (transactionData.type.toLowerCase() === 'credit') {
+        // Credit should be positive
+        adjustedAmount = Math.abs(adjustedAmount);
+        console.log(`Ensuring Credit transaction amount is positive: ${adjustedAmount}`);
+      } else if (transactionData.type.toLowerCase() === 'debit') {
+        // Debit should be negative
+        adjustedAmount = -Math.abs(adjustedAmount);
+        console.log(`Ensuring Debit transaction amount is negative: ${adjustedAmount}`);
+      }
+      
       // Create the transaction
       const transaction: InsertTransaction = {
         id: transactionId,
         merchantId,
-        amount: transactionData.amount.toString(), // Convert to string for database
+        amount: adjustedAmount.toString(), // Convert to string for database
         date: new Date(transactionData.date),
         type: transactionData.type
       };
@@ -565,6 +577,11 @@ export class DatabaseStorage implements IStorage {
         // Calculate revenue
         const revenue = monthTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
+          // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+          if (tx.type === "Credit" || tx.type === "Debit") {
+            return sum + amount;
+          }
+          // For other types like "Sale", continue using previous logic
           return sum + (tx.type === "Sale" ? amount : -amount);
         }, 0);
         
@@ -607,6 +624,11 @@ export class DatabaseStorage implements IStorage {
       // Calculate daily revenue
       const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
+        // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+        if (tx.type === "Credit" || tx.type === "Debit") {
+          return sum + amount;
+        }
+        // For other types like "Sale", continue using previous logic
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
@@ -1148,6 +1170,34 @@ export class DatabaseStorage implements IStorage {
                 if (code === "22" || code === "27") {
                   transaction[dbField as keyof InsertTransaction] = transactionCodeMapping[code] as any;
                   console.log(`Mapped transaction code ${code} to type ${transactionCodeMapping[code]}`);
+                  
+                  // Adjust amount based on transaction type
+                  if (transaction.amount !== undefined) {
+                    // Parse amount as number for comparison
+                    const amountNum = typeof transaction.amount === 'string' 
+                      ? parseFloat(transaction.amount) 
+                      : transaction.amount;
+                      
+                    if (code === "22") { // Credit - should be positive
+                      // If amount is negative, make it positive
+                      if (amountNum < 0) {
+                        const positiveAmount = Math.abs(amountNum);
+                        transaction.amount = typeof transaction.amount === 'string' 
+                          ? positiveAmount.toString() 
+                          : positiveAmount;
+                        console.log(`Adjusted negative amount to positive for Credit transaction: ${transaction.amount}`);
+                      }
+                    } else if (code === "27") { // Debit - should be negative
+                      // If amount is positive, make it negative
+                      if (amountNum > 0) {
+                        const negativeAmount = -Math.abs(amountNum);
+                        transaction.amount = typeof transaction.amount === 'string' 
+                          ? negativeAmount.toString() 
+                          : negativeAmount;
+                        console.log(`Adjusted positive amount to negative for Debit transaction: ${transaction.amount}`);
+                      }
+                    }
+                  }
                 } else {
                   // Default fallback if code is not recognized
                   transaction[dbField as keyof InsertTransaction] = row[csvField] as any;
