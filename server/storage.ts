@@ -738,6 +738,9 @@ export class DatabaseStorage implements IStorage {
   private async processMerchantFile(filePath: string): Promise<void> {
     console.log(`Processing merchant file: ${filePath}`);
     
+    // Import field mappings
+    const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases } = await import("@shared/field-mappings");
+    
     return new Promise((resolve, reject) => {
       // First check if file exists
       if (!existsSync(filePath)) {
@@ -762,27 +765,62 @@ export class DatabaseStorage implements IStorage {
         try {
           console.log(`Processing row ${rowCount}:`, JSON.stringify(row));
           
-          // Validate and transform the row data
-          const merchantData: InsertMerchant = {
-            id: row.merchantId || `M${++this.lastMerchantId}`,
-            name: row.name || "Unknown Merchant",
-            clientMID: row.clientMID || null,
-            otherClientNumber1: row.otherClientNumber1 || null,
-            otherClientNumber2: row.otherClientNumber2 || null,
-            clientSinceDate: row.clientSinceDate ? new Date(row.clientSinceDate) : null,
-            status: row.status || "Pending",
-            address: row.address || null,
-            city: row.city || null,
-            state: row.state || null,
-            zipCode: row.zip || null,
-            country: row.country || null,
-            category: row.category || null,
+          // Find the merchant ID using the list of possible field names
+          let merchantId: string | null = null;
+          for (const alias of merchantIdAliases) {
+            if (row[alias]) {
+              merchantId = row[alias];
+              break;
+            }
+          }
+          
+          // If no merchant ID found, generate one
+          if (!merchantId) {
+            merchantId = `M${++this.lastMerchantId}`;
+            console.log(`No merchant ID found in row ${rowCount}, generated: ${merchantId}`);
+          }
+          
+          // Create merchant object with mapped fields from CSV
+          const merchantData: Partial<InsertMerchant> = {
+            id: merchantId,
             createdAt: new Date(),
             lastUploadDate: new Date(),
             editDate: new Date()
           };
           
-          merchants.push(merchantData);
+          // Apply field mappings - map CSV fields to database fields
+          for (const [dbField, csvField] of Object.entries(merchantFieldMappings)) {
+            if (csvField && row[csvField] !== undefined) {
+              // For date fields, parse the date
+              if (dbField === 'clientSinceDate' && row[csvField]) {
+                try {
+                  merchantData[dbField as keyof InsertMerchant] = row[csvField] ? new Date(row[csvField]) as any : null;
+                } catch (e) {
+                  console.warn(`Failed to parse date for ${dbField}: ${row[csvField]}`);
+                  merchantData[dbField as keyof InsertMerchant] = null as any;
+                }
+              } else {
+                merchantData[dbField as keyof InsertMerchant] = row[csvField] as any;
+              }
+            }
+          }
+          
+          // Apply defaults for missing fields
+          for (const [field, defaultValue] of Object.entries(defaultMerchantValues)) {
+            if (!merchantData[field as keyof InsertMerchant]) {
+              merchantData[field as keyof InsertMerchant] = defaultValue as any;
+            }
+          }
+          
+          // Make sure name exists (required field)
+          if (!merchantData.name) {
+            merchantData.name = `Unknown Merchant ${merchantId}`;
+          }
+          
+          // Log the mapped merchant data
+          console.log(`Mapped merchant data:`, JSON.stringify(merchantData));
+          
+          merchants.push(merchantData as InsertMerchant);
         } catch (error) {
           errorCount++;
           console.error(`Error processing merchant row ${rowCount}:`, error);
@@ -857,6 +895,9 @@ export class DatabaseStorage implements IStorage {
   private async processTransactionFile(filePath: string): Promise<void> {
     console.log(`Processing transaction file: ${filePath}`);
     
+    // Import field mappings
+    const { transactionFieldMappings, transactionMerchantIdAliases } = await import("@shared/field-mappings");
+    
     return new Promise((resolve, reject) => {
       // First check if file exists
       if (!existsSync(filePath)) {
@@ -881,35 +922,71 @@ export class DatabaseStorage implements IStorage {
         try {
           console.log(`Processing transaction row ${rowCount}:`, JSON.stringify(row));
           
-          // Validate and transform the row data
-          const merchantId = row.merchantId;
+          // Find merchant ID in the row using aliases
+          let merchantId: string | null = null;
+          for (const alias of transactionMerchantIdAliases) {
+            if (row[alias]) {
+              merchantId = row[alias];
+              break;
+            }
+          }
           
           if (!merchantId) {
             throw new Error("Missing merchantId in transaction row");
           }
           
-          // Parse amount from string to number, handling different formats
-          let amount = 0;
-          if (row.amount) {
-            // Remove any currency symbols and commas
-            const cleanAmount = row.amount.toString().replace(/[$,]/g, '');
-            amount = parseFloat(cleanAmount);
-            
-            if (isNaN(amount)) {
-              console.error(`Invalid amount format in row ${rowCount}: ${row.amount}`);
-              amount = 0;
+          // Create transaction object with defaults
+          const transaction: Partial<InsertTransaction> = {
+            id: `T${Math.floor(Math.random() * 1000000)}`,
+            merchantId,
+            amount: 0,
+            date: new Date(),
+            type: "Sale"
+          };
+          
+          // Apply field mappings from CSV
+          for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
+            if (csvField && row[csvField] !== undefined) {
+              if (dbField === 'date' && row[csvField]) {
+                try {
+                  transaction[dbField as keyof InsertTransaction] = 
+                    row[csvField] ? new Date(row[csvField]) as any : new Date();
+                } catch (e) {
+                  console.warn(`Failed to parse date: ${row[csvField]}, using current date`);
+                  transaction[dbField as keyof InsertTransaction] = new Date() as any;
+                }
+              } 
+              else if (dbField === 'amount' && row[csvField]) {
+                // Parse amount from string to number, handling different formats
+                try {
+                  // Remove any currency symbols and commas
+                  const cleanAmount = row[csvField].toString().replace(/[$,]/g, '');
+                  const amount = parseFloat(cleanAmount);
+                  
+                  if (isNaN(amount)) {
+                    console.error(`Invalid amount format in row ${rowCount}: ${row[csvField]}`);
+                    transaction[dbField as keyof InsertTransaction] = 0 as any;
+                  } else {
+                    transaction[dbField as keyof InsertTransaction] = amount as any;
+                  }
+                } catch (e) {
+                  console.error(`Error parsing amount: ${row[csvField]}`);
+                  transaction[dbField as keyof InsertTransaction] = 0 as any;
+                }
+              }
+              else {
+                transaction[dbField as keyof InsertTransaction] = row[csvField] as any;
+              }
             }
           }
           
-          const transaction: InsertTransaction = {
-            id: row.transactionId || `T${Math.floor(Math.random() * 1000000)}`,
-            merchantId,
-            amount: amount,
-            date: row.date ? new Date(row.date) : new Date(),
-            type: row.type || "Sale"
-          };
+          // Make sure we have an ID
+          if (!transaction.id) {
+            transaction.id = `T${Math.floor(Math.random() * 1000000)}`;
+          }
           
-          transactions.push(transaction);
+          console.log(`Mapped transaction:`, JSON.stringify(transaction));
+          transactions.push(transaction as InsertTransaction);
         } catch (error) {
           errorCount++;
           console.error(`Error processing transaction row ${rowCount}:`, error);
