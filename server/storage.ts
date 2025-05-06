@@ -760,14 +760,8 @@ export class DatabaseStorage implements IStorage {
       let rowCount = 0;
       let errorCount = 0;
       
-      // Import field mapping functions at the beginning
-      let findMerchantIdFunc: any;
-      let normalizeMerchantIdFunc: any;
-      
-      import("@shared/field-mappings").then(mappings => {
-        findMerchantIdFunc = mappings.findMerchantId;
-        normalizeMerchantIdFunc = mappings.normalizeMerchantId;
-      });
+      // Import field mapping functions immediately
+      const { findMerchantId, normalizeMerchantId } = require("@shared/field-mappings");
       
       parser.on("data", (row) => {
         rowCount++;
@@ -775,7 +769,7 @@ export class DatabaseStorage implements IStorage {
           console.log(`Processing row ${rowCount}:`, JSON.stringify(row));
           
           // Find the merchant ID using our utility function
-          let merchantId = findMerchantIdFunc(row, merchantIdAliases);
+          let merchantId = findMerchantId(row, merchantIdAliases);
           
           // If no merchant ID found, generate one
           if (!merchantId) {
@@ -783,7 +777,7 @@ export class DatabaseStorage implements IStorage {
             console.log(`No merchant ID found in row ${rowCount}, generated: ${merchantId}`);
           } else {
             // Normalize the merchant ID (add prefix if needed)
-            merchantId = normalizeMerchantIdFunc(merchantId);
+            merchantId = normalizeMerchantId(merchantId);
           }
           
           // Create merchant object with mapped fields from CSV
@@ -927,14 +921,8 @@ export class DatabaseStorage implements IStorage {
       let rowCount = 0;
       let errorCount = 0;
       
-      // Import field mapping functions at the beginning
-      let findMerchantIdFunc: any;
-      let normalizeMerchantIdFunc: any;
-      
-      import("@shared/field-mappings").then(mappings => {
-        findMerchantIdFunc = mappings.findMerchantId;
-        normalizeMerchantIdFunc = mappings.normalizeMerchantId;
-      });
+      // Import field mapping functions immediately
+      const { findMerchantId, normalizeMerchantId } = require("@shared/field-mappings");
       
       parser.on("data", (row) => {
         rowCount++;
@@ -942,14 +930,14 @@ export class DatabaseStorage implements IStorage {
           console.log(`Processing transaction row ${rowCount}:`, JSON.stringify(row));
           
           // Find merchant ID using utility function
-          let merchantId = findMerchantIdFunc(row, transactionMerchantIdAliases);
+          let merchantId = findMerchantId(row, transactionMerchantIdAliases);
           
           if (!merchantId) {
             throw new Error("Missing merchantId in transaction row");
           }
           
           // Normalize merchant ID (add prefix if needed)
-          merchantId = normalizeMerchantIdFunc(merchantId);
+          merchantId = normalizeMerchantId(merchantId);
           
           // Create transaction object with defaults
           const transaction: Partial<InsertTransaction> = {
