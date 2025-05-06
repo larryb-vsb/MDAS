@@ -21,12 +21,26 @@ export const merchantFieldMappings = {
 };
 
 export const transactionFieldMappings = {
-  // Database field: CSV field name
+  // Database field: CSV field name (standard format)
   id: "TransactionID",
   merchantId: "MerchantID", // Field that links to merchant table
   amount: "Amount",
   date: "Date",
   type: "Type"
+};
+
+// Alternate transaction field mappings for different file formats
+export const alternateTransactionMappings = {
+  // New format with Name,Account,Amount,Date,Code,Descr
+  format1: {
+    id: null, // Will be auto-generated
+    merchantId: "Account", // Using Account as the merchant identifier
+    amount: "Amount",
+    date: "Date",
+    type: "Code", // Using Code as transaction type
+    description: "Descr", // Additional field for description
+    merchantName: "Name" // Name of merchant
+  }
 };
 
 // Customizable default values for fields not found in CSV
@@ -50,7 +64,8 @@ export const transactionMerchantIdAliases = [
   "MerchantID", 
   "Merchant_ID", 
   "ClientMID", 
-  "ClientID"
+  "ClientID",
+  "Account" // Adding Account as merchant ID for new format
 ];
 
 /**

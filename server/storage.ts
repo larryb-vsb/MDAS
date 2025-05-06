@@ -897,7 +897,13 @@ export class DatabaseStorage implements IStorage {
     console.log(`Processing transaction file: ${filePath}`);
     
     // Import field mappings and utility functions
-    const { transactionFieldMappings, transactionMerchantIdAliases, findMerchantId, normalizeMerchantId } = await import("@shared/field-mappings");
+    const { 
+      transactionFieldMappings, 
+      alternateTransactionMappings, 
+      transactionMerchantIdAliases, 
+      findMerchantId, 
+      normalizeMerchantId 
+    } = await import("@shared/field-mappings");
     
     return new Promise((resolve, reject) => {
       // First check if file exists
@@ -917,10 +923,37 @@ export class DatabaseStorage implements IStorage {
       const transactions: InsertTransaction[] = [];
       let rowCount = 0;
       let errorCount = 0;
+      let sampleRow: any = null;
+      let detectedFormat: string = 'default';
+      
+      // Function to detect file format based on headers
+      const detectFileFormat = (row: any): string => {
+        // Check for the new format (Name, Account, Amount, Date, Code, Descr)
+        if (row.Name !== undefined && 
+            row.Account !== undefined && 
+            row.Amount !== undefined && 
+            row.Date !== undefined && 
+            row.Code !== undefined && 
+            row.Descr !== undefined) {
+          console.log("Detected new transaction format with Name/Account/Code/Descr");
+          return 'format1';
+        }
+        
+        // Default format (TransactionID, MerchantID, Amount, Date, Type)
+        console.log("Using default transaction format");
+        return 'default';
+      };
       
       parser.on("data", (row) => {
         rowCount++;
         try {
+          // Save first row for format detection
+          if (rowCount === 1) {
+            sampleRow = row;
+            detectedFormat = detectFileFormat(row);
+            console.log(`Detected file format: ${detectedFormat}`);
+          }
+          
           console.log(`Processing transaction row ${rowCount}:`, JSON.stringify(row));
           
           // Find merchant ID using utility function
@@ -942,8 +975,19 @@ export class DatabaseStorage implements IStorage {
             type: "Sale"
           };
           
-          // Apply field mappings from CSV
-          for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
+          // Store original merchant name if available
+          let originalMerchantName = null;
+          if (detectedFormat === 'format1' && row.Name) {
+            originalMerchantName = row.Name;
+          }
+          
+          // Select the appropriate field mapping based on detected format
+          const fieldMappings = detectedFormat === 'format1' 
+            ? alternateTransactionMappings.format1
+            : transactionFieldMappings;
+          
+          // Apply field mappings from CSV based on detected format
+          for (const [dbField, csvField] of Object.entries(fieldMappings)) {
             if (csvField && row[csvField] !== undefined) {
               if (dbField === 'date') {
                 try {
