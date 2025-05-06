@@ -40,12 +40,17 @@ import { Store, ArrowLeft, Save } from 'lucide-react';
 const merchantSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
   clientMID: z.string().optional(),
+  otherClientNumber1: z.string().optional(),
+  otherClientNumber2: z.string().optional(),
+  clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string().default('Pending'),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   zipCode: z.string().optional(),
-  category: z.string().optional()
+  country: z.string().optional(),
+  category: z.string().optional(),
+  editDate: z.string().optional() // We'll handle date conversion in the form
 });
 
 type MerchantFormValues = z.infer<typeof merchantSchema>;
@@ -70,12 +75,17 @@ export default function NewMerchant() {
     defaultValues: {
       name: '',
       clientMID: '',
+      otherClientNumber1: '',
+      otherClientNumber2: '',
+      clientSinceDate: '',
       status: 'Pending',
       address: '',
       city: '',
       state: '',
       zipCode: '',
-      category: ''
+      country: '',
+      category: '',
+      editDate: ''
     }
   });
   
@@ -288,6 +298,81 @@ export default function NewMerchant() {
                             <FormLabel>Zip/Postal Code</FormLabel>
                             <FormControl>
                               <Input placeholder="Enter zip or postal code" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter country" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Additional Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="otherClientNumber1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Other Client Number 1</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter other client number" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="otherClientNumber2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Other Client Number 2</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter other client number" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="clientSinceDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Since Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="editDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Edit Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

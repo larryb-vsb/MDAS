@@ -122,22 +122,32 @@ export default function MerchantDetail() {
     defaultValues: {
       name: data?.merchant.name || '',
       clientMID: data?.merchant.clientMID || '',
+      otherClientNumber1: data?.merchant.otherClientNumber1 || '',
+      otherClientNumber2: data?.merchant.otherClientNumber2 || '',
+      clientSinceDate: data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toISOString().split('T')[0] : '',
       status: data?.merchant.status || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
-      category: data?.merchant.category || ''
+      country: data?.merchant.country || '',
+      category: data?.merchant.category || '',
+      editDate: data?.merchant.editDate ? new Date(data.merchant.editDate).toISOString().split('T')[0] : ''
     },
     values: {
       name: data?.merchant.name || '',
       clientMID: data?.merchant.clientMID || '',
+      otherClientNumber1: data?.merchant.otherClientNumber1 || '',
+      otherClientNumber2: data?.merchant.otherClientNumber2 || '',
+      clientSinceDate: data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toISOString().split('T')[0] : '',
       status: data?.merchant.status || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
-      category: data?.merchant.category || ''
+      country: data?.merchant.country || '',
+      category: data?.merchant.category || '',
+      editDate: data?.merchant.editDate ? new Date(data.merchant.editDate).toISOString().split('T')[0] : ''
     },
   });
 
@@ -382,6 +392,76 @@ export default function MerchantDetail() {
                             <FormLabel>ZIP Code</FormLabel>
                             <FormControl>
                               <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="otherClientNumber1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Other Client Number 1</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Enter other client number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="otherClientNumber2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Other Client Number 2</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Enter other client number" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="clientSinceDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Since Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="editDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Edit Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
