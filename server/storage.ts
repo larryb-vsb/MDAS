@@ -738,8 +738,8 @@ export class DatabaseStorage implements IStorage {
   private async processMerchantFile(filePath: string): Promise<void> {
     console.log(`Processing merchant file: ${filePath}`);
     
-    // Import field mappings
-    const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases } = await import("@shared/field-mappings");
+    // Import field mappings and utility functions
+    const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases, findMerchantId, normalizeMerchantId } = await import("@shared/field-mappings");
     
     return new Promise((resolve, reject) => {
       // First check if file exists
