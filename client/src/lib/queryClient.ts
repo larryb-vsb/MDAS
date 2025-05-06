@@ -13,10 +13,10 @@ export type RequestOptions = {
   headers?: Record<string, string>;
 };
 
-export async function apiRequest(
+export async function apiRequest<T = Response>(
   input: string | Request | URL,
   init?: RequestOptions
-): Promise<Response> {
+): Promise<T> {
   const method = init?.method || 'GET';
   const headers = {
     ...(init?.body ? { "Content-Type": "application/json" } : {}),
@@ -35,7 +35,9 @@ export async function apiRequest(
   
   const res = await fetch(input, requestInit);
   await throwIfResNotOk(res);
-  return res;
+  // Try to parse JSON unless the caller expects a Response
+  const data = await res.json();
+  return data as T;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

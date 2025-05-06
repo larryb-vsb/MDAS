@@ -58,7 +58,15 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { FileUploadModal } from "@/components/uploads";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+// Will implement inline rather than importing
 
 interface UploadedFile {
   id: string;
@@ -105,9 +113,9 @@ export default function Uploads() {
   // Fetch file content
   const fetchFileContent = useMutation({
     mutationFn: (fileId: string) => {
-      return apiRequest(`/api/uploads/${fileId}/content`);
+      return apiRequest<FileContentResponse>(`/api/uploads/${fileId}/content`);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: FileContentResponse) => {
       setFileContent(data);
       setIsViewDialogOpen(true);
     },
@@ -271,7 +279,106 @@ export default function Uploads() {
 
       {/* Upload Modal */}
       {isUploadModalOpen && (
-        <FileUploadModal onClose={toggleUploadModal} />
+        <Dialog open onOpenChange={(open) => !open && toggleUploadModal()}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Upload File</DialogTitle>
+              <DialogDescription>
+                Upload merchant demographics or transaction data files in CSV format.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Tabs defaultValue="upload" className="mt-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload">Upload</TabsTrigger>
+                <TabsTrigger value="instructions">Instructions</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="upload" className="mt-4 space-y-4">
+                <div>
+                  <Label htmlFor="fileType">File Type</Label>
+                  <Select
+                    defaultValue="merchant"
+                    onValueChange={(val: string) => {}}
+                  >
+                    <SelectTrigger id="fileType">
+                      <SelectValue placeholder="Select file type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="merchant">Merchant Demographics</SelectItem>
+                      <SelectItem value="transaction">Transaction Data</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div
+                  className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors border-muted-foreground/25 hover:border-primary/50`}
+                >
+                  <div className="space-y-2">
+                    <Upload className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                    <p>Drag and drop a CSV file here, or click to select file</p>
+                    <p className="text-xs text-muted-foreground">
+                      Only CSV files are supported
+                    </p>
+                  </div>
+                </div>
+
+                <Alert variant="default" className="bg-muted">
+                  <AlertTitle>Note</AlertTitle>
+                  <AlertDescription>
+                    The file upload functionality is simplified for this demo. Click the button below to simulate an upload.
+                  </AlertDescription>
+                </Alert>
+              </TabsContent>
+              
+              <TabsContent value="instructions" className="mt-4">
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h3 className="font-medium mb-1">Merchant Demographics Format:</h3>
+                    <p className="text-muted-foreground">
+                      CSV file with the following headers:
+                    </p>
+                    <pre className="bg-muted/50 p-2 rounded text-xs mt-1">
+                      Merchant_ID, Name, Status, Address, City, State, Zip, Category
+                    </pre>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium mb-1">Transaction Data Format:</h3>
+                    <p className="text-muted-foreground">
+                      CSV file with the following headers:
+                    </p>
+                    <pre className="bg-muted/50 p-2 rounded text-xs mt-1">
+                      Transaction_ID, Merchant_ID, Amount, Date, Type
+                    </pre>
+                  </div>
+                  
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Important</AlertTitle>
+                    <AlertDescription>
+                      Make sure your CSV files have a header row that matches the formats above.
+                      The Date field should be in YYYY-MM-DD format.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={toggleUploadModal}
+              >
+                Cancel
+              </Button>
+              <Button onClick={toggleUploadModal}>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload File
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Error Dialog */}

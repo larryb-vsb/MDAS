@@ -41,7 +41,7 @@ export default function FileProcessingHistory() {
   const [selectedFile, setSelectedFile] = useState<ProcessedFile | null>(null);
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
 
-  const { data: files, isLoading } = useQuery({
+  const { data: files, isLoading } = useQuery<ProcessedFile[]>({
     queryKey: ["/api/uploads/history"],
     refetchInterval: false,
   });
@@ -92,7 +92,7 @@ export default function FileProcessingHistory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {files.map((file: ProcessedFile) => (
+              {files?.map((file: ProcessedFile) => (
                 <TableRow key={file.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
