@@ -39,7 +39,8 @@ export const uploadedFiles = pgTable("uploaded_files", {
   fileType: text("file_type").notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
-  processingErrors: text("processing_errors")
+  processingErrors: text("processing_errors"),
+  deleted: boolean("deleted").default(false).notNull()
 });
 
 // Backup history table

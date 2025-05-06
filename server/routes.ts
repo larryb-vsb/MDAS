@@ -518,6 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all uploaded files with processing status
       const uploadedFiles = await db.select()
         .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.deleted, false))
         .orderBy(desc(uploadedFilesTable.uploadedAt));
       
       res.json(uploadedFiles);
@@ -525,6 +526,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to retrieve upload history" 
+      });
+    }
+  });
+  
+  // Download original uploaded file
+  app.get("/api/uploads/:id/download", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      res.download(fileInfo.storagePath, fileInfo.originalFilename);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to download file"
+      });
+    }
+  });
+  
+  // View file content
+  app.get("/api/uploads/:id/content", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Read the file content - limit to first 100 rows for performance
+      const parser = fs.createReadStream(fileInfo.storagePath).pipe(
+        parseCSV({
+          columns: true,
+          skip_empty_lines: true
+        })
+      );
+      
+      const rows: any[] = [];
+      let headers: string[] = [];
+      let rowCount = 0;
+      
+      parser.on("data", (row) => {
+        if (rowCount === 0) {
+          headers = Object.keys(row);
+        }
+        if (rowCount < 100) { // Limit to 100 rows
+          rows.push(row);
+        }
+        rowCount++;
+      });
+      
+      parser.on("error", (error) => {
+        res.status(500).json({ error: "Failed to parse CSV file" });
+      });
+      
+      parser.on("end", () => {
+        res.json({
+          headers,
+          rows,
+          totalRows: rowCount,
+          truncated: rowCount > 100
+        });
+      });
+    } catch (error) {
+      console.error("Error retrieving file content:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to retrieve file content"
+      });
+    }
+  });
+  
+  // Reprocess file
+  app.post("/api/uploads/:id/reprocess", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Process based on file type
+      if (fileInfo.fileType === "merchant") {
+        await storage.processMerchantFile(fileInfo.storagePath);
+      } else if (fileInfo.fileType === "transaction") {
+        await storage.processTransactionFile(fileInfo.storagePath);
+      } else {
+        return res.status(400).json({ error: "Unsupported file type" });
+      }
+      
+      // Mark file as processed successfully
+      await db.update(uploadedFilesTable)
+        .set({ 
+          processed: true,
+          processingErrors: null 
+        })
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reprocessing file:", error);
+      
+      // Update file with the error message
+      if (req.params.id) {
+        await db.update(uploadedFilesTable)
+          .set({ 
+            processed: true,
+            processingErrors: error instanceof Error ? error.message : "Unknown error during reprocessing" 
+          })
+          .where(eq(uploadedFilesTable.id, req.params.id));
+      }
+      
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to reprocess file"
+      });
+    }
+  });
+  
+  // Soft delete file
+  app.delete("/api/uploads/:id", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Mark file as deleted (soft delete)
+      await db.update(uploadedFilesTable)
+        .set({ deleted: true })
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to delete file"
       });
     }
   });

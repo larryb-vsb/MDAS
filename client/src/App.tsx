@@ -9,6 +9,7 @@ import Analytics from "@/pages/Analytics";
 import Exports from "@/pages/Exports";
 import MerchantDetail from "@/pages/MerchantDetail";
 import NewMerchant from "@/pages/NewMerchant";
+import Uploads from "@/pages/Uploads";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/exports" component={Exports} />
+      <Route path="/uploads" component={Uploads} />
       <Route component={NotFound} />
     </Switch>
   );
