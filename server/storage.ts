@@ -1049,14 +1049,21 @@ export class DatabaseStorage implements IStorage {
       });
       
       parser.on("end", async () => {
+        console.log(`=================== CSV PROCESSING SUMMARY ===================`);
         console.log(`CSV parsing complete. Processed ${rowCount} rows with ${errorCount} errors.`);
         console.log(`Processing ${transactions.length} valid transactions...`);
+        console.log(`=============================================================`);
         
         try {
           // Process transactions
           let insertedCount = 0;
           let updatedMerchants = 0;
           let createdMerchants = 0;
+          
+          // Lists to track created and updated merchants
+          const createdMerchantsList = [];
+          const updatedMerchantsList = [];
+          const insertedTransactionsList = [];
           
           // Store original merchant names mapping from the Name column in format1
           const merchantNameMapping = new Map<string, string>();
@@ -1096,12 +1103,12 @@ export class DatabaseStorage implements IStorage {
               
               if (merchantNameFromTransaction) {
                 // Use the real merchant name from the transaction
-                console.log(`Using merchant name from transaction: ${merchantNameFromTransaction} for ID: ${transaction.merchantId}`);
+                console.log(`[NEW MERCHANT] Using actual name from transaction: ${merchantNameFromTransaction} for ID: ${transaction.merchantId}`);
                 
                 // Get template data from similar merchants if available
                 const templateMerchant = similarMerchants.length > 0 ? similarMerchants[0] : null;
                 
-                await db.insert(merchantsTable).values({
+                const newMerchant = {
                   id: transaction.merchantId,
                   name: merchantNameFromTransaction,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
@@ -1115,11 +1122,18 @@ export class DatabaseStorage implements IStorage {
                   createdAt: new Date(),
                   lastUploadDate: new Date(),
                   editDate: new Date()
-                });
+                };
+                
+                await db.insert(merchantsTable).values(newMerchant);
                 createdMerchants++;
+                createdMerchantsList.push({
+                  id: newMerchant.id,
+                  name: newMerchant.name,
+                  source: "Name column"
+                });
               } else if (similarMerchants.length > 0) {
                 // Use the first similar merchant's name pattern with the transaction's merchant ID
-                console.log(`Found similar merchant pattern. Using name pattern from: ${similarMerchants[0].name}`);
+                console.log(`[NEW MERCHANT] Found similar merchant pattern. Using name pattern from: ${similarMerchants[0].name}`);
                 const nameParts = similarMerchants[0].name.split(' ');
                 const merchantName = `${nameParts[0]} ${transaction.merchantId}`;
                 
@@ -1129,7 +1143,7 @@ export class DatabaseStorage implements IStorage {
                 // Get sample data from the similar merchant to use as template
                 const templateMerchant = similarMerchants[0];
                 
-                await db.insert(merchantsTable).values({
+                const newMerchant = {
                   id: transaction.merchantId,
                   name: merchantName,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
@@ -1143,14 +1157,20 @@ export class DatabaseStorage implements IStorage {
                   createdAt: new Date(),
                   lastUploadDate: new Date(),
                   editDate: new Date()
-                });
+                };
+                
+                await db.insert(merchantsTable).values(newMerchant);
                 createdMerchants++;
+                createdMerchantsList.push({
+                  id: newMerchant.id,
+                  name: newMerchant.name,
+                  source: "Similar merchant pattern"
+                });
               } else {
                 // No similar merchants found, create with default values
-                console.log(`Creating placeholder merchant for ID: ${transaction.merchantId}`);
-                createdMerchants++;
+                console.log(`[NEW MERCHANT] Creating placeholder merchant for ID: ${transaction.merchantId}`);
                 
-                await db.insert(merchantsTable).values({
+                const newMerchant = {
                   id: transaction.merchantId,
                   name: `Merchant ${transaction.merchantId}`,
                   clientMID: `CM-${transaction.merchantId}`,
@@ -1164,12 +1184,24 @@ export class DatabaseStorage implements IStorage {
                   createdAt: new Date(),
                   lastUploadDate: new Date(),
                   editDate: new Date()
+                };
+                
+                await db.insert(merchantsTable).values(newMerchant);
+                createdMerchants++;
+                createdMerchantsList.push({
+                  id: newMerchant.id,
+                  name: newMerchant.name,
+                  source: "Placeholder"
                 });
               }
             } else {
               // Update lastUploadDate for merchant
-              console.log(`Updating lastUploadDate for existing merchant: ${transaction.merchantId}`);
+              console.log(`[UPDATE] Updating lastUploadDate for existing merchant: ${transaction.merchantId} (${existingMerchant[0].name})`);
               updatedMerchants++;
+              updatedMerchantsList.push({
+                id: transaction.merchantId,
+                name: existingMerchant[0].name
+              });
               
               await db.update(merchantsTable)
                 .set({ lastUploadDate: new Date() })
@@ -1177,11 +1209,42 @@ export class DatabaseStorage implements IStorage {
             }
             
             // Insert transaction
-            console.log(`Inserting transaction: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
+            console.log(`[TRANSACTION] Inserting: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
             await db.insert(transactionsTable).values(transaction);
             insertedCount++;
+            insertedTransactionsList.push({
+              id: transaction.id,
+              merchantId: transaction.merchantId,
+              amount: transaction.amount
+            });
           }
           
+          console.log(`\n================ TRANSACTION PROCESSING SUMMARY ================`);
+          console.log(`Transactions inserted: ${insertedCount}`);
+          console.log(`Merchants created: ${createdMerchants}`);
+          console.log(`Merchants updated: ${updatedMerchants}`);
+          
+          if (createdMerchants > 0) {
+            console.log(`\n--- NEWLY CREATED MERCHANTS (${createdMerchants}) ---`);
+            createdMerchantsList.forEach((merchant, index) => {
+              console.log(`${index + 1}. ID: ${merchant.id} | Name: ${merchant.name} | Source: ${merchant.source}`);
+            });
+          }
+          
+          if (updatedMerchants > 0 && updatedMerchants <= 10) {
+            console.log(`\n--- UPDATED MERCHANTS (showing first 10 of ${updatedMerchants}) ---`);
+            updatedMerchantsList.slice(0, 10).forEach((merchant, index) => {
+              console.log(`${index + 1}. ID: ${merchant.id} | Name: ${merchant.name}`);
+            });
+          } else if (updatedMerchants > 0) {
+            console.log(`\n--- UPDATED MERCHANTS (${updatedMerchants} total) ---`);
+            console.log(`Too many to display, showing first 10:`);
+            updatedMerchantsList.slice(0, 10).forEach((merchant, index) => {
+              console.log(`${index + 1}. ID: ${merchant.id} | Name: ${merchant.name}`);
+            });
+          }
+          
+          console.log(`\n==============================================================`);
           console.log(`Transaction processing complete. Inserted: ${insertedCount}, Created merchants: ${createdMerchants}, Updated merchants: ${updatedMerchants}`);
           resolve();
         } catch (error) {
