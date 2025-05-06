@@ -112,8 +112,42 @@ export default function Uploads() {
 
   // Fetch file content
   const fetchFileContent = useMutation({
-    mutationFn: (fileId: string) => {
-      return apiRequest<FileContentResponse>(`/api/uploads/${fileId}/content`);
+    mutationFn: async (fileId: string) => {
+      try {
+        const response = await fetch(`/api/uploads/${fileId}/content`, {
+          method: "GET",
+          headers: {
+            'Accept': 'application/json',
+          },
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          let errorMessage = "Failed to fetch file content";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            // If we can't parse the response as JSON, use the text
+            const errorText = await response.text();
+            if (errorText) {
+              // Check if the error is an HTML response
+              if (errorText.includes('<!DOCTYPE html>')) {
+                errorMessage = "Server error - received HTML instead of JSON";
+              } else {
+                errorMessage = errorText;
+              }
+            }
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        return data as FileContentResponse;
+      } catch (error) {
+        console.error('Error in fetchFileContent:', error);
+        throw error;
+      }
     },
     onSuccess: (data: FileContentResponse) => {
       setFileContent(data);
@@ -122,7 +156,7 @@ export default function Uploads() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to fetch file content",
+        description: error instanceof Error ? error.message : "Failed to fetch file content",
         variant: "destructive",
       });
     }
@@ -130,10 +164,41 @@ export default function Uploads() {
 
   // Re-process file
   const reprocessFile = useMutation({
-    mutationFn: (fileId: string) => {
-      return apiRequest(`/api/uploads/${fileId}/reprocess`, {
-        method: "POST"
-      });
+    mutationFn: async (fileId: string) => {
+      try {
+        const response = await fetch(`/api/uploads/${fileId}/reprocess`, {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          let errorMessage = "Failed to reprocess file";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            // If we can't parse the response as JSON, use the text
+            const errorText = await response.text();
+            if (errorText) {
+              // Check if the error is an HTML response
+              if (errorText.includes('<!DOCTYPE html>')) {
+                errorMessage = "Server error - received HTML instead of JSON";
+              } else {
+                errorMessage = errorText;
+              }
+            }
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error in reprocessFile:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -145,7 +210,7 @@ export default function Uploads() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to reprocess file",
+        description: error instanceof Error ? error.message : "Failed to reprocess file",
         variant: "destructive",
       });
     }
@@ -153,10 +218,41 @@ export default function Uploads() {
 
   // Soft delete file
   const deleteFile = useMutation({
-    mutationFn: (fileId: string) => {
-      return apiRequest(`/api/uploads/${fileId}`, {
-        method: "DELETE"
-      });
+    mutationFn: async (fileId: string) => {
+      try {
+        const response = await fetch(`/api/uploads/${fileId}`, {
+          method: "DELETE",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          let errorMessage = "Failed to delete file";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            // If we can't parse the response as JSON, use the text
+            const errorText = await response.text();
+            if (errorText) {
+              // Check if the error is an HTML response
+              if (errorText.includes('<!DOCTYPE html>')) {
+                errorMessage = "Server error - received HTML instead of JSON";
+              } else {
+                errorMessage = errorText;
+              }
+            }
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error in deleteFile:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -168,7 +264,7 @@ export default function Uploads() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete file",
+        description: error instanceof Error ? error.message : "Failed to delete file",
         variant: "destructive",
       });
     }

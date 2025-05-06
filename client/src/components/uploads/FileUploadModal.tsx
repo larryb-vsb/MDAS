@@ -74,28 +74,59 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        throw new Error("Failed to upload file");
+        let errorMessage = "Failed to upload file";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // If we can't parse the response as JSON, use the text
+          const errorText = await response.text();
+          if (errorText) {
+            // Check if the error is an HTML response
+            if (errorText.includes('<!DOCTYPE html>')) {
+              errorMessage = "Server error - received HTML instead of JSON";
+            } else {
+              errorMessage = errorText;
+            }
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      // Update file status to uploaded
+      // Try to parse the response as JSON
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (parseError) {
+        throw new Error("Invalid response from server");
+      }
+
+      // Get the file ID from the response
+      const fileId = responseData.fileId;
+      if (!fileId) {
+        throw new Error("No file ID returned from server");
+      }
+
+      // Update file status to uploaded and store the server file ID
       setFiles((prev) =>
         prev.map((f) => {
           if (f.id === fileData.id) {
-            return { ...f, progress: 100, status: "uploaded" };
+            return { ...f, progress: 100, status: "uploaded", id: fileId };
           }
           return f;
         })
       );
 
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
 
       toast({
         title: "File Uploaded",
         description: `${fileData.name} has been uploaded successfully.`,
       });
     } catch (error) {
+      console.error("Error uploading file:", error);
+      
       setFiles((prev) =>
         prev.map((f) => {
           if (f.id === fileData.id) {
@@ -107,7 +138,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
 
       toast({
         title: "Upload Failed",
-        description: `Failed to upload ${fileData.name}.`,
+        description: error instanceof Error ? error.message : `Failed to upload ${fileData.name}.`,
         variant: "destructive",
       });
     }
@@ -125,9 +156,43 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         return Promise.resolve();
       }
       
-      return apiRequest("POST", "/api/process-uploads", { 
-        fileIds: files.filter(f => f.status === "uploaded").map(f => f.id) 
-      });
+      const fileIds = files.filter(f => f.status === "uploaded").map(f => f.id);
+      
+      try {
+        const response = await fetch("/api/process-uploads", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileIds }),
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          let errorMessage = "Failed to process files";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            // If we can't parse the response as JSON, use the text
+            const errorText = await response.text();
+            if (errorText) {
+              // Check if the error is an HTML response
+              if (errorText.includes('<!DOCTYPE html>')) {
+                errorMessage = "Server error - received HTML instead of JSON";
+              } else {
+                errorMessage = errorText;
+              }
+            }
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error in uploadMutation:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -136,6 +201,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
       onClose();
     },
     onError: (error) => {
