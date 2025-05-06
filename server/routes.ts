@@ -18,8 +18,10 @@ import {
   transactions as transactionsTable, 
   uploadedFiles as uploadedFilesTable,
   backupHistory,
-  InsertBackupHistory
+  InsertBackupHistory,
+  schemaVersions
 } from "@shared/schema";
+import { SchemaVersionManager, CURRENT_SCHEMA_VERSION } from "./schema_version";
 
 const execPromise = promisify(exec);
 
@@ -31,6 +33,25 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get database statistics and info for settings page
+  // Get schema version information
+  app.get("/api/schema/versions", async (req, res) => {
+    try {
+      const versions = await SchemaVersionManager.getAllVersions();
+      const currentVersion = await SchemaVersionManager.getCurrentVersion();
+      
+      res.json({
+        versions,
+        currentVersion,
+        expectedVersion: CURRENT_SCHEMA_VERSION
+      });
+    } catch (error) {
+      console.error("Error getting schema versions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve schema versions" 
+      });
+    }
+  });
+
   app.get("/api/settings/database", async (req, res) => {
     try {
       // Get PostgreSQL version
@@ -38,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const version = versionResult.rows[0].version.split(" ")[1];
       
       // Get table information
-      const tables = ['merchants', 'transactions', 'uploaded_files', 'backup_history'];
+      const tables = ['merchants', 'transactions', 'uploaded_files', 'backup_history', 'schema_versions'];
       const tableStats = [];
       let totalRows = 0;
       let totalSizeBytes = 0;
@@ -50,7 +71,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const table = 
             tableName === 'merchants' ? merchantsTable : 
             tableName === 'transactions' ? transactionsTable : 
-            tableName === 'backup_history' ? backupHistory : uploadedFilesTable;
+            tableName === 'backup_history' ? backupHistory : 
+            tableName === 'schema_versions' ? schemaVersions : uploadedFilesTable;
           
           console.log(`Selected table object for ${tableName}`);
           

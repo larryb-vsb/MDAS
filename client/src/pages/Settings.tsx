@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
+import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -327,49 +328,51 @@ export default function Settings() {
             </Card>
           </div>
           
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Server className="mr-2 h-5 w-5 text-primary" />
-                System Information
-              </CardTitle>
-              <CardDescription>
-                Information about the application environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Application:</span>
-                    <span>Merchant Management System</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Environment:</span>
-                    <span>{import.meta.env.MODE || "development"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Database Type:</span>
-                    <span>PostgreSQL</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SchemaVersionInfo />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Server className="mr-2 h-5 w-5 text-primary" />
+                  System Information
+                </CardTitle>
+                <CardDescription>
+                  Information about the application environment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="font-medium">Application:</span>
+                      <span>Merchant Management System</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Environment:</span>
+                      <span>{import.meta.env.MODE || "development"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Database Type:</span>
+                      <span>PostgreSQL</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Frontend Framework:</span>
+                      <span>React + Vite</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Host:</span>
+                      <span>Replit</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Uptime:</span>
+                      <span>Managed by Replit</span>
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Frontend Framework:</span>
-                    <span>React + Vite</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Host:</span>
-                    <span>Replit</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Uptime:</span>
-                    <span>Managed by Replit</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
