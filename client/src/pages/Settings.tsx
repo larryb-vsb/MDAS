@@ -67,25 +67,50 @@ export default function Settings() {
         });
       }, 500);
       
-      const response = await apiRequest("POST", "/api/settings/backup");
-      const responseData = await response.json();
-      
-      clearInterval(interval);
-      setBackupProgress(100);
-      
-      // Set hasBackup to true if the backup was created successfully
-      if (responseData && responseData.success) {
-        setHasBackup(true);
+      try {
+        const response = await fetch("/api/settings/backup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include"
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const responseData = await response.json();
+        
+        clearInterval(interval);
+        setBackupProgress(100);
+        
+        // Set hasBackup to true if the backup was created successfully
+        if (responseData && responseData.success) {
+          setHasBackup(true);
+          
+          toast({
+            title: "Backup created successfully",
+            description: "Your database has been backed up.",
+          });
+          
+          // Refresh statistics
+          refetch();
+        } else {
+          throw new Error("Backup creation failed");
+        }
+      } catch (error) {
+        clearInterval(interval);
+        console.error("Backup error:", error);
+        
+        toast({
+          title: "Backup failed",
+          description: "Failed to create backup. Please try again.",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Backup created successfully",
-        description: "Your database has been backed up.",
-      });
-      
-      // Refresh statistics
-      refetch();
     } catch (err) {
+      console.error("Outer error:", err);
       toast({
         title: "Backup failed",
         description: "Failed to create backup. Please try again.",
