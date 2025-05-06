@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Clean up any existing temp repo
+rm -rf temp_repo
+
 # Clone the repository afresh
 git clone https://github.com/larryb-vsb/MMS.git temp_repo
 
 # Copy all files except .git directory to the temporary repository
-rsync -av --exclude='.git' --exclude='temp_repo' --exclude='push_to_github.sh' . temp_repo/
+mkdir -p temp_repo
+cp -r client server shared attached_assets transaction_management_changes.md temp_repo/
+cp *.json *.ts *.js *.md temp_repo/
+rm -f temp_repo/push_to_github.sh
 
 # Navigate to the temporary repository
 cd temp_repo
