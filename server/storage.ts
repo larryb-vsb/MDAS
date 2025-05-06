@@ -823,7 +823,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process a merchant demographics CSV file
-  private async processMerchantFile(filePath: string): Promise<void> {
+  async processMerchantFile(filePath: string): Promise<void> {
     console.log(`Processing merchant file: ${filePath}`);
     
     // Import field mappings and utility functions
@@ -996,7 +996,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process a transaction CSV file
-  private async processTransactionFile(filePath: string): Promise<void> {
+  async processTransactionFile(filePath: string): Promise<void> {
     console.log(`Processing transaction file: ${filePath}`);
     
     // Import field mappings and utility functions
@@ -1144,7 +1144,8 @@ export class DatabaseStorage implements IStorage {
               else if (dbField === 'type' && detectedFormat === 'format1' && row[csvField]) {
                 // Map transaction codes to types (e.g., 22 = Credit, 27 = Debit)
                 const code = row[csvField].toString().trim();
-                if (transactionCodeMapping[code]) {
+                // Check if the code is one of our known codes (22 or 27)
+                if (code === "22" || code === "27") {
                   transaction[dbField as keyof InsertTransaction] = transactionCodeMapping[code] as any;
                   console.log(`Mapped transaction code ${code} to type ${transactionCodeMapping[code]}`);
                 } else {

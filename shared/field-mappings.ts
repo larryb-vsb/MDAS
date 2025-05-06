@@ -37,9 +37,9 @@ export const transactionFieldMappings = {
 
 // Alternate transaction field mappings for different file formats
 export const alternateTransactionMappings = {
-  // New format with Name,Account,Amount,Date,Code,Descr
+  // New format with Name,Account,Amount,Date,Code,Descr,TraceNbr
   format1: {
-    id: null, // Will be auto-generated
+    id: "TraceNbr", // Use TraceNbr as transaction ID if available
     merchantId: "Account", // Using Account as the merchant identifier
     amount: "Amount",
     date: "Date",

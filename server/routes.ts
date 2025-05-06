@@ -623,6 +623,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
+      // Check if the file still exists
+      if (!fs.existsSync(fileInfo.storagePath)) {
+        // File doesn't exist anymore - update error in database
+        await db.update(uploadedFilesTable)
+          .set({ 
+            processed: true,
+            processingErrors: "Original file has been removed from the temporary storage. Please re-upload the file."
+          })
+          .where(eq(uploadedFilesTable.id, fileId));
+          
+        return res.status(404).json({ 
+          error: "File no longer exists in temporary storage. Please re-upload the file."
+        });
+      }
+      
       // Process based on file type
       if (fileInfo.fileType === "merchant") {
         await storage.processMerchantFile(fileInfo.storagePath);
