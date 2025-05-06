@@ -7,14 +7,19 @@ export const merchants = pgTable("merchants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   clientMID: text("client_mid"),
+  otherClientNumber1: text("other_client_number1"),
+  otherClientNumber2: text("other_client_number2"),
+  clientSinceDate: timestamp("client_since_date"),
   status: text("status").notNull().default("Pending"),
   address: text("address"),
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
+  country: text("country"),
   category: text("category"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastUploadDate: timestamp("last_upload_date")
+  lastUploadDate: timestamp("last_upload_date"),
+  editDate: timestamp("edit_date")
 });
 
 // Transactions table

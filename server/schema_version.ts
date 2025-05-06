@@ -62,7 +62,7 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '1.0.0';
+export const CURRENT_SCHEMA_VERSION = '1.1.0';
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
@@ -70,6 +70,22 @@ export const SCHEMA_VERSION_HISTORY = [
     changes: {
       tables: ['merchants', 'transactions', 'uploaded_files', 'backup_history', 'schema_versions'],
       added: ['clientMID field to merchants table'],
+    },
+    appliedBy: 'system',
+  },
+  {
+    version: '1.1.0',
+    description: 'Added additional merchant fields for enhanced tracking',
+    changes: {
+      tables: ['merchants'],
+      added: [
+        'otherClientNumber1 field to merchants table',
+        'otherClientNumber2 field to merchants table',
+        'clientSinceDate field to merchants table',
+        'country field to merchants table',
+        'editDate field to merchants table'
+      ],
+      modified: ['merchants table structure']
     },
     appliedBy: 'system',
   }

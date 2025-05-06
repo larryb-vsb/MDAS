@@ -44,12 +44,17 @@ import { useToast } from '@/hooks/use-toast';
 const merchantSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
   clientMID: z.string().optional(),
+  otherClientNumber1: z.string().optional(),
+  otherClientNumber2: z.string().optional(),
+  clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   zipCode: z.string().optional(),
-  category: z.string().optional()
+  country: z.string().optional(),
+  category: z.string().optional(),
+  editDate: z.string().optional() // We'll handle date conversion in the form
 });
 
 type MerchantFormValues = z.infer<typeof merchantSchema>;
@@ -60,12 +65,17 @@ interface MerchantDetailsResponse {
     id: string;
     name: string;
     clientMID: string | null;
+    otherClientNumber1: string | null;
+    otherClientNumber2: string | null;
+    clientSinceDate: string | null;
     status: string;
     address: string;
     city: string;
     state: string;
     zipCode: string;
+    country: string | null;
     category: string;
+    editDate: string | null;
   };
   transactions: {
     transactionId: string;
