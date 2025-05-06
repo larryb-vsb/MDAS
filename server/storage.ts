@@ -978,7 +978,10 @@ export class DatabaseStorage implements IStorage {
           // Store original merchant name if available
           let originalMerchantName = null;
           if (detectedFormat === 'format1' && row.Name) {
-            originalMerchantName = row.Name;
+            originalMerchantName = row.Name.trim();
+            console.log(`Found merchant name in transaction: ${originalMerchantName}`);
+            // Store the merchant name in the transaction object for later use
+            (transaction as any).originalMerchantName = originalMerchantName;
           }
           
           // Select the appropriate field mapping based on detected format
@@ -1055,6 +1058,23 @@ export class DatabaseStorage implements IStorage {
           let updatedMerchants = 0;
           let createdMerchants = 0;
           
+          // Store original merchant names mapping from the Name column in format1
+          const merchantNameMapping = new Map<string, string>();
+          
+          // First collect the merchant names from the Name column in transactions
+          if (detectedFormat === 'format1') {
+            console.log('Collecting merchant names from transaction file...');
+            
+            // Create a map of merchantId to merchant name
+            for (const row of transactions) {
+              if (row.merchantId && (row as any).originalMerchantName) {
+                merchantNameMapping.set(row.merchantId, (row as any).originalMerchantName);
+              }
+            }
+            
+            console.log(`Collected ${merchantNameMapping.size} merchant names from transactions`);
+          }
+          
           for (const transaction of transactions) {
             // Check if merchant exists by ID
             const existingMerchant = await db.select()
@@ -1065,13 +1085,39 @@ export class DatabaseStorage implements IStorage {
             if (existingMerchant.length === 0) {
               console.log(`No merchant found with ID: ${transaction.merchantId}, checking for similar merchants...`);
               
+              // Get the merchant name from the Name column if available
+              const merchantNameFromTransaction = merchantNameMapping.get(transaction.merchantId);
+              
               // Try to find a merchant with a similar ID pattern
               const similarMerchants = await db.select()
                 .from(merchantsTable)
                 .where(like(merchantsTable.id, `${transaction.merchantId.substring(0, 2)}%`))
                 .limit(5);
               
-              if (similarMerchants.length > 0) {
+              if (merchantNameFromTransaction) {
+                // Use the real merchant name from the transaction
+                console.log(`Using merchant name from transaction: ${merchantNameFromTransaction} for ID: ${transaction.merchantId}`);
+                
+                // Get template data from similar merchants if available
+                const templateMerchant = similarMerchants.length > 0 ? similarMerchants[0] : null;
+                
+                await db.insert(merchantsTable).values({
+                  id: transaction.merchantId,
+                  name: merchantNameFromTransaction,
+                  clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
+                  status: "Active",
+                  address: templateMerchant?.address || "123 Business St",
+                  city: templateMerchant?.city || "Chicago",
+                  state: templateMerchant?.state || "IL",
+                  zipCode: templateMerchant?.zipCode || "60601",
+                  country: templateMerchant?.country || "US",
+                  category: templateMerchant?.category || "Retail",
+                  createdAt: new Date(),
+                  lastUploadDate: new Date(),
+                  editDate: new Date()
+                });
+                createdMerchants++;
+              } else if (similarMerchants.length > 0) {
                 // Use the first similar merchant's name pattern with the transaction's merchant ID
                 console.log(`Found similar merchant pattern. Using name pattern from: ${similarMerchants[0].name}`);
                 const nameParts = similarMerchants[0].name.split(' ');
