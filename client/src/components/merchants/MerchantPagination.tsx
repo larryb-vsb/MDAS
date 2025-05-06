@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MerchantPaginationProps {
   currentPage: number;
@@ -18,20 +19,15 @@ export default function MerchantPagination({
 }: MerchantPaginationProps) {
   const renderPageNumbers = () => {
     const pageNumbers = [];
-    const maxPagesToShow = 5;
     
     // Always show first page
     pageNumbers.push(
       <Button
         key={1}
         variant={currentPage === 1 ? "default" : "outline"}
-        size="sm"
+        size="icon"
         onClick={() => onPageChange(1)}
-        className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
-          currentPage === 1
-            ? "z-10 text-white border-blue-500 bg-blue-600"
-            : "text-gray-500 border-gray-300 bg-white hover:bg-gray-50"
-        }`}
+        className="w-10 h-10"
       >
         1
       </Button>
@@ -40,9 +36,9 @@ export default function MerchantPagination({
     // Add ellipsis if needed
     if (currentPage > 3) {
       pageNumbers.push(
-        <span key="start-ellipsis" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+        <div key="start-ellipsis" className="flex items-center justify-center w-10 h-10">
           ...
-        </span>
+        </div>
       );
     }
 
@@ -56,13 +52,9 @@ export default function MerchantPagination({
           <Button
             key={i}
             variant={currentPage === i ? "default" : "outline"}
-            size="sm"
+            size="icon"
             onClick={() => onPageChange(i)}
-            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
-              currentPage === i
-                ? "z-10 text-white border-blue-500 bg-blue-600"
-                : "text-gray-500 border-gray-300 bg-white hover:bg-gray-50"
-            }`}
+            className="w-10 h-10"
           >
             {i}
           </Button>
@@ -73,9 +65,9 @@ export default function MerchantPagination({
     // Add ending ellipsis if needed
     if (currentPage < totalPages - 2) {
       pageNumbers.push(
-        <span key="end-ellipsis" className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+        <div key="end-ellipsis" className="flex items-center justify-center w-10 h-10">
           ...
-        </span>
+        </div>
       );
     }
 
@@ -85,13 +77,9 @@ export default function MerchantPagination({
         <Button
           key={totalPages}
           variant={currentPage === totalPages ? "default" : "outline"}
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(totalPages)}
-          className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
-            currentPage === totalPages
-              ? "z-10 text-white border-blue-500 bg-blue-600"
-              : "text-gray-500 border-gray-300 bg-white hover:bg-gray-50"
-          }`}
+          className="w-10 h-10"
         >
           {totalPages}
         </Button>
@@ -116,7 +104,6 @@ export default function MerchantPagination({
           size="sm"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Previous
         </Button>
@@ -125,7 +112,6 @@ export default function MerchantPagination({
           size="sm"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Next
         </Button>
@@ -139,33 +125,29 @@ export default function MerchantPagination({
           </p>
         </div>
         <div>
-          <nav className="relative z-0 inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+          <nav className="flex items-center gap-1" aria-label="Pagination">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50"
+              className="w-10 h-10"
             >
               <span className="sr-only">Previous</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="w-4 h-4" />
             </Button>
             
             {renderPageNumbers()}
             
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50"
+              className="w-10 h-10"
             >
               <span className="sr-only">Next</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </nav>
         </div>
