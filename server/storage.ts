@@ -1068,6 +1068,9 @@ export class DatabaseStorage implements IStorage {
           // Store original merchant names mapping from the Name column in format1
           const merchantNameMapping = new Map<string, string>();
           
+          // Also create a reverse mapping for name-based lookup
+          const nameToIdMapping = new Map<string, string[]>();
+          
           // First collect the merchant names from the Name column in transactions
           if (detectedFormat === 'format1') {
             console.log('Collecting merchant names from transaction file...');
@@ -1075,11 +1078,94 @@ export class DatabaseStorage implements IStorage {
             // Create a map of merchantId to merchant name
             for (const row of transactions) {
               if (row.merchantId && (row as any).originalMerchantName) {
-                merchantNameMapping.set(row.merchantId, (row as any).originalMerchantName);
+                const merchantName = (row as any).originalMerchantName;
+                merchantNameMapping.set(row.merchantId, merchantName);
+                
+                // Also create a mapping from name to ID for lookup
+                if (!nameToIdMapping.has(merchantName)) {
+                  nameToIdMapping.set(merchantName, []);
+                }
+                nameToIdMapping.get(merchantName)?.push(row.merchantId);
               }
             }
             
             console.log(`Collected ${merchantNameMapping.size} merchant names from transactions`);
+            
+            // Pre-check if any merchants with these names already exist
+            if (nameToIdMapping.size > 0) {
+              console.log(`Checking for existing merchants with ${nameToIdMapping.size} unique names...`);
+              
+              // Get all merchants with matching names
+              const merchantNames = Array.from(nameToIdMapping.keys());
+              
+              // First get all existing merchant names for more efficient matching
+              const allExistingMerchants = await db.select().from(merchantsTable);
+              console.log(`Loaded ${allExistingMerchants.length} existing merchants for name matching`);
+              
+              // For each name, check if we have a merchant with that name already
+              for (const name of merchantNames) {
+                try {
+                  // Try exact match first
+                  const exactMatchMerchants = allExistingMerchants.filter(m => 
+                    m.name.toLowerCase() === name.toLowerCase()
+                  );
+                  
+                  // If exact match found
+                  if (exactMatchMerchants.length > 0) {
+                    console.log(`[EXACT MATCH] Found existing merchant with name "${name}": ${exactMatchMerchants[0].id}`);
+                    
+                    // Get all transaction IDs that had this name
+                    const transactionIds = nameToIdMapping.get(name) || [];
+                    
+                    // For each transaction ID that uses this name, remap it to the existing merchant ID
+                    for (const transId of transactionIds) {
+                      // Update the merchant ID in the transactions
+                      for (const trans of transactions) {
+                        if (trans.merchantId === transId) {
+                          console.log(`Remapping transaction with ID ${trans.id} from merchant ${trans.merchantId} to existing merchant ${exactMatchMerchants[0].id} based on exact name match "${name}"`);
+                          trans.merchantId = exactMatchMerchants[0].id;
+                        }
+                      }
+                    }
+                  }
+                  // Try fuzzy match if no exact match
+                  else {
+                    // Find merchants with similar names using contains match
+                    const fuzzyMatchMerchants = allExistingMerchants.filter(m => {
+                      const merchantName = m.name.toLowerCase();
+                      const transactionName = name.toLowerCase();
+                      
+                      // Check if either name contains the other (ignoring case)
+                      return merchantName.includes(transactionName) || 
+                             transactionName.includes(merchantName) ||
+                             // Check for abbreviated names (like "LLC" to match with full versions)
+                             (merchantName.includes("llc") && transactionName.includes("llc")) ||
+                             (merchantName.includes("inc") && transactionName.includes("inc"));
+                    });
+                    
+                    if (fuzzyMatchMerchants.length > 0) {
+                      console.log(`[FUZZY MATCH] Found similar merchant for "${name}": ${fuzzyMatchMerchants[0].id} (${fuzzyMatchMerchants[0].name})`);
+                      
+                      // Get all transaction IDs that had this name
+                      const transactionIds = nameToIdMapping.get(name) || [];
+                      
+                      // For each transaction ID that uses this name, remap it to the existing merchant ID
+                      for (const transId of transactionIds) {
+                        // Update the merchant ID in the transactions
+                        for (const trans of transactions) {
+                          if (trans.merchantId === transId) {
+                            console.log(`Remapping transaction with ID ${trans.id} from merchant ${trans.merchantId} to similar merchant ${fuzzyMatchMerchants[0].id} based on fuzzy name match "${name}" ~ "${fuzzyMatchMerchants[0].name}"`);
+                            trans.merchantId = fuzzyMatchMerchants[0].id;
+                          }
+                        }
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Error checking for existing merchant with name "${name}":`, error);
+                }
+              }
+            }
           }
           
           for (const transaction of transactions) {
