@@ -988,7 +988,8 @@ export class DatabaseStorage implements IStorage {
     const { 
       transactionFieldMappings, 
       alternateTransactionMappings, 
-      transactionMerchantIdAliases, 
+      transactionMerchantIdAliases,
+      transactionCodeMapping,
       findMerchantId, 
       normalizeMerchantId 
     } = await import("@shared/field-mappings");
@@ -1108,6 +1109,18 @@ export class DatabaseStorage implements IStorage {
                 } catch (e) {
                   console.error(`Error parsing amount: ${row[csvField]}`);
                   transaction[dbField as keyof InsertTransaction] = 0 as any;
+                }
+              }
+              else if (dbField === 'type' && detectedFormat === 'format1' && row[csvField]) {
+                // Map transaction codes to types (e.g., 22 = Credit, 27 = Debit)
+                const code = row[csvField].toString().trim();
+                if (transactionCodeMapping[code]) {
+                  transaction[dbField as keyof InsertTransaction] = transactionCodeMapping[code] as any;
+                  console.log(`Mapped transaction code ${code} to type ${transactionCodeMapping[code]}`);
+                } else {
+                  // Default fallback if code is not recognized
+                  transaction[dbField as keyof InsertTransaction] = row[csvField] as any;
+                  console.log(`Unknown transaction code: ${code}, using raw value`);
                 }
               }
               else {
