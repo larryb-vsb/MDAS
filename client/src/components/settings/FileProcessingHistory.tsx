@@ -112,7 +112,7 @@ export default function FileProcessingHistory() {
                           Error
                         </Badge>
                       ) : (
-                        <Badge variant="success" className="flex items-center gap-1">
+                        <Badge variant="default" className="flex items-center gap-1 bg-green-500">
                           <Check size={12} />
                           Processed
                         </Badge>

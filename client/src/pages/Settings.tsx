@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
+import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -330,7 +331,10 @@ export default function Settings() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SchemaVersionInfo />
-            
+            <FileProcessingHistory />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
