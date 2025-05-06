@@ -56,6 +56,9 @@ export interface IStorage {
   // Update merchant details
   updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any>;
   
+  // Delete multiple merchants
+  deleteMerchants(merchantIds: string[]): Promise<void>;
+  
   // Dashboard stats
   getDashboardStats(): Promise<{
     totalMerchants: number;
@@ -444,6 +447,27 @@ export class DatabaseStorage implements IStorage {
       return updatedMerchant;
     } catch (error) {
       console.error(`Error updating merchant ${merchantId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Delete multiple merchants
+  async deleteMerchants(merchantIds: string[]): Promise<void> {
+    try {
+      // Delete related transactions first to maintain referential integrity
+      for (const merchantId of merchantIds) {
+        // Delete transactions associated with this merchant
+        await db.delete(transactionsTable)
+          .where(eq(transactionsTable.merchantId, merchantId));
+        
+        // Delete the merchant
+        await db.delete(merchantsTable)
+          .where(eq(merchantsTable.id, merchantId));
+      }
+      
+      console.log(`Successfully deleted ${merchantIds.length} merchants and their transactions`);
+    } catch (error) {
+      console.error('Error deleting merchants:', error);
       throw error;
     }
   }
