@@ -798,9 +798,13 @@ export class DatabaseStorage implements IStorage {
           for (const [dbField, csvField] of Object.entries(merchantFieldMappings)) {
             if (csvField && row[csvField] !== undefined) {
               // For date fields, parse the date
-              if (dbField === 'clientSinceDate' && row[csvField]) {
+              if (dbField === 'clientSinceDate') {
                 try {
-                  merchantData[dbField as keyof InsertMerchant] = row[csvField] ? new Date(row[csvField]) as any : null;
+                  if (row[csvField] && row[csvField].trim() !== '') {
+                    merchantData[dbField as keyof InsertMerchant] = new Date(row[csvField]) as any;
+                  } else {
+                    merchantData[dbField as keyof InsertMerchant] = null as any;
+                  }
                 } catch (e) {
                   console.warn(`Failed to parse date for ${dbField}: ${row[csvField]}`);
                   merchantData[dbField as keyof InsertMerchant] = null as any;
@@ -959,10 +963,13 @@ export class DatabaseStorage implements IStorage {
           // Apply field mappings from CSV
           for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
             if (csvField && row[csvField] !== undefined) {
-              if (dbField === 'date' && row[csvField]) {
+              if (dbField === 'date') {
                 try {
-                  transaction[dbField as keyof InsertTransaction] = 
-                    row[csvField] ? new Date(row[csvField]) as any : new Date();
+                  if (row[csvField] && row[csvField].trim() !== '') {
+                    transaction[dbField as keyof InsertTransaction] = new Date(row[csvField]) as any;
+                  } else {
+                    transaction[dbField as keyof InsertTransaction] = new Date() as any;
+                  }
                 } catch (e) {
                   console.warn(`Failed to parse date: ${row[csvField]}, using current date`);
                   transaction[dbField as keyof InsertTransaction] = new Date() as any;
