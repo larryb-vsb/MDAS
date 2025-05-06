@@ -81,6 +81,9 @@ export default function MerchantList({
                     Merchant
                   </TableHead>
                   <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                    Client MID
+                  </TableHead>
+                  <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Status
                   </TableHead>
                   <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
@@ -111,6 +114,9 @@ export default function MerchantList({
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
+                        <Skeleton className="w-20 h-4" />
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap">
                         <Skeleton className="w-16 h-5 rounded-full" />
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -131,7 +137,7 @@ export default function MerchantList({
                   ))
                 ) : merchants.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="px-6 py-10 text-center">
+                    <TableCell colSpan={7} className="px-6 py-10 text-center">
                       <p className="text-gray-500">No merchants found</p>
                       <button 
                         onClick={toggleUploadModal}
@@ -156,6 +162,9 @@ export default function MerchantList({
                             <div className="text-sm text-gray-500">ID: #{merchant.id}</div>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {merchant.clientMID || '-'}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${getStatusBadgeColor(merchant.status)}`}>
