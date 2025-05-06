@@ -1105,6 +1105,7 @@ export class DatabaseStorage implements IStorage {
               // For each name, check if we have a merchant with that name already
               for (const name of merchantNames) {
                 try {
+                  console.log(`\n[MATCHING PROCESS] Checking for merchant match with name: "${name}"`);
                   // Try exact match first
                   const exactMatchMerchants = allExistingMerchants.filter(m => 
                     m.name.toLowerCase() === name.toLowerCase()
@@ -1135,9 +1136,26 @@ export class DatabaseStorage implements IStorage {
                       const merchantName = m.name.toLowerCase();
                       const transactionName = name.toLowerCase();
                       
+                      // Remove common business suffixes for better core name matching
+                      const cleanMerchantName = merchantName
+                        .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
+                        .trim();
+                        
+                      const cleanTransactionName = transactionName
+                        .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
+                        .trim();
+                      
+                      // First check if core names (without business types) match exactly
+                      if (cleanMerchantName === cleanTransactionName) {
+                        console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
+                        return true;
+                      }
+                      
                       // Check if either name contains the other (ignoring case)
                       return merchantName.includes(transactionName) || 
                              transactionName.includes(merchantName) ||
+                             cleanMerchantName.includes(cleanTransactionName) ||
+                             cleanTransactionName.includes(cleanMerchantName) ||
                              // Check for abbreviated names (like "LLC" to match with full versions)
                              (merchantName.includes("llc") && transactionName.includes("llc")) ||
                              (merchantName.includes("inc") && transactionName.includes("inc"));
