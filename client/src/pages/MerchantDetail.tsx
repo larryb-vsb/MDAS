@@ -6,7 +6,8 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle
+  CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import {
   Tabs,
@@ -32,6 +33,27 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -57,7 +79,19 @@ const merchantSchema = z.object({
   editDate: z.string().optional() // We'll handle date conversion in the form
 });
 
+// Define transaction form schema
+const transactionSchema = z.object({
+  amount: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, {
+    message: "Amount must be a valid positive number"
+  }),
+  type: z.string(),
+  date: z.string().refine(val => !isNaN(Date.parse(val)), {
+    message: "Date must be valid"
+  })
+});
+
 type MerchantFormValues = z.infer<typeof merchantSchema>;
+type TransactionFormValues = z.infer<typeof transactionSchema>;
 
 // Define the types for merchant details API response
 interface MerchantDetailsResponse {
@@ -106,6 +140,9 @@ export default function MerchantDetail() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('details');
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
+  const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
 
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
@@ -171,6 +208,60 @@ export default function MerchantDetail() {
       toast({
         title: 'Update failed',
         description: 'Failed to update merchant details. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Add transaction mutation
+  const addTransaction = useMutation({
+    mutationFn: (values: TransactionFormValues) => {
+      return apiRequest(`/api/merchants/${id}/transactions`, {
+        method: 'POST',
+        body: {
+          ...values,
+          amount: parseFloat(values.amount)
+        }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Transaction added',
+        description: 'Transaction has been successfully added.',
+      });
+      setShowAddTransactionDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants', id] });
+    },
+    onError: () => {
+      toast({
+        title: 'Failed to add transaction',
+        description: 'An error occurred while adding the transaction.',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Delete transactions mutation
+  const deleteTransactions = useMutation({
+    mutationFn: (transactionIds: string[]) => {
+      return apiRequest(`/api/merchants/${id}/transactions/delete`, {
+        method: 'POST',
+        body: { transactionIds }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Transactions deleted',
+        description: `${selectedTransactions.length} transaction(s) deleted successfully.`,
+      });
+      setSelectedTransactions([]);
+      setShowDeleteTransactionsDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants', id] });
+    },
+    onError: () => {
+      toast({
+        title: 'Failed to delete transactions',
+        description: 'An error occurred while deleting the selected transactions.',
         variant: 'destructive',
       });
     }
