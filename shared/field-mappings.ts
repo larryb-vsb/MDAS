@@ -42,7 +42,8 @@ export const merchantIdAliases = [
   "ClientMID", 
   "MerchantID", 
   "Merchant_ID", 
-  "ClientID"
+  "ClientID",
+  "ClientNumber" // Add this as another possible merchant ID field
 ];
 
 export const transactionMerchantIdAliases = [
