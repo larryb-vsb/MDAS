@@ -31,7 +31,7 @@ export const transactionFieldMappings = {
 
 // Customizable default values for fields not found in CSV
 export const defaultMerchantValues = {
-  status: "Pending",
+  status: "Active", // Changed from Pending to Active
   category: "Retail",
   country: "US",
   address: "123 Business St" // Default if not provided
@@ -51,3 +51,33 @@ export const transactionMerchantIdAliases = [
   "ClientMID", 
   "ClientID"
 ];
+
+/**
+ * Relationship mapping between merchant and transaction fields
+ * This is used to match transactions to merchants when processing files
+ */
+export const relationshipMapping = {
+  // How merchant ID appears in transaction files
+  merchantIdInTransactions: "MerchantID",
+  // How merchant ID is stored in the merchants table
+  merchantIdInDatabase: "id",
+};
+
+// Find a merchant ID in a CSV record, trying various possible column names
+export function findMerchantId(record: Record<string, any>, aliases: string[]): string | null {
+  for (const alias of aliases) {
+    if (record[alias] && typeof record[alias] === 'string') {
+      return record[alias];
+    }
+  }
+  return null;
+}
+
+// Fix issues with some merchant IDs that might be missing prefixes
+export function normalizeMerchantId(id: string): string {
+  // If the ID doesn't have a prefix like "VS" or "M", add one
+  if (!/^[A-Za-z]/.test(id)) {
+    return `M${id}`;
+  }
+  return id;
+}
