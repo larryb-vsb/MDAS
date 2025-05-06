@@ -29,6 +29,12 @@ export default function Dashboard() {
   // Fetch merchants list with filters
   const { data: merchantsData, isLoading: isLoadingMerchants } = useQuery({
     queryKey: ["/api/merchants", statusFilter, uploadFilter, currentPage],
+    queryFn: async () => {
+      const url = `/api/merchants?page=${currentPage}&status=${statusFilter}&lastUpload=${encodeURIComponent(uploadFilter)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch merchants');
+      return res.json();
+    }
   });
 
   const toggleMobileMenu = () => {
