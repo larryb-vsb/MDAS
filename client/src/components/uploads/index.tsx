@@ -97,17 +97,39 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
       setUploadProgress(100);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to upload file");
+        let errorMessage = "Failed to upload file";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // If we can't parse the response as JSON, use the text
+          const errorText = await response.text();
+          if (errorText) {
+            // Check if the error is an HTML response
+            if (errorText.includes('<!DOCTYPE html>')) {
+              errorMessage = "Server error - received HTML instead of JSON";
+            } else {
+              errorMessage = errorText;
+            }
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        throw new Error("Invalid response from server");
+      }
       
       if (result.success) {
         setUploadSuccess(true);
         toast({
           title: "Upload successful",
-          description: `${result.recordsProcessed} records were processed.`,
+          description: result.recordsProcessed 
+            ? `${result.recordsProcessed} records were processed.`
+            : "File was uploaded successfully.",
         });
         
         // Refresh related data
