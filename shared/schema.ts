@@ -50,6 +50,17 @@ export const backupHistory = pgTable("backup_history", {
   deleted: boolean("deleted").default(false).notNull()
 });
 
+// Schema version table
+export const schemaVersions = pgTable("schema_versions", {
+  id: serial("id").primaryKey(),
+  version: text("version").notNull(), // Semantic version (e.g., "1.0.0")
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  description: text("description").notNull(),
+  changes: jsonb("changes"), // Schema changes in JSON format
+  appliedBy: text("applied_by"),
+  script: text("script") // Optional script used for the migration
+});
+
 // Zod schemas for merchants
 export const merchantsSchema = createInsertSchema(merchants);
 export const insertMerchantSchema = merchantsSchema.omit({ id: true });
@@ -66,6 +77,10 @@ export const insertUploadedFileSchema = uploadedFilesSchema.omit({ id: true });
 export const backupHistorySchema = createInsertSchema(backupHistory);
 export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
 
+// Zod schemas for schema versions
+export const schemaVersionsSchema = createInsertSchema(schemaVersions);
+export const insertSchemaVersionSchema = schemaVersionsSchema.omit({ id: true });
+
 // Export types
 export type Merchant = typeof merchants.$inferSelect;
 export type InsertMerchant = typeof merchants.$inferInsert;
@@ -75,3 +90,5 @@ export type UploadedFile = typeof uploadedFiles.$inferSelect;
 export type InsertUploadedFile = typeof uploadedFiles.$inferInsert;
 export type BackupHistory = typeof backupHistory.$inferSelect;
 export type InsertBackupHistory = typeof backupHistory.$inferInsert;
+export type SchemaVersion = typeof schemaVersions.$inferSelect;
+export type InsertSchemaVersion = typeof schemaVersions.$inferInsert;
