@@ -640,6 +640,11 @@ export class DatabaseStorage implements IStorage {
       // Calculate monthly revenue
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
+        // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+        if (tx.type === "Credit" || tx.type === "Debit") {
+          return sum + amount;
+        }
+        // For other types like "Sale", continue using previous logic
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
@@ -649,6 +654,11 @@ export class DatabaseStorage implements IStorage {
         // Calculate all-time revenue
         const allTimeRevenue = allTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
+          // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+          if (tx.type === "Credit" || tx.type === "Debit") {
+            return sum + amount;
+          }
+          // For other types like "Sale", continue using previous logic
           return sum + (tx.type === "Sale" ? amount : -amount);
         }, 0);
         
@@ -718,6 +728,11 @@ export class DatabaseStorage implements IStorage {
         
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
+        // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+        if (tx.type === "Credit" || tx.type === "Debit") {
+          return sum + amount;
+        }
+        // For other types like "Sale", continue using previous logic
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
