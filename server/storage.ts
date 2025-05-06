@@ -59,6 +59,10 @@ export interface IStorage {
   // Delete multiple merchants
   deleteMerchants(merchantIds: string[]): Promise<void>;
   
+  // Transaction operations
+  addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any>;
+  deleteTransactions(transactionIds: string[]): Promise<void>;
+  
   // Dashboard stats
   getDashboardStats(): Promise<{
     totalMerchants: number;
@@ -469,6 +473,70 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting merchants:', error);
       throw error;
+    }
+  }
+  
+  // Add a new transaction for a merchant
+  async addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any> {
+    try {
+      // Check if the merchant exists
+      const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      
+      if (!merchant) {
+        throw new Error(`Merchant with ID ${merchantId} not found`);
+      }
+      
+      // Generate a unique transaction ID
+      const transactionId = `T${Math.floor(Math.random() * 1000000)}`;
+      
+      // Create the transaction
+      const transaction: InsertTransaction = {
+        id: transactionId,
+        merchantId,
+        amount: transactionData.amount.toString(), // Convert to string for database
+        date: new Date(transactionData.date),
+        type: transactionData.type
+      };
+      
+      // Insert the transaction
+      const [insertedTransaction] = await db.insert(transactionsTable)
+        .values(transaction)
+        .returning();
+      
+      // Update the merchant's lastUploadDate
+      await db.update(merchantsTable)
+        .set({ lastUploadDate: new Date() })
+        .where(eq(merchantsTable.id, merchantId));
+      
+      // Format the transaction for response
+      return {
+        transactionId: insertedTransaction.id,
+        merchantId: insertedTransaction.merchantId,
+        amount: parseFloat(insertedTransaction.amount),
+        date: insertedTransaction.date.toISOString(),
+        type: insertedTransaction.type
+      };
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      throw new Error("Failed to add transaction");
+    }
+  }
+  
+  // Delete multiple transactions
+  async deleteTransactions(transactionIds: string[]): Promise<void> {
+    try {
+      if (transactionIds.length === 0) {
+        return;
+      }
+      
+      await db.delete(transactionsTable).where(
+        or(...transactionIds.map(id => eq(transactionsTable.id, id)))
+      );
+      
+      console.log(`Successfully deleted ${transactionIds.length} transactions`);
+    } catch (error) {
+      console.error("Error deleting transactions:", error);
+      throw new Error("Failed to delete transactions");
     }
   }
   

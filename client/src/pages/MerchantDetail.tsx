@@ -135,6 +135,96 @@ interface MerchantDetailsResponse {
   };
 }
 
+// Add Transaction Form Component
+function AddTransactionForm({ 
+  onSubmit, 
+  isSubmitting,
+  onCancel
+}: { 
+  onSubmit: (values: TransactionFormValues) => void, 
+  isSubmitting: boolean,
+  onCancel: () => void
+}) {
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      amount: '',
+      type: 'Sale',
+      date: new Date().toISOString().split('T')[0]
+    }
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount</FormLabel>
+              <FormControl>
+                <Input {...field} type="number" step="0.01" min="0.01" placeholder="Enter amount" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Transaction Type</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select transaction type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Sale">Sale</SelectItem>
+                  <SelectItem value="Refund">Refund</SelectItem>
+                  <SelectItem value="Fee">Fee</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date</FormLabel>
+              <FormControl>
+                <Input {...field} type="date" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Adding..." : "Add Transaction"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
 export default function MerchantDetail() {
   const [, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
@@ -578,11 +668,28 @@ export default function MerchantDetail() {
         {/* Transactions Tab */}
         <TabsContent value="transactions">
           <Card>
-            <CardHeader>
-              <CardTitle>Transaction History</CardTitle>
-              <CardDescription>
-                View recent transactions for this merchant.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>
+                  View and manage transactions for this merchant.
+                </CardDescription>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAddTransactionDialog(true)}
+                >
+                  Add Transaction
+                </Button>
+                <Button 
+                  variant="destructive"
+                  disabled={selectedTransactions.length === 0}
+                  onClick={() => setShowDeleteTransactionsDialog(true)}
+                >
+                  Delete Selected
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -594,6 +701,23 @@ export default function MerchantDetail() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[50px]">
+                          <Checkbox 
+                            checked={
+                              data?.transactions && 
+                              data.transactions.length > 0 && 
+                              selectedTransactions.length === data.transactions.length
+                            }
+                            onCheckedChange={(checked) => {
+                              if (checked && data?.transactions) {
+                                setSelectedTransactions(data.transactions.map(t => t.transactionId));
+                              } else {
+                                setSelectedTransactions([]);
+                              }
+                            }}
+                            aria-label="Select all transactions"
+                          />
+                        </TableHead>
                         <TableHead>Transaction ID</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
@@ -604,6 +728,19 @@ export default function MerchantDetail() {
                       {data?.transactions && data.transactions.length > 0 ? (
                         data.transactions.map(transaction => (
                           <TableRow key={transaction.transactionId}>
+                            <TableCell>
+                              <Checkbox 
+                                checked={selectedTransactions.includes(transaction.transactionId)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedTransactions([...selectedTransactions, transaction.transactionId]);
+                                  } else {
+                                    setSelectedTransactions(selectedTransactions.filter(id => id !== transaction.transactionId));
+                                  }
+                                }}
+                                aria-label={`Select transaction ${transaction.transactionId}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-medium">{transaction.transactionId}</TableCell>
                             <TableCell>{formatDate(transaction.date)}</TableCell>
                             <TableCell>
@@ -626,7 +763,7 @@ export default function MerchantDetail() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                          <TableCell colSpan={5} className="text-center py-6 text-gray-500">
                             No transactions found for this merchant.
                           </TableCell>
                         </TableRow>
@@ -637,6 +774,44 @@ export default function MerchantDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Add Transaction Dialog */}
+          <Dialog open={showAddTransactionDialog} onOpenChange={setShowAddTransactionDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Transaction</DialogTitle>
+                <DialogDescription>
+                  Enter the details for the new transaction.
+                </DialogDescription>
+              </DialogHeader>
+              <AddTransactionForm 
+                onSubmit={(values) => addTransaction.mutate(values)} 
+                isSubmitting={addTransaction.isPending}
+                onCancel={() => setShowAddTransactionDialog(false)}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Transactions Confirmation Dialog */}
+          <AlertDialog open={showDeleteTransactionsDialog} onOpenChange={setShowDeleteTransactionsDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Transactions</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete {selectedTransactions.length} transaction(s)? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => deleteTransactions.mutate(selectedTransactions)}
+                  disabled={deleteTransactions.isPending}
+                >
+                  {deleteTransactions.isPending ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* Analytics Tab */}
