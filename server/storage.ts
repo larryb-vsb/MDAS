@@ -633,36 +633,79 @@ export class DatabaseStorage implements IStorage {
 
   // Combine and process uploaded files
   async combineAndProcessUploads(fileIds: string[]): Promise<void> {
+    console.log(`Starting combined processing of ${fileIds.length} files`);
+    
     try {
       // Get file information for the provided IDs
       const files = await db.select()
         .from(uploadedFilesTable)
         .where(sql`${uploadedFilesTable.id} IN (${fileIds.join(',')})`);
       
-      const merchantFiles = files.filter(file => file.fileType === "merchant")
-        .map(file => file.storagePath);
+      console.log(`Retrieved ${files.length} files for processing: ${JSON.stringify(files.map(f => ({ id: f.id, type: f.fileType, name: f.originalFilename })))}`);
       
-      const transactionFiles = files.filter(file => file.fileType === "transaction")
-        .map(file => file.storagePath);
+      // Organize files by type
+      const merchantFiles = files.filter(file => file.fileType === "merchant");
+      const transactionFiles = files.filter(file => file.fileType === "transaction");
+      
+      console.log(`Found ${merchantFiles.length} merchant files and ${transactionFiles.length} transaction files`);
       
       // Process merchant demographics files
-      for (const filePath of merchantFiles) {
-        await this.processMerchantFile(filePath);
+      for (const file of merchantFiles) {
+        try {
+          console.log(`Processing merchant file ID: ${file.id}, Path: ${file.storagePath}, Filename: ${file.originalFilename}`);
+          await this.processMerchantFile(file.storagePath);
+          
+          // Mark this specific file as successfully processed
+          await db.update(uploadedFilesTable)
+            .set({ 
+              processed: true,
+              processingErrors: null 
+            })
+            .where(eq(uploadedFilesTable.id, file.id));
+            
+        } catch (error) {
+          console.error(`Error processing merchant file ${file.id} (${file.originalFilename}):`, error);
+          
+          // Mark this file as processed but with errors
+          await db.update(uploadedFilesTable)
+            .set({ 
+              processed: true, 
+              processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
+            })
+            .where(eq(uploadedFilesTable.id, file.id));
+        }
       }
       
       // Process transaction files
-      for (const filePath of transactionFiles) {
-        await this.processTransactionFile(filePath);
+      for (const file of transactionFiles) {
+        try {
+          console.log(`Processing transaction file ID: ${file.id}, Path: ${file.storagePath}, Filename: ${file.originalFilename}`);
+          await this.processTransactionFile(file.storagePath);
+          
+          // Mark this specific file as successfully processed
+          await db.update(uploadedFilesTable)
+            .set({ 
+              processed: true,
+              processingErrors: null 
+            })
+            .where(eq(uploadedFilesTable.id, file.id));
+            
+        } catch (error) {
+          console.error(`Error processing transaction file ${file.id} (${file.originalFilename}):`, error);
+          
+          // Mark this file as processed but with errors
+          await db.update(uploadedFilesTable)
+            .set({ 
+              processed: true, 
+              processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
+            })
+            .where(eq(uploadedFilesTable.id, file.id));
+        }
       }
       
-      // Mark files as processed
-      for (const fileId of fileIds) {
-        await db.update(uploadedFilesTable)
-          .set({ processed: true })
-          .where(eq(uploadedFilesTable.id, fileId));
-      }
+      console.log(`Completed processing all files. File IDs: ${fileIds.join(', ')}`);
     } catch (error) {
-      console.error("Error combining and processing uploads:", error);
+      console.error("Error in combined uploads processing:", error);
       throw new Error("Failed to process uploaded files");
     }
   }

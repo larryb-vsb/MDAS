@@ -512,6 +512,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get upload file history
+  app.get("/api/uploads/history", async (req, res) => {
+    try {
+      // Get all uploaded files with processing status
+      const uploadedFiles = await db.select()
+        .from(uploadedFilesTable)
+        .orderBy(desc(uploadedFilesTable.uploadedAt));
+      
+      res.json(uploadedFiles);
+    } catch (error) {
+      console.error("Error retrieving upload history:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve upload history" 
+      });
+    }
+  });
+
   // Download combined transaction CSV
   app.get("/api/export/transactions", async (req, res) => {
     try {
