@@ -8,8 +8,10 @@ import MerchantList from "@/components/merchants/MerchantList";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, RefreshCw } from "lucide-react";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
@@ -35,6 +37,34 @@ export default function Dashboard() {
 
   const toggleUploadModal = () => {
     setShowUploadModal(!showUploadModal);
+  };
+
+  const { toast } = useToast();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Function to refresh merchant data
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/stats"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/merchants"] })
+      ]);
+      toast({
+        title: "Data refreshed",
+        description: "The merchant data has been refreshed.",
+        duration: 3000
+      });
+    } catch (error) {
+      toast({
+        title: "Refresh failed",
+        description: "Failed to refresh the data. Please try again.",
+        variant: "destructive",
+        duration: 3000
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -86,13 +116,25 @@ export default function Dashboard() {
               {/* Dashboard Stats */}
               <DashboardStats isLoading={isLoadingStats} stats={stats} />
 
-              {/* Filters */}
-              <MerchantFilters 
-                statusFilter={statusFilter} 
-                setStatusFilter={setStatusFilter}
-                uploadFilter={uploadFilter}
-                setUploadFilter={setUploadFilter}
-              />
+              {/* Filters with Refresh Button */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-6">
+                <MerchantFilters 
+                  statusFilter={statusFilter} 
+                  setStatusFilter={setStatusFilter}
+                  uploadFilter={uploadFilter}
+                  setUploadFilter={setUploadFilter}
+                />
+                <Button 
+                  onClick={refreshData}
+                  disabled={isRefreshing}
+                  variant="outline" 
+                  size="sm"
+                  className="ml-auto flex items-center gap-2 whitespace-nowrap"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+                </Button>
+              </div>
 
               {/* Merchant List */}
               <MerchantList 
