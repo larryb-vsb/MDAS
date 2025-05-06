@@ -39,6 +39,7 @@ import { Store, ArrowLeft, Save } from 'lucide-react';
 // Define the merchant form schema
 const merchantSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
+  clientMID: z.string().optional(),
   status: z.string().default('Pending'),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -68,6 +69,7 @@ export default function NewMerchant() {
     resolver: zodResolver(merchantSchema),
     defaultValues: {
       name: '',
+      clientMID: '',
       status: 'Pending',
       address: '',
       city: '',
@@ -156,6 +158,20 @@ export default function NewMerchant() {
                           <FormLabel>Merchant Name*</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter merchant name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="clientMID"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client MID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter client MID" {...field} value={field.value || ''} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

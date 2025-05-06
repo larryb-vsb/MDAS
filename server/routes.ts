@@ -532,6 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         name: z.string().min(1, { message: "Name is required" }),
+        clientMID: z.string().nullable().optional(),
         status: z.string().optional(),
         address: z.string().nullable().optional(),
         city: z.string().nullable().optional(),
@@ -567,6 +568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const merchantId = req.params.id;
       const schema = z.object({
         name: z.string().optional(),
+        clientMID: z.string().nullable().optional(),
         status: z.string().optional(),
         address: z.string().nullable().optional(),
         city: z.string().nullable().optional(),

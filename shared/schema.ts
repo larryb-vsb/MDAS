@@ -6,6 +6,7 @@ import { z } from "zod";
 export const merchants = pgTable("merchants", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  clientMID: text("client_mid"),
   status: text("status").notNull().default("Pending"),
   address: text("address"),
   city: text("city"),

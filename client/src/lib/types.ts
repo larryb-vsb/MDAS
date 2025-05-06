@@ -16,6 +16,7 @@ export interface MerchantStats {
 export interface Merchant {
   id: string;
   name: string;
+  clientMID?: string | null;
   status: string;
   lastUpload: string;
   dailyStats: MerchantStats;

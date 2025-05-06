@@ -43,6 +43,7 @@ import { useToast } from '@/hooks/use-toast';
 // Define the merchant form schema
 const merchantSchema = z.object({
   name: z.string().min(1, { message: 'Name is required' }),
+  clientMID: z.string().optional(),
   status: z.string(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -58,6 +59,7 @@ interface MerchantDetailsResponse {
   merchant: {
     id: string;
     name: string;
+    clientMID: string | null;
     status: string;
     address: string;
     city: string;
@@ -109,6 +111,7 @@ export default function MerchantDetail() {
     resolver: zodResolver(merchantSchema),
     defaultValues: {
       name: data?.merchant.name || '',
+      clientMID: data?.merchant.clientMID || '',
       status: data?.merchant.status || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
@@ -118,6 +121,7 @@ export default function MerchantDetail() {
     },
     values: {
       name: data?.merchant.name || '',
+      clientMID: data?.merchant.clientMID || '',
       status: data?.merchant.status || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
@@ -257,6 +261,20 @@ export default function MerchantDetail() {
                             <FormLabel>Name</FormLabel>
                             <FormControl>
                               <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="clientMID"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client MID</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Enter client MID" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
