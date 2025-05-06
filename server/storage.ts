@@ -50,6 +50,9 @@ export interface IStorage {
     };
   }>;
   
+  // Create a new merchant
+  createMerchant(merchantData: InsertMerchant): Promise<Merchant>;
+  
   // Update merchant details
   updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any>;
   
@@ -387,6 +390,35 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error(`Error fetching merchant ${merchantId}:`, error);
+      throw error;
+    }
+  }
+  
+  // Create a new merchant 
+  async createMerchant(merchantData: InsertMerchant): Promise<Merchant> {
+    try {
+      // Generate a unique merchant ID if not provided
+      if (!merchantData.id) {
+        merchantData.id = `M${++this.lastMerchantId}`;
+      }
+      
+      // Set default values if not provided
+      if (!merchantData.status) {
+        merchantData.status = "Pending";
+      }
+      
+      if (!merchantData.createdAt) {
+        merchantData.createdAt = new Date();
+      }
+      
+      // Insert the merchant into the database
+      const [newMerchant] = await db.insert(merchantsTable)
+        .values(merchantData)
+        .returning();
+      
+      return newMerchant;
+    } catch (error) {
+      console.error("Error creating merchant:", error);
       throw error;
     }
   }

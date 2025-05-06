@@ -527,6 +527,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Create a new merchant
+  app.post("/api/merchants", async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1, { message: "Name is required" }),
+        status: z.string().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      
+      // Create merchant with current date
+      const newMerchant = await storage.createMerchant({
+        ...merchantData,
+        id: `M${Date.now().toString().slice(-4)}`,
+        createdAt: new Date(),
+        lastUploadDate: null
+      });
+      
+      res.status(201).json({ 
+        success: true, 
+        merchant: newMerchant
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create merchant" 
+      });
+    }
+  });
+  
   // Update merchant details
   app.put("/api/merchants/:id", async (req, res) => {
     try {
