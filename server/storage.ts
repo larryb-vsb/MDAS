@@ -14,7 +14,7 @@ import {
   InsertUploadedFile,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, and, or, count, desc, sql, between } from "drizzle-orm";
+import { eq, gt, gte, and, or, count, desc, sql, between, like } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -910,26 +910,53 @@ export class DatabaseStorage implements IStorage {
           let createdMerchants = 0;
           
           for (const transaction of transactions) {
-            // Check if merchant exists
+            // Check if merchant exists by ID
             const existingMerchant = await db.select()
               .from(merchantsTable)
               .where(eq(merchantsTable.id, transaction.merchantId));
               
             // Create placeholder merchant if needed
             if (existingMerchant.length === 0) {
-              console.log(`Creating placeholder merchant for ID: ${transaction.merchantId}`);
-              createdMerchants++;
+              console.log(`No merchant found with ID: ${transaction.merchantId}, checking for similar merchants...`);
               
-              await db.insert(merchantsTable).values({
-                id: transaction.merchantId,
-                name: `Merchant ${transaction.merchantId}`,
-                status: "Pending",
-                createdAt: new Date(),
-                lastUploadDate: new Date()
-              });
+              // Try to find a merchant with a similar ID pattern
+              const similarMerchants = await db.select()
+                .from(merchantsTable)
+                .where(like(merchantsTable.id, `${transaction.merchantId.substring(0, 2)}%`))
+                .limit(5);
+              
+              if (similarMerchants.length > 0) {
+                // Use the first similar merchant's name pattern with the transaction's merchant ID
+                console.log(`Found similar merchant pattern. Using name pattern from: ${similarMerchants[0].name}`);
+                const nameParts = similarMerchants[0].name.split(' ');
+                const merchantName = `${nameParts[0]} ${transaction.merchantId}`;
+                
+                // Create new merchant with derived name
+                console.log(`Creating new merchant with derived name: ${merchantName} and ID: ${transaction.merchantId}`);
+                await db.insert(merchantsTable).values({
+                  id: transaction.merchantId,
+                  name: merchantName,
+                  status: "Active",
+                  createdAt: new Date(),
+                  lastUploadDate: new Date()
+                });
+                createdMerchants++;
+              } else {
+                // No similar merchants found, create with default name
+                console.log(`Creating placeholder merchant for ID: ${transaction.merchantId}`);
+                createdMerchants++;
+                
+                await db.insert(merchantsTable).values({
+                  id: transaction.merchantId,
+                  name: `Merchant ${transaction.merchantId}`,
+                  status: "Pending",
+                  createdAt: new Date(),
+                  lastUploadDate: new Date()
+                });
+              }
             } else {
               // Update lastUploadDate for merchant
-              console.log(`Updating lastUploadDate for merchant: ${transaction.merchantId}`);
+              console.log(`Updating lastUploadDate for existing merchant: ${transaction.merchantId}`);
               updatedMerchants++;
               
               await db.update(merchantsTable)
