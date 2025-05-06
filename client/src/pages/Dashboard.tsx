@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import MerchantList from "@/components/merchants/MerchantList";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
@@ -58,17 +62,24 @@ export default function Dashboard() {
                     Manage your merchants, upload data, and view statistics
                   </p>
                 </div>
-                <div className="flex mt-4 md:mt-0 md:ml-4">
-                  <button
-                    type="button"
+                <div className="flex mt-4 space-x-3 md:mt-0 md:ml-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/merchants/new')}
+                    className="inline-flex items-center"
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    New Merchant
+                  </Button>
+                  <Button
                     onClick={toggleUploadModal}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="inline-flex items-center"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                     Upload Data
-                  </button>
+                  </Button>
                 </div>
               </div>
 
