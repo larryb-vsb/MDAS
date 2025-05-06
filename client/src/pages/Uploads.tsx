@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -662,6 +663,110 @@ export default function Uploads() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => setIsDeleteDialogOpen(open)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the file:
+              <div className="font-medium mt-1">{selectedFile?.originalFilename}</div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. The file will be permanently removed from the system.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteFile.isPending}
+            >
+              {deleteFile.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete File
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Multi Delete Confirmation Dialog */}
+      <Dialog
+        open={isMultiDeleteDialogOpen}
+        onOpenChange={(open) => setIsMultiDeleteDialogOpen(open)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Multiple Deletion
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedFiles.length} files?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <div className="max-h-40 overflow-auto mb-3 rounded border p-2">
+              <ul className="text-sm list-disc pl-5 space-y-1">
+                {selectedFiles.map(file => (
+                  <li key={file.id} className="text-muted-foreground">{file.originalFilename}</li>
+                ))}
+              </ul>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. These files will be permanently removed from the system.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsMultiDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmMultiDelete}
+              disabled={deleteFile.isPending}
+            >
+              {deleteFile.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete {selectedFiles.length} Files
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -697,95 +802,180 @@ export default function Uploads() {
     }
 
     return (
-      <div className="bg-white rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>File Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Uploaded</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filesData.map((file) => (
-              <TableRow key={file.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <FileText size={16} />
-                    <span className="truncate max-w-[200px]" title={file.originalFilename}>
-                      {file.originalFilename}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>{formatFileType(file.fileType)}</TableCell>
-                <TableCell title={formatFullDate(file.uploadedAt)}>
-                  {formatFileDate(file.uploadedAt)}
-                </TableCell>
-                <TableCell>
-                  {file.processed ? (
-                    file.processingErrors ? (
-                      <Badge variant="destructive" className="flex items-center gap-1">
-                        <AlertCircle size={12} />
-                        Error
-                      </Badge>
-                    ) : (
-                      <Badge variant="default" className="flex items-center gap-1 bg-green-500">
-                        <Check size={12} />
-                        Processed
-                      </Badge>
-                    )
-                  ) : (
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <AlertTriangle size={12} />
-                      Pending
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        Actions
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>File Options</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleViewContent(file)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Content
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownloadFile(file)}>
-                        <DownloadCloud className="mr-2 h-4 w-4" />
-                        Download
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleReprocessFile(file)}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Reprocess
-                      </DropdownMenuItem>
-                      {file.processingErrors && (
-                        <DropdownMenuItem onClick={() => handleViewError(file)}>
-                          <AlertCircle className="mr-2 h-4 w-4" />
-                          View Error
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteFile(file)}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      <div className="space-y-4">
+        {/* Action Toolbar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant={selectMode ? "default" : "outline"} 
+              size="sm" 
+              onClick={toggleSelectMode}
+              className={selectMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+            >
+              {selectMode ? (
+                <>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Selection
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Select Files
+                </>
+              )}
+            </Button>
+            
+            {selectMode && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selectedFiles.length} files selected
+                </span>
+                
+                {selectedFiles.length > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={handleMultiDelete}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Selected
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {selectMode && (
+                  <TableHead className="w-10">
+                    <div className="flex items-center justify-center">
+                      <Checkbox 
+                        checked={selectedFiles.length === filesData.length && filesData.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedFiles(filesData);
+                          } else {
+                            setSelectedFiles([]);
+                          }
+                        }}
+                        className="data-[state=checked]:bg-blue-600"
+                      />
+                    </div>
+                  </TableHead>
+                )}
+                <TableHead>File Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Uploaded</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filesData.map((file) => (
+                <TableRow 
+                  key={file.id}
+                  className={selectMode && selectedFiles.some(f => f.id === file.id) ? "bg-blue-50" : ""}
+                  onClick={() => {
+                    if (selectMode) {
+                      toggleFileSelection(file);
+                    }
+                  }}
+                  style={{ cursor: selectMode ? 'pointer' : 'default' }}
+                >
+                  {selectMode && (
+                    <TableCell className="pr-0">
+                      <div className="flex items-center justify-center">
+                        <Checkbox 
+                          checked={selectedFiles.some(f => f.id === file.id)}
+                          onCheckedChange={(checked) => {
+                            toggleFileSelection(file);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="data-[state=checked]:bg-blue-600"
+                        />
+                      </div>
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} />
+                      <span className="truncate max-w-[200px]" title={file.originalFilename}>
+                        {file.originalFilename}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatFileType(file.fileType)}</TableCell>
+                  <TableCell title={formatFullDate(file.uploadedAt)}>
+                    {formatFileDate(file.uploadedAt)}
+                  </TableCell>
+                  <TableCell>
+                    {file.processed ? (
+                      file.processingErrors ? (
+                        <Badge variant="destructive" className="flex items-center gap-1">
+                          <AlertCircle size={12} />
+                          Error
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="flex items-center gap-1 bg-green-500">
+                          <Check size={12} />
+                          Processed
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <AlertTriangle size={12} />
+                        Pending
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm">
+                          Actions
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>File Options</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewContent(file); }}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Content
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadFile(file); }}>
+                          <DownloadCloud className="mr-2 h-4 w-4" />
+                          Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleReprocessFile(file); }}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Reprocess
+                        </DropdownMenuItem>
+                        {file.processingErrors && (
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewError(file); }}>
+                            <AlertCircle className="mr-2 h-4 w-4" />
+                            View Error
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
