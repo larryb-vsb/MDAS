@@ -789,6 +789,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Add transaction for a merchant
+  app.post("/api/merchants/:id/transactions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const transactionSchema = z.object({
+        amount: z.number().positive(),
+        type: z.string(),
+        date: z.string().refine(val => !isNaN(Date.parse(val)), {
+          message: "Date must be valid"
+        })
+      });
+      
+      const transactionData = transactionSchema.parse(req.body);
+      const newTransaction = await storage.addTransaction(id, transactionData);
+      
+      res.status(201).json(newTransaction);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to add transaction" 
+      });
+    }
+  });
+  
+  // Delete transactions
+  app.post("/api/merchants/:id/transactions/delete", async (req, res) => {
+    try {
+      const schema = z.object({
+        transactionIds: z.array(z.string())
+      });
+      
+      const { transactionIds } = schema.parse(req.body);
+      
+      if (transactionIds.length === 0) {
+        return res.status(400).json({ error: "No transaction IDs provided" });
+      }
+      
+      await storage.deleteTransactions(transactionIds);
+      
+      res.json({ 
+        success: true, 
+        message: `${transactionIds.length} transaction(s) deleted successfully` 
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete transactions" 
+      });
+    }
+  });
+  
   // Delete multiple merchants
   app.post("/api/merchants/delete", async (req, res) => {
     try {
