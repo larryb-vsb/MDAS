@@ -760,9 +760,6 @@ export class DatabaseStorage implements IStorage {
       let rowCount = 0;
       let errorCount = 0;
       
-      // Import field mapping functions immediately
-      const { findMerchantId, normalizeMerchantId } = require("@shared/field-mappings");
-      
       parser.on("data", (row) => {
         rowCount++;
         try {
@@ -899,8 +896,8 @@ export class DatabaseStorage implements IStorage {
   private async processTransactionFile(filePath: string): Promise<void> {
     console.log(`Processing transaction file: ${filePath}`);
     
-    // Import field mappings
-    const { transactionFieldMappings, transactionMerchantIdAliases } = await import("@shared/field-mappings");
+    // Import field mappings and utility functions
+    const { transactionFieldMappings, transactionMerchantIdAliases, findMerchantId, normalizeMerchantId } = await import("@shared/field-mappings");
     
     return new Promise((resolve, reject) => {
       // First check if file exists
@@ -920,9 +917,6 @@ export class DatabaseStorage implements IStorage {
       const transactions: InsertTransaction[] = [];
       let rowCount = 0;
       let errorCount = 0;
-      
-      // Import field mapping functions immediately
-      const { findMerchantId, normalizeMerchantId } = require("@shared/field-mappings");
       
       parser.on("data", (row) => {
         rowCount++;
