@@ -3,6 +3,12 @@
  * Maps CSV column names to database field names
  */
 
+// Transaction code mappings
+export const transactionCodeMapping = {
+  "22": "Credit", // Code 22 represents a Credit (money into account)
+  "27": "Debit"   // Code 27 represents a Debit (money out of account)
+};
+
 export const merchantFieldMappings = {
   // Database field: CSV field name
   id: "ClientMID", // Use ClientMID as our primary merchant ID
