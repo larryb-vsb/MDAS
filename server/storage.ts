@@ -833,7 +833,22 @@ export class DatabaseStorage implements IStorage {
       // First check if file exists
       if (!existsSync(filePath)) {
         console.error(`File not found: ${filePath}`);
-        return reject(new Error(`File not found: ${filePath}`));
+        return reject(new Error(`File not found: ${filePath}. The temporary file may have been removed by the system.`));
+      }
+      
+      // Verify file is readable
+      try {
+        const testStream = createReadStream(filePath, { start: 0, end: 10 });
+        testStream.on('error', (error) => {
+          console.error(`File exists but is not readable: ${filePath}`, error);
+          return reject(new Error(`File exists but is not readable: ${filePath}. Error: ${error.message}`));
+        });
+        testStream.on('readable', () => {
+          testStream.destroy(); // Close test stream after successful read
+        });
+      } catch (error) {
+        console.error(`Error checking file readability: ${filePath}`, error);
+        return reject(new Error(`Error checking file readability: ${filePath}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
       
       console.log("Starting CSV parsing...");
@@ -998,7 +1013,22 @@ export class DatabaseStorage implements IStorage {
       // First check if file exists
       if (!existsSync(filePath)) {
         console.error(`File not found: ${filePath}`);
-        return reject(new Error(`File not found: ${filePath}`));
+        return reject(new Error(`File not found: ${filePath}. The temporary file may have been removed by the system.`));
+      }
+      
+      // Verify file is readable
+      try {
+        const testStream = createReadStream(filePath, { start: 0, end: 10 });
+        testStream.on('error', (error) => {
+          console.error(`File exists but is not readable: ${filePath}`, error);
+          return reject(new Error(`File exists but is not readable: ${filePath}. Error: ${error.message}`));
+        });
+        testStream.on('readable', () => {
+          testStream.destroy(); // Close test stream after successful read
+        });
+      } catch (error) {
+        console.error(`Error checking file readability: ${filePath}`, error);
+        return reject(new Error(`Error checking file readability: ${filePath}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
       
       console.log("Starting transaction CSV parsing...");
