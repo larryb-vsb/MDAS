@@ -526,13 +526,15 @@ export class DatabaseStorage implements IStorage {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       
-      // Get daily transactions
-      const dailyTransactions = await db.select()
+      // Get all transactions for this merchant for totals
+      const allTransactions = await db.select()
         .from(transactionsTable)
-        .where(and(
-          eq(transactionsTable.merchantId, merchantId),
-          gte(transactionsTable.date, today)
-        ));
+        .where(eq(transactionsTable.merchantId, merchantId));
+      
+      // Get daily transactions (from today)
+      const dailyTransactions = allTransactions.filter(tx => 
+        new Date(tx.date) >= today
+      );
         
       // Calculate daily revenue
       const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
@@ -540,19 +542,37 @@ export class DatabaseStorage implements IStorage {
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
-      // Get monthly transactions
-      const monthlyTransactions = await db.select()
-        .from(transactionsTable)
-        .where(and(
-          eq(transactionsTable.merchantId, merchantId),
-          gte(transactionsTable.date, oneMonthAgo)
-        ));
+      // Get monthly transactions (from last 30 days)
+      const monthlyTransactions = allTransactions.filter(tx => 
+        new Date(tx.date) >= oneMonthAgo
+      );
         
       // Calculate monthly revenue
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
+      
+      // If no recent transactions but there are all-time transactions, show all-time totals
+      // This ensures merchants with transactions will show some data
+      if (monthlyTransactions.length === 0 && allTransactions.length > 0) {
+        // Calculate all-time revenue
+        const allTimeRevenue = allTransactions.reduce((sum, tx) => {
+          const amount = parseFloat(tx.amount.toString());
+          return sum + (tx.type === "Sale" ? amount : -amount);
+        }, 0);
+        
+        return {
+          daily: {
+            transactions: 0,
+            revenue: 0
+          },
+          monthly: {
+            transactions: allTransactions.length,
+            revenue: Number(allTimeRevenue.toFixed(2))
+          }
+        };
+      }
       
       return {
         daily: {
