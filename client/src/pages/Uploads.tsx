@@ -15,7 +15,10 @@ import {
   RefreshCw, 
   Trash2, 
   Eye,
-  Upload
+  Upload,
+  Loader2,
+  X,
+  CheckSquare
 } from "lucide-react";
 import {
   Card,
@@ -23,6 +26,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Table,
@@ -90,7 +94,11 @@ export default function Uploads() {
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isMultiDeleteDialogOpen, setIsMultiDeleteDialogOpen] = useState(false);
   const [fileContent, setFileContent] = useState<FileContentResponse | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -98,6 +106,14 @@ export default function Uploads() {
   
   const toggleUploadModal = () => {
     setIsUploadModalOpen(prev => !prev);
+  };
+  
+  const toggleSelectMode = () => {
+    setSelectMode(prev => !prev);
+    if (selectMode) {
+      // If turning off select mode, clear the selected files
+      setSelectedFiles([]);
+    }
   };
 
   // Fetch uploaded files
@@ -309,11 +325,78 @@ export default function Uploads() {
     reprocessFile.mutate(file.id);
   }
 
+  // Handle file selection for bulk operations
+  function toggleFileSelection(file: UploadedFile) {
+    if (selectedFiles.some(f => f.id === file.id)) {
+      setSelectedFiles(selectedFiles.filter(f => f.id !== file.id));
+    } else {
+      setSelectedFiles([...selectedFiles, file]);
+    }
+  }
+  
   // Handle deleting file
   function handleDeleteFile(file: UploadedFile) {
-    if (confirm(`Are you sure you want to delete the file "${file.originalFilename}"?`)) {
-      deleteFile.mutate(file.id);
+    setSelectedFile(file);
+    setIsDeleteDialogOpen(true);
+  }
+  
+  // Handle deleting multiple files
+  function handleMultiDelete() {
+    if (selectedFiles.length === 0) return;
+    setIsMultiDeleteDialogOpen(true);
+  }
+  
+  // Confirm single file deletion
+  function confirmDelete() {
+    if (selectedFile) {
+      deleteFile.mutate(selectedFile.id);
+      setIsDeleteDialogOpen(false);
     }
+  }
+  
+  // Confirm multi-file deletion
+  function confirmMultiDelete() {
+    // Sequential deletion of multiple files
+    const deleteFiles = async () => {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const file of selectedFiles) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            deleteFile.mutate(file.id, {
+              onSuccess: () => {
+                successCount++;
+                resolve();
+              },
+              onError: (error) => {
+                errorCount++;
+                console.error(`Error deleting file ${file.id}:`, error);
+                resolve(); // Still resolve to continue with other files
+              }
+            });
+          });
+        } catch (error) {
+          errorCount++;
+          console.error(`Error in deleteFiles for ${file.id}:`, error);
+        }
+      }
+      
+      // Show result toast
+      toast({
+        title: "Bulk Delete Complete",
+        description: `Successfully deleted ${successCount} files. ${errorCount > 0 ? `Failed to delete ${errorCount} files.` : ''}`,
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
+      
+      // Exit select mode
+      setSelectMode(false);
+      setSelectedFiles([]);
+      setIsMultiDeleteDialogOpen(false);
+      refetch();
+    };
+    
+    deleteFiles();
   }
 
   // Handle downloading file
