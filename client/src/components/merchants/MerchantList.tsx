@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import {
   Table,
@@ -10,15 +10,28 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Eye, Upload, Edit } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Eye, Upload, Edit, Trash2, CheckSquare } from "lucide-react";
 import MerchantPagination from "./MerchantPagination";
 import { Merchant, Pagination } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface MerchantListProps {
   isLoading: boolean;
@@ -36,6 +49,10 @@ export default function MerchantList({
   toggleUploadModal,
 }: MerchantListProps) {
   const [, setLocation] = useLocation();
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const getStatusBadgeColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
@@ -68,15 +85,122 @@ export default function MerchantList({
     const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return colors[hash % colors.length];
   };
+  
+  // Handler for selecting/deselecting a merchant
+  const toggleMerchantSelection = (merchantId: string) => {
+    setSelectedMerchants(prev => 
+      prev.includes(merchantId) 
+        ? prev.filter(id => id !== merchantId) 
+        : [...prev, merchantId]
+    );
+  };
+  
+  // Handler for selecting/deselecting all merchants
+  const toggleSelectAll = () => {
+    if (selectedMerchants.length === merchants.length) {
+      setSelectedMerchants([]);
+    } else {
+      setSelectedMerchants(merchants.map(m => m.id));
+    }
+  };
+  
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (merchantIds: string[]) => {
+      return await fetch("/api/merchants/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ merchantIds })
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete merchants");
+        return res.json();
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `${selectedMerchants.length} merchant(s) deleted successfully.`,
+        duration: 3000
+      });
+      setSelectedMerchants([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete merchants: ${error.message}`,
+        variant: "destructive",
+        duration: 5000
+      });
+    }
+  });
+  
+  // Handle delete action
+  const handleDelete = () => {
+    if (selectedMerchants.length === 0) {
+      toast({
+        title: "No merchants selected",
+        description: "Please select at least one merchant to delete.",
+        variant: "destructive",
+        duration: 3000
+      });
+      return;
+    }
+    setShowDeleteDialog(true);
+  };
+  
+  // Confirm delete
+  const confirmDelete = () => {
+    deleteMutation.mutate(selectedMerchants);
+    setShowDeleteDialog(false);
+  };
 
   return (
     <div className="flex flex-col mt-4">
+      {/* Selection actions */}
+      {merchants.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-500">
+              {selectedMerchants.length > 0 
+                ? `${selectedMerchants.length} merchant${selectedMerchants.length > 1 ? 's' : ''} selected` 
+                : ''}
+            </span>
+          </div>
+          
+          {selectedMerchants.length > 0 && (
+            <div className="flex space-x-2">
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={handleDelete}
+                className="flex items-center"
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete Selected
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
         <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
           <div className="overflow-hidden shadow sm:rounded-lg">
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
+                  <TableHead className="w-8 px-6 py-3">
+                    {merchants.length > 0 && (
+                      <Checkbox 
+                        checked={selectedMerchants.length === merchants.length && merchants.length > 0} 
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                      />
+                    )}
+                  </TableHead>
                   <TableHead className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Merchant
                   </TableHead>
@@ -149,7 +273,17 @@ export default function MerchantList({
                   </TableRow>
                 ) : (
                   merchants.map((merchant) => (
-                    <TableRow key={merchant.id} className="hover:bg-gray-50">
+                    <TableRow 
+                      key={merchant.id} 
+                      className={`hover:bg-gray-50 ${selectedMerchants.includes(merchant.id) ? 'bg-blue-50' : ''}`}
+                    >
+                      <TableCell className="w-8 px-6 py-4">
+                        <Checkbox 
+                          checked={selectedMerchants.includes(merchant.id)}
+                          onCheckedChange={() => toggleMerchantSelection(merchant.id)}
+                          aria-label={`Select ${merchant.name}`}
+                        />
+                      </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 w-10 h-10">
@@ -255,6 +389,28 @@ export default function MerchantList({
         itemsPerPage={pagination.itemsPerPage}
         onPageChange={onPageChange}
       />
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedMerchants.length} merchants?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected merchants
+              and remove their data from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
