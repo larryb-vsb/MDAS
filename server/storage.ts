@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, promises as fsPromises } from "fs";
+import { createReadStream, createWriteStream, promises as fsPromises, existsSync } from "fs";
 import path from "path";
 import os from "os";
 import { parse as parseCSV } from "csv-parse";
@@ -669,7 +669,16 @@ export class DatabaseStorage implements IStorage {
 
   // Process a merchant demographics CSV file
   private async processMerchantFile(filePath: string): Promise<void> {
+    console.log(`Processing merchant file: ${filePath}`);
+    
     return new Promise((resolve, reject) => {
+      // First check if file exists
+      if (!existsSync(filePath)) {
+        console.error(`File not found: ${filePath}`);
+        return reject(new Error(`File not found: ${filePath}`));
+      }
+      
+      console.log("Starting CSV parsing...");
       const parser = createReadStream(filePath).pipe(
         parseCSV({
           columns: true,
@@ -678,37 +687,57 @@ export class DatabaseStorage implements IStorage {
       );
       
       const merchants: InsertMerchant[] = [];
+      let rowCount = 0;
+      let errorCount = 0;
       
       parser.on("data", (row) => {
+        rowCount++;
         try {
+          console.log(`Processing row ${rowCount}:`, JSON.stringify(row));
+          
           // Validate and transform the row data
           const merchantData: InsertMerchant = {
             id: row.merchantId || `M${++this.lastMerchantId}`,
             name: row.name || "Unknown Merchant",
+            clientMID: row.clientMID || null,
+            otherClientNumber1: row.otherClientNumber1 || null,
+            otherClientNumber2: row.otherClientNumber2 || null,
+            clientSinceDate: row.clientSinceDate ? new Date(row.clientSinceDate) : null,
             status: row.status || "Pending",
             address: row.address || null,
             city: row.city || null,
             state: row.state || null,
             zipCode: row.zip || null,
+            country: row.country || null,
             category: row.category || null,
             createdAt: new Date(),
-            lastUploadDate: new Date()
+            lastUploadDate: new Date(),
+            editDate: new Date()
           };
           
           merchants.push(merchantData);
         } catch (error) {
-          console.error("Error processing merchant row:", error);
+          errorCount++;
+          console.error(`Error processing merchant row ${rowCount}:`, error);
+          console.error("Row data:", JSON.stringify(row));
           // Continue with next row
         }
       });
       
       parser.on("error", (error) => {
+        console.error("CSV parsing error:", error);
         reject(error);
       });
       
       parser.on("end", async () => {
+        console.log(`CSV parsing complete. Processed ${rowCount} rows with ${errorCount} errors.`);
+        console.log(`Processing ${merchants.length} valid merchants...`);
+        
         try {
           // Insert or update merchants in database
+          let updatedCount = 0;
+          let insertedCount = 0;
+          
           for (const merchant of merchants) {
             // Check if merchant exists
             const existingMerchant = await db.select()
@@ -717,26 +746,40 @@ export class DatabaseStorage implements IStorage {
               
             if (existingMerchant.length > 0) {
               // Update existing merchant
+              console.log(`Updating existing merchant: ${merchant.id} - ${merchant.name}`);
+              updatedCount++;
+              
               await db.update(merchantsTable)
                 .set({
                   name: merchant.name,
+                  clientMID: merchant.clientMID,
+                  otherClientNumber1: merchant.otherClientNumber1,
+                  otherClientNumber2: merchant.otherClientNumber2,
+                  clientSinceDate: merchant.clientSinceDate,
                   status: merchant.status,
                   address: merchant.address,
                   city: merchant.city,
                   state: merchant.state,
                   zipCode: merchant.zipCode,
+                  country: merchant.country,
                   category: merchant.category,
-                  lastUploadDate: merchant.lastUploadDate
+                  lastUploadDate: merchant.lastUploadDate,
+                  editDate: new Date()
                 })
                 .where(eq(merchantsTable.id, merchant.id));
             } else {
               // Insert new merchant
+              console.log(`Inserting new merchant: ${merchant.id} - ${merchant.name}`);
+              insertedCount++;
+              
               await db.insert(merchantsTable).values(merchant);
             }
           }
+          
+          console.log(`Merchant processing complete. Updated: ${updatedCount}, Inserted: ${insertedCount}`);
           resolve();
         } catch (error) {
-          console.error("Error updating merchants:", error);
+          console.error("Error updating merchants in database:", error);
           reject(error);
         }
       });
@@ -745,7 +788,16 @@ export class DatabaseStorage implements IStorage {
 
   // Process a transaction CSV file
   private async processTransactionFile(filePath: string): Promise<void> {
+    console.log(`Processing transaction file: ${filePath}`);
+    
     return new Promise((resolve, reject) => {
+      // First check if file exists
+      if (!existsSync(filePath)) {
+        console.error(`File not found: ${filePath}`);
+        return reject(new Error(`File not found: ${filePath}`));
+      }
+      
+      console.log("Starting transaction CSV parsing...");
       const parser = createReadStream(filePath).pipe(
         parseCSV({
           columns: true,
@@ -754,34 +806,66 @@ export class DatabaseStorage implements IStorage {
       );
       
       const transactions: InsertTransaction[] = [];
+      let rowCount = 0;
+      let errorCount = 0;
       
       parser.on("data", (row) => {
+        rowCount++;
         try {
-          // Check if merchant exists
+          console.log(`Processing transaction row ${rowCount}:`, JSON.stringify(row));
+          
+          // Validate and transform the row data
           const merchantId = row.merchantId;
+          
+          if (!merchantId) {
+            throw new Error("Missing merchantId in transaction row");
+          }
+          
+          // Parse amount from string to number, handling different formats
+          let amount = 0;
+          if (row.amount) {
+            // Remove any currency symbols and commas
+            const cleanAmount = row.amount.toString().replace(/[$,]/g, '');
+            amount = parseFloat(cleanAmount);
+            
+            if (isNaN(amount)) {
+              console.error(`Invalid amount format in row ${rowCount}: ${row.amount}`);
+              amount = 0;
+            }
+          }
           
           const transaction: InsertTransaction = {
             id: row.transactionId || `T${Math.floor(Math.random() * 1000000)}`,
             merchantId,
-            amount: parseFloat(row.amount) || 0,
+            amount: amount,
             date: row.date ? new Date(row.date) : new Date(),
             type: row.type || "Sale"
           };
           
           transactions.push(transaction);
         } catch (error) {
-          console.error("Error processing transaction row:", error);
+          errorCount++;
+          console.error(`Error processing transaction row ${rowCount}:`, error);
+          console.error("Row data:", JSON.stringify(row));
           // Continue with next row
         }
       });
       
       parser.on("error", (error) => {
+        console.error("CSV parsing error:", error);
         reject(error);
       });
       
       parser.on("end", async () => {
+        console.log(`CSV parsing complete. Processed ${rowCount} rows with ${errorCount} errors.`);
+        console.log(`Processing ${transactions.length} valid transactions...`);
+        
         try {
           // Process transactions
+          let insertedCount = 0;
+          let updatedMerchants = 0;
+          let createdMerchants = 0;
+          
           for (const transaction of transactions) {
             // Check if merchant exists
             const existingMerchant = await db.select()
@@ -790,6 +874,9 @@ export class DatabaseStorage implements IStorage {
               
             // Create placeholder merchant if needed
             if (existingMerchant.length === 0) {
+              console.log(`Creating placeholder merchant for ID: ${transaction.merchantId}`);
+              createdMerchants++;
+              
               await db.insert(merchantsTable).values({
                 id: transaction.merchantId,
                 name: `Merchant ${transaction.merchantId}`,
@@ -799,17 +886,24 @@ export class DatabaseStorage implements IStorage {
               });
             } else {
               // Update lastUploadDate for merchant
+              console.log(`Updating lastUploadDate for merchant: ${transaction.merchantId}`);
+              updatedMerchants++;
+              
               await db.update(merchantsTable)
                 .set({ lastUploadDate: new Date() })
                 .where(eq(merchantsTable.id, transaction.merchantId));
             }
             
             // Insert transaction
+            console.log(`Inserting transaction: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
             await db.insert(transactionsTable).values(transaction);
+            insertedCount++;
           }
+          
+          console.log(`Transaction processing complete. Inserted: ${insertedCount}, Created merchants: ${createdMerchants}, Updated merchants: ${updatedMerchants}`);
           resolve();
         } catch (error) {
-          console.error("Error processing transactions:", error);
+          console.error("Error processing transactions in database:", error);
           reject(error);
         }
       });
