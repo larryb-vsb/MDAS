@@ -174,7 +174,9 @@ export class DatabaseStorage implements IStorage {
         console.log("No users found, creating default admin user...");
         
         // Create a hashed password for the admin user (password: "admin123")
-        const hashedPassword = "$2b$10$8GQVvkL3arWmUb3LfTYBr.9HbpYQp5BYJfO4/gzz7fM0nE7tLtrxa";
+        // Generate a proper bcrypt hash for "admin123"
+        const bcrypt = require('bcrypt');
+        const hashedPassword = await bcrypt.hash("admin123", 10);
         
         await db.insert(usersTable).values({
           username: "admin",
