@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
+import MainLayout from '@/components/layout/MainLayout';
 import { 
   Card, 
   CardContent, 
@@ -385,53 +386,56 @@ export default function MerchantDetail() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen px-4">
-        <h1 className="text-2xl font-bold text-red-600">Error</h1>
-        <p className="mt-2 text-gray-600">Failed to load merchant details.</p>
-        <Button 
-          className="mt-4" 
-          variant="outline"
-          onClick={() => setLocation('/')}
-        >
-          Back to Dashboard
-        </Button>
-      </div>
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-screen px-4">
+          <h1 className="text-2xl font-bold text-red-600">Error</h1>
+          <p className="mt-2 text-gray-600">Failed to load merchant details.</p>
+          <Button 
+            className="mt-4" 
+            variant="outline"
+            onClick={() => setLocation('/')}
+          >
+            Back to Dashboard
+          </Button>
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="container px-4 py-8 mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">
-            {isLoading ? (
-              <Skeleton className="w-48 h-10" />
-            ) : (
-              data?.merchant.name
-            )}
-          </h1>
-          <p className="text-gray-500">
-            {isLoading ? (
-              <Skeleton className="w-24 h-6 mt-1" />
-            ) : (
-              `ID: ${data?.merchant.id}`
-            )}
-          </p>
+    <MainLayout>
+      <div className="container px-4 py-6 mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">
+              {isLoading ? (
+                <Skeleton className="w-48 h-10" />
+              ) : (
+                data?.merchant.name
+              )}
+            </h1>
+            <p className="text-gray-500">
+              {isLoading ? (
+                <Skeleton className="w-24 h-6 mt-1" />
+              ) : (
+                `ID: ${data?.merchant.id}`
+              )}
+            </p>
+          </div>
+          <Button 
+            variant="outline"
+            onClick={() => setLocation('/')}
+          >
+            Back to Dashboard
+          </Button>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => setLocation('/')}
-        >
-          Back to Dashboard
-        </Button>
-      </div>
 
-      <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="details">Merchant Details</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details">Merchant Details</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
         {/* Details Tab */}
         <TabsContent value="details">
@@ -956,6 +960,7 @@ export default function MerchantDetail() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </MainLayout>
   );
 }
