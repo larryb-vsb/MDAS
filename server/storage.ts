@@ -7,17 +7,31 @@ import {
   merchants as merchantsTable, 
   transactions as transactionsTable,
   uploadedFiles as uploadedFilesTable,
+  users as usersTable,
   Merchant,
   Transaction,
   InsertMerchant,
   InsertTransaction,
   InsertUploadedFile,
+  User,
+  InsertUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, gt, gte, and, or, count, desc, sql, between, like } from "drizzle-orm";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 
 // Interface for storage operations
 export interface IStorage {
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(insertUser: InsertUser): Promise<User>;
+  
+  // Session store for authentication
+  sessionStore: any; // This will be properly typed once we implement auth
+
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
     merchants: any[];
@@ -103,11 +117,35 @@ export interface IStorage {
 // Database storage implementation
 export class DatabaseStorage implements IStorage {
   private lastMerchantId: number;
+  sessionStore: session.Store;
   
   constructor() {
     this.lastMerchantId = 1000;
+    // Initialize PostgreSQL session store
+    const PostgresStore = connectPgSimple(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true
+    });
+    
     // Initialize with some demo data if database is empty
     this.checkAndInitializeData();
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+    return user || undefined;
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.username, username));
+    return user || undefined;
+  }
+  
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(usersTable).values(insertUser).returning();
+    return user;
   }
   
   // Check if we need to initialize data

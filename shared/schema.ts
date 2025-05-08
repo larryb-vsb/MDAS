@@ -87,6 +87,32 @@ export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
 export const schemaVersionsSchema = createInsertSchema(schemaVersions);
 export const insertSchemaVersionSchema = schemaVersionsSchema.omit({ id: true });
 
+// Users table
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  role: text("role").default("user").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastLogin: timestamp("last_login")
+});
+
+// Zod schemas for users
+export const usersSchema = createInsertSchema(users);
+export const insertUserSchema = usersSchema.omit({ id: true, createdAt: true, lastLogin: true });
+
+// Extended user schema with validation
+export const userValidationSchema = insertUserSchema.extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"]
+});
+
 // Export types
 export type Merchant = typeof merchants.$inferSelect;
 export type InsertMerchant = typeof merchants.$inferInsert;
@@ -98,3 +124,5 @@ export type BackupHistory = typeof backupHistory.$inferSelect;
 export type InsertBackupHistory = typeof backupHistory.$inferInsert;
 export type SchemaVersion = typeof schemaVersions.$inferSelect;
 export type InsertSchemaVersion = typeof schemaVersions.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
