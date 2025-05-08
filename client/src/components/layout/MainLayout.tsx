@@ -1,0 +1,157 @@
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  BarChart3, 
+  Home, 
+  Settings, 
+  FileText, 
+  UploadCloud, 
+  Users, 
+  Menu,
+  DollarSign
+} from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  isActive: boolean;
+  onClick?: () => void;
+}
+
+const navItems = [
+  {
+    icon: <Home className="h-5 w-5" />,
+    label: "Dashboard",
+    href: "/"
+  },
+  {
+    icon: <Users className="h-5 w-5" />,
+    label: "Merchants",
+    href: "/merchants"
+  },
+  {
+    icon: <DollarSign className="h-5 w-5" />,
+    label: "Transactions",
+    href: "/transactions"
+  },
+  {
+    icon: <BarChart3 className="h-5 w-5" />,
+    label: "Analytics",
+    href: "/analytics"
+  },
+  {
+    icon: <UploadCloud className="h-5 w-5" />,
+    label: "Uploads",
+    href: "/uploads"
+  },
+  {
+    icon: <FileText className="h-5 w-5" />,
+    label: "Exports",
+    href: "/exports"
+  },
+  {
+    icon: <Settings className="h-5 w-5" />,
+    label: "Settings",
+    href: "/settings"
+  }
+];
+
+function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
+  return (
+    <Link href={href}>
+      <a
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:text-primary",
+          isActive ? "bg-accent text-accent-foreground" : "text-foreground/60"
+        )}
+        onClick={onClick}
+      >
+        {icon}
+        <span>{label}</span>
+      </a>
+    </Link>
+  );
+}
+
+export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+
+  // Mobile navigation
+  const MobileNav = () => (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 p-0">
+        <ScrollArea className="h-full py-6">
+          <div className="flex flex-col gap-6 px-4">
+            <div className="flex h-12 items-center gap-2 px-4">
+              <h2 className="text-lg font-semibold">Merchant Manager</h2>
+            </div>
+            <nav className="flex flex-col gap-1">
+              {navItems.map((item, index) => (
+                <NavItem
+                  key={index}
+                  icon={item.icon}
+                  label={item.label}
+                  href={item.href}
+                  isActive={location === item.href}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </nav>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 flex-col md:flex border-r bg-background px-4 py-6">
+        <div className="flex h-12 items-center px-4 mb-6">
+          <h2 className="text-lg font-semibold">Merchant Manager</h2>
+        </div>
+        <ScrollArea className="flex-1">
+          <nav className="flex flex-col gap-1 px-2">
+            {navItems.map((item, index) => (
+              <NavItem
+                key={index}
+                icon={item.icon}
+                label={item.label}
+                href={item.href}
+                isActive={
+                  location === item.href || 
+                  (item.href !== "/" && location.startsWith(item.href))
+                }
+              />
+            ))}
+          </nav>
+        </ScrollArea>
+      </aside>
+      
+      <div className="flex flex-1 flex-col">
+        {/* Mobile header */}
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-6 md:hidden">
+          <MobileNav />
+          <h1 className="text-xl font-semibold">Merchant Manager</h1>
+        </header>
+        
+        {/* Main content */}
+        <main className="flex-1">{children}</main>
+      </div>
+    </div>
+  );
+}

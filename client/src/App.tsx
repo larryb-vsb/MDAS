@@ -10,6 +10,7 @@ import Exports from "@/pages/Exports";
 import MerchantDetail from "@/pages/MerchantDetail";
 import NewMerchant from "@/pages/NewMerchant";
 import Uploads from "@/pages/Uploads";
+import Transactions from "@/pages/Transactions";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/merchants/new" component={NewMerchant} />
       <Route path="/merchants/:id" component={MerchantDetail} />
+      <Route path="/transactions" component={Transactions} />
       <Route path="/settings" component={Settings} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/exports" component={Exports} />
