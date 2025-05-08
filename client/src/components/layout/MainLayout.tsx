@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
+import { APP_VERSION, BUILD_DATE } from "@shared/version";
 import { 
   BarChart3, 
   Home, 
@@ -13,11 +14,18 @@ import {
   Menu,
   DollarSign,
   LogOut,
-  Loader2
+  Loader2,
+  Info
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 
 interface NavItemProps {
@@ -136,6 +144,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 />
               ))}
               
+              {/* Mobile version info for non-logged-in users */}
+              {!user && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <div className="text-gray-400 text-xs flex items-center justify-between px-4">
+                    <span>Version {APP_VERSION}</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center cursor-help">
+                            <Info className="h-3 w-3 ml-1" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs">
+                            <p>Version: {APP_VERSION}</p>
+                            <p>Build date: {BUILD_DATE}</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              )}
+              
               {/* Mobile logout */}
               {user && (
                 <div className="mt-4 pt-4 border-t border-gray-700">
@@ -155,6 +187,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   >
                     <LogOut className="h-5 w-5 text-gray-300" />
                     <span>Logout</span>
+                  </div>
+                  
+                  {/* Version info for mobile */}
+                  <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between px-4">
+                    <span>Version {APP_VERSION}</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center cursor-help">
+                            <Info className="h-3 w-3 ml-1" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs">
+                            <p>Version: {APP_VERSION}</p>
+                            <p>Build date: {BUILD_DATE}</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               )}
@@ -189,6 +241,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </nav>
         </ScrollArea>
         
+        {/* Version info for non-logged-in users */}
+        {!user && (
+          <div className="mt-auto pt-4 border-t border-gray-700 px-4">
+            <div className="text-gray-400 text-xs flex items-center justify-between">
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+        )}
+        
         {/* User info and logout */}
         {user && (
           <div className="mt-auto pt-4 border-t border-gray-700 px-4">
@@ -216,6 +292,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </>
               )}
             </Button>
+            
+            {/* Version info */}
+            <div className="mt-4 pt-3 border-t border-gray-700 text-gray-400 text-xs flex items-center justify-between">
+              <span>Version {APP_VERSION}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center cursor-help">
+                      <Info className="h-3 w-3 ml-1" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <p>Version: {APP_VERSION}</p>
+                      <p>Build date: {BUILD_DATE}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         )}
       </aside>
