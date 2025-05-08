@@ -1,6 +1,6 @@
 import { db } from './db';
 import { schemaVersions, type InsertSchemaVersion } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 /**
  * Schema version utility functions for tracking database schema versions
@@ -12,7 +12,8 @@ export class SchemaVersionManager {
    */
   static async getCurrentVersion() {
     try {
-      const versions = await db.select().from(schemaVersions).orderBy(schemaVersions.id).limit(1);
+      // Get the most recent version (highest ID) rather than the first one
+      const versions = await db.select().from(schemaVersions).orderBy(desc(schemaVersions.id)).limit(1);
       return versions.length > 0 ? versions[0] : null;
     } catch (error) {
       console.error('Error getting current schema version:', error);
@@ -120,7 +121,8 @@ export async function initializeSchemaVersions() {
         });
         console.log(`Initialized schema version tracking with version ${latestVersion.version}`);
       } else {
-        console.log(`Schema version tracking is active. Current version: ${versions[versions.length - 1].version}`);
+        const currentVersion = await SchemaVersionManager.getCurrentVersion();
+        console.log(`Schema version tracking is active. Current version: ${currentVersion?.version}`);
       }
     }
   } catch (error) {
