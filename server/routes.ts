@@ -55,6 +55,129 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize authentication system
   setupAuth(app);
+  
+  // User management endpoints
+  app.get("/api/users", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+  
+  app.post("/api/users", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      const user = await storage.createUser({
+        ...req.body,
+        password: await storage.hashPassword(req.body.password),
+        role: req.body.role || "user",
+        createdAt: new Date()
+      });
+      
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+  
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      const userId = parseInt(req.params.id);
+      
+      // Don't allow password updates through this endpoint
+      const { password, ...userData } = req.body;
+      
+      const updatedUser = await storage.updateUser(userId, userData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+  
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      // Don't allow deleting your own account
+      if (req.user?.id === parseInt(req.params.id)) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      
+      const userId = parseInt(req.params.id);
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+  
+  // Change password endpoint (admin can change any user's password, users can only change their own)
+  app.post("/api/users/:id/change-password", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const userId = parseInt(req.params.id);
+      
+      // Regular users can only change their own password
+      if (req.user?.role !== "admin" && req.user?.id !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only change your own password" });
+      }
+      
+      // For regular users, require current password
+      if (req.user?.role !== "admin" && req.user?.id === userId) {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+          return res.status(400).json({ error: "Current password and new password are required" });
+        }
+        
+        const user = await storage.getUser(userId);
+        if (!user || !(await storage.verifyPassword(currentPassword, user.password))) {
+          return res.status(400).json({ error: "Current password is incorrect" });
+        }
+        
+        await storage.updateUserPassword(userId, newPassword);
+        return res.json({ success: true });
+      } else {
+        // Admin can change password without knowing current password
+        const { newPassword } = req.body;
+        if (!newPassword) {
+          return res.status(400).json({ error: "New password is required" });
+        }
+        
+        await storage.updateUserPassword(userId, newPassword);
+        return res.json({ success: true });
+      }
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
   // Get database statistics and info for settings page
   // Get schema version information
   app.get("/api/schema/versions", async (req, res) => {

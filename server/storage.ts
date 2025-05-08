@@ -27,8 +27,14 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>;
   createUser(insertUser: InsertUser): Promise<User>;
+  updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User>;
   updateUserLastLogin(userId: number): Promise<void>;
+  updateUserPassword(userId: number, newPassword: string): Promise<void>;
+  deleteUser(userId: number): Promise<void>;
+  hashPassword(password: string): Promise<string>;
+  verifyPassword(supplied: string, stored: string): Promise<boolean>;
   
   // Session store for authentication
   sessionStore: session.Store;
