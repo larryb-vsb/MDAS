@@ -161,6 +161,51 @@ export class DatabaseStorage implements IStorage {
       .where(eq(usersTable.id, userId));
   }
   
+  // Additional user management methods
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(usersTable).orderBy(usersTable.username);
+  }
+  
+  async updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User> {
+    const [updatedUser] = await db
+      .update(usersTable)
+      .set({
+        ...userData,
+        // If role is not provided, keep the existing one
+        role: userData.role || undefined
+      })
+      .where(eq(usersTable.id, userId))
+      .returning();
+    
+    return updatedUser;
+  }
+  
+  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    const hashedPassword = await this.hashPassword(newPassword);
+    
+    await db
+      .update(usersTable)
+      .set({ password: hashedPassword })
+      .where(eq(usersTable.id, userId));
+  }
+  
+  async deleteUser(userId: number): Promise<void> {
+    await db
+      .delete(usersTable)
+      .where(eq(usersTable.id, userId));
+  }
+  
+  async hashPassword(password: string): Promise<string> {
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  }
+  
+  async verifyPassword(supplied: string, stored: string): Promise<boolean> {
+    const bcrypt = await import('bcrypt');
+    return await bcrypt.compare(supplied, stored);
+  }
+  
   // Check if we need to initialize data
   private async checkAndInitializeData() {
     try {

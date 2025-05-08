@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
+import UserManagement from "@/components/settings/UserManagement";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {
@@ -324,6 +325,10 @@ export default function Settings() {
             </Card>
           </div>
           
+          <div className="grid grid-cols-1 gap-6">
+            <UserManagement />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SchemaVersionInfo />
             <FileProcessingHistory />
