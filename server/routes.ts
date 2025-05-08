@@ -855,6 +855,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get transactions with pagination and filtering
+  app.get("/api/transactions", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string || '1');
+      const limit = parseInt(req.query.limit as string || '20');
+      const merchantId = req.query.merchantId as string | undefined;
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const type = req.query.type as string | undefined;
+      
+      const transactions = await storage.getTransactions(
+        page,
+        limit,
+        merchantId,
+        startDate,
+        endDate,
+        type
+      );
+      
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch transactions" 
+      });
+    }
+  });
+  
+  // Export transactions to CSV
+  app.get("/api/transactions/export", async (req, res) => {
+    try {
+      const merchantId = req.query.merchantId as string | undefined;
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const type = req.query.type as string | undefined;
+      
+      const csvFilePath = await storage.exportTransactionsToCSV(
+        merchantId,
+        startDate,
+        endDate,
+        type
+      );
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export transactions" 
+      });
+    }
+  });
+  
   // Delete multiple merchants
   app.post("/api/merchants/delete", async (req, res) => {
     try {

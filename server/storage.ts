@@ -556,6 +556,227 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Get transactions with pagination and filtering
+  async getTransactions(
+    page: number = 1,
+    limit: number = 20,
+    merchantId?: string,
+    startDate?: string,
+    endDate?: string,
+    type?: string
+  ): Promise<{
+    transactions: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      // Create base query
+      let query = db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name
+      })
+      .from(transactionsTable)
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+      
+      // Apply filters
+      if (merchantId) {
+        query = query.where(eq(transactionsTable.merchantId, merchantId));
+      }
+      
+      if (startDate) {
+        const startDateObj = new Date(startDate);
+        query = query.where(gte(transactionsTable.date, startDateObj));
+      }
+      
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        // Set time to end of day
+        endDateObj.setHours(23, 59, 59, 999);
+        query = query.where(sql`${transactionsTable.date} <= ${endDateObj}`);
+      }
+      
+      if (type) {
+        query = query.where(eq(transactionsTable.type, type));
+      }
+      
+      // Get total count for pagination
+      const countQuery = db.select({ count: count() })
+        .from(transactionsTable)
+        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+      
+      // Apply the same filters to count query
+      if (merchantId) {
+        countQuery.where(eq(transactionsTable.merchantId, merchantId));
+      }
+      
+      if (startDate) {
+        const startDateObj = new Date(startDate);
+        countQuery.where(gte(transactionsTable.date, startDateObj));
+      }
+      
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        countQuery.where(sql`${transactionsTable.date} <= ${endDateObj}`);
+      }
+      
+      if (type) {
+        countQuery.where(eq(transactionsTable.type, type));
+      }
+      
+      const countResult = await countQuery;
+      const totalItems = parseInt(countResult[0].count.toString(), 10);
+      const totalPages = Math.ceil(totalItems / limit);
+      const offset = (page - 1) * limit;
+      
+      // Apply pagination and ordering
+      query = query
+        .orderBy(desc(transactionsTable.date))
+        .limit(limit)
+        .offset(offset);
+      
+      // Execute query
+      const results = await query;
+      
+      // Format results
+      const transactions = results.map(result => {
+        const { transaction, merchantName } = result;
+        return {
+          id: transaction.id,
+          merchantId: transaction.merchantId,
+          merchantName: merchantName,
+          amount: parseFloat(transaction.amount.toString()),
+          date: transaction.date.toISOString(),
+          type: transaction.type,
+          // Additional fields for CSV export
+          sequenceNumber: transaction.id.replace('T', ''),
+          accountNumber: transaction.merchantId,
+          netAmount: parseFloat(transaction.amount.toString()),
+          category: transaction.type === "Credit" ? "Income" : (transaction.type === "Debit" ? "Expense" : "Sale"),
+          postDate: transaction.date.toISOString().split('T')[0]
+        };
+      });
+      
+      return {
+        transactions,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      return {
+        transactions: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: limit
+        }
+      };
+    }
+  }
+  
+  // Export transactions to CSV
+  async exportTransactionsToCSV(
+    merchantId?: string,
+    startDate?: string,
+    endDate?: string,
+    type?: string
+  ): Promise<string> {
+    try {
+      // Get all transactions matching the filters (without pagination)
+      const query = db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name
+      })
+      .from(transactionsTable)
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .orderBy(desc(transactionsTable.date));
+      
+      // Apply filters
+      if (merchantId) {
+        query.where(eq(transactionsTable.merchantId, merchantId));
+      }
+      
+      if (startDate) {
+        const startDateObj = new Date(startDate);
+        query.where(gte(transactionsTable.date, startDateObj));
+      }
+      
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query.where(sql`${transactionsTable.date} <= ${endDateObj}`);
+      }
+      
+      if (type) {
+        query.where(eq(transactionsTable.type, type));
+      }
+      
+      const results = await query;
+      
+      // Format results for CSV
+      const csvData = results.map(result => {
+        const { transaction, merchantName } = result;
+        const dateObj = new Date(transaction.date);
+        
+        return {
+          TranSeqNumber: transaction.id.replace('T', ''),
+          TranAccountNumber: transaction.merchantId,
+          TranDate: dateObj.toISOString().split('T')[0],
+          TranType: transaction.type,
+          TranAmount: parseFloat(transaction.amount.toString()).toFixed(2),
+          NetTranAmount: parseFloat(transaction.amount.toString()).toFixed(2),
+          TranCategory: transaction.type === "Credit" ? "Income" : (transaction.type === "Debit" ? "Expense" : "Sale"),
+          TranPostDate: dateObj.toISOString().split('T')[0],
+          TranTrailer1: merchantName || '',
+          TranTrailer2: '',
+          TranTrailer3: '',
+          TranTrailer4: '',
+          TranTrailer5: '',
+          TranTrailer6: ''
+        };
+      });
+      
+      // Generate a temp file path
+      const tempFilePath = path.join(os.tmpdir(), `transactions_export_${Date.now()}.csv`);
+      
+      // Write CSV data to file
+      return new Promise((resolve, reject) => {
+        const writableStream = createWriteStream(tempFilePath);
+        const csvStream = formatCSV({ headers: true, delimiter: ',' });
+        
+        csvStream.pipe(writableStream);
+        
+        for (const row of csvData) {
+          csvStream.write(row);
+        }
+        
+        csvStream.end();
+        
+        writableStream.on('finish', () => {
+          resolve(tempFilePath);
+        });
+        
+        writableStream.on('error', (error) => {
+          console.error('Error writing CSV file:', error);
+          reject(new Error('Failed to create CSV export'));
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting transactions to CSV:', error);
+      throw new Error('Failed to export transactions to CSV');
+    }
+  }
+  
   // Delete multiple transactions
   async deleteTransactions(transactionIds: string[]): Promise<void> {
     try {
