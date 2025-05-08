@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   BarChart3, 
   Home, 
@@ -10,11 +11,14 @@ import {
   UploadCloud, 
   Users, 
   Menu,
-  DollarSign
+  DollarSign,
+  LogOut,
+  Loader2
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -84,6 +88,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const { user, logoutMutation } = useAuth();
+  const { toast } = useToast();
+  
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast({
+          title: "Logged out",
+          description: "You have been successfully logged out",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Logout failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
+  };
 
   // Mobile navigation
   const MobileNav = () => (
@@ -111,6 +135,29 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   onClick={() => setOpen(false)}
                 />
               ))}
+              
+              {/* Mobile logout */}
+              {user && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <div className="text-gray-300 text-sm mb-2 px-4">
+                    <div className="font-medium">
+                      {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.username}
+                    </div>
+                    <div className="text-gray-400 text-xs">{user.email}</div>
+                  </div>
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleLogout();
+                      setOpen(false);
+                    }}
+                  >
+                    <LogOut className="h-5 w-5 text-gray-300" />
+                    <span>Logout</span>
+                  </div>
+                </div>
+              )}
             </nav>
           </div>
         </ScrollArea>
@@ -141,6 +188,36 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             ))}
           </nav>
         </ScrollArea>
+        
+        {/* User info and logout */}
+        {user && (
+          <div className="mt-auto pt-4 border-t border-gray-700 px-4">
+            <div className="text-gray-300 text-sm mb-2">
+              <div className="font-medium">
+                {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.username}
+              </div>
+              <div className="text-gray-400 text-xs">{user.email}</div>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-700"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+            >
+              {logoutMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </aside>
       
       <div className="flex flex-1 flex-col">
