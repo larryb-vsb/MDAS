@@ -202,7 +202,7 @@ export default function Transactions() {
   
   // Fetch merchants for filter dropdown
   const { data: merchantsData } = useQuery<MerchantOption[]>({
-    queryKey: ['/api/merchants/options'],
+    queryKey: ['/api/merchants'],
     queryFn: async () => {
       // Fetch all merchants to populate the filter dropdown
       const response = await fetch('/api/merchants?limit=1000&fields=id,name');
@@ -229,6 +229,7 @@ export default function Transactions() {
   
   const handleFilterChange = () => {
     // Reset to page 1 when filters change
+    console.log("Applying filter - merchantId:", merchantId);
     setPage(1);
     refetch();
   };
