@@ -64,18 +64,19 @@ const navItems = [
 
 function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
   return (
-    <Link href={href}>
-      <a
-        className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all hover:text-primary",
-          isActive ? "bg-accent text-accent-foreground" : "text-foreground/60"
-        )}
-        onClick={onClick}
-      >
-        {icon}
-        <span>{label}</span>
-      </a>
-    </Link>
+    <div onClick={onClick}>
+      <Link href={href}>
+        <div
+          className={cn(
+            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer",
+            isActive ? "text-white bg-gray-700" : "text-gray-300 hover:bg-gray-700"
+          )}
+        >
+          {icon}
+          <span>{label}</span>
+        </div>
+      </Link>
+    </div>
   );
 }
 
@@ -93,11 +94,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white">
         <ScrollArea className="h-full py-6">
           <div className="flex flex-col gap-6 px-4">
             <div className="flex h-12 items-center gap-2 px-4">
-              <h2 className="text-lg font-semibold">Merchant Manager</h2>
+              <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
             </div>
             <nav className="flex flex-col gap-1">
               {navItems.map((item, index) => (
@@ -120,9 +121,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 flex-col md:flex border-r bg-background px-4 py-6">
+      <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 px-4 py-6">
         <div className="flex h-12 items-center px-4 mb-6">
-          <h2 className="text-lg font-semibold">Merchant Manager</h2>
+          <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
         </div>
         <ScrollArea className="flex-1">
           <nav className="flex flex-col gap-1 px-2">
@@ -144,9 +145,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       
       <div className="flex flex-1 flex-col">
         {/* Mobile header */}
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-6 md:hidden">
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-gray-800 text-white px-6 md:hidden">
           <MobileNav />
-          <h1 className="text-xl font-semibold">Merchant Manager</h1>
+          <h1 className="text-xl font-bold">MMS Dashboard</h1>
         </header>
         
         {/* Main content */}

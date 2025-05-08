@@ -21,6 +21,15 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
       ),
     },
     {
+      name: "Transactions",
+      href: "/transactions",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
       name: "Analytics",
       href: "/analytics",
       icon: (
@@ -62,8 +71,8 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   return (
     <div className={cn(isVisible ? "block" : "hidden", className)}>
       <div className="flex flex-col w-64 bg-gray-800">
-        <div className="flex items-center justify-center h-16 px-4 bg-gray-900">
-          <h1 className="text-xl font-semibold text-white">MMS Dashboard</h1>
+        <div className="flex items-center h-16 px-6 bg-gray-900">
+          <h1 className="text-lg font-bold text-white">MMS Dashboard</h1>
         </div>
         <div className="flex flex-col flex-grow px-4 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-2">
