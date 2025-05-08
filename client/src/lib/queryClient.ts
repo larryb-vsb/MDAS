@@ -35,7 +35,16 @@ export async function apiRequest<T = Response>(
   
   const res = await fetch(input, requestInit);
   await throwIfResNotOk(res);
-  // Try to parse JSON unless the caller expects a Response
+  
+  // Check if there's content to parse
+  const contentType = res.headers.get('content-type');
+  
+  // If response is empty or not JSON, return an empty object
+  if (res.status === 204 || !contentType || !contentType.includes('application/json')) {
+    return {} as T;
+  }
+  
+  // Try to parse JSON
   const data = await res.json();
   return data as T;
 }
@@ -55,6 +64,15 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
+    
+    // Check if there's content to parse
+    const contentType = res.headers.get('content-type');
+    
+    // If response is empty or not JSON, return an empty object
+    if (res.status === 204 || !contentType || !contentType.includes('application/json')) {
+      return {} as unknown as T;
+    }
+    
     return await res.json();
   };
 
