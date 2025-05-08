@@ -28,9 +28,10 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(insertUser: InsertUser): Promise<User>;
+  updateUserLastLogin(userId: number): Promise<void>;
   
   // Session store for authentication
-  sessionStore: any; // This will be properly typed once we implement auth
+  sessionStore: session.Store;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
@@ -148,15 +149,44 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   
+  async updateUserLastLogin(userId: number): Promise<void> {
+    await db.update(usersTable)
+      .set({ lastLogin: new Date() })
+      .where(eq(usersTable.id, userId));
+  }
+  
   // Check if we need to initialize data
   private async checkAndInitializeData() {
     try {
       // Check if merchants table is empty
       const merchantCount = await db.select({ count: count() }).from(merchantsTable);
       
+      // Check if any users exist
+      const userCount = await db.select({ count: count() }).from(usersTable);
+      
       if (parseInt(merchantCount[0].count.toString(), 10) === 0) {
         console.log("Database is empty, initializing with sample data...");
         await this.initializeData();
+      }
+      
+      // Create default admin user if no users exist
+      if (parseInt(userCount[0].count.toString(), 10) === 0) {
+        console.log("No users found, creating default admin user...");
+        
+        // Create a hashed password for the admin user (password: "admin123")
+        const hashedPassword = "$2b$10$8GQVvkL3arWmUb3LfTYBr.9HbpYQp5BYJfO4/gzz7fM0nE7tLtrxa";
+        
+        await db.insert(usersTable).values({
+          username: "admin",
+          password: hashedPassword,
+          firstName: "System",
+          lastName: "Administrator",
+          email: "admin@example.com",
+          role: "admin",
+          createdAt: new Date()
+        });
+        
+        console.log("Default admin user created");
       }
     } catch (error) {
       console.error("Error checking database:", error);
