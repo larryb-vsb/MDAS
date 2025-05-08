@@ -4,8 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import MainLayout from "@/components/layout/MainLayout";
 import { 
   AlertCircle, 
   Check, 
@@ -71,7 +70,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Will implement inline rather than importing
 
 interface UploadedFile {
   id: string;
@@ -405,14 +403,196 @@ export default function Uploads() {
     window.location.href = `/api/uploads/${file.id}/download`;
   }
 
+  // Helper function to render the file table
+  function renderFileTable(filesData?: UploadedFile[]) {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8">
+          <RefreshCw className="animate-spin h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">Loading file history...</p>
+        </div>
+      );
+    }
+
+    if (!filesData || filesData.length === 0) {
+      return (
+        <Card>
+          <CardContent className="py-6 text-center text-gray-500">
+            <FileText className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+            <p>No files have been uploaded yet</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSelectMode}
+            className="text-xs"
+          >
+            {selectMode ? (
+              <>
+                <X className="h-3.5 w-3.5 mr-1.5" />
+                Cancel Selection
+              </>
+            ) : (
+              <>
+                <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                Select Files
+              </>
+            )}
+          </Button>
+          
+          {selectMode && selectedFiles.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="text-xs"
+              onClick={handleMultiDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Delete {selectedFiles.length} Selected
+            </Button>
+          )}
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {selectMode && <TableHead className="w-12"></TableHead>}
+                  <TableHead>File Name</TableHead>
+                  <TableHead>File Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Upload Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filesData.map((file) => (
+                  <TableRow key={file.id}>
+                    {selectMode && (
+                      <TableCell className="w-12">
+                        <Checkbox
+                          checked={selectedFiles.some(f => f.id === file.id)}
+                          onCheckedChange={() => toggleFileSelection(file)}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <div className="font-medium">{file.originalFilename}</div>
+                      <div className="text-sm text-muted-foreground">
+                        ID: {file.id}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {formatFileType(file.fileType)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {file.processed ? (
+                        file.processingErrors ? (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Error
+                          </Badge>
+                        ) : (
+                          <Badge variant="success" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-200">
+                            <Check className="h-3 w-3" />
+                            Processed
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Unprocessed
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">
+                        {formatFileDate(file.uploadedAt)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatFullDate(file.uploadedAt)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <span className="sr-only">Open menu</span>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="h-4 w-4"
+                            >
+                              <circle cx="12" cy="12" r="1" />
+                              <circle cx="12" cy="5" r="1" />
+                              <circle cx="12" cy="19" r="1" />
+                            </svg>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleViewContent(file)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Content
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadFile(file)}>
+                            <DownloadCloud className="mr-2 h-4 w-4" />
+                            Download
+                          </DropdownMenuItem>
+                          {file.processingErrors && (
+                            <DropdownMenuItem onClick={() => handleViewError(file)}>
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              View Error
+                            </DropdownMenuItem>
+                          )}
+                          {(file.processingErrors || !file.processed) && (
+                            <DropdownMenuItem onClick={() => handleReprocessFile(file)}>
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Reprocess
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteFile(file)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar isVisible={!isMobileMenuOpen} />
-      
-      <div className="flex-1 flex flex-col h-full overflow-auto">
-        <Header toggleMobileMenu={toggleMobileMenu} toggleUploadModal={toggleUploadModal} />
-        
-        <div className="flex-1 p-6 space-y-6">
+    <MainLayout>
+      <div className="container mx-auto">
+        <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">File Uploads</h1>
@@ -713,7 +893,7 @@ export default function Uploads() {
         </DialogContent>
       </Dialog>
       
-      {/* Multi Delete Confirmation Dialog */}
+      {/* Multi-Delete Confirmation Dialog */}
       <Dialog
         open={isMultiDeleteDialogOpen}
         onOpenChange={(open) => setIsMultiDeleteDialogOpen(open)}
@@ -722,22 +902,15 @@ export default function Uploads() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              Confirm Multiple Deletion
+              Confirm Bulk Deletion
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedFiles.length} files?
+              Are you sure you want to delete {selectedFiles.length} file(s)?
             </DialogDescription>
           </DialogHeader>
           <div className="py-3">
-            <div className="max-h-40 overflow-auto mb-3 rounded border p-2">
-              <ul className="text-sm list-disc pl-5 space-y-1">
-                {selectedFiles.map(file => (
-                  <li key={file.id} className="text-muted-foreground">{file.originalFilename}</li>
-                ))}
-              </ul>
-            </div>
             <p className="text-sm text-muted-foreground">
-              This action cannot be undone. These files will be permanently removed from the system.
+              This action cannot be undone. The files will be permanently removed from the system.
             </p>
           </div>
           <DialogFooter className="gap-2">
@@ -750,233 +923,13 @@ export default function Uploads() {
             <Button
               variant="destructive"
               onClick={confirmMultiDelete}
-              disabled={deleteFile.isPending}
             >
-              {deleteFile.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete {selectedFiles.length} Files
-                </>
-              )}
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete {selectedFiles.length} Files
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </MainLayout>
   );
-
-  // Helper function to render the file table
-  function renderFileTable(filesData?: UploadedFile[]) {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-8">
-          <RefreshCw className="animate-spin h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">Loading file history...</p>
-        </div>
-      );
-    }
-
-    if (!filesData || filesData.length === 0) {
-      return (
-        <Card>
-          <CardContent className="py-6 text-center text-gray-500">
-            <FileText className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-            <p>No files have been uploaded yet</p>
-            <Button 
-              className="mt-4" 
-              variant="outline" 
-              size="sm"
-              onClick={toggleUploadModal}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Files
-            </Button>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        {/* Action Toolbar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button 
-              variant={selectMode ? "default" : "outline"} 
-              size="sm" 
-              onClick={toggleSelectMode}
-              className={selectMode ? "bg-blue-600 hover:bg-blue-700" : ""}
-            >
-              {selectMode ? (
-                <>
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel Selection
-                </>
-              ) : (
-                <>
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  Select Files
-                </>
-              )}
-            </Button>
-            
-            {selectMode && (
-              <>
-                <span className="text-sm text-muted-foreground">
-                  {selectedFiles.length} files selected
-                </span>
-                
-                {selectedFiles.length > 0 && (
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={handleMultiDelete}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Selected
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {selectMode && (
-                  <TableHead className="w-10">
-                    <div className="flex items-center justify-center">
-                      <Checkbox 
-                        checked={selectedFiles.length === filesData.length && filesData.length > 0}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedFiles(filesData);
-                          } else {
-                            setSelectedFiles([]);
-                          }
-                        }}
-                        className="data-[state=checked]:bg-blue-600"
-                      />
-                    </div>
-                  </TableHead>
-                )}
-                <TableHead>File Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filesData.map((file) => (
-                <TableRow 
-                  key={file.id}
-                  className={selectMode && selectedFiles.some(f => f.id === file.id) ? "bg-blue-50" : ""}
-                  onClick={() => {
-                    if (selectMode) {
-                      toggleFileSelection(file);
-                    }
-                  }}
-                  style={{ cursor: selectMode ? 'pointer' : 'default' }}
-                >
-                  {selectMode && (
-                    <TableCell className="pr-0">
-                      <div className="flex items-center justify-center">
-                        <Checkbox 
-                          checked={selectedFiles.some(f => f.id === file.id)}
-                          onCheckedChange={(checked) => {
-                            toggleFileSelection(file);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="data-[state=checked]:bg-blue-600"
-                        />
-                      </div>
-                    </TableCell>
-                  )}
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} />
-                      <span className="truncate max-w-[200px]" title={file.originalFilename}>
-                        {file.originalFilename}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatFileType(file.fileType)}</TableCell>
-                  <TableCell title={formatFullDate(file.uploadedAt)}>
-                    {formatFileDate(file.uploadedAt)}
-                  </TableCell>
-                  <TableCell>
-                    {file.processed ? (
-                      file.processingErrors ? (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertCircle size={12} />
-                          Error
-                        </Badge>
-                      ) : (
-                        <Badge variant="default" className="flex items-center gap-1 bg-green-500">
-                          <Check size={12} />
-                          Processed
-                        </Badge>
-                      )
-                    ) : (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <AlertTriangle size={12} />
-                        Pending
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm">
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>File Options</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewContent(file); }}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Content
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownloadFile(file); }}>
-                          <DownloadCloud className="mr-2 h-4 w-4" />
-                          Download
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleReprocessFile(file); }}>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Reprocess
-                        </DropdownMenuItem>
-                        {file.processingErrors && (
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewError(file); }}>
-                            <AlertCircle className="mr-2 h-4 w-4" />
-                            View Error
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteFile(file); }}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    );
-  }
 }
