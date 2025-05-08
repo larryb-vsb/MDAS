@@ -60,8 +60,30 @@ export interface IStorage {
   deleteMerchants(merchantIds: string[]): Promise<void>;
   
   // Transaction operations
+  getTransactions(
+    page: number, 
+    limit: number, 
+    merchantId?: string, 
+    startDate?: string, 
+    endDate?: string,
+    type?: string
+  ): Promise<{
+    transactions: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
   addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any>;
   deleteTransactions(transactionIds: string[]): Promise<void>;
+  exportTransactionsToCSV(
+    merchantId?: string, 
+    startDate?: string, 
+    endDate?: string,
+    type?: string
+  ): Promise<string>;
   
   // Dashboard stats
   getDashboardStats(): Promise<{
