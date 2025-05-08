@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -210,7 +211,10 @@ export default function Transactions() {
         throw new Error('Failed to fetch merchant options');
       }
       const data = await response.json();
-      return data.merchants.map((m: any) => ({ id: m.id, name: m.name }));
+      // Map merchants and sort them alphabetically by name
+      return data.merchants
+        .map((m: any) => ({ id: m.id, name: m.name }))
+        .sort((a: MerchantOption, b: MerchantOption) => a.name.localeCompare(b.name));
     }
   });
   
@@ -227,11 +231,40 @@ export default function Transactions() {
     window.open(`/api/transactions/export?${params.toString()}`, '_blank');
   };
   
-  const handleFilterChange = () => {
+  const handleFilterChange = (customMerchantId?: string) => {
     // Reset to page 1 when filters change
-    console.log("Applying filter - merchantId:", merchantId);
+    console.log("Applying filter - merchantId:", customMerchantId !== undefined ? customMerchantId : merchantId);
     setPage(1);
-    refetch();
+    // If a custom merchantId is provided, use it for the refetch
+    const params = new URLSearchParams();
+    params.append('page', '1');
+    params.append('limit', limit.toString());
+    
+    if (customMerchantId !== undefined) {
+      if (customMerchantId !== null) params.append('merchantId', customMerchantId);
+    } else if (merchantId) {
+      params.append('merchantId', merchantId);
+    }
+    
+    if (startDate) params.append('startDate', startDate.toISOString());
+    if (endDate) params.append('endDate', endDate.toISOString());
+    if (transactionType) params.append('type', transactionType);
+    
+    // Manual fetch to avoid React Query update timing issues
+    fetch(`/api/transactions?${params.toString()}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch transactions');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Force update React Query cache and trigger refetch
+        refetch();
+      })
+      .catch(error => {
+        console.error("Error fetching transactions:", error);
+      });
   };
   
   const handleLimitChange = (newLimit: string) => {
@@ -260,11 +293,14 @@ export default function Transactions() {
               {/* Merchant filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Merchant</label>
-                <Select
-                  value={merchantId}
+                <Select 
+                  value={merchantId || "all"}
                   onValueChange={(value) => {
-                    setMerchantId(value === "all" ? undefined : value);
-                    handleFilterChange();
+                    const newMerchantId = value === "all" ? undefined : value;
+                    console.log("Selected merchant ID:", newMerchantId);
+                    setMerchantId(newMerchantId);
+                    // Pass the new merchant ID directly to handleFilterChange
+                    handleFilterChange(newMerchantId);
                   }}
                 >
                   <SelectTrigger>
