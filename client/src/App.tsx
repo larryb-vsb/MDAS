@@ -9,6 +9,7 @@ import Analytics from "@/pages/Analytics";
 import Exports from "@/pages/Exports";
 import MerchantDetail from "@/pages/MerchantDetail";
 import NewMerchant from "@/pages/NewMerchant";
+import Merchants from "@/pages/Merchants";
 import Uploads from "@/pages/Uploads";
 import Transactions from "@/pages/Transactions";
 
@@ -16,6 +17,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/merchants" component={Merchants} />
       <Route path="/merchants/new" component={NewMerchant} />
       <Route path="/merchants/:id" component={MerchantDetail} />
       <Route path="/transactions" component={Transactions} />

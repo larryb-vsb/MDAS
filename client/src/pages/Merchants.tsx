@@ -114,7 +114,12 @@ export default function Merchants() {
         
         <MerchantList
           merchants={data?.merchants || []}
-          pagination={data?.pagination}
+          pagination={data?.pagination || {
+            currentPage: 1,
+            totalPages: 1,
+            totalItems: 0,
+            itemsPerPage: 10
+          }}
           isLoading={isLoading}
           error={error}
           currentPage={currentPage}
