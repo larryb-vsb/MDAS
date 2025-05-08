@@ -26,37 +26,37 @@ interface NavItemProps {
 
 const navItems = [
   {
-    icon: <Home className="h-5 w-5" />,
+    icon: <Home className="h-5 w-5 text-gray-300" />,
     label: "Dashboard",
     href: "/"
   },
   {
-    icon: <Users className="h-5 w-5" />,
+    icon: <Users className="h-5 w-5 text-gray-300" />,
     label: "Merchants",
     href: "/merchants"
   },
   {
-    icon: <DollarSign className="h-5 w-5" />,
+    icon: <DollarSign className="h-5 w-5 text-gray-300" />,
     label: "Transactions",
     href: "/transactions"
   },
   {
-    icon: <BarChart3 className="h-5 w-5" />,
+    icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
     label: "Analytics",
     href: "/analytics"
   },
   {
-    icon: <UploadCloud className="h-5 w-5" />,
+    icon: <UploadCloud className="h-5 w-5 text-gray-300" />,
     label: "Uploads",
     href: "/uploads"
   },
   {
-    icon: <FileText className="h-5 w-5" />,
+    icon: <FileText className="h-5 w-5 text-gray-300" />,
     label: "Exports",
     href: "/exports"
   },
   {
-    icon: <Settings className="h-5 w-5" />,
+    icon: <Settings className="h-5 w-5 text-gray-300" />,
     label: "Settings",
     href: "/settings"
   }
@@ -89,7 +89,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const MobileNav = () => (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="md:hidden text-white">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
@@ -151,7 +151,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </header>
         
         {/* Main content */}
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 bg-gray-100 p-6">{children}</main>
       </div>
     </div>
   );
