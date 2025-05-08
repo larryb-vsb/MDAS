@@ -13,8 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -153,13 +152,9 @@ export default function Settings() {
   };
   
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar isVisible={!isMobileMenuOpen} />
-      
-      <div className="flex-1 flex flex-col h-full overflow-auto">
-        <Header toggleMobileMenu={toggleMobileMenu} toggleUploadModal={toggleUploadModal} />
-        
-        <div className="flex-1 p-6 space-y-6">
+    <MainLayout>
+      <div className="container mx-auto">
+        <div className="flex-1 space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -379,6 +374,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 }
