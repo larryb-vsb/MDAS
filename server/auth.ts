@@ -5,9 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser, users as usersTable } from "@shared/schema";
-import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { User as SelectUser } from "@shared/schema";
 
 declare global {
   namespace Express {
@@ -31,15 +29,21 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  // Check if SESSION_SECRET is set, otherwise use a random string
+  if (!process.env.SESSION_SECRET) {
+    process.env.SESSION_SECRET = randomBytes(64).toString('hex');
+    console.warn('No SESSION_SECRET set in environment. Using a random secret which will invalidate existing sessions on restart.');
+  }
+
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "session-secret-dev-only",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production"
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+      sameSite: 'lax'
     }
   };
 
@@ -53,17 +57,18 @@ export function setupAuth(app: Express) {
       try {
         const user = await storage.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
+          return done(null, false, { message: "Invalid username or password" });
         }
+        return done(null, user);
       } catch (err) {
         return done(err);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
   
   passport.deserializeUser(async (id: number, done) => {
     try {
@@ -74,83 +79,72 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Register a new user
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password, firstName, lastName, email } = req.body;
-      
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(username);
+      const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
-      // Create new user
       const user = await storage.createUser({
-        username,
-        password: await hashPassword(password),
-        firstName,
-        lastName,
-        email,
-        role: "user"
+        ...req.body,
+        password: await hashPassword(req.body.password),
+        role: "user", // Default role for new users
+        createdAt: new Date()
       });
 
-      // Log the user in
       req.login(user, (err) => {
         if (err) return next(err);
-        // Don't send password to client
-        const { password, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+        res.status(201).json(user);
       });
     } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ error: "Could not register user" });
+      console.error("Error during registration:", error);
+      res.status(500).json({ error: "Failed to register user" });
     }
   });
 
-  // Login user
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) {
-        return res.status(401).json({ error: "Invalid username or password" });
+        return res.status(401).json({ error: info?.message || "Invalid username or password" });
       }
-      
+
       req.login(user, async (err) => {
         if (err) return next(err);
         
         // Update last login time
         try {
-          await db.update(usersTable)
-            .set({ lastLogin: new Date() })
-            .where(eq(usersTable.id, user.id));
-        } catch (err) {
-          console.error("Error updating last login:", err);
+          await storage.updateUserLastLogin(user.id);
+        } catch (error) {
+          console.error("Error updating last login time:", error);
+          // Continue even if this fails
         }
         
-        // Don't send password to client
-        const { password, ...userWithoutPassword } = user;
-        return res.json(userWithoutPassword);
+        res.status(200).json(user);
       });
     })(req, res, next);
   });
 
-  // Logout user
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.status(200).json({ success: true });
+      res.sendStatus(200);
     });
   });
 
-  // Get current user
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    
-    // Don't send password to client
-    const { password, ...userWithoutPassword } = req.user as SelectUser;
-    res.json(userWithoutPassword);
+    res.json(req.user);
+  });
+
+  // Middleware to check if user is authenticated
+  app.use("/api/protected/*", (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    next();
   });
 }
