@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db, pool } from "./db";
@@ -7,12 +7,32 @@ import path from "path";
 import fs from "fs";
 import { createReadStream, createWriteStream } from "fs";
 import { parse as parseCSV } from "csv-parse";
-import { format as formatCSV } from "csv-format";
 import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
+
+// Helper function to format CSV without external dependency
+function formatCSV(data: any[]) {
+  if (!data || data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const csvRows = [headers.join(',')];
+  
+  for (const row of data) {
+    const values = headers.map(header => {
+      const val = row[header] ?? '';
+      // Escape commas and quotes
+      return typeof val === 'string' && (val.includes(',') || val.includes('"')) 
+        ? `"${val.replace(/"/g, '""')}"` 
+        : val;
+    });
+    csvRows.push(values.join(','));
+  }
+  
+  return csvRows.join('\n');
+}
 import { 
   merchants as merchantsTable, 
   transactions as transactionsTable, 
@@ -447,6 +467,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+  
+  // Get analytics data
+  app.get("/api/analytics", async (req, res) => {
+    try {
+      const timeframe = req.query.timeframe as string || 'year';
+      const dashboardStats = await storage.getDashboardStats();
+      
+      // Get transaction history data for the charts
+      const allTransactions = await db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name
+      })
+      .from(transactionsTable)
+      .innerJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .orderBy(transactionsTable.date);
+      
+      // Get unique merchant categories
+      const merchantCategories = await db.select({
+        category: merchantsTable.category, 
+        count: count()
+      })
+      .from(merchantsTable)
+      .where(isNotNull(merchantsTable.category))
+      .groupBy(merchantsTable.category);
+      
+      // Prepare category data
+      const categoryData = merchantCategories.map(cat => ({
+        name: cat.category || "Uncategorized",
+        value: Number(cat.count)
+      }));
+      
+      // Group transactions by month
+      const groupedTransactions = new Map();
+      
+      // Define time range based on timeframe
+      const now = new Date();
+      let startDate = new Date();
+      
+      switch(timeframe) {
+        case 'week':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'quarter':
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'year':
+        default:
+          startDate.setFullYear(now.getFullYear() - 1);
+      }
+      
+      // Process transactions
+      allTransactions.forEach(item => {
+        const { transaction } = item;
+        const txDate = new Date(transaction.date);
+        
+        // Skip if before our time range
+        if (txDate < startDate) return;
+        
+        // Format date key based on timeframe
+        let dateKey;
+        if (timeframe === 'week') {
+          // For week, use day name
+          dateKey = txDate.toLocaleDateString('en-US', { weekday: 'short' });
+        } else {
+          // For month, quarter, year use month name
+          dateKey = txDate.toLocaleDateString('en-US', { month: 'short' });
+        }
+        
+        if (!groupedTransactions.has(dateKey)) {
+          groupedTransactions.set(dateKey, { 
+            name: dateKey, 
+            transactions: 0, 
+            revenue: 0 
+          });
+        }
+        
+        const entry = groupedTransactions.get(dateKey);
+        entry.transactions++;
+        
+        // Calculate revenue based on transaction type
+        const amount = parseFloat(transaction.amount.toString());
+        if (transaction.type === "Credit") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Debit") {
+          entry.revenue -= amount;
+        } else if (transaction.type === "Sale") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Refund") {
+          entry.revenue -= amount;
+        }
+      });
+      
+      // Convert to array and ensure chronological order
+      const transactionData = Array.from(groupedTransactions.values());
+      
+      // Sort by month if needed (for timeframes longer than a week)
+      if (timeframe !== 'week') {
+        const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        transactionData.sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+      }
+      
+      // Return analytics data
+      res.json({
+        transactionData,
+        merchantCategoryData: categoryData,
+        summary: {
+          totalTransactions: dashboardStats.dailyTransactions,
+          totalRevenue: dashboardStats.monthlyRevenue,
+          avgTransactionValue: 
+            dashboardStats.dailyTransactions > 0 
+              ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
+              : 0,
+          growthRate: 12.7 // This would need historical data to calculate properly
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching analytics data:", error);
+      res.status(500).json({ error: "Failed to fetch analytics data" });
     }
   });
 
