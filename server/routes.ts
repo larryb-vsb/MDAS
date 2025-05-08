@@ -12,6 +12,7 @@ import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
+import { setupAuth } from "./auth";
 
 // Helper function to format CSV without external dependency
 function formatCSV(data: any[]) {
@@ -52,6 +53,8 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize authentication system
+  setupAuth(app);
   // Get database statistics and info for settings page
   // Get schema version information
   app.get("/api/schema/versions", async (req, res) => {
