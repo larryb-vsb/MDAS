@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { APP_VERSION, BUILD_DATE } from "@shared/version";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -170,6 +171,53 @@ export default function Settings() {
           </div>
           
           <Separator />
+          
+          {/* System Information Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Server className="mr-2 h-5 w-5 text-primary" />
+                System Information
+              </CardTitle>
+              <CardDescription>
+                Current application system details
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Application Version:</span>
+                  <Badge variant="outline" className="text-primary">
+                    {APP_VERSION}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Build Date:</span>
+                  <span>{BUILD_DATE}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Application:</span>
+                  <span>Merchant Management System</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Environment:</span>
+                  <span>{import.meta.env.MODE || "development"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Database Type:</span>
+                  <span>PostgreSQL</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Frontend Framework:</span>
+                  <span>React + Vite</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Host:</span>
+                  <span>Replit</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
       
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -332,50 +380,6 @@ export default function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SchemaVersionInfo />
             <FileProcessingHistory />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Server className="mr-2 h-5 w-5 text-primary" />
-                  System Information
-                </CardTitle>
-                <CardDescription>
-                  Information about the application environment
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Application:</span>
-                      <span>Merchant Management System</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Environment:</span>
-                      <span>{import.meta.env.MODE || "development"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Database Type:</span>
-                      <span>PostgreSQL</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Frontend Framework:</span>
-                      <span>React + Vite</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Host:</span>
-                      <span>Replit</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Uptime:</span>
-                      <span>Managed by Replit</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
