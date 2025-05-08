@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import MainLayout from "@/components/layout/MainLayout";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import MerchantList from "@/components/merchants/MerchantList";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, RefreshCw } from "lucide-react";
+import { PlusCircle, RefreshCw, Upload } from "lucide-react";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -74,22 +73,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar isVisible={showMobileMenu} className="hidden md:flex md:flex-shrink-0" />
-
-      {/* Main Content Area */}
-      <div className="flex flex-col flex-1 w-0 overflow-hidden">
-        {/* Header */}
-        <Header 
-          toggleMobileMenu={toggleMobileMenu} 
-          toggleUploadModal={toggleUploadModal} 
-        />
-
+    <MainLayout>
+      <div className="container mx-auto">
         {/* Main Content */}
-        <main className="relative flex-1 overflow-y-auto focus:outline-none">
+        <div className="relative">
           <div className="py-6">
-            <div className="px-4 mx-auto max-w-7xl sm:px-6 md:px-8">
+            <div className="mx-auto">
               {/* Page header */}
               <div className="md:flex md:items-center md:justify-between">
                 <div className="flex-1 min-w-0">
@@ -111,9 +100,7 @@ export default function Dashboard() {
                     onClick={toggleUploadModal}
                     className="inline-flex items-center"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
+                    <Upload className="w-4 h-4 mr-2" />
                     Upload Data
                   </Button>
                 </div>
@@ -157,13 +144,13 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </main>
+        </div>
       </div>
 
       {/* File Upload Modal */}
       {showUploadModal && (
         <FileUploadModal onClose={toggleUploadModal} />
       )}
-    </div>
+    </MainLayout>
   );
 }
