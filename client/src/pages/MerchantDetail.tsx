@@ -150,7 +150,7 @@ function AddTransactionForm({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       amount: '',
-      type: 'Sale',
+      type: 'Credit',
       date: new Date().toISOString().split('T')[0]
     }
   });
@@ -189,8 +189,8 @@ function AddTransactionForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="Sale">Sale</SelectItem>
-                  <SelectItem value="Refund">Refund</SelectItem>
+                  <SelectItem value="Credit">Credit</SelectItem>
+                  <SelectItem value="Debit">Debit</SelectItem>
                   <SelectItem value="Fee">Fee</SelectItem>
                 </SelectContent>
               </Select>
@@ -750,7 +750,7 @@ export default function MerchantDetail() {
                             <TableCell>
                               <span 
                                 className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${
-                                  transaction.type === 'Sale' 
+                                  transaction.type === 'Credit' 
                                     ? 'bg-green-100 text-green-800' 
                                     : 'bg-red-100 text-red-800'
                                 }`}
@@ -759,8 +759,8 @@ export default function MerchantDetail() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className={transaction.type === 'Sale' ? 'text-green-600' : 'text-red-600'}>
-                                {transaction.type === 'Sale' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                              <span className={transaction.type === 'Credit' ? 'text-green-600' : 'text-red-600'}>
+                                {transaction.type === 'Credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                               </span>
                             </TableCell>
                           </TableRow>
