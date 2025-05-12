@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -56,11 +56,15 @@ export default function DatabaseConnectionSettings() {
     error,
     refetch
   } = useQuery<DatabaseConnection>({
-    queryKey: ["/api/settings/connection"],
-    onSuccess: (data) => {
-      setConnection(data);
-    }
+    queryKey: ["/api/settings/connection"]
   });
+
+  // Update connection when data is loaded
+  useEffect(() => {
+    if (connectionSettings) {
+      setConnection(connectionSettings);
+    }
+  }, [connectionSettings]);
 
   // Update connection settings
   const updateConnectionMutation = useMutation({
@@ -71,7 +75,7 @@ export default function DatabaseConnectionSettings() {
     onSuccess: () => {
       toast({
         title: "Connection settings updated",
-        description: "Database connection settings have been updated. The application will restart to apply changes.",
+        description: "Database connection settings have been updated. The application will restart to apply changes."
       });
       queryClient.invalidateQueries({ queryKey: ["/api/settings/connection"] });
       queryClient.invalidateQueries({ queryKey: ["/api/settings/database"] });
@@ -81,7 +85,7 @@ export default function DatabaseConnectionSettings() {
       toast({
         title: "Failed to update connection settings",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   });
@@ -101,7 +105,13 @@ export default function DatabaseConnectionSettings() {
 
   const testConnection = async () => {
     try {
-      const response = await apiRequest("POST", "/api/settings/connection/test", connection);
+      const response = await fetch("/api/settings/connection/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(connection)
+      });
       const result = await response.json();
       
       if (result.success) {
@@ -162,28 +172,28 @@ export default function DatabaseConnectionSettings() {
             <div className="flex justify-between items-center">
               <span className="font-medium">Connection Status:</span>
               <Badge variant="outline" className="text-primary">
-                {connectionSettings?.host ? "Configured" : "Using Environment Variables"}
+                {connectionSettings && connectionSettings.host ? "Configured" : "Using Environment Variables"}
               </Badge>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Host:</span>
-              <span>{connectionSettings?.host || "From DATABASE_URL"}</span>
+              <span>{connectionSettings && connectionSettings.host || "From DATABASE_URL"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Port:</span>
-              <span>{connectionSettings?.port || "From DATABASE_URL"}</span>
+              <span>{connectionSettings && connectionSettings.port || "From DATABASE_URL"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Database:</span>
-              <span>{connectionSettings?.database || "From DATABASE_URL"}</span>
+              <span>{connectionSettings && connectionSettings.database || "From DATABASE_URL"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Username:</span>
-              <span>{connectionSettings?.username ? maskString(connectionSettings.username) : "From DATABASE_URL"}</span>
+              <span>{connectionSettings && connectionSettings.username ? maskString(connectionSettings.username) : "From DATABASE_URL"}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">SSL Enabled:</span>
-              <span>{connectionSettings?.ssl ? "Yes" : "No"}</span>
+              <span>{connectionSettings && connectionSettings.ssl ? "Yes" : "No"}</span>
             </div>
           </div>
         )}
