@@ -97,7 +97,11 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
 
   // Debug nav items
   console.log("Nav items before filter:", navItems);
-  const filteredNavItems = navItems.filter((item): item is NavItem => Boolean(item));
+  // Filter out false values, but make sure to keep admin items since isAdmin is true
+  const filteredNavItems = navItems
+    .filter((item): item is NavItem => 
+      Boolean(item) && (!item.adminOnly || isAdmin)
+    );
   console.log("Nav items after filter:", filteredNavItems);
 
   return (
