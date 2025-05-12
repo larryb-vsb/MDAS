@@ -1,10 +1,10 @@
 import { db } from "../db";
 import { backupSchedules } from "@shared/schema";
-import { eq, and, lte } from "drizzle-orm";
+import { eq, and, lte, count } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { BackupSchedule } from "@shared/schema";
-import { createBackup } from "./backup_manager";
+import { backupManager } from "./backup_manager";
 
 // Interval for checking scheduled backups (every minute)
 const CHECK_INTERVAL = 60 * 1000;
@@ -39,10 +39,8 @@ export class BackupSchedulerService {
   private async ensureDefaultBackupSchedule(): Promise<void> {
     try {
       // Check if any backup schedules exist
-      const existingSchedules = await db.select({ count: db.fn.count() })
-        .from(backupSchedules);
-      
-      const scheduleCount = parseInt(existingSchedules[0].count as string, 10);
+      const existingSchedules = await db.select().from(backupSchedules);
+      const scheduleCount = existingSchedules.length;
       
       if (scheduleCount === 0) {
         console.log("No backup schedules found, creating default daily backup schedule");
@@ -133,11 +131,9 @@ export class BackupSchedulerService {
       console.log(`Executing backup schedule: ${schedule.name} (ID: ${schedule.id})`);
       
       // Execute the backup operation
-      const backupResult = await createBackup({
-        useS3: schedule.useS3,
-        notes: `Automated backup from schedule: ${schedule.name}`,
-        scheduleId: schedule.id
-      });
+      const backupResult = await backupManager.createBackup(
+        `Automated backup from schedule: ${schedule.name}`
+      );
       
       // Calculate the next run time
       const nextRun = this.calculateNextRunTime(schedule);
