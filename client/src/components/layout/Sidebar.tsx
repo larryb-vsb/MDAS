@@ -25,7 +25,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   }
   
   // Create the navigation items array
-  const navItems: NavItem[] = [
+  const navItems: (NavItem | false)[] = [
     {
       name: "Dashboard",
       href: "/",
@@ -100,7 +100,12 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   ];
 
   // Filter navItems - keep all items for admins, or only non-admin items for regular users
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredNavItems = navItems
+    .filter((item) => {
+      if (!item) return false;
+      const navItem = item as NavItem;
+      return !navItem.adminOnly || isAdmin;
+    }) as NavItem[];
 
   return (
     <div className={cn(isVisible ? "block" : "hidden", className)}>
