@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
 import { Button } from "@/components/ui/button";
-import { Download, RotateCw, CalendarClock, FileOutput, Clock, Trash } from "lucide-react";
+import { Download, RotateCw, CalendarClock, FileOutput, Clock, Trash, AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -19,9 +19,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Info } from "lucide-react";
-import PageTitle from "@/components/ui/page-title";
-import { Loader2 } from "lucide-react";
+
+// Inline PageTitle component since the import is causing issues
+const PageTitle = ({ title, description }: { title: string; description?: string }) => {
+  return (
+    <div className="mb-6">
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+      {description && (
+        <p className="text-muted-foreground mt-2">{description}</p>
+      )}
+    </div>
+  );
+};
 
 export default function BackupsPage() {
   const { user } = useAuth();

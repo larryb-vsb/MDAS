@@ -16,7 +16,16 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   // Check if user is an admin
   const isAdmin = user?.role === "admin";
 
-  const navItems = [
+  // Define the type for nav items
+  interface NavItem {
+    name: string;
+    href: string;
+    icon: React.ReactNode;
+    adminOnly?: boolean;
+  }
+  
+  // Create the navigation items array
+  const navItems: (NavItem | false)[] = [
     {
       name: "Merchants",
       href: "/",
@@ -89,7 +98,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
         </div>
         <div className="flex flex-col flex-grow px-4 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-2">
-            {navItems.map((item) => (
+            {navItems.filter((item): item is NavItem => Boolean(item)).map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
