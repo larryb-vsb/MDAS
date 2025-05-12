@@ -330,7 +330,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create the backup using the manager
-      const backup = await backupManager.createBackup(req.body.notes || "Created via API");
+      const backupId = await backupManager.createBackup({
+        notes: req.body.notes || "Created via API",
+        useS3: req.body.useS3,
+        userId: req.user?.id
+      });
+      
+      // Get the backup record with details
+      const [backup] = await db.select().from(backupHistory).where(eq(backupHistory.id, backupId));
       
       // Success response
       res.json({
@@ -338,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Database backup created successfully",
         timestamp: new Date().toISOString(),
         backup,
-        storageType: backup.storageType
+        storageType: backup?.storageType || "local"
       });
     } catch (error) {
       console.error("Error creating database backup:", error);
@@ -432,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      if (!fs.existsSync(backup.filePath)) {
+      if (!backup.filePath || !fs.existsSync(backup.filePath)) {
         return res.status(404).json({ 
           success: false, 
           error: "Backup file not found. The temporary file may have been deleted." 
@@ -450,6 +457,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(backupHistory.id, backupId));
       
       // Stream the file to client
+      if (!backup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
       const fileStream = fs.createReadStream(backup.filePath);
       fileStream.pipe(res);
     } catch (error) {
@@ -552,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      if (!fs.existsSync(latestBackup.filePath)) {
+      if (!latestBackup.filePath || !fs.existsSync(latestBackup.filePath)) {
         return res.status(404).json({ 
           success: false, 
           error: "Backup file not found. The temporary file may have been deleted." 
@@ -570,6 +583,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(backupHistory.id, latestBackup.id));
       
       // Stream the file to client
+      if (!latestBackup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
       const fileStream = fs.createReadStream(latestBackup.filePath);
       fileStream.pipe(res);
     } catch (error) {
