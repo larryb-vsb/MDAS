@@ -198,9 +198,15 @@ router.post("/schedules/:id/run", async (req: Request, res: Response) => {
     
     const schedule = existingSchedule[0];
     
-    // Create the backup based on schedule settings
-    // This is a mock implementation - in a real system this would call your backup service
-    // For now, we'll just update the lastRun time
+    // Import backup manager here to avoid circular dependencies
+    const { backupManager } = await import("../backup/backup_manager");
+    
+    // Execute the backup operation using the backup manager
+    const backupResult = await backupManager.createBackup(
+      `Manual execution of backup schedule: ${schedule.name}`
+    );
+    
+    // Update the schedule's last run time
     await db.update(backupSchedules)
       .set({
         lastRun: new Date(),
