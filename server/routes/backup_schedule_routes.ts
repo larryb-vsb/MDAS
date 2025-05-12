@@ -128,11 +128,12 @@ router.patch("/schedules/:id", async (req: Request, res: Response) => {
         ...updateData
       };
       
-      updateData.nextRun = calculateNextRunTime(updatedScheduleData);
+      // Need to cast the updateData to any to avoid TypeScript errors with dynamic properties
+      (updateData as any).nextRun = calculateNextRunTime(updatedScheduleData);
     }
     
     // Add updatedAt timestamp
-    updateData.updatedAt = new Date();
+    (updateData as any).updatedAt = new Date();
     
     const result = await db.update(backupSchedules)
       .set(updateData)

@@ -334,7 +334,7 @@ export default function Settings() {
                 <Button 
                   className="w-full" 
                   onClick={createBackup} 
-                  disabled={isBackingUp || isLoading || isError || (useS3Storage && (!s3ConfigQuery.data || !s3ConfigQuery.data.accessKeyId))}
+                  disabled={isBackingUp || isLoading || isError || (useS3Storage && (!s3ConfigQuery.data || !(s3ConfigQuery.data as any).accessKeyId))}
                 >
                   {isBackingUp ? (
                     <>

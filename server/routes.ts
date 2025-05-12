@@ -15,6 +15,7 @@ import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
+import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 
 // Authentication middleware
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -69,6 +70,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register S3 configuration routes
   registerS3Routes(app);
+  
+  // Register backup schedule routes
+  registerBackupScheduleRoutes(app.use("/api/settings", isAuthenticated));
   
   // User management endpoints
   app.get("/api/users", async (req, res) => {
