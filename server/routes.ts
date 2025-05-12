@@ -539,7 +539,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get backup history
-  app.get("/api/settings/backup/history", async (req, res) => {
+  app.get("/api/backups", async (req, res) => {
     try {
       // Check if we should include deleted backups
       const includeDeleted = req.query.includeDeleted === 'true';
@@ -598,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Download a specific backup by ID
-  app.get("/api/settings/backup/download/:id", async (req, res) => {
+  app.get("/api/backups/download/:id", async (req, res) => {
     try {
       const backupId = req.params.id;
       

@@ -219,7 +219,7 @@ export default function BackupsPage() {
                               title="Download backup"
                               onClick={() => {
                                 // Trigger download using the correct API endpoint
-                                window.open(`/api/settings/backup/download/${backup.id}`, '_blank');
+                                window.open(`/api/backups/download/${backup.id}`, '_blank');
                                 toast({
                                   title: "Download started",
                                   description: "The backup file is being downloaded"
@@ -249,7 +249,7 @@ export default function BackupsPage() {
                               onClick={async () => {
                                 if (confirm("Are you sure you want to delete this backup?")) {
                                   try {
-                                    const response = await fetch(`/api/settings/backup/${backup.id}`, {
+                                    const response = await fetch(`/api/backups/${backup.id}`, {
                                       method: 'DELETE',
                                     });
                                     
