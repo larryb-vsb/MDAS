@@ -15,6 +15,14 @@ import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 
+// Authentication middleware
+function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: "Not authenticated" });
+}
+
 // Helper function to format CSV without external dependency
 function formatCSV(data: any[]) {
   if (!data || data.length === 0) return '';
@@ -35,6 +43,7 @@ function formatCSV(data: any[]) {
   
   return csvRows.join('\n');
 }
+
 import { 
   merchants as merchantsTable, 
   transactions as transactionsTable, 
@@ -1207,6 +1216,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting merchants:', error);
       res.status(500).json({ error: "Failed to delete merchants" });
+    }
+  });
+
+  // Database Connection Settings Routes
+  
+  // Get current database connection settings
+  app.get("/api/settings/connection", isAuthenticated, async (req, res) => {
+    try {
+      const config = loadDatabaseConfig();
+      
+      // Mask the password for security
+      if (config.password) {
+        config.password = "";
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error loading database connection settings:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to load database connection settings" 
+      });
+    }
+  });
+  
+  // Update database connection settings
+  app.post("/api/settings/connection", isAuthenticated, async (req, res) => {
+    try {
+      const config = req.body;
+      
+      // Basic validation
+      if (config.url || (config.host && config.database && config.username)) {
+        saveDatabaseConfig(config);
+        
+        // Return success
+        res.json({ 
+          success: true, 
+          message: "Database connection settings updated successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          error: "Invalid database configuration. Please provide either a connection URL or host, database, and username." 
+        });
+      }
+    } catch (error) {
+      console.error("Error saving database connection settings:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to save database connection settings" 
+      });
+    }
+  });
+  
+  // Test database connection
+  app.post("/api/settings/connection/test", isAuthenticated, async (req, res) => {
+    try {
+      const config = req.body;
+      
+      // Test the connection
+      const isConnected = await testDatabaseConnection(config);
+      
+      if (isConnected) {
+        res.json({ 
+          success: true, 
+          message: "Successfully connected to the database" 
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          error: "Failed to connect to the database with the provided settings" 
+        });
+      }
+    } catch (error) {
+      console.error("Error testing database connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to test database connection" 
+      });
     }
   });
 

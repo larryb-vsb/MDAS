@@ -69,7 +69,13 @@ export default function DatabaseConnectionSettings() {
   // Update connection settings
   const updateConnectionMutation = useMutation({
     mutationFn: async (newConnection: DatabaseConnection) => {
-      const response = await apiRequest("POST", "/api/settings/connection", newConnection);
+      const response = await fetch("/api/settings/connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newConnection)
+      });
       return await response.json();
     },
     onSuccess: () => {
