@@ -1,62 +1,59 @@
 import { db } from "../db";
-import {
-  merchants,
-  transactions,
-  uploadedFiles,
-  backupHistory,
-  backupSchedules,
-  schemaVersions,
-  users
+import { 
+  merchants, 
+  transactions, 
+  backupHistory, 
+  backupSchedules, 
+  uploadedFiles, 
+  schemaVersions 
 } from "@shared/schema";
+import { CURRENT_SCHEMA_VERSION } from "../schema_version";
 
 /**
- * Create a complete backup of all database tables
- * 
- * @returns Object containing all database data
+ * Creates a complete backup of the database tables
+ * @returns A JSON-serializable object containing all database tables
  */
 export async function createBackupData() {
-  try {
-    // Get all data from each table
-    const merchantsData = await db.select().from(merchants);
-    const transactionsData = await db.select().from(transactions);
-    const uploadedFilesData = await db.select().from(uploadedFiles);
-    const backupHistoryData = await db.select().from(backupHistory);
-    const backupSchedulesData = await db.select().from(backupSchedules);
-    const schemaVersionsData = await db.select().from(schemaVersions);
-    const usersData = await db.select().from(users);
-    
-    // Create metadata for the backup
-    const metadata = {
-      timestamp: new Date().toISOString(),
-      version: "1.0.0",
-      tables: [
-        "merchants",
-        "transactions",
-        "uploaded_files",
-        "backup_history",
-        "backup_schedules",
-        "schema_versions",
-        "users"
-      ]
-    };
-    
-    // Assemble the complete backup object
-    const backupData = {
-      metadata,
-      data: {
-        merchants: merchantsData,
-        transactions: transactionsData,
-        uploadedFiles: uploadedFilesData,
-        backupHistory: backupHistoryData,
-        backupSchedules: backupSchedulesData,
-        schemaVersions: schemaVersionsData,
-        users: usersData
-      }
-    };
-    
-    return backupData;
-  } catch (error) {
-    console.error("Error creating backup data:", error);
-    throw error;
-  }
+  // Fetch data from all tables
+  const merchantsData = await db.select().from(merchants);
+  const transactionsData = await db.select().from(transactions);
+  const uploadedFilesData = await db.select().from(uploadedFiles);
+  const backupHistoryData = await db.select().from(backupHistory);
+  const backupSchedulesData = await db.select().from(backupSchedules);
+  const schemaVersionsData = await db.select().from(schemaVersions);
+  
+  // Create metadata with schema version and timestamp
+  const metadata = {
+    timestamp: new Date().toISOString(),
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    tables: [
+      "merchants",
+      "transactions", 
+      "uploadedFiles",
+      "backupHistory",
+      "backupSchedules",
+      "schemaVersions"
+    ],
+    counts: {
+      merchants: merchantsData.length,
+      transactions: transactionsData.length,
+      uploadedFiles: uploadedFilesData.length,
+      backupHistory: backupHistoryData.length,
+      backupSchedules: backupSchedulesData.length,
+      schemaVersions: schemaVersionsData.length
+    }
+  };
+  
+  // Combine all data into a single object
+  return {
+    metadata,
+    data: {
+      merchants: merchantsData,
+      transactions: transactionsData,
+      uploadedFiles: uploadedFilesData,
+      backupHistory: backupHistoryData,
+      backupSchedules: backupSchedulesData,
+      schemaVersions: schemaVersionsData
+    }
+  };
 }

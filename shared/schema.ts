@@ -47,16 +47,19 @@ export const uploadedFiles = pgTable("uploaded_files", {
 export const backupHistory = pgTable("backup_history", {
   id: text("id").primaryKey(),
   fileName: text("file_name").notNull(),
-  filePath: text("file_path").notNull(),
+  filePath: text("file_path"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-  size: integer("size").notNull(),
-  tables: jsonb("tables").notNull(), // Store table counts as JSON
+  fileSize: integer("file_size").notNull(),
+  tables: text("tables").notNull(), // Comma-separated list of tables
   notes: text("notes"),
   downloaded: boolean("downloaded").default(false).notNull(),
   deleted: boolean("deleted").default(false).notNull(),
   storageType: text("storage_type").default("local").notNull(), // "local" or "s3"
   s3Bucket: text("s3_bucket"),
-  s3Key: text("s3_key")
+  s3Key: text("s3_key"),
+  isScheduled: boolean("is_scheduled").default(false).notNull(),
+  scheduleId: integer("schedule_id"),
+  createdBy: text("created_by").default("system").notNull()
 });
 
 // Backup schedule table

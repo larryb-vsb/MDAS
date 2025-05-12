@@ -4,6 +4,7 @@ import { db } from "../db";
 import { backupHistory } from "@shared/schema";
 import { S3BackupService } from "./s3_backup_service";
 import { createBackupData } from "./create_backup_data";
+import { eq } from "drizzle-orm";
 
 /**
  * Create a backup of the database
@@ -79,6 +80,7 @@ export async function createBackup(options: {
       id: backupId,
       timestamp: new Date(timestamp),
       filePath: storageType === "local" ? backupPath : null,
+      fileName: backupFilename,
       fileSize: Buffer.byteLength(JSON.stringify(backupData)),
       createdBy: options.systemOperation ? "system" : options.userId ? options.userId.toString() : "unknown",
       notes: options.notes || "",
@@ -86,7 +88,10 @@ export async function createBackup(options: {
       s3Bucket: s3Bucket,
       s3Key: s3Key,
       isScheduled: options.isScheduled || false,
-      scheduleId: options.scheduleId || null
+      scheduleId: options.scheduleId || null,
+      tables: Object.keys(backupData.data).join(","),
+      downloaded: false,
+      deleted: false
     });
     
     return backupId;
@@ -106,7 +111,7 @@ export async function restoreBackup(backupId: string): Promise<boolean> {
   try {
     // Get the backup record
     const [backup] = await db.select().from(backupHistory)
-      .where(x => x.id.equals(backupId));
+      .where(eq(backupHistory.id, backupId));
     
     if (!backup) {
       throw new Error(`Backup with ID ${backupId} not found`);
