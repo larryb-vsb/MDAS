@@ -2,7 +2,7 @@ import { Request, Response, Express } from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { isAuthenticated } from "./auth_middleware";
+import { isAuthenticated } from "../routes";
 import { s3Service } from "../backup/s3_service";
 
 // ES module equivalent of __dirname

@@ -201,7 +201,7 @@ export default function BackupsPage() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell>{(backup.fileSize / (1024 * 1024)).toFixed(2)} MB</TableCell>
+                        <TableCell>{((backup.fileSize || backup.size) / (1024 * 1024)).toFixed(2)} MB</TableCell>
                         <TableCell>
                           <Badge className="bg-green-500 text-white flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" />
