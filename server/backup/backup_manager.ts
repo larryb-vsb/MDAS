@@ -130,22 +130,24 @@ async function createBackup(options: {
     
     // Record the backup in the history table
     try {
-      await db.insert(backupHistory).values({
+      const jsonData = JSON.stringify(backupData);
+      const backupRecord = {
         id: backupId,
         timestamp: new Date(timestamp),
         filePath: storageType === "local" ? backupPath : null,
         fileName: backupFilename,
-        // Use 'size' column instead of 'fileSize' to match database schema
-        size: Buffer.byteLength(JSON.stringify(backupData)),
+        size: Buffer.byteLength(jsonData),
         notes: options.notes || "",
         storageType: storageType,
         s3Bucket: s3Bucket,
         s3Key: s3Key,
-        // Convert tables to JSON since database expects JSONB
         tables: JSON.stringify(Object.keys(backupData.data)),
         downloaded: false,
         deleted: false
-      });
+      };
+      
+      console.log("Inserting backup record:", backupRecord);
+      await db.insert(backupHistory).values(backupRecord);
       console.log("Backup record inserted successfully");
     } catch (error) {
       console.error("Error inserting backup record:", error);
