@@ -53,7 +53,10 @@ export const backupHistory = pgTable("backup_history", {
   tables: jsonb("tables").notNull(), // Store table counts as JSON
   notes: text("notes"),
   downloaded: boolean("downloaded").default(false).notNull(),
-  deleted: boolean("deleted").default(false).notNull()
+  deleted: boolean("deleted").default(false).notNull(),
+  storageType: text("storage_type").default("local").notNull(), // "local" or "s3"
+  s3Bucket: text("s3_bucket"),
+  s3Key: text("s3_key")
 });
 
 // Schema version table
