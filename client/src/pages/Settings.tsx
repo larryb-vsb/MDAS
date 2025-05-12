@@ -428,6 +428,10 @@ export default function Settings() {
             </Card>
           </div>
           
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <BackupScheduleManager />
+          </div>
+          
           <div className="grid grid-cols-1 gap-6">
             <UserManagement />
           </div>
