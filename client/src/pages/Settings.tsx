@@ -7,10 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, Database, Download, DownloadCloud, HardDrive, List, RefreshCw, Server } from "lucide-react";
+import { AlertCircle, Database, Download, DownloadCloud, HardDrive, Info, List, RefreshCw, Server } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
