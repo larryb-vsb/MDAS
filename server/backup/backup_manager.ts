@@ -172,7 +172,7 @@ export class BackupManager {
   public async deleteBackup(backupId: string): Promise<void> {
     try {
       const [backup] = await db.select().from(backupHistory).where(
-        (backup, { eq }) => eq(backup.id, backupId)
+        eq(backupHistory.id, backupId)
       );
       
       if (!backup) {
@@ -197,7 +197,7 @@ export class BackupManager {
       // Mark as deleted in the database
       await db.update(backupHistory)
         .set({ deleted: true })
-        .where((backup, { eq }) => eq(backup.id, backupId));
+        .where(eq(backupHistory.id, backupId));
     } catch (error) {
       console.error("Error deleting backup:", error);
       throw new Error(`Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
