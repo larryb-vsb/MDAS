@@ -1,209 +1,238 @@
-import { db } from "../db";
 import { backupSchedules } from "@shared/schema";
-import { eq, and, lte, count } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
-import { BackupSchedule } from "@shared/schema";
-import { backupManager } from "./backup_manager";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+import { scheduleJob } from "node-schedule";
+import axios from "axios";
+import { createBackup } from "./backup_manager";
 
-// Interval for checking scheduled backups (every minute)
-const CHECK_INTERVAL = 60 * 1000;
+// Track scheduled jobs
+const scheduledJobs = new Map();
 
 /**
- * Backup Scheduler Service
- * Handles scheduling and running of automated backups based on configured schedules
+ * Initialize the backup scheduler service
+ * This sets up and runs automated backup jobs based on configured schedules
  */
-export class BackupSchedulerService {
-  private timer: NodeJS.Timeout | null = null;
-  private isRunning = false;
-
-  /**
-   * Start the scheduler service
-   */
-  public async start(): Promise<void> {
-    console.log("Starting backup scheduler service...");
-    
-    // Ensure there's at least one default backup schedule
-    await this.ensureDefaultBackupSchedule();
-    
-    // Run immediately on startup
-    this.checkAndRunBackups();
-    
-    // Set up recurring check
-    this.timer = setInterval(() => this.checkAndRunBackups(), CHECK_INTERVAL);
-  }
+export async function initializeBackupScheduler() {
+  console.log("Starting backup scheduler service...");
   
-  /**
-   * Ensure there's at least one default backup schedule
-   */
-  private async ensureDefaultBackupSchedule(): Promise<void> {
-    try {
-      // Check if any backup schedules exist
-      const existingSchedules = await db.select().from(backupSchedules);
-      const scheduleCount = existingSchedules.length;
-      
-      if (scheduleCount === 0) {
-        console.log("No backup schedules found, creating default daily backup schedule");
-        
-        // Calculate default nextRun time (tomorrow at midnight)
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        
-        // Create a default daily backup schedule
-        await db.insert(backupSchedules).values({
-          name: "Default Daily Backup",
-          frequency: "daily",
-          timeOfDay: "00:00",
-          enabled: true,
-          useS3: false,
-          retentionDays: 30,
-          nextRun: tomorrow,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          notes: "System-created default backup schedule"
-        });
-        
-        console.log("Default backup schedule created successfully");
-      }
-    } catch (error) {
-      console.error("Error ensuring default backup schedule:", error);
-    }
-  }
-
-  /**
-   * Stop the scheduler service
-   */
-  public stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.isRunning = false;
-    console.log("Backup scheduler service stopped");
-  }
-
-  /**
-   * Check for scheduled backups that need to be run and execute them
-   */
-  private async checkAndRunBackups(): Promise<void> {
-    // Prevent concurrent execution
-    if (this.isRunning) {
-      return;
-    }
+  try {
+    // Get all enabled backup schedules
+    const schedules = await db.select().from(backupSchedules).where(eq(backupSchedules.enabled, true));
     
-    try {
-      this.isRunning = true;
-      
-      // Find schedules that should run now
-      const now = new Date();
-      
-      // Get all active schedules with nextRun <= now
-      const schedulesToRun = await db.select()
-        .from(backupSchedules)
-        .where(
-          and(
-            eq(backupSchedules.enabled, true),
-            lte(backupSchedules.nextRun, now)
-          )
-        );
-      
-      if (schedulesToRun.length > 0) {
-        console.log(`Found ${schedulesToRun.length} backup schedule(s) to run`);
-      }
-      
-      // Run each schedule
-      for (const schedule of schedulesToRun) {
-        await this.executeSchedule(schedule);
-      }
-    } catch (error) {
-      console.error("Error in backup scheduler:", error);
-    } finally {
-      this.isRunning = false;
-    }
-  }
-
-  /**
-   * Execute a specific backup schedule
-   */
-  private async executeSchedule(schedule: BackupSchedule): Promise<void> {
-    try {
-      console.log(`Executing backup schedule: ${schedule.name} (ID: ${schedule.id})`);
-      
-      // Execute the backup operation
-      const backupResult = await backupManager.createBackup(
-        `Automated backup from schedule: ${schedule.name}`
-      );
-      
-      // Calculate the next run time
-      const nextRun = this.calculateNextRunTime(schedule);
-      
-      // Update the schedule's last run time and next run time
-      await db.update(backupSchedules)
-        .set({
-          lastRun: new Date(),
-          nextRun: nextRun,
-          updatedAt: new Date()
-        })
-        .where(eq(backupSchedules.id, schedule.id));
-      
-      console.log(`Backup schedule ${schedule.id} executed successfully. Next run: ${nextRun.toISOString()}`);
-    } catch (error) {
-      console.error(`Error executing backup schedule ${schedule.id}:`, error);
-    }
-  }
-
-  /**
-   * Calculate the next run time for a schedule
-   */
-  private calculateNextRunTime(schedule: BackupSchedule): Date {
-    const now = new Date();
-    const nextRun = new Date();
+    // Schedule each backup job
+    schedules.forEach(schedule => {
+      scheduleBackupJob(schedule);
+    });
     
-    // Parse time of day
-    const [hours, minutes] = schedule.timeOfDay.split(':').map(Number);
+    // Set up a periodic check to ensure all schedules are running (runs every hour)
+    scheduleJob("0 * * * *", async () => {
+      refreshSchedules();
+    });
     
-    // Set the hours and minutes
-    nextRun.setHours(hours, minutes, 0, 0);
-    
-    // If the time is in the past, push it to tomorrow
-    if (nextRun < now) {
-      nextRun.setDate(nextRun.getDate() + 1);
-    }
-    
-    // Handle frequency specific adjustments
-    if (schedule.frequency === 'weekly' && typeof schedule.dayOfWeek === 'number') {
-      // Set to the next occurrence of the specified day of week
-      const currentDay = nextRun.getDay();
-      const daysUntilTarget = (schedule.dayOfWeek - currentDay + 7) % 7;
-      
-      // If it's today but time has passed, we need to add 7 days
-      if (daysUntilTarget === 0 && nextRun < now) {
-        nextRun.setDate(nextRun.getDate() + 7);
-      } else {
-        nextRun.setDate(nextRun.getDate() + daysUntilTarget);
-      }
-    } else if (schedule.frequency === 'monthly' && typeof schedule.dayOfMonth === 'number') {
-      // Set to the specified day of the month
-      nextRun.setDate(schedule.dayOfMonth);
-      
-      // If the date is in the past, move to next month
-      if (nextRun < now) {
-        nextRun.setMonth(nextRun.getMonth() + 1);
-      }
-      
-      // Handle invalid dates (e.g., February 30th becomes March 2nd or 3rd)
-      // If this happens, we'll set it to the last day of the month
-      const originalMonth = nextRun.getMonth();
-      if (nextRun.getMonth() !== originalMonth) {
-        // Go back to the previous month and set to the last day
-        nextRun.setDate(0);
-      }
-    }
-    
-    return nextRun;
+  } catch (error) {
+    console.error("Error initializing backup scheduler:", error);
   }
 }
 
-// Singleton instance
-export const backupScheduler = new BackupSchedulerService();
+/**
+ * Schedule a specific backup job based on its configuration
+ */
+function scheduleBackupJob(schedule: any) {
+  // Cancel any existing job for this schedule
+  if (scheduledJobs.has(schedule.id)) {
+    scheduledJobs.get(schedule.id).cancel();
+  }
+  
+  let cronExpression;
+  
+  // Parse the schedule into a cron expression
+  const [hours, minutes] = schedule.timeOfDay.split(":").map(Number);
+  
+  if (schedule.frequency === "daily") {
+    cronExpression = `${minutes} ${hours} * * *`;
+  } else if (schedule.frequency === "weekly" && schedule.dayOfWeek !== null) {
+    cronExpression = `${minutes} ${hours} * * ${schedule.dayOfWeek}`;
+  } else if (schedule.frequency === "monthly" && schedule.dayOfMonth !== null) {
+    cronExpression = `${minutes} ${hours} ${schedule.dayOfMonth} * *`;
+  } else {
+    console.error(`Invalid schedule configuration for schedule ID ${schedule.id}`);
+    return;
+  }
+  
+  try {
+    // Schedule the job with node-schedule
+    const job = scheduleJob(cronExpression, async () => {
+      await runBackupJob(schedule);
+    });
+    
+    // Store the job for later reference
+    scheduledJobs.set(schedule.id, job);
+    
+    console.log(`Scheduled backup job ID ${schedule.id} (${schedule.name}) with cron: ${cronExpression}`);
+    
+    // Calculate and update the next run time
+    updateNextRunTime(schedule);
+    
+  } catch (error) {
+    console.error(`Error scheduling backup job ID ${schedule.id}:`, error);
+  }
+}
+
+/**
+ * Execute a backup job
+ */
+async function runBackupJob(schedule: any) {
+  console.log(`Running scheduled backup: ${schedule.name} (ID: ${schedule.id})`);
+  
+  try {
+    // Run the backup using system credentials (not tied to any specific user session)
+    const backupResult = await createBackup({
+      notes: `Automated backup from schedule: ${schedule.name}`,
+      useS3: schedule.useS3,
+      isScheduled: true,
+      scheduleId: schedule.id,
+      // We don't need a user ID as this is a system operation
+      systemOperation: true
+    });
+    
+    // Update the last run time
+    await db.update(backupSchedules)
+      .set({ 
+        lastRun: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(backupSchedules.id, schedule.id));
+    
+    // Update the next run time
+    updateNextRunTime(schedule);
+    
+    console.log(`Scheduled backup completed successfully: ${schedule.name} (ID: ${schedule.id})`);
+    return backupResult;
+    
+  } catch (error) {
+    console.error(`Error running scheduled backup ${schedule.name} (ID: ${schedule.id}):`, error);
+    
+    // Still update the last run time (even though it failed)
+    await db.update(backupSchedules)
+      .set({ 
+        lastRun: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(backupSchedules.id, schedule.id));
+      
+    // Update the next run time
+    updateNextRunTime(schedule);
+    
+    throw error;
+  }
+}
+
+/**
+ * Calculate and update the next run time for a schedule
+ */
+async function updateNextRunTime(schedule: any) {
+  const now = new Date();
+  let nextRun = new Date();
+  
+  // Set the time
+  const [hours, minutes] = schedule.timeOfDay.split(":").map(Number);
+  nextRun.setHours(hours, minutes, 0, 0);
+  
+  // Adjust based on frequency
+  if (schedule.frequency === "daily") {
+    // If the time today has already passed, set for tomorrow
+    if (nextRun <= now) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+  } else if (schedule.frequency === "weekly" && schedule.dayOfWeek !== null) {
+    // Set to the next occurrence of the specified day of week
+    const currentDay = nextRun.getDay();
+    const targetDay = schedule.dayOfWeek;
+    let daysToAdd = targetDay - currentDay;
+    if (daysToAdd < 0 || (daysToAdd === 0 && nextRun <= now)) {
+      daysToAdd += 7; // Go to next week
+    }
+    nextRun.setDate(nextRun.getDate() + daysToAdd);
+  } else if (schedule.frequency === "monthly" && schedule.dayOfMonth !== null) {
+    // Set to the specified day of the month
+    const targetDay = schedule.dayOfMonth;
+    nextRun.setDate(targetDay);
+    
+    // If this date has already passed this month, go to next month
+    if (nextRun <= now) {
+      nextRun.setMonth(nextRun.getMonth() + 1);
+    }
+    
+    // Handle cases where the target day doesn't exist in some months
+    const actualDay = nextRun.getDate();
+    if (actualDay !== targetDay) {
+      // This means we rolled over to the next month
+      // Go back to the last day of the previous month
+      nextRun.setDate(0);
+    }
+  }
+  
+  // Update the schedule with the new next run time
+  await db.update(backupSchedules)
+    .set({ 
+      nextRun: nextRun,
+      updatedAt: new Date()
+    })
+    .where(eq(backupSchedules.id, schedule.id));
+    
+  console.log(`Updated next run time for ${schedule.name} (ID: ${schedule.id}) to ${nextRun}`);
+}
+
+/**
+ * Refresh all backup schedules (called periodically)
+ */
+export async function refreshSchedules() {
+  try {
+    // Get all enabled backup schedules
+    const schedules = await db.select().from(backupSchedules).where(eq(backupSchedules.enabled, true));
+    
+    // Set of current schedule IDs
+    const currentIds = new Set(schedules.map(s => s.id));
+    
+    // Cancel any jobs that are no longer in the database or are disabled
+    for (const [id, job] of scheduledJobs.entries()) {
+      if (!currentIds.has(id)) {
+        job.cancel();
+        scheduledJobs.delete(id);
+        console.log(`Removed schedule job for deleted schedule ID ${id}`);
+      }
+    }
+    
+    // Schedule or update each backup job
+    schedules.forEach(schedule => {
+      scheduleBackupJob(schedule);
+    });
+    
+    console.log(`Refreshed backup schedules. ${schedules.length} active schedules.`);
+  } catch (error) {
+    console.error("Error refreshing backup schedules:", error);
+  }
+}
+
+/**
+ * Manually run a backup schedule
+ */
+export async function runScheduleManually(scheduleId: number) {
+  try {
+    // Get the schedule
+    const [schedule] = await db.select()
+      .from(backupSchedules)
+      .where(eq(backupSchedules.id, scheduleId));
+    
+    if (!schedule) {
+      throw new Error(`Schedule with ID ${scheduleId} not found`);
+    }
+    
+    // Run the backup job
+    return await runBackupJob(schedule);
+    
+  } catch (error) {
+    console.error(`Error manually running schedule ID ${scheduleId}:`, error);
+    throw error;
+  }
+}
