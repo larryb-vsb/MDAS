@@ -1,449 +1,110 @@
-import { Request, Response, NextFunction, Express } from "express";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { merchants, transactions, uploadedFiles, schemaVersions, backupHistory, backupSchedules } from "@shared/schema";
-import { db } from "./db";
-import { CURRENT_SCHEMA_VERSION, SchemaVersionManager } from "./schema_version";
-import { createServer, Server } from "http";
-import { setupVite, serveStatic } from "./vite";
-import { eq, desc, like, and, or, sql, asc, between } from "drizzle-orm";
+import type { Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { backupManager } from "./backup/backup_manager";
-import { PathLike } from "fs";
-import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
-import { registerS3Routes } from "./routes/s3_routes";
+import { db, pool } from "./db";
+import { z } from "zod";
+import path from "path";
+import fs from "fs";
+import { createReadStream, createWriteStream } from "fs";
+import { parse as parseCSV } from "csv-parse";
+import multer from "multer";
+import os from "os";
+import { promisify } from "util";
+import { exec } from "child_process";
+import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
 import { setupAuth } from "./auth";
+import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
+import { registerS3Routes } from "./routes/s3_routes";
+import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 
-/**
- * Middleware to check if a user is authenticated
- */
+// Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }
-  return res.status(401).json({ error: "Not authenticated" });
+  res.status(401).json({ error: "Not authenticated" });
 }
 
-/**
- * Utility to format data as CSV
- */
+// Helper function to format CSV without external dependency
 function formatCSV(data: any[]) {
-  if (!data || data.length === 0) {
-    return "";
+  if (!data || data.length === 0) return '';
+  
+  const headers = Object.keys(data[0]);
+  const csvRows = [headers.join(',')];
+  
+  for (const row of data) {
+    const values = headers.map(header => {
+      const val = row[header] ?? '';
+      // Escape commas and quotes
+      return typeof val === 'string' && (val.includes(',') || val.includes('"')) 
+        ? `"${val.replace(/"/g, '""')}"` 
+        : val;
+    });
+    csvRows.push(values.join(','));
   }
   
-  // Get headers from first object keys
-  const headers = Object.keys(data[0]);
-  
-  // Create header row
-  let csv = headers.join(",") + "\n";
-  
-  // Add data rows
-  data.forEach(row => {
-    const values = headers.map(header => {
-      const val = row[header];
-      // Handle values that might contain commas
-      if (val === null || val === undefined) {
-        return '';
-      } else if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-        return `"${val.replace(/"/g, '""')}"`;
-      } else {
-        return val;
-      }
-    });
-    csv += values.join(",") + "\n";
-  });
-  
-  return csv;
+  return csvRows.join('\n');
 }
 
+import { 
+  merchants as merchantsTable, 
+  transactions as transactionsTable, 
+  uploadedFiles as uploadedFilesTable,
+  backupHistory,
+  InsertBackupHistory,
+  schemaVersions
+} from "@shared/schema";
+import { SchemaVersionManager, CURRENT_SCHEMA_VERSION } from "./schema_version";
+
+const execPromise = promisify(exec);
+
+// Set up multer for file uploads
+const upload = multer({ 
+  dest: os.tmpdir(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // File upload configuration
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = './tmp_uploads';
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, uniqueSuffix + '-' + file.originalname);
-    }
-  });
-  
-  const upload = multer({ storage });
-  
-  // Configure auth routes (login, register, etc)
+  // Initialize authentication system
   setupAuth(app);
   
-  // API Routes
-  app.get("/api/hello", (req, res) => {
-    res.json({ message: "Hello from the API!" });
-  });
+  // Register S3 configuration routes
+  registerS3Routes(app);
   
-  // Get Dashboard Stats
-  app.get("/api/stats", async (req, res) => {
-    try {
-      const stats = await storage.getDashboardStats();
-      res.json(stats);
-    } catch (error) {
-      console.error("Error getting dashboard stats:", error);
-      res.status(500).json({ error: "Failed to get dashboard stats" });
-    }
-  });
+  // Register backup schedule routes
+  app.use("/api/settings", isAuthenticated);
+  registerBackupScheduleRoutes(app);
   
-  // Get all merchants with pagination
-  app.get("/api/merchants", async (req, res) => {
+  // User management endpoints
+  app.get("/api/users", async (req, res) => {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 20;
-      const status = req.query.status as string;
-      const lastUpload = req.query.lastUpload as string;
-      
-      const result = await storage.getMerchants(page, pageSize, status, lastUpload);
-      
-      res.json(result);
-    } catch (error) {
-      console.error("Error retrieving merchants:", error);
-      res.status(500).json({ error: "Failed to retrieve merchants" });
-    }
-  });
-  
-  // Get merchant by ID
-  app.get("/api/merchants/:id", async (req, res) => {
-    try {
-      const merchantId = req.params.id;
-      const result = await storage.getMerchantById(merchantId);
-      
-      if (!result.merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      res.json(result);
-    } catch (error) {
-      console.error("Error retrieving merchant details:", error);
-      res.status(500).json({ error: "Failed to retrieve merchant details" });
-    }
-  });
-  
-  // Create a new merchant
-  app.post("/api/merchants", async (req, res) => {
-    try {
-      const merchantData = req.body;
-      const merchant = await storage.createMerchant(merchantData);
-      res.status(201).json(merchant);
-    } catch (error) {
-      console.error("Error creating merchant:", error);
-      res.status(500).json({ error: "Failed to create merchant" });
-    }
-  });
-  
-  // Update a merchant
-  app.put("/api/merchants/:id", async (req, res) => {
-    try {
-      const merchantId = req.params.id;
-      const merchantData = req.body;
-      const updatedMerchant = await storage.updateMerchant(merchantId, merchantData);
-      res.json(updatedMerchant);
-    } catch (error) {
-      console.error("Error updating merchant:", error);
-      res.status(500).json({ error: "Failed to update merchant" });
-    }
-  });
-  
-  // Delete multiple merchants
-  app.delete("/api/merchants", async (req, res) => {
-    try {
-      const { ids } = req.body;
-      if (!ids || !Array.isArray(ids)) {
-        return res.status(400).json({ error: "Invalid request. Expected array of merchant IDs" });
-      }
-      
-      await storage.deleteMerchants(ids);
-      res.json({ success: true, message: `Successfully deleted ${ids.length} merchants` });
-    } catch (error) {
-      console.error("Error deleting merchants:", error);
-      res.status(500).json({ error: "Failed to delete merchants" });
-    }
-  });
-  
-  // Get transactions with filters and pagination
-  app.get("/api/transactions", async (req, res) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 20;
-      const merchantId = req.query.merchantId as string;
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const type = req.query.type as string;
-      
-      const result = await storage.getTransactions(page, pageSize, merchantId, startDate, endDate, type);
-      
-      res.json(result);
-    } catch (error) {
-      console.error("Error retrieving transactions:", error);
-      res.status(500).json({ error: "Failed to retrieve transactions" });
-    }
-  });
-  
-  // Export transactions to CSV
-  app.get("/api/transactions/export", async (req, res) => {
-    try {
-      const merchantId = req.query.merchantId as string;
-      const startDate = req.query.startDate as string;
-      const endDate = req.query.endDate as string;
-      const type = req.query.type as string;
-      
-      const csvData = await storage.exportTransactionsToCSV(merchantId, startDate, endDate, type);
-      
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=transactions.csv');
-      res.send(csvData);
-    } catch (error) {
-      console.error("Error exporting transactions:", error);
-      res.status(500).json({ error: "Failed to export transactions" });
-    }
-  });
-  
-  // Add a transaction to a merchant
-  app.post("/api/merchants/:id/transactions", async (req, res) => {
-    try {
-      const merchantId = req.params.id;
-      const transactionData = req.body;
-      
-      const transaction = await storage.addTransaction(merchantId, transactionData);
-      res.status(201).json(transaction);
-    } catch (error) {
-      console.error("Error adding transaction:", error);
-      res.status(500).json({ error: "Failed to add transaction" });
-    }
-  });
-  
-  // Delete multiple transactions
-  app.delete("/api/transactions", async (req, res) => {
-    try {
-      const { ids } = req.body;
-      if (!ids || !Array.isArray(ids)) {
-        return res.status(400).json({ error: "Invalid request. Expected array of transaction IDs" });
-      }
-      
-      await storage.deleteTransactions(ids);
-      res.json({ success: true, message: `Successfully deleted ${ids.length} transactions` });
-    } catch (error) {
-      console.error("Error deleting transactions:", error);
-      res.status(500).json({ error: "Failed to delete transactions" });
-    }
-  });
-  
-  // File upload endpoint
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
-      
-      const filePath = req.file.path;
-      const fileType = req.body.type;
-      const originalFilename = req.file.originalname;
-      
-      // Process the file
-      const fileId = await storage.processUploadedFile(
-        filePath, 
-        fileType, 
-        originalFilename
-      );
-      
-      res.json({
-        success: true,
-        message: "File uploaded successfully",
-        fileId
-      });
-    } catch (error) {
-      console.error("Error processing uploaded file:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "Error processing uploaded file" 
-      });
-    }
-  });
-  
-  // Get upload history
-  app.get("/api/uploads/history", async (req, res) => {
-    try {
-      const uploadsHistory = await db
-        .select()
-        .from(uploadedFiles)
-        .where(eq(uploadedFiles.deleted, false))
-        .orderBy(desc(uploadedFiles.uploadedAt));
-      
-      res.json(uploadsHistory);
-    } catch (error) {
-      console.error("Error retrieving upload history:", error);
-      res.status(500).json({ error: "Failed to retrieve upload history" });
-    }
-  });
-  
-  // Delete an uploaded file
-  app.delete("/api/uploads/:id", async (req, res) => {
-    try {
-      const fileId = req.params.id;
-      
-      // Mark as deleted in the database
-      await db
-        .update(uploadedFiles)
-        .set({ deleted: true })
-        .where(eq(uploadedFiles.id, fileId));
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      res.status(500).json({ error: "Failed to delete file" });
-    }
-  });
-  
-  // Re-process an uploaded file
-  app.post("/api/uploads/:id/process", async (req, res) => {
-    try {
-      const fileId = req.params.id;
-      
-      // Get the file details
-      const [file] = await db
-        .select()
-        .from(uploadedFiles)
-        .where(eq(uploadedFiles.id, fileId));
-      
-      if (!file) {
-        return res.status(404).json({ error: "File not found" });
-      }
-      
-      // Check if file exists on disk
-      if (!fs.existsSync(file.storagePath)) {
-        return res.status(404).json({ error: "File no longer exists on disk" });
-      }
-      
-      // Process the file
-      if (file.fileType === "merchants") {
-        await storage.processMerchantFile(file.storagePath);
-      } else if (file.fileType === "transactions") {
-        await storage.processTransactionFile(file.storagePath);
-      } else {
-        return res.status(400).json({ error: "Unsupported file type" });
-      }
-      
-      // Update the file status
-      await db
-        .update(uploadedFiles)
-        .set({ 
-          processed: true,
-          processingErrors: null
-        })
-        .where(eq(uploadedFiles.id, fileId));
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error re-processing file:", error);
-      
-      // Update the file with the error
-      await db
-        .update(uploadedFiles)
-        .set({ 
-          processed: false,
-          processingErrors: error instanceof Error ? error.message : "Unknown error"
-        })
-        .where(eq(uploadedFiles.id, req.params.id));
-      
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Error re-processing file" 
-      });
-    }
-  });
-  
-  // Combine and process multiple uploads
-  app.post("/api/uploads/combine", async (req, res) => {
-    try {
-      const { fileIds } = req.body;
-      
-      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-        return res.status(400).json({ error: "No files selected" });
-      }
-      
-      await storage.combineAndProcessUploads(fileIds);
-      
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error combining files:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Error combining files" 
-      });
-    }
-  });
-  
-  // Generate exports
-  app.get("/api/exports/transactions", async (req, res) => {
-    try {
-      const filePath = await storage.generateTransactionsExport();
-      
-      // Set headers for file download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=transactions_export.csv`);
-      
-      // Send the file
-      res.sendFile(filePath as string, { root: '.' });
-    } catch (error) {
-      console.error("Error generating transactions export:", error);
-      res.status(500).json({ error: "Failed to generate transactions export" });
-    }
-  });
-  
-  app.get("/api/exports/merchants", async (req, res) => {
-    try {
-      const filePath = await storage.generateMerchantsExport();
-      
-      // Set headers for file download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=merchants_export.csv`);
-      
-      // Send the file
-      res.sendFile(filePath as string, { root: '.' });
-    } catch (error) {
-      console.error("Error generating merchants export:", error);
-      res.status(500).json({ error: "Failed to generate merchants export" });
-    }
-  });
-  
-  // Get users list (Admin only)
-  app.get("/api/users", isAuthenticated, async (req, res) => {
-    try {
-      // Get current user
-      const currentUser = req.user;
-      
-      // Check if admin
-      if (!currentUser || (currentUser as any).role !== 'admin') {
-        return res.status(403).json({ error: "Forbidden. Admin access required." });
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
       }
       
       const users = await storage.getUsers();
       res.json(users);
     } catch (error) {
-      console.error("Error retrieving users:", error);
-      res.status(500).json({ error: "Failed to retrieve users" });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   });
   
-  // Create a new user (Admin only)
-  app.post("/api/users", isAuthenticated, async (req, res) => {
+  app.post("/api/users", async (req, res) => {
     try {
-      // Check if admin
-      const currentUser = req.user;
-      if (!currentUser || (currentUser as any).role !== 'admin') {
-        return res.status(403).json({ error: "Forbidden. Admin access required." });
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
       }
       
-      const userData = req.body;
-      const user = await storage.createUser(userData);
+      const user = await storage.createUser({
+        ...req.body,
+        password: await storage.hashPassword(req.body.password),
+        role: req.body.role || "user",
+        createdAt: new Date()
+      });
+      
       res.status(201).json(user);
     } catch (error) {
       console.error("Error creating user:", error);
@@ -451,32 +112,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Update a user (Admin only)
-  app.put("/api/users/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/users/:id", async (req, res) => {
     try {
-      // Check if admin
-      const currentUser = req.user;
-      if (!currentUser || (currentUser as any).role !== 'admin') {
-        return res.status(403).json({ error: "Forbidden. Admin access required." });
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
       }
       
       const userId = parseInt(req.params.id);
-      const userData = req.body;
-      const user = await storage.updateUser(userId, userData);
-      res.json(user);
+      
+      // Don't allow password updates through this endpoint
+      const { password, ...userData } = req.body;
+      
+      const updatedUser = await storage.updateUser(userId, userData);
+      res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ error: "Failed to update user" });
     }
   });
   
-  // Delete a user (Admin only)
-  app.delete("/api/users/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/users/:id", async (req, res) => {
     try {
-      // Check if admin
-      const currentUser = req.user;
-      if (!currentUser || (currentUser as any).role !== 'admin') {
-        return res.status(403).json({ error: "Forbidden. Admin access required." });
+      // Check if user is authenticated and is admin
+      if (!req.isAuthenticated() || req.user?.role !== "admin") {
+        return res.status(403).json({ error: "Forbidden: Admin access required" });
+      }
+      
+      // Don't allow deleting your own account
+      if (req.user?.id === parseInt(req.params.id)) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
       }
       
       const userId = parseInt(req.params.id);
@@ -488,29 +153,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Change user password
-  app.post("/api/users/:id/change-password", isAuthenticated, async (req, res) => {
+  // Change password endpoint (admin can change any user's password, users can only change their own)
+  app.post("/api/users/:id/change-password", async (req, res) => {
     try {
-      const userId = parseInt(req.params.id);
-      const { newPassword } = req.body;
-      
-      // Check permissions - users can change their own password, admins can change any password
-      const currentUser = req.user;
-      if (userId !== (currentUser as any).id && (currentUser as any).role !== 'admin') {
-        return res.status(403).json({ error: "Forbidden. You can only change your own password." });
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Authentication required" });
       }
       
-      await storage.updateUserPassword(userId, newPassword);
-      res.json({ success: true });
+      const userId = parseInt(req.params.id);
+      
+      // Regular users can only change their own password
+      if (req.user?.role !== "admin" && req.user?.id !== userId) {
+        return res.status(403).json({ error: "Forbidden: You can only change your own password" });
+      }
+      
+      // For regular users, require current password
+      if (req.user?.role !== "admin" && req.user?.id === userId) {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+          return res.status(400).json({ error: "Current password and new password are required" });
+        }
+        
+        const user = await storage.getUser(userId);
+        if (!user || !(await storage.verifyPassword(currentPassword, user.password))) {
+          return res.status(400).json({ error: "Current password is incorrect" });
+        }
+        
+        await storage.updateUserPassword(userId, newPassword);
+        return res.json({ success: true });
+      } else {
+        // Admin can change password without knowing current password
+        const { newPassword } = req.body;
+        if (!newPassword) {
+          return res.status(400).json({ error: "New password is required" });
+        }
+        
+        await storage.updateUserPassword(userId, newPassword);
+        return res.json({ success: true });
+      }
     } catch (error) {
       console.error("Error changing password:", error);
       res.status(500).json({ error: "Failed to change password" });
     }
   });
+  // Get database statistics and info for settings page
+  // Get schema version information
+  app.get("/api/schema/versions", async (req, res) => {
+    try {
+      const versions = await SchemaVersionManager.getAllVersions();
+      const currentVersion = await SchemaVersionManager.getCurrentVersion();
+      
+      res.json({
+        versions,
+        currentVersion,
+        expectedVersion: CURRENT_SCHEMA_VERSION
+      });
+    } catch (error) {
+      console.error("Error getting schema versions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve schema versions" 
+      });
+    }
+  });
+
+  app.get("/api/settings/database", async (req, res) => {
+    try {
+      // Get PostgreSQL version
+      const versionResult = await pool.query("SELECT version()");
+      const version = versionResult.rows[0].version.split(" ")[1];
+      
+      // Get table information
+      const tables = ['merchants', 'transactions', 'uploaded_files', 'backup_history', 'schema_versions'];
+      const tableStats = [];
+      let totalRows = 0;
+      let totalSizeBytes = 0;
+      
+      for (const tableName of tables) {
+        try {
+          console.log(`Processing table: ${tableName}`);
+          // Get row count for each table
+          const table = 
+            tableName === 'merchants' ? merchantsTable : 
+            tableName === 'transactions' ? transactionsTable : 
+            tableName === 'backup_history' ? backupHistory : 
+            tableName === 'schema_versions' ? schemaVersions : uploadedFilesTable;
+          
+          console.log(`Selected table object for ${tableName}`);
+          
+          const rowCountResult = await db.select({ count: count() }).from(table);
+          console.log(`Row count result for ${tableName}:`, rowCountResult);
+          
+          const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
+          
+          // Get table size in bytes
+          const sizeResult = await pool.query(`
+            SELECT pg_total_relation_size('${tableName}') as size
+          `);
+          console.log(`Size result for ${tableName}:`, sizeResult.rows);
+          
+          const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
+          
+          tableStats.push({
+            name: tableName,
+            rowCount,
+            sizeBytes
+          });
+          console.log(`Added ${tableName} to tableStats`);
+          
+          totalRows += rowCount;
+          totalSizeBytes += sizeBytes;
+        } catch (error) {
+          console.error(`Error processing table ${tableName}:`, error);
+          // If we can't get stats for this table, still add a placeholder
+          tableStats.push({
+            name: tableName,
+            rowCount: 0,
+            sizeBytes: 0
+          });
+        }
+      }
+      
+      // Get last backup info from database
+      let lastBackup = null;
+      try {
+        const [latestBackup] = await db
+          .select({ timestamp: backupHistory.timestamp })
+          .from(backupHistory)
+          .orderBy(desc(backupHistory.timestamp))
+          .limit(1);
+        
+        if (latestBackup) {
+          lastBackup = latestBackup.timestamp.toISOString();
+        }
+      } catch (e) {
+        console.error('Error getting latest backup info:', e);
+      }
+      
+      res.json({
+        connectionStatus: "connected",
+        version,
+        tables: tableStats,
+        totalRows,
+        totalSizeBytes,
+        lastBackup
+      });
+    } catch (error) {
+      console.error("Error getting database information:", error);
+      res.status(500).json({ 
+        connectionStatus: "error",
+        version: "Unknown",
+        tables: [],
+        totalRows: 0,
+        totalSizeBytes: 0,
+        lastBackup: null,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   
-  // Create a database backup
+  // Create database backup using direct SQL queries
   app.post("/api/settings/backup", isAuthenticated, async (req, res) => {
     try {
+      // Import the BackupManager and S3 config dynamically
+      const { backupManager } = await import('./backup/backup_manager');
+      const { loadS3Config, saveS3Config } = await import('./backup/s3_config');
+      
+      // Get the current S3 config
+      const s3Config = loadS3Config();
+      
+      // Update config with useS3 option if provided
+      if (req.body.useS3 === true) {
+        s3Config.enabled = true;
+        // Save the updated config
+        saveS3Config(s3Config);
+      }
+      
       // Create the backup using the manager
       const backupId = await backupManager.createBackup({
         notes: req.body.notes || "Created via API",
@@ -539,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get backup history
-  app.get("/api/backups", async (req, res) => {
+  app.get("/api/settings/backup/history", async (req, res) => {
     try {
       // Check if we should include deleted backups
       const includeDeleted = req.query.includeDeleted === 'true';
@@ -553,11 +371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: backupHistory.id,
             timestamp: backupHistory.timestamp,
             fileName: backupHistory.fileName,
-            fileSize: backupHistory.size, // Changed from fileSize to size
+            fileSize: backupHistory.fileSize,
             tables: backupHistory.tables,
             downloaded: backupHistory.downloaded,
             deleted: backupHistory.deleted,
             storageType: backupHistory.storageType,
+            isScheduled: backupHistory.isScheduled,
+            scheduleId: backupHistory.scheduleId,
+            createdBy: backupHistory.createdBy,
             notes: backupHistory.notes,
             s3Bucket: backupHistory.s3Bucket,
             s3Key: backupHistory.s3Key
@@ -572,11 +393,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: backupHistory.id,
             timestamp: backupHistory.timestamp,
             fileName: backupHistory.fileName,
-            fileSize: backupHistory.size, // Changed from fileSize to size
+            fileSize: backupHistory.fileSize,
             tables: backupHistory.tables,
             downloaded: backupHistory.downloaded,
             deleted: backupHistory.deleted,
             storageType: backupHistory.storageType,
+            isScheduled: backupHistory.isScheduled,
+            scheduleId: backupHistory.scheduleId,
+            createdBy: backupHistory.createdBy,
             notes: backupHistory.notes,
             s3Bucket: backupHistory.s3Bucket,
             s3Key: backupHistory.s3Key
@@ -598,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Download a specific backup by ID
-  app.get("/api/backups/download/:id", async (req, res) => {
+  app.get("/api/settings/backup/download/:id", async (req, res) => {
     try {
       const backupId = req.params.id;
       
@@ -609,292 +433,883 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(backupHistory.id, backupId));
       
       if (!backup) {
-        return res.status(404).json({ error: "Backup not found" });
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
       }
       
-      // Check if this is a local backup
-      if (backup.storageType === "local") {
-        // Validate file path for security
-        const filePath = backup.filePath;
-        if (!filePath) {
-          return res.status(404).json({ error: "Backup file path not found" });
-        }
-        
-        // Ensure the file exists
-        if (!fs.existsSync(filePath)) {
-          return res.status(404).json({ error: "Backup file not found on disk" });
-        }
-        
-        // Set headers for file download
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Content-Disposition', `attachment; filename=${backup.fileName}`);
-        
-        // Update the download flag
-        await db
-          .update(backupHistory)
-          .set({ downloaded: true })
-          .where(eq(backupHistory.id, backupId));
-        
-        // Send the file
-        return res.sendFile(path.resolve(filePath));
-      } 
-      // S3 backup
-      else if (backup.storageType === "s3") {
-        const downloadLink = await backupManager.getS3DownloadLink(backup.s3Bucket as string, backup.s3Key as string);
-        
-        // Update the download flag
-        await db
-          .update(backupHistory)
-          .set({ downloaded: true })
-          .where(eq(backupHistory.id, backupId));
-        
-        return res.json({ downloadLink });
+      if (!backup.filePath || !fs.existsSync(backup.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
       }
       
-      res.status(400).json({ error: "Unsupported backup storage type" });
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${backup.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Update the downloaded status
+      await db
+        .update(backupHistory)
+        .set({ downloaded: true })
+        .where(eq(backupHistory.id, backupId));
+      
+      // Stream the file to client
+      if (!backup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
+      const fileStream = fs.createReadStream(backup.filePath);
+      fileStream.pipe(res);
     } catch (error) {
       console.error("Error downloading backup:", error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to download backup" 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
       });
     }
   });
   
-  // Delete a backup
-  app.delete("/api/backups/:id", async (req, res) => {
+  // Soft delete a backup
+  app.delete("/api/settings/backup/:id", async (req, res) => {
     try {
       const backupId = req.params.id;
       
-      // Find the backup
+      // Find the backup record
       const [backup] = await db
         .select()
         .from(backupHistory)
         .where(eq(backupHistory.id, backupId));
       
       if (!backup) {
-        return res.status(404).json({ error: "Backup not found" });
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
+        });
       }
       
-      // Delete the physical file for local backups
-      if (backup.storageType === "local" && backup.filePath) {
-        try {
-          // Check if the file exists before attempting to delete
-          if (fs.existsSync(backup.filePath)) {
-            fs.unlinkSync(backup.filePath);
-          }
-        } catch (fileError) {
-          console.error("Error deleting backup file:", fileError);
-          // Continue even if file deletion fails
-        }
-      }
-      // For S3 backups, delete the S3 object
-      else if (backup.storageType === "s3" && backup.s3Bucket && backup.s3Key) {
-        try {
-          await backupManager.deleteS3Backup(backup.s3Bucket, backup.s3Key);
-        } catch (s3Error) {
-          console.error("Error deleting S3 backup:", s3Error);
-          // Continue even if S3 deletion fails
-        }
-      }
-      
-      // Mark as deleted in the database
+      // Mark the backup as deleted (soft delete)
       await db
         .update(backupHistory)
         .set({ deleted: true })
         .where(eq(backupHistory.id, backupId));
       
-      res.json({ success: true });
+      res.json({ 
+        success: true, 
+        message: "Backup moved to trash successfully" 
+      });
     } catch (error) {
       console.error("Error deleting backup:", error);
       res.status(500).json({ 
+        success: false, 
         error: error instanceof Error ? error.message : "Failed to delete backup" 
       });
     }
   });
   
-  // Get database schema versions
-  app.get("/api/schema/versions", async (req, res) => {
+  // Restore a backup from trash
+  app.post("/api/settings/backup/:id/restore", async (req, res) => {
     try {
-      const versions = await SchemaVersionManager.getAllVersions();
-      res.json({ 
-        versions,
-        currentVersion: CURRENT_SCHEMA_VERSION 
-      });
-    } catch (error) {
-      console.error("Error retrieving schema versions:", error);
-      res.status(500).json({ error: "Failed to retrieve schema versions" });
-    }
-  });
-  
-  // Get database statistics for the settings page
-  app.get("/api/settings/database", async (req, res) => {
-    try {
-      // Get connection status
-      const connectionStatus = "connected"; // This is always connected if we got this far
+      const backupId = req.params.id;
       
-      // Get database version
-      const versionResult = await db.execute(sql`SELECT version()`);
-      const dbVersion = versionResult.rows && versionResult.rows.length > 0 
-        ? versionResult.rows[0].version 
-        : "Unknown";
+      // Find the backup record
+      const [backup] = await db
+        .select()
+        .from(backupHistory)
+        .where(eq(backupHistory.id, backupId));
       
-      // Get schema version
-      const currentSchemaVersion = await SchemaVersionManager.getCurrentVersion();
-      
-      // Check if current version matches
-      const isCurrentVersion = await SchemaVersionManager.isVersionMatch(CURRENT_SCHEMA_VERSION);
-      
-      // Get table statistics (row counts and sizes)
-      const tableList = [
-        { name: "merchants", table: merchants },
-        { name: "transactions", table: transactions },
-        { name: "uploaded_files", table: uploadedFiles },
-        { name: "backup_history", table: backupHistory },
-        { name: "schema_versions", table: schemaVersions }
-      ];
-      
-      // Get stats for each table
-      const tableStats = [];
-      
-      for (const tableInfo of tableList) {
-        console.log(`Processing table: ${tableInfo.name}`);
-        // Select the table object for debugging
-        console.log(`Selected table object for ${tableInfo.name}`);
-        
-        // Get row count
-        const countResult = await db.execute(
-          sql`SELECT COUNT(*) as count FROM ${sql.identifier(tableInfo.name)}`
-        );
-        console.log(`Row count result for ${tableInfo.name}:`, countResult.rows);
-        
-        // Get table size
-        const sizeResult = await db.execute(
-          sql`SELECT pg_relation_size(${sql.raw(`'${tableInfo.name}'`)}) as size`
-        );
-        console.log(`Size result for ${tableInfo.name}:`, sizeResult.rows);
-        
-        const count = countResult.rows[0].count;
-        const size = sizeResult.rows[0].size;
-        
-        tableStats.push({
-          name: tableInfo.name,
-          rowCount: parseInt(count),
-          size: parseInt(size),
-          sizeFormatted: formatSize(parseInt(size))
+      if (!backup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup with specified ID not found." 
         });
-        
-        console.log(`Added ${tableInfo.name} to tableStats`);
       }
       
-      res.json({
-        connectionStatus,
-        version: dbVersion,
-        schemaVersion: currentSchemaVersion?.version || "Not set",
-        isCurrentVersion,
-        expectedVersion: CURRENT_SCHEMA_VERSION,
-        tables: tableStats,
-        totalSize: tableStats.reduce((acc, table) => acc + table.size, 0),
-        totalSizeFormatted: formatSize(tableStats.reduce((acc, table) => acc + table.size, 0))
+      // Mark the backup as not deleted (restore)
+      await db
+        .update(backupHistory)
+        .set({ deleted: false })
+        .where(eq(backupHistory.id, backupId));
+      
+      res.json({ 
+        success: true, 
+        message: "Backup restored successfully" 
       });
     } catch (error) {
-      console.error("Error getting database stats:", error);
-      res.status(500).json({ 
-        connectionStatus: "error",
-        error: error instanceof Error ? error.message : "Failed to get database stats"
-      });
-    }
-    
-    // Helper function to format byte sizes
-    function formatSize(bytes: number): string {
-      if (bytes < 1024) return bytes + " B";
-      else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-      else if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-      else return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-    }
-  });
-  
-  // Setup backup schedule routes
-  registerBackupScheduleRoutes(app);
-  
-  // Setup S3 configuration routes
-  registerS3Routes(app);
-  
-  // Get backup history for the Backups page
-  app.get("/api/backups", isAuthenticated, async (req, res) => {
-    try {
-      // Check if should include deleted backups
-      const includeDeleted = req.query.includeDeleted === "true";
-      let backupRecords;
-      
-      // If including deleted, just get all records
-      if (includeDeleted) {
-        backupRecords = await db
-          .select({
-            id: backupHistory.id,
-            timestamp: backupHistory.timestamp,
-            fileName: backupHistory.fileName,
-            fileSize: backupHistory.size, // Use size
-            tables: backupHistory.tables,
-            downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted,
-            storageType: backupHistory.storageType,
-            notes: backupHistory.notes,
-            s3Bucket: backupHistory.s3Bucket,
-            s3Key: backupHistory.s3Key
-          })
-          .from(backupHistory)
-          .orderBy(desc(backupHistory.timestamp))
-          .limit(20);
-      } else {
-        backupRecords = await db
-          .select({
-            id: backupHistory.id,
-            timestamp: backupHistory.timestamp,
-            fileName: backupHistory.fileName,
-            fileSize: backupHistory.size, // Use size
-            tables: backupHistory.tables,
-            downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted,
-            storageType: backupHistory.storageType,
-            notes: backupHistory.notes,
-            s3Bucket: backupHistory.s3Bucket,
-            s3Key: backupHistory.s3Key
-          })
-          .from(backupHistory)
-          .where(eq(backupHistory.deleted, false))
-          .orderBy(desc(backupHistory.timestamp))
-          .limit(20);
-      }
-      
-      res.json(backupRecords);
-    } catch (error) {
-      console.error("Error retrieving backup history:", error);
+      console.error("Error restoring backup:", error);
       res.status(500).json({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Failed to retrieve backup history" 
+        error: error instanceof Error ? error.message : "Failed to restore backup" 
       });
     }
   });
   
-  // Handle all API 404 requests
-  app.all("/api/*", (req, res) => {
-    res.status(404).json({ error: "API endpoint not found" });
+  // Download the latest database backup
+  app.get("/api/settings/backup/download", async (req, res) => {
+    try {
+      // Get the most recent backup from the database
+      const [latestBackup] = await db
+        .select()
+        .from(backupHistory)
+        .orderBy(desc(backupHistory.timestamp))
+        .limit(1);
+      
+      if (!latestBackup) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "No backup found. Please create a backup first." 
+        });
+      }
+      
+      if (!latestBackup.filePath || !fs.existsSync(latestBackup.filePath)) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file not found. The temporary file may have been deleted." 
+        });
+      }
+      
+      // Set download headers
+      res.setHeader('Content-Disposition', `attachment; filename=${latestBackup.fileName}`);
+      res.setHeader('Content-Type', 'application/json');
+      
+      // Update the downloaded status
+      await db
+        .update(backupHistory)
+        .set({ downloaded: true })
+        .where(eq(backupHistory.id, latestBackup.id));
+      
+      // Stream the file to client
+      if (!latestBackup.filePath) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Backup file path is missing." 
+        });
+      }
+      const fileStream = fs.createReadStream(latestBackup.filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to download backup file" 
+      });
+    }
   });
   
-  // Create HTTP server
+  // Get dashboard stats
+  app.get("/api/stats", async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+  
+  // Get analytics data
+  app.get("/api/analytics", async (req, res) => {
+    try {
+      const timeframe = req.query.timeframe as string || 'year';
+      const dashboardStats = await storage.getDashboardStats();
+      
+      // Get transaction history data for the charts
+      const allTransactions = await db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name
+      })
+      .from(transactionsTable)
+      .innerJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .orderBy(transactionsTable.date);
+      
+      // Get unique merchant categories
+      const merchantCategories = await db.select({
+        category: merchantsTable.category, 
+        count: count()
+      })
+      .from(merchantsTable)
+      .where(isNotNull(merchantsTable.category))
+      .groupBy(merchantsTable.category);
+      
+      // Prepare category data
+      const categoryData = merchantCategories.map(cat => ({
+        name: cat.category || "Uncategorized",
+        value: Number(cat.count)
+      }));
+      
+      // Group transactions by month
+      const groupedTransactions = new Map();
+      
+      // Define time range based on timeframe
+      const now = new Date();
+      let startDate = new Date();
+      
+      switch(timeframe) {
+        case 'week':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'quarter':
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'year':
+        default:
+          startDate.setFullYear(now.getFullYear() - 1);
+      }
+      
+      // Process transactions
+      allTransactions.forEach(item => {
+        const { transaction } = item;
+        const txDate = new Date(transaction.date);
+        
+        // Skip if before our time range
+        if (txDate < startDate) return;
+        
+        // Format date key based on timeframe
+        let dateKey;
+        if (timeframe === 'week') {
+          // For week, use day name
+          dateKey = txDate.toLocaleDateString('en-US', { weekday: 'short' });
+        } else {
+          // For month, quarter, year use month name
+          dateKey = txDate.toLocaleDateString('en-US', { month: 'short' });
+        }
+        
+        if (!groupedTransactions.has(dateKey)) {
+          groupedTransactions.set(dateKey, { 
+            name: dateKey, 
+            transactions: 0, 
+            revenue: 0 
+          });
+        }
+        
+        const entry = groupedTransactions.get(dateKey);
+        entry.transactions++;
+        
+        // Calculate revenue based on transaction type
+        const amount = parseFloat(transaction.amount.toString());
+        if (transaction.type === "Credit") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Debit") {
+          entry.revenue -= amount;
+        } else if (transaction.type === "Sale") {
+          entry.revenue += amount;
+        } else if (transaction.type === "Refund") {
+          entry.revenue -= amount;
+        }
+      });
+      
+      // Convert to array and ensure chronological order
+      const transactionData = Array.from(groupedTransactions.values());
+      
+      // Sort by month if needed (for timeframes longer than a week)
+      if (timeframe !== 'week') {
+        const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        transactionData.sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+      }
+      
+      // Return analytics data
+      res.json({
+        transactionData,
+        merchantCategoryData: categoryData,
+        summary: {
+          totalTransactions: dashboardStats.dailyTransactions,
+          totalRevenue: dashboardStats.monthlyRevenue,
+          avgTransactionValue: 
+            dashboardStats.dailyTransactions > 0 
+              ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
+              : 0,
+          growthRate: 12.7 // This would need historical data to calculate properly
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching analytics data:", error);
+      res.status(500).json({ error: "Failed to fetch analytics data" });
+    }
+  });
+
+  // Get merchants with pagination and filters
+  app.get("/api/merchants", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const status = req.query.status as string || "All";
+      const lastUpload = req.query.lastUpload as string || "Any time";
+
+      const result = await storage.getMerchants(page, limit, status, lastUpload);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch merchants" });
+    }
+  });
+
+  // Upload CSV files
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const type = req.body.type;
+      if (!type || (type !== "merchant" && type !== "transaction")) {
+        return res.status(400).json({ error: "Invalid file type" });
+      }
+
+      const fileId = await storage.processUploadedFile(req.file.path, type, req.file.originalname);
+      res.json({ 
+        fileId,
+        success: true,
+        message: "File uploaded successfully"
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to upload file" 
+      });
+    }
+  });
+
+  // Process uploaded files
+  app.post("/api/process-uploads", async (req, res) => {
+    try {
+      const schema = z.object({
+        fileIds: z.array(z.string())
+      });
+
+      const { fileIds } = schema.parse(req.body);
+      
+      if (fileIds.length === 0) {
+        return res.status(400).json({ error: "No files to process" });
+      }
+
+      await storage.combineAndProcessUploads(fileIds);
+      res.json({ success: true, message: "Files processed successfully" });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process files" 
+      });
+    }
+  });
+
+  // Get upload file history
+  app.get("/api/uploads/history", async (req, res) => {
+    try {
+      // Get all uploaded files with processing status
+      const uploadedFiles = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.deleted, false))
+        .orderBy(desc(uploadedFilesTable.uploadedAt));
+      
+      res.json(uploadedFiles);
+    } catch (error) {
+      console.error("Error retrieving upload history:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve upload history" 
+      });
+    }
+  });
+  
+  // Download original uploaded file
+  app.get("/api/uploads/:id/download", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      res.download(fileInfo.storagePath, fileInfo.originalFilename);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to download file"
+      });
+    }
+  });
+  
+  // View file content
+  app.get("/api/uploads/:id/content", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Read the file content - limit to first 100 rows for performance
+      const parser = fs.createReadStream(fileInfo.storagePath).pipe(
+        parseCSV({
+          columns: true,
+          skip_empty_lines: true
+        })
+      );
+      
+      const rows: any[] = [];
+      let headers: string[] = [];
+      let rowCount = 0;
+      
+      parser.on("data", (row) => {
+        if (rowCount === 0) {
+          headers = Object.keys(row);
+        }
+        if (rowCount < 100) { // Limit to 100 rows
+          rows.push(row);
+        }
+        rowCount++;
+      });
+      
+      parser.on("error", (error) => {
+        res.status(500).json({ error: "Failed to parse CSV file" });
+      });
+      
+      parser.on("end", () => {
+        res.json({
+          headers,
+          rows,
+          totalRows: rowCount,
+          truncated: rowCount > 100
+        });
+      });
+    } catch (error) {
+      console.error("Error retrieving file content:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to retrieve file content"
+      });
+    }
+  });
+  
+  // Reprocess file
+  app.post("/api/uploads/:id/reprocess", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Check if the file still exists
+      if (!fs.existsSync(fileInfo.storagePath)) {
+        // File doesn't exist anymore - update error in database
+        await db.update(uploadedFilesTable)
+          .set({ 
+            processed: true,
+            processingErrors: "Original file has been removed from the temporary storage. Please re-upload the file."
+          })
+          .where(eq(uploadedFilesTable.id, fileId));
+          
+        return res.status(404).json({ 
+          error: "File no longer exists in temporary storage. Please re-upload the file."
+        });
+      }
+      
+      // Process based on file type
+      if (fileInfo.fileType === "merchant") {
+        await storage.processMerchantFile(fileInfo.storagePath);
+      } else if (fileInfo.fileType === "transaction") {
+        await storage.processTransactionFile(fileInfo.storagePath);
+      } else {
+        return res.status(400).json({ error: "Unsupported file type" });
+      }
+      
+      // Mark file as processed successfully
+      await db.update(uploadedFilesTable)
+        .set({ 
+          processed: true,
+          processingErrors: null 
+        })
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reprocessing file:", error);
+      
+      // Update file with the error message
+      if (req.params.id) {
+        await db.update(uploadedFilesTable)
+          .set({ 
+            processed: true,
+            processingErrors: error instanceof Error ? error.message : "Unknown error during reprocessing" 
+          })
+          .where(eq(uploadedFilesTable.id, req.params.id));
+      }
+      
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to reprocess file"
+      });
+    }
+  });
+  
+  // Soft delete file
+  app.delete("/api/uploads/:id", async (req, res) => {
+    try {
+      const fileId = req.params.id;
+      
+      // Get file info
+      const [fileInfo] = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      if (!fileInfo) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Mark file as deleted (soft delete)
+      await db.update(uploadedFilesTable)
+        .set({ deleted: true })
+        .where(eq(uploadedFilesTable.id, fileId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to delete file"
+      });
+    }
+  });
+
+  // Download combined transaction CSV
+  app.get("/api/export/transactions", async (req, res) => {
+    try {
+      const filePath = await storage.generateTransactionsExport();
+      res.download(filePath, "combined_transactions.csv");
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate export" 
+      });
+    }
+  });
+
+  // Download merchant demographics export
+  app.get("/api/export/merchants", async (req, res) => {
+    try {
+      const filePath = await storage.generateMerchantsExport();
+      res.download(filePath, "merchant_demographics.csv");
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to generate export" 
+      });
+    }
+  });
+  
+  // Get merchant details by ID
+  app.get("/api/merchants/:id", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      const merchantDetails = await storage.getMerchantById(merchantId);
+      res.json(merchantDetails);
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant details" 
+      });
+    }
+  });
+  
+  // Create a new merchant
+  app.post("/api/merchants", async (req, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1, { message: "Name is required" }),
+        clientMID: z.string().nullable().optional(),
+        status: z.string().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      
+      // Create merchant with current date
+      const newMerchant = await storage.createMerchant({
+        ...merchantData,
+        id: `M${Date.now().toString().slice(-4)}`,
+        createdAt: new Date(),
+        lastUploadDate: null
+      });
+      
+      res.status(201).json({ 
+        success: true, 
+        merchant: newMerchant
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create merchant" 
+      });
+    }
+  });
+  
+  // Update merchant details
+  app.put("/api/merchants/:id", async (req, res) => {
+    try {
+      const merchantId = req.params.id;
+      const schema = z.object({
+        name: z.string().optional(),
+        clientMID: z.string().nullable().optional(),
+        status: z.string().optional(),
+        address: z.string().nullable().optional(),
+        city: z.string().nullable().optional(),
+        state: z.string().nullable().optional(),
+        zipCode: z.string().nullable().optional(),
+        category: z.string().nullable().optional()
+      });
+      
+      const merchantData = schema.parse(req.body);
+      const updatedMerchant = await storage.updateMerchant(merchantId, merchantData);
+      
+      res.json({ 
+        success: true, 
+        merchant: updatedMerchant 
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update merchant" 
+      });
+    }
+  });
+  
+  // Add transaction for a merchant
+  app.post("/api/merchants/:id/transactions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const transactionSchema = z.object({
+        amount: z.number().positive(),
+        type: z.string(),
+        date: z.string().refine(val => !isNaN(Date.parse(val)), {
+          message: "Date must be valid"
+        })
+      });
+      
+      const transactionData = transactionSchema.parse(req.body);
+      const newTransaction = await storage.addTransaction(id, transactionData);
+      
+      res.status(201).json(newTransaction);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to add transaction" 
+      });
+    }
+  });
+  
+  // Delete transactions
+  app.post("/api/merchants/:id/transactions/delete", async (req, res) => {
+    try {
+      const schema = z.object({
+        transactionIds: z.array(z.string())
+      });
+      
+      const { transactionIds } = schema.parse(req.body);
+      
+      if (transactionIds.length === 0) {
+        return res.status(400).json({ error: "No transaction IDs provided" });
+      }
+      
+      await storage.deleteTransactions(transactionIds);
+      
+      res.json({ 
+        success: true, 
+        message: `${transactionIds.length} transaction(s) deleted successfully` 
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete transactions" 
+      });
+    }
+  });
+  
+  // Get transactions with pagination and filtering
+  app.get("/api/transactions", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string || '1');
+      const limit = parseInt(req.query.limit as string || '20');
+      const merchantId = req.query.merchantId as string | undefined;
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const type = req.query.type as string | undefined;
+      
+      const transactions = await storage.getTransactions(
+        page,
+        limit,
+        merchantId,
+        startDate,
+        endDate,
+        type
+      );
+      
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch transactions" 
+      });
+    }
+  });
+  
+  // Export transactions to CSV
+  app.get("/api/transactions/export", async (req, res) => {
+    try {
+      const merchantId = req.query.merchantId as string | undefined;
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const type = req.query.type as string | undefined;
+      
+      const csvFilePath = await storage.exportTransactionsToCSV(
+        merchantId,
+        startDate,
+        endDate,
+        type
+      );
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export transactions" 
+      });
+    }
+  });
+  
+  // Delete multiple merchants
+  app.post("/api/merchants/delete", async (req, res) => {
+    try {
+      const { merchantIds } = req.body;
+      
+      if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: merchantIds must be a non-empty array" });
+      }
+      
+      await storage.deleteMerchants(merchantIds);
+      res.json({ success: true, message: `Successfully deleted ${merchantIds.length} merchants` });
+    } catch (error) {
+      console.error('Error deleting merchants:', error);
+      res.status(500).json({ error: "Failed to delete merchants" });
+    }
+  });
+
+  // Database Connection Settings Routes
+  
+  // Get current database connection settings
+  app.get("/api/settings/connection", isAuthenticated, async (req, res) => {
+    try {
+      const config = loadDatabaseConfig();
+      
+      // Mask the password for security
+      if (config.password) {
+        config.password = "";
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error loading database connection settings:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to load database connection settings" 
+      });
+    }
+  });
+  
+  // Update database connection settings
+  app.post("/api/settings/connection", isAuthenticated, async (req, res) => {
+    try {
+      const config = req.body;
+      
+      // Basic validation
+      if (config.url || (config.host && config.database && config.username)) {
+        saveDatabaseConfig(config);
+        
+        // Return success
+        res.json({ 
+          success: true, 
+          message: "Database connection settings updated successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          error: "Invalid database configuration. Please provide either a connection URL or host, database, and username." 
+        });
+      }
+    } catch (error) {
+      console.error("Error saving database connection settings:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to save database connection settings" 
+      });
+    }
+  });
+  
+  // Test database connection
+  app.post("/api/settings/connection/test", isAuthenticated, async (req, res) => {
+    try {
+      const config = req.body;
+      
+      // Test the connection
+      try {
+        const isConnected = await testDatabaseConnection(config);
+        
+        if (isConnected) {
+          res.json({ 
+            success: true, 
+            message: "Successfully connected to the database" 
+          });
+        } else {
+          res.status(400).json({ 
+            success: false, 
+            error: "Failed to connect to the database with the provided settings" 
+          });
+        }
+      } catch (connectionError) {
+        console.error("Database connection test error:", connectionError);
+        res.status(400).json({ 
+          success: false, 
+          error: connectionError instanceof Error ? connectionError.message : "Failed to connect to database" 
+        });
+      }
+    } catch (error) {
+      console.error("Error testing database connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to test database connection" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
-  
-  // Set up Vite development server
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, httpServer);
-  } else {
-    serveStatic(app);
-  }
-  
-  // Catch-all route for SPA
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(process.cwd(), process.env.NODE_ENV === "development" ? "index.html" : "dist/client/index.html"));
-  });
-  
   return httpServer;
 }

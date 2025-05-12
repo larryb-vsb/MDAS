@@ -109,7 +109,7 @@ export default function BackupScheduleManager() {
         console.log("Fetching backup schedules...");
         const res = await apiRequest("/api/settings/backup/schedules");
         const data = await res.json();
-        console.log("Rendering schedules:", data);
+        console.log("Received schedules data:", data);
         return data;
       } catch (err) {
         console.error("Error fetching schedules:", err);
