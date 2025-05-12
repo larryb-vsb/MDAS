@@ -1,128 +1,80 @@
-import { z } from "zod";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'url';
 
-// Define a schema for S3 backup configuration
-export const s3ConfigSchema = z.object({
-  enabled: z.boolean().default(false),
-  region: z.string().optional(),
-  bucket: z.string().optional(),
-  endpoint: z.string().optional(), // For custom S3-compatible services
-  accessKeyId: z.string().optional(),
-  secretAccessKey: z.string().optional(),
-  useEnvCredentials: z.boolean().default(false), // Use AWS SDK credential chain
-});
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const S3_CONFIG_FILE = path.join(__dirname, "..", "config", "s3_config.json");
 
-// Define types
-export type S3Config = z.infer<typeof s3ConfigSchema>;
-
-// Default configuration
-const DEFAULT_CONFIG: S3Config = {
+// Default S3 configuration
+const DEFAULT_CONFIG = {
   enabled: false,
   region: "us-east-1",
-  bucket: "",
-  endpoint: undefined,
   accessKeyId: "",
   secretAccessKey: "",
-  useEnvCredentials: false,
+  bucket: "",
+  useEnvCredentials: false
 };
 
-// Config file path
-const CONFIG_DIR = path.join(process.cwd(), "server", "config");
-const CONFIG_FILE = path.join(CONFIG_DIR, "s3_config.json");
-
 /**
- * Load S3 configuration
+ * Load S3 configuration from file or environment
  */
-export function loadS3Config(): S3Config {
+export function loadS3Config() {
   try {
-    // Ensure config directory exists
-    if (!fs.existsSync(CONFIG_DIR)) {
-      fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    }
-    
-    // If config file doesn't exist, create it with default values
-    if (!fs.existsSync(CONFIG_FILE)) {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2));
-      return DEFAULT_CONFIG;
-    }
-    
-    // Read and parse config
-    const configFile = fs.readFileSync(CONFIG_FILE, 'utf-8');
-    const config = JSON.parse(configFile);
-    
-    // Validate config
-    const result = s3ConfigSchema.safeParse(config);
-    if (result.success) {
-      return result.data;
-    } else {
-      console.error("Invalid S3 configuration:", result.error);
-      return DEFAULT_CONFIG;
+    if (fs.existsSync(S3_CONFIG_FILE)) {
+      const configData = fs.readFileSync(S3_CONFIG_FILE, "utf8");
+      const config = JSON.parse(configData);
+      
+      // If using environment variables, replace with actual values
+      if (config.useEnvCredentials) {
+        if (process.env.AWS_ACCESS_KEY_ID) {
+          config.accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+        }
+        if (process.env.AWS_SECRET_ACCESS_KEY) {
+          config.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+        }
+        if (process.env.AWS_REGION) {
+          config.region = process.env.AWS_REGION;
+        }
+        if (process.env.S3_BUCKET) {
+          config.bucket = process.env.S3_BUCKET;
+        }
+      }
+      
+      return config;
     }
   } catch (error) {
-    console.error("Error loading S3 configuration:", error);
-    return DEFAULT_CONFIG;
+    console.error("Error loading S3 config:", error);
   }
-}
-
-/**
- * Save S3 configuration
- */
-export function saveS3Config(config: S3Config): void {
-  try {
-    // Ensure config directory exists
-    if (!fs.existsSync(CONFIG_DIR)) {
-      fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    }
-    
-    // Validate config before saving
-    const result = s3ConfigSchema.safeParse(config);
-    if (result.success) {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(result.data, null, 2));
-    } else {
-      throw new Error(`Invalid S3 configuration: ${result.error.message}`);
-    }
-  } catch (error) {
-    console.error("Error saving S3 configuration:", error);
-    throw error;
-  }
-}
-
-/**
- * Test S3 connection with provided configuration
- */
-export async function testS3Connection(config: S3Config): Promise<boolean> {
-  // Import S3 client dynamically to avoid loading it if not used
-  const { S3Client, ListBucketsCommand } = await import("@aws-sdk/client-s3");
   
+  // Return default config if no file exists or error occurs
+  return DEFAULT_CONFIG;
+}
+
+/**
+ * Save S3 configuration to file
+ */
+export function saveS3Config(config: any) {
   try {
-    // Create S3 client with provided configuration
-    const clientOptions: any = {
-      region: config.region || 'us-east-1'
-    };
-    
-    // Use custom endpoint if provided (for S3-compatible services)
-    if (config.endpoint) {
-      clientOptions.endpoint = config.endpoint;
+    // Create the directory if it doesn't exist
+    const dir = path.dirname(S3_CONFIG_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
     
-    // Add credentials if not using environment variables
-    if (!config.useEnvCredentials) {
-      clientOptions.credentials = {
-        accessKeyId: config.accessKeyId || '',
-        secretAccessKey: config.secretAccessKey || ''
-      };
+    // Don't store actual credentials in the file if using env vars
+    const configToSave = { ...config };
+    if (configToSave.useEnvCredentials) {
+      // Don't save actual credentials to file if using environment vars
+      configToSave.accessKeyId = "";
+      configToSave.secretAccessKey = "";
     }
     
-    const s3Client = new S3Client(clientOptions);
-    
-    // Try a simple operation to verify connection
-    const command = new ListBucketsCommand({});
-    await s3Client.send(command);
-    
+    fs.writeFileSync(S3_CONFIG_FILE, JSON.stringify(configToSave, null, 2));
     return true;
   } catch (error) {
-    console.error("Error testing S3 connection:", error);
+    console.error("Error saving S3 config:", error);
     return false;
   }
 }

@@ -1,10 +1,15 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'url';
 import { db } from "../db";
-import { s3BackupService } from "./s3_service";
+import { s3BackupService } from "./s3_backup_service";
 import { loadS3Config } from "./s3_config";
 import { backupHistory, type InsertBackupHistory } from "@shared/schema";
 import { eq } from "drizzle-orm";
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Backup directory path
 const BACKUP_DIR = path.join(process.cwd(), "server", "backups");

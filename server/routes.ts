@@ -310,8 +310,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create database backup using direct SQL queries
   app.post("/api/settings/backup", isAuthenticated, async (req, res) => {
     try {
-      // Import the BackupManager dynamically
+      // Import the BackupManager and S3 config dynamically
       const { backupManager } = await import('./backup/backup_manager');
+      const { loadS3Config, saveS3Config } = await import('./backup/s3_config');
+      
+      // Get the current S3 config
+      const s3Config = loadS3Config();
+      
+      // Update config with useS3 option if provided
+      if (req.body.useS3 === true) {
+        s3Config.enabled = true;
+        // Save the updated config
+        saveS3Config(s3Config);
+      }
       
       // Create the backup using the manager
       const backup = await backupManager.createBackup(req.body.notes || "Created via API");
@@ -321,7 +332,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         message: "Database backup created successfully",
         timestamp: new Date().toISOString(),
-        backup
+        backup,
+        storageType: backup.storageType
       });
     } catch (error) {
       console.error("Error creating database backup:", error);

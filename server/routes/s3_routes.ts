@@ -1,9 +1,13 @@
 import { Request, Response, Express } from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'url';
 import { isAuthenticated } from "./auth_middleware";
 import { s3Service } from "../backup/s3_service";
 
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const S3_CONFIG_FILE = path.join(__dirname, "..", "config", "s3_config.json");
 const DEFAULT_CONFIG = {
   enabled: false,
@@ -148,12 +152,15 @@ export function registerS3Routes(app: Express) {
     try {
       const testConfig = req.body;
       
-      // Create a temporary S3Service instance for testing
-      const tempS3Service = new s3Service.constructor();
-      await tempS3Service.initialize(testConfig);
+      // Use the same instance but initialize with test config temporarily
+      await s3Service.initialize(testConfig);
       
       // Test the connection
-      const result = await tempS3Service.testConnection();
+      const result = await s3Service.testConnection();
+      
+      // Reload the saved config to restore original settings
+      const savedConfig = loadS3Config();
+      await s3Service.initialize(savedConfig);
       
       res.json(result);
     } catch (error: any) {
@@ -162,6 +169,14 @@ export function registerS3Routes(app: Express) {
         success: false, 
         message: error.message || "Failed to test S3 connection" 
       });
+      
+      // Ensure we restore the original config on error
+      try {
+        const savedConfig = loadS3Config();
+        await s3Service.initialize(savedConfig);
+      } catch (restoreError) {
+        console.error("Error restoring S3 config after test:", restoreError);
+      }
     }
   });
 }
