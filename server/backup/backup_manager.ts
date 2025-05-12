@@ -7,13 +7,66 @@ import { createBackupData } from "./create_backup_data";
 import { eq } from "drizzle-orm";
 
 /**
+ * Backup manager for creating and managing database backups
+ */
+
+/**
+ * List all backups in the system
+ * @param options Optional filter options
+ * @returns List of backup records
+ */
+async function listBackups(options?: { 
+  includeDeleted?: boolean,
+  limit?: number,
+  page?: number
+}) {
+  try {
+    const limit = options?.limit || 20;
+    const page = options?.page || 1;
+    const offset = (page - 1) * limit;
+    
+    // Create query 
+    let queryResult;
+    
+    // Apply filter for deleted backups if specified
+    if (!options?.includeDeleted) {
+      queryResult = await db
+        .select()
+        .from(backupHistory)
+        .where(eq(backupHistory.deleted, false))
+        .orderBy(backupHistory.timestamp)
+        .limit(limit)
+        .offset(offset);
+    } else {
+      queryResult = await db
+        .select()
+        .from(backupHistory)
+        .orderBy(backupHistory.timestamp)
+        .limit(limit)
+        .offset(offset);
+    }
+    
+    return queryResult;
+  } catch (error) {
+    console.error("Error listing backups:", error);
+    throw error;
+  }
+}
+
+export const backupManager = {
+  createBackup,
+  restoreBackup,
+  listBackups
+};
+
+/**
  * Create a backup of the database
  * Can be run either manually by a user or automatically by the system scheduler
  * 
  * @param options Backup options
  * @returns The ID of the created backup
  */
-export async function createBackup(options: {
+async function createBackup(options: {
   notes?: string,
   useS3?: boolean,
   s3Bucket?: string,
@@ -107,7 +160,7 @@ export async function createBackup(options: {
  * @param backupId ID of the backup to restore
  * @returns Success status
  */
-export async function restoreBackup(backupId: string): Promise<boolean> {
+async function restoreBackup(backupId: string): Promise<boolean> {
   try {
     // Get the backup record
     const [backup] = await db.select().from(backupHistory)

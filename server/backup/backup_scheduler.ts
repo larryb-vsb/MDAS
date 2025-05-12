@@ -3,7 +3,7 @@ import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { scheduleJob } from "node-schedule";
 import axios from "axios";
-import { createBackup } from "./backup_manager";
+import { backupManager } from "./backup_manager";
 
 // Track scheduled jobs
 const scheduledJobs = new Map();
@@ -86,7 +86,7 @@ async function runBackupJob(schedule: any) {
   
   try {
     // Run the backup using system credentials (not tied to any specific user session)
-    const backupResult = await createBackup({
+    const backupResult = await backupManager.createBackup({
       notes: `Automated backup from schedule: ${schedule.name}`,
       useS3: schedule.useS3,
       isScheduled: true,
