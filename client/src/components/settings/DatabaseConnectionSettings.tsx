@@ -114,17 +114,9 @@ export default function DatabaseConnectionSettings() {
 
   const testConnection = async () => {
     try {
-      // If using environment variables, we don't need to test the connection
-      if (connection.useEnvVars) {
-        toast({
-          title: "Using environment variables",
-          description: "Connection test skipped. The application will use environment variables for database connection.",
-        });
-        return;
-      }
-      
-      // Validate required fields to avoid server error
-      if (!connection.url && (!connection.host || !connection.database || !connection.username)) {
+      // Validate required fields for custom connection (not needed for env vars)
+      if (!connection.useEnvVars && !connection.url && 
+          (!connection.host || !connection.database || !connection.username)) {
         toast({
           title: "Validation error",
           description: "Please provide either a complete connection URL or the host, database and username fields.",

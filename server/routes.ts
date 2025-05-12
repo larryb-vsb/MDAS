@@ -1276,17 +1276,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const config = req.body;
       
       // Test the connection
-      const isConnected = await testDatabaseConnection(config);
-      
-      if (isConnected) {
-        res.json({ 
-          success: true, 
-          message: "Successfully connected to the database" 
-        });
-      } else {
+      try {
+        const isConnected = await testDatabaseConnection(config);
+        
+        if (isConnected) {
+          res.json({ 
+            success: true, 
+            message: "Successfully connected to the database" 
+          });
+        } else {
+          res.status(400).json({ 
+            success: false, 
+            error: "Failed to connect to the database with the provided settings" 
+          });
+        }
+      } catch (connectionError) {
+        console.error("Database connection test error:", connectionError);
         res.status(400).json({ 
           success: false, 
-          error: "Failed to connect to the database with the provided settings" 
+          error: connectionError instanceof Error ? connectionError.message : "Failed to connect to database" 
         });
       }
     } catch (error) {
