@@ -14,12 +14,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   const { user } = useAuth();
   
   // Check if user is an admin
-  console.log("Current user:", user);
-  console.log("User role:", user?.role);
-  
-  // Temporarily set all users as admin for testing
-  const isAdmin = true; // TEMPORARY: Will fix properly later
-  console.log("isAdmin set to:", isAdmin);
+  const isAdmin = user?.role === "admin";
 
   // Define the type for nav items
   interface NavItem {
@@ -30,7 +25,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   }
   
   // Create the navigation items array
-  const navItems: (NavItem | false)[] = [
+  const navItems: NavItem[] = [
     {
       name: "Dashboard",
       href: "/",
@@ -89,6 +84,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
       name: "Backups",
       href: "/backups",
       icon: <ArchiveRestore className="w-5 h-5 mr-3" />,
+      adminOnly: true,
     },
     {
       name: "Settings",
@@ -103,14 +99,8 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
     // Removed duplicate backups link
   ];
 
-  // Debug nav items
-  console.log("Nav items before filter:", navItems);
-  // Filter out false values, but make sure to keep admin items since isAdmin is true
-  const filteredNavItems = navItems
-    .filter((item): item is NavItem => 
-      Boolean(item) && (!item.adminOnly || isAdmin)
-    );
-  console.log("Nav items after filter:", filteredNavItems);
+  // Filter navItems - keep all items for admins, or only non-admin items for regular users
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
     <div className={cn(isVisible ? "block" : "hidden", className)}>
