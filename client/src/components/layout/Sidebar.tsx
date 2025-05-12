@@ -15,8 +15,11 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   
   // Check if user is an admin
   console.log("Current user:", user);
+  console.log("User role:", user?.role);
+  
   // Temporarily set all users as admin for testing
   const isAdmin = true; // TEMPORARY: Will fix properly later
+  console.log("isAdmin set to:", isAdmin);
 
   // Define the type for nav items
   interface NavItem {
@@ -83,14 +86,19 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
         </svg>
       ),
     },
-    // Only show Backups link for admin users
-    isAdmin && {
+    // Only show Backups link for admin users - forcing to true for now
+    {
       name: "Backups",
       href: "/backups",
       icon: <ArchiveRestore className="w-5 h-5 mr-3" />,
       adminOnly: true,
     },
   ];
+
+  // Debug nav items
+  console.log("Nav items before filter:", navItems);
+  const filteredNavItems = navItems.filter((item): item is NavItem => Boolean(item));
+  console.log("Nav items after filter:", filteredNavItems);
 
   return (
     <div className={cn(isVisible ? "block" : "hidden", className)}>
@@ -100,7 +108,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
         </div>
         <div className="flex flex-col flex-grow px-4 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-2">
-            {navItems.filter((item): item is NavItem => Boolean(item)).map((item) => (
+            {filteredNavItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
