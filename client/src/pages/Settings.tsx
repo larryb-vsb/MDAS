@@ -15,6 +15,7 @@ import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import UserManagement from "@/components/settings/UserManagement";
+import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {
