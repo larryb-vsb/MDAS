@@ -304,70 +304,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create database backup using direct SQL queries
-  app.post("/api/settings/backup", async (req, res) => {
+  app.post("/api/settings/backup", isAuthenticated, async (req, res) => {
     try {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupFileName = `mms_backup_${timestamp}.json`;
-      const backupFilePath = path.join(os.tmpdir(), backupFileName);
+      // Import the BackupManager dynamically
+      const { backupManager } = await import('./backup/backup_manager');
       
-      // Create backup by directly querying tables
-      const backupData = {
-        timestamp,
-        merchants: [],
-        transactions: [],
-        uploadedFiles: []
-      };
-      
-      // Get merchants data
-      const merchantsData = await db.select().from(merchantsTable);
-      backupData.merchants = merchantsData;
-      
-      // Get transactions data
-      const transactionsData = await db.select().from(transactionsTable);
-      backupData.transactions = transactionsData;
-      
-      // Get uploaded files data
-      const uploadedFilesData = await db.select().from(uploadedFilesTable);
-      backupData.uploadedFiles = uploadedFilesData;
-      
-      // Write backup to file as JSON
-      fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2));
-      
-      // No need to save backup info to a separate file anymore as we're using the database
-      
-      // Get information about the backup
-      const stats = fs.statSync(backupFilePath);
-      
-      // Count the number of uploaded files that have been processed
-      const processedFiles = backupData.uploadedFiles.filter(file => file.processed).length;
-      
-      // Store backup in database history
-      const backupId = Date.now().toString();
-      const tables = {
-        merchants: backupData.merchants.length,
-        transactions: backupData.transactions.length,
-        uploadedFiles: processedFiles
-      };
-      
-      // Insert backup record into database
-      await db.insert(backupHistory).values({
-        id: backupId,
-        fileName: backupFileName,
-        filePath: backupFilePath,
-        timestamp: new Date(),
-        size: stats.size,
-        tables: tables,
-        notes: "Created via API",
-        downloaded: false
-      });
+      // Create the backup using the manager
+      const backup = await backupManager.createBackup(req.body.notes || "Created via API");
       
       // Success response
       res.json({
         success: true,
         message: "Database backup created successfully",
         timestamp: new Date().toISOString(),
-        backupPath: backupFilePath,
-        fileName: backupFileName
+        backup
       });
     } catch (error) {
       console.error("Error creating database backup:", error);

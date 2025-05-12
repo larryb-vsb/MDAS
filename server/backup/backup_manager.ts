@@ -4,6 +4,7 @@ import { db } from "../db";
 import { s3BackupService } from "./s3_service";
 import { loadS3Config } from "./s3_config";
 import { backupHistory, type InsertBackupHistory } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Backup directory path
 const BACKUP_DIR = path.join(process.cwd(), "server", "backups");
@@ -127,7 +128,7 @@ export class BackupManager {
   public async getBackupFilePath(backupId: string): Promise<string> {
     try {
       const [backup] = await db.select().from(backupHistory).where(
-        (backup, { eq }) => eq(backup.id, backupId)
+        eq(backupHistory.id, backupId)
       );
       
       if (!backup) {
@@ -158,7 +159,7 @@ export class BackupManager {
     try {
       await db.update(backupHistory)
         .set({ downloaded: true })
-        .where((backup, { eq }) => eq(backup.id, backupId));
+        .where(eq(backupHistory.id, backupId));
     } catch (error) {
       console.error("Error marking backup as downloaded:", error);
       throw new Error(`Failed to mark backup as downloaded: ${error instanceof Error ? error.message : 'Unknown error'}`);
