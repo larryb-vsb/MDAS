@@ -697,7 +697,7 @@ export default function BackupScheduleManager() {
                   <FormItem>
                     <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Description of this backup schedule" {...field} />
+                      <Input placeholder="Description of this backup schedule" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -928,7 +928,7 @@ export default function BackupScheduleManager() {
                   <FormItem>
                     <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Description of this backup schedule" {...field} />
+                      <Input placeholder="Description of this backup schedule" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
