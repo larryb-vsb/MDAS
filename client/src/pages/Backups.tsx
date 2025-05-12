@@ -48,10 +48,10 @@ export default function BackupsPage() {
     error: historyError,
     refetch: refetchHistory
   } = useQuery({
-    queryKey: ["/api/settings/backup/history"],
+    queryKey: ["/api/backups"],
     queryFn: async () => {
       try {
-        const res = await apiRequest("/api/settings/backup/history");
+        const res = await apiRequest("/api/backups");
         const data = await res.json();
         console.log("Backup history data:", data);
         return data;
@@ -189,17 +189,11 @@ export default function BackupsPage() {
                       <TableRow key={backup.id}>
                         <TableCell>{formatDate(backup.timestamp)}</TableCell>
                         <TableCell>
-                          {backup.isScheduled ? (
-                            <Badge variant="outline" className="flex items-center gap-1">
-                              <CalendarClock className="h-3 w-3" />
-                              Scheduled
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              Manual
-                            </Badge>
-                          )}
+                          {/* Simplified badge, removing isScheduled field which may not be in the schema */}
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Backup
+                          </Badge>
                         </TableCell>
                         <TableCell>{((backup.fileSize || backup.size) / (1024 * 1024)).toFixed(2)} MB</TableCell>
                         <TableCell>
@@ -208,7 +202,7 @@ export default function BackupsPage() {
                             Completed
                           </Badge>
                         </TableCell>
-                        <TableCell>{backup.createdBy}</TableCell>
+                        <TableCell>System</TableCell>
                         <TableCell>
                           {backup.storageType === "s3" ? (
                             <Badge className="bg-blue-500">S3 Cloud</Badge>
@@ -224,6 +218,8 @@ export default function BackupsPage() {
                               size="icon"
                               title="Download backup"
                               onClick={() => {
+                                // Trigger download using the correct API endpoint
+                                window.open(`/api/settings/backup/download/${backup.id}`, '_blank');
                                 toast({
                                   title: "Download started",
                                   description: "The backup file is being downloaded"
@@ -250,12 +246,32 @@ export default function BackupsPage() {
                               variant="outline"
                               size="icon"
                               title="Delete backup"
-                              onClick={() => {
-                                toast({
-                                  title: "Delete not implemented",
-                                  description: "This feature is not yet available",
-                                  variant: "destructive"
-                                });
+                              onClick={async () => {
+                                if (confirm("Are you sure you want to delete this backup?")) {
+                                  try {
+                                    const response = await fetch(`/api/settings/backup/${backup.id}`, {
+                                      method: 'DELETE',
+                                    });
+                                    
+                                    if (response.ok) {
+                                      toast({
+                                        title: "Backup deleted",
+                                        description: "The backup has been deleted successfully"
+                                      });
+                                      // Refresh the backup history
+                                      refetchHistory();
+                                    } else {
+                                      const error = await response.json();
+                                      throw new Error(error.error || 'Failed to delete backup');
+                                    }
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error deleting backup",
+                                      description: error instanceof Error ? error.message : "Unknown error occurred",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }
                               }}
                             >
                               <Trash className="h-4 w-4" />
