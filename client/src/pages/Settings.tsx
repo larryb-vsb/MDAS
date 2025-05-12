@@ -63,6 +63,12 @@ export default function Settings() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
+  // Fetch S3 config
+  const s3ConfigQuery = useQuery({
+    queryKey: ["/api/settings/s3config"],
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  
   const createBackup = async () => {
     try {
       setIsBackingUp(true);
@@ -295,11 +301,39 @@ export default function Settings() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col gap-4">
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="use-s3-storage"
+                      checked={useS3Storage}
+                      onCheckedChange={setUseS3Storage}
+                    />
+                    <Label htmlFor="use-s3-storage">Use S3 cloud storage for backups</Label>
+                  </div>
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
+                        <Info className="h-4 w-4" />
+                        <span className="sr-only">More info</span>
+                      </Button>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold">Backup storage options</h4>
+                        <p className="text-sm">
+                          Backups can be stored locally on the server or in Amazon S3 cloud storage.
+                          To use S3, configure your credentials in the S3 Backup Settings section below.
+                        </p>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </div>
+                
                 <Button 
                   className="w-full" 
                   onClick={createBackup} 
-                  disabled={isBackingUp || isLoading || isError}
+                  disabled={isBackingUp || isLoading || isError || (useS3Storage && (!s3ConfigQuery.data || !s3ConfigQuery.data.accessKeyId))}
                 >
                   {isBackingUp ? (
                     <>
@@ -309,7 +343,7 @@ export default function Settings() {
                   ) : (
                     <>
                       <DownloadCloud className="mr-2 h-4 w-4" />
-                      Create Backup
+                      Create Backup {useS3Storage ? "to S3" : "locally"}
                     </>
                   )}
                 </Button>
