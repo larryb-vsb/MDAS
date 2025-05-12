@@ -72,7 +72,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerS3Routes(app);
   
   // Register backup schedule routes
-  registerBackupScheduleRoutes(app.use("/api/settings", isAuthenticated));
+  app.use("/api/settings", isAuthenticated);
+  registerBackupScheduleRoutes(app);
   
   // User management endpoints
   app.get("/api/users", async (req, res) => {

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from "express";
+import express, { Router, Request, Response } from "express";
+import type { Express } from "express";
 import { db } from "../db";
 import { backupSchedules } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -279,6 +280,7 @@ function calculateNextRunTime(schedule: any): Date {
 
 export default router;
 
-export function registerBackupScheduleRoutes(app: Router) {
-  app.use("/backup", router);
+export function registerBackupScheduleRoutes(app: Express) {
+  // We'll rely on the authentication middleware already applied in routes.ts
+  app.use("/api/settings/backup", router);
 }
