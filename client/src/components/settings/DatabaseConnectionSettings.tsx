@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Card, 
   CardContent, 
@@ -34,6 +35,7 @@ interface DatabaseConnection {
   password: string;
   ssl: boolean;
   url: string;
+  useEnvVars?: boolean;
 }
 
 export default function DatabaseConnectionSettings() {
@@ -45,7 +47,8 @@ export default function DatabaseConnectionSettings() {
     username: "",
     password: "",
     ssl: true,
-    url: ""
+    url: "",
+    useEnvVars: true
   });
 
   // Fetch current connection settings
@@ -111,6 +114,25 @@ export default function DatabaseConnectionSettings() {
 
   const testConnection = async () => {
     try {
+      // If using environment variables, we don't need to test the connection
+      if (connection.useEnvVars) {
+        toast({
+          title: "Using environment variables",
+          description: "Connection test skipped. The application will use environment variables for database connection.",
+        });
+        return;
+      }
+      
+      // Validate required fields to avoid server error
+      if (!connection.url && (!connection.host || !connection.database || !connection.username)) {
+        toast({
+          title: "Validation error",
+          description: "Please provide either a complete connection URL or the host, database and username fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const response = await fetch("/api/settings/connection/test", {
         method: "POST",
         headers: {
@@ -128,7 +150,7 @@ export default function DatabaseConnectionSettings() {
       } else {
         toast({
           title: "Connection failed",
-          description: result.message || "Failed to connect to the database server.",
+          description: result.error || "Failed to connect to the database server.",
           variant: "destructive",
         });
       }
@@ -222,102 +244,136 @@ export default function DatabaseConnectionSettings() {
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="host" className="text-right">
-                    Host
-                  </Label>
-                  <Input
-                    id="host"
-                    name="host"
-                    placeholder="localhost"
-                    value={connection.host}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="port" className="text-right">
-                    Port
-                  </Label>
-                  <Input
-                    id="port"
-                    name="port"
-                    type="number"
-                    placeholder="5432"
-                    value={connection.port}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="database" className="text-right">
-                    Database
-                  </Label>
-                  <Input
-                    id="database"
-                    name="database"
-                    placeholder="postgres"
-                    value={connection.database}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="username" className="text-right">
-                    Username
-                  </Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    placeholder="postgres"
-                    value={connection.username}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="password" className="text-right">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={connection.password}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ssl" className="text-right">
-                    SSL
-                  </Label>
-                  <div className="col-span-3 flex items-center">
-                    <input 
-                      type="checkbox" 
-                      id="ssl" 
-                      name="ssl"
-                      className="mr-2 h-4 w-4" 
-                      checked={connection.ssl}
-                      onChange={handleChange}
-                    />
-                    <Label htmlFor="ssl">Enable SSL</Label>
+                  <div className="col-span-4">
+                    <div className="flex items-center space-x-2 mb-4 pb-2 border-b">
+                      <Checkbox 
+                        id="useEnvVars" 
+                        name="useEnvVars"
+                        checked={connection.useEnvVars}
+                        onCheckedChange={(checked) => {
+                          setConnection(prev => ({
+                            ...prev,
+                            useEnvVars: checked === true
+                          }));
+                        }}
+                      />
+                      <Label htmlFor="useEnvVars">Use Environment Variables</Label>
+                      <div className="text-xs text-muted-foreground ml-2">
+                        (Uses DATABASE_URL from environment)
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="url" className="text-right">
-                    Connection URL
-                  </Label>
-                  <Input
-                    id="url"
-                    name="url"
-                    placeholder="postgresql://user:password@localhost:5432/database"
-                    value={connection.url}
-                    onChange={handleChange}
-                    className="col-span-3"
-                  />
-                  <div className="col-span-4 text-xs text-muted-foreground">
-                    If URL is provided, it takes precedence over individual settings.
+                
+                <div className={connection.useEnvVars ? "opacity-50 pointer-events-none" : ""}>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="host" className="text-right">
+                      Host
+                    </Label>
+                    <Input
+                      id="host"
+                      name="host"
+                      placeholder="localhost"
+                      value={connection.host}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="port" className="text-right">
+                      Port
+                    </Label>
+                    <Input
+                      id="port"
+                      name="port"
+                      type="number"
+                      placeholder="5432"
+                      value={connection.port}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="database" className="text-right">
+                      Database
+                    </Label>
+                    <Input
+                      id="database"
+                      name="database"
+                      placeholder="postgres"
+                      value={connection.database}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="username" className="text-right">
+                      Username
+                    </Label>
+                    <Input
+                      id="username"
+                      name="username"
+                      placeholder="postgres"
+                      value={connection.username}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="password" className="text-right">
+                      Password
+                    </Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={connection.password}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="ssl" className="text-right">
+                      SSL
+                    </Label>
+                    <div className="col-span-3 flex items-center">
+                      <Checkbox 
+                        id="ssl" 
+                        name="ssl"
+                        checked={connection.ssl}
+                        onCheckedChange={(checked) => {
+                          setConnection(prev => ({
+                            ...prev,
+                            ssl: checked === true
+                          }));
+                        }}
+                        disabled={connection.useEnvVars}
+                      />
+                      <Label htmlFor="ssl" className="ml-2">Enable SSL</Label>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                    <Label htmlFor="url" className="text-right">
+                      Connection URL
+                    </Label>
+                    <Input
+                      id="url"
+                      name="url"
+                      placeholder="postgresql://user:password@localhost:5432/database"
+                      value={connection.url}
+                      onChange={handleChange}
+                      className="col-span-3"
+                      disabled={connection.useEnvVars}
+                    />
+                    <div className="col-span-4 text-xs text-muted-foreground">
+                      If URL is provided, it takes precedence over individual settings.
+                    </div>
                   </div>
                 </div>
               </div>

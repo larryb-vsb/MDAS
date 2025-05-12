@@ -9,6 +9,7 @@ interface DatabaseConfig {
   password: string;
   ssl: boolean;
   url: string;
+  useEnvVars?: boolean;
 }
 
 const CONFIG_DIR = path.join(process.cwd(), ".config");
@@ -27,7 +28,8 @@ const DEFAULT_CONFIG: DatabaseConfig = {
   username: "",
   password: "",
   ssl: true,
-  url: ""
+  url: "",
+  useEnvVars: true
 };
 
 /**
@@ -65,6 +67,14 @@ export function saveDatabaseConfig(config: DatabaseConfig): void {
 export function getDatabaseUrl(): string {
   const config = loadDatabaseConfig();
   
+  // If using environment variables, use DATABASE_URL from environment
+  if (config.useEnvVars) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+    return process.env.DATABASE_URL;
+  }
+  
   // If a complete URL is provided, use it
   if (config.url) {
     return config.url;
@@ -92,14 +102,24 @@ export async function testDatabaseConnection(config: DatabaseConfig): Promise<bo
   
   let connectionString = "";
   
+  // If using environment variables, use DATABASE_URL
+  if (config.useEnvVars) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+    connectionString = process.env.DATABASE_URL;
+  }
   // If a complete URL is provided, use it
-  if (config.url) {
+  else if (config.url) {
     connectionString = config.url;
-  } else if (config.host && config.database && config.username) {
-    // Build connection string from components
+  } 
+  // Build connection string from components
+  else if (config.host && config.database && config.username) {
     const sslParam = config.ssl ? "?sslmode=require" : "";
     connectionString = `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}${sslParam}`;
-  } else {
+  } 
+  // No valid connection options
+  else {
     throw new Error("Incomplete database configuration");
   }
   
