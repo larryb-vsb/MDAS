@@ -32,6 +32,11 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   // Create the navigation items array
   const navItems: (NavItem | false)[] = [
     {
+      name: "Backups",
+      href: "/backups",
+      icon: <ArchiveRestore className="w-5 h-5 mr-3" />,
+    },
+    {
       name: "Merchants",
       href: "/",
       icon: (

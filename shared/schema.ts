@@ -49,17 +49,18 @@ export const backupHistory = pgTable("backup_history", {
   fileName: text("file_name").notNull(),
   filePath: text("file_path"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-  fileSize: integer("file_size").notNull(),
-  tables: text("tables").notNull(), // Comma-separated list of tables
+  size: integer("size").notNull(), // Changed from fileSize to size to match DB column
+  tables: jsonb("tables").notNull(), // Changed from text to jsonb to match DB data type
   notes: text("notes"),
   downloaded: boolean("downloaded").default(false).notNull(),
   deleted: boolean("deleted").default(false).notNull(),
   storageType: text("storage_type").default("local").notNull(), // "local" or "s3"
   s3Bucket: text("s3_bucket"),
-  s3Key: text("s3_key"),
-  isScheduled: boolean("is_scheduled").default(false).notNull(),
-  scheduleId: integer("schedule_id"),
-  createdBy: text("created_by").default("system").notNull()
+  s3Key: text("s3_key")
+  // Fields below are not in the current DB schema, will be added later if needed
+  // isScheduled: boolean("is_scheduled").default(false).notNull(),
+  // scheduleId: integer("schedule_id"),
+  // createdBy: text("created_by").default("system").notNull()
 });
 
 // Backup schedule table

@@ -129,23 +129,28 @@ async function createBackup(options: {
     }
     
     // Record the backup in the history table
-    await db.insert(backupHistory).values({
-      id: backupId,
-      timestamp: new Date(timestamp),
-      filePath: storageType === "local" ? backupPath : null,
-      fileName: backupFilename,
-      fileSize: Buffer.byteLength(JSON.stringify(backupData)),
-      createdBy: options.systemOperation ? "system" : options.userId ? options.userId.toString() : "unknown",
-      notes: options.notes || "",
-      storageType: storageType,
-      s3Bucket: s3Bucket,
-      s3Key: s3Key,
-      isScheduled: options.isScheduled || false,
-      scheduleId: options.scheduleId || null,
-      tables: Object.keys(backupData.data).join(","),
-      downloaded: false,
-      deleted: false
-    });
+    try {
+      await db.insert(backupHistory).values({
+        id: backupId,
+        timestamp: new Date(timestamp),
+        filePath: storageType === "local" ? backupPath : null,
+        fileName: backupFilename,
+        // Use 'size' column instead of 'fileSize' to match database schema
+        size: Buffer.byteLength(JSON.stringify(backupData)),
+        notes: options.notes || "",
+        storageType: storageType,
+        s3Bucket: s3Bucket,
+        s3Key: s3Key,
+        // Convert tables to JSON since database expects JSONB
+        tables: JSON.stringify(Object.keys(backupData.data)),
+        downloaded: false,
+        deleted: false
+      });
+      console.log("Backup record inserted successfully");
+    } catch (error) {
+      console.error("Error inserting backup record:", error);
+      throw error;
+    }
     
     return backupId;
   } catch (error) {
