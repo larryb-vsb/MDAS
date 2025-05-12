@@ -661,7 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete a backup
-  app.delete("/api/settings/backup/:id", async (req, res) => {
+  app.delete("/api/backups/:id", async (req, res) => {
     try {
       const backupId = req.params.id;
       
