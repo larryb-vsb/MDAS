@@ -364,10 +364,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: backupHistory.id,
             timestamp: backupHistory.timestamp,
             fileName: backupHistory.fileName,
-            size: backupHistory.size,
+            fileSize: backupHistory.fileSize,
             tables: backupHistory.tables,
             downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted
+            deleted: backupHistory.deleted,
+            storageType: backupHistory.storageType,
+            isScheduled: backupHistory.isScheduled,
+            scheduleId: backupHistory.scheduleId,
+            createdBy: backupHistory.createdBy,
+            notes: backupHistory.notes,
+            s3Bucket: backupHistory.s3Bucket,
+            s3Key: backupHistory.s3Key
           })
           .from(backupHistory)
           .orderBy(desc(backupHistory.timestamp))
@@ -379,10 +386,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: backupHistory.id,
             timestamp: backupHistory.timestamp,
             fileName: backupHistory.fileName,
-            size: backupHistory.size,
+            fileSize: backupHistory.fileSize,
             tables: backupHistory.tables,
             downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted
+            deleted: backupHistory.deleted,
+            storageType: backupHistory.storageType,
+            isScheduled: backupHistory.isScheduled,
+            scheduleId: backupHistory.scheduleId,
+            createdBy: backupHistory.createdBy,
+            notes: backupHistory.notes,
+            s3Bucket: backupHistory.s3Bucket,
+            s3Key: backupHistory.s3Key
           })
           .from(backupHistory)
           .where(eq(backupHistory.deleted, false))
