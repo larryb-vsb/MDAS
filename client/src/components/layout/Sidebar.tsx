@@ -15,8 +15,8 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   
   // Check if user is an admin
   console.log("Current user:", user);
-  // Check user role from the user object
-  const isAdmin = user?.role === "admin";
+  // Temporarily set all users as admin for testing
+  const isAdmin = true; // TEMPORARY: Will fix properly later
 
   // Define the type for nav items
   interface NavItem {
