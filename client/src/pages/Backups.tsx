@@ -166,7 +166,7 @@ export default function BackupsPage() {
                   <Info className="h-4 w-4" />
                   <AlertTitle>No backups</AlertTitle>
                   <AlertDescription>
-                    No backup history found. Create your first backup in the Settings page.
+                    No backup history found. Create your first backup in the Database section of the Settings page.
                   </AlertDescription>
                 </Alert>
               ) : (
