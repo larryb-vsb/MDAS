@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -73,20 +73,19 @@ export default function S3BackupSettings() {
   });
 
   // Update form values when data is loaded
-  useState(() => {
+  useEffect(() => {
     if (s3Config) {
       form.reset(s3Config);
     }
-  });
+  }, [s3Config, form]);
 
   // Update S3 configuration
   const updateConfigMutation = useMutation({
     mutationFn: async (config: S3Config) => {
-      const response = await apiRequest(
-        "POST", 
-        "/api/settings/s3config", 
-        config
-      );
+      const response = await apiRequest("/api/settings/s3config", {
+        method: "POST",
+        body: JSON.stringify(config)
+      });
       return await response.json();
     },
     onSuccess: () => {
@@ -108,11 +107,10 @@ export default function S3BackupSettings() {
   // Test S3 connection
   const testConnectionMutation = useMutation({
     mutationFn: async (config: S3Config) => {
-      const response = await apiRequest(
-        "POST", 
-        "/api/settings/s3config/test", 
-        config
-      );
+      const response = await apiRequest("/api/settings/s3config/test", {
+        method: "POST",
+        body: JSON.stringify(config)
+      });
       return await response.json();
     },
     onSuccess: (data) => {

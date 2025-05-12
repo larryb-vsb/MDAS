@@ -14,6 +14,7 @@ import { exec } from "child_process";
 import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
+import { registerS3Routes } from "./routes/s3_routes";
 
 // Authentication middleware
 function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -65,6 +66,9 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize authentication system
   setupAuth(app);
+  
+  // Register S3 configuration routes
+  registerS3Routes(app);
   
   // User management endpoints
   app.get("/api/users", async (req, res) => {

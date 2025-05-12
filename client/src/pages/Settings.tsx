@@ -16,6 +16,7 @@ import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import UserManagement from "@/components/settings/UserManagement";
 import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
+import S3BackupSettings from "@/components/settings/S3BackupSettings";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {
@@ -37,6 +38,7 @@ export default function Settings() {
   const [hasBackup, setHasBackup] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [useS3Storage, setUseS3Storage] = useState(false);
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -77,6 +79,10 @@ export default function Settings() {
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            useS3: useS3Storage,
+            notes: "Created from settings page"
+          }),
           credentials: "include"
         });
         
@@ -93,9 +99,11 @@ export default function Settings() {
         if (responseData && responseData.success) {
           setHasBackup(true);
           
+          const storageType = useS3Storage ? "S3 cloud storage" : "local storage";
+          
           toast({
             title: "Backup created successfully",
-            description: "Your database has been backed up.",
+            description: `Your database has been backed up to ${storageType}.`,
           });
           
           // Refresh statistics
@@ -222,6 +230,10 @@ export default function Settings() {
       
           <div className="grid grid-cols-1 gap-6 mb-6">
             <DatabaseConnectionSettings />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <S3BackupSettings />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
