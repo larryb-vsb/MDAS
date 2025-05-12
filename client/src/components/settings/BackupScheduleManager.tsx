@@ -106,8 +106,11 @@ export default function BackupScheduleManager() {
     queryKey: ["/api/settings/backup/schedules"],
     queryFn: async () => {
       try {
+        console.log("Fetching backup schedules...");
         const res = await apiRequest("/api/settings/backup/schedules");
-        return await res.json();
+        const data = await res.json();
+        console.log("Received schedules data:", data);
+        return data;
       } catch (err) {
         console.error("Error fetching schedules:", err);
         return []; // Return empty array to prevent parsing errors
@@ -430,6 +433,7 @@ export default function BackupScheduleManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {console.log("Rendering schedules:", schedules)}
                 {schedules && schedules.length > 0 ? (
                   schedules.map((schedule: any) => (
                     <TableRow key={schedule.id}>

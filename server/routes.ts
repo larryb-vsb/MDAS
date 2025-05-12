@@ -18,7 +18,7 @@ import { registerS3Routes } from "./routes/s3_routes";
 import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 
 // Authentication middleware
-function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }

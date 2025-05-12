@@ -5,6 +5,7 @@ import { backupSchedules } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { insertBackupScheduleSchema } from "@shared/schema";
 import { z } from "zod";
+import { isAuthenticated } from "../routes";
 
 const router = Router();
 
@@ -13,7 +14,9 @@ const router = Router();
  */
 router.get("/schedules", async (req: Request, res: Response) => {
   try {
+    console.log("Fetching backup schedules from database...");
     const schedules = await db.select().from(backupSchedules).orderBy(backupSchedules.createdAt);
+    console.log("Retrieved schedules:", schedules);
     return res.json(schedules);
   } catch (error) {
     console.error("Error fetching backup schedules:", error);
@@ -281,6 +284,6 @@ function calculateNextRunTime(schedule: any): Date {
 export default router;
 
 export function registerBackupScheduleRoutes(app: Express) {
-  // We'll rely on the authentication middleware already applied in routes.ts
-  app.use("/api/settings/backup", router);
+  // Apply authentication middleware to backup routes
+  app.use("/api/settings/backup", isAuthenticated, router);
 }
