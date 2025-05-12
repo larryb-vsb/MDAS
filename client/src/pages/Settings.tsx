@@ -20,6 +20,7 @@ import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import UserManagement from "@/components/settings/UserManagement";
 import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
 import S3BackupSettings from "@/components/settings/S3BackupSettings";
+import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {

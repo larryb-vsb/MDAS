@@ -59,6 +59,24 @@ export const backupHistory = pgTable("backup_history", {
   s3Key: text("s3_key")
 });
 
+// Backup schedule table
+export const backupSchedules = pgTable("backup_schedules", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  frequency: text("frequency").notNull(), // "daily", "weekly", "monthly"
+  timeOfDay: text("time_of_day").notNull(), // HH:MM format in 24-hour time
+  dayOfWeek: integer("day_of_week"), // 0-6 (Sunday to Saturday) for weekly backups
+  dayOfMonth: integer("day_of_month"), // 1-31 for monthly backups
+  enabled: boolean("enabled").default(true).notNull(),
+  useS3: boolean("use_s3").default(false).notNull(),
+  retentionDays: integer("retention_days").default(30).notNull(),
+  lastRun: timestamp("last_run"),
+  nextRun: timestamp("next_run"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  notes: text("notes")
+});
+
 // Schema version table
 export const schemaVersions = pgTable("schema_versions", {
   id: serial("id").primaryKey(),
@@ -85,6 +103,10 @@ export const insertUploadedFileSchema = uploadedFilesSchema.omit({ id: true });
 // Zod schemas for backup history
 export const backupHistorySchema = createInsertSchema(backupHistory);
 export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
+
+// Zod schemas for backup schedules
+export const backupSchedulesSchema = createInsertSchema(backupSchedules);
+export const insertBackupScheduleSchema = backupSchedulesSchema.omit({ id: true, lastRun: true, nextRun: true, createdAt: true, updatedAt: true });
 
 // Zod schemas for schema versions
 export const schemaVersionsSchema = createInsertSchema(schemaVersions);
@@ -127,5 +149,7 @@ export type BackupHistory = typeof backupHistory.$inferSelect;
 export type InsertBackupHistory = typeof backupHistory.$inferInsert;
 export type SchemaVersion = typeof schemaVersions.$inferSelect;
 export type InsertSchemaVersion = typeof schemaVersions.$inferInsert;
+export type BackupSchedule = typeof backupSchedules.$inferSelect;
+export type InsertBackupSchedule = typeof backupSchedules.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
