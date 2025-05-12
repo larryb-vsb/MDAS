@@ -104,7 +104,15 @@ export default function BackupScheduleManager() {
     refetch
   } = useQuery({
     queryKey: ["/api/settings/backup/schedules"],
-    queryFn: () => apiRequest("/api/settings/backup/schedules").then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("/api/settings/backup/schedules");
+        return await res.json();
+      } catch (err) {
+        console.error("Error fetching schedules:", err);
+        return []; // Return empty array to prevent parsing errors
+      }
+    },
   });
 
   // Form for adding new schedule
