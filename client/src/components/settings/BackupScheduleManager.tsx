@@ -127,8 +127,7 @@ export default function BackupScheduleManager() {
       timeOfDay: "00:00",
       enabled: true,
       useS3: false,
-      retentionDays: 30,
-      notes: ""
+      retentionDays: 30
     }
   });
 

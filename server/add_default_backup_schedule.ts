@@ -18,8 +18,8 @@ export async function addDefaultBackupSchedule() {
       nextRun.setDate(nextRun.getDate() + 1); // Set to next day
       
       // Create default daily backup at midnight
+      // Get only the columns that actually exist in the table
       await db.insert(backupSchedules).values({
-        id: "default-daily",
         name: "Daily Backup",
         frequency: "daily",
         time_of_day: "00:00",

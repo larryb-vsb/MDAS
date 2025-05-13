@@ -77,8 +77,8 @@ export const backupSchedules = pgTable("backup_schedules", {
   last_run: timestamp("last_run"),
   next_run: timestamp("next_run"),
   created_at: timestamp("created_at").defaultNow().notNull(),
-  updated_at: timestamp("updated_at").defaultNow().notNull(),
-  notes: text("notes")
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+  // notes field doesn't exist in the actual database table
 });
 
 // Schema version table
