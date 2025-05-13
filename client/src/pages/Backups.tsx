@@ -56,6 +56,17 @@ export default function BackupsPage() {
         const res = await apiRequest("/api/settings/backup/history");
         const data = await res.json();
         console.log("Backup history data:", data);
+        
+        // Add debug logging to help diagnose issues
+        if (Array.isArray(data)) {
+          console.log(`Received ${data.length} backup history records`);
+          if (data.length > 0) {
+            console.log("First backup record structure:", Object.keys(data[0]));
+          }
+        } else {
+          console.log("Received non-array data:", typeof data);
+        }
+        
         return data;
       } catch (err) {
         console.error("Error fetching backup history:", err);
@@ -181,6 +192,8 @@ export default function BackupsPage() {
                   </AlertDescription>
                 </Alert>
               ) : (
+                // Add debug logging before rendering
+                (() => { console.log("About to render backup history table with data:", backupHistory); return true; })() &&
                 <Table>
                   <TableCaption>A history of all database backups</TableCaption>
                   <TableHeader>
@@ -212,7 +225,7 @@ export default function BackupsPage() {
                             Completed
                           </Badge>
                         </TableCell>
-                        <TableCell>admin</TableCell>
+                        <TableCell>{backup.createdBy || 'admin'}</TableCell>
                         <TableCell>
                           {backup.storageType === "s3" ? (
                             <Badge className="bg-blue-500">S3 Cloud</Badge>
