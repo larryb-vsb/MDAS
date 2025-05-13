@@ -56,21 +56,29 @@ app.use((req, res, next) => {
   });
   
   try {
-    // Initialize schema version tracking (continue on error)
-    await initializeSchemaVersions().catch(err => {
-      console.log("Warning: Could not initialize schema versions:", err.message);
-    });
+    // Run database migrations to create tables if they don't exist
+    const migrationSuccess = await migrateDatabase();
+    if (!migrationSuccess) {
+      console.error("Database migration failed. The application may not function correctly.");
+    }
+    
+    // Initialize schema version tracking
+    if (migrationSuccess) {
+      await initializeSchemaVersions().catch(err => {
+        console.log("Warning: Could not initialize schema versions:", err.message);
+      });
+      
+      // Start the backup scheduler
+      await initializeBackupScheduler().catch(err => {
+        console.log("Warning: Could not initialize backup scheduler:", err.message);
+      });
+    }
     
     // Create http server
     const httpServer = createServer(app);
     
     // Register routes
     await registerRoutes(app);
-    
-    // Start the backup scheduler (continue on error)
-    await initializeBackupScheduler().catch(err => {
-      console.log("Warning: Could not initialize backup scheduler:", err.message);
-    });
 
     // Set up Vite in development
     if (app.get("env") === "development") {

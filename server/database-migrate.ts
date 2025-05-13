@@ -124,16 +124,12 @@ async function createUploadedFilesTable() {
     CREATE TABLE IF NOT EXISTS uploaded_files (
       id TEXT PRIMARY KEY,
       original_filename TEXT NOT NULL,
-      file_path TEXT NOT NULL,
+      storage_path TEXT NOT NULL,
       file_type TEXT NOT NULL,
-      file_size INTEGER NOT NULL,
-      records_processed INTEGER DEFAULT 0,
-      records_added INTEGER DEFAULT 0,
-      records_updated INTEGER DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'pending',
-      error_message TEXT,
-      uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      processed_at TIMESTAMP WITH TIME ZONE
+      uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      processed BOOLEAN DEFAULT FALSE NOT NULL,
+      processing_errors TEXT,
+      deleted BOOLEAN DEFAULT FALSE NOT NULL
     )
   `);
 }
@@ -143,19 +139,17 @@ async function createBackupHistoryTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS backup_history (
       id TEXT PRIMARY KEY,
-      filename TEXT NOT NULL,
-      file_path TEXT NOT NULL,
-      file_size INTEGER,
-      record_count INTEGER,
-      tables_included TEXT[],
-      storage_type TEXT NOT NULL DEFAULT 'local',
+      file_name TEXT NOT NULL,
+      file_path TEXT,
+      timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      size INTEGER NOT NULL,
+      tables JSONB NOT NULL,
+      notes TEXT,
+      downloaded BOOLEAN DEFAULT FALSE NOT NULL,
+      deleted BOOLEAN DEFAULT FALSE NOT NULL,
+      storage_type TEXT DEFAULT 'local' NOT NULL,
       s3_bucket TEXT,
-      s3_key TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      status TEXT NOT NULL DEFAULT 'complete',
-      is_scheduled BOOLEAN DEFAULT FALSE,
-      schedule_id TEXT,
-      created_by TEXT
+      s3_key TEXT
     )
   `);
 }
@@ -164,22 +158,20 @@ async function createBackupHistoryTable() {
 async function createBackupSchedulesTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS backup_schedules (
-      id TEXT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       frequency TEXT NOT NULL,
-      hour INTEGER NOT NULL,
-      minute INTEGER NOT NULL,
+      time_of_day TEXT NOT NULL,
       day_of_week INTEGER,
       day_of_month INTEGER,
-      status TEXT NOT NULL DEFAULT 'active',
-      storage_type TEXT NOT NULL DEFAULT 'local',
-      s3_bucket TEXT,
-      s3_key_prefix TEXT,
-      retention_count INTEGER DEFAULT 5,
+      enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      use_s3 BOOLEAN NOT NULL DEFAULT FALSE,
+      retention_days INTEGER NOT NULL DEFAULT 30,
       last_run TIMESTAMP WITH TIME ZONE,
       next_run TIMESTAMP WITH TIME ZONE,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      notes TEXT
     )
   `);
 }
@@ -190,8 +182,11 @@ async function createSchemaVersionsTable() {
     CREATE TABLE IF NOT EXISTS schema_versions (
       id SERIAL PRIMARY KEY,
       version TEXT NOT NULL,
-      description TEXT,
-      applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      description TEXT NOT NULL,
+      changes JSONB,
+      applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      applied_by TEXT,
+      script TEXT
     )
   `);
 }
