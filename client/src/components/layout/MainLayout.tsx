@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { APP_VERSION, BUILD_DATE } from "@shared/version";
+import { FallbackStorageAlert } from "@/components/ui/fallback-storage-alert";
 import { 
   BarChart3, 
   Home, 
@@ -324,7 +325,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </header>
         
         {/* Main content */}
-        <main className="flex-1 bg-gray-100 p-6">{children}</main>
+        <main className="flex-1 bg-gray-100 p-6">
+          <FallbackStorageAlert />
+          {children}
+        </main>
       </div>
     </div>
   );

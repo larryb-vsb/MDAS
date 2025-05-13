@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
 
 // Component to display a warning when the system is in fallback mode
 export const FallbackStorageAlert: React.FC = () => {
@@ -12,7 +11,10 @@ export const FallbackStorageAlert: React.FC = () => {
     const checkFallbackStatus = async () => {
       try {
         setIsLoading(true);
-        const response = await apiRequest('GET', '/api/system/info');
+        const response = await fetch('/api/system/info');
+        if (!response.ok) {
+          throw new Error('Failed to fetch system info');
+        }
         const data = await response.json();
         
         // Check if system is in fallback mode
