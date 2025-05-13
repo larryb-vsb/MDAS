@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, RotateCw, CalendarClock, FileOutput, Clock, Trash, AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
