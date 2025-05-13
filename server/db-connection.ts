@@ -1,11 +1,10 @@
-// This file creates and exports the database connection
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 import { config, NODE_ENV } from "./env-config";
+import { initializeDatabase } from './database-init';
 
-// Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
 
 // Get the environment-specific database URL
@@ -27,6 +26,25 @@ try {
   console.error('Could not parse database URL', error);
 }
 
-// Create and export the pool and db
-export const pool = new Pool({ connectionString: databaseUrl });
-export const db = drizzle({ client: pool, schema });
+// This function initializes the database connection and ensures the database exists
+export async function initializeDbConnection() {
+  // First, ensure the database exists and has the schema
+  await initializeDatabase();
+  
+  // Now connect to it
+  console.log(`Connecting to ${NODE_ENV} database...`);
+  const pool = new Pool({ connectionString: databaseUrl });
+  const db = drizzle({ client: pool, schema });
+  
+  return { pool, db };
+}
+
+// These will be initialized in server/index.ts
+export let pool: Pool;
+export let db: ReturnType<typeof drizzle>;
+
+// This function sets the global pool and db variables
+export function setDbConnection(connection: { pool: Pool, db: ReturnType<typeof drizzle> }) {
+  pool = connection.pool;
+  db = connection.db;
+}

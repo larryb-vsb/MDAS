@@ -1,11 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeSchemaVersions } from "./schema_version";
 import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV } from "./env-config";
-import { initializeDatabase } from "./database-init";
+import { pool, db } from "./db";
+import { migrateDatabase } from "./database-migrate";
 
 const app = express();
 app.use(express.json());
@@ -45,50 +47,49 @@ app.use((req, res, next) => {
   // Ensure environment-specific directories exist
   ensureAppDirectories();
   
-  // Initialize environment-specific database
-  const dbInitialized = await initializeDatabase();
-  if (!dbInitialized) {
-    console.error(`Failed to initialize ${NODE_ENV} database. The application may not function correctly.`);
-  } else {
-    console.log(`Successfully initialized ${NODE_ENV} database`);
-  }
-  
-  // Initialize schema version tracking
-  await initializeSchemaVersions();
-  
-  const server = await registerRoutes(app);
-  
-  // Start the backup scheduler (runs as a system service independent of user sessions)
-  await initializeBackupScheduler().catch(err => {
-    console.error("Error starting backup scheduler:", err);
-  });
-
+  // Set up error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
+  
+  try {
+    // Initialize schema version tracking (continue on error)
+    await initializeSchemaVersions().catch(err => {
+      console.log("Warning: Could not initialize schema versions:", err.message);
+    });
+    
+    // Create http server
+    const httpServer = createServer(app);
+    
+    // Register routes
+    await registerRoutes(app);
+    
+    // Start the backup scheduler (continue on error)
+    await initializeBackupScheduler().catch(err => {
+      console.log("Warning: Could not initialize backup scheduler:", err.message);
+    });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Set up Vite in development
+    if (app.get("env") === "development") {
+      await setupVite(app, httpServer);
+    } else {
+      serveStatic(app);
+    }
+
+    // Start the server on port 5000
+    const port = 5000;
+    httpServer.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`Server running on port ${port} in ${NODE_ENV} mode`);
+    });
+  } catch (error) {
+    console.error("Failed to initialize application:", error);
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
 })();

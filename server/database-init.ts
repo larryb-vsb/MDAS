@@ -3,6 +3,8 @@ import ws from 'ws';
 import { config, isDev, isProd, NODE_ENV } from './env-config';
 import fs from 'fs';
 import path from 'path';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import * as schema from "@shared/schema";
 
 // Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
@@ -30,50 +32,90 @@ export async function initializeDatabase() {
     const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
     const envDbName = `${baseDbName}${envSuffix}`;
     
-    // Connect to the base database to create the environment database
-    const basePool = new Pool({ connectionString: originalUrl });
+    // Create the environment-specific URL
+    const envUrl = originalUrl.replace(`/${baseDbName}`, `/${envDbName}`);
+    console.log(`Environment URL: ${envUrl}`);
     
+    // Try to connect to the environment database directly first
     try {
-      // Check if environment database exists
-      const checkResult = await basePool.query(`
-        SELECT 1 FROM pg_database WHERE datname = $1
-      `, [envDbName]);
-      
-      if (checkResult.rowCount === 0) {
-        console.log(`Creating ${envDbName} database...`);
+      const testPool = new Pool({ connectionString: envUrl });
+      try {
+        await testPool.query('SELECT 1');
+        console.log(`Successfully connected to existing ${envDbName} database`);
         
-        // Create the database
-        await basePool.query(`CREATE DATABASE "${envDbName}"`);
-        console.log(`Created ${envDbName} database`);
-        
-        // Get schema SQL for the new database
-        const schemaPath = path.join(process.cwd(), 'server', 'schema.sql');
-        if (fs.existsSync(schemaPath)) {
-          // Connect to the new database
-          const envUrl = originalUrl.replace(`/${baseDbName}`, `/${envDbName}`);
-          const envPool = new Pool({ connectionString: envUrl });
+        // Check if tables exist by trying to query schema_versions
+        try {
+          const tableCheck = await testPool.query('SELECT COUNT(*) FROM schema_versions');
+          console.log(`Schema_versions table exists with ${tableCheck.rows[0].count} records`);
+          await testPool.end();
+          return true;
+        } catch (tableError) {
+          console.log('Schema_versions table does not exist, creating schema...');
           
-          try {
+          // Tables don't exist, apply schema
+          const schemaPath = path.join(process.cwd(), 'server', 'schema.sql');
+          if (fs.existsSync(schemaPath)) {
             const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-            console.log(`Applying schema to ${envDbName}...`);
-            await envPool.query(schemaSql);
-            console.log(`Schema applied to ${envDbName}`);
-          } catch (schemaError) {
-            console.error(`Error applying schema to ${envDbName}:`, schemaError);
-          } finally {
-            await envPool.end();
+            console.log('Applying schema to existing database...');
+            await testPool.query(schemaSql);
+            console.log('Schema applied successfully');
+          } else {
+            console.error('Schema SQL file not found at server/schema.sql');
+          }
+        }
+        await testPool.end();
+      } catch (error) {
+        console.log(`Could not query ${envDbName}, database may need to be created`);
+        await testPool.end();
+        throw error;
+      }
+    } catch (connError) {
+      console.log(`Could not connect to ${envDbName}, creating new database...`);
+      
+      // Connect to the base database to create the environment database
+      const basePool = new Pool({ connectionString: originalUrl });
+      
+      try {
+        // Check if environment database exists
+        const checkResult = await basePool.query(`
+          SELECT 1 FROM pg_database WHERE datname = $1
+        `, [envDbName]);
+        
+        if (checkResult.rowCount === 0) {
+          console.log(`Creating ${envDbName} database...`);
+          
+          // Create the database
+          await basePool.query(`CREATE DATABASE "${envDbName}"`);
+          console.log(`Created ${envDbName} database`);
+          
+          // Get schema SQL for the new database
+          const schemaPath = path.join(process.cwd(), 'server', 'schema.sql');
+          if (fs.existsSync(schemaPath)) {
+            // Connect to the new database
+            const envPool = new Pool({ connectionString: envUrl });
+            
+            try {
+              const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+              console.log(`Applying schema to ${envDbName}...`);
+              await envPool.query(schemaSql);
+              console.log(`Schema applied to ${envDbName}`);
+            } catch (schemaError) {
+              console.error(`Error applying schema to ${envDbName}:`, schemaError);
+            } finally {
+              await envPool.end();
+            }
+          } else {
+            console.error('Schema SQL file not found at server/schema.sql');
           }
         } else {
-          console.error('Schema SQL file not found at server/schema.sql');
+          console.log(`Database ${envDbName} exists but could not connect, check permissions`);
         }
-      } else {
-        console.log(`Database ${envDbName} already exists`);
+      } catch (error) {
+        console.error('Error creating environment database:', error);
+        throw error;
+      } finally {
+        await basePool.end();
       }
-    } catch (error) {
-      console.error('Error creating environment database:', error);
-      throw error;
-    } finally {
-      await basePool.end();
     }
     
     return true;
