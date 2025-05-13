@@ -11,7 +11,7 @@ import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count, desc, eq, isNotNull, and, gte, between } from "drizzle-orm";
+import { count, desc, eq, isNotNull, and, gte, between, sql } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
@@ -600,12 +600,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let backupRecords;
       
-      // Use raw SQL to avoid Drizzle ORM field mapping issues
+      // Use Drizzle's SQL template literal to safely execute raw SQL
       const query = includeDeleted 
-        ? `SELECT * FROM backup_history ORDER BY timestamp DESC LIMIT 20` 
-        : `SELECT * FROM backup_history WHERE deleted = false ORDER BY timestamp DESC LIMIT 20`;
+        ? sql`SELECT * FROM backup_history ORDER BY timestamp DESC LIMIT 20` 
+        : sql`SELECT * FROM backup_history WHERE deleted = false ORDER BY timestamp DESC LIMIT 20`;
         
-      const result = await db.execute(sql.raw(query));
+      const result = await db.execute(query);
       backupRecords = result.rows;
       
       res.json(backupRecords);

@@ -18,14 +18,14 @@ export async function addDefaultBackupSchedule() {
       nextRun.setHours(0, 0, 0, 0); // Set to midnight
       nextRun.setDate(nextRun.getDate() + 1); // Set to next day
       
-      // Use raw SQL to avoid Drizzle ORM issues with the SERIAL PRIMARY KEY
+      // Use raw SQL with explicit sequence for id column
       await db.execute(sql`
         INSERT INTO backup_schedules (
-          name, frequency, time_of_day, day_of_week, day_of_month, 
-          enabled, use_s3, retention_days, next_run, created_at, updated_at, notes
+          id, name, frequency, time_of_day, next_run,
+          enabled, retention_days, notes, day_of_week, day_of_month
         ) VALUES (
-          'Daily Backup', 'daily', '00:00', 0, 1,
-          true, false, 30, ${nextRun}, NOW(), NOW(), 'Default daily backup created automatically'
+          nextval('backup_schedules_id_seq'), 'Daily Backup', 'daily', '00:00', ${nextRun},
+          true, 30, 'Default daily backup created automatically', 0, 1
         )
       `);
       
