@@ -281,6 +281,9 @@ export default function Settings() {
       
           <div className="grid grid-cols-1 gap-6 mb-6">
             <DatabaseConnectionSettings />
+            {systemInfoQuery.data && (systemInfoQuery.data as any)?.storage?.fallbackMode && (
+              <BackupUploadRestore />
+            )}
           </div>
           
           <div className="grid grid-cols-1 gap-6 mb-6">
