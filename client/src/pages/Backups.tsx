@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -57,6 +57,35 @@ export default function BackupsPage() {
   
   // Check if user is an admin
   const isAdmin = user?.role === "admin";
+  
+  // Delete backup mutation
+  const deleteBackupMutation = useMutation({
+    mutationFn: async (backupId: string) => {
+      if (!user || !user.id) {
+        throw new Error("You must be logged in to delete backups");
+      }
+      
+      const response = await apiRequest(`/api/settings/backup/${backupId}`, { 
+        method: 'DELETE' 
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Backup deleted",
+        description: "The backup has been moved to trash successfully.",
+      });
+      // Refresh the backup history
+      refetchHistory();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete the backup",
+        variant: "destructive"
+      });
+    }
+  });
   
   // Fetch backup history
   const {
@@ -289,15 +318,14 @@ export default function BackupsPage() {
                               variant="outline"
                               size="icon"
                               title="Delete backup"
-                              onClick={() => {
-                                toast({
-                                  title: "Delete not implemented",
-                                  description: "This feature is not yet available",
-                                  variant: "destructive"
-                                });
-                              }}
+                              onClick={() => deleteBackupMutation.mutate(backup.id)}
+                              disabled={deleteBackupMutation.isPending}
                             >
-                              <Trash className="h-4 w-4" />
+                              {deleteBackupMutation.isPending && deleteBackupMutation.variables === backup.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </TableCell>
