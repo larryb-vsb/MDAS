@@ -18,13 +18,17 @@ export async function addDefaultBackupSchedule() {
       nextRun.setHours(0, 0, 0, 0); // Set to midnight
       nextRun.setDate(nextRun.getDate() + 1); // Set to next day
       
-      // Use raw SQL with explicit sequence for id column
+      // Use a simple approach: find max ID and increment it, ensuring type compatibility
+      const idResult = await db.execute(sql`SELECT COALESCE(MAX(id::integer), 0) + 1 as next_id FROM backup_schedules`);
+      const nextId = parseInt(idResult.rows[0].next_id);
+      
+      // Insert with explicit ID
       await db.execute(sql`
         INSERT INTO backup_schedules (
           id, name, frequency, time_of_day, next_run,
           enabled, retention_days, notes, day_of_week, day_of_month
         ) VALUES (
-          nextval('backup_schedules_id_seq'), 'Daily Backup', 'daily', '00:00', ${nextRun},
+          ${nextId}, 'Daily Backup', 'daily', '00:00', ${nextRun},
           true, 30, 'Default daily backup created automatically', 0, 1
         )
       `);
