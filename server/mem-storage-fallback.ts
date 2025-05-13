@@ -32,18 +32,26 @@ export class MemStorageFallback implements IStorage {
     try {
       // Only create if no users exist
       if (this.users.length === 0) {
-        const hashedPassword = await this.hashPassword('admin123');
+        // For fallback mode, use a simplified password hash that will work with our verification logic
+        const password = 'admin123';
+        const hash = Buffer.from(password).toString('base64');
+        const hashedPassword = `${hash}.salt`;
         
-        await this.createUser({
+        // Create admin user directly to ensure it works
+        const adminUser: User = {
+          id: 1,
           username: 'admin',
           password: hashedPassword,
           email: 'admin@example.com',
           firstName: 'Admin',
           lastName: 'User',
-          role: 'admin'
-        });
+          role: 'admin',
+          createdAt: new Date(),
+          lastLogin: null
+        };
         
-        console.log('Created default admin user in memory fallback storage');
+        this.users.push(adminUser);
+        console.log('Created default admin user in memory fallback storage: admin/admin123');
       }
     } catch (error) {
       console.error('Error creating default admin user:', error);
@@ -130,9 +138,19 @@ export class MemStorageFallback implements IStorage {
   }
 
   async verifyPassword(supplied: string, stored: string): Promise<boolean> {
-    const [hash, _] = stored.split('.');
-    const suppliedHash = Buffer.from(supplied).toString('base64');
-    return hash === suppliedHash;
+    try {
+      // Simple verification method for our fallback storage
+      const [hash, _] = stored.split('.');
+      const suppliedHash = Buffer.from(supplied).toString('base64');
+      
+      const result = hash === suppliedHash;
+      console.log(`Password verification result for fallback storage: ${result}`);
+      
+      return result;
+    } catch (error) {
+      console.error('Error verifying password in fallback storage:', error);
+      return false;
+    }
   }
 
   // Merchant operations with minimal implementation

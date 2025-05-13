@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, isFallbackStorage } from "./storage";
 import { db, pool } from "./db";
 import { z } from "zod";
 import path from "path";
@@ -308,6 +308,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSizeBytes: 0,
         lastBackup: null,
         error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // System information endpoint with fallback storage status
+  app.get("/api/system/info", async (req, res) => {
+    try {
+      // Get environment information from env-config
+      const { NODE_ENV, isProd, isDev, isTest } = await import('./env-config');
+      // Get version information
+      const { APP_VERSION, BUILD_DATE } = await import('@shared/version');
+      
+      // Return system information including fallback storage status
+      res.json({
+        environment: {
+          name: NODE_ENV,
+          isProd,
+          isDev,
+          isTest
+        },
+        storage: {
+          fallbackMode: isFallbackStorage,
+          type: isFallbackStorage ? 'memory' : 'database'
+        },
+        version: {
+          appVersion: APP_VERSION,
+          buildDate: BUILD_DATE
+        },
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      console.error("Error getting system information:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to retrieve system information"
       });
     }
   });

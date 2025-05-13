@@ -2008,8 +2008,14 @@ let storage: IStorage = new DatabaseStorage();
  * Set a different storage implementation (used for fallback when database is unavailable)
  * @param newStorage The new storage implementation to use
  */
+// Track if we're using the fallback storage
+export let isFallbackStorage = false;
+
 export function setStorageImplementation(newStorage: IStorage) {
   storage = newStorage;
+  
+  // Set the flag when using fallback storage
+  isFallbackStorage = newStorage.constructor.name === 'MemStorageFallback';
 }
 
 export { storage };
