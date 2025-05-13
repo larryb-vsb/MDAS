@@ -64,7 +64,14 @@ export class MemStorageFallback implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return this.users.find(user => user.username === username);
+    const user = this.users.find(user => user.username === username);
+    if (user) {
+      console.log(`Found user in fallback storage: ${user.username} (id: ${user.id})`);
+    } else {
+      console.log(`User not found in fallback storage: ${username}`);
+      console.log(`Available users in fallback storage: ${this.users.map(u => u.username).join(', ')}`);
+    }
+    return user;
   }
 
   async getUsers(): Promise<User[]> {

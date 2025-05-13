@@ -20,7 +20,17 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  return await bcrypt.compare(supplied, stored);
+  try {
+    // If the password is in our fallback format (using base64 encoding)
+    if (stored.includes('.salt')) {
+      return await storage.verifyPassword(supplied, stored);
+    }
+    // Default bcrypt comparison for regular database storage
+    return await bcrypt.compare(supplied, stored);
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
