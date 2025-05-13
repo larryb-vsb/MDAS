@@ -74,7 +74,7 @@ export default function BackupsPage() {
           throw new Error("You must be logged in to view backup history");
         }
         
-        const res = await apiRequest("GET", "/api/settings/backup/history");
+        const res = await apiRequest("/api/settings/backup/history", { method: "GET" });
         if (!res.ok) {
           throw new Error(`API request failed with status ${res.status}`);
         }
