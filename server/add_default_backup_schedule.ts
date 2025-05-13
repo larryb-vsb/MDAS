@@ -31,7 +31,8 @@ export async function addDefaultBackupSchedule() {
         retention_days: 30,
         next_run: nextRun,
         created_at: new Date(),
-        updated_at: new Date()
+        updated_at: new Date(),
+        notes: "Default daily backup created automatically"
       });
       
       console.log("Default backup schedule created successfully");

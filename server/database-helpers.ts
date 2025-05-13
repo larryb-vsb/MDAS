@@ -100,7 +100,8 @@ export async function fixBackupSchedulesTable() {
             enabled BOOLEAN DEFAULT TRUE NOT NULL,
             retention_days INTEGER DEFAULT 30 NOT NULL,
             use_s3 BOOLEAN DEFAULT FALSE NOT NULL,
-            created_by TEXT
+            created_by TEXT,
+            notes TEXT
           )
         `);
         console.log('backup_schedules table created successfully');
@@ -113,7 +114,8 @@ export async function fixBackupSchedulesTable() {
           { name: 'last_run', type: 'TIMESTAMP WITH TIME ZONE' },
           { name: 'created_by', type: 'TEXT' },
           { name: 'day_of_week', type: 'INTEGER DEFAULT 0' },
-          { name: 'day_of_month', type: 'INTEGER DEFAULT 1' }
+          { name: 'day_of_month', type: 'INTEGER DEFAULT 1' },
+          { name: 'notes', type: 'TEXT' }
         ];
         
         for (const column of requiredColumns) {
