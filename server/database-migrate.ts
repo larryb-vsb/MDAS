@@ -68,6 +68,8 @@ async function createUsersTable() {
       username TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
       email TEXT,
+      first_name TEXT,
+      last_name TEXT,
       role TEXT NOT NULL DEFAULT 'user',
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       last_login TIMESTAMP WITH TIME ZONE
@@ -82,19 +84,19 @@ async function createMerchantsTable() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       client_mid TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
+      status TEXT NOT NULL DEFAULT 'Pending',
       address TEXT,
       city TEXT,
       state TEXT,
-      zip TEXT,
-      phone TEXT,
+      zip_code TEXT,
       country TEXT,
+      category TEXT,
       other_client_number1 TEXT,
       other_client_number2 TEXT,
-      client_since_date TEXT,
+      client_since_date TIMESTAMP WITH TIME ZONE,
       last_upload_date TIMESTAMP WITH TIME ZONE,
       edit_date TIMESTAMP WITH TIME ZONE,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
     )
   `);
 }
