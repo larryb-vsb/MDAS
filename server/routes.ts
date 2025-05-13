@@ -600,52 +600,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let backupRecords;
       
-      if (includeDeleted) {
-        // If including deleted, get all records
-        backupRecords = await db
-          .select({
-            id: backupHistory.id,
-            timestamp: backupHistory.timestamp,
-            fileName: backupHistory.fileName,
-            fileSize: backupHistory.fileSize,
-            tables: backupHistory.tables,
-            downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted,
-            storageType: backupHistory.storageType,
-            isScheduled: backupHistory.isScheduled,
-            scheduleId: backupHistory.scheduleId,
-            createdBy: backupHistory.createdBy,
-            notes: backupHistory.notes,
-            s3Bucket: backupHistory.s3Bucket,
-            s3Key: backupHistory.s3Key
-          })
-          .from(backupHistory)
-          .orderBy(desc(backupHistory.timestamp))
-          .limit(20);
-      } else {
-        // If not including deleted, filter out deleted records
-        backupRecords = await db
-          .select({
-            id: backupHistory.id,
-            timestamp: backupHistory.timestamp,
-            fileName: backupHistory.fileName,
-            fileSize: backupHistory.fileSize,
-            tables: backupHistory.tables,
-            downloaded: backupHistory.downloaded,
-            deleted: backupHistory.deleted,
-            storageType: backupHistory.storageType,
-            isScheduled: backupHistory.isScheduled,
-            scheduleId: backupHistory.scheduleId,
-            createdBy: backupHistory.createdBy,
-            notes: backupHistory.notes,
-            s3Bucket: backupHistory.s3Bucket,
-            s3Key: backupHistory.s3Key
-          })
-          .from(backupHistory)
-          .where(eq(backupHistory.deleted, false))
-          .orderBy(desc(backupHistory.timestamp))
-          .limit(20);
-      }
+      // Use raw SQL to avoid Drizzle ORM field mapping issues
+      const query = includeDeleted 
+        ? `SELECT * FROM backup_history ORDER BY timestamp DESC LIMIT 20` 
+        : `SELECT * FROM backup_history WHERE deleted = false ORDER BY timestamp DESC LIMIT 20`;
+        
+      const result = await db.execute(sql.raw(query));
+      backupRecords = result.rows;
       
       res.json(backupRecords);
     } catch (error) {
