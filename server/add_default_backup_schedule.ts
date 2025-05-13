@@ -19,6 +19,7 @@ export async function addDefaultBackupSchedule() {
       
       // Create default daily backup at midnight
       // Get only the columns that actually exist in the table
+      // Note: id is auto-generated as serial primary key, don't specify it
       await db.insert(backupSchedules).values({
         name: "Daily Backup",
         frequency: "daily",
