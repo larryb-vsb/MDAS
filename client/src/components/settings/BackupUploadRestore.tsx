@@ -252,147 +252,147 @@ const BackupUploadRestore = () => {
             Upload a backup file to restore the database
           </CardDescription>
         </CardHeader>
-      <CardContent>
-        {uploadSuccess ? (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-600">Backup restored successfully</AlertTitle>
-            <AlertDescription className="text-green-700">
-              {needsRestart ? 
-                "The system is restarting to apply changes. Please wait a moment and refresh the page." :
-                "The database has been restored from the backup file."
-              }
-            </AlertDescription>
-          </Alert>
-        ) : uploadError ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Restore failed</AlertTitle>
-            <AlertDescription>
-              {uploadError}
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed rounded-md">
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              className="hidden" 
-              accept=".json" 
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
-            <FileType className="h-12 w-12 text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600 mb-2">
-              Select a backup file (.json) to restore
-            </p>
-            <p className="text-xs text-gray-500 mb-6 text-center max-w-xs">
-              Warning: This will overwrite all data in the database. Make sure you have a backup of the current data.
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={triggerFileSelect}
-              disabled={uploading}
-              className="mb-2"
-            >
-              <UploadCloud className="mr-2 h-4 w-4" />
-              {uploading ? "Uploading..." : "Choose Backup File"}
-            </Button>
-          </div>
-        )}
-        
-        {!uploadSuccess && !uploadError && (
-          <>
-            <Separator className="my-6" />
-            
-            <div className="mt-4">
-              <h3 className="text-sm font-medium mb-2">Don't have a backup file?</h3>
-              <p className="text-xs text-gray-600 mb-4">
-                You can generate a sample backup file with default admin user to get started.
+        <CardContent>
+          {uploadSuccess ? (
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-600">Backup restored successfully</AlertTitle>
+              <AlertDescription className="text-green-700">
+                {needsRestart ? 
+                  "The system is restarting to apply changes. Please wait a moment and refresh the page." :
+                  "The database has been restored from the backup file."
+                }
+              </AlertDescription>
+            </Alert>
+          ) : uploadError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Restore failed</AlertTitle>
+              <AlertDescription>
+                {uploadError}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed rounded-md">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                className="hidden" 
+                accept=".json" 
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+              <FileType className="h-12 w-12 text-gray-400 mb-2" />
+              <p className="text-sm text-gray-600 mb-2">
+                Select a backup file (.json) to restore
               </p>
+              <p className="text-xs text-gray-500 mb-6 text-center max-w-xs">
+                Warning: This will overwrite all data in the database. Make sure you have a backup of the current data.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={triggerFileSelect}
+                disabled={uploading}
+                className="mb-2"
+              >
+                <UploadCloud className="mr-2 h-4 w-4" />
+                {uploading ? "Uploading..." : "Choose Backup File"}
+              </Button>
+            </div>
+          )}
+          
+          {!uploadSuccess && !uploadError && (
+            <>
+              <Separator className="my-6" />
               
-              <div className="flex items-center">
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={generateSampleBackup}
-                  disabled={generatingSample}
-                  className="flex items-center"
-                >
-                  <FileDown className="mr-2 h-4 w-4" />
-                  {generatingSample ? "Generating..." : "Generate Sample Backup"}
-                </Button>
-                
-                {samplePath && (
-                  <p className="text-xs text-green-600 ml-4">
-                    Sample backup created! Use the "Choose Backup File" button above to select it.
-                  </p>
-                )}
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-medium mb-2">Convert to Database</h3>
+              <div className="mt-4">
+                <h3 className="text-sm font-medium mb-2">Don't have a backup file?</h3>
                 <p className="text-xs text-gray-600 mb-4">
-                  You can convert the current in-memory data directly to a database without creating a backup file first.
+                  You can generate a sample backup file with default admin user to get started.
                 </p>
                 
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowConvertDialog(true)}
-                  disabled={isConverting}
-                  className="flex items-center"
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  {isConverting ? "Converting..." : "Convert to Database"}
-                </Button>
+                <div className="flex items-center">
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    onClick={generateSampleBackup}
+                    disabled={generatingSample}
+                    className="flex items-center"
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    {generatingSample ? "Generating..." : "Generate Sample Backup"}
+                  </Button>
+                  
+                  {samplePath && (
+                    <p className="text-xs text-green-600 ml-4">
+                      Sample backup created! Use the "Choose Backup File" button above to select it.
+                    </p>
+                  )}
+                </div>
                 
-                {isConverting && (
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Conversion progress</span>
-                      <span>{convertProgress}%</span>
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-medium mb-2">Convert to Database</h3>
+                  <p className="text-xs text-gray-600 mb-4">
+                    You can convert the current in-memory data directly to a database without creating a backup file first.
+                  </p>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowConvertDialog(true)}
+                    disabled={isConverting}
+                    className="flex items-center"
+                  >
+                    <Database className="mr-2 h-4 w-4" />
+                    {isConverting ? "Converting..." : "Convert to Database"}
+                  </Button>
+                  
+                  {isConverting && (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Conversion progress</span>
+                        <span>{convertProgress}%</span>
+                      </div>
+                      <Progress value={convertProgress} className="w-full" />
                     </div>
-                    <Progress value={convertProgress} className="w-full" />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
+            </>
+          )}
+          
+          {uploading && (
+            <div className="mt-6 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Upload progress</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="w-full" />
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Please wait while the backup is being restored...
+              </p>
             </div>
-          </>
-        )}
-        
-        {uploading && (
-          <div className="mt-6 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Upload progress</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <Progress value={uploadProgress} className="w-full" />
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Please wait while the backup is being restored...
-            </p>
-          </div>
-        )}
+          )}
 
-        {needsRestart && (
-          <div className="mt-6 flex justify-center">
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="flex items-center"
-            >
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Refresh page
-            </Button>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter>
-        <p className="text-xs text-gray-500">
-          Accepted file format: .json (Maximum size: 10MB)
-        </p>
-      </CardFooter>
-    </Card>
+          {needsRestart && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+                className="flex items-center"
+              >
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Refresh page
+              </Button>
+            </div>
+          )}
+        </CardContent>
+        <CardFooter>
+          <p className="text-xs text-gray-500">
+            Accepted file format: .json (Maximum size: 10MB)
+          </p>
+        </CardFooter>
+      </Card>
     </>
   );
 };
