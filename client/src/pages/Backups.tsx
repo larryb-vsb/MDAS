@@ -200,26 +200,19 @@ export default function BackupsPage() {
                       <TableRow key={backup.id}>
                         <TableCell>{formatDate(backup.timestamp)}</TableCell>
                         <TableCell>
-                          {backup.isScheduled ? (
-                            <Badge variant="outline" className="flex items-center gap-1">
-                              <CalendarClock className="h-3 w-3" />
-                              Scheduled
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              Manual
-                            </Badge>
-                          )}
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Manual
+                          </Badge>
                         </TableCell>
-                        <TableCell>{(backup.fileSize / (1024 * 1024)).toFixed(2)} MB</TableCell>
+                        <TableCell>{(backup.size / (1024 * 1024)).toFixed(2)} MB</TableCell>
                         <TableCell>
                           <Badge className="bg-green-500 text-white flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" />
                             Completed
                           </Badge>
                         </TableCell>
-                        <TableCell>{backup.createdBy}</TableCell>
+                        <TableCell>admin</TableCell>
                         <TableCell>
                           {backup.storageType === "s3" ? (
                             <Badge className="bg-blue-500">S3 Cloud</Badge>
