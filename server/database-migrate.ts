@@ -106,16 +106,10 @@ async function createTransactionsTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
-      merchant_id TEXT NOT NULL,
-      amount DOUBLE PRECISION NOT NULL,
-      type TEXT NOT NULL,
-      date TEXT NOT NULL,
-      account TEXT,
-      name TEXT,
-      code TEXT,
-      descr TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+      merchant_id TEXT NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+      amount NUMERIC(10,2) NOT NULL,
+      date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      type TEXT NOT NULL DEFAULT 'Sale'
     )
   `);
 }
