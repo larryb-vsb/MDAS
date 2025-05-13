@@ -70,11 +70,31 @@ export async function convertFallbackToDatabase(): Promise<{ success: boolean; m
  */
 async function generateBackupFromMemory(): Promise<string | null> {
   try {
-    // Get all data from in-memory storage
+    console.log("Generating backup from memory storage");
+    
+    // Get all data from in-memory storage using the IStorage interface
     const users = await storage.getUsers();
-    const merchants = await (storage as any).getMerchants(1, 1000); // Get all merchants
-    const transactions = await (storage as any).getAllTransactions();
-    const uploadedFiles = await (storage as any).getUploadedFiles?.() || [];
+    console.log(`Retrieved ${users.length} users`);
+    
+    // Get all merchants with a high limit to effectively get all
+    const merchantsResponse = await storage.getMerchants(1, 10000);
+    const merchants = merchantsResponse.merchants || [];
+    console.log(`Retrieved ${merchants.length} merchants`);
+    
+    // Get all transactions for each merchant
+    let allTransactions: any[] = [];
+    for (const merchant of merchants) {
+      // Get transactions with a high limit to effectively get all
+      const transactionResponse = await storage.getTransactions(1, 10000, merchant.id);
+      if (transactionResponse && transactionResponse.transactions) {
+        allTransactions = [...allTransactions, ...transactionResponse.transactions];
+      }
+    }
+    console.log(`Retrieved ${allTransactions.length} transactions`);
+    
+    // Uploaded files are not accessible directly through interface,
+    // so we'll create an empty array
+    const uploadedFiles: any[] = [];
     
     // Create a backup structure
     const backup = {
@@ -83,8 +103,8 @@ async function generateBackupFromMemory(): Promise<string | null> {
       environment: process.env.NODE_ENV || 'development',
       tables: {
         users: users,
-        merchants: merchants.merchants || [],
-        transactions: transactions || [],
+        merchants: merchants,
+        transactions: allTransactions,
         uploaded_files: uploadedFiles,
         backup_history: [],
         backup_schedules: [],
