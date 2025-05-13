@@ -113,6 +113,40 @@ const BackupUploadRestore = () => {
     }
   };
   
+  const generateSampleBackup = async () => {
+    try {
+      setGeneratingSample(true);
+      
+      const response = await fetch('/api/settings/backup/generate-sample');
+      
+      if (!response.ok) {
+        throw new Error(`Error generating sample backup: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSamplePath(data.filePath);
+        toast({
+          title: "Sample backup generated",
+          description: "A sample backup file has been generated and is ready for use.",
+          variant: "default",
+        });
+      } else {
+        throw new Error(data.error || "Failed to generate sample backup");
+      }
+    } catch (error) {
+      console.error("Error generating sample backup:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate sample backup",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingSample(false);
+    }
+  };
+  
   return (
     <Card className="w-full">
       <CardHeader>
@@ -165,11 +199,44 @@ const BackupUploadRestore = () => {
               variant="outline" 
               onClick={triggerFileSelect}
               disabled={uploading}
+              className="mb-2"
             >
               <UploadCloud className="mr-2 h-4 w-4" />
               {uploading ? "Uploading..." : "Choose Backup File"}
             </Button>
           </div>
+        )}
+        
+        {!uploadSuccess && !uploadError && (
+          <>
+            <Separator className="my-6" />
+            
+            <div className="mt-4">
+              <h3 className="text-sm font-medium mb-2">Don't have a backup file?</h3>
+              <p className="text-xs text-gray-600 mb-4">
+                You can generate a sample backup file with default admin user to get started.
+              </p>
+              
+              <div className="flex items-center">
+                <Button 
+                  variant="secondary" 
+                  size="sm"
+                  onClick={generateSampleBackup}
+                  disabled={generatingSample}
+                  className="flex items-center"
+                >
+                  <FileDown className="mr-2 h-4 w-4" />
+                  {generatingSample ? "Generating..." : "Generate Sample Backup"}
+                </Button>
+                
+                {samplePath && (
+                  <p className="text-xs text-green-600 ml-4">
+                    Sample backup created! Use the "Choose Backup File" button above to select it.
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
         )}
         
         {uploading && (

@@ -43,7 +43,8 @@ export const FallbackStorageAlert: React.FC = () => {
       <AlertTitle>Database Unavailable</AlertTitle>
       <AlertDescription>
         The system is currently running in memory-only fallback mode. All data will be lost when the server restarts.
-        Please contact your administrator to restore the database connection.
+        Please contact your administrator to restore the database connection or use the sample backup feature
+        in the Settings page to create and restore a basic backup file.
       </AlertDescription>
     </Alert>
   );
