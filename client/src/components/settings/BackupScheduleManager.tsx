@@ -66,7 +66,8 @@ const backupScheduleSchema = z.object({
   dayOfMonth: z.number().min(1).max(31).optional().nullable(),
   enabled: z.boolean().default(true),
   useS3: z.boolean().default(false),
-  retentionDays: z.number().min(1).max(365).default(30)
+  retentionDays: z.number().min(1).max(365).default(30),
+  notes: z.string().optional().default("")
 });
 
 type BackupScheduleFormValues = z.infer<typeof backupScheduleSchema>;
@@ -126,7 +127,8 @@ export default function BackupScheduleManager() {
       timeOfDay: "00:00",
       enabled: true,
       useS3: false,
-      retentionDays: 30
+      retentionDays: 30,
+      notes: ""
     }
   });
 
@@ -139,7 +141,8 @@ export default function BackupScheduleManager() {
       timeOfDay: "00:00",
       enabled: true,
       useS3: false,
-      retentionDays: 30
+      retentionDays: 30,
+      notes: ""
     }
   });
 
@@ -698,6 +701,20 @@ export default function BackupScheduleManager() {
                   </div>
                 </div>
               </div>
+              
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Description of this backup schedule" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <DialogFooter>
                 <Button 
