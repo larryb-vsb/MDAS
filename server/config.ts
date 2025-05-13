@@ -62,17 +62,15 @@ export function saveDatabaseConfig(config: DatabaseConfig): void {
 
 /**
  * Get the database connection URL
- * Uses custom configuration if available, otherwise uses DATABASE_URL environment variable
+ * Uses custom configuration if available, otherwise uses environment-specific database URL
  */
 export function getDatabaseUrl(): string {
   const config = loadDatabaseConfig();
+  const { config: envConfig } = require('./env-config');
   
-  // If using environment variables, use DATABASE_URL from environment
+  // If using environment variables, use environment-specific DATABASE_URL
   if (config.useEnvVars) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-    return process.env.DATABASE_URL;
+    return envConfig.database.url;
   }
   
   // If a complete URL is provided, use it
@@ -83,46 +81,82 @@ export function getDatabaseUrl(): string {
   // If custom connection details are provided, build the URL
   if (config.host && config.database && config.username) {
     const sslParam = config.ssl ? "?sslmode=require" : "";
-    return `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}${sslParam}`;
+    let databaseName = config.database;
+    
+    // Add environment suffix to database name
+    const { isProd, isDev } = require('./env-config');
+    const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+    
+    // Only add suffix if it doesn't already have one
+    if (!databaseName.endsWith('_prod') && !databaseName.endsWith('_dev') && !databaseName.endsWith('_test')) {
+      databaseName = `${databaseName}${envSuffix}`;
+    }
+    
+    return `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${databaseName}${sslParam}`;
   }
   
-  // Fall back to environment variable
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL environment variable is not set");
-  }
-  
-  return process.env.DATABASE_URL;
+  // Fall back to environment-specific URL
+  return envConfig.database.url;
 }
 
 /**
  * Test a database connection with the provided configuration
+ * Uses environment-specific database name
  */
 export async function testDatabaseConnection(config: DatabaseConfig): Promise<boolean> {
   const { Pool } = await import("@neondatabase/serverless");
+  const { config: envConfig, isProd, isDev, NODE_ENV } = require('./env-config');
   
   let connectionString = "";
   
-  // If using environment variables, use DATABASE_URL
+  // If using environment variables, use environment-specific DATABASE_URL
   if (config.useEnvVars) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set");
-    }
-    connectionString = process.env.DATABASE_URL;
+    connectionString = envConfig.database.url;
   }
   // If a complete URL is provided, use it
   else if (config.url) {
-    connectionString = config.url;
+    // Parse URL and add environment suffix if needed
+    try {
+      const url = new URL(config.url);
+      const pathParts = url.pathname.split('/');
+      const dbName = pathParts[pathParts.length - 1];
+      
+      // Add environment suffix to database name if not already present
+      if (!dbName.endsWith('_prod') && !dbName.endsWith('_dev') && !dbName.endsWith('_test')) {
+        const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+        const newDbName = `${dbName}${envSuffix}`;
+        
+        // Replace database name in the URL
+        pathParts[pathParts.length - 1] = newDbName;
+        url.pathname = pathParts.join('/');
+        connectionString = url.toString();
+      } else {
+        connectionString = config.url;
+      }
+    } catch (error) {
+      console.error('Failed to parse database URL:', error);
+      connectionString = config.url;
+    }
   } 
   // Build connection string from components
   else if (config.host && config.database && config.username) {
     const sslParam = config.ssl ? "?sslmode=require" : "";
-    connectionString = `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}${sslParam}`;
+    let dbName = config.database;
+    
+    // Add environment suffix if not already present
+    if (!dbName.endsWith('_prod') && !dbName.endsWith('_dev') && !dbName.endsWith('_test')) {
+      const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+      dbName = `${dbName}${envSuffix}`;
+    }
+    
+    connectionString = `postgresql://${config.username}:${config.password}@${config.host}:${config.port}/${dbName}${sslParam}`;
   } 
   // No valid connection options
   else {
     throw new Error("Incomplete database configuration");
   }
   
+  console.log(`Testing ${NODE_ENV} database connection...`);
   const pool = new Pool({ connectionString });
   
   try {

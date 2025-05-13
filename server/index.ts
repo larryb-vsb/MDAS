@@ -5,6 +5,7 @@ import { initializeSchemaVersions } from "./schema_version";
 import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV } from "./env-config";
+import { initializeDatabase } from "./database-init";
 
 const app = express();
 app.use(express.json());
@@ -41,6 +42,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Ensure environment-specific directories exist
+  ensureAppDirectories();
+  
+  // Initialize environment-specific database
+  const dbInitialized = await initializeDatabase();
+  if (!dbInitialized) {
+    console.error(`Failed to initialize ${NODE_ENV} database. The application may not function correctly.`);
+  } else {
+    console.log(`Successfully initialized ${NODE_ENV} database`);
+  }
+  
   // Initialize schema version tracking
   await initializeSchemaVersions();
   

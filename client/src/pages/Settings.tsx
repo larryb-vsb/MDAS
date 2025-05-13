@@ -220,7 +220,13 @@ export default function Settings() {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Environment:</span>
-                  <span>{import.meta.env.MODE || "development"}</span>
+                  <Badge variant="outline" className={import.meta.env.MODE === "production" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}>
+                    {import.meta.env.MODE === "production" ? "Production" : "Development"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Database:</span>
+                  <span>{import.meta.env.MODE === "production" ? "Production DB" : "Development DB"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Database Type:</span>

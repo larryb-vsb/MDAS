@@ -13,12 +13,45 @@ export const isTest = NODE_ENV === 'test';
 const BASE_UPLOAD_PATH = isProd ? '/data/uploads' : './tmp_uploads';
 const BASE_BACKUP_PATH = isProd ? '/data/backups' : './backups';
 
+// Generate environment-specific database URL
+function getDatabaseUrl(): string {
+  const baseUrl = process.env.DATABASE_URL || '';
+  if (!baseUrl) return '';
+  
+  // If already has a specific environment suffix, return as is
+  if (baseUrl.includes('_dev') || baseUrl.includes('_prod') || baseUrl.includes('_test')) {
+    return baseUrl;
+  }
+  
+  // Add environment suffix to database name
+  try {
+    const url = new URL(baseUrl);
+    const pathParts = url.pathname.split('/');
+    const dbName = pathParts[pathParts.length - 1];
+    
+    // Create a new database name with environment suffix
+    const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+    const newDbName = `${dbName}${envSuffix}`;
+    
+    // Replace database name in the URL
+    pathParts[pathParts.length - 1] = newDbName;
+    url.pathname = pathParts.join('/');
+    
+    return url.toString();
+  } catch (error) {
+    console.error('Failed to parse database URL for environment separation:', error);
+    return baseUrl;
+  }
+}
+
 // Environment-specific configuration
 export const config = {
   // Database connection
   database: {
-    url: process.env.DATABASE_URL,
-    useEnvVars: true
+    url: getDatabaseUrl(),
+    useEnvVars: true,
+    // Keep original URL for reference
+    originalUrl: process.env.DATABASE_URL
   },
   
   // File storage paths
