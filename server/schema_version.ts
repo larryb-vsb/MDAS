@@ -63,7 +63,7 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '1.1.0';
+export const CURRENT_SCHEMA_VERSION = '1.2.0';
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
@@ -87,6 +87,24 @@ export const SCHEMA_VERSION_HISTORY = [
         'editDate field to merchants table'
       ],
       modified: ['merchants table structure']
+    },
+    appliedBy: 'system',
+  },
+  {
+    version: '1.2.0',
+    description: 'Updated backup system and environment separation',
+    changes: {
+      tables: ['backup_history'],
+      added: [
+        'Environment-specific storage paths',
+        'Enhanced backup tracking',
+        'Environment configuration system'
+      ],
+      modified: [
+        'Backup history table structure',
+        'Changed fileSize field to size',
+        'Changed tables field to JSONB format'
+      ]
     },
     appliedBy: 'system',
   }
