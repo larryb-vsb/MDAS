@@ -107,8 +107,7 @@ export default function BackupScheduleManager() {
     queryFn: async () => {
       try {
         console.log("Fetching backup schedules...");
-        const res = await apiRequest("/api/settings/backup/schedules");
-        const data = await res.json();
+        const data = await apiRequest<any[]>("/api/settings/backup/schedules", { method: "GET" });
         console.log("Received schedules data:", data);
         return data;
       } catch (err) {
