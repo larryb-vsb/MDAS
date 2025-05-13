@@ -608,7 +608,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await db.execute(query);
       backupRecords = result.rows;
       
-      res.json(backupRecords);
+      console.log("Backup history raw records:", JSON.stringify(backupRecords, null, 2));
+      
+      // Transform the data to match client expectations
+      const transformedRecords = backupRecords.map((record: any) => ({
+        id: record.id,
+        timestamp: record.timestamp,
+        fileName: record.file_name,
+        size: parseInt(record.size),
+        tables: typeof record.tables === 'string' ? JSON.parse(record.tables) : record.tables,
+        downloaded: record.downloaded,
+        deleted: record.deleted,
+        storageType: record.storage_type,
+        s3Bucket: record.s3_bucket,
+        s3Key: record.s3_key,
+        notes: record.notes
+      }));
+      
+      console.log("Transformed backup history:", JSON.stringify(transformedRecords, null, 2));
+      
+      res.json(transformedRecords);
     } catch (error) {
       console.error("Error retrieving backup history:", error);
       res.status(500).json({ 
