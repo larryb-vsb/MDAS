@@ -208,6 +208,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Endpoint to convert in-memory data to database
+  app.post("/api/settings/convert-memory-to-database", isAuthenticated, async (req, res) => {
+    try {
+      // Import the fallback converter
+      const { convertFallbackToDatabase } = await import('./utils/fallback-converter');
+      
+      // Convert the in-memory data to database
+      const result = await convertFallbackToDatabase();
+      
+      // Return the result
+      res.json(result);
+    } catch (error) {
+      console.error("Error converting memory to database:", error);
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to convert memory data to database"
+      });
+    }
+  });
+  
   // Register backup schedule routes
   app.use("/api/settings", isAuthenticated);
   registerBackupScheduleRoutes(app);
