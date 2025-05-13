@@ -15,7 +15,7 @@ const router = Router();
 router.get("/schedules", async (req: Request, res: Response) => {
   try {
     console.log("Fetching backup schedules from database...");
-    const schedules = await db.select().from(backupSchedules).orderBy(backupSchedules.createdAt);
+    const schedules = await db.select().from(backupSchedules).orderBy(backupSchedules.created_at);
     console.log("Retrieved schedules:", schedules);
     return res.json(schedules);
   } catch (error) {

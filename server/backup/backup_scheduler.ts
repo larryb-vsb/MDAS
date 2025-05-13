@@ -159,15 +159,15 @@ async function updateNextRunTime(schedule: any) {
   } else if (schedule.frequency === "weekly" && schedule.day_of_week !== null) {
     // Set to the next occurrence of the specified day of week
     const currentDay = nextRun.getDay();
-    const targetDay = schedule.dayOfWeek;
+    const targetDay = schedule.day_of_week;
     let daysToAdd = targetDay - currentDay;
     if (daysToAdd < 0 || (daysToAdd === 0 && nextRun <= now)) {
       daysToAdd += 7; // Go to next week
     }
     nextRun.setDate(nextRun.getDate() + daysToAdd);
-  } else if (schedule.frequency === "monthly" && schedule.dayOfMonth !== null) {
+  } else if (schedule.frequency === "monthly" && schedule.day_of_month !== null) {
     // Set to the specified day of the month
-    const targetDay = schedule.dayOfMonth;
+    const targetDay = schedule.day_of_month;
     nextRun.setDate(targetDay);
     
     // If this date has already passed this month, go to next month
@@ -187,8 +187,8 @@ async function updateNextRunTime(schedule: any) {
   // Update the schedule with the new next run time
   await db.update(backupSchedules)
     .set({ 
-      nextRun: nextRun,
-      updatedAt: new Date()
+      next_run: nextRun,
+      updated_at: new Date()
     })
     .where(eq(backupSchedules.id, schedule.id));
     

@@ -4,45 +4,43 @@ import { backupSchedules } from "@shared/schema";
 /**
  * Add a default backup schedule if none exists
  */
-async function addDefaultBackupSchedule() {
+export async function addDefaultBackupSchedule() {
   try {
-    console.log("Checking for existing backup schedules...");
-    
-    // Check if any backup schedules exist
+    // Check if any schedules exist
     const existingSchedules = await db.select().from(backupSchedules);
     
     if (existingSchedules.length === 0) {
-      console.log("No backup schedules found, creating default daily backup schedule");
+      console.log("No backup schedules found, adding default daily backup schedule");
       
-      // Calculate default nextRun time (tomorrow at midnight)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+      // Calculate next run time (tonight at midnight)
+      const nextRun = new Date();
+      nextRun.setHours(0, 0, 0, 0); // Set to midnight
+      nextRun.setDate(nextRun.getDate() + 1); // Set to next day
       
-      // Create a default daily backup schedule
-      const result = await db.insert(backupSchedules).values({
-        name: "Default Daily Backup",
+      // Create default daily backup at midnight
+      await db.insert(backupSchedules).values({
+        id: "default-daily",
+        name: "Daily Backup",
         frequency: "daily",
-        timeOfDay: "00:00",
+        time_of_day: "00:00",
+        day_of_week: 0,
+        day_of_month: 1,
         enabled: true,
-        useS3: false,
-        retentionDays: 30,
-        nextRun: tomorrow,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        notes: "System-created default backup schedule"
-      }).returning();
+        use_s3: false,
+        retention_days: 30,
+        next_run: nextRun,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
       
-      console.log("Default backup schedule created successfully:", result[0]);
+      console.log("Default backup schedule created successfully");
     } else {
-      console.log(`Found ${existingSchedules.length} existing backup schedules. No default schedule created.`);
+      console.log(`Found ${existingSchedules.length} existing backup schedules, no need to add default`);
     }
+    
+    return true;
   } catch (error) {
     console.error("Error adding default backup schedule:", error);
-  } finally {
-    process.exit(0);
+    return false;
   }
 }
-
-// Run the function
-addDefaultBackupSchedule();

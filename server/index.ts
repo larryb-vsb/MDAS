@@ -129,6 +129,12 @@ app.use((req, res, next) => {
         console.log("Warning: Could not initialize schema versions:", err.message);
       });
       
+      // Add default backup schedule if needed
+      const { addDefaultBackupSchedule } = await import('./add_default_backup_schedule');
+      await addDefaultBackupSchedule().catch(err => {
+        console.log("Warning: Could not add default backup schedule:", err.message);
+      });
+      
       // Start the backup scheduler
       await initializeBackupScheduler().catch(err => {
         console.log("Warning: Could not initialize backup scheduler:", err.message);
