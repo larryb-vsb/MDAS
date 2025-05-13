@@ -21,6 +21,22 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Define interfaces for our data types
+interface BackupRecord {
+  id: string;
+  timestamp: string;
+  fileName: string;
+  size: number;
+  tables: string[];
+  downloaded: boolean;
+  deleted: boolean;
+  storageType: string;
+  s3Bucket: string | null;
+  s3Key: string | null;
+  notes: string | null;
+  createdBy?: string;
+}
+
 // Inline PageTitle component since the import is causing issues
 const PageTitle = ({ title, description }: { title: string; description?: string }) => {
   return (
@@ -49,11 +65,14 @@ export default function BackupsPage() {
     isError: isHistoryError,
     error: historyError,
     refetch: refetchHistory
-  } = useQuery({
+  } = useQuery<BackupRecord[]>({
     queryKey: ["/api/settings/backup/history"],
     queryFn: async () => {
       try {
         const res = await apiRequest("/api/settings/backup/history");
+        if (!res.ok) {
+          throw new Error(`API request failed with status ${res.status}`);
+        }
         const data = await res.json();
         console.log("Backup history data:", data);
         
@@ -63,14 +82,14 @@ export default function BackupsPage() {
           if (data.length > 0) {
             console.log("First backup record structure:", Object.keys(data[0]));
           }
+          return data as BackupRecord[];
         } else {
           console.log("Received non-array data:", typeof data);
+          return [];
         }
-        
-        return data;
       } catch (err) {
         console.error("Error fetching backup history:", err);
-        return [];
+        throw err; // Re-throw to let React Query handle the error state
       }
     },
   });
@@ -192,8 +211,6 @@ export default function BackupsPage() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                // Add debug logging before rendering
-                (() => { console.log("About to render backup history table with data:", backupHistory); return true; })() &&
                 <Table>
                   <TableCaption>A history of all database backups</TableCaption>
                   <TableHeader>
@@ -209,7 +226,7 @@ export default function BackupsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {backupHistory.map((backup: any) => (
+                    {backupHistory && backupHistory.map((backup: BackupRecord) => (
                       <TableRow key={backup.id}>
                         <TableCell>{formatDate(backup.timestamp)}</TableCell>
                         <TableCell>
@@ -233,7 +250,7 @@ export default function BackupsPage() {
                             <Badge variant="outline">Local</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{backup.notes}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{backup.notes || "No notes provided"}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
                             <Button
