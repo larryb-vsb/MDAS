@@ -98,8 +98,33 @@ app.use((req, res, next) => {
       console.log("In-memory fallback storage initialized. Data will not persist between restarts.");
     }
     
-    // Initialize schema version tracking
+    // Fix database schema issues and ensure admin user exists
     if (migrationSuccess) {
+      // Import and run database helpers
+      const { fixSchemaVersionsTable, fixBackupSchedulesTable, ensureAdminUser } = await import('./database-helpers');
+      
+      try {
+        await fixSchemaVersionsTable();
+        console.log("Schema versions table structure checked/fixed");
+      } catch (error) {
+        console.error("Error fixing schema versions table:", error);
+      }
+      
+      try {
+        await fixBackupSchedulesTable();
+        console.log("Backup schedules table structure checked/fixed");
+      } catch (error) {
+        console.error("Error fixing backup schedules table:", error);
+      }
+      
+      try {
+        await ensureAdminUser();
+        console.log("Admin user checked/created");
+      } catch (error) {
+        console.error("Error ensuring admin user exists:", error);
+      }
+      
+      // Initialize schema version tracking
       await initializeSchemaVersions().catch(err => {
         console.log("Warning: Could not initialize schema versions:", err.message);
       });
