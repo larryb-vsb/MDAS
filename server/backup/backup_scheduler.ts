@@ -16,8 +16,20 @@ export async function initializeBackupScheduler() {
   console.log("Starting backup scheduler service...");
   
   try {
-    // Get all enabled backup schedules
-    const schedules = await db.select().from(backupSchedules).where(eq(backupSchedules.enabled, true));
+    // Get all enabled backup schedules with explicit column selection
+    const schedules = await db.select({
+      id: backupSchedules.id,
+      name: backupSchedules.name,
+      frequency: backupSchedules.frequency,
+      time_of_day: backupSchedules.time_of_day,
+      day_of_week: backupSchedules.day_of_week,
+      day_of_month: backupSchedules.day_of_month,
+      enabled: backupSchedules.enabled,
+      use_s3: backupSchedules.use_s3,
+      retention_days: backupSchedules.retention_days,
+      last_run: backupSchedules.last_run,
+      next_run: backupSchedules.next_run
+    }).from(backupSchedules).where(eq(backupSchedules.enabled, true));
     
     // Schedule each backup job
     schedules.forEach(schedule => {
@@ -88,7 +100,7 @@ async function runBackupJob(schedule: any) {
     // Run the backup using system credentials (not tied to any specific user session)
     const backupResult = await backupManager.createBackup({
       notes: `Automated backup from schedule: ${schedule.name}`,
-      useS3: schedule.useS3,
+      useS3: schedule.use_s3,
       isScheduled: true,
       scheduleId: schedule.id,
       // We don't need a user ID as this is a system operation
@@ -98,8 +110,8 @@ async function runBackupJob(schedule: any) {
     // Update the last run time
     await db.update(backupSchedules)
       .set({ 
-        lastRun: new Date(),
-        updatedAt: new Date()
+        last_run: new Date(),
+        updated_at: new Date()
       })
       .where(eq(backupSchedules.id, schedule.id));
     
@@ -115,8 +127,8 @@ async function runBackupJob(schedule: any) {
     // Still update the last run time (even though it failed)
     await db.update(backupSchedules)
       .set({ 
-        lastRun: new Date(),
-        updatedAt: new Date()
+        last_run: new Date(),
+        updated_at: new Date()
       })
       .where(eq(backupSchedules.id, schedule.id));
       
@@ -135,7 +147,7 @@ async function updateNextRunTime(schedule: any) {
   let nextRun = new Date();
   
   // Set the time
-  const [hours, minutes] = schedule.timeOfDay.split(":").map(Number);
+  const [hours, minutes] = schedule.time_of_day.split(":").map(Number);
   nextRun.setHours(hours, minutes, 0, 0);
   
   // Adjust based on frequency
@@ -144,7 +156,7 @@ async function updateNextRunTime(schedule: any) {
     if (nextRun <= now) {
       nextRun.setDate(nextRun.getDate() + 1);
     }
-  } else if (schedule.frequency === "weekly" && schedule.dayOfWeek !== null) {
+  } else if (schedule.frequency === "weekly" && schedule.day_of_week !== null) {
     // Set to the next occurrence of the specified day of week
     const currentDay = nextRun.getDay();
     const targetDay = schedule.dayOfWeek;
