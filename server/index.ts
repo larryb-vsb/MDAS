@@ -56,10 +56,46 @@ app.use((req, res, next) => {
   });
   
   try {
-    // Run database migrations to create tables if they don't exist
-    const migrationSuccess = await migrateDatabase();
+    // Try to run database migrations to create tables if they don't exist
+    let migrationSuccess = await migrateDatabase();
+    let useFallbackStorage = false;
+    
+    // If migration fails, try to restore from the most recent backup
     if (!migrationSuccess) {
-      console.error("Database migration failed. The application may not function correctly.");
+      console.log("Database migration failed. Attempting to restore from backup...");
+      
+      try {
+        // Import the restore functionality
+        const { restoreMostRecentBackup } = await import('./restore-env-backup');
+        
+        // Try to restore from backup
+        const restoreSuccess = await restoreMostRecentBackup();
+        
+        if (restoreSuccess) {
+          console.log("Successfully restored database from backup");
+          migrationSuccess = true; // Consider migration successful if restore was successful
+        } else {
+          console.log("Both migration and restore failed. Switching to in-memory fallback storage.");
+          useFallbackStorage = true;
+        }
+      } catch (restoreError) {
+        console.error("Error during restore attempt:", restoreError);
+        console.log("Switching to in-memory fallback storage.");
+        useFallbackStorage = true;
+      }
+    }
+    
+    // If we need to use fallback storage, initialize it now
+    if (useFallbackStorage) {
+      console.log("Initializing in-memory fallback storage for development purposes...");
+      const { MemStorageFallback } = await import('./mem-storage-fallback');
+      const { setStorageImplementation } = await import('./storage');
+      
+      // Create and set the fallback storage
+      const fallbackStorage = new MemStorageFallback();
+      setStorageImplementation(fallbackStorage);
+      
+      console.log("In-memory fallback storage initialized. Data will not persist between restarts.");
     }
     
     // Initialize schema version tracking
@@ -72,6 +108,9 @@ app.use((req, res, next) => {
       await initializeBackupScheduler().catch(err => {
         console.log("Warning: Could not initialize backup scheduler:", err.message);
       });
+    } else if (useFallbackStorage) {
+      // Skip schema version tracking and backup scheduler when using fallback storage
+      console.log("In-memory storage mode: Skipping schema version tracking and backup scheduler");
     }
     
     // Create http server

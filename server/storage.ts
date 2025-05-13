@@ -2001,4 +2001,15 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Default to database storage
+let storage: IStorage = new DatabaseStorage();
+
+/**
+ * Set a different storage implementation (used for fallback when database is unavailable)
+ * @param newStorage The new storage implementation to use
+ */
+export function setStorageImplementation(newStorage: IStorage) {
+  storage = newStorage;
+}
+
+export { storage };

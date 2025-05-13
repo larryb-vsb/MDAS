@@ -1,0 +1,356 @@
+/**
+ * In-memory storage fallback when database is unavailable
+ * This provides a minimal implementation that allows the application to run
+ * even when the database is down or misconfigured.
+ */
+
+import { v4 as uuidv4 } from 'uuid';
+import session from 'express-session';
+import createMemoryStore from 'memorystore';
+import { User, InsertUser } from "@shared/schema";
+import { IStorage } from "./storage";
+
+const MemoryStore = createMemoryStore(session);
+
+export class MemStorageFallback implements IStorage {
+  private users: User[] = [];
+  private merchants: any[] = [];
+  private transactions: any[] = [];
+  readonly sessionStore: session.Store;
+
+  constructor() {
+    // Initialize session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000
+    });
+
+    // Create a default admin user
+    this.createDefaultAdminUser();
+  }
+
+  private async createDefaultAdminUser() {
+    try {
+      // Only create if no users exist
+      if (this.users.length === 0) {
+        const hashedPassword = await this.hashPassword('admin123');
+        
+        await this.createUser({
+          username: 'admin',
+          password: hashedPassword,
+          email: 'admin@example.com',
+          firstName: 'Admin',
+          lastName: 'User',
+          role: 'admin'
+        });
+        
+        console.log('Created default admin user in memory fallback storage');
+      }
+    } catch (error) {
+      console.error('Error creating default admin user:', error);
+    }
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.find(user => user.id === id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return this.users.find(user => user.username === username);
+  }
+
+  async getUsers(): Promise<User[]> {
+    return [...this.users];
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const newId = this.users.length > 0 
+      ? Math.max(...this.users.map(u => u.id)) + 1 
+      : 1;
+    
+    const newUser: User = {
+      id: newId,
+      username: userData.username,
+      password: userData.password,
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      role: userData.role || 'user',
+      createdAt: new Date(),
+      lastLogin: null
+    };
+
+    this.users.push(newUser);
+    return newUser;
+  }
+
+  async updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('User not found');
+    }
+
+    const updatedUser = {
+      ...this.users[userIndex],
+      ...userData
+    };
+
+    this.users[userIndex] = updatedUser;
+    return updatedUser;
+  }
+
+  async updateUserLastLogin(userId: number): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users[userIndex].lastLogin = new Date();
+    }
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('User not found');
+    }
+
+    this.users[userIndex].password = await this.hashPassword(newPassword);
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users.splice(userIndex, 1);
+    }
+  }
+
+  async hashPassword(password: string): Promise<string> {
+    // In our fallback, we'll use a simple hash for demonstration
+    // This is NOT secure for production use but works for a fallback
+    const hash = Buffer.from(password).toString('base64');
+    return `${hash}.salt`;
+  }
+
+  async verifyPassword(supplied: string, stored: string): Promise<boolean> {
+    const [hash, _] = stored.split('.');
+    const suppliedHash = Buffer.from(supplied).toString('base64');
+    return hash === suppliedHash;
+  }
+
+  // Merchant operations with minimal implementation
+  async getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
+    merchants: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    let filteredMerchants = [...this.merchants];
+    
+    if (status) {
+      filteredMerchants = filteredMerchants.filter(m => m.status === status);
+    }
+    
+    const totalItems = filteredMerchants.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    
+    return {
+      merchants: filteredMerchants.slice(startIndex, endIndex),
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit
+      }
+    };
+  }
+
+  async getMerchantById(merchantId: string): Promise<{
+    merchant: any;
+    transactions: any[];
+    analytics: {
+      dailyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      monthlyStats: {
+        transactions: number;
+        revenue: number;
+      };
+      transactionHistory: {
+        name: string;
+        transactions: number;
+        revenue: number;
+      }[];
+    };
+  }> {
+    const merchant = this.merchants.find(m => m.id === merchantId);
+    
+    if (!merchant) {
+      throw new Error('Merchant not found');
+    }
+    
+    const merchantTransactions = this.transactions.filter(t => t.merchantId === merchantId);
+    
+    // Simple mock analytics
+    return {
+      merchant,
+      transactions: merchantTransactions,
+      analytics: {
+        dailyStats: {
+          transactions: 0,
+          revenue: 0
+        },
+        monthlyStats: {
+          transactions: 0,
+          revenue: 0
+        },
+        transactionHistory: []
+      }
+    };
+  }
+
+  async createMerchant(merchantData: any): Promise<any> {
+    const newMerchant = {
+      id: uuidv4(),
+      ...merchantData,
+      createdAt: new Date()
+    };
+    
+    this.merchants.push(newMerchant);
+    return newMerchant;
+  }
+
+  async updateMerchant(merchantId: string, merchantData: any): Promise<any> {
+    const merchantIndex = this.merchants.findIndex(m => m.id === merchantId);
+    
+    if (merchantIndex === -1) {
+      throw new Error('Merchant not found');
+    }
+    
+    const updatedMerchant = {
+      ...this.merchants[merchantIndex],
+      ...merchantData,
+      editDate: new Date()
+    };
+    
+    this.merchants[merchantIndex] = updatedMerchant;
+    return updatedMerchant;
+  }
+
+  async deleteMerchants(merchantIds: string[]): Promise<void> {
+    this.merchants = this.merchants.filter(m => !merchantIds.includes(m.id));
+  }
+
+  // Transaction operations with minimal implementation
+  async getTransactions(
+    page: number, 
+    limit: number, 
+    merchantId?: string, 
+    startDate?: string, 
+    endDate?: string,
+    type?: string
+  ): Promise<{
+    transactions: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    let filteredTransactions = [...this.transactions];
+    
+    if (merchantId) {
+      filteredTransactions = filteredTransactions.filter(t => t.merchantId === merchantId);
+    }
+    
+    if (type) {
+      filteredTransactions = filteredTransactions.filter(t => t.type === type);
+    }
+    
+    if (startDate) {
+      const startDateObj = new Date(startDate);
+      filteredTransactions = filteredTransactions.filter(t => new Date(t.date) >= startDateObj);
+    }
+    
+    if (endDate) {
+      const endDateObj = new Date(endDate);
+      filteredTransactions = filteredTransactions.filter(t => new Date(t.date) <= endDateObj);
+    }
+    
+    const totalItems = filteredTransactions.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    
+    return {
+      transactions: filteredTransactions.slice(startIndex, endIndex),
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit
+      }
+    };
+  }
+
+  async addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any> {
+    const newTransaction = {
+      id: uuidv4(),
+      merchantId,
+      ...transactionData,
+      date: new Date(transactionData.date)
+    };
+    
+    this.transactions.push(newTransaction);
+    return newTransaction;
+  }
+
+  async deleteTransactions(transactionIds: string[]): Promise<void> {
+    this.transactions = this.transactions.filter(t => !transactionIds.includes(t.id));
+  }
+
+  async exportTransactionsToCSV(
+    merchantId?: string, 
+    startDate?: string, 
+    endDate?: string,
+    type?: string
+  ): Promise<string> {
+    return "No data available in fallback mode";
+  }
+
+  // Dashboard stats
+  async getDashboardStats(): Promise<{
+    totalMerchants: number;
+    newMerchants: number;
+    dailyTransactions: number;
+    monthlyRevenue: number;
+  }> {
+    return {
+      totalMerchants: this.merchants.length,
+      newMerchants: 0,
+      dailyTransactions: 0,
+      monthlyRevenue: 0
+    };
+  }
+
+  // File processing operations (minimal stubs)
+  async processUploadedFile(filePath: string, type: string, originalFilename: string): Promise<string> {
+    return "File processing not available in fallback mode";
+  }
+
+  async combineAndProcessUploads(fileIds: string[]): Promise<void> {
+    // No implementation in fallback
+  }
+
+  async generateTransactionsExport(): Promise<string> {
+    return "Export not available in fallback mode";
+  }
+
+  async generateMerchantsExport(): Promise<string> {
+    return "Export not available in fallback mode";
+  }
+}

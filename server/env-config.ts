@@ -14,7 +14,7 @@ const BASE_UPLOAD_PATH = isProd ? '/data/uploads' : './tmp_uploads';
 const BASE_BACKUP_PATH = isProd ? '/data/backups' : './backups';
 
 // Generate environment-specific database URL
-function getDatabaseUrl(): string {
+export function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || '';
   if (!baseUrl) return '';
   
