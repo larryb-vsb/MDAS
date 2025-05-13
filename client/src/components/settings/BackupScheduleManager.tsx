@@ -385,13 +385,13 @@ export default function BackupScheduleManager() {
     let timing = "";
     
     if (schedule.frequency === "daily") {
-      timing = `Daily at ${schedule.timeOfDay}`;
+      timing = `Daily at ${schedule.time_of_day}`;
     } else if (schedule.frequency === "weekly") {
-      const day = dayOptions.find(d => d.value === schedule.dayOfWeek)?.label || "Sunday";
-      timing = `Weekly on ${day} at ${schedule.timeOfDay}`;
+      const day = dayOptions.find(d => d.value === schedule.day_of_week)?.label || "Sunday";
+      timing = `Weekly on ${day} at ${schedule.time_of_day}`;
     } else if (schedule.frequency === "monthly") {
-      const dayNum = schedule.dayOfMonth;
-      timing = `Monthly on the ${dayNum}${getDaySuffix(dayNum)} at ${schedule.timeOfDay}`;
+      const dayNum = schedule.day_of_month;
+      timing = `Monthly on the ${dayNum}${getDaySuffix(dayNum)} at ${schedule.time_of_day}`;
     }
     
     return timing;
@@ -446,7 +446,7 @@ export default function BackupScheduleManager() {
                     <TableRow key={schedule.id}>
                       <TableCell>
                         <Switch
-                          checked={schedule.enabled}
+                          checked={schedule.enabled === true}
                           onCheckedChange={(checked) => 
                             toggleScheduleMutation.mutate({ 
                               id: schedule.id, 
@@ -457,9 +457,9 @@ export default function BackupScheduleManager() {
                       </TableCell>
                       <TableCell className="font-medium">{schedule.name}</TableCell>
                       <TableCell>{formatSchedule(schedule)}</TableCell>
-                      <TableCell>{schedule.useS3 ? "S3 Cloud" : "Local"}</TableCell>
-                      <TableCell>{schedule.retentionDays} days</TableCell>
-                      <TableCell>{formatDate(schedule.lastRun)}</TableCell>
+                      <TableCell>{schedule.use_s3 ? "S3 Cloud" : "Local"}</TableCell>
+                      <TableCell>{schedule.retention_days} days</TableCell>
+                      <TableCell>{formatDate(schedule.last_run)}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button 
