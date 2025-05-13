@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeSchemaVersions } from "./schema_version";
 import { initializeBackupScheduler } from "./backup/backup_scheduler";
+import { ensureAppDirectories } from "./utils/fs-utils";
+import { config, NODE_ENV } from "./env-config";
 
 const app = express();
 app.use(express.json());
