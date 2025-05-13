@@ -50,10 +50,10 @@ function scheduleBackupJob(schedule: any) {
   
   if (schedule.frequency === "daily") {
     cronExpression = `${minutes} ${hours} * * *`;
-  } else if (schedule.frequency === "weekly" && schedule.dayOfWeek !== null) {
-    cronExpression = `${minutes} ${hours} * * ${schedule.dayOfWeek}`;
-  } else if (schedule.frequency === "monthly" && schedule.dayOfMonth !== null) {
-    cronExpression = `${minutes} ${hours} ${schedule.dayOfMonth} * *`;
+  } else if (schedule.frequency === "weekly" && schedule.day_of_week !== null) {
+    cronExpression = `${minutes} ${hours} * * ${schedule.day_of_week}`;
+  } else if (schedule.frequency === "monthly" && schedule.day_of_month !== null) {
+    cronExpression = `${minutes} ${hours} ${schedule.day_of_month} * *`;
   } else {
     console.error(`Invalid schedule configuration for schedule ID ${schedule.id}`);
     return;

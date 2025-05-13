@@ -68,16 +68,16 @@ export const backupSchedules = pgTable("backup_schedules", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   frequency: text("frequency").notNull(), // "daily", "weekly", "monthly"
-  timeOfDay: text("time_of_day").notNull(), // HH:MM format in 24-hour time
-  dayOfWeek: integer("day_of_week"), // 0-6 (Sunday to Saturday) for weekly backups
-  dayOfMonth: integer("day_of_month"), // 1-31 for monthly backups
+  time_of_day: text("time_of_day").notNull(), // HH:MM format in 24-hour time
+  day_of_week: integer("day_of_week"), // 0-6 (Sunday to Saturday) for weekly backups
+  day_of_month: integer("day_of_month"), // 1-31 for monthly backups
   enabled: boolean("enabled").default(true).notNull(),
-  useS3: boolean("use_s3").default(false).notNull(),
-  retentionDays: integer("retention_days").default(30).notNull(),
-  lastRun: timestamp("last_run"),
-  nextRun: timestamp("next_run"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  use_s3: boolean("use_s3").default(false).notNull(),
+  retention_days: integer("retention_days").default(30).notNull(),
+  last_run: timestamp("last_run"),
+  next_run: timestamp("next_run"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
   notes: text("notes")
 });
 
