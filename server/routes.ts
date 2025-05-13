@@ -211,6 +211,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint to convert in-memory data to database
   app.post("/api/settings/convert-memory-to-database", isAuthenticated, async (req, res) => {
     try {
+      // Enhanced fallback detection
+      const storageType = storage.constructor.name;
+      const isFallbackDetected = 
+        isFallbackStorage === true || 
+        storageType === 'MemStorageFallback';
+      
+      console.log('Memory-to-database conversion request:', {
+        storageType,
+        isFallbackStorage,
+        isFallbackDetected
+      });
+      
+      // Force fallback mode for testing if needed
+      if (req.body.forceFallbackMode === true) {
+        console.log('Forcing fallback mode for testing');
+        
+        // Import the fallback converter
+        const { convertFallbackToDatabase } = await import('./utils/fallback-converter');
+        
+        // Convert the in-memory data to database even if we don't think we're in fallback mode
+        const result = await convertFallbackToDatabase();
+        return res.json(result);
+      }
+      
+      if (!isFallbackDetected) {
+        return res.json({
+          success: false,
+          message: "Not running in fallback mode - no conversion necessary."
+        });
+      }
+      
       // Import the fallback converter
       const { convertFallbackToDatabase } = await import('./utils/fallback-converter');
       
@@ -478,6 +509,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get version information
       const { APP_VERSION, BUILD_DATE } = await import('@shared/version');
       
+      // Enhanced fallback detection
+      const storageType = storage.constructor.name;
+      const isFallbackDetected = 
+        isFallbackStorage === true || 
+        storageType === 'MemStorageFallback';
+      
+      console.log('Storage status check:', {
+        storageType,
+        isFallbackStorage,
+        isFallbackDetected
+      });
+      
       // Return system information including fallback storage status
       res.json({
         environment: {
@@ -487,8 +530,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isTest
         },
         storage: {
-          fallbackMode: isFallbackStorage,
-          type: isFallbackStorage ? 'memory' : 'database'
+          fallbackMode: isFallbackDetected,
+          storageType: storageType,
+          type: isFallbackDetected ? 'memory' : 'database'
         },
         version: {
           appVersion: APP_VERSION,

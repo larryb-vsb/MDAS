@@ -180,7 +180,11 @@ const BackupUploadRestore = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({
+          // We can force fallback mode for testing if needed
+          forceFallbackMode: true
+        })
       });
       
       clearInterval(interval);

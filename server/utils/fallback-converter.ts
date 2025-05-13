@@ -18,7 +18,12 @@ import { restoreBackupToEnvironment } from '../restore-env-backup';
 export async function convertFallbackToDatabase(): Promise<{ success: boolean; message: string; needsRestart?: boolean }> {
   try {
     // Check if we're actually in fallback mode
-    if (!(storage as any).isFallbackStorage) {
+    // We need to make sure the storage is correctly identified as fallback storage
+    const isFallbackMode = 
+      (storage as any).isFallbackStorage === true || 
+      (storage && (storage.constructor.name === 'MemStorageFallback'));
+    
+    if (!isFallbackMode) {
       return { 
         success: false, 
         message: "Not running in fallback mode - no conversion necessary." 

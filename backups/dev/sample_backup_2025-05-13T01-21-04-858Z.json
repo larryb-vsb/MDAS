@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2025-05-13T01:21:04.858Z",
+  "environment": "development",
+  "tables": {
+    "users": [
+      {
+        "id": 1,
+        "username": "admin",
+        "password": "JGFkbWluMTIzJA==",
+        "email": "admin@example.com",
+        "role": "admin",
+        "created_at": "2025-05-13T01:21:04.858Z",
+        "last_login": null
+      }
+    ],
+    "merchants": [],
+    "transactions": [],
+    "uploaded_files": [],
+    "backup_history": [],
+    "backup_schedules": [],
+    "schema_versions": [
+      {
+        "id": "525a0940-eb19-4b91-9098-7b42797ca223",
+        "version": "1.0.0",
+        "changes": "Initial schema",
+        "applied_at": "2025-05-13T01:21:04.858Z",
+        "description": "Generated sample backup"
+      }
+    ]
+  }
+}
