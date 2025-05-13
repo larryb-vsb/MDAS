@@ -70,6 +70,12 @@ export default function Settings() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
+  // Fetch system information
+  const systemInfoQuery = useQuery({
+    queryKey: ["/api/system/info"],
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  
   const createBackup = async () => {
     try {
       setIsBackingUp(true);
@@ -228,6 +234,34 @@ export default function Settings() {
                   <span className="font-medium">Database:</span>
                   <span>{import.meta.env.MODE === "production" ? "Production DB" : "Development DB"}</span>
                 </div>
+
+                {/* Storage Mode */}
+                {systemInfoQuery.data && (
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Storage Mode:</span>
+                    {(systemInfoQuery.data as any)?.storage?.fallbackMode ? (
+                      <Badge variant="destructive">
+                        Memory Fallback
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        Database
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                {/* Show a warning about fallback storage if active */}
+                {systemInfoQuery.data && (systemInfoQuery.data as any)?.storage?.fallbackMode && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Memory Fallback Mode Active</AlertTitle>
+                    <AlertDescription>
+                      The system is currently running with in-memory storage. All data will be lost when the server is restarted.
+                      This mode is activated when the database is unavailable.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="flex justify-between">
                   <span className="font-medium">Database Type:</span>
                   <span>PostgreSQL</span>
