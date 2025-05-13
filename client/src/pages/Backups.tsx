@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
 import { Button } from "@/components/ui/button";
-import { Download, RotateCw, CalendarClock, FileOutput, Clock, Trash, AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -36,6 +37,7 @@ export default function BackupsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("schedules");
+  const [_, navigate] = useLocation();
   
   // Check if user is an admin
   const isAdmin = user?.role === "admin";
@@ -98,10 +100,19 @@ export default function BackupsPage() {
   
   return (
     <div className="container mx-auto py-10">
-      <PageTitle 
-        title="Backup Management" 
-        description="Manage database backups and schedules" 
-      />
+      <div className="flex items-center justify-between mb-4">
+        <PageTitle 
+          title="Backup Management" 
+          description="Manage database backups and schedules" 
+        />
+        <Button
+          variant="outline"
+          onClick={() => navigate("/settings")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Settings
+        </Button>
+      </div>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="mt-6">
         <TabsList className="grid w-full grid-cols-2">
