@@ -177,12 +177,11 @@ export async function ensureAdminUser() {
         SELECT * FROM users WHERE username = 'admin' LIMIT 1
       `);
       
+      // Hash the default password (admin123) - this is a known bcrypt hash for 'admin123'
+      const passwordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
+      
       if (adminResult.rows.length === 0) {
         console.log('Admin user does not exist, creating default admin...');
-        
-        // Hash the default password (admin123)
-        // Bcrypt hash for 'admin123'
-        const passwordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
         
         await db.execute(sql`
           INSERT INTO users (username, password, email, role, created_at)
@@ -192,7 +191,15 @@ export async function ensureAdminUser() {
         console.log('Default admin user created successfully');
         console.log('You can login with username "admin" and password "admin123"');
       } else {
-        console.log('Admin user already exists');
+        console.log('Admin user exists, updating password to ensure it works...');
+        
+        // Update the admin password to match our expected hash
+        await db.execute(sql`
+          UPDATE users SET password = ${passwordHash} WHERE username = 'admin'
+        `);
+        
+        console.log('Admin password updated');
+        console.log('You can login with username "admin" and password "admin123"');
       }
       
       return true;
