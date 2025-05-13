@@ -15,11 +15,34 @@ export async function restoreBackupToEnvironment(backupFilePath: string): Promis
     
     // Read the backup file
     const backupData = fs.readFileSync(backupFilePath, 'utf8');
-    const backup = JSON.parse(backupData);
     
-    if (!backup || !backup.tables) {
-      throw new Error('Invalid backup file');
+    // Validate JSON format
+    let backup;
+    try {
+      backup = JSON.parse(backupData);
+    } catch (err) {
+      throw new Error('Invalid JSON format in backup file');
     }
+    
+    // Validate backup structure
+    if (!backup) {
+      throw new Error('Invalid backup file: empty content');
+    }
+    
+    // Check for tables property
+    if (!backup.tables) {
+      console.error('Backup content:', JSON.stringify(backup).substring(0, 500) + '...');
+      throw new Error('Invalid backup file: missing tables property');
+    }
+    
+    // Validate tables structure
+    if (typeof backup.tables !== 'object') {
+      throw new Error('Invalid backup file: tables is not an object');
+    }
+    
+    // Log structure for debugging
+    console.log('Backup file structure:', Object.keys(backup));
+    console.log('Tables in backup:', Object.keys(backup.tables));
     
     // Connect to the database
     const databaseUrl = getDatabaseUrl();

@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, UploadCloud, FileType, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, UploadCloud, FileType, AlertCircle, CheckCircle2, Loader2, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
 const BackupUploadRestore = () => {
   const { toast } = useToast();
@@ -14,6 +15,8 @@ const BackupUploadRestore = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [needsRestart, setNeedsRestart] = useState(false);
+  const [generatingSample, setGeneratingSample] = useState(false);
+  const [samplePath, setSamplePath] = useState<string | null>(null);
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

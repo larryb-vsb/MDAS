@@ -83,20 +83,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Processing uploaded backup file: ${req.file.originalname}`);
       
+      // Check file size
+      const fileStat = fs.statSync(req.file.path);
+      console.log(`Backup file size: ${fileStat.size} bytes`);
+      
+      if (fileStat.size === 0) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          success: false,
+          error: "Backup file is empty"
+        });
+      }
+      
       // Check if file is valid JSON
+      let fileData;
+      let jsonData;
+      
       try {
-        const fileData = fs.readFileSync(req.file.path, 'utf8');
-        JSON.parse(fileData); // Will throw if not valid JSON
-      } catch (e) {
+        fileData = fs.readFileSync(req.file.path, 'utf8');
+        
+        // Log first part of the file content for diagnostic purposes
+        console.log("File content preview:", fileData.substring(0, 200) + "...");
+        
+        // Attempt to parse JSON
+        jsonData = JSON.parse(fileData);
+        
+        // Basic structure validation
+        if (!jsonData) {
+          throw new Error("Empty JSON object");
+        }
+        
+        // Check if it has tables property
+        if (!jsonData.tables) {
+          console.log("JSON structure:", Object.keys(jsonData));
+          throw new Error("Missing 'tables' property");
+        }
+      } catch (e: any) {
         fs.unlinkSync(req.file.path); // Delete invalid file
         return res.status(400).json({ 
           success: false, 
-          error: "Invalid backup file. The file is not a valid JSON file." 
+          error: `Invalid backup file: ${e.message || "The file is not a valid JSON file"}` 
         });
       }
       
       // Use the restore utility function to restore the database from the uploaded file
       // This works for both regular DB mode and fallback mode
+      console.log("File validation passed, attempting to restore...");
       const success = await restoreBackupToEnvironment(req.file.path);
       
       // If we're in fallback mode and restored successfully, we need to restart the server
@@ -136,9 +168,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.unlinkSync(req.file.path);
       }
       
+      // Enhanced error handling for more specific error messages
+      let errorMessage = "Failed to restore backup from upload";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error("Restore error details:", error.stack);
+      }
+      
       res.status(500).json({ 
         success: false, 
-        error: error instanceof Error ? error.message : "Failed to restore backup from upload" 
+        error: errorMessage 
+      });
+    }
+  });
+  
+  // Endpoint to generate a sample backup file
+  app.get("/api/settings/backup/generate-sample", async (req, res) => {
+    try {
+      // Import the sample backup generator
+      const { generateSampleBackup } = await import('./utils/sample-backup');
+      
+      // Generate a sample backup file
+      const backupFilePath = generateSampleBackup();
+      
+      // Return the path to the sample backup file
+      res.json({
+        success: true,
+        message: "Sample backup file generated successfully",
+        filePath: backupFilePath
+      });
+    } catch (error) {
+      console.error("Error generating sample backup:", error);
+      
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate sample backup file"
       });
     }
   });
