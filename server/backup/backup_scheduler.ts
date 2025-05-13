@@ -46,7 +46,7 @@ function scheduleBackupJob(schedule: any) {
   let cronExpression;
   
   // Parse the schedule into a cron expression
-  const [hours, minutes] = schedule.timeOfDay.split(":").map(Number);
+  const [hours, minutes] = schedule.time_of_day.split(":").map(Number);
   
   if (schedule.frequency === "daily") {
     cronExpression = `${minutes} ${hours} * * *`;

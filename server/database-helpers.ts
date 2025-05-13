@@ -91,6 +91,8 @@ export async function fixBackupSchedulesTable() {
             name TEXT NOT NULL,
             frequency TEXT NOT NULL,
             time_of_day TEXT NOT NULL,
+            day_of_week INTEGER DEFAULT 0,
+            day_of_month INTEGER DEFAULT 1,
             next_run TIMESTAMP WITH TIME ZONE,
             last_run TIMESTAMP WITH TIME ZONE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -109,7 +111,9 @@ export async function fixBackupSchedulesTable() {
         const requiredColumns = [
           { name: 'use_s3', type: 'BOOLEAN DEFAULT FALSE' },
           { name: 'last_run', type: 'TIMESTAMP WITH TIME ZONE' },
-          { name: 'created_by', type: 'TEXT' }
+          { name: 'created_by', type: 'TEXT' },
+          { name: 'day_of_week', type: 'INTEGER DEFAULT 0' },
+          { name: 'day_of_month', type: 'INTEGER DEFAULT 1' }
         ];
         
         for (const column of requiredColumns) {

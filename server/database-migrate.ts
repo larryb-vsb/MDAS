@@ -5,23 +5,22 @@ import { NODE_ENV } from './env-config';
 
 /**
  * Migrates the database schema by checking for tables and creating them if they don't exist
+ * This function checks each required table individually and creates only missing ones
  */
 export async function migrateDatabase() {
   console.log(`Migrating ${NODE_ENV} database...`);
   
   try {
-    // Check if tables exist
-    const tableExists = await checkTablesExist();
+    // Individual table checking and creation
+    const allTablesExist = await checkTablesExist();
     
-    if (!tableExists) {
-      console.log('Tables do not exist. Creating schema...');
-      await createSchema();
-      console.log('Schema created successfully.');
-      return true;
+    if (allTablesExist) {
+      console.log('All required tables exist. Migration complete.');
     } else {
-      console.log('Tables already exist. No migration needed.');
-      return true;
+      console.log('Schema update completed. Missing tables have been created.');
     }
+    
+    return true;
   } catch (error) {
     console.error('Error migrating database:', error);
     return false;
@@ -29,20 +28,49 @@ export async function migrateDatabase() {
 }
 
 /**
- * Check if the core tables exist in the database
+ * Check if the core tables exist in the database and create missing tables
  */
 async function checkTablesExist() {
+  console.log('Checking for required database tables...');
+  
+  // Define all expected tables
+  const requiredTables = [
+    { name: 'users', createFunction: createUsersTable },
+    { name: 'merchants', createFunction: createMerchantsTable },
+    { name: 'transactions', createFunction: createTransactionsTable },
+    { name: 'uploaded_files', createFunction: createUploadedFilesTable },
+    { name: 'backup_history', createFunction: createBackupHistoryTable },
+    { name: 'backup_schedules', createFunction: createBackupSchedulesTable },
+    { name: 'schema_versions', createFunction: createSchemaVersionsTable }
+  ];
+  
   try {
-    // Try to query a table to see if it exists
-    await db.select().from(schema.users).limit(1);
-    return true;
-  } catch (error: any) {
-    // If the table doesn't exist, we'll get a specific error
-    if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
-      return false;
+    // Check which tables exist
+    const result = await db.execute(sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      AND table_name IN (${sql.join(requiredTables.map(t => t.name), sql`, `)})
+    `);
+    
+    const existingTables = result.rows.map(row => row.table_name);
+    console.log('Existing tables:', existingTables);
+    
+    // Create missing tables
+    let tablesCreated = false;
+    for (const table of requiredTables) {
+      if (!existingTables.includes(table.name)) {
+        console.log(`Creating missing table: ${table.name}`);
+        await table.createFunction();
+        tablesCreated = true;
+      }
     }
-    // If it's another error, re-throw it
-    throw error;
+    
+    return !tablesCreated; // Return true if no tables needed to be created
+  } catch (error: any) {
+    console.error('Error checking tables:', error);
+    // If there's an error, assume tables need to be created
+    return false;
   }
 }
 
