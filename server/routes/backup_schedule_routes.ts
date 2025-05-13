@@ -65,11 +65,20 @@ router.post("/schedules", async (req: Request, res: Response) => {
     // Calculate next run time based on schedule
     const nextRunDate = calculateNextRunTime(parsed.data);
     
+    // Convert camelCase properties to snake_case for database
     const newSchedule = await db.insert(backupSchedules).values({
-      ...parsed.data,
-      nextRun: nextRunDate,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      name: parsed.data.name,
+      frequency: parsed.data.frequency,
+      time_of_day: parsed.data.timeOfDay,
+      day_of_week: parsed.data.dayOfWeek,
+      day_of_month: parsed.data.dayOfMonth,
+      enabled: parsed.data.enabled,
+      use_s3: parsed.data.useS3,
+      retention_days: parsed.data.retentionDays,
+      notes: parsed.data.notes,
+      next_run: nextRunDate,
+      created_at: new Date(),
+      updated_at: new Date()
     }).returning();
     
     return res.status(201).json(newSchedule[0]);
@@ -104,7 +113,7 @@ router.patch("/schedules/:id", async (req: Request, res: Response) => {
       const result = await db.update(backupSchedules)
         .set({
           enabled: req.body.enabled,
-          updatedAt: new Date()
+          updated_at: new Date()
         })
         .where(eq(backupSchedules.id, scheduleId))
         .returning();
@@ -136,11 +145,28 @@ router.patch("/schedules/:id", async (req: Request, res: Response) => {
       (updateData as any).nextRun = calculateNextRunTime(updatedScheduleData);
     }
     
-    // Add updatedAt timestamp
-    (updateData as any).updatedAt = new Date();
+    // Convert camelCase to snake_case and prepare update data
+    const updateObj: Record<string, any> = {
+      updated_at: new Date()
+    };
+    
+    if (updateData.name !== undefined) updateObj.name = updateData.name;
+    if (updateData.frequency !== undefined) updateObj.frequency = updateData.frequency;
+    if (updateData.timeOfDay !== undefined) updateObj.time_of_day = updateData.timeOfDay;
+    if (updateData.dayOfWeek !== undefined) updateObj.day_of_week = updateData.dayOfWeek;
+    if (updateData.dayOfMonth !== undefined) updateObj.day_of_month = updateData.dayOfMonth;
+    if (updateData.enabled !== undefined) updateObj.enabled = updateData.enabled;
+    if (updateData.useS3 !== undefined) updateObj.use_s3 = updateData.useS3;
+    if (updateData.retentionDays !== undefined) updateObj.retention_days = updateData.retentionDays;
+    if (updateData.notes !== undefined) updateObj.notes = updateData.notes;
+    
+    // Add next_run if it was calculated
+    if ((updateData as any).nextRun) {
+      updateObj.next_run = (updateData as any).nextRun;
+    }
     
     const result = await db.update(backupSchedules)
-      .set(updateData)
+      .set(updateObj)
       .where(eq(backupSchedules.id, scheduleId))
       .returning();
     

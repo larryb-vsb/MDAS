@@ -87,7 +87,7 @@ export async function fixBackupSchedulesTable() {
         
         await db.execute(sql`
           CREATE TABLE IF NOT EXISTS backup_schedules (
-            id TEXT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             frequency TEXT NOT NULL,
             time_of_day TEXT NOT NULL,
