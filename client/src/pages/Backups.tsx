@@ -69,7 +69,12 @@ export default function BackupsPage() {
     queryKey: ["/api/settings/backup/history"],
     queryFn: async () => {
       try {
-        const res = await apiRequest("/api/settings/backup/history");
+        // Make sure user is authenticated before making the request
+        if (!user || !user.id) {
+          throw new Error("You must be logged in to view backup history");
+        }
+        
+        const res = await apiRequest("GET", "/api/settings/backup/history");
         if (!res.ok) {
           throw new Error(`API request failed with status ${res.status}`);
         }
@@ -92,6 +97,8 @@ export default function BackupsPage() {
         throw err; // Re-throw to let React Query handle the error state
       }
     },
+    // Only run this query when the user is logged in
+    enabled: !!user?.id,
   });
   
   // Format date for display
