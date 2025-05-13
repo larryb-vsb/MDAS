@@ -74,23 +74,21 @@ export default function BackupsPage() {
           throw new Error("You must be logged in to view backup history");
         }
         
-        const res = await apiRequest("/api/settings/backup/history", { method: "GET" });
-        if (!res.ok) {
-          throw new Error(`API request failed with status ${res.status}`);
-        }
-        const data = await res.json();
-        console.log("Backup history data:", data);
-        
-        // Add debug logging to help diagnose issues
-        if (Array.isArray(data)) {
-          console.log(`Received ${data.length} backup history records`);
-          if (data.length > 0) {
-            console.log("First backup record structure:", Object.keys(data[0]));
+        try {
+          // Use the apiRequest function which will automatically throw an error if the response is not OK
+          const data = await apiRequest<BackupRecord[]>("/api/settings/backup/history", { method: "GET" });
+          console.log("Backup history data:", data);
+          
+          if (!Array.isArray(data)) {
+            console.error("Expected array but received:", typeof data);
+            return [];
           }
-          return data as BackupRecord[];
-        } else {
-          console.log("Received non-array data:", typeof data);
-          return [];
+          
+          console.log(`Received ${data.length} backup history records`);
+          return data;
+        } catch (error) {
+          console.error("Error in API request:", error);
+          throw new Error("Failed to load backup history: " + (error instanceof Error ? error.message : "Unknown error"));
         }
       } catch (err) {
         console.error("Error fetching backup history:", err);
