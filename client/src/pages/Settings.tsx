@@ -39,6 +39,7 @@ interface DatabaseStats {
 }
 
 export default function Settings() {
+  const [_, navigate] = useLocation();
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupProgress, setBackupProgress] = useState(0);
   const [hasBackup, setHasBackup] = useState(false);
@@ -469,9 +470,7 @@ export default function Settings() {
                     <Button
                       className="flex-1"
                       variant="outline"
-                      onClick={() => {
-                        window.location.href = "/backups";
-                      }}
+                      onClick={() => navigate("/backups")}
                     >
                       <ArchiveRestore className="mr-2 h-4 w-4" />
                       View Backup Management
