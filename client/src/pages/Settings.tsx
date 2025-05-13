@@ -21,6 +21,7 @@ import UserManagement from "@/components/settings/UserManagement";
 import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
 import S3BackupSettings from "@/components/settings/S3BackupSettings";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
+import BackupUploadRestore from "@/components/settings/BackupUploadRestore";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {

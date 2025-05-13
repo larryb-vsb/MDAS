@@ -71,6 +71,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register S3 configuration routes
   registerS3Routes(app);
   
+  // Import the restore function from restore-env-backup
+  const { restoreBackupToEnvironment } = await import('./restore-env-backup');
+  
+  // Upload and restore backup endpoint that works even in fallback mode
+  app.post("/api/settings/backup/restore-upload", upload.single('backupFile'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No file uploaded" });
+      }
+      
+      console.log(`Processing uploaded backup file: ${req.file.originalname}`);
+      
+      // Check if file is valid JSON
+      try {
+        const fileData = fs.readFileSync(req.file.path, 'utf8');
+        JSON.parse(fileData); // Will throw if not valid JSON
+      } catch (e) {
+        fs.unlinkSync(req.file.path); // Delete invalid file
+        return res.status(400).json({ 
+          success: false, 
+          error: "Invalid backup file. The file is not a valid JSON file." 
+        });
+      }
+      
+      // Use the restore utility function to restore the database from the uploaded file
+      // This works for both regular DB mode and fallback mode
+      const success = await restoreBackupToEnvironment(req.file.path);
+      
+      // If we're in fallback mode and restored successfully, we need to restart the server
+      // to switch back to DB mode. Client will need to handle this by showing a message
+      // that server is restarting.
+      if (success && isFallbackStorage) {
+        res.status(200).json({ 
+          success: true, 
+          message: "Backup restored successfully. System is restarting to apply changes.",
+          needsRestart: true
+        });
+        
+        // Give the response time to send before restarting
+        setTimeout(() => {
+          console.log("Restarting server to switch from fallback mode to database mode...");
+          process.exit(0); // Process manager will restart the server
+        }, 2000);
+      } else if (success) {
+        res.status(200).json({ 
+          success: true, 
+          message: "Backup restored successfully" 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: "Failed to restore backup" 
+        });
+      }
+      
+      // Clean up the temporary uploaded file
+      fs.unlinkSync(req.file.path);
+    } catch (error) {
+      console.error("Error restoring backup from upload:", error);
+      
+      // Clean up the temporary uploaded file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to restore backup from upload" 
+      });
+    }
+  });
+  
   // Register backup schedule routes
   app.use("/api/settings", isAuthenticated);
   registerBackupScheduleRoutes(app);
