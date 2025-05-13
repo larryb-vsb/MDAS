@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,6 +75,7 @@ type BackupScheduleFormValues = z.infer<typeof backupScheduleSchema>;
 
 export default function BackupScheduleManager() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -106,6 +108,11 @@ export default function BackupScheduleManager() {
     queryKey: ["/api/settings/backup/schedules"],
     queryFn: async () => {
       try {
+        if (!user || !user.id) {
+          console.log("User not authenticated, cannot fetch schedules");
+          return [];
+        }
+        
         console.log("Fetching backup schedules...");
         const data = await apiRequest<any[]>("/api/settings/backup/schedules", { method: "GET" });
         console.log("Received schedules data:", data);
@@ -115,6 +122,7 @@ export default function BackupScheduleManager() {
         return []; // Return empty array to prevent parsing errors
       }
     },
+    enabled: !!user?.id // Only run the query if the user is authenticated
   });
 
   // Form for adding new schedule
