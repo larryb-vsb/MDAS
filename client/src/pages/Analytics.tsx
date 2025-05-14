@@ -13,6 +13,8 @@ import MerchantCategoryChart from "@/components/analytics/MerchantCategoryChart"
 import AnalyticsSummaryCards from "@/components/analytics/AnalyticsSummaryCards";
 import TransactionTypeChart from "@/components/analytics/TransactionTypeChart";
 import TransactionValueChart from "@/components/analytics/TransactionValueChart";
+import MerchantGrowthChart from "@/components/analytics/MerchantGrowthChart";
+import MerchantActivityChart from "@/components/analytics/MerchantActivityChart";
 
 interface AnalyticsData {
   transactionData: Array<{
@@ -109,24 +111,39 @@ export default function Analytics() {
                 </TabsList>
               </div>
               
-              <TabsContent value="overview" className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <AnalyticsTransactionChart 
-                  data={analyticsData.transactionData}
-                  isLoading={isLoading}
-                  title="Transaction Volume"
-                  description="Number of transactions processed over time"
-                  dataKey="transactions"
-                  color="#8884d8"
-                />
-                <AnalyticsTransactionChart 
-                  data={analyticsData.transactionData}
-                  isLoading={isLoading}
-                  title="Revenue Analysis"
-                  description="Revenue generated from transactions"
-                  dataKey="revenue"
-                  color="#82ca9d"
-                  tooltipLabel="Revenue"
-                />
+              <TabsContent value="overview" className="mt-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <AnalyticsTransactionChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                    title="Transaction Volume"
+                    description="Number of transactions processed over time"
+                    dataKey="transactions"
+                    color="#8884d8"
+                  />
+                  <AnalyticsTransactionChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                    title="Revenue Analysis"
+                    description="Revenue generated from transactions"
+                    dataKey="revenue"
+                    color="#82ca9d"
+                    tooltipLabel="Revenue"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <TransactionTypeChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                  />
+                  <MerchantCategoryChart 
+                    data={analyticsData.merchantCategoryData}
+                    isLoading={isLoading}
+                    title="Merchant Categories"
+                    description="Distribution of merchants by category"
+                  />
+                </div>
               </TabsContent>
               
               <TabsContent value="transactions" className="mt-6">
@@ -187,32 +204,15 @@ export default function Analytics() {
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Merchant Growth</CardTitle>
-                      <CardDescription>
-                        New merchant onboarding over time
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Merchant growth metrics coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Merchant Activity</CardTitle>
-                      <CardDescription>
-                        Active vs. inactive merchants
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Merchant activity statistics coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <MerchantGrowthChart 
+                    isLoading={isLoading}
+                    totalMerchants={analyticsData.summary.totalMerchants || 0}
+                  />
+                  <MerchantActivityChart 
+                    data={analyticsData.merchantCategoryData}
+                    isLoading={isLoading}
+                    totalMerchants={analyticsData.summary.totalMerchants || 0}
+                  />
                 </div>
               </TabsContent>
             </Tabs>

@@ -50,8 +50,9 @@ export default function MerchantGrowthChart({
     let runningTotal = Math.max(totalMerchants - 70, 0); // Start from a reasonable number
     
     for (let i = 0; i < 12; i++) {
-      let monthIndex = (currentMonth - 11 + i) % 12;
-      if (monthIndex < 0) monthIndex += 12;
+      // Calculate the month index, ensuring it's in the range 0-11
+      let monthIdx = (currentMonth - 11 + i) % 12;
+      if (monthIdx < 0) monthIdx += 12;
       
       // Simulate some growth pattern (faster in more recent months)
       const growthFactor = 1 + (i * 0.2);
@@ -62,7 +63,7 @@ export default function MerchantGrowthChart({
       const total = i === 11 ? totalMerchants : Math.min(runningTotal, totalMerchants);
       
       data.push({
-        name: months[monthIndex],
+        name: months[monthIdx],
         total,
         new: newMerchants
       });
