@@ -157,8 +157,15 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       }
       
       const fileIds = files.filter(f => f.status === "uploaded").map(f => f.id);
+      console.log("Files to process:", fileIds);
+      
+      if (fileIds.length === 0) {
+        console.error("No files to process. All files:", files);
+        throw new Error("No files to process");
+      }
       
       try {
+        console.log("Sending process-uploads request with fileIds:", fileIds);
         const response = await fetch("/api/process-uploads", {
           method: "POST",
           headers: {
@@ -194,14 +201,33 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Process-uploads response:", data);
+      
+      const isBackground = data?.message?.includes("background");
+      
       toast({
-        title: "Processing Complete",
-        description: "All files have been processed successfully.",
+        title: isBackground ? "Processing Started" : "Processing Complete",
+        description: isBackground 
+          ? "Files are being processed in the background. Check the Uploads page for status."
+          : "All files have been processed successfully.",
       });
+      
+      // Set up periodic refresh of data 
+      const refreshIntervalId = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+      }, 3000); // Refresh every 3 seconds
+      
+      // Clear interval after 30 seconds (after 10 refreshes)
+      setTimeout(() => {
+        clearInterval(refreshIntervalId);
+      }, 30000);
+      
+      // Initial refresh
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+      
       onClose();
     },
     onError: (error) => {

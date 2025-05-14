@@ -992,6 +992,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Process uploaded files
   app.post("/api/process-uploads", async (req, res) => {
     try {
+      console.log("Process-uploads request received:", req.body);
+      
       const schema = z.object({
         fileIds: z.array(z.string())
       });
@@ -999,12 +1001,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { fileIds } = schema.parse(req.body);
       
       if (fileIds.length === 0) {
+        console.error("No files to process in request");
         return res.status(400).json({ error: "No files to process" });
       }
+      
+      console.log(`Processing ${fileIds.length} files with IDs:`, fileIds);
 
-      await storage.combineAndProcessUploads(fileIds);
-      res.json({ success: true, message: "Files processed successfully" });
+      // Process files in background to avoid timeout
+      res.json({ success: true, message: `Processing ${fileIds.length} files in background` });
+      
+      // Process after sending response
+      try {
+        await storage.combineAndProcessUploads(fileIds);
+        console.log("Files processed successfully:", fileIds);
+      } catch (processError) {
+        console.error("Error processing files:", processError);
+      }
     } catch (error) {
+      console.error("Error in process-uploads endpoint:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to process files" 
       });

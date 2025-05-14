@@ -1165,9 +1165,14 @@ export class DatabaseStorage implements IStorage {
     
     try {
       // Get file information for the provided IDs
-      const files = await db.select()
-        .from(uploadedFilesTable)
-        .where(sql`${uploadedFilesTable.id} IN (${fileIds.join(',')})`);
+      // We need to use parameterized queries for security and proper string handling
+      const placeholders = fileIds.map((_, i) => `$${i + 1}`).join(',');
+      const query = sql`SELECT * FROM ${uploadedFilesTable} WHERE id IN (${sql.raw(placeholders)})`;
+      
+      console.log(`Executing query with placeholders: ${placeholders}`);
+      
+      // Execute the query with the file IDs as parameters
+      const files = await db.execute(query, ...fileIds);
       
       console.log(`Retrieved ${files.length} files for processing: ${JSON.stringify(files.map(f => ({ id: f.id, type: f.fileType, name: f.originalFilename })))}`);
       
