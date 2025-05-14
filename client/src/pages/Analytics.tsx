@@ -11,6 +11,8 @@ import MainLayout from "@/components/layout/MainLayout";
 import AnalyticsTransactionChart from "@/components/analytics/AnalyticsTransactionChart";
 import MerchantCategoryChart from "@/components/analytics/MerchantCategoryChart";
 import AnalyticsSummaryCards from "@/components/analytics/AnalyticsSummaryCards";
+import TransactionTypeChart from "@/components/analytics/TransactionTypeChart";
+import TransactionValueChart from "@/components/analytics/TransactionValueChart";
 
 interface AnalyticsData {
   transactionData: Array<{
@@ -138,32 +140,14 @@ export default function Analytics() {
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Transaction Types</CardTitle>
-                      <CardDescription>
-                        Distribution of credit vs. debit transactions
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Detailed transaction type analysis coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Merchant Transaction Volume</CardTitle>
-                      <CardDescription>
-                        Top merchants by transaction volume
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Merchant transaction details coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <TransactionTypeChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                  />
+                  <TransactionValueChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                  />
                 </div>
               </TabsContent>
               
@@ -179,32 +163,18 @@ export default function Analytics() {
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Average Transaction Value</CardTitle>
-                      <CardDescription>
-                        How transaction value changes over time
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Detailed average transaction values coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Revenue by Merchant Category</CardTitle>
-                      <CardDescription>
-                        Distribution of revenue by merchant category
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">
-                        Category revenue details coming soon
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <TransactionValueChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                    title="Monthly Average Transaction Value"
+                    description="How transaction values fluctuate monthly"
+                  />
+                  <TransactionTypeChart 
+                    data={analyticsData.transactionData}
+                    isLoading={isLoading}
+                    title="Revenue Distribution"
+                    description="Credit vs Debit contribution to revenue"
+                  />
                 </div>
               </TabsContent>
               
