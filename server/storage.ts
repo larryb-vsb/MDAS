@@ -1186,59 +1186,59 @@ export class DatabaseStorage implements IStorage {
               await this.processMerchantFile(file.storagePath);
               
               // Mark as successfully processed
-              await db.update(uploadedFiles)
+              await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true,
                   processingErrors: null 
                 })
-                .where(eq(uploadedFiles.id, file.id));
+                .where(eq(uploadedFilesTable.id, file.id));
                 
               console.log(`Merchant file ${file.id} successfully processed`);
             } catch (error) {
               console.error(`Error processing merchant file ${file.id}:`, error);
               
               // Mark with error
-              await db.update(uploadedFiles)
+              await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
                   processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
                 })
-                .where(eq(uploadedFiles.id, file.id));
+                .where(eq(uploadedFilesTable.id, file.id));
             }
           } else if (file.fileType === 'transaction') {
             try {
               await this.processTransactionFile(file.storagePath);
               
               // Mark as successfully processed
-              await db.update(uploadedFiles)
+              await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true,
                   processingErrors: null 
                 })
-                .where(eq(uploadedFiles.id, file.id));
+                .where(eq(uploadedFilesTable.id, file.id));
                 
               console.log(`Transaction file ${file.id} successfully processed`);
             } catch (error) {
               console.error(`Error processing transaction file ${file.id}:`, error);
               
               // Mark with error
-              await db.update(uploadedFiles)
+              await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
                   processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
                 })
-                .where(eq(uploadedFiles.id, file.id));
+                .where(eq(uploadedFilesTable.id, file.id));
             }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
             // Mark with error for unknown type
-            await db.update(uploadedFiles)
+            await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
                   processingErrors: `Unknown file type: ${file.fileType}` 
                 })
-                .where(eq(uploadedFiles.id, file.id));
+                .where(eq(uploadedFilesTable.id, file.id));
           }
         } catch (fileError) {
           console.error(`Error processing file ID ${fileId}:`, fileError);
