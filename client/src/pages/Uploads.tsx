@@ -605,6 +605,24 @@ export default function Uploads() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
+              <Button 
+                variant="outline"
+                size="sm" 
+                onClick={processAllUnprocessedFiles}
+                disabled={processMutation.isPending || !hasUnprocessedFiles()}
+              >
+                {processMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Process Files
+                  </>
+                )}
+              </Button>
               <Button size="sm" onClick={toggleUploadModal}>
                 <Upload className="mr-2 h-4 w-4" />
                 Upload Files

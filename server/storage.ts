@@ -1164,75 +1164,84 @@ export class DatabaseStorage implements IStorage {
     console.log(`Starting combined processing of ${fileIds.length} files`);
     
     try {
-      // Get file information for the provided IDs
-      // We need to use parameterized queries for security and proper string handling
-      const placeholders = fileIds.map((_, i) => `$${i + 1}`).join(',');
-      const query = sql`SELECT * FROM ${uploadedFilesTable} WHERE id IN (${sql.raw(placeholders)})`;
-      
-      console.log(`Executing query with placeholders: ${placeholders}`);
-      
-      // Execute the query with the file IDs as parameters
-      const files = await db.execute(query, ...fileIds);
-      
-      console.log(`Retrieved ${files.length} files for processing: ${JSON.stringify(files.map(f => ({ id: f.id, type: f.fileType, name: f.originalFilename })))}`);
-      
-      // Organize files by type
-      const merchantFiles = files.filter(file => file.fileType === "merchant");
-      const transactionFiles = files.filter(file => file.fileType === "transaction");
-      
-      console.log(`Found ${merchantFiles.length} merchant files and ${transactionFiles.length} transaction files`);
-      
-      // Process merchant demographics files
-      for (const file of merchantFiles) {
+      // Process each file ID individually to avoid SQL issues with multiple parameters
+      for (const fileId of fileIds) {
         try {
-          console.log(`Processing merchant file ID: ${file.id}, Path: ${file.storagePath}, Filename: ${file.originalFilename}`);
-          await this.processMerchantFile(file.storagePath);
+          // Get the individual file information
+          const fileResults = await db.select()
+            .from(uploadedFiles)
+            .where(eq(uploadedFiles.id, fileId));
           
-          // Mark this specific file as successfully processed
-          await db.update(uploadedFilesTable)
-            .set({ 
-              processed: true,
-              processingErrors: null 
-            })
-            .where(eq(uploadedFilesTable.id, file.id));
+          if (fileResults.length === 0) {
+            console.warn(`File with ID ${fileId} not found`);
+            continue;
+          }
+          
+          const file = fileResults[0];
+          console.log(`Processing file: ID=${file.id}, Type=${file.fileType}, Name=${file.originalFilename}`);
+          
+          // Process based on file type
+          if (file.fileType === 'merchant') {
+            try {
+              await this.processMerchantFile(file.storagePath);
+              
+              // Mark as successfully processed
+              await db.update(uploadedFiles)
+                .set({ 
+                  processed: true,
+                  processingErrors: null 
+                })
+                .where(eq(uploadedFiles.id, file.id));
+                
+              console.log(`Merchant file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing merchant file ${file.id}:`, error);
+              
+              // Mark with error
+              await db.update(uploadedFiles)
+                .set({ 
+                  processed: true, 
+                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
+                })
+                .where(eq(uploadedFiles.id, file.id));
+            }
+          } else if (file.fileType === 'transaction') {
+            try {
+              await this.processTransactionFile(file.storagePath);
+              
+              // Mark as successfully processed
+              await db.update(uploadedFiles)
+                .set({ 
+                  processed: true,
+                  processingErrors: null 
+                })
+                .where(eq(uploadedFiles.id, file.id));
+                
+              console.log(`Transaction file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing transaction file ${file.id}:`, error);
+              
+              // Mark with error
+              await db.update(uploadedFiles)
+                .set({ 
+                  processed: true, 
+                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
+                })
+                .where(eq(uploadedFiles.id, file.id));
+            }
+          } else {
+            console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
-        } catch (error) {
-          console.error(`Error processing merchant file ${file.id} (${file.originalFilename}):`, error);
-          
-          // Mark this file as processed but with errors
-          await db.update(uploadedFilesTable)
-            .set({ 
-              processed: true, 
-              processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
-            })
-            .where(eq(uploadedFilesTable.id, file.id));
-        }
-      }
-      
-      // Process transaction files
-      for (const file of transactionFiles) {
-        try {
-          console.log(`Processing transaction file ID: ${file.id}, Path: ${file.storagePath}, Filename: ${file.originalFilename}`);
-          await this.processTransactionFile(file.storagePath);
-          
-          // Mark this specific file as successfully processed
-          await db.update(uploadedFilesTable)
-            .set({ 
-              processed: true,
-              processingErrors: null 
-            })
-            .where(eq(uploadedFilesTable.id, file.id));
-            
-        } catch (error) {
-          console.error(`Error processing transaction file ${file.id} (${file.originalFilename}):`, error);
-          
-          // Mark this file as processed but with errors
-          await db.update(uploadedFilesTable)
-            .set({ 
-              processed: true, 
-              processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
-            })
-            .where(eq(uploadedFilesTable.id, file.id));
+            // Mark with error for unknown type
+            await db.update(uploadedFiles)
+                .set({ 
+                  processed: true, 
+                  processingErrors: `Unknown file type: ${file.fileType}` 
+                })
+                .where(eq(uploadedFiles.id, file.id));
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ID ${fileId}:`, fileError);
         }
       }
       
