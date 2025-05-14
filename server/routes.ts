@@ -12,7 +12,7 @@ import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { count, desc, eq, isNotNull, and, gte, between, sql, isNull } from "drizzle-orm";
-import { uploadedFilesTable, merchants as merchantsTable, transactions as transactionsTable, backupSchedules as backupSchedulesTable, users as usersTable } from "@shared/schema";
+import { uploadedFiles as uploadedFilesTable, merchants as merchantsTable, transactions as transactionsTable, backupSchedules as backupSchedulesTable, users as usersTable } from "@shared/schema";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";

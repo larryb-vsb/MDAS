@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
+import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
 import { 
   AlertCircle, 
   Check, 
@@ -677,6 +678,40 @@ export default function Uploads() {
           </div>
           
           <Separator />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
+            <div className="col-span-1">
+              <FileProcessorStatus />
+            </div>
+            <div className="col-span-1 md:col-span-2">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-md font-medium">File Upload Statistics</CardTitle>
+                  <CardDescription>Overview of your file uploads and processing history</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Total Files</div>
+                      <div className="text-2xl font-bold">{files?.length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Unprocessed</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => !f.processed).length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Transaction Files</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'transaction').length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Merchant Files</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'merchant').length || 0}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
           
           <Tabs defaultValue="all">
             <TabsList>
