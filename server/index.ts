@@ -7,6 +7,7 @@ import { initializeBackupScheduler } from "./backup/backup_scheduler";
 import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV } from "./env-config";
 import { pool, db } from "./db";
+import { fileProcessorService } from "./services/file-processor";
 import { migrateDatabase } from "./database-migrate";
 
 const app = express();
