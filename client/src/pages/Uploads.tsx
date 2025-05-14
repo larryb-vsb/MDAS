@@ -17,7 +17,8 @@ import {
   Upload,
   Loader2,
   X,
-  CheckSquare
+  CheckSquare,
+  Play
 } from "lucide-react";
 import {
   Card,
@@ -113,6 +114,51 @@ export default function Uploads() {
       // If turning off select mode, clear the selected files
       setSelectedFiles([]);
     }
+  };
+
+  // Process all unprocessed files
+  const processMutation = useMutation({
+    mutationFn: async () => {
+      const unprocessedFiles = files?.filter(file => !file.processed) || [];
+      if (unprocessedFiles.length === 0) {
+        return { message: "No files to process" };
+      }
+      
+      const unprocessedFileIds = unprocessedFiles.map(file => file.id);
+      const response = await apiRequest("POST", "/api/process-uploads", {
+        fileIds: unprocessedFileIds
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Processing started",
+        description: "Files are being processed in the background. Refresh in a moment to see results.",
+        variant: "default",
+      });
+      
+      // Refresh the file list after a short delay to show updated status
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    },
+    onError: (error) => {
+      toast({
+        title: "Processing failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Helper function to check if there are unprocessed files
+  const hasUnprocessedFiles = () => {
+    return files?.some(file => !file.processed) ?? false;
+  };
+
+  // Function to trigger processing of all unprocessed files
+  const processAllUnprocessedFiles = () => {
+    processMutation.mutate();
   };
 
   // Fetch uploaded files
@@ -503,7 +549,7 @@ export default function Uploads() {
                             Error
                           </Badge>
                         ) : (
-                          <Badge variant="success" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-200">
+                          <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-200">
                             <Check className="h-3 w-3" />
                             Processed
                           </Badge>
