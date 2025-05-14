@@ -12,7 +12,7 @@ import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { count, desc, eq, isNotNull, and, gte, between, sql, isNull } from "drizzle-orm";
-import { uploadedFiles } from "@shared/schema";
+import { uploadedFilesTable, merchants as merchantsTable, transactions as transactionsTable, backupSchedules as backupSchedulesTable, users as usersTable } from "@shared/schema";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
@@ -991,6 +991,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get file processor status
+  app.get("/api/file-processor/status", async (req, res) => {
+    try {
+      const status = fileProcessorService.getProcessingStatus();
+      res.json(status);
+    } catch (error) {
+      console.error("Error getting file processor status:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to get processor status"
+      });
+    }
+  });
+  
+  // Force processing of unprocessed files
+  app.post("/api/file-processor/force-process", async (req, res) => {
+    try {
+      const status = await fileProcessorService.forceProcessing();
+      res.json({
+        success: true,
+        message: "File processing triggered",
+        status
+      });
+    } catch (error) {
+      console.error("Error forcing file processing:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to trigger file processing"
+      });
+    }
+  });
+
   // Process uploaded files
   app.post("/api/process-uploads", async (req, res) => {
     try {
@@ -1012,12 +1042,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark these files as "pending processing" in the database
       for (const fileId of fileIds) {
         try {
-          await db.update(uploadedFiles)
+          await db.update(uploadedFilesTable)
             .set({ 
               processed: false, 
               processingErrors: null 
             })
-            .where(eq(uploadedFiles.id, fileId));
+            .where(eq(uploadedFilesTable.id, fileId));
         } catch (updateError) {
           console.error(`Error updating file status for ${fileId}:`, updateError);
         }
@@ -1031,13 +1061,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Also trigger immediate processing (but don't wait for it)
-      import('./services/file-processor')
-        .then(module => {
-          const { fileProcessorService } = module;
-          fileProcessorService.processUnprocessedFiles()
-            .catch(err => console.error("Error triggering file processing:", err));
-        })
-        .catch(err => console.error("Error importing file processor:", err));
+      fileProcessorService.forceProcessing()
+        .catch(err => console.error("Error triggering file processing:", err));
         
     } catch (error) {
       console.error("Error in process-uploads endpoint:", error);
