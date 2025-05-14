@@ -125,10 +125,10 @@ export default function Uploads() {
       }
       
       const unprocessedFileIds = unprocessedFiles.map(file => file.id);
-      const response = await apiRequest("POST", "/api/process-uploads", {
-        fileIds: unprocessedFileIds
+      return await apiRequest("/api/process-uploads", {
+        method: "POST",
+        body: { fileIds: unprocessedFileIds }
       });
-      return await response.json();
     },
     onSuccess: () => {
       toast({

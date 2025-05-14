@@ -1169,8 +1169,8 @@ export class DatabaseStorage implements IStorage {
         try {
           // Get the individual file information
           const fileResults = await db.select()
-            .from(uploadedFiles)
-            .where(eq(uploadedFiles.id, fileId));
+            .from(uploadedFilesTable)
+            .where(eq(uploadedFilesTable.id, fileId));
           
           if (fileResults.length === 0) {
             console.warn(`File with ID ${fileId} not found`);
