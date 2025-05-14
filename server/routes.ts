@@ -939,6 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         summary: {
           totalTransactions: dashboardStats.dailyTransactions,
           totalRevenue: dashboardStats.monthlyRevenue,
+          totalMerchants: dashboardStats.totalMerchants,
           avgTransactionValue: 
             dashboardStats.dailyTransactions > 0 
               ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
