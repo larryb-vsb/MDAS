@@ -63,6 +63,7 @@ export default function FileProcessorStatus() {
   } = useQuery<ProcessingStatus>({
     queryKey: ["/api/file-processor/status"],
     refetchInterval: 5000, // Poll every 5 seconds to keep status updated
+    staleTime: 2000
   });
 
   // Trigger processing manually
