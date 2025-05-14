@@ -11,7 +11,8 @@ import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count, desc, eq, isNotNull, and, gte, between, sql } from "drizzle-orm";
+import { count, desc, eq, isNotNull, and, gte, between, sql, isNull } from "drizzle-orm";
+import { uploadedFiles } from "@shared/schema";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
@@ -1007,16 +1008,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Processing ${fileIds.length} files with IDs:`, fileIds);
 
-      // Process files in background to avoid timeout
-      res.json({ success: true, message: `Processing ${fileIds.length} files in background` });
-      
-      // Process after sending response
-      try {
-        await storage.combineAndProcessUploads(fileIds);
-        console.log("Files processed successfully:", fileIds);
-      } catch (processError) {
-        console.error("Error processing files:", processError);
+      // Mark these files as "pending processing" in the database
+      for (const fileId of fileIds) {
+        try {
+          await db.update(uploadedFiles)
+            .set({ 
+              processed: false, 
+              processingErrors: null 
+            })
+            .where(eq(uploadedFiles.id, fileId));
+        } catch (updateError) {
+          console.error(`Error updating file status for ${fileId}:`, updateError);
+        }
       }
+      
+      // Let the file processor service handle the processing
+      // The service runs every minute and will pick up these files
+      res.json({ 
+        success: true, 
+        message: `${fileIds.length} files queued for processing. Files will be processed in background.`
+      });
+      
+      // Also trigger immediate processing (but don't wait for it)
+      import('./services/file-processor')
+        .then(module => {
+          const { fileProcessorService } = module;
+          fileProcessorService.processUnprocessedFiles()
+            .catch(err => console.error("Error triggering file processing:", err));
+        })
+        .catch(err => console.error("Error importing file processor:", err));
+        
     } catch (error) {
       console.error("Error in process-uploads endpoint:", error);
       res.status(500).json({ 

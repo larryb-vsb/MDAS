@@ -140,6 +140,9 @@ app.use((req, res, next) => {
       await initializeBackupScheduler().catch(err => {
         console.log("Warning: Could not initialize backup scheduler:", err.message);
       });
+      
+      // Start the file processor service to process uploaded files
+      fileProcessorService.initialize();
     } else if (useFallbackStorage) {
       // Skip schema version tracking and backup scheduler when using fallback storage
       console.log("In-memory storage mode: Skipping schema version tracking and backup scheduler");
@@ -167,6 +170,24 @@ app.use((req, res, next) => {
     }, () => {
       log(`Server running on port ${port} in ${NODE_ENV} mode`);
     });
+    
+    // Setup graceful shutdown
+    const shutdownHandler = () => {
+      console.log('Server shutting down...');
+      
+      // Stop the file processor service
+      fileProcessorService.stop();
+      
+      // Close database connection
+      pool.end(() => {
+        console.log('Database connection closed.');
+        process.exit(0);
+      });
+    };
+    
+    // Handle shutdown signals
+    process.on('SIGTERM', shutdownHandler);
+    process.on('SIGINT', shutdownHandler);
   } catch (error) {
     console.error("Failed to initialize application:", error);
     process.exit(1);
