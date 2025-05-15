@@ -526,6 +526,8 @@ export class DatabaseStorage implements IStorage {
       // Generate transaction history by month for the last 6 months
       const transactionHistory = await this.getTransactionHistoryByMonth(merchantId, 6);
       
+      console.log("Transaction history for charts:", JSON.stringify(transactionHistory));
+      
       // Format transactions for display
       const formattedTransactions = transactions.map(t => ({
         transactionId: t.id,
@@ -946,6 +948,12 @@ export class DatabaseStorage implements IStorage {
         const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
         
+        // Set times to ensure proper date range comparison
+        month.setHours(0, 0, 0, 0);
+        nextMonth.setHours(23, 59, 59, 999);
+        
+        console.log(`Looking for transactions for merchant ${merchantId} between ${month.toISOString()} and ${nextMonth.toISOString()}`);
+        
         // Get transactions for this month
         const monthTransactions = await db.select()
           .from(transactionsTable)
@@ -998,6 +1006,8 @@ export class DatabaseStorage implements IStorage {
       const allTransactions = await db.select()
         .from(transactionsTable)
         .where(eq(transactionsTable.merchantId, merchantId));
+        
+      console.log(`Got ${allTransactions.length} transactions for merchant ${merchantId}`);
       
       // Get daily transactions (from today)
       const dailyTransactions = allTransactions.filter(tx => 
@@ -1037,6 +1047,8 @@ export class DatabaseStorage implements IStorage {
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
+      console.log(`Found ${monthlyTransactions.length} monthly transactions and ${dailyTransactions.length} daily transactions`);
+        
       // If no recent transactions but there are all-time transactions, show all-time totals
       // This ensures merchants with transactions will show some data
       if (monthlyTransactions.length === 0 && allTransactions.length > 0) {
