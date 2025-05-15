@@ -915,7 +915,7 @@ export default function MerchantDetail() {
                         <BarChart
                           width={500}
                           height={300}
-                          data={data?.analytics.transactionHistory}
+                          data={getFilteredTransactionHistory()}
                           margin={{
                             top: 5,
                             right: 30,
@@ -1002,56 +1002,103 @@ export default function MerchantDetail() {
                 {isLoading ? (
                   <Skeleton className="w-full h-[300px]" />
                 ) : (
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        width={500}
-                        height={300}
-                        data={data?.analytics.transactionHistory}
-                        margin={{
-                          top: 10,
-                          right: 30,
-                          left: 0,
-                          bottom: 25,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="name" 
-                          height={50}
-                          angle={-45}
-                          textAnchor="end"
-                          interval={0}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis 
-                          tickFormatter={(value) => 
-                            new Intl.NumberFormat('en-US', {
-                              style: 'currency',
-                              currency: 'USD',
-                              maximumFractionDigits: 0,
-                              notation: 'compact'
-                            }).format(value as number)
+                  <div className="space-y-4">
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          width={500}
+                          height={300}
+                          data={getFilteredTransactionHistory()}
+                          margin={{
+                            top: 10,
+                            right: 30,
+                            left: 0,
+                            bottom: 25,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="name" 
+                            height={50}
+                            angle={-45}
+                            textAnchor="end"
+                            interval={0}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis 
+                            tickFormatter={(value) => 
+                              new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                maximumFractionDigits: 0,
+                                notation: 'compact'
+                              }).format(value as number)
+                            }
+                          />
+                          <Tooltip formatter={(value) => [
+                            formatCurrency(value as number), 
+                            "Revenue"
+                          ]} />
+                          <Area
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="#8884d8"
+                            fill="url(#colorRevenue)"
+                          />
+                          <defs>
+                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const currentPosition = dateRange.startPosition;
+                          if (currentPosition > 0) {
+                            setDateRange(prev => ({
+                              ...prev,
+                              startPosition: Math.max(0, prev.startPosition - 1)
+                            }));
                           }
-                        />
-                        <Tooltip formatter={(value) => [
-                          formatCurrency(value as number), 
-                          "Revenue"
-                        ]} />
-                        <Area
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="#8884d8"
-                          fill="url(#colorRevenue)"
-                        />
-                        <defs>
-                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1} />
-                          </linearGradient>
-                        </defs>
-                      </AreaChart>
-                    </ResponsiveContainer>
+                        }}
+                        disabled={dateRange.startPosition === 0}
+                      >
+                        ← Previous Month
+                      </Button>
+                      
+                      <div className="text-sm text-gray-500">
+                        {data?.analytics.transactionHistory && 
+                         dateRange.startPosition <= (data.analytics.transactionHistory.length - dateRange.monthsToShow) ? 
+                         `Showing months ${dateRange.startPosition + 1}-${dateRange.startPosition + dateRange.monthsToShow} of ${data.analytics.transactionHistory.length}` : 
+                         "Showing most recent months"}
+                      </div>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const totalMonths = data?.analytics.transactionHistory?.length || 0;
+                          const maxPosition = Math.max(0, totalMonths - dateRange.monthsToShow);
+                          if (dateRange.startPosition < maxPosition) {
+                            setDateRange(prev => ({
+                              ...prev,
+                              startPosition: Math.min(maxPosition, prev.startPosition + 1)
+                            }));
+                          }
+                        }}
+                        disabled={!data?.analytics.transactionHistory || 
+                                 dateRange.startPosition >= Math.max(0, (data.analytics.transactionHistory.length - dateRange.monthsToShow))}
+                      >
+                        Next Month →
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
