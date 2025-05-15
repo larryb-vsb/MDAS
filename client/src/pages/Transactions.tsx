@@ -61,6 +61,7 @@ import {
 // Types
 interface Transaction {
   id: string;
+  transactionId: string; // Added to match the API response
   merchantId: string;
   merchantName: string;
   amount: number;
@@ -577,7 +578,7 @@ export default function Transactions() {
                           }
                           onCheckedChange={(checked) => {
                             if (checked && data?.transactions) {
-                              setSelectedTransactions(data.transactions.map(t => t.id));
+                              setSelectedTransactions(data.transactions.map(t => t.transactionId));
                             } else {
                               setSelectedTransactions([]);
                             }
@@ -594,24 +595,24 @@ export default function Transactions() {
                   </TableHeader>
                   <TableBody>
                     {data?.transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
+                      <TableRow key={transaction.transactionId}>
                         <TableCell>
                           <Checkbox
-                            checked={selectedTransactions.includes(transaction.id)}
+                            checked={selectedTransactions.includes(transaction.transactionId)}
                             onCheckedChange={(checked) => {
                               if (checked) {
-                                setSelectedTransactions([...selectedTransactions, transaction.id]);
+                                setSelectedTransactions([...selectedTransactions, transaction.transactionId]);
                               } else {
                                 setSelectedTransactions(
-                                  selectedTransactions.filter(id => id !== transaction.id)
+                                  selectedTransactions.filter(id => id !== transaction.transactionId)
                                 );
                               }
                             }}
-                            aria-label={`Select transaction ${transaction.id}`}
+                            aria-label={`Select transaction ${transaction.transactionId}`}
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {transaction.id}
+                          {transaction.transactionId}
                         </TableCell>
                         <TableCell>
                           <Link href={`/merchants/${transaction.merchantId}`} className="text-blue-600 hover:underline">

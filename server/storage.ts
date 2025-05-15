@@ -782,7 +782,8 @@ export class DatabaseStorage implements IStorage {
       const transactions = results.map(result => {
         const { transaction, merchantName } = result;
         return {
-          id: transaction.id,
+          id: transaction.id, // Keep id for backward compatibility
+          transactionId: transaction.id, // Add transactionId to match getMerchantById format
           merchantId: transaction.merchantId,
           merchantName: merchantName,
           amount: parseFloat(transaction.amount.toString()),
@@ -921,7 +922,7 @@ export class DatabaseStorage implements IStorage {
       }
       
       await db.delete(transactionsTable).where(
-        or(...transactionIds.map(id => eq(transactionsTable.id, id)))
+        or(...transactionIds.map(id => eq(transactionsTable.transactionId, id)))
       );
       
       console.log(`Successfully deleted ${transactionIds.length} transactions`);
