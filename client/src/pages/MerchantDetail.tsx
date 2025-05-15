@@ -236,6 +236,15 @@ export default function MerchantDetail() {
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
   
+  // Fetch merchant details
+  const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
+    queryKey: ['/api/merchants', id],
+    queryFn: () => fetch(`/api/merchants/${id}`).then(res => {
+      if (!res.ok) throw new Error('Failed to fetch merchant');
+      return res.json();
+    })
+  });
+  
   // Date range for transaction history visualization
   const [dateRange, setDateRange] = useState({
     // Default to showing last 12 months 
@@ -273,17 +282,8 @@ export default function MerchantDetail() {
     const end = Math.min(totalMonths, start + dateRange.monthsToShow);
     
     // Return the window of data
-    return history.slice(start, end);
+    return history.slice(totalMonths - end, totalMonths - start).reverse();
   }, [data?.analytics.transactionHistory, dateRange]);
-
-  // Fetch merchant details
-  const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
-    queryKey: ['/api/merchants', id],
-    queryFn: () => fetch(`/api/merchants/${id}`).then(res => {
-      if (!res.ok) throw new Error('Failed to fetch merchant');
-      return res.json();
-    })
-  });
 
   // Create form with validation
   const form = useForm<MerchantFormValues>({
@@ -909,39 +909,83 @@ export default function MerchantDetail() {
                 {isLoading ? (
                   <Skeleton className="w-full h-[300px]" />
                 ) : (
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        width={500}
-                        height={300}
-                        data={data?.analytics.transactionHistory}
-                        margin={{
-                          top: 5,
-                          right: 30,
-                          left: 20,
-                          bottom: 25,
+                  <div className="space-y-4">
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          width={500}
+                          height={300}
+                          data={data?.analytics.transactionHistory}
+                          margin={{
+                            top: 5,
+                            right: 30,
+                            left: 20,
+                            bottom: 25,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="name" 
+                            height={50}
+                            angle={-45}
+                            textAnchor="end"
+                            interval={0}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                          <Tooltip formatter={(value, name) => {
+                            if (name === "revenue") return [formatCurrency(value as number), "Revenue"];
+                            return [value, "Transactions"];
+                          }} />
+                          <Legend />
+                          <Bar yAxisId="left" dataKey="transactions" fill="#8884d8" name="Transactions" />
+                          <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const currentPosition = dateRange.startPosition;
+                          if (currentPosition > 0) {
+                            setDateRange(prev => ({
+                              ...prev,
+                              startPosition: Math.max(0, prev.startPosition - 1)
+                            }));
+                          }
                         }}
+                        disabled={dateRange.startPosition === 0}
                       >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="name" 
-                          height={50}
-                          angle={-45}
-                          textAnchor="end"
-                          interval={0}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                        <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                        <Tooltip formatter={(value, name) => {
-                          if (name === "revenue") return [formatCurrency(value as number), "Revenue"];
-                          return [value, "Transactions"];
-                        }} />
-                        <Legend />
-                        <Bar yAxisId="left" dataKey="transactions" fill="#8884d8" name="Transactions" />
-                        <Bar yAxisId="right" dataKey="revenue" fill="#82ca9d" name="Revenue" />
-                      </BarChart>
-                    </ResponsiveContainer>
+                        ← Previous Month
+                      </Button>
+                      
+                      <div className="text-sm text-gray-500">
+                        Slide to navigate through time
+                      </div>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const totalMonths = data?.analytics.transactionHistory?.length || 0;
+                          const maxPosition = Math.max(0, totalMonths - dateRange.monthsToShow);
+                          if (dateRange.startPosition < maxPosition) {
+                            setDateRange(prev => ({
+                              ...prev,
+                              startPosition: Math.min(maxPosition, prev.startPosition + 1)
+                            }));
+                          }
+                        }}
+                        disabled={!data?.analytics.transactionHistory || 
+                                 dateRange.startPosition >= Math.max(0, (data.analytics.transactionHistory.length - dateRange.monthsToShow))}
+                      >
+                        Next Month →
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
