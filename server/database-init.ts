@@ -23,13 +23,35 @@ export async function initializeDatabase() {
 
     console.log(`Initializing ${NODE_ENV} database...`);
     
+    // In production, use the original database URL without modification
+    if (isProd) {
+      console.log(`Production mode - using original database URL`);
+      const envUrl = originalUrl;
+      const url = new URL(originalUrl);
+      const pathParts = url.pathname.split('/');
+      const envDbName = pathParts[pathParts.length - 1];
+      
+      // Try connecting directly to the database
+      try {
+        const testPool = new Pool({ connectionString: envUrl });
+        await testPool.query('SELECT 1');
+        console.log(`Successfully connected to production database ${envDbName}`);
+        await testPool.end();
+        return true;
+      } catch (error) {
+        console.error('Error connecting to production database:', error);
+        throw error;
+      }
+    }
+    
+    // For development and testing, create environment-specific databases
     // Parse the original URL
     const url = new URL(originalUrl);
     const pathParts = url.pathname.split('/');
     const baseDbName = pathParts[pathParts.length - 1];
     
     // Create environment-specific database name
-    const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+    const envSuffix = isDev ? '_dev' : '_test';
     const envDbName = `${baseDbName}${envSuffix}`;
     
     // Create the environment-specific URL

@@ -18,19 +18,24 @@ export function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || '';
   if (!baseUrl) return '';
   
+  // For production deployment, use the original database URL without modification
+  if (isProd) {
+    return baseUrl;
+  }
+  
   // If already has a specific environment suffix, return as is
   if (baseUrl.includes('_dev') || baseUrl.includes('_prod') || baseUrl.includes('_test')) {
     return baseUrl;
   }
   
-  // Add environment suffix to database name
+  // Add environment suffix to database name for development and testing
   try {
     const url = new URL(baseUrl);
     const pathParts = url.pathname.split('/');
     const dbName = pathParts[pathParts.length - 1];
     
     // Create a new database name with environment suffix
-    const envSuffix = isProd ? '_prod' : isDev ? '_dev' : '_test';
+    const envSuffix = isDev ? '_dev' : '_test';
     const newDbName = `${dbName}${envSuffix}`;
     
     // Replace database name in the URL
