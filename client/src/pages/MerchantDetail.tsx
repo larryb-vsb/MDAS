@@ -287,24 +287,18 @@ export default function MerchantDetail() {
   
   // Get transactions filtered by the selected date range
   const getFilteredTransactions = useCallback(() => {
-    console.log('getFilteredTransactions called, activeTab:', activeTab);
-    
     if (!data?.transactions) {
-      console.log('No transactions data');
       return [];
     }
     
     if (!data?.analytics.transactionHistory || data.analytics.transactionHistory.length === 0) {
-      console.log('No transaction history, returning all transactions');
       return data.transactions;
     }
     
     // Get the filtered months from the transaction history
     const filteredHistory = getFilteredTransactionHistory();
-    console.log('Filtered history:', filteredHistory);
     
     if (filteredHistory.length === 0) {
-      console.log('Empty filtered history, returning all transactions');
       return data.transactions;
     }
     
@@ -335,16 +329,11 @@ export default function MerchantDetail() {
       const transactionMonth = transactionDate.getMonth();
       const transactionYear = transactionDate.getFullYear();
       
-      console.log(`Transaction: ${transaction.transactionId}, date: ${transaction.date}, month: ${transactionMonth}, year: ${transactionYear}`);
-      
       // Check if this transaction's month and year are in our filtered set
       return filteredMonths.some(({ monthName, year }) => {
         // Get the month number from the abbreviated month name
         const monthAbbr = extractMonthAbbr(monthName);
         const monthNumber = monthNameToNumber[monthAbbr];
-        
-        console.log(`Comparing with filtered month: ${monthName} (${monthAbbr}), month number: ${monthNumber}, year: ${year}`);
-        console.log(`Match? ${monthNumber === transactionMonth && (year === undefined || year === transactionYear)}`);
         
         // Only check if month matches since we're showing the same month across different years
         // The year might be different between analytics and transactions
@@ -849,8 +838,6 @@ export default function MerchantDetail() {
                     <TableBody>
                       {(() => {
                         const filteredTransactions = getFilteredTransactions();
-                        console.log('Filtered transactions:', filteredTransactions);
-                        console.log('All transactions:', data?.transactions);
                         
                         if (data?.transactions && data.transactions.length > 0) {
                           if (filteredTransactions.length > 0) {
