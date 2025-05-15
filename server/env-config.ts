@@ -10,8 +10,8 @@ export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
 
 // Base paths for file storage
-const BASE_UPLOAD_PATH = isProd ? '/data/uploads' : './tmp_uploads';
-const BASE_BACKUP_PATH = isProd ? '/data/backups' : './backups';
+const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
+const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
 
 // Generate environment-specific database URL
 export function getDatabaseUrl(): string {
