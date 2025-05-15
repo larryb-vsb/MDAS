@@ -228,13 +228,37 @@ function AddTransactionForm({
 }
 
 export default function MerchantDetail() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Get tab from URL if present
+  const getTabFromUrl = useCallback(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1]);
+    const tab = searchParams.get('tab');
+    return tab === 'overview' || tab === 'demographics' || tab === 'transactions' ? tab : 'overview';
+  }, [location]);
+  
+  const [activeTab, setActiveTab] = useState(getTabFromUrl());
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
+  
+  // Update tab if URL changes (this needs to run first)
+  useEffect(() => {
+    const tabFromUrl = getTabFromUrl();
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [getTabFromUrl, activeTab]);
+  
+  // Update URL when tab changes (this runs after the tab is set)
+  useEffect(() => {
+    // Only update URL if the current tab doesn't match what's in the URL
+    if (getTabFromUrl() !== activeTab) {
+      setLocation(`/merchants/${id}?tab=${activeTab}`, { replace: true });
+    }
+  }, [activeTab, id, getTabFromUrl, setLocation]);
   
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
