@@ -1045,21 +1045,40 @@ export class DatabaseStorage implements IStorage {
     monthly: { transactions: number; revenue: number };
   }> {
     try {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      
-      // Get all transactions for this merchant for totals
+      // Get all transactions for this merchant
       const allTransactions = await db.select()
         .from(transactionsTable)
         .where(eq(transactionsTable.merchantId, merchantId));
         
       console.log(`Got ${allTransactions.length} transactions for merchant ${merchantId}`);
       
-      // Get daily transactions (from today)
-      const dailyTransactions = allTransactions.filter(tx => 
-        new Date(tx.date) >= today
-      );
+      // If no transactions, return zeros
+      if (allTransactions.length === 0) {
+        return {
+          daily: { transactions: 0, revenue: 0 },
+          monthly: { transactions: 0, revenue: 0 }
+        };
+      }
+      
+      // Find the latest transaction date to use as reference
+      let maxDate = new Date(0);
+      for (const tx of allTransactions) {
+        const txDate = new Date(tx.date);
+        if (txDate > maxDate) maxDate = txDate;
+      }
+      
+      // Set reference points based on the latest transaction date
+      const today = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+      const oneMonthAgo = new Date(today);
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      
+      // Get daily transactions (transactions on the latest day)
+      const dailyTransactions = allTransactions.filter(tx => {
+        const txDate = new Date(tx.date);
+        return txDate.getFullYear() === today.getFullYear() && 
+               txDate.getMonth() === today.getMonth() && 
+               txDate.getDate() === today.getDate();
+      });
         
       // Calculate daily revenue
       const dailyRevenue = dailyTransactions.reduce((sum, tx) => {
@@ -1075,10 +1094,11 @@ export class DatabaseStorage implements IStorage {
         return sum + (tx.type === "Sale" ? amount : -amount);
       }, 0);
       
-      // Get monthly transactions (from last 30 days)
-      const monthlyTransactions = allTransactions.filter(tx => 
-        new Date(tx.date) >= oneMonthAgo
-      );
+      // Get monthly transactions (from last 30 days of the latest date)
+      const monthlyTransactions = allTransactions.filter(tx => {
+        const txDate = new Date(tx.date);
+        return txDate >= oneMonthAgo && txDate <= today;
+      });
         
       // Calculate monthly revenue
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
@@ -1096,8 +1116,7 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`Found ${monthlyTransactions.length} monthly transactions and ${dailyTransactions.length} daily transactions`);
         
-      // If no recent transactions but there are all-time transactions, show all-time totals
-      // This ensures merchants with transactions will show some data
+      // If no transactions in the 30-day window, use all transactions with a fair distribution
       if (monthlyTransactions.length === 0 && allTransactions.length > 0) {
         // Calculate all-time revenue
         const allTimeRevenue = allTransactions.reduce((sum, tx) => {
@@ -1113,10 +1132,14 @@ export class DatabaseStorage implements IStorage {
           return sum + (tx.type === "Sale" ? amount : -amount);
         }, 0);
         
+        // Calculate average daily transactions and revenue
+        const avgDailyTransactions = Math.max(1, Math.floor(allTransactions.length / 30));
+        const avgDailyRevenue = Number((allTimeRevenue / 30).toFixed(2));
+        
         return {
           daily: {
-            transactions: 0,
-            revenue: 0
+            transactions: avgDailyTransactions,
+            revenue: avgDailyRevenue
           },
           monthly: {
             transactions: allTransactions.length,
