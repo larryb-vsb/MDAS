@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -7,8 +7,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Info, AlertTriangle } from "lucide-react";
+import { Check, Info, AlertTriangle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 type VersionData = {
   versions: Array<{
@@ -33,8 +36,30 @@ type VersionData = {
 };
 
 export default function SchemaVersionInfo() {
-  const { data, isLoading, error } = useQuery<VersionData>({
+  const { toast } = useToast();
+  const { data, isLoading, error, refetch } = useQuery<VersionData>({
     queryKey: ['/api/schema/versions'],
+  });
+  
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/schema/update', {});
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Schema Updated",
+        description: "Database schema version has been updated to the latest version.",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update schema version",
+        variant: "destructive",
+      });
+    }
   });
 
   if (isLoading) {
@@ -115,10 +140,31 @@ export default function SchemaVersionInfo() {
               <p className="text-sm font-medium">Expected Version</p>
               <p className="text-xl font-bold">{data?.expectedVersion}</p>
               {!versionMatch && data?.currentVersion && (
-                <Badge variant="outline" className="text-amber-500 border-amber-300">
-                  <Info className="mr-1 h-3 w-3" />
-                  Update needed
-                </Badge>
+                <div className="flex flex-col gap-1">
+                  <Badge variant="outline" className="text-amber-500 border-amber-300">
+                    <Info className="mr-1 h-3 w-3" />
+                    Update needed
+                  </Badge>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-1"
+                    onClick={() => updateMutation.mutate()}
+                    disabled={updateMutation.isPending}
+                  >
+                    {updateMutation.isPending ? (
+                      <>
+                        <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-1 h-3 w-3" />
+                        Update to {data.expectedVersion}
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           </div>

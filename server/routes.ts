@@ -57,7 +57,7 @@ import {
   backupSchedules as backupSchedulesTable,
   users as usersTable
 } from "@shared/schema";
-import { SchemaVersionManager, CURRENT_SCHEMA_VERSION } from "./schema_version";
+import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } from "./schema_version";
 
 const execPromise = promisify(exec);
 
@@ -405,6 +405,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error getting schema versions:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to retrieve schema versions" 
+      });
+    }
+  });
+  
+  // Update schema version to the latest version
+  app.post("/api/schema/update", isAuthenticated, async (req, res) => {
+    try {
+      const latestVersionInfo = SCHEMA_VERSION_HISTORY.find((v: any) => v.version === CURRENT_SCHEMA_VERSION);
+      
+      if (!latestVersionInfo) {
+        return res.status(404).json({ error: "Latest version information not found" });
+      }
+      
+      const newVersion = await SchemaVersionManager.addVersion({
+        version: latestVersionInfo.version,
+        description: latestVersionInfo.description,
+        changes: latestVersionInfo.changes,
+        appliedBy: req.user ? req.user.username : 'system',
+      });
+      
+      res.json({
+        success: true,
+        version: newVersion
+      });
+    } catch (error) {
+      console.error("Error updating schema version:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update schema version" 
       });
     }
   });
