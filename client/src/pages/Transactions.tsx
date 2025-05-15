@@ -44,8 +44,19 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import MainLayout from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Types
 interface Transaction {
@@ -328,12 +339,43 @@ export default function Transactions() {
 
   return (
     <MainLayout>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {selectedTransactions.length} selected transaction(s).
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteTransactions}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Transactions</h1>
-          <Button onClick={handleExport} className="bg-gradient-to-r from-blue-500 to-blue-700">
-            Export CSV
-          </Button>
+          <div className="flex space-x-2">
+            <Button 
+              variant="destructive"
+              disabled={selectedTransactions.length === 0}
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              Delete Selected
+            </Button>
+            <Button onClick={handleExport} className="bg-gradient-to-r from-blue-500 to-blue-700">
+              Export CSV
+            </Button>
+          </div>
         </div>
         
         {/* Filters */}
@@ -527,6 +569,22 @@ export default function Transactions() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={
+                            data?.transactions && data.transactions.length > 0 && 
+                            selectedTransactions.length === data.transactions.length
+                          }
+                          onCheckedChange={(checked) => {
+                            if (checked && data?.transactions) {
+                              setSelectedTransactions(data.transactions.map(t => t.id));
+                            } else {
+                              setSelectedTransactions([]);
+                            }
+                          }}
+                          aria-label="Select all transactions"
+                        />
+                      </TableHead>
                       <TableHead>Transaction ID</TableHead>
                       <TableHead>Merchant</TableHead>
                       <TableHead>Type</TableHead>
@@ -537,6 +595,21 @@ export default function Transactions() {
                   <TableBody>
                     {data?.transactions.map((transaction) => (
                       <TableRow key={transaction.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedTransactions.includes(transaction.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedTransactions([...selectedTransactions, transaction.id]);
+                              } else {
+                                setSelectedTransactions(
+                                  selectedTransactions.filter(id => id !== transaction.id)
+                                );
+                              }
+                            }}
+                            aria-label={`Select transaction ${transaction.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           {transaction.id}
                         </TableCell>
