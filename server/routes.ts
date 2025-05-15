@@ -887,7 +887,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
         value: Number(cat.count)
       }));
       
-      // Group transactions by month
+      // Special case for year view to ensure we always show 12 months
+      if (timeframe === 'year') {
+        // Find the latest transaction date to use as reference
+        let maxDate = new Date();
+        if (allTransactions.length > 0) {
+          // Find the latest transaction date
+          for (const item of allTransactions) {
+            const txDate = new Date(item.transaction.date);
+            if (txDate > maxDate) maxDate = txDate;
+          }
+        }
+        
+        // Create data for all 12 months
+        const monthlyData = [];
+        for (let i = 0; i < 12; i++) {
+          const month = new Date(maxDate.getFullYear(), maxDate.getMonth() - i, 1);
+          const monthName = month.toLocaleString('default', { month: 'short' });
+          const year = month.getFullYear();
+          
+          // Store year for sorting later
+          monthlyData.push({
+            name: monthName,
+            year: year,
+            transactions: 0,
+            revenue: 0
+          });
+        }
+        
+        // Process all transactions and assign to the correct month
+        for (const item of allTransactions) {
+          const { transaction } = item;
+          const txDate = new Date(transaction.date);
+          
+          // Find the matching month in our prepared data
+          for (const monthData of monthlyData) {
+            // Get the month index
+            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(monthData.name);
+            
+            // Check if this transaction belongs to this month/year
+            if (txDate.getMonth() === monthIndex && txDate.getFullYear() === monthData.year) {
+              // Update the transactions count
+              monthData.transactions++;
+              
+              // Calculate revenue based on transaction type
+              const amount = parseFloat(transaction.amount.toString());
+              if (transaction.type === "Credit") {
+                monthData.revenue += amount;
+              } else if (transaction.type === "Debit") {
+                monthData.revenue -= amount;
+              } else if (transaction.type === "Sale") {
+                monthData.revenue += amount;
+              } else if (transaction.type === "Refund") {
+                monthData.revenue -= amount;
+              }
+              
+              break; // Found the right month, move to next transaction
+            }
+          }
+        }
+        
+        // Sort by year and month for proper chronological order
+        monthlyData.sort((a, b) => {
+          const monthA = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(a.name);
+          const monthB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(b.name);
+          
+          if (a.year !== b.year) {
+            return a.year - b.year;
+          }
+          return monthA - monthB;
+        });
+        
+        // Return the data
+        res.json({
+          transactionData: monthlyData,
+          merchantCategoryData: categoryData,
+          summary: {
+            totalTransactions: dashboardStats.dailyTransactions,
+            totalRevenue: dashboardStats.monthlyRevenue,
+            totalMerchants: dashboardStats.totalMerchants,
+            avgTransactionValue: 
+              dashboardStats.dailyTransactions > 0 
+                ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
+                : 0,
+            growthRate: 12.7 // This would need historical data to calculate properly
+          }
+        });
+        return;
+      }
+      
+      // For other timeframes, keep the original logic
       const groupedTransactions = new Map();
       
       // Define time range based on timeframe
@@ -908,9 +997,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case 'quarter':
           startDate.setMonth(now.getMonth() - 3);
           break;
-        case 'year':
-        default:
-          startDate.setFullYear(now.getFullYear() - 1);
       }
       
       // Process transactions
@@ -933,7 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // For month view, use day of month
           dateKey = txDate.getDate().toString();
         } else {
-          // For quarter or year view, use month name
+          // For quarter view, use month name
           dateKey = txDate.toLocaleDateString('en-US', { month: 'short' });
         }
         
