@@ -1043,9 +1043,12 @@ export class DatabaseStorage implements IStorage {
         // Calculate all-time revenue
         const allTimeRevenue = allTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
-          // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
-          if (tx.type === "Credit" || tx.type === "Debit") {
+          // Credit means money into the account (positive)
+          // Debit means money out of the account (negative)
+          if (tx.type === "Credit") {
             return sum + amount;
+          } else if (tx.type === "Debit") {
+            return sum - amount;
           }
           // For other types like "Sale", continue using previous logic
           return sum + (tx.type === "Sale" ? amount : -amount);
