@@ -769,7 +769,16 @@ export default function MerchantDetail() {
               <div>
                 <CardTitle>Transaction History</CardTitle>
                 <CardDescription>
-                  View and manage transactions for this merchant.
+                  {(() => {
+                    const filteredHistory = getFilteredTransactionHistory();
+                    if (filteredHistory.length > 0) {
+                      const firstMonth = filteredHistory[0].name;
+                      const lastMonth = filteredHistory[filteredHistory.length - 1].name;
+                      
+                      return `Showing transactions from ${firstMonth} to ${lastMonth}`;
+                    }
+                    return "View and manage transactions for this merchant.";
+                  })()}
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
@@ -822,49 +831,70 @@ export default function MerchantDetail() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data?.transactions && data.transactions.length > 0 ? (
-                        getFilteredTransactions().map(transaction => (
-                          <TableRow key={transaction.transactionId}>
-                            <TableCell>
-                              <Checkbox 
-                                checked={selectedTransactions.includes(transaction.transactionId)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedTransactions([...selectedTransactions, transaction.transactionId]);
-                                  } else {
-                                    setSelectedTransactions(selectedTransactions.filter(id => id !== transaction.transactionId));
-                                  }
-                                }}
-                                aria-label={`Select transaction ${transaction.transactionId}`}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{transaction.transactionId}</TableCell>
-                            <TableCell>{formatDate(transaction.date)}</TableCell>
-                            <TableCell>
-                              <span 
-                                className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${
-                                  transaction.type === 'Credit' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}
-                              >
-                                {transaction.type}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <span className={transaction.type === 'Credit' ? 'text-green-600' : 'text-red-600'}>
-                                {transaction.type === 'Credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-6 text-gray-500">
-                            No transactions found for this merchant.
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      {(() => {
+                        const filteredTransactions = getFilteredTransactions();
+                        
+                        if (data?.transactions && data.transactions.length > 0) {
+                          if (filteredTransactions.length > 0) {
+                            return filteredTransactions.map(transaction => (
+                              <TableRow key={transaction.transactionId}>
+                                <TableCell>
+                                  <Checkbox 
+                                    checked={selectedTransactions.includes(transaction.transactionId)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedTransactions([...selectedTransactions, transaction.transactionId]);
+                                      } else {
+                                        setSelectedTransactions(selectedTransactions.filter(id => id !== transaction.transactionId));
+                                      }
+                                    }}
+                                    aria-label={`Select transaction ${transaction.transactionId}`}
+                                  />
+                                </TableCell>
+                                <TableCell className="font-medium">{transaction.transactionId}</TableCell>
+                                <TableCell>{formatDate(transaction.date)}</TableCell>
+                                <TableCell>
+                                  <span 
+                                    className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${
+                                      transaction.type === 'Credit' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}
+                                  >
+                                    {transaction.type}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className={transaction.type === 'Credit' ? 'text-green-600' : 'text-red-600'}>
+                                    {transaction.type === 'Credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ));
+                          } else {
+                            return (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                                  No transactions found for the selected time period.
+                                  <div className="mt-2">
+                                    <span className="text-sm text-muted-foreground">
+                                      Try adjusting the date selection using the navigation controls above.
+                                    </span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+                        } else {
+                          return (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                                No transactions found for this merchant.
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
