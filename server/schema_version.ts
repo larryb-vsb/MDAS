@@ -1,6 +1,6 @@
 import { db } from './db';
 import { schemaVersions, type InsertSchemaVersion } from '@shared/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 /**
  * Schema version utility functions for tracking database schema versions
@@ -41,7 +41,26 @@ export class SchemaVersionManager {
    */
   static async addVersion(version: InsertSchemaVersion) {
     try {
-      const [newVersion] = await db.insert(schemaVersions).values(version).returning();
+      // We need to use raw SQL to get the max ID value
+      const maxIdResult = await db.execute(
+        sql`SELECT COALESCE(MAX(id), 0) as max_id FROM schema_versions`
+      );
+      
+      // Extract the max ID safely
+      let nextId = 1; // Default to 1 if no results or can't determine
+      if (maxIdResult.rows && maxIdResult.rows.length > 0) {
+        const maxId = Number(maxIdResult.rows[0].max_id);
+        nextId = maxId + 1;
+      }
+      
+      // Add the new version with the explicit ID
+      const [newVersion] = await db.insert(schemaVersions).values({
+        ...version,
+        id: nextId,
+        // Ensure all required fields have values
+        appliedAt: new Date(),
+      }).returning();
+      
       return newVersion;
     } catch (error) {
       console.error('Error adding schema version:', error);
