@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -44,98 +45,30 @@ interface TimeSeriesBreakdownProps {
 type TimePeriod = "day" | "week" | "month" | "year";
 
 export default function TimeSeriesBreakdown({
-  data,
-  isLoading,
+  data: initialData,
+  isLoading: initialLoading,
   title = "Transaction Time Series",
   description = "Transaction count and amounts by time period",
 }: TimeSeriesBreakdownProps) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   const [viewType, setViewType] = useState<"count" | "amount">("count");
   
-  // Function to transform data based on selected time period
-  // In a real implementation, we would fetch data from API based on time period
-  const getTimeFilteredData = () => {
-    if (!data || data.length === 0) return [];
-    
-    switch(timePeriod) {
-      case "day":
-        // For day view, we would typically show hourly breakdown
-        // Simulating hourly data based on total
-        const hourlyData = [];
-        const totalTransactions = data.reduce((sum, item) => sum + item.transactions, 0);
-        const totalRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
-        
-        for (let i = 0; i < 24; i++) {
-          // Create a distribution curve that peaks in the middle of the day
-          const factor = 1 - Math.abs((i - 12) / 12) * 0.7;
-          const hourlyTransactions = Math.round((totalTransactions / 30) * factor);
-          const hourlyRevenue = Math.round((totalRevenue / 30) * factor);
-          
-          hourlyData.push({
-            name: `${i}:00`,
-            transactions: hourlyTransactions,
-            revenue: hourlyRevenue
-          });
-        }
-        return hourlyData;
-        
-      case "week":
-        // For week view, we'd show daily breakdown
-        // Simulating daily data
-        const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        const dailyData = [];
-        const weeklyTotal = data.reduce((sum, item) => sum + item.transactions, 0) / 4; // Assume monthly data, divide by 4 weeks
-        const weeklyRevenue = data.reduce((sum, item) => sum + item.revenue, 0) / 4;
-        
-        for (let i = 0; i < 7; i++) {
-          // Create a business week pattern (lower on weekends)
-          const factor = i >= 5 ? 0.6 : 1.1; // Lower on weekends
-          const dailyTransactions = Math.round((weeklyTotal / 7) * factor);
-          const dailyRevenue = Math.round((weeklyRevenue / 7) * factor);
-          
-          dailyData.push({
-            name: weekdays[i],
-            transactions: dailyTransactions,
-            revenue: dailyRevenue
-          });
-        }
-        return dailyData;
-        
-      case "month":
-        // Monthly view is directly from our data
-        return data;
-        
-      case "year":
-        // Yearly view would aggregate monthly data by quarter
-        // Assuming monthly data is already in correct order
-        const quarterlyData = [];
-        const quarters = ["Q1", "Q2", "Q3", "Q4"];
-        
-        // If we have 12 months of data, create quarterly
-        if (data.length >= 12) {
-          for (let i = 0; i < 4; i++) {
-            const quarterTx = data.slice(i*3, (i+1)*3).reduce((sum, item) => sum + item.transactions, 0);
-            const quarterRev = data.slice(i*3, (i+1)*3).reduce((sum, item) => sum + item.revenue, 0);
-            
-            quarterlyData.push({
-              name: quarters[i],
-              transactions: quarterTx,
-              revenue: quarterRev
-            });
-          }
-          return quarterlyData;
-        }
-        
-        // If we don't have enough data, just return what we have
-        return data;
-    }
-  };
+  // Fetch data from API based on selected time period
+  const { data: timeframeData, isLoading: timeframeLoading } = useQuery<{ transactionData: TransactionData[] }>({
+    queryKey: ["/api/analytics", timePeriod],
+    queryFn: () => fetch(`/api/analytics?timeframe=${timePeriod}`).then(res => res.json()),
+    enabled: !!timePeriod
+  });
   
-  const timeSeriesData = getTimeFilteredData();
+  // Combine loading states
+  const isLoading = initialLoading || timeframeLoading;
+  
+  // Get the data to display based on the API response or initial data
+  const timeSeriesData = timeframeData?.transactionData || initialData || [];
   
   // Calculate totals for the selected view
-  const totalCount = timeSeriesData.reduce((sum, item) => sum + item.transactions, 0);
-  const totalAmount = timeSeriesData.reduce((sum, item) => sum + item.revenue, 0);
+  const totalCount = timeSeriesData.reduce((sum: number, item: TransactionData) => sum + item.transactions, 0);
+  const totalAmount = timeSeriesData.reduce((sum: number, item: TransactionData) => sum + item.revenue, 0);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
