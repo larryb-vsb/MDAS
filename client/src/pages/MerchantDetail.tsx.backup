@@ -554,30 +554,16 @@ export default function MerchantDetail() {
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Overview</CardTitle>
-                  <CardDescription>
-                    Summary of transaction activity
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </div>
-          </TabsContent>
-
           {/* Demographics Tab */}
           <TabsContent value="demographics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Merchant Demographics</CardTitle>
-                <CardDescription>
-                  View and update merchant demographic information.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Merchant Demographics</CardTitle>
+              <CardDescription>
+                View and update merchant demographic information.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {isLoading ? (
                 <div className="space-y-4">
                   <Skeleton className="w-full h-10" />
