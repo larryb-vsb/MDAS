@@ -1427,6 +1427,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Global transaction deletion endpoint (for orphaned transactions)
+  app.post("/api/transactions/delete", async (req, res) => {
+    try {
+      const schema = z.object({
+        transactionIds: z.array(z.string())
+      });
+      
+      const { transactionIds } = schema.parse(req.body);
+      
+      if (transactionIds.length === 0) {
+        return res.status(400).json({ error: "No transaction IDs provided" });
+      }
+      
+      await storage.deleteTransactions(transactionIds);
+      
+      res.json({ 
+        success: true, 
+        message: `${transactionIds.length} transaction(s) deleted successfully` 
+      });
+    } catch (error) {
+      console.error('Error deleting transactions:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete transactions" 
+      });
+    }
+  });
+  
   // Get transactions with pagination and filtering
   app.get("/api/transactions", async (req, res) => {
     try {

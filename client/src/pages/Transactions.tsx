@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -180,6 +180,10 @@ export default function Transactions() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [transactionType, setTransactionType] = useState<string | undefined>(undefined);
   
+  // Selected transactions for deletion
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
   // Fetch transactions with filters
   const { data, isLoading, error, refetch } = useQuery<TransactionsResponse>({
     queryKey: ['/api/transactions', page, limit, merchantId, startDate, endDate, transactionType],
@@ -218,6 +222,43 @@ export default function Transactions() {
     }
   });
   
+  // Delete transactions mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (transactionIds: string[]) => {
+      const response = await fetch('/api/transactions/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transactionIds }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete transactions');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Transactions Deleted",
+        description: `${selectedTransactions.length} transaction(s) deleted successfully`,
+        variant: "default",
+      });
+      setSelectedTransactions([]);
+      setShowDeleteDialog(false);
+      refetch(); // Refetch the transactions list
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
   const handleExport = () => {
     // Construct export URL with current filters
     const params = new URLSearchParams();
@@ -229,6 +270,19 @@ export default function Transactions() {
     
     // Open the URL in a new tab or trigger download
     window.open(`/api/transactions/export?${params.toString()}`, '_blank');
+  };
+  
+  // Handle deletion
+  const handleDeleteTransactions = () => {
+    if (selectedTransactions.length === 0) {
+      toast({
+        title: "No Transactions Selected",
+        description: "Please select at least one transaction to delete",
+        variant: "destructive",
+      });
+      return;
+    }
+    deleteMutation.mutate(selectedTransactions);
   };
   
   const handleFilterChange = (customMerchantId?: string) => {
