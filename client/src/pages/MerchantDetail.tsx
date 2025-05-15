@@ -788,11 +788,11 @@ export default function MerchantDetail() {
 
           {/* Transactions Tab */}
           <TabsContent value="transactions">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Transaction History</CardTitle>
-                <CardDescription>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Transaction History</CardTitle>
+                  <CardDescription>
                   {(() => {
                     const filteredHistory = getFilteredTransactionHistory();
                     if (filteredHistory.length > 0) {
