@@ -228,37 +228,13 @@ function AddTransactionForm({
 }
 
 export default function MerchantDetail() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  
-  // Get tab from URL if present
-  const getTabFromUrl = useCallback(() => {
-    const searchParams = new URLSearchParams(location.split('?')[1]);
-    const tab = searchParams.get('tab');
-    return tab === 'overview' || tab === 'demographics' || tab === 'transactions' ? tab : 'overview';
-  }, [location]);
-  
-  const [activeTab, setActiveTab] = useState(getTabFromUrl());
+  const [activeTab, setActiveTab] = useState('overview');
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
-  
-  // Update tab if URL changes (this needs to run first)
-  useEffect(() => {
-    const tabFromUrl = getTabFromUrl();
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [getTabFromUrl, activeTab]);
-  
-  // Update URL when tab changes (this runs after the tab is set)
-  useEffect(() => {
-    // Only update URL if the current tab doesn't match what's in the URL
-    if (getTabFromUrl() !== activeTab) {
-      setLocation(`/merchants/${id}?tab=${activeTab}`, { replace: true });
-    }
-  }, [activeTab, id, getTabFromUrl, setLocation]);
   
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
@@ -554,30 +530,16 @@ export default function MerchantDetail() {
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Overview</CardTitle>
-                  <CardDescription>
-                    Summary of transaction activity
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Demographics Tab */}
-          <TabsContent value="demographics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Merchant Demographics</CardTitle>
-                <CardDescription>
-                  View and update merchant demographic information.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+        {/* Demographics Tab */}
+        <TabsContent value="demographics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Merchant Demographics</CardTitle>
+              <CardDescription>
+                View and update merchant demographic information.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {isLoading ? (
                 <div className="space-y-4">
                   <Skeleton className="w-full h-10" />
@@ -800,13 +762,13 @@ export default function MerchantDetail() {
           </Card>
         </TabsContent>
 
-          {/* Transactions Tab */}
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Transaction History</CardTitle>
-                  <CardDescription>
+        {/* Transactions Tab */}
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>
                   {(() => {
                     const filteredHistory = getFilteredTransactionHistory();
                     if (filteredHistory.length > 0) {
@@ -979,9 +941,9 @@ export default function MerchantDetail() {
           </AlertDialog>
         </TabsContent>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview">
-            <div className="grid gap-6 md:grid-cols-2">
+        {/* Overview Tab */}
+        <TabsContent value="overview">
+          <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Performance Overview</CardTitle>

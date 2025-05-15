@@ -325,13 +325,13 @@ export default function MerchantList({
                                   variant="ghost" 
                                   size="icon" 
                                   className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
-                                  onClick={() => setLocation(`/merchants/${merchant.id}?tab=overview`)}
+                                  onClick={() => setLocation(`/merchants/${merchant.id}`)}
                                 >
                                   <Eye className="w-5 h-5" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>View Overview</p>
+                                <p>View Details</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -343,13 +343,13 @@ export default function MerchantList({
                                   variant="ghost" 
                                   size="icon" 
                                   className="text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                  onClick={() => setLocation(`/merchants/${merchant.id}?tab=demographics`)}
+                                  onClick={() => setLocation(`/merchants/${merchant.id}?tab=details`)}
                                 >
                                   <Edit className="w-5 h-5" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Edit Demographics</p>
+                                <p>Edit Merchant</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
