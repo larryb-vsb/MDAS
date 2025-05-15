@@ -554,8 +554,8 @@ export default function MerchantDetail() {
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
-        {/* Demographics Tab */}
-        <TabsContent value="demographics">
+          {/* Demographics Tab */}
+          <TabsContent value="demographics">
           <Card>
             <CardHeader>
               <CardTitle>Merchant Demographics</CardTitle>
@@ -786,8 +786,8 @@ export default function MerchantDetail() {
           </Card>
         </TabsContent>
 
-        {/* Transactions Tab */}
-        <TabsContent value="transactions">
+          {/* Transactions Tab */}
+          <TabsContent value="transactions">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
