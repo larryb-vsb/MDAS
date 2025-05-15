@@ -965,8 +965,8 @@ export default function MerchantDetail() {
           </AlertDialog>
         </TabsContent>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview">
+          {/* Overview Tab */}
+          <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
