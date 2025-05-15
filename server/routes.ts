@@ -867,6 +867,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let startDate = new Date();
       
       switch(timeframe) {
+        case 'day':
+          // For day view, start 24 hours ago
+          startDate.setHours(now.getHours() - 24);
+          break;
         case 'week':
           startDate.setDate(now.getDate() - 7);
           break;
@@ -891,11 +895,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Format date key based on timeframe
         let dateKey;
-        if (timeframe === 'week') {
-          // For week, use day name
+        if (timeframe === 'day') {
+          // For day view, use hour format
+          dateKey = txDate.getHours().toString() + ':00';
+        } else if (timeframe === 'week') {
+          // For week view, use day name
           dateKey = txDate.toLocaleDateString('en-US', { weekday: 'short' });
+        } else if (timeframe === 'month') {
+          // For month view, use day of month
+          dateKey = txDate.getDate().toString();
         } else {
-          // For month, quarter, year use month name
+          // For quarter or year view, use month name
           dateKey = txDate.toLocaleDateString('en-US', { month: 'short' });
         }
         

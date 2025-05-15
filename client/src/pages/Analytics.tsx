@@ -15,6 +15,7 @@ import TransactionTypeChart from "@/components/analytics/TransactionTypeChart";
 import TransactionValueChart from "@/components/analytics/TransactionValueChart";
 import MerchantGrowthChart from "@/components/analytics/MerchantGrowthChart";
 import MerchantActivityChart from "@/components/analytics/MerchantActivityChart";
+import TimeSeriesBreakdown from "@/components/analytics/TimeSeriesBreakdown";
 
 interface AnalyticsData {
   transactionData: Array<{
@@ -147,13 +148,11 @@ export default function Analytics() {
               </TabsContent>
               
               <TabsContent value="transactions" className="mt-6">
-                <AnalyticsTransactionChart 
+                <TimeSeriesBreakdown 
                   data={analyticsData.transactionData}
                   isLoading={isLoading}
-                  title="Transaction Analysis"
-                  description="Detailed view of transaction volume trends"
-                  dataKey="transactions"
-                  color="#8884d8"
+                  title="Transaction Breakdown by Time"
+                  description="Analysis of transaction counts and amounts by time period (using transaction dates)"
                 />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
