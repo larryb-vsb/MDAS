@@ -284,6 +284,58 @@ export default function MerchantDetail() {
     // Return the window of data
     return history.slice(totalMonths - end, totalMonths - start).reverse();
   }, [data?.analytics.transactionHistory, dateRange]);
+  
+  // Get transactions filtered by the selected date range
+  const getFilteredTransactions = useCallback(() => {
+    if (!data?.transactions) return [];
+    
+    if (!data?.analytics.transactionHistory || data.analytics.transactionHistory.length === 0) {
+      return data.transactions;
+    }
+    
+    // Get the filtered months from the transaction history
+    const filteredHistory = getFilteredTransactionHistory();
+    if (filteredHistory.length === 0) return data.transactions;
+    
+    // Extract month names from the history data
+    const filteredMonths = filteredHistory.map(monthData => {
+      const monthName = monthData.name;
+      // Year might be included in the name (e.g. "Jan 2024")
+      const yearMatch = monthData.name.match(/\d{4}$/);
+      const year = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear();
+      return { monthName, year };
+    });
+    
+    // Create a mapping of month names to month numbers
+    const monthNameToNumber: Record<string, number> = {
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    
+    // Function to extract month abbreviation from a string that might include a year
+    const extractMonthAbbr = (monthStr: string): string => {
+      // Extract first 3 characters which should be the month abbreviation
+      return monthStr.substring(0, 3);
+    };
+    
+    // Filter transactions based on the selected months
+    return data.transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const transactionMonth = transactionDate.getMonth();
+      const transactionYear = transactionDate.getFullYear();
+      
+      // Check if this transaction's month and year are in our filtered set
+      return filteredMonths.some(({ monthName, year }) => {
+        // Get the month number from the abbreviated month name
+        const monthAbbr = extractMonthAbbr(monthName);
+        const monthNumber = monthNameToNumber[monthAbbr];
+        
+        // Check if month and year match
+        return monthNumber === transactionMonth && 
+               (year === undefined || year === transactionYear);
+      });
+    });
+  }, [data?.transactions, data?.analytics.transactionHistory, getFilteredTransactionHistory]);
 
   // Create form with validation
   const form = useForm<MerchantFormValues>({
@@ -771,7 +823,7 @@ export default function MerchantDetail() {
                     </TableHeader>
                     <TableBody>
                       {data?.transactions && data.transactions.length > 0 ? (
-                        data.transactions.map(transaction => (
+                        getFilteredTransactions().map(transaction => (
                           <TableRow key={transaction.transactionId}>
                             <TableCell>
                               <Checkbox 
