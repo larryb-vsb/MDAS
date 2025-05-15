@@ -861,7 +861,7 @@ export default function MerchantDetail() {
               <CardHeader>
                 <CardTitle>Transaction Trend</CardTitle>
                 <CardDescription>
-                  Monthly transaction volume for the last 6 months.
+                  Monthly transaction volume for the last 12 months.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -878,11 +878,18 @@ export default function MerchantDetail() {
                           top: 5,
                           right: 30,
                           left: 20,
-                          bottom: 5,
+                          bottom: 25,
                         }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
+                        <XAxis 
+                          dataKey="name" 
+                          height={50}
+                          angle={-45}
+                          textAnchor="end"
+                          interval={0}
+                          tick={{ fontSize: 12 }}
+                        />
                         <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
                         <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
                         <Tooltip formatter={(value, name) => {
@@ -903,7 +910,7 @@ export default function MerchantDetail() {
               <CardHeader>
                 <CardTitle>Revenue Trend</CardTitle>
                 <CardDescription>
-                  Monthly revenue performance.
+                  Monthly revenue performance over 12 months.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -920,11 +927,18 @@ export default function MerchantDetail() {
                           top: 10,
                           right: 30,
                           left: 0,
-                          bottom: 0,
+                          bottom: 25,
                         }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
+                        <XAxis 
+                          dataKey="name" 
+                          height={50}
+                          angle={-45}
+                          textAnchor="end"
+                          interval={0}
+                          tick={{ fontSize: 12 }}
+                        />
                         <YAxis 
                           tickFormatter={(value) => 
                             new Intl.NumberFormat('en-US', {
