@@ -83,6 +83,11 @@ The merchant management module allows users to view, add, edit, and manage merch
 - Sort merchants by name, status, transaction volume, etc.
 - Enhanced merchant identification via Client MID field
 - Additional merchant fields: Country, Edit date, Other Client Number1, Other Client Number2, and Client Since Date
+- Tab-based merchant detail view with:
+  - Overview tab (formerly "Analytics") as the primary/first tab for key metrics
+  - Demographics tab (formerly "Merchant Details") for merchant profile information
+  - Transactions tab with date range navigation for merchant transaction history
+  - Notes tab for adding and viewing merchant-specific notes
 
 ### 3.3 Transaction Management
 
@@ -98,6 +103,9 @@ The transaction module handles all financial transactions between the company an
 - Export transactions to CSV format with current filter settings
 - Pagination options: 20, 30, 50, 100 records per page
 - Visual differentiation between credit (green) and debit transactions
+- Month-based navigation for historical transaction data
+- Clear indication of date range in transaction view headers
+- Empty state messaging for when no transactions match filters
 
 ### 3.4 File Upload and Processing
 
@@ -117,6 +125,11 @@ The file upload module allows users to import merchant and transaction data thro
 - Re-processing capability for failed uploads
 - Management interface for upload history
 - Combine multiple uploads into a single process
+- Background processing to prevent browser timeouts
+- Processing queue status dashboard
+- Scheduled automatic processing via cron job
+- "Process All" button for manually triggering queued file processing
+- Automatic refreshing of file processing status
 
 ### 3.5 Analytics
 
@@ -131,6 +144,11 @@ The analytics module provides business intelligence through data visualization a
 - Category-based merchant analysis
 - Transaction pattern identification
 - Downloadable reports in various formats
+- Time dimension breakdown (day, week, month, year) for transaction data
+- 12-month transaction history visualization for merchants
+- Tab-based organization for different analytics perspectives
+- First tab focused on high-level overview displaying key metrics
+- Transaction date-based analytics rather than upload date-based
 
 ### 3.6 User Management
 
@@ -366,5 +384,5 @@ Two supported formats:
 
 ---
 
-Document Version: 1.0
-Last Updated: May 8, 2025
+Document Version: 1.1
+Last Updated: May 15, 2025

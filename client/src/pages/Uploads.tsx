@@ -379,6 +379,30 @@ export default function Uploads() {
       setSelectedFiles([...selectedFiles, file]);
     }
   }
+
+  // Handle select all files functionality
+  function toggleSelectAll(filesData?: UploadedFile[]) {
+    if (!filesData) return;
+    
+    // If all files are selected, deselect all
+    const currentTabFiles = filesData;
+    const allSelected = currentTabFiles.every(file => 
+      selectedFiles.some(f => f.id === file.id)
+    );
+    
+    if (allSelected) {
+      // Deselect all files in the current view
+      setSelectedFiles(selectedFiles.filter(f => 
+        !currentTabFiles.some(cf => cf.id === f.id)
+      ));
+    } else {
+      // Select all files in the current view
+      const filesNotYetSelected = currentTabFiles.filter(file => 
+        !selectedFiles.some(f => f.id === file.id)
+      );
+      setSelectedFiles([...selectedFiles, ...filesNotYetSelected]);
+    }
+  }
   
   // Handle deleting file
   function handleDeleteFile(file: UploadedFile) {
@@ -512,7 +536,20 @@ export default function Uploads() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {selectMode && <TableHead className="w-12"></TableHead>}
+                  {selectMode && (
+                    <TableHead className="w-12">
+                      <Checkbox 
+                        checked={
+                          filesData.length > 0 && 
+                          filesData.every(file => 
+                            selectedFiles.some(f => f.id === file.id)
+                          )
+                        }
+                        onCheckedChange={() => toggleSelectAll(filesData)}
+                        aria-label="Select all files"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>File Name</TableHead>
                   <TableHead>File Type</TableHead>
                   <TableHead>Status</TableHead>
