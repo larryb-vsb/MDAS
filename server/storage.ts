@@ -942,12 +942,44 @@ export class DatabaseStorage implements IStorage {
     year?: number;
   }[]> {
     try {
-      const now = new Date();
+      // Fetch all transactions for this merchant to analyze available dates
+      const allMerchantTransactions = await db.select()
+        .from(transactionsTable)
+        .where(eq(transactionsTable.merchantId, merchantId));
+        
+      console.log(`Found ${allMerchantTransactions.length} total transactions for merchant ${merchantId}`);
+      
+      // If no transactions, return empty months
+      if (allMerchantTransactions.length === 0) {
+        const now = new Date();
+        const result = [];
+        for (let i = 0; i < months; i++) {
+          const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          result.push({
+            name: month.toLocaleString('default', { month: 'short' }),
+            transactions: 0,
+            revenue: 0,
+            year: month.getFullYear()
+          });
+        }
+        return result.reverse();
+      }
+      
+      // Get the highest date in the transactions to use as reference point
+      let maxDate = new Date(0); // Initialize with oldest possible date
+      for (const tx of allMerchantTransactions) {
+        const txDate = new Date(tx.date);
+        if (txDate > maxDate) maxDate = txDate;
+      }
+      
+      console.log(`Latest transaction date for merchant ${merchantId}: ${maxDate.toISOString()}`);
+      
+      // Use the max date as our reference point for generating months
       const result = [];
       
       for (let i = 0; i < months; i++) {
-        const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        const month = new Date(maxDate.getFullYear(), maxDate.getMonth() - i, 1);
+        const nextMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() - i + 1, 0);
         
         // Set times to ensure proper date range comparison
         month.setHours(0, 0, 0, 0);
@@ -988,8 +1020,19 @@ export class DatabaseStorage implements IStorage {
         });
       }
       
-      // Reverse to get chronological order
-      return result.reverse();
+      // Sort by year and month for proper chronological order
+      result.sort((a, b) => {
+        const monthA = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(a.name);
+        const monthB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(b.name);
+        
+        if (a.year !== b.year) {
+          return a.year! - b.year!;
+        }
+        return monthA - monthB;
+      });
+      
+      console.log("Transaction history for charts:", JSON.stringify(result));
+      return result;
     } catch (error) {
       console.error(`Error getting transaction history for merchant ${merchantId}:`, error);
       return [];
