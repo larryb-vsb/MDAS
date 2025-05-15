@@ -43,8 +43,7 @@ export default function SchemaVersionInfo() {
   
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/schema/update', {});
-      return response.json();
+      return await apiRequest('/api/schema/update', { method: 'POST' });
     },
     onSuccess: () => {
       toast({
