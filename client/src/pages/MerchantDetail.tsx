@@ -967,7 +967,7 @@ export default function MerchantDetail() {
 
           {/* Overview Tab */}
           <TabsContent value="overview">
-          <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Performance Overview</CardTitle>
