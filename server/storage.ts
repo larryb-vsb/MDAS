@@ -922,7 +922,7 @@ export class DatabaseStorage implements IStorage {
       }
       
       await db.delete(transactionsTable).where(
-        or(...transactionIds.map(id => eq(transactionsTable.transactionId, id)))
+        or(...transactionIds.map(id => eq(transactionsTable.id, id)))
       );
       
       console.log(`Successfully deleted ${transactionIds.length} transactions`);
