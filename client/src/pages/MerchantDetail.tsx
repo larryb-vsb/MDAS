@@ -231,7 +231,7 @@ export default function MerchantDetail() {
   const [, setLocation] = useLocation();
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('details');
+  const [activeTab, setActiveTab] = useState('overview');
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
@@ -523,20 +523,20 @@ export default function MerchantDetail() {
           </Button>
         </div>
 
-        <Tabs defaultValue="details" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details">Merchant Details</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="demographics">Demographics</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
-        {/* Details Tab */}
-        <TabsContent value="details">
+        {/* Demographics Tab */}
+        <TabsContent value="demographics">
           <Card>
             <CardHeader>
-              <CardTitle>Merchant Information</CardTitle>
+              <CardTitle>Merchant Demographics</CardTitle>
               <CardDescription>
-                View and update merchant details.
+                View and update merchant demographic information.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -941,8 +941,8 @@ export default function MerchantDetail() {
           </AlertDialog>
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics">
+        {/* Overview Tab */}
+        <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
