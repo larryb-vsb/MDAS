@@ -41,27 +41,32 @@ export class SchemaVersionManager {
    */
   static async addVersion(version: InsertSchemaVersion) {
     try {
-      // We need to use raw SQL to get the max ID value
-      const maxIdResult = await db.execute(
-        sql`SELECT COALESCE(MAX(id), 0) as max_id FROM schema_versions`
+      // Use a direct INSERT statement with DEFAULT for serial id
+      // This lets PostgreSQL handle the autoincrement ID generation
+      const result = await db.execute(
+        sql`INSERT INTO schema_versions (
+          version, 
+          applied_at, 
+          description, 
+          changes, 
+          applied_by, 
+          script
+        ) VALUES (
+          ${version.version}, 
+          ${version.appliedAt || new Date()}, 
+          ${version.description}, 
+          ${version.changes ? JSON.stringify(version.changes) : null}, 
+          ${version.appliedBy || 'admin'}, 
+          ${version.script || null}
+        ) RETURNING *`
       );
       
-      // Extract the max ID safely
-      let nextId = 1; // Default to 1 if no results or can't determine
-      if (maxIdResult.rows && maxIdResult.rows.length > 0) {
-        const maxId = Number(maxIdResult.rows[0].max_id);
-        nextId = maxId + 1;
+      // Return the inserted version
+      if (result.rows && result.rows.length > 0) {
+        return result.rows[0];
       }
       
-      // Add the new version with the explicit ID
-      const [newVersion] = await db.insert(schemaVersions).values({
-        ...version,
-        id: nextId,
-        // Ensure all required fields have values
-        appliedAt: new Date(),
-      }).returning();
-      
-      return newVersion;
+      throw new Error('Failed to add schema version - no data returned');
     } catch (error) {
       console.error('Error adding schema version:', error);
       throw error;
