@@ -523,8 +523,8 @@ export class DatabaseStorage implements IStorage {
       // Get merchant stats
       const stats = await this.getMerchantStats(merchantId);
       
-      // Generate transaction history by month for the last 6 months
-      const transactionHistory = await this.getTransactionHistoryByMonth(merchantId, 6);
+      // Generate transaction history by month for the last 12 months
+      const transactionHistory = await this.getTransactionHistoryByMonth(merchantId, 12);
       
       console.log("Transaction history for charts:", JSON.stringify(transactionHistory));
       
@@ -935,10 +935,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Get transaction history by month
-  private async getTransactionHistoryByMonth(merchantId: string, months: number): Promise<{
+  private async getTransactionHistoryByMonth(merchantId: string, months: number = 12): Promise<{
     name: string;
     transactions: number;
     revenue: number;
+    year?: number;
   }[]> {
     try {
       const now = new Date();
@@ -962,6 +963,8 @@ export class DatabaseStorage implements IStorage {
             between(transactionsTable.date, month, nextMonth)
           ));
         
+        console.log(`Found ${monthTransactions.length} transactions in ${month.toLocaleString('default', { month: 'short' })} ${month.getFullYear()} for merchant ${merchantId}`);
+        
         // Calculate revenue
         const revenue = monthTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
@@ -980,7 +983,8 @@ export class DatabaseStorage implements IStorage {
         result.push({
           name: month.toLocaleString('default', { month: 'short' }),
           transactions: monthTransactions.length,
-          revenue: Number(revenue.toFixed(2))
+          revenue: Number(revenue.toFixed(2)),
+          year: month.getFullYear()
         });
       }
       
