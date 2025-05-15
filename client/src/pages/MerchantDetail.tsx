@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import MainLayout from '@/components/layout/MainLayout';
+import { Slider } from "@/components/ui/slider";
 import { 
   Card, 
   CardContent, 
@@ -234,6 +235,46 @@ export default function MerchantDetail() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showAddTransactionDialog, setShowAddTransactionDialog] = useState(false);
   const [showDeleteTransactionsDialog, setShowDeleteTransactionsDialog] = useState(false);
+  
+  // Date range for transaction history visualization
+  const [dateRange, setDateRange] = useState({
+    // Default to showing last 12 months 
+    monthsToShow: 12,
+    // Start position (0 means start from current month and go back)
+    startPosition: 0
+  });
+
+  // Function to shift the date range window
+  const shiftDateRange = useCallback((shift: number) => {
+    setDateRange(prev => ({
+      ...prev,
+      startPosition: Math.max(0, prev.startPosition + shift)
+    }));
+  }, []);
+  
+  // Filter transaction history data based on the date range window
+  const getFilteredTransactionHistory = useCallback(() => {
+    if (!data?.analytics.transactionHistory) return [];
+    
+    // Clone the data to avoid mutation
+    const history = [...data.analytics.transactionHistory];
+    
+    // Get the total available months
+    const totalMonths = history.length;
+    
+    // If startPosition is beyond available data, reset it
+    if (dateRange.startPosition >= totalMonths) {
+      setDateRange(prev => ({...prev, startPosition: Math.max(0, totalMonths - prev.monthsToShow)}));
+      return history.slice(0, dateRange.monthsToShow);
+    }
+    
+    // Calculate end based on available data
+    const start = dateRange.startPosition;
+    const end = Math.min(totalMonths, start + dateRange.monthsToShow);
+    
+    // Return the window of data
+    return history.slice(start, end);
+  }, [data?.analytics.transactionHistory, dateRange]);
 
   // Fetch merchant details
   const { data, isLoading, error } = useQuery<MerchantDetailsResponse>({
