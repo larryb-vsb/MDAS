@@ -41,10 +41,10 @@ export class SchemaVersionManager {
    */
   static async addVersion(version: InsertSchemaVersion) {
     try {
-      // Use a direct INSERT statement with DEFAULT for serial id
-      // This lets PostgreSQL handle the autoincrement ID generation
+      // Use a direct INSERT statement WITH explicit sequence value for ID
       const result = await db.execute(
         sql`INSERT INTO schema_versions (
+          id,
           version, 
           applied_at, 
           description, 
@@ -52,6 +52,7 @@ export class SchemaVersionManager {
           applied_by, 
           script
         ) VALUES (
+          nextval('schema_versions_id_seq'),
           ${version.version}, 
           ${version.appliedAt || new Date()}, 
           ${version.description}, 
