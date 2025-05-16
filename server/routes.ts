@@ -863,6 +863,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const timeframe = req.query.timeframe as string || 'year';
       const dashboardStats = await storage.getDashboardStats();
       
+      // Log the requested timeframe for debugging
+      console.log(`Analytics request for timeframe: ${timeframe}`);
+      
       // Get transaction history data for the charts
       const allTransactions = await db.select({
         transaction: transactionsTable,
