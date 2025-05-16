@@ -120,23 +120,23 @@ interface MerchantDetailsResponse {
   transactions: {
     transactionId: string;
     merchantId: string;
-    amount: number;
+    amount: string; // Changed from number to string to maintain precision
     date: string;
     type: string;
   }[];
   analytics: {
     dailyStats: {
       transactions: number;
-      revenue: number;
+      revenue: string; // Changed from number to string to maintain precision
     };
     monthlyStats: {
       transactions: number;
-      revenue: number;
+      revenue: string; // Changed from number to string to maintain precision
     };
     transactionHistory: {
       name: string;
       transactions: number;
-      revenue: number;
+      revenue: string; // Changed from number to string to maintain precision
     }[];
   };
 }
@@ -471,12 +471,14 @@ export default function MerchantDetail() {
   };
 
   // Helper function to format currency
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: string | number) => {
+    // Convert string to number if needed
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2
-    }).format(amount);
+    }).format(numericAmount);
   };
 
   // Helper function to format date
@@ -1061,7 +1063,7 @@ export default function MerchantDetail() {
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Daily Revenue</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.dailyStats.revenue || 0)}</p>
+                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.dailyStats.revenue || '0')}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Monthly Transactions</h3>
@@ -1069,7 +1071,7 @@ export default function MerchantDetail() {
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.monthlyStats.revenue || 0)}</p>
+                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.monthlyStats.revenue || '0')}</p>
                     </div>
                   </div>
                 )}
