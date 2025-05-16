@@ -417,7 +417,8 @@ export default function MerchantDetail() {
         method: 'POST',
         body: {
           ...values,
-          amount: parseFloat(values.amount)
+          // Keep amount as string to maintain precision
+          amount: values.amount
         }
       });
     },
