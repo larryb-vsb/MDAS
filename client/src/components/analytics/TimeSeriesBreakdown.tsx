@@ -32,6 +32,8 @@ interface TransactionData {
   name: string;
   transactions: number;
   revenue: number;
+  year?: number;
+  color?: string;
 }
 
 interface TimeSeriesBreakdownProps {
@@ -70,7 +72,7 @@ export default function TimeSeriesBreakdown({
   const rawData = timeframeData?.transactionData || initialData || [];
   
   // Generate appropriate data for each time period if we don't have real data
-  let timeSeriesData = [];
+  let timeSeriesData: TransactionData[] = [];
   
   if (timePeriod === 'year') {
     // For year view, we use the data as-is, which includes the year property
@@ -183,9 +185,12 @@ export default function TimeSeriesBreakdown({
     timeSeriesData = rawData.map(item => ({
       name: item.name,
       transactions: item.transactions,
-      revenue: item.revenue
+      revenue: item.revenue,
+      year: item.year
     }));
   }
+  
+  // We'll keep colors consistent for now
   
   // Calculate totals for the selected view
   const totalCount = timeSeriesData.reduce((sum: number, item: TransactionData) => sum + item.transactions, 0);
@@ -354,7 +359,10 @@ export default function TimeSeriesBreakdown({
                     axisLine={{ stroke: '#E0E0E0' }}
                     tickFormatter={(value) => formatCurrency(value)}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={<CustomTooltip />}
+                    cursor={{ fill: 'rgba(200, 200, 200, 0.2)' }}
+                  />
                   <Legend />
                   <Bar 
                     yAxisId="left"
@@ -372,7 +380,7 @@ export default function TimeSeriesBreakdown({
                   />
                 </BarChart>
               ) : (
-                <AreaChart
+                <BarChart
                   data={timeSeriesData}
                   margin={{
                     top: 20,
@@ -389,30 +397,40 @@ export default function TimeSeriesBreakdown({
                     axisLine={{ stroke: '#E0E0E0' }}
                   />
                   <YAxis 
+                    yAxisId="left"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#E0E0E0' }}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
                     tick={{ fontSize: 12 }}
                     tickLine={false}
                     axisLine={{ stroke: '#E0E0E0' }}
                     tickFormatter={(value) => formatCurrency(value)}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={<CustomTooltip />}
+                    cursor={{ fill: 'rgba(200, 200, 200, 0.2)' }}
+                  />
                   <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="transactions"
-                    name="Transaction Count"
-                    stroke="#8884d8"
-                    fill="#8884d880"
-                    strokeWidth={2}
+                  <Bar 
+                    yAxisId="left"
+                    dataKey="transactions" 
+                    name="Transaction Count" 
+                    fill="#8884d8" 
+                    radius={[4, 4, 0, 0]} 
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    name="Transaction Amount"
-                    stroke="#82ca9d"
-                    fill="#82ca9d80"
-                    strokeWidth={2}
+                  <Bar 
+                    yAxisId="right"
+                    dataKey="revenue" 
+                    name="Transaction Amount" 
+                    fill="#82ca9d" 
+                    radius={[4, 4, 0, 0]} 
                   />
-                </AreaChart>
+                </BarChart>
               )}
             </ResponsiveContainer>
           </div>
