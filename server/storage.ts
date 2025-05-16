@@ -17,7 +17,7 @@ import {
   InsertUser
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, and, or, count, desc, sql, between, like } from "drizzle-orm";
+import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, isNotNull } from "drizzle-orm";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
@@ -1173,15 +1173,33 @@ export class DatabaseStorage implements IStorage {
     newMerchants: number;
     dailyTransactions: number;
     monthlyRevenue: number;
+    transactionGrowth: number;
+    revenueGrowth: number;
+    activeRate: number;
+    avgTransactionValue: number;
+    totalTransactions: number;
+    totalRevenue: number;
   }> {
     try {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Time periods for comparisons
       const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
       
       // Get total merchants count
       const merchantCount = await db.select({ count: count() }).from(merchantsTable);
       const totalMerchants = parseInt(merchantCount[0].count.toString(), 10);
+      
+      // Count active merchants (merchants with status 'Active')
+      const activeMerchantsResult = await db.select({ count: count() })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.status, 'Active'));
+      const activeMerchants = parseInt(activeMerchantsResult[0].count.toString(), 10);
+      
+      // Calculate active rate (percentage of merchants that are active)
+      const activeRate = totalMerchants > 0 ? (activeMerchants / totalMerchants) * 100 : 0;
       
       // Get new merchants in the last 30 days
       const newMerchantsResult = await db.select({ count: count() })
@@ -1195,26 +1213,80 @@ export class DatabaseStorage implements IStorage {
         .where(gte(transactionsTable.date, today));
       const dailyTransactions = parseInt(dailyTransactionsResult[0].count.toString(), 10);
       
-      // Get monthly transactions and calculate revenue
+      // Get monthly transactions (current month)
       const monthlyTransactions = await db.select()
         .from(transactionsTable)
         .where(gte(transactionsTable.date, oneMonthAgo));
+      
+      // Get previous month transactions
+      const prevMonthTransactions = await db.select()
+        .from(transactionsTable)
+        .where(
+          and(
+            gte(transactionsTable.date, twoMonthsAgo),
+            lt(transactionsTable.date, oneMonthAgo)
+          )
+        );
         
+      // Calculate monthly revenue (current month)
       const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
-        // For Credit/Debit types, use the amount directly (since it should already have the correct sign)
+        // For Credit/Debit types, use the amount directly
         if (tx.type === "Credit" || tx.type === "Debit") {
-          return sum + amount;
+          return sum + (tx.type === "Credit" ? amount : 0); // Only count Credit transactions as revenue
         }
         // For other types like "Sale", continue using previous logic
-        return sum + (tx.type === "Sale" ? amount : -amount);
+        return sum + (tx.type === "Sale" ? amount : 0);
+      }, 0);
+      
+      // Calculate previous month revenue
+      const prevMonthlyRevenue = prevMonthTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.toString());
+        if (tx.type === "Credit" || tx.type === "Debit") {
+          return sum + (tx.type === "Credit" ? amount : 0);
+        }
+        return sum + (tx.type === "Sale" ? amount : 0);
+      }, 0);
+      
+      // Calculate growth rates
+      const transactionGrowth = prevMonthTransactions.length > 0 
+        ? ((monthlyTransactions.length - prevMonthTransactions.length) / prevMonthTransactions.length) * 100 
+        : 0;
+        
+      const revenueGrowth = prevMonthlyRevenue > 0 
+        ? ((monthlyRevenue - prevMonthlyRevenue) / prevMonthlyRevenue) * 100 
+        : 0;
+      
+      // Calculate average transaction value
+      const avgTransactionValue = monthlyTransactions.length > 0 
+        ? monthlyRevenue / monthlyTransactions.length 
+        : 0;
+      
+      // Get total transactions (all time)
+      const totalTransactionsResult = await db.select({ count: count() }).from(transactionsTable);
+      const totalTransactions = parseInt(totalTransactionsResult[0].count.toString(), 10);
+      
+      // Calculate total revenue (all time)
+      const allTransactions = await db.select().from(transactionsTable);
+      const totalRevenue = allTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.toString());
+        if (tx.type === "Credit" || tx.type === "Debit") {
+          return sum + (tx.type === "Credit" ? amount : 0);
+        }
+        return sum + (tx.type === "Sale" ? amount : 0);
       }, 0);
       
       return {
         totalMerchants,
         newMerchants,
         dailyTransactions,
-        monthlyRevenue: Number(monthlyRevenue.toFixed(2))
+        monthlyRevenue: Number(monthlyRevenue.toFixed(2)),
+        transactionGrowth: Number(transactionGrowth.toFixed(2)),
+        revenueGrowth: Number(revenueGrowth.toFixed(2)),
+        activeRate: Number(activeRate.toFixed(2)),
+        avgTransactionValue: Number(avgTransactionValue.toFixed(2)),
+        totalTransactions,
+        totalRevenue: Number(totalRevenue.toFixed(2))
       };
     } catch (error) {
       console.error("Error getting dashboard stats:", error);
@@ -1222,7 +1294,13 @@ export class DatabaseStorage implements IStorage {
         totalMerchants: 0,
         newMerchants: 0,
         dailyTransactions: 0,
-        monthlyRevenue: 0
+        monthlyRevenue: 0,
+        transactionGrowth: 0,
+        revenueGrowth: 0,
+        activeRate: 0,
+        avgTransactionValue: 0,
+        totalTransactions: 0,
+        totalRevenue: 0
       };
     }
   }
