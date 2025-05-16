@@ -16,6 +16,9 @@ export async function migrateDatabase() {
     
     if (allTablesExist) {
       console.log('All required tables exist. Migration complete.');
+      
+      // Even if all tables exist, we still need to check for new columns
+      await checkAndAddMerchantColumns();
     } else {
       console.log('Schema update completed. Missing tables have been created.');
     }
@@ -113,6 +116,8 @@ async function createMerchantsTable() {
       name TEXT NOT NULL,
       client_mid TEXT,
       status TEXT NOT NULL DEFAULT 'Pending',
+      merchant_type INTEGER DEFAULT 0,
+      sales_channel TEXT,
       address TEXT,
       city TEXT,
       state TEXT,
@@ -123,10 +128,13 @@ async function createMerchantsTable() {
       other_client_number2 TEXT,
       client_since_date TIMESTAMP WITH TIME ZONE,
       last_upload_date TIMESTAMP WITH TIME ZONE,
-      edit_date TIMESTAMP WITH TIME ZONE,
+      edit_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
     )
   `);
+  
+  // Check if the new columns exist, and add them if not
+  await checkAndAddMerchantColumns();
 }
 
 // Transactions table
@@ -213,4 +221,65 @@ async function createSchemaVersionsTable() {
       script TEXT
     )
   `);
+}
+
+/**
+ * Check for new merchant columns and add them if they don't exist
+ */
+async function checkAndAddMerchantColumns() {
+  console.log('Checking if merchant_type and sales_channel columns exist...');
+  
+  try {
+    // Check for merchant_type column
+    const merchantTypeResult = await db.execute(sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'merchants'
+      AND column_name = 'merchant_type'
+    `);
+    
+    if (merchantTypeResult.rows.length === 0) {
+      console.log('Adding merchant_type column to merchants table');
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ADD COLUMN merchant_type INTEGER DEFAULT 0
+      `);
+    }
+    
+    // Check for sales_channel column
+    const salesChannelResult = await db.execute(sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'merchants'
+      AND column_name = 'sales_channel'
+    `);
+    
+    if (salesChannelResult.rows.length === 0) {
+      console.log('Adding sales_channel column to merchants table');
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ADD COLUMN sales_channel TEXT
+      `);
+    }
+    
+    // Make sure edit_date has default value
+    const editDateResult = await db.execute(sql`
+      SELECT column_default
+      FROM information_schema.columns
+      WHERE table_name = 'merchants'
+      AND column_name = 'edit_date'
+    `);
+    
+    if (editDateResult.rows.length > 0 && !editDateResult.rows[0].column_default) {
+      console.log('Updating edit_date column to have a default value');
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ALTER COLUMN edit_date SET DEFAULT CURRENT_TIMESTAMP
+      `);
+    }
+    
+    console.log('Merchant columns check complete');
+  } catch (error) {
+    console.error('Error checking/adding merchant columns:', error);
+  }
 }
