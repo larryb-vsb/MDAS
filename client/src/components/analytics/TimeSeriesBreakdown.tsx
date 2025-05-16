@@ -30,10 +30,14 @@ import {
 
 interface TransactionData {
   name: string;
-  transactions: number;
-  revenue: number;
+  transactions?: number;
+  revenue?: number;
   year?: number;
   color?: string;
+  transactions2024?: number;
+  revenue2024?: number;
+  transactions2025?: number;
+  revenue2025?: number;
 }
 
 interface TimeSeriesBreakdownProps {
@@ -75,8 +79,41 @@ export default function TimeSeriesBreakdown({
   let timeSeriesData: TransactionData[] = [];
   
   if (timePeriod === 'year') {
-    // For year view, we use the data as-is, which includes the year property
-    timeSeriesData = rawData;
+    // For year view, we need to process data differently to show yearly comparison
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // If raw data has the year property, create combined data for a grouped bar chart
+    if (rawData.some(item => item.year)) {
+      // Get data for each year
+      const data2024 = rawData.filter(item => item.year === 2024);
+      const data2025 = rawData.filter(item => item.year === 2025);
+      
+      timeSeriesData = monthNames.map(month => {
+        // Find the data for each month/year
+        const month2024 = data2024.find(d => d.name === month);
+        const month2025 = data2025.find(d => d.name === month);
+        
+        // Get current month to handle future months
+        const monthIndex = monthNames.indexOf(month);
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // For 2025, zero out future months
+        const isFutureMonth = currentYear === 2025 && monthIndex > currentMonth;
+        
+        return {
+          name: month,
+          transactions2024: month2024 ? month2024.transactions : 0,
+          revenue2024: month2024 ? month2024.revenue : 0,
+          transactions2025: isFutureMonth ? 0 : (month2025 ? month2025.transactions : 0),
+          revenue2025: isFutureMonth ? 0 : (month2025 ? month2025.revenue : 0)
+        };
+      });
+    } else {
+      // If no year data, just use the raw data as-is
+      timeSeriesData = rawData;
+    }
   } 
   else if (timePeriod === 'month') {
     // For month view, generate daily data for the current month
@@ -364,20 +401,60 @@ export default function TimeSeriesBreakdown({
                     cursor={{ fill: 'rgba(200, 200, 200, 0.2)' }}
                   />
                   <Legend />
-                  <Bar 
-                    yAxisId="left"
-                    dataKey="transactions" 
-                    name="Transaction Count" 
-                    fill="#8884d8" 
-                    radius={[4, 4, 0, 0]} 
-                  />
-                  <Bar 
-                    yAxisId="right"
-                    dataKey="revenue" 
-                    name="Transaction Amount" 
-                    fill="#82ca9d" 
-                    radius={[4, 4, 0, 0]} 
-                  />
+                  
+                  {timePeriod === 'year' ? (
+                    <>
+                      <Bar 
+                        yAxisId="left"
+                        dataKey="transactions2024" 
+                        name="2024 Transactions" 
+                        fill="#CBD5E1" 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                      <Bar 
+                        yAxisId="left"
+                        dataKey="transactions2025" 
+                        name="2025 Transactions" 
+                        fill="#8884d8" 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                    </>
+                  ) : (
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="transactions" 
+                      name="Transaction Count" 
+                      fill="#8884d8" 
+                      radius={[4, 4, 0, 0]} 
+                    />
+                  )}
+                  
+                  {timePeriod === 'year' ? (
+                    <>
+                      <Bar 
+                        yAxisId="right"
+                        dataKey="revenue2024" 
+                        name="2024 Revenue" 
+                        fill="#D1E9DD" 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                      <Bar 
+                        yAxisId="right"
+                        dataKey="revenue2025" 
+                        name="2025 Revenue" 
+                        fill="#82ca9d" 
+                        radius={[4, 4, 0, 0]} 
+                      />
+                    </>
+                  ) : (
+                    <Bar 
+                      yAxisId="right"
+                      dataKey="revenue" 
+                      name="Transaction Amount" 
+                      fill="#82ca9d" 
+                      radius={[4, 4, 0, 0]} 
+                    />
+                  )}
                 </BarChart>
               ) : (
                 <BarChart
