@@ -72,9 +72,7 @@ const merchantSchema = z.object({
   otherClientNumber2: z.string().optional(),
   clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string(),
-  merchantType: z.union([z.number(), z.string()]).optional().transform(val => 
-    typeof val === 'string' ? parseInt(val) || 0 : val || 0
-  ), // Accept string or number and convert to number
+  merchantType: z.string().nullable().optional(), // Store as plain text value
   salesChannel: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -109,7 +107,7 @@ interface MerchantDetailsResponse {
     otherClientNumber2: string | null;
     clientSinceDate: string | null;
     status: string;
-    merchantType: number;
+    merchantType: string | null;
     salesChannel: string | null;
     address: string;
     city: string;
@@ -628,9 +626,9 @@ export default function MerchantDetail() {
                           <FormItem>
                             <FormLabel>Merchant Type</FormLabel>
                             <Select 
-                              onValueChange={(value) => field.onChange(parseInt(value))} 
-                              defaultValue={field.value?.toString() || "0"}
-                              value={field.value?.toString() || "0"}
+                              onValueChange={(value) => field.onChange(value)} 
+                              defaultValue={field.value || ""}
+                              value={field.value || ""}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -638,10 +636,11 @@ export default function MerchantDetail() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="0">None</SelectItem>
+                                <SelectItem value="">None</SelectItem>
                                 <SelectItem value="1">Type 1</SelectItem>
                                 <SelectItem value="2">Type 2</SelectItem>
                                 <SelectItem value="3">Type 3+</SelectItem>
+                                <SelectItem value="0">Legacy Type 0</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
