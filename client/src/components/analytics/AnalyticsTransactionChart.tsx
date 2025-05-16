@@ -29,6 +29,7 @@ interface TransactionData {
   name: string;
   transactions: number;
   revenue?: number;
+  year?: number;
 }
 
 interface AnalyticsTransactionChartProps {

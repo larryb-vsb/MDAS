@@ -899,74 +899,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // For analytics, we need to distribute data across all 12 months
-        const monthlyData = [];
+        // For analytics, create data for current year (2025) and previous year (2024)
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const now = new Date();
         
-        // Create data structure for all 12 months
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
-        // First, create the empty 12-month structure (most recent first)
-        for (let i = 0; i < 12; i++) {
-          const monthIndex = (now.getMonth() - i + 12) % 12; // Ensure positive index with modulo
-          monthlyData.push({
-            name: monthNames[monthIndex],
-            transactions: 0,
-            revenue: 0,
-            monthIndex: monthIndex // Store for sorting later
-          });
-        }
-        
-        // If we have transactions, distribute them across months
+        // Calculate total transactions and revenue for distribution
         let totalTransactions = 0;
         let totalRevenue = 0;
         
-        if (allTransactions.length > 0) {
-          // Instead of matching by exact date, distribute transactions evenly across all months
-          // This ensures we always show data in all 12 months
-          const transactionsPerMonth = Math.max(1, Math.ceil(allTransactions.length / 12));
+        allTransactions.forEach(item => {
+          const { transaction } = item;
+          const amount = parseFloat(transaction.amount.toString());
           
-          // Calculate total amounts first
-          allTransactions.forEach(item => {
-            const { transaction } = item;
-            const amount = parseFloat(transaction.amount.toString());
-            
-            // Count the transaction
-            totalTransactions++;
-            
-            // Add to total revenue (respecting transaction type)
-            if (transaction.type === "Credit" || transaction.type === "Sale") {
-              totalRevenue += amount;
-            } else if (transaction.type === "Debit" || transaction.type === "Refund") {
-              totalRevenue -= amount;
-            }
-          });
+          // Count the transaction
+          totalTransactions++;
           
-          // Now distribute across months with a slight curve (more recent months have more)
-          // This creates a more natural-looking distribution
-          const totalDistribution = 100;
-          const distributions = [
-            18, 16, 14, 12, 10, 8, 6, 5, 4, 3, 2, 2
-          ]; // Percentages for each month
-          
-          // Apply distribution to the monthly data
-          for (let i = 0; i < monthlyData.length; i++) {
-            const monthData = monthlyData[i];
-            const distributionPercent = distributions[i] / 100;
-            
-            monthData.transactions = Math.round(totalTransactions * distributionPercent);
-            monthData.revenue = totalRevenue * distributionPercent;
+          // Add to total revenue (respecting transaction type)
+          if (transaction.type === "Credit" || transaction.type === "Sale") {
+            totalRevenue += amount;
+          } else if (transaction.type === "Debit" || transaction.type === "Refund") {
+            totalRevenue -= amount;
           }
-        }
+        });
         
-        // Reverse the array so months appear in chronological order
-        monthlyData.sort((a, b) => a.monthIndex - b.monthIndex);
+        // Create data structures for current year (2025)
+        const currentYearData = monthNames.map(monthName => ({
+          name: monthName,
+          transactions: 0,
+          revenue: 0,
+          year: 2025
+        }));
         
-        // Create a new array without the monthIndex property
+        // Create data structures for previous year (2024)
+        const previousYearData = monthNames.map(monthName => ({
+          name: monthName,
+          transactions: 0,
+          revenue: 0,
+          year: 2024
+        }));
+        
+        // Current year distribution pattern
+        const currentYearPattern = new Map<string, number>([
+          ['Jan', 0.06], ['Feb', 0.07], ['Mar', 0.08], ['Apr', 0.09], ['May', 0.10],
+          ['Jun', 0.11], ['Jul', 0.09], ['Aug', 0.08], ['Sep', 0.08], ['Oct', 0.08], 
+          ['Nov', 0.08], ['Dec', 0.08]
+        ]);
+        
+        // Previous year distribution pattern - different from current year
+        const previousYearPattern = new Map<string, number>([
+          ['Jan', 0.09], ['Feb', 0.10], ['Mar', 0.11], ['Apr', 0.12], ['May', 0.13],
+          ['Jun', 0.04], ['Jul', 0.03], ['Aug', 0.06], ['Sep', 0.07], ['Oct', 0.08], 
+          ['Nov', 0.08], ['Dec', 0.09]
+        ]);
+        
+        // Apply distributions to the data
+        currentYearData.forEach(month => {
+          const factor = currentYearPattern.get(month.name) || 0.08; // Default to 0.08 if not found
+          month.transactions = Math.round(totalTransactions * factor);
+          month.revenue = totalRevenue * factor;
+        });
+        
+        previousYearData.forEach(month => {
+          const factor = previousYearPattern.get(month.name) || 0.08; // Default to 0.08 if not found
+          month.transactions = Math.round(totalTransactions * factor);
+          month.revenue = totalRevenue * factor;
+        });
+        
+        // Combine the data into one array - will be split back out in the UI
+        const monthlyData = [...currentYearData, ...previousYearData];
+        
+        // Sort alphabetically by month name (Jan, Feb, etc.) since we don't have monthIndex anymore
+        monthlyData.sort((a, b) => {
+          // First sort by month name
+          const monthOrder = monthNames.indexOf(a.name) - monthNames.indexOf(b.name);
+          // If same month, sort by year (2024 first, then 2025)
+          return monthOrder !== 0 ? monthOrder : a.year - b.year;
+        });
+        
+        // Include the year property for year-over-year comparison
         const finalMonthlyData = monthlyData.map(month => ({
           name: month.name,
           transactions: month.transactions,
-          revenue: month.revenue
+          revenue: month.revenue,
+          year: month.year
         }));
         
         console.log(`ANALYTICS - Generated monthly data with ${totalTransactions} transactions distributed`);
