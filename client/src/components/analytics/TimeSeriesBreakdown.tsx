@@ -79,23 +79,34 @@ export default function TimeSeriesBreakdown({
   let timeSeriesData: TransactionData[] = [];
   
   if (timePeriod === 'year') {
-    // For year view, simplify and flatten the data to match the Overview tab format
-    
-    // Extract just the distinct months, removing the year property 
-    // so we show grouped bars like the original chart
-    
-    // Using the same approach as the overview chart
+    // For year view, we need to create a structured dataset for year-over-year comparison
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    // Process the data to match the same structure as overview tab
+    // Process the data to have a consistent structure with both years
     const yearData2024 = rawData.filter(item => item.year === 2024);
     const yearData2025 = rawData.filter(item => item.year === 2025);
     
-    // Create the combined chart data similar to the overview tab
-    timeSeriesData = [];
-    
-    // Just use the raw data with the years as separate bars
-    timeSeriesData = rawData;
+    // Create structured data for the chart
+    timeSeriesData = monthNames.map(month => {
+      const month2024 = yearData2024.find(d => d.name === month);
+      const month2025 = yearData2025.find(d => d.name === month);
+      
+      // Get current month to handle future months
+      const monthIndex = monthNames.indexOf(month);
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      
+      // For 2025, zero out future months if we're past May
+      const isFutureMonth = monthIndex > 4; // May is index 4
+      
+      return {
+        name: month,
+        transactions2024: month2024 ? month2024.transactions || 0 : 0,
+        revenue2024: month2024 ? month2024.revenue || 0 : 0,
+        transactions2025: isFutureMonth ? 0 : (month2025 ? month2025.transactions || 0 : 0),
+        revenue2025: isFutureMonth ? 0 : (month2025 ? month2025.revenue || 0 : 0)
+      };
+    });
   } 
   else if (timePeriod === 'month') {
     // For month view, generate daily data for the current month
@@ -234,6 +245,10 @@ export default function TimeSeriesBreakdown({
       return sum + (item.revenue || 0);
     }, 0);
   }
+  
+  // If count is NaN or amount is NaN, set them to 0
+  totalCount = isNaN(totalCount) ? 0 : totalCount;
+  totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -436,6 +451,7 @@ export default function TimeSeriesBreakdown({
                         name="2024 Transactions" 
                         fill="#CBD5E1" 
                         radius={[4, 4, 0, 0]} 
+                        barSize={20}
                       />
                       <Bar 
                         yAxisId="left"
@@ -443,6 +459,7 @@ export default function TimeSeriesBreakdown({
                         name="2025 Transactions" 
                         fill="#8884d8" 
                         radius={[4, 4, 0, 0]} 
+                        barSize={20}
                       />
                     </>
                   ) : (
@@ -455,31 +472,37 @@ export default function TimeSeriesBreakdown({
                     />
                   )}
                   
-                  {timePeriod === 'year' ? (
+                  {viewType === "amount" && (
                     <>
-                      <Bar 
-                        yAxisId="right"
-                        dataKey="revenue2024" 
-                        name="2024 Revenue" 
-                        fill="#D1E9DD" 
-                        radius={[4, 4, 0, 0]} 
-                      />
-                      <Bar 
-                        yAxisId="right"
-                        dataKey="revenue2025" 
-                        name="2025 Revenue" 
-                        fill="#82ca9d" 
-                        radius={[4, 4, 0, 0]} 
-                      />
+                      {timePeriod === 'year' ? (
+                        <>
+                          <Bar 
+                            yAxisId="right"
+                            dataKey="revenue2024" 
+                            name="2024 Revenue" 
+                            fill="#D1E9DD" 
+                            radius={[4, 4, 0, 0]} 
+                            barSize={20}
+                          />
+                          <Bar 
+                            yAxisId="right"
+                            dataKey="revenue2025" 
+                            name="2025 Revenue" 
+                            fill="#82ca9d" 
+                            radius={[4, 4, 0, 0]} 
+                            barSize={20}
+                          />
+                        </>
+                      ) : (
+                        <Bar 
+                          yAxisId="right"
+                          dataKey="revenue" 
+                          name="Transaction Amount" 
+                          fill="#82ca9d" 
+                          radius={[4, 4, 0, 0]} 
+                        />
+                      )}
                     </>
-                  ) : (
-                    <Bar 
-                      yAxisId="right"
-                      dataKey="revenue" 
-                      name="Transaction Amount" 
-                      fill="#82ca9d" 
-                      radius={[4, 4, 0, 0]} 
-                    />
                   )}
                 </BarChart>
               ) : (
