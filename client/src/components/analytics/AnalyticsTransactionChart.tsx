@@ -53,6 +53,10 @@ export default function AnalyticsTransactionChart({
   tooltipLabel,
   previousPeriodData,
 }: AnalyticsTransactionChartProps) {
+  // Process the data to separate current year (2025) and previous year (2024) data
+  const currentYearData = data?.filter(item => item.year === 2025) || [];
+  const previousYearData = data?.filter(item => item.year === 2024) || [];
+
   const formatValue = (value: number) => {
     if (dataKey === 'revenue') {
       return `$${value.toLocaleString('en-US')}`;
@@ -60,22 +64,23 @@ export default function AnalyticsTransactionChart({
     return value.toLocaleString('en-US');
   };
 
-  // Calculate the percentage change from the first to the last data point
-  const calculateChange = () => {
-    if (!data || data.length < 2) return null;
+  // Calculate the percentage change year-over-year
+  const calculateYearOverYearChange = () => {
+    if (!currentYearData.length || !previousYearData.length) return null;
     
-    const firstValue = data[0][dataKey] as number;
-    const lastValue = data[data.length - 1][dataKey] as number;
+    // Sum all values for both years
+    const currentYearTotal = currentYearData.reduce((sum, item) => sum + (item[dataKey] as number || 0), 0);
+    const previousYearTotal = previousYearData.reduce((sum, item) => sum + (item[dataKey] as number || 0), 0);
     
-    if (firstValue === 0) return null;
-    return ((lastValue - firstValue) / firstValue) * 100;
+    if (previousYearTotal === 0) return null;
+    return ((currentYearTotal - previousYearTotal) / previousYearTotal) * 100;
   };
 
-  const percentChange = calculateChange();
+  const percentChange = calculateYearOverYearChange();
   const label = tooltipLabel || (dataKey === 'revenue' ? 'Revenue' : 'Transactions');
 
-  // Calculate total value
-  const totalValue = data?.reduce((sum, item) => sum + (item[dataKey] as number || 0), 0) || 0;
+  // Calculate total value (current year only for display)
+  const totalValue = currentYearData.reduce((sum, item) => sum + (item[dataKey] as number || 0), 0) || 0;
 
   const CustomTooltip = ({ active, payload, label: tooltipLabel }: any) => {
     if (active && payload && payload.length) {
@@ -143,7 +148,6 @@ export default function AnalyticsTransactionChart({
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={data}
               margin={{
                 top: 20,
                 right: 30,
@@ -172,23 +176,22 @@ export default function AnalyticsTransactionChart({
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               
-              {previousPeriodData && (
-                <Line 
-                  type="monotone" 
-                  data={previousPeriodData}
-                  dataKey={dataKey} 
-                  name={`Previous ${label}`}
-                  stroke="#CBD5E1" 
-                  strokeWidth={1.5}
-                  dot={false}
-                  strokeDasharray="5 5"
-                />
-              )}
+              <Line 
+                type="monotone" 
+                data={previousYearData}
+                dataKey={dataKey} 
+                name={`2024 ${label}`}
+                stroke="#CBD5E1" 
+                strokeWidth={1.5}
+                dot={{ r: 3, strokeWidth: 1, fill: "white" }}
+                strokeDasharray="5 5"
+              />
               
               <Line 
                 type="monotone" 
+                data={currentYearData}
                 dataKey={dataKey} 
-                name={label}
+                name={`2025 ${label}`}
                 stroke={color} 
                 strokeWidth={2.5}
                 dot={{ r: 4, strokeWidth: 2, fill: "white" }}
