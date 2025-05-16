@@ -546,7 +546,7 @@ export class DatabaseStorage implements IStorage {
           otherClientNumber2: merchant.otherClientNumber2 || null,
           clientSinceDate: merchant.clientSinceDate ? merchant.clientSinceDate.toISOString() : null,
           status: merchant.status,
-          merchantType: merchant.merchantType || 0,
+          merchantType: merchant.merchantType || 'none',
           salesChannel: merchant.salesChannel || null,
           address: merchant.address || '',
           city: merchant.city || '',
