@@ -1527,7 +1527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create a new merchant
-  app.post("/api/merchants", async (req, res) => {
+  app.post("/api/merchants", isAuthenticated, async (req, res) => {
     try {
       const schema = z.object({
         name: z.string().min(1, { message: "Name is required" }),
@@ -1544,13 +1544,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const merchantData = schema.parse(req.body);
       
+      // Set the updatedBy field to the logged-in user's username
+      let updatedBy = "System";
+      
+      // If a user is logged in, use their username
+      if (req.user && req.user.username) {
+        updatedBy = req.user.username;
+      }
+      
       // Create merchant with current date
       const newMerchant = await storage.createMerchant({
         ...merchantData,
         id: `M${Date.now().toString().slice(-4)}`,
         createdAt: new Date(),
         editDate: new Date(),
-        lastUploadDate: null
+        lastUploadDate: null,
+        updatedBy: updatedBy
       });
       
       res.status(201).json({ 
@@ -1565,7 +1574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update merchant details
-  app.put("/api/merchants/:id", async (req, res) => {
+  app.put("/api/merchants/:id", isAuthenticated, async (req, res) => {
     try {
       const merchantId = req.params.id;
       const schema = z.object({
@@ -1583,10 +1592,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const merchantData = schema.parse(req.body);
       
-      // Always update the edit date when merchant details are changed
+      // Set the updatedBy field to the logged-in user's username
+      let updatedBy = "System";
+      
+      // If a user is logged in, use their username
+      if (req.user && req.user.username) {
+        updatedBy = req.user.username;
+      }
+      
+      // Check if this is from a file upload by checking referrer or headers
+      const referrer = req.get('Referrer') || '';
+      if (referrer.includes('/uploads') || req.get('X-File-Upload')) {
+        updatedBy = "System-Uploader";
+      }
+      
+      // Always update the edit date and updatedBy when merchant details are changed
       const updatedMerchantData = {
         ...merchantData,
-        editDate: new Date()
+        editDate: new Date(),
+        updatedBy: updatedBy
       };
       
       const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);

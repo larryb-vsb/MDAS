@@ -1521,7 +1521,7 @@ export class DatabaseStorage implements IStorage {
             createdAt: new Date(),
             lastUploadDate: new Date(),
             editDate: new Date(),
-            updatedBy: "system" // Set the updated by field to system
+            updatedBy: "System-Uploader" // Set the updated by field to System-Uploader
           };
           
           // Apply field mappings - map CSV fields to database fields
