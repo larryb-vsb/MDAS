@@ -938,17 +938,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           year: 2024
         }));
         
-        // Current year distribution pattern
+        // Current year (2025) distribution pattern - we're in May 2025, so only Jan-May should have data
         const currentYearPattern = new Map<string, number>([
-          ['Jan', 0.06], ['Feb', 0.07], ['Mar', 0.08], ['Apr', 0.09], ['May', 0.10],
-          ['Jun', 0.11], ['Jul', 0.09], ['Aug', 0.08], ['Sep', 0.08], ['Oct', 0.08], 
-          ['Nov', 0.08], ['Dec', 0.08]
+          ['Jan', 0.15], ['Feb', 0.20], ['Mar', 0.25], ['Apr', 0.20], ['May', 0.20],
+          ['Jun', 0.00], ['Jul', 0.00], ['Aug', 0.00], ['Sep', 0.00], ['Oct', 0.00], 
+          ['Nov', 0.00], ['Dec', 0.00]
         ]);
         
-        // Previous year distribution pattern - different from current year
+        // Previous year (2024) distribution pattern - full year of data available
         const previousYearPattern = new Map<string, number>([
-          ['Jan', 0.09], ['Feb', 0.10], ['Mar', 0.11], ['Apr', 0.12], ['May', 0.13],
-          ['Jun', 0.04], ['Jul', 0.03], ['Aug', 0.06], ['Sep', 0.07], ['Oct', 0.08], 
+          ['Jan', 0.06], ['Feb', 0.07], ['Mar', 0.08], ['Apr', 0.09], ['May', 0.10],
+          ['Jun', 0.09], ['Jul', 0.08], ['Aug', 0.08], ['Sep', 0.09], ['Oct', 0.09], 
           ['Nov', 0.08], ['Dec', 0.09]
         ]);
         
