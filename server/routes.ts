@@ -975,17 +975,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Generated monthly data: ${JSON.stringify(finalMonthlyData)}`);
         
         // Return the analytics data
+        // Calculate summary metrics from the transactions we distributed
+        const totalTransactionsSum = finalMonthlyData.reduce((sum, month) => sum + month.transactions, 0);
+        const totalRevenueSum = finalMonthlyData.reduce((sum, month) => sum + month.revenue, 0);
+        const avgTransactionValue = totalTransactionsSum > 0 
+          ? Number((totalRevenueSum / totalTransactionsSum).toFixed(2))
+          : 0;
+        
         res.json({
           transactionData: finalMonthlyData,
           merchantCategoryData: categoryData,
           summary: {
-            totalTransactions: dashboardStats.dailyTransactions,
-            totalRevenue: dashboardStats.monthlyRevenue,
+            totalTransactions: totalTransactionsSum,
+            totalRevenue: totalRevenueSum,
             totalMerchants: dashboardStats.totalMerchants,
-            avgTransactionValue: 
-              dashboardStats.dailyTransactions > 0 
-                ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
-                : 0,
+            avgTransactionValue: avgTransactionValue,
             growthRate: 12.7 // This would need historical data to calculate properly
           }
         });
