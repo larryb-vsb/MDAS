@@ -541,12 +541,20 @@ export class DatabaseStorage implements IStorage {
         merchant: {
           id: merchant.id,
           name: merchant.name,
+          clientMID: merchant.clientMID || null,
+          otherClientNumber1: merchant.otherClientNumber1 || null,
+          otherClientNumber2: merchant.otherClientNumber2 || null,
+          clientSinceDate: merchant.clientSinceDate ? merchant.clientSinceDate.toISOString() : null,
           status: merchant.status,
+          merchantType: merchant.merchantType || 0,
+          salesChannel: merchant.salesChannel || null,
           address: merchant.address || '',
           city: merchant.city || '',
           state: merchant.state || '',
           zipCode: merchant.zipCode || '',
-          category: merchant.category || ''
+          country: merchant.country || null,
+          category: merchant.category || '',
+          editDate: merchant.editDate ? merchant.editDate.toISOString() : null
         },
         transactions: formattedTransactions,
         analytics: {

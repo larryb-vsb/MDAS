@@ -219,10 +219,39 @@ export class MemStorageFallback implements IStorage {
     
     const merchantTransactions = this.transactions.filter(t => t.merchantId === merchantId);
     
+    // Format merchant with proper field names and defaults
+    const formattedMerchant = {
+      id: merchant.id,
+      name: merchant.name || '',
+      clientMID: merchant.clientMID || null,
+      otherClientNumber1: merchant.otherClientNumber1 || null,
+      otherClientNumber2: merchant.otherClientNumber2 || null,
+      clientSinceDate: merchant.clientSinceDate ? merchant.clientSinceDate.toISOString() : null,
+      status: merchant.status || 'Pending',
+      merchantType: merchant.merchantType || 0,
+      salesChannel: merchant.salesChannel || null,
+      address: merchant.address || '',
+      city: merchant.city || '',
+      state: merchant.state || '',
+      zipCode: merchant.zipCode || '',
+      country: merchant.country || null,
+      category: merchant.category || '',
+      editDate: merchant.editDate ? merchant.editDate.toISOString() : null
+    };
+    
+    // Format transactions for display
+    const formattedTransactions = merchantTransactions.map(t => ({
+      transactionId: t.id,
+      merchantId: t.merchantId,
+      amount: parseFloat(t.amount?.toString() || '0'),
+      date: t.date ? new Date(t.date).toISOString() : new Date().toISOString(),
+      type: t.type || 'Credit'
+    }));
+    
     // Simple mock analytics
     return {
-      merchant,
-      transactions: merchantTransactions,
+      merchant: formattedMerchant,
+      transactions: formattedTransactions,
       analytics: {
         dailyStats: {
           transactions: 0,

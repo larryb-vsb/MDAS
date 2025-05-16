@@ -112,7 +112,13 @@ export const insertBackupHistorySchema = backupHistorySchema.omit({ id: true });
 
 // Zod schemas for backup schedules
 export const backupSchedulesSchema = createInsertSchema(backupSchedules);
-export const insertBackupScheduleSchema = backupSchedulesSchema.omit({ id: true, lastRun: true, nextRun: true, createdAt: true, updatedAt: true });
+export const insertBackupScheduleSchema = backupSchedulesSchema.omit({ 
+  id: true, 
+  lastRun: true, 
+  nextRun: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
 
 // Zod schemas for schema versions
 export const schemaVersionsSchema = createInsertSchema(schemaVersions);
