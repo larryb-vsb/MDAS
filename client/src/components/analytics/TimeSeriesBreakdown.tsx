@@ -57,7 +57,10 @@ export default function TimeSeriesBreakdown({
   const { data: timeframeData, isLoading: timeframeLoading } = useQuery<{ transactionData: TransactionData[] }>({
     queryKey: ["/api/analytics", timePeriod],
     queryFn: () => fetch(`/api/analytics?timeframe=${timePeriod}`).then(res => res.json()),
-    enabled: !!timePeriod
+    enabled: !!timePeriod,
+    // Refresh data automatically every minute when viewing daily data
+    // This ensures the charts stay current
+    refetchInterval: timePeriod === 'day' ? 60000 : false
   });
   
   // Combine loading states
