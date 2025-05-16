@@ -97,7 +97,7 @@ export interface IStorage {
       itemsPerPage: number;
     };
   }>;
-  addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any>;
+  addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }): Promise<any>;
   deleteTransactions(transactionIds: string[]): Promise<void>;
   exportTransactionsToCSV(
     merchantId?: string, 
@@ -1700,7 +1700,7 @@ export class DatabaseStorage implements IStorage {
           const transaction: Partial<InsertTransaction> = {
             id: `T${Math.floor(Math.random() * 1000000)}`,
             merchantId,
-            amount: 0,
+            amount: "0",
             date: new Date(),
             type: "Sale"
           };
@@ -1771,18 +1771,14 @@ export class DatabaseStorage implements IStorage {
                       // If amount is negative, make it positive
                       if (amountNum < 0) {
                         const positiveAmount = Math.abs(amountNum);
-                        transaction.amount = typeof transaction.amount === 'string' 
-                          ? positiveAmount.toString() 
-                          : positiveAmount;
+                        transaction.amount = positiveAmount.toString();
                         console.log(`Adjusted negative amount to positive for Credit transaction: ${transaction.amount}`);
                       }
                     } else if (code === "27") { // Debit - should be negative
                       // If amount is positive, make it negative
                       if (amountNum > 0) {
                         const negativeAmount = -Math.abs(amountNum);
-                        transaction.amount = typeof transaction.amount === 'string' 
-                          ? negativeAmount.toString() 
-                          : negativeAmount;
+                        transaction.amount = negativeAmount.toString();
                         console.log(`Adjusted positive amount to negative for Debit transaction: ${transaction.amount}`);
                       }
                     }
