@@ -20,7 +20,11 @@ import {
   Loader2,
   X,
   CheckSquare,
-  Play
+  Play,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import {
   Card,
@@ -486,6 +490,35 @@ export default function Uploads() {
     window.location.href = `/api/uploads/${file.id}/download`;
   }
 
+  // Function to handle pagination
+  function handlePageChange(newPage: number) {
+    setPagination(prev => ({
+      ...prev,
+      currentPage: newPage
+    }));
+  }
+
+  // Calculate pagination details based on current files
+  useEffect(() => {
+    if (files) {
+      const totalItems = files.length;
+      const totalPages = Math.ceil(totalItems / pagination.itemsPerPage);
+      
+      setPagination(prev => ({
+        ...prev,
+        totalPages: Math.max(1, totalPages)
+      }));
+      
+      // Reset to page 1 if current page exceeds new total pages
+      if (pagination.currentPage > totalPages && totalPages > 0) {
+        setPagination(prev => ({
+          ...prev,
+          currentPage: 1
+        }));
+      }
+    }
+  }, [files]);
+
   // Helper function to render the file table
   function renderFileTable(filesData?: UploadedFile[]) {
     if (isLoading) {
@@ -507,6 +540,16 @@ export default function Uploads() {
         </Card>
       );
     }
+    
+    // Create a copy to sort by date descending (newest first)
+    const sortedFiles = [...filesData].sort((a, b) => {
+      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+    });
+    
+    // Apply pagination
+    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    const endIndex = startIndex + pagination.itemsPerPage;
+    const paginatedFiles = sortedFiles.slice(startIndex, endIndex);
 
     return (
       <div>
@@ -552,12 +595,12 @@ export default function Uploads() {
                     <TableHead className="w-12">
                       <Checkbox 
                         checked={
-                          filesData.length > 0 && 
-                          filesData.every(file => 
+                          paginatedFiles.length > 0 && 
+                          paginatedFiles.every(file => 
                             selectedFiles.some(f => f.id === file.id)
                           )
                         }
-                        onCheckedChange={() => toggleSelectAll(filesData)}
+                        onCheckedChange={() => toggleSelectAll(paginatedFiles)}
                         aria-label="Select all files"
                       />
                     </TableHead>
@@ -570,7 +613,7 @@ export default function Uploads() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filesData.map((file) => (
+                {paginatedFiles.map((file) => (
                   <TableRow key={file.id}>
                     {selectMode && (
                       <TableCell className="w-12">
@@ -680,6 +723,53 @@ export default function Uploads() {
               </TableBody>
             </Table>
           </CardContent>
+          {sortedFiles.length > pagination.itemsPerPage && (
+            <CardFooter className="flex justify-center pt-2 pb-4">
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(1)}
+                  disabled={pagination.currentPage === 1}
+                  className="h-8 w-8"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <span className="text-sm px-2">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </span>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handlePageChange(pagination.totalPages)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="h-8 w-8"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardFooter>
+          )}
         </Card>
       </div>
     );
