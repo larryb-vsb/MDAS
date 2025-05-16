@@ -4,6 +4,14 @@ export interface DashboardStats {
   newMerchants: number;
   dailyTransactions: number;
   monthlyRevenue: number;
+  
+  // Enhanced metrics
+  transactionGrowth: number; // Percentage growth in transactions (month-over-month)
+  revenueGrowth: number; // Percentage growth in revenue (month-over-month)
+  activeRate: number; // Percentage of active merchants
+  avgTransactionValue: number; // Average transaction value
+  totalTransactions: number; // Total transactions (all time or monthly)
+  totalRevenue: number; // Total revenue (all time or monthly)
 }
 
 // Merchant stats types
