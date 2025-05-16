@@ -1440,6 +1440,7 @@ export class DatabaseStorage implements IStorage {
 
   // Process a merchant demographics CSV file
   async processMerchantFile(filePath: string): Promise<void> {
+    console.log(`=================== MERCHANT FILE PROCESSING ===================`);
     console.log(`Processing merchant file: ${filePath}`);
     
     // Import field mappings and utility functions
@@ -1467,7 +1468,7 @@ export class DatabaseStorage implements IStorage {
         return reject(new Error(`Error checking file readability: ${filePath}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
       
-      console.log("Starting CSV parsing...");
+      console.log("Starting CSV parsing with verbose logging enabled...");
       const parser = createReadStream(filePath).pipe(
         parseCSV({
           columns: true,
@@ -1479,10 +1480,28 @@ export class DatabaseStorage implements IStorage {
       let rowCount = 0;
       let errorCount = 0;
       
+      // Track stats for the import
+      const stats = {
+        totalRows: 0,
+        newMerchants: 0,
+        updatedMerchants: 0, 
+        skippedRows: 0,
+        mtypeStats: {
+          none: 0,
+          '1': 0,
+          '2': 0,
+          '3': 0,
+          custom: 0
+        },
+        asOfDates: new Set<string>()
+      };
+      
       parser.on("data", (row) => {
         rowCount++;
+        stats.totalRows++;
         try {
-          console.log(`Processing row ${rowCount}:`, JSON.stringify(row));
+          console.log(`\n--- Processing row ${rowCount} ---`);
+          console.log(`Row data: ${JSON.stringify(row)}`);
           
           // Find the merchant ID using our utility function
           let merchantId = findMerchantId(row, merchantIdAliases);
@@ -1496,30 +1515,68 @@ export class DatabaseStorage implements IStorage {
             merchantId = normalizeMerchantId(merchantId);
           }
           
-          // Create merchant object with mapped fields from CSV
+          // Create merchant object with system fields
           const merchantData: Partial<InsertMerchant> = {
             id: merchantId,
             createdAt: new Date(),
             lastUploadDate: new Date(),
-            editDate: new Date()
+            editDate: new Date(),
+            updatedBy: "system" // Set the updated by field to system
           };
           
           // Apply field mappings - map CSV fields to database fields
           for (const [dbField, csvField] of Object.entries(merchantFieldMappings)) {
             if (csvField && row[csvField] !== undefined) {
-              // For date fields, parse the date
-              if (dbField === 'clientSinceDate') {
+              // Log the field being processed
+              console.log(`Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
+              
+              // Handle date fields
+              if (dbField === 'clientSinceDate' || dbField === 'asOfDate') {
                 try {
                   if (row[csvField] && row[csvField].trim() !== '') {
-                    merchantData[dbField as keyof InsertMerchant] = new Date(row[csvField]) as any;
+                    const parsedDate = new Date(row[csvField]);
+                    merchantData[dbField as keyof InsertMerchant] = parsedDate as any;
+                    
+                    if (dbField === 'asOfDate') {
+                      stats.asOfDates.add(parsedDate.toISOString().split('T')[0]);
+                      console.log(`AsOfDate found: ${parsedDate.toISOString()}`);
+                    }
                   } else {
                     merchantData[dbField as keyof InsertMerchant] = null as any;
+                    console.log(`Empty ${dbField} field, setting to null`);
                   }
                 } catch (e) {
                   console.warn(`Failed to parse date for ${dbField}: ${row[csvField]}`);
                   merchantData[dbField as keyof InsertMerchant] = null as any;
                 }
-              } else {
+              } 
+              // Special handling for MType
+              else if (dbField === 'merchantType') {
+                const mTypeValue = row[csvField]?.toString()?.trim();
+                if (mTypeValue) {
+                  // Store value as-is
+                  merchantData[dbField as keyof InsertMerchant] = mTypeValue as any;
+                  
+                  // Track mType stats
+                  if (mTypeValue === '0' || mTypeValue.toLowerCase() === 'none') {
+                    stats.mtypeStats.none++;
+                  } else if (mTypeValue === '1') {
+                    stats.mtypeStats['1']++;
+                  } else if (mTypeValue === '2') {
+                    stats.mtypeStats['2']++;
+                  } else if (mTypeValue === '3') {
+                    stats.mtypeStats['3']++;
+                  } else {
+                    stats.mtypeStats.custom++;
+                  }
+                  
+                  console.log(`MType value found: ${mTypeValue}`);
+                } else {
+                  merchantData[dbField as keyof InsertMerchant] = null as any;
+                  console.log(`Empty MType field, setting to null`);
+                }
+              }
+              else {
                 merchantData[dbField as keyof InsertMerchant] = row[csvField] as any;
               }
             }
@@ -1529,20 +1586,23 @@ export class DatabaseStorage implements IStorage {
           for (const [field, defaultValue] of Object.entries(defaultMerchantValues)) {
             if (!merchantData[field as keyof InsertMerchant]) {
               merchantData[field as keyof InsertMerchant] = defaultValue as any;
+              console.log(`Applied default value for ${field}: ${defaultValue}`);
             }
           }
           
           // Make sure name exists (required field)
           if (!merchantData.name) {
             merchantData.name = `Unknown Merchant ${merchantId}`;
+            console.log(`No name found, generated default: ${merchantData.name}`);
           }
           
-          // Log the mapped merchant data
-          console.log(`Mapped merchant data:`, JSON.stringify(merchantData));
+          // Log the complete merchant data
+          console.log(`Complete merchant data: ${JSON.stringify(merchantData)}`);
           
           merchants.push(merchantData as InsertMerchant);
         } catch (error) {
           errorCount++;
+          stats.skippedRows++;
           console.error(`Error processing merchant row ${rowCount}:`, error);
           console.error("Row data:", JSON.stringify(row));
           // Continue with next row
@@ -1555,13 +1615,18 @@ export class DatabaseStorage implements IStorage {
       });
       
       parser.on("end", async () => {
-        console.log(`CSV parsing complete. Processed ${rowCount} rows with ${errorCount} errors.`);
-        console.log(`Processing ${merchants.length} valid merchants...`);
+        console.log(`\n=================== CSV PROCESSING SUMMARY ===================`);
+        console.log(`Processed ${rowCount} total rows with ${errorCount} errors.`);
+        console.log(`Found ${merchants.length} valid merchants to process.`);
         
         try {
           // Insert or update merchants in database
           let updatedCount = 0;
           let insertedCount = 0;
+          
+          // Lists to track created and updated merchants for detailed reporting
+          const createdMerchantsList = [];
+          const updatedMerchantsList = [];
           
           for (const merchant of merchants) {
             // Check if merchant exists
@@ -1573,35 +1638,79 @@ export class DatabaseStorage implements IStorage {
               // Update existing merchant
               console.log(`Updating existing merchant: ${merchant.id} - ${merchant.name}`);
               updatedCount++;
+              stats.updatedMerchants++;
+              updatedMerchantsList.push({
+                id: merchant.id,
+                name: merchant.name,
+                merchantType: merchant.merchantType,
+                asOfDate: merchant.asOfDate
+              });
+              
+              // Always update the edit date to current date/time
+              const updateData = {
+                name: merchant.name,
+                clientMID: merchant.clientMID,
+                otherClientNumber1: merchant.otherClientNumber1,
+                otherClientNumber2: merchant.otherClientNumber2,
+                clientSinceDate: merchant.clientSinceDate,
+                status: merchant.status,
+                merchantType: merchant.merchantType,
+                salesChannel: merchant.salesChannel,
+                address: merchant.address,
+                city: merchant.city,
+                state: merchant.state,
+                zipCode: merchant.zipCode,
+                country: merchant.country,
+                category: merchant.category,
+                lastUploadDate: merchant.lastUploadDate,
+                asOfDate: merchant.asOfDate,
+                editDate: new Date(), // Always update the edit date
+                updatedBy: "system" // Set updatedBy to system
+              };
+              
+              console.log(`Update data: ${JSON.stringify(updateData)}`);
               
               await db.update(merchantsTable)
-                .set({
-                  name: merchant.name,
-                  clientMID: merchant.clientMID,
-                  otherClientNumber1: merchant.otherClientNumber1,
-                  otherClientNumber2: merchant.otherClientNumber2,
-                  clientSinceDate: merchant.clientSinceDate,
-                  status: merchant.status,
-                  address: merchant.address,
-                  city: merchant.city,
-                  state: merchant.state,
-                  zipCode: merchant.zipCode,
-                  country: merchant.country,
-                  category: merchant.category,
-                  lastUploadDate: merchant.lastUploadDate,
-                  editDate: new Date()
-                })
+                .set(updateData)
                 .where(eq(merchantsTable.id, merchant.id));
             } else {
               // Insert new merchant
               console.log(`Inserting new merchant: ${merchant.id} - ${merchant.name}`);
               insertedCount++;
+              stats.newMerchants++;
+              createdMerchantsList.push({
+                id: merchant.id,
+                name: merchant.name,
+                merchantType: merchant.merchantType,
+                asOfDate: merchant.asOfDate
+              });
               
               await db.insert(merchantsTable).values(merchant);
             }
           }
           
-          console.log(`Merchant processing complete. Updated: ${updatedCount}, Inserted: ${insertedCount}`);
+          console.log(`\n=================== DATABASE UPDATE SUMMARY ===================`);
+          console.log(`Updated merchants: ${updatedCount}`);
+          console.log(`Inserted merchants: ${insertedCount}`);
+          
+          console.log(`\n=================== MTYPE STATISTICS ===================`);
+          console.log(`MType 'none': ${stats.mtypeStats.none}`);
+          console.log(`MType '1': ${stats.mtypeStats['1']}`);
+          console.log(`MType '2': ${stats.mtypeStats['2']}`);
+          console.log(`MType '3': ${stats.mtypeStats['3']}`);
+          console.log(`MType custom values: ${stats.mtypeStats.custom}`);
+          
+          console.log(`\n=================== CREATED MERCHANTS ===================`);
+          createdMerchantsList.forEach((m, idx) => {
+            console.log(`${idx+1}. ${m.id} - ${m.name} (MType: ${m.merchantType || 'none'}, AsOfDate: ${m.asOfDate || 'none'})`);
+          });
+          
+          console.log(`\n=================== UPDATED MERCHANTS ===================`);
+          updatedMerchantsList.forEach((m, idx) => {
+            console.log(`${idx+1}. ${m.id} - ${m.name} (MType: ${m.merchantType || 'none'}, AsOfDate: ${m.asOfDate || 'none'})`);
+          });
+          
+          console.log(`\n=================== COMPLETE ===================`);
           resolve();
         } catch (error) {
           console.error("Error updating merchants in database:", error);

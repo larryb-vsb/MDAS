@@ -21,7 +21,9 @@ export const merchants = pgTable("merchants", {
   category: text("category"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUploadDate: timestamp("last_upload_date"),
-  editDate: timestamp("edit_date").defaultNow()
+  asOfDate: timestamp("as_of_date"), // Date from demographic import
+  editDate: timestamp("edit_date").defaultNow(), // System-controlled last edit date
+  updatedBy: text("updated_by") // System-controlled field for tracking who made changes
 });
 
 // Transactions table

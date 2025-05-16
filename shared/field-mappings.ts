@@ -17,13 +17,15 @@ export const merchantFieldMappings = {
   otherClientNumber1: null, // Not in current import
   otherClientNumber2: null, // Not in current import
   status: null, // Default in code
+  merchantType: "Mtype", // New field for merchant type
   address: "ClientPAddress1", 
   city: "ClientPAddressCity",
   state: "ClientPAddressState",
   zipCode: "ClientPAddressZip",
   country: "ClientPAddressCountry",
   category: null, // Default in code
-  clientSinceDate: "ClientSinceDate"
+  clientSinceDate: "ClientSinceDate",
+  asOfDate: "AsOfDate" // Date from demographic import file
 };
 
 export const transactionFieldMappings = {
