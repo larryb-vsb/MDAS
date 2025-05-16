@@ -1533,6 +1533,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: z.string().min(1, { message: "Name is required" }),
         clientMID: z.string().nullable().optional(),
         status: z.string().optional(),
+        merchantType: z.number().optional(),
+        salesChannel: z.string().nullable().optional(),
         address: z.string().nullable().optional(),
         city: z.string().nullable().optional(),
         state: z.string().nullable().optional(),
@@ -1547,6 +1549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...merchantData,
         id: `M${Date.now().toString().slice(-4)}`,
         createdAt: new Date(),
+        editDate: new Date(),
         lastUploadDate: null
       });
       
@@ -1569,6 +1572,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: z.string().optional(),
         clientMID: z.string().nullable().optional(),
         status: z.string().optional(),
+        merchantType: z.number().optional(),
+        salesChannel: z.string().nullable().optional(),
         address: z.string().nullable().optional(),
         city: z.string().nullable().optional(),
         state: z.string().nullable().optional(),
@@ -1577,7 +1582,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const merchantData = schema.parse(req.body);
-      const updatedMerchant = await storage.updateMerchant(merchantId, merchantData);
+      
+      // Always update the edit date when merchant details are changed
+      const updatedMerchantData = {
+        ...merchantData,
+        editDate: new Date()
+      };
+      
+      const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);
       
       res.json({ 
         success: true, 

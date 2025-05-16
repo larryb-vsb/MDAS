@@ -220,6 +220,47 @@ export default function NewMerchant() {
                     
                     <FormField
                       control={form.control}
+                      name="merchantType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Merchant Type</FormLabel>
+                          <Select 
+                            onValueChange={(value) => field.onChange(parseInt(value))} 
+                            defaultValue={(field.value || 0).toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select merchant type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="0">None</SelectItem>
+                              <SelectItem value="1">Type 1</SelectItem>
+                              <SelectItem value="2">Type 2</SelectItem>
+                              <SelectItem value="3">Type 3+</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="salesChannel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sales Channel</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter sales channel" {...field} value={field.value || ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
                       name="category"
                       render={({ field }) => (
                         <FormItem>
