@@ -630,7 +630,7 @@ export default function MerchantDetail() {
                             !["none", "0", "1", "2", "3"].includes(field.value || "none")
                           );
                           const [customValue, setCustomValue] = useState(
-                            isCustomType ? field.value : ""
+                            isCustomType ? (field.value || "") : ""
                           );
                           
                           // Handle changes in the select/custom input
@@ -678,7 +678,7 @@ export default function MerchantDetail() {
                                   <FormControl>
                                     <Input 
                                       placeholder="Enter custom merchant type" 
-                                      value={customValue}
+                                      value={customValue || ""}
                                       onChange={handleCustomChange}
                                     />
                                   </FormControl>
