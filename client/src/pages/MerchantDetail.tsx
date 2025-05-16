@@ -81,8 +81,7 @@ const merchantSchema = z.object({
   country: z.string().optional(),
   category: z.string().optional(),
   asOfDate: z.string().optional(), // As of date from demographic import
-  editDate: z.string().optional().readonly(), // System-controlled last edit date - read only
-  updatedBy: z.string().optional().readonly() // System-controlled updated by field - read only
+  // Removed editDate and updatedBy - they are now display-only fields outside the form
 });
 
 // Define transaction form schema
@@ -367,8 +366,8 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || '',
-      editDate: data?.merchant.editDate ? new Date(data.merchant.editDate).toISOString().split('T')[0] : ''
+      category: data?.merchant.category || ''
+      // Removed editDate as it's now display-only
     },
     values: {
       name: data?.merchant.name || '',
@@ -384,8 +383,8 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || '',
-      editDate: data?.merchant.editDate ? new Date(data.merchant.editDate).toISOString().split('T')[0] : ''
+      category: data?.merchant.category || ''
+      // Removed editDate as it's now display-only
     },
   });
 
@@ -834,19 +833,21 @@ export default function MerchantDetail() {
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="editDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Edit Date</FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {/* Display-only fields for edit date and updated by */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 mt-2">
+                        <div>
+                          <FormLabel>Last Updated</FormLabel>
+                          <div className="p-2 border rounded-md bg-gray-50 text-sm">
+                            {data?.merchant.editDate ? new Date(data.merchant.editDate).toLocaleString() : 'Not available'}
+                          </div>
+                        </div>
+                        <div>
+                          <FormLabel>Updated By</FormLabel>
+                          <div className="p-2 border rounded-md bg-gray-50 text-sm">
+                            {data?.merchant.updatedBy || 'System'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex justify-end">
