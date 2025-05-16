@@ -311,6 +311,38 @@ async function checkAndAddMerchantColumns() {
       `);
     }
     
+    // Check for as_of_date column
+    const asOfDateResult = await db.execute(sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'merchants'
+      AND column_name = 'as_of_date'
+    `);
+    
+    if (asOfDateResult.rows.length === 0) {
+      console.log('Adding as_of_date column to merchants table');
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ADD COLUMN as_of_date TIMESTAMP WITH TIME ZONE
+      `);
+    }
+    
+    // Check for updated_by column
+    const updatedByResult = await db.execute(sql`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'merchants'
+      AND column_name = 'updated_by'
+    `);
+    
+    if (updatedByResult.rows.length === 0) {
+      console.log('Adding updated_by column to merchants table');
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ADD COLUMN updated_by TEXT
+      `);
+    }
+    
     console.log('Merchant columns check complete');
   } catch (error) {
     console.error('Error checking/adding merchant columns:', error);

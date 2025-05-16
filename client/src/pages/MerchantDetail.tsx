@@ -80,7 +80,9 @@ const merchantSchema = z.object({
   zipCode: z.string().optional(),
   country: z.string().optional(),
   category: z.string().optional(),
-  editDate: z.string().optional() // We'll handle date conversion in the form
+  asOfDate: z.string().optional(), // As of date from demographic import
+  editDate: z.string().optional().readonly(), // System-controlled last edit date - read only
+  updatedBy: z.string().optional().readonly() // System-controlled updated by field - read only
 });
 
 // Define transaction form schema
@@ -115,7 +117,9 @@ interface MerchantDetailsResponse {
     zipCode: string;
     country: string | null;
     category: string;
-    editDate: string | null;
+    asOfDate: string | null; // As of date from demographic import
+    editDate: string | null; // System-controlled last edit date
+    updatedBy: string | null; // System-controlled updated by field
   };
   transactions: {
     transactionId: string;
