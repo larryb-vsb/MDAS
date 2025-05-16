@@ -88,7 +88,7 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '1.2.0';
+export const CURRENT_SCHEMA_VERSION = '1.3.0';
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
@@ -129,6 +129,19 @@ export const SCHEMA_VERSION_HISTORY = [
         'Backup history table structure',
         'Changed fileSize field to size',
         'Changed tables field to JSONB format'
+      ]
+    },
+    appliedBy: 'system',
+  },
+  {
+    version: '1.3.0',
+    description: 'Changed merchant_type field from INTEGER to TEXT for better flexibility',
+    changes: {
+      tables: ['merchants'],
+      modified: [
+        'Changed merchant_type column from INTEGER to TEXT type',
+        'Updated default values to use "none" instead of 0',
+        'Added backward compatibility with legacy numeric values'
       ]
     },
     appliedBy: 'system',
