@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
 import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
+import MappingSettings from "@/components/uploads/MappingSettings";
 import { 
   AlertCircle, 
   Check, 
@@ -88,6 +89,12 @@ interface FileContentResponse {
   rows: Record<string, any>[];
 }
 
+interface PaginationState {
+  currentPage: number;
+  totalPages: number;
+  itemsPerPage: number;
+}
+
 export default function Uploads() {
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -97,6 +104,11 @@ export default function Uploads() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMultiDeleteDialogOpen, setIsMultiDeleteDialogOpen] = useState(false);
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    totalPages: 1,
+    itemsPerPage: 10
+  });
   const [fileContent, setFileContent] = useState<FileContentResponse | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([]);
   const [selectMode, setSelectMode] = useState(false);
