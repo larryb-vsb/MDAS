@@ -292,7 +292,12 @@ export default function MerchantList({
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{merchant.name}</div>
+                            <div 
+                              className="text-sm font-medium text-gray-900 cursor-pointer hover:text-blue-600"
+                              onClick={() => setLocation(`/merchants/${merchant.id}`)}
+                            >
+                              {merchant.name}
+                            </div>
                             <div className="text-sm text-gray-500">ID: #{merchant.id}</div>
                           </div>
                         </div>
@@ -301,7 +306,10 @@ export default function MerchantList({
                         {merchant.clientMID || '-'}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full ${getStatusBadgeColor(merchant.status)}`}>
+                        <span 
+                          className={`inline-flex px-2 text-xs font-semibold leading-5 rounded-full cursor-pointer ${getStatusBadgeColor(merchant.status)}`}
+                          onClick={() => setLocation(`/merchants/${merchant.id}`)}
+                        >
                           {merchant.status}
                         </span>
                       </TableCell>
@@ -332,42 +340,6 @@ export default function MerchantList({
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>View Details</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                                  onClick={() => setLocation(`/merchants/${merchant.id}?tab=details`)}
-                                >
-                                  <Edit className="w-5 h-5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Edit Merchant</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
-                                  onClick={toggleUploadModal}
-                                >
-                                  <Upload className="w-5 h-5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Upload Data</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
