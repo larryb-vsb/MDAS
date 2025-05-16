@@ -7,8 +7,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -53,6 +53,8 @@ export default function AnalyticsTransactionChart({
   tooltipLabel,
   previousPeriodData,
 }: AnalyticsTransactionChartProps) {
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
   // Process the data to separate current year (2025) and previous year (2024) data
   const currentYearData = data?.filter(item => item.year === 2025) || [];
   const previousYearData = data?.filter(item => item.year === 2024) || [];
@@ -82,14 +84,32 @@ export default function AnalyticsTransactionChart({
   // Calculate total value (current year only for display)
   const totalValue = currentYearData.reduce((sum, item) => sum + (item[dataKey] as number || 0), 0) || 0;
 
+  // Create combined data for a grouped bar chart
+  const combinedData = monthNames.map(month => {
+    const month2024 = previousYearData.find(d => d.name === month);
+    const month2025 = currentYearData.find(d => d.name === month);
+    
+    return {
+      name: month,
+      [`2024_${dataKey}`]: month2024 ? month2024[dataKey] : 0,
+      [`2025_${dataKey}`]: month2025 ? month2025[dataKey] : 0
+    };
+  });
+
   const CustomTooltip = ({ active, payload, label: tooltipLabel }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border rounded shadow-sm p-3">
           <p className="font-medium">{tooltipLabel}</p>
-          <p className="text-sm" style={{ color }}>
-            {`${payload[0].name}: ${formatValue(payload[0].value)}`}
-          </p>
+          {payload.map((entry: any, index: number) => (
+            <p 
+              key={`tooltip-${index}`} 
+              className="text-sm"
+              style={{ color: entry.color }}
+            >
+              {`${entry.name}: ${formatValue(entry.value)}`}
+            </p>
+          ))}
         </div>
       );
     }
@@ -147,13 +167,17 @@ export default function AnalyticsTransactionChart({
         
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <BarChart
+              data={combinedData}
               margin={{
                 top: 20,
                 right: 30,
                 left: dataKey === 'revenue' ? 60 : 30,
                 bottom: 20,
               }}
+              barSize={20}
+              barGap={2}
+              barCategoryGap={16}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis 
@@ -176,28 +200,20 @@ export default function AnalyticsTransactionChart({
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               
-              <Line 
-                type="monotone" 
-                data={previousYearData}
-                dataKey={dataKey} 
+              <Bar 
+                dataKey={`2024_${dataKey}`}
                 name={`2024 ${label}`}
-                stroke="#CBD5E1" 
-                strokeWidth={1.5}
-                dot={{ r: 3, strokeWidth: 1, fill: "white" }}
-                strokeDasharray="5 5"
+                fill="#CBD5E1" 
+                radius={[4, 4, 0, 0]}
               />
               
-              <Line 
-                type="monotone" 
-                data={currentYearData}
-                dataKey={dataKey} 
+              <Bar 
+                dataKey={`2025_${dataKey}`}
                 name={`2025 ${label}`}
-                stroke={color} 
-                strokeWidth={2.5}
-                dot={{ r: 4, strokeWidth: 2, fill: "white" }}
-                activeDot={{ r: 6, stroke: color, strokeWidth: 2, fill: "white" }}
+                fill={color}
+                radius={[4, 4, 0, 0]}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
