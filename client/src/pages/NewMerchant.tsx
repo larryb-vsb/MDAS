@@ -220,29 +220,65 @@ export default function NewMerchant() {
                     <FormField
                       control={form.control}
                       name="merchantType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Merchant Type</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(value)} 
-                            defaultValue={field.value || "none"}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select merchant type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="1">Type 1</SelectItem>
-                              <SelectItem value="2">Type 2</SelectItem>
-                              <SelectItem value="3">Type 3+</SelectItem>
-                              <SelectItem value="0">Legacy Type 0</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                      render={({ field }) => {
+                        const [isCustomType, setIsCustomType] = useState(false);
+                        const [customValue, setCustomValue] = useState("");
+                        
+                        // Handle changes in the select/custom input
+                        const handleValueChange = (value: string) => {
+                          if (value === "custom") {
+                            setIsCustomType(true);
+                            field.onChange(customValue || "");
+                          } else {
+                            setIsCustomType(false);
+                            field.onChange(value);
+                          }
+                        };
+                        
+                        // Handle changes in the custom input
+                        const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                          const newValue = e.target.value;
+                          setCustomValue(newValue);
+                          field.onChange(newValue);
+                        };
+                        
+                        return (
+                          <FormItem className="space-y-2">
+                            <FormLabel>Merchant Type</FormLabel>
+                            <div className="space-y-2">
+                              <Select 
+                                onValueChange={handleValueChange}
+                                defaultValue={field.value || "none"}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select merchant type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  <SelectItem value="0">Type 0</SelectItem>
+                                  <SelectItem value="1">Type 1</SelectItem>
+                                  <SelectItem value="2">Type 2</SelectItem>
+                                  <SelectItem value="3">Type 3</SelectItem>
+                                  <SelectItem value="custom">Custom...</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              {isCustomType && (
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Enter custom merchant type" 
+                                    value={customValue}
+                                    onChange={handleCustomChange}
+                                  />
+                                </FormControl>
+                              )}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                     
                     <FormField

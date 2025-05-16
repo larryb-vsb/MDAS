@@ -352,7 +352,7 @@ export class DatabaseStorage implements IStorage {
         const transaction: InsertTransaction = {
           id: `T${Math.floor(Math.random() * 1000000)}`,
           merchantId,
-          amount: Math.round(Math.random() * 1000 * 100) / 100, // Random amount up to $1000 with 2 decimal places
+          amount: String(Math.round(Math.random() * 1000 * 100) / 100), // Random amount up to $1000 with 2 decimal places
           date: randomDate,
           type: Math.random() > 0.2 ? "Sale" : "Refund"
         };
