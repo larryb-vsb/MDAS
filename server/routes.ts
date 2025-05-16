@@ -899,6 +899,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        console.log(`Latest transaction date for analytics: ${maxDate.toISOString()}`);
+        
         // Create data for all 12 months
         const monthlyData = [];
         for (let i = 0; i < 12; i++) {
@@ -915,35 +917,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
+        // Calculate the start date for our data window (12 months back from max date)
+        const startDate = new Date(maxDate);
+        startDate.setFullYear(maxDate.getFullYear() - 1);
+        console.log(`Using date range for analytics: ${startDate.toISOString()} to ${maxDate.toISOString()}`);
+        
         // Process all transactions and assign to the correct month
         for (const item of allTransactions) {
           const { transaction } = item;
           const txDate = new Date(transaction.date);
           
-          // Find the matching month in our prepared data
-          for (const monthData of monthlyData) {
-            // Get the month index
-            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(monthData.name);
+          // Skip if the transaction is before our time window
+          if (txDate < startDate) {
+            continue;
+          }
+          
+          // Get the month and year
+          const txMonth = txDate.toLocaleString('default', { month: 'short' });
+          const txYear = txDate.getFullYear();
+          
+          // Find the matching month entry
+          const monthEntry = monthlyData.find(m => 
+            m.name === txMonth && m.year === txYear
+          );
+          
+          if (monthEntry) {
+            // Update the transactions count
+            monthEntry.transactions++;
             
-            // Check if this transaction belongs to this month/year
-            if (txDate.getMonth() === monthIndex && txDate.getFullYear() === monthData.year) {
-              // Update the transactions count
-              monthData.transactions++;
-              
-              // Calculate revenue based on transaction type
-              const amount = parseFloat(transaction.amount.toString());
-              if (transaction.type === "Credit") {
-                monthData.revenue += amount;
-              } else if (transaction.type === "Debit") {
-                monthData.revenue -= amount;
-              } else if (transaction.type === "Sale") {
-                monthData.revenue += amount;
-              } else if (transaction.type === "Refund") {
-                monthData.revenue -= amount;
-              }
-              
-              break; // Found the right month, move to next transaction
+            // Calculate revenue based on transaction type
+            const amount = parseFloat(transaction.amount.toString());
+            if (transaction.type === "Credit") {
+              monthEntry.revenue += amount;
+            } else if (transaction.type === "Debit") {
+              monthEntry.revenue -= amount;
+            } else if (transaction.type === "Sale") {
+              monthEntry.revenue += amount;
+            } else if (transaction.type === "Refund") {
+              monthEntry.revenue -= amount;
             }
+          } else {
+            console.log(`No matching month found for transaction date ${txDate.toISOString()} (${txMonth} ${txYear})`);
+          }
+        }
+        
+        console.log(`Generated monthly data: ${JSON.stringify(monthlyData)}`);
+        
+        // Debug log for transaction dates
+        if (allTransactions.length > 0) {
+          console.log(`Sample transaction dates:`);
+          for (let i = 0; i < Math.min(5, allTransactions.length); i++) {
+            const txDate = new Date(allTransactions[i].transaction.date);
+            console.log(`Transaction ${i}: ${txDate.toISOString()} - ${txDate.toLocaleString('default', { month: 'short' })} ${txDate.getFullYear()}`);
+          }
+        }
+        
+        // If we have no transactions, we still want to return data for all 12 months
+        if (allTransactions.length === 0) {
+          const now = new Date();
+          for (let i = 0; i < 12; i++) {
+            const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            monthlyData.push({
+              name: month.toLocaleString('default', { month: 'short' }),
+              year: month.getFullYear(),
+              transactions: 0,
+              revenue: 0
+            });
           }
         }
         
