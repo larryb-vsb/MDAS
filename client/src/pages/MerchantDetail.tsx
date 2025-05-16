@@ -627,8 +627,8 @@ export default function MerchantDetail() {
                             <FormLabel>Merchant Type</FormLabel>
                             <Select 
                               onValueChange={(value) => field.onChange(value)} 
-                              defaultValue={field.value || ""}
-                              value={field.value || ""}
+                              defaultValue={field.value || "none"}
+                              value={field.value || "none"}
                             >
                               <FormControl>
                                 <SelectTrigger>
