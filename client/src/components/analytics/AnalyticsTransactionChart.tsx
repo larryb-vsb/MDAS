@@ -89,10 +89,16 @@ export default function AnalyticsTransactionChart({
     const month2024 = previousYearData.find(d => d.name === month);
     const month2025 = currentYearData.find(d => d.name === month);
     
+    // Determine if this month is in the future (past May 2025)
+    const monthIndex = monthNames.indexOf(month);
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const isFutureMonth = monthIndex > currentMonth;
+    
     return {
       name: month,
       [`2024_${dataKey}`]: month2024 ? month2024[dataKey] : 0,
-      [`2025_${dataKey}`]: month2025 ? month2025[dataKey] : 0
+      [`2025_${dataKey}`]: isFutureMonth ? 0 : (month2025 ? month2025[dataKey] : 0)
     };
   });
 

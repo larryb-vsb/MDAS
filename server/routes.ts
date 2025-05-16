@@ -922,6 +922,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         
+        // Month names already defined above
+        
         // Create data structures for current year (2025)
         const currentYearData = monthNames.map(monthName => ({
           name: monthName,
@@ -954,13 +956,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Apply distributions to the data
         currentYearData.forEach(month => {
-          const factor = currentYearPattern.get(month.name) || 0.08; // Default to 0.08 if not found
-          month.transactions = Math.round(totalTransactions * factor);
-          month.revenue = totalRevenue * factor;
+          const factor = currentYearPattern.get(month.name) || 0;
+          
+          // Only set values for months up to May since it's May 2025 in our timeline
+          const currentMonth = new Date().getMonth(); // May = 4 (0-indexed)
+          const monthIndex = monthNames.indexOf(month.name);
+          
+          if (monthIndex <= currentMonth) {
+            month.transactions = Math.round(totalTransactions * factor);
+            month.revenue = totalRevenue * factor;
+          } else {
+            // Future months should have zero values
+            month.transactions = 0;
+            month.revenue = 0;
+          }
         });
         
         previousYearData.forEach(month => {
-          const factor = previousYearPattern.get(month.name) || 0.08; // Default to 0.08 if not found
+          const factor = previousYearPattern.get(month.name) || 0;
           month.transactions = Math.round(totalTransactions * factor);
           month.revenue = totalRevenue * factor;
         });
