@@ -852,24 +852,40 @@ export default function Uploads() {
             </div>
           </div>
           
-          <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">All Files</TabsTrigger>
-              <TabsTrigger value="merchant">Merchant Files</TabsTrigger>
-              <TabsTrigger value="transaction">Transaction Files</TabsTrigger>
-              <TabsTrigger value="errors">Files with Errors</TabsTrigger>
+          {/* Top-level tabs for File Management and Settings */}
+          <Tabs defaultValue="files" className="mt-6">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="files">File History</TabsTrigger>
+              <TabsTrigger value="settings">Field Mappings</TabsTrigger>
             </TabsList>
-            <TabsContent value="all" className="mt-4">
-              {renderFileTable(files)}
+            
+            {/* Files Tab Content */}
+            <TabsContent value="files" className="mt-6">
+              <Tabs defaultValue="all">
+                <TabsList>
+                  <TabsTrigger value="all">All Files</TabsTrigger>
+                  <TabsTrigger value="merchant">Merchant Files</TabsTrigger>
+                  <TabsTrigger value="transaction">Transaction Files</TabsTrigger>
+                  <TabsTrigger value="errors">Files with Errors</TabsTrigger>
+                </TabsList>
+                <TabsContent value="all" className="mt-4">
+                  {renderFileTable(files)}
+                </TabsContent>
+                <TabsContent value="merchant" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.fileType === 'merchant'))}
+                </TabsContent>
+                <TabsContent value="transaction" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.fileType === 'transaction'))}
+                </TabsContent>
+                <TabsContent value="errors" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.processingErrors))}
+                </TabsContent>
+              </Tabs>
             </TabsContent>
-            <TabsContent value="merchant" className="mt-4">
-              {renderFileTable(files?.filter(file => file.fileType === 'merchant'))}
-            </TabsContent>
-            <TabsContent value="transaction" className="mt-4">
-              {renderFileTable(files?.filter(file => file.fileType === 'transaction'))}
-            </TabsContent>
-            <TabsContent value="errors" className="mt-4">
-              {renderFileTable(files?.filter(file => file.processingErrors))}
+            
+            {/* Settings Tab Content */}
+            <TabsContent value="settings" className="mt-6">
+              <MappingSettings />
             </TabsContent>
           </Tabs>
         </div>
