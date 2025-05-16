@@ -79,41 +79,23 @@ export default function TimeSeriesBreakdown({
   let timeSeriesData: TransactionData[] = [];
   
   if (timePeriod === 'year') {
-    // For year view, we need to process data differently to show yearly comparison
+    // For year view, simplify and flatten the data to match the Overview tab format
+    
+    // Extract just the distinct months, removing the year property 
+    // so we show grouped bars like the original chart
+    
+    // Using the same approach as the overview chart
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    // If raw data has the year property, create combined data for a grouped bar chart
-    if (rawData.some(item => item.year)) {
-      // Get data for each year
-      const data2024 = rawData.filter(item => item.year === 2024);
-      const data2025 = rawData.filter(item => item.year === 2025);
-      
-      timeSeriesData = monthNames.map(month => {
-        // Find the data for each month/year
-        const month2024 = data2024.find(d => d.name === month);
-        const month2025 = data2025.find(d => d.name === month);
-        
-        // Get current month to handle future months
-        const monthIndex = monthNames.indexOf(month);
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-        
-        // For 2025, zero out future months
-        const isFutureMonth = currentYear === 2025 && monthIndex > currentMonth;
-        
-        return {
-          name: month,
-          transactions2024: month2024 ? month2024.transactions : 0,
-          revenue2024: month2024 ? month2024.revenue : 0,
-          transactions2025: isFutureMonth ? 0 : (month2025 ? month2025.transactions : 0),
-          revenue2025: isFutureMonth ? 0 : (month2025 ? month2025.revenue : 0)
-        };
-      });
-    } else {
-      // If no year data, just use the raw data as-is
-      timeSeriesData = rawData;
-    }
+    // Process the data to match the same structure as overview tab
+    const yearData2024 = rawData.filter(item => item.year === 2024);
+    const yearData2025 = rawData.filter(item => item.year === 2025);
+    
+    // Create the combined chart data similar to the overview tab
+    timeSeriesData = [];
+    
+    // Just use the raw data with the years as separate bars
+    timeSeriesData = rawData;
   } 
   else if (timePeriod === 'month') {
     // For month view, generate daily data for the current month
@@ -230,8 +212,28 @@ export default function TimeSeriesBreakdown({
   // We'll keep colors consistent for now
   
   // Calculate totals for the selected view
-  const totalCount = timeSeriesData.reduce((sum: number, item: TransactionData) => sum + item.transactions, 0);
-  const totalAmount = timeSeriesData.reduce((sum: number, item: TransactionData) => sum + item.revenue, 0);
+  let totalCount = 0;
+  let totalAmount = 0;
+  
+  if (timePeriod === 'year') {
+    // For yearly view, calculate totals from the current year only
+    totalCount = timeSeriesData.reduce((sum, item) => {
+      return sum + (item.transactions2025 || 0);
+    }, 0);
+    
+    totalAmount = timeSeriesData.reduce((sum, item) => {
+      return sum + (item.revenue2025 || 0);
+    }, 0);
+  } else {
+    // For other views, use the regular transactions/revenue properties
+    totalCount = timeSeriesData.reduce((sum, item) => {
+      return sum + (item.transactions || 0);
+    }, 0);
+    
+    totalAmount = timeSeriesData.reduce((sum, item) => {
+      return sum + (item.revenue || 0);
+    }, 0);
+  }
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -244,14 +246,38 @@ export default function TimeSeriesBreakdown({
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Different display for year view
+      if (timePeriod === 'year') {
+        return (
+          <div className="bg-background border rounded shadow-sm p-3">
+            <p className="font-medium">{label}</p>
+            {payload.map((entry: any) => {
+              const isTransaction = entry.name.includes('Transaction');
+              const isRevenue = entry.name.includes('Revenue');
+              const year = entry.name.includes('2024') ? '2024' : '2025';
+              
+              return (
+                <p 
+                  key={entry.name}
+                  className={`text-sm ${isTransaction ? 'text-blue-500' : 'text-green-500'}`}
+                >
+                  {`${year} ${isTransaction ? 'Transactions' : 'Revenue'}: ${isRevenue ? formatCurrency(entry.value) : entry.value.toLocaleString()}`}
+                </p>
+              );
+            })}
+          </div>
+        );
+      }
+      
+      // Default tooltip for other views
       return (
         <div className="bg-background border rounded shadow-sm p-3">
           <p className="font-medium">{label}</p>
           <p className="text-sm text-blue-500">
-            {`Transactions: ${payload[0].value.toLocaleString()}`}
+            {`Transactions: ${payload[0]?.value?.toLocaleString() || 0}`}
           </p>
           <p className="text-sm text-green-500">
-            {`Amount: ${formatCurrency(payload[1].value)}`}
+            {`Amount: ${formatCurrency(payload[1]?.value || 0)}`}
           </p>
         </div>
       );
