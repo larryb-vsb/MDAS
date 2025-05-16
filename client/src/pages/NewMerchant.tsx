@@ -44,6 +44,10 @@ const merchantSchema = z.object({
   otherClientNumber2: z.string().optional(),
   clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string().default('Pending'),
+  merchantType: z.union([z.number(), z.string()]).optional().transform(val => 
+    typeof val === 'string' ? parseInt(val) || 0 : val || 0
+  ), // Accept string or number and convert to number
+  salesChannel: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),

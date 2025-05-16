@@ -72,6 +72,10 @@ const merchantSchema = z.object({
   otherClientNumber2: z.string().optional(),
   clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string(),
+  merchantType: z.union([z.number(), z.string()]).optional().transform(val => 
+    typeof val === 'string' ? parseInt(val) || 0 : val || 0
+  ), // Accept string or number and convert to number
+  salesChannel: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -105,6 +109,8 @@ interface MerchantDetailsResponse {
     otherClientNumber2: string | null;
     clientSinceDate: string | null;
     status: string;
+    merchantType: number;
+    salesChannel: string | null;
     address: string;
     city: string;
     state: string;
@@ -352,6 +358,8 @@ export default function MerchantDetail() {
       otherClientNumber2: data?.merchant.otherClientNumber2 || '',
       clientSinceDate: data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toISOString().split('T')[0] : '',
       status: data?.merchant.status || '',
+      merchantType: data?.merchant.merchantType || 0,
+      salesChannel: data?.merchant.salesChannel || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
       state: data?.merchant.state || '',
@@ -367,6 +375,8 @@ export default function MerchantDetail() {
       otherClientNumber2: data?.merchant.otherClientNumber2 || '',
       clientSinceDate: data?.merchant.clientSinceDate ? new Date(data.merchant.clientSinceDate).toISOString().split('T')[0] : '',
       status: data?.merchant.status || '',
+      merchantType: data?.merchant.merchantType || 0,
+      salesChannel: data?.merchant.salesChannel || '',
       address: data?.merchant.address || '',
       city: data?.merchant.city || '',
       state: data?.merchant.state || '',
@@ -606,6 +616,48 @@ export default function MerchantDetail() {
                                 <SelectItem value="Inactive">Inactive</SelectItem>
                               </SelectContent>
                             </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="merchantType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Merchant Type</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(parseInt(value))} 
+                              defaultValue={field.value?.toString() || "0"}
+                              value={field.value?.toString() || "0"}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select merchant type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="0">None</SelectItem>
+                                <SelectItem value="1">Type 1</SelectItem>
+                                <SelectItem value="2">Type 2</SelectItem>
+                                <SelectItem value="3">Type 3+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="salesChannel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Sales Channel</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter sales channel" />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
