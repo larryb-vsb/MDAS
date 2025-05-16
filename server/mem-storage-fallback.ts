@@ -351,7 +351,7 @@ export class MemStorageFallback implements IStorage {
     };
   }
 
-  async addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any> {
+  async addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }): Promise<any> {
     const newTransaction = {
       id: uuidv4(),
       merchantId,

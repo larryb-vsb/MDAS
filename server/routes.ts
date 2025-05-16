@@ -1607,7 +1607,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const transactionSchema = z.object({
-        amount: z.number().positive(),
+        amount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+          message: "Amount must be a valid positive number"
+        }),
         type: z.string(),
         date: z.string().refine(val => !isNaN(Date.parse(val)), {
           message: "Date must be valid"

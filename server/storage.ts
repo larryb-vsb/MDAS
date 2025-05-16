@@ -645,7 +645,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Add a new transaction for a merchant
-  async addTransaction(merchantId: string, transactionData: { amount: number, type: string, date: string }): Promise<any> {
+  async addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }): Promise<any> {
     try {
       // Check if the merchant exists
       const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
@@ -658,22 +658,27 @@ export class DatabaseStorage implements IStorage {
       const transactionId = `T${Math.floor(Math.random() * 1000000)}`;
       
       // Adjust amount based on transaction type
-      let adjustedAmount = transactionData.amount;
+      const amountNum = parseFloat(transactionData.amount);
+      let adjustedAmount: string;
       if (transactionData.type.toLowerCase() === 'credit') {
         // Credit should be positive
-        adjustedAmount = Math.abs(adjustedAmount);
+        const positiveAmount = Math.abs(amountNum);
+        adjustedAmount = positiveAmount.toString();
         console.log(`Ensuring Credit transaction amount is positive: ${adjustedAmount}`);
       } else if (transactionData.type.toLowerCase() === 'debit') {
         // Debit should be negative
-        adjustedAmount = -Math.abs(adjustedAmount);
+        const negativeAmount = -Math.abs(amountNum);
+        adjustedAmount = negativeAmount.toString();
         console.log(`Ensuring Debit transaction amount is negative: ${adjustedAmount}`);
+      } else {
+        adjustedAmount = transactionData.amount;
       }
       
       // Create the transaction
       const transaction: InsertTransaction = {
         id: transactionId,
         merchantId,
-        amount: adjustedAmount.toString(), // Convert to string for database
+        amount: adjustedAmount, // Already a string
         date: new Date(transactionData.date),
         type: transactionData.type
       };
@@ -692,7 +697,7 @@ export class DatabaseStorage implements IStorage {
       return {
         transactionId: insertedTransaction.id,
         merchantId: insertedTransaction.merchantId,
-        amount: parseFloat(insertedTransaction.amount),
+        amount: insertedTransaction.amount, // Keep as string
         date: insertedTransaction.date.toISOString(),
         type: insertedTransaction.type
       };
