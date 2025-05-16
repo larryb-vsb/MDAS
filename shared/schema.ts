@@ -11,7 +11,7 @@ export const merchants = pgTable("merchants", {
   otherClientNumber2: text("other_client_number2"),
   clientSinceDate: timestamp("client_since_date"),
   status: text("status").notNull().default("Pending"),
-  merchantType: integer("merchant_type").default(0), // 0=none, 1,2,3, etc.
+  merchantType: text("merchant_type"), // Can be blank, "0", "1", "2", "3", or custom text
   salesChannel: text("sales_channel"),
   address: text("address"),
   city: text("city"),
