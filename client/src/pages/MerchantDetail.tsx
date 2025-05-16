@@ -636,7 +636,7 @@ export default function MerchantDetail() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">None</SelectItem>
+                                <SelectItem value="none">None</SelectItem>
                                 <SelectItem value="1">Type 1</SelectItem>
                                 <SelectItem value="2">Type 2</SelectItem>
                                 <SelectItem value="3">Type 3+</SelectItem>

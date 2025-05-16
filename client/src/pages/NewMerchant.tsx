@@ -44,9 +44,7 @@ const merchantSchema = z.object({
   otherClientNumber2: z.string().optional(),
   clientSinceDate: z.string().optional(), // We'll handle date conversion in the form
   status: z.string().default('Pending'),
-  merchantType: z.union([z.number(), z.string()]).optional().transform(val => 
-    typeof val === 'string' ? parseInt(val) || 0 : val || 0
-  ), // Accept string or number and convert to number
+  merchantType: z.string().nullable().optional(), // Store as plain text value
   salesChannel: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -83,6 +81,7 @@ export default function NewMerchant() {
       otherClientNumber2: '',
       clientSinceDate: '',
       status: 'Pending',
+      merchantType: 'none',
       address: '',
       city: '',
       state: '',
@@ -225,8 +224,8 @@ export default function NewMerchant() {
                         <FormItem>
                           <FormLabel>Merchant Type</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(parseInt(value))} 
-                            defaultValue={(field.value || 0).toString()}
+                            onValueChange={(value) => field.onChange(value)} 
+                            defaultValue={field.value || "none"}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -234,10 +233,11 @@ export default function NewMerchant() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="0">None</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
                               <SelectItem value="1">Type 1</SelectItem>
                               <SelectItem value="2">Type 2</SelectItem>
                               <SelectItem value="3">Type 3+</SelectItem>
+                              <SelectItem value="0">Legacy Type 0</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
