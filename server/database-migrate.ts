@@ -116,7 +116,7 @@ async function createMerchantsTable() {
       name TEXT NOT NULL,
       client_mid TEXT,
       status TEXT NOT NULL DEFAULT 'Pending',
-      merchant_type INTEGER DEFAULT 0,
+      merchant_type TEXT,
       sales_channel TEXT,
       address TEXT,
       city TEXT,
@@ -230,20 +230,53 @@ async function checkAndAddMerchantColumns() {
   console.log('Checking if merchant_type and sales_channel columns exist...');
   
   try {
-    // Check for merchant_type column
+    // Check for merchant_type column and its data type
     const merchantTypeResult = await db.execute(sql`
-      SELECT column_name
+      SELECT column_name, data_type
       FROM information_schema.columns
       WHERE table_name = 'merchants'
       AND column_name = 'merchant_type'
     `);
     
     if (merchantTypeResult.rows.length === 0) {
-      console.log('Adding merchant_type column to merchants table');
+      console.log('Adding merchant_type column to merchants table as TEXT');
       await db.execute(sql`
         ALTER TABLE merchants
-        ADD COLUMN merchant_type INTEGER DEFAULT 0
+        ADD COLUMN merchant_type TEXT
       `);
+    } else if (merchantTypeResult.rows[0].data_type === 'integer') {
+      // If the column exists but is integer type, alter it to TEXT
+      console.log('Changing merchant_type column from INTEGER to TEXT');
+      
+      // First, create a temporary column to store the converted values
+      await db.execute(sql`
+        ALTER TABLE merchants
+        ADD COLUMN merchant_type_temp TEXT
+      `);
+      
+      // Copy values from integer column to text column
+      await db.execute(sql`
+        UPDATE merchants 
+        SET merchant_type_temp = 
+          CASE 
+            WHEN merchant_type IS NULL THEN NULL
+            ELSE merchant_type::TEXT 
+          END
+      `);
+      
+      // Drop the old integer column
+      await db.execute(sql`
+        ALTER TABLE merchants
+        DROP COLUMN merchant_type
+      `);
+      
+      // Rename the temp column to the original name
+      await db.execute(sql`
+        ALTER TABLE merchants
+        RENAME COLUMN merchant_type_temp TO merchant_type
+      `);
+      
+      console.log('Successfully converted merchant_type column to TEXT');
     }
     
     // Check for sales_channel column
