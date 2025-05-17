@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { storage } from "../storage";
+import { db } from "../db";
+import { securityLogs, systemLogs } from "@shared/schema";
+import { desc } from "drizzle-orm";
 import { generateTestLogs } from "../test-logs";
 
 const router = Router();
