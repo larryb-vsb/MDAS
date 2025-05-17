@@ -54,7 +54,8 @@ export async function generateTestLogs(logType: string = "all") {
           ipAddress: "127.0.0.1",
           userAgent: "Test Agent",
           timestamp: now,
-          eventType: i % 2 === 0 ? "authentication" : "authorization" // Adding the required event_type field
+          eventType: i % 2 === 0 ? "authentication" : "authorization", // Adding the required event_type field
+          result: i % 2 === 0 ? "success" : "failure" // Adding the required result field
         });
       }
       console.log("Generated 5 security logs");
