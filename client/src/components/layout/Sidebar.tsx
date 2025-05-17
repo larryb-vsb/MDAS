@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { Database, Shield, ArchiveRestore } from "lucide-react";
+import { Database, Shield, ArchiveRestore, ScrollText } from "lucide-react";
 
 interface SidebarProps {
   isVisible?: boolean;
@@ -35,6 +35,12 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
       name: "Backups",
       href: "/backups",
       icon: <ArchiveRestore className="w-5 h-5 mr-3" />,
+    },
+    {
+      name: "Logs",
+      href: "/logs",
+      icon: <ScrollText className="w-5 h-5 mr-3" />,
+      adminOnly: true,
     },
     {
       name: "Merchants",

@@ -17,6 +17,7 @@ import Uploads from "@/pages/Uploads";
 import Transactions from "@/pages/Transactions";
 import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
+import Logs from "@/pages/Logs";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/backups" component={Backups} />
+      <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
