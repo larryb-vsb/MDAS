@@ -50,6 +50,11 @@ router.get("/api/logs", async (req, res) => {
           const countResult = await pool.query('SELECT COUNT(*) as count FROM system_logs');
           const totalCount = parseInt(countResult.rows[0].count);
           
+          // Calculate pagination offset (making sure page and limit are defined)
+          const page = params.page || 1;
+          const limit = params.limit || 10;
+          const offset = (page - 1) * limit;
+          
           // Use direct pool query which is more reliable, with pagination
           const result = await pool.query(
             'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
