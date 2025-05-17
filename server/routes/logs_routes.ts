@@ -43,6 +43,23 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         result = await storage.getSystemLogs(params);
+        // Make sure we have correct response format for empty result
+        if (result && result.logs && result.logs.length === 0) {
+          // Try to fetch directly from the database to see if we have logs
+          const systemLogsData = await storage.getSystemLogsDirectly();
+          if (systemLogsData.length > 0) {
+            result = {
+              logs: systemLogsData,
+              pagination: {
+                currentPage: params.page || 1,
+                totalPages: Math.ceil(systemLogsData.length / (params.limit || 20)),
+                totalItems: systemLogsData.length,
+                itemsPerPage: params.limit || 20
+              }
+            };
+          }
+        }
+        
         // Log the result for debugging
         console.log("System logs result:", JSON.stringify(result).substring(0, 200) + "...");
         break;

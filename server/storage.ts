@@ -2743,6 +2743,23 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Direct method to get system logs without complex filtering
+  async getSystemLogsDirectly(): Promise<any[]> {
+    try {
+      // Simple direct query to get system logs
+      const logs = await db
+        .select()
+        .from(systemLogs)
+        .orderBy(desc(systemLogs.timestamp))
+        .limit(20);
+      
+      return logs;
+    } catch (error) {
+      console.error('Error getting system logs directly:', error);
+      return [];
+    }
+  }
+
   // Get count of system logs with filters
   async getSystemLogsCount(params: any = {}): Promise<number> {
     try {
