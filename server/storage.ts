@@ -8,7 +8,9 @@ import {
   transactions as transactionsTable,
   uploadedFiles as uploadedFilesTable,
   users as usersTable,
-  auditLogs as auditLogsTable,
+  auditLogs,
+  systemLogs,
+  securityLogs,
   Merchant,
   Transaction,
   InsertMerchant,
@@ -17,7 +19,11 @@ import {
   User,
   InsertUser,
   AuditLog,
-  InsertAuditLog
+  InsertAuditLog,
+  SystemLog,
+  InsertSystemLog,
+  SecurityLog,
+  InsertSecurityLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, isNotNull } from "drizzle-orm";
@@ -2518,64 +2524,366 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Get paginated audit logs with optional filtering
-  async getAuditLogs(entityType?: string, entityId?: string, page: number = 1, limit: number = 20): Promise<{
-    logs: AuditLog[];
-    pagination: {
-      currentPage: number;
-      totalPages: number;
-      totalItems: number;
-      itemsPerPage: number;
+  // Format logs to CSV for export
+  formatLogsToCSV(logs: any[]): string {
+    if (!logs || logs.length === 0) return '';
+    
+    const headers = Object.keys(logs[0]);
+    const csvRows = [headers.join(',')];
+    
+    for (const row of logs) {
+      const values = headers.map(header => {
+        let val = row[header] ?? '';
+        
+        // Handle JSONB fields
+        if (typeof val === 'object' && val !== null) {
+          val = JSON.stringify(val);
+        }
+        
+        // Escape commas and quotes
+        return typeof val === 'string' && (val.includes(',') || val.includes('"')) 
+          ? `"${val.replace(/"/g, '""')}"` 
+          : val;
+      });
+      csvRows.push(values.join(','));
     }
-  }> {
+    
+    return csvRows.join('\n');
+  }
+  
+  // Get audit logs with pagination and filtering
+  async getAuditLogs(params: any = {}): Promise<AuditLog[]> {
     try {
+      const { 
+        page = 1, 
+        limit = 20, 
+        startDate, 
+        endDate, 
+        entityType, 
+        entityId, 
+        username,
+        action
+      } = params;
+      
       // Calculate offset for pagination
       const offset = (page - 1) * limit;
       
       // Build query conditions
       let conditions = [];
+      
       if (entityType) {
-        conditions.push(eq(auditLogsTable.entityType, entityType));
+        conditions.push(eq(auditLogs.entityType, entityType));
       }
+      
       if (entityId) {
-        conditions.push(eq(auditLogsTable.entityId, entityId));
+        conditions.push(eq(auditLogs.entityId, entityId));
+      }
+      
+      if (username) {
+        conditions.push(eq(auditLogs.username, username));
+      }
+      
+      if (action) {
+        conditions.push(eq(auditLogs.action, action));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(auditLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(auditLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${auditLogs.timestamp} <= ${new Date(endDate)}`);
       }
       
       // Query with filters if provided
       const whereClause = conditions.length > 0 
         ? and(...conditions)
         : undefined;
-      
-      // Count total items for pagination
-      const [{ value: totalItems }] = await db
-        .select({ value: count() })
-        .from(auditLogsTable)
-        .where(whereClause || sql`1=1`);
-      
-      // Get logs with pagination
-      const logs = await db
+        
+      // Execute query
+      const result = await db
         .select()
-        .from(auditLogsTable)
-        .where(whereClause || sql`1=1`)
-        .orderBy(desc(auditLogsTable.timestamp))
+        .from(auditLogs)
+        .where(whereClause)
+        .orderBy(desc(auditLogs.timestamp))
         .limit(limit)
         .offset(offset);
-      
-      // Calculate pagination metadata
-      const totalPages = Math.ceil(totalItems / limit);
-      
-      return {
-        logs,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems,
-          itemsPerPage: limit
-        }
-      };
+        
+      return result;
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
-      throw new Error("Failed to retrieve audit logs");
+      console.error('Error getting audit logs:', error);
+      return [];
+    }
+  }
+  
+  // Get count of audit logs with filters
+  async getAuditLogsCount(params: any = {}): Promise<number> {
+    try {
+      const { 
+        startDate, 
+        endDate, 
+        entityType, 
+        entityId, 
+        username,
+        action
+      } = params;
+      
+      // Build query conditions
+      let conditions = [];
+      
+      if (entityType) {
+        conditions.push(eq(auditLogs.entityType, entityType));
+      }
+      
+      if (entityId) {
+        conditions.push(eq(auditLogs.entityId, entityId));
+      }
+      
+      if (username) {
+        conditions.push(eq(auditLogs.username, username));
+      }
+      
+      if (action) {
+        conditions.push(eq(auditLogs.action, action));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(auditLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(auditLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${auditLogs.timestamp} <= ${new Date(endDate)}`);
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+        
+      // Execute count query
+      const [{ value: count }] = await db
+        .select({ value: count() })
+        .from(auditLogs)
+        .where(whereClause || sql`1=1`);
+      
+      return count;
+    } catch (error) {
+      console.error('Error getting audit logs count:', error);
+      return 0;
+    }
+  }
+  
+  // Get system logs with pagination and filtering
+  async getSystemLogs(params: any = {}): Promise<any[]> {
+    try {
+      const { 
+        page = 1, 
+        limit = 20, 
+        startDate, 
+        endDate, 
+        level,
+        source
+      } = params;
+      
+      // Calculate offset for pagination
+      const offset = (page - 1) * limit;
+      
+      // Build query conditions
+      let conditions = [];
+      
+      if (level) {
+        conditions.push(eq(systemLogs.level, level));
+      }
+      
+      if (source) {
+        conditions.push(eq(systemLogs.source, source));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(systemLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(systemLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${systemLogs.timestamp} <= ${new Date(endDate)}`);
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+        
+      // Execute query
+      const result = await db
+        .select()
+        .from(systemLogs)
+        .where(whereClause)
+        .orderBy(desc(systemLogs.timestamp))
+        .limit(limit)
+        .offset(offset);
+        
+      return result;
+    } catch (error) {
+      console.error('Error getting system logs:', error);
+      return [];
+    }
+  }
+  
+  // Get count of system logs with filters
+  async getSystemLogsCount(params: any = {}): Promise<number> {
+    try {
+      const { 
+        startDate, 
+        endDate, 
+        level,
+        source
+      } = params;
+      
+      // Build query conditions
+      let conditions = [];
+      
+      if (level) {
+        conditions.push(eq(systemLogs.level, level));
+      }
+      
+      if (source) {
+        conditions.push(eq(systemLogs.source, source));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(systemLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(systemLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${systemLogs.timestamp} <= ${new Date(endDate)}`);
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+        
+      // Execute count query
+      const [{ value: count }] = await db
+        .select({ value: count() })
+        .from(systemLogs)
+        .where(whereClause || sql`1=1`);
+      
+      return count;
+    } catch (error) {
+      console.error('Error getting system logs count:', error);
+      return 0;
+    }
+  }
+  
+  // Get security logs with pagination and filtering
+  async getSecurityLogs(params: any = {}): Promise<any[]> {
+    try {
+      const { 
+        page = 1, 
+        limit = 20, 
+        startDate, 
+        endDate, 
+        eventType,
+        username,
+        resultFilter
+      } = params;
+      
+      // Calculate offset for pagination
+      const offset = (page - 1) * limit;
+      
+      // Build query conditions
+      let conditions = [];
+      
+      if (eventType) {
+        conditions.push(eq(securityLogs.eventType, eventType));
+      }
+      
+      if (username) {
+        conditions.push(eq(securityLogs.username, username));
+      }
+      
+      if (result) {
+        conditions.push(eq(securityLogs.result, result));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(securityLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(securityLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${securityLogs.timestamp} <= ${new Date(endDate)}`);
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+        
+      // Execute query
+      const securityLogsResult = await db
+        .select()
+        .from(securityLogs)
+        .where(whereClause)
+        .orderBy(desc(securityLogs.timestamp))
+        .limit(limit)
+        .offset(offset);
+        
+      return securityLogsResult;
+    } catch (error) {
+      console.error('Error getting security logs:', error);
+      return [];
+    }
+  }
+  
+  // Get count of security logs with filters
+  async getSecurityLogsCount(params: any = {}): Promise<number> {
+    try {
+      const { 
+        startDate, 
+        endDate, 
+        eventType,
+        username,
+        result: resultParam
+      } = params;
+      
+      // Build query conditions
+      let conditions = [];
+      
+      if (eventType) {
+        conditions.push(eq(securityLogs.eventType, eventType));
+      }
+      
+      if (username) {
+        conditions.push(eq(securityLogs.username, username));
+      }
+      
+      if (resultParam) {
+        conditions.push(eq(securityLogs.result, resultParam));
+      }
+      
+      if (startDate && endDate) {
+        conditions.push(between(securityLogs.timestamp, new Date(startDate), new Date(endDate)));
+      } else if (startDate) {
+        conditions.push(gte(securityLogs.timestamp, new Date(startDate)));
+      } else if (endDate) {
+        conditions.push(sql`${securityLogs.timestamp} <= ${new Date(endDate)}`);
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+        
+      // Execute count query
+      const [{ value: count }] = await db
+        .select({ value: count() })
+        .from(securityLogs)
+        .where(whereClause || sql`1=1`);
+      
+      return count;
+    } catch (error) {
+      console.error('Error getting security logs count:', error);
+      return 0;
     }
   }
   
@@ -2584,14 +2892,14 @@ export class DatabaseStorage implements IStorage {
     try {
       const logs = await db
         .select()
-        .from(auditLogsTable)
+        .from(auditLogs)
         .where(
           and(
-            eq(auditLogsTable.entityType, entityType),
-            eq(auditLogsTable.entityId, entityId)
+            eq(auditLogs.entityType, entityType),
+            eq(auditLogs.entityId, entityId)
           )
         )
-        .orderBy(desc(auditLogsTable.timestamp));
+        .orderBy(desc(auditLogs.timestamp));
       
       return logs;
     } catch (error) {
