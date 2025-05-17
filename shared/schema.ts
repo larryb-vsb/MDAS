@@ -200,3 +200,67 @@ export const insertAuditLogSchema = auditLogsSchema.omit({ id: true });
 // Export audit log types
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+// System log table for technical operational events
+export const systemLogs = pgTable("system_logs", {
+  id: serial("id").primaryKey(),
+  level: text("level").notNull(), // "info", "warning", "error", "critical"
+  source: text("source").notNull(), // Component/module that generated the log
+  message: text("message").notNull(),
+  details: jsonb("details"), // Additional structured data about the event
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  hostname: text("hostname"), // Server name/identifier
+  processId: text("process_id"), // Process identifier
+  sessionId: text("session_id"), // Optional session identifier
+  correlationId: text("correlation_id"), // For tracking related events
+  stackTrace: text("stack_trace") // For errors
+}, (table) => {
+  return {
+    // Create indexes for better query performance
+    levelIdx: index("system_logs_level_idx").on(table.level),
+    sourceIdx: index("system_logs_source_idx").on(table.source),
+    timestampIdx: index("system_logs_timestamp_idx").on(table.timestamp)
+  };
+});
+
+// Zod schemas for system logs
+export const systemLogsSchema = createInsertSchema(systemLogs);
+export const insertSystemLogSchema = systemLogsSchema.omit({ id: true });
+
+// Export system log types
+export type SystemLog = typeof systemLogs.$inferSelect;
+export type InsertSystemLog = typeof systemLogs.$inferInsert;
+
+// Security log table for authentication and access events
+export const securityLogs = pgTable("security_logs", {
+  id: serial("id").primaryKey(),
+  eventType: text("event_type").notNull(), // "login", "logout", "access_denied", "permission_change", etc.
+  userId: integer("user_id").references(() => users.id),
+  username: text("username"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  resourceType: text("resource_type"), // Type of resource being accessed
+  resourceId: text("resource_id"), // ID of the resource being accessed
+  action: text("action"), // Action being performed
+  result: text("result").notNull(), // "success", "failure", etc.
+  details: jsonb("details"), // Additional details about the security event
+  sessionId: text("session_id"), // Session identifier
+  reason: text("reason") // Especially for failures/denials
+}, (table) => {
+  return {
+    // Create indexes for better query performance
+    eventTypeIdx: index("security_logs_event_type_idx").on(table.eventType),
+    usernameIdx: index("security_logs_username_idx").on(table.username),
+    timestampIdx: index("security_logs_timestamp_idx").on(table.timestamp),
+    resultIdx: index("security_logs_result_idx").on(table.result)
+  };
+});
+
+// Zod schemas for security logs
+export const securityLogsSchema = createInsertSchema(securityLogs);
+export const insertSecurityLogSchema = securityLogsSchema.omit({ id: true });
+
+// Export security log types
+export type SecurityLog = typeof securityLogs.$inferSelect;
+export type InsertSecurityLog = typeof securityLogs.$inferInsert;
