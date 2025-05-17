@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { storage } from "../storage";
-import { db } from "../db";
+import { db, pool } from "../db";
 import { securityLogs, systemLogs } from "@shared/schema";
 import { desc } from "drizzle-orm";
 import { generateTestLogs } from "../test-logs";
@@ -46,11 +46,11 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         try {
-          // Use direct SQL query since our ORM approach isn't working
-          const systemLogsData = await db.execute(
-            `SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1`,
-            [params.limit || 10]
-          );
+          // Use direct SQL query with proper parameter format for Neon database
+          const systemLogsData = await db.execute({
+            text: 'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1',
+            values: [params.limit || 10]
+          });
           
           console.log(`Retrieved ${systemLogsData.length} system logs directly via SQL`);
           
@@ -275,6 +275,63 @@ router.post("/api/logs/generate", async (req, res) => {
   } catch (error) {
     console.error("Error generating test logs:", error);
     return res.status(500).json({ error: "Failed to generate test logs" });
+  }
+});
+
+// Create a special route for testing with system logs
+router.post("/api/logs/system-test", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Create several system logs directly with SQL
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Create 5 test system logs with different levels
+      const levels = ['error', 'warning', 'info', 'debug', 'critical'];
+      const sources = ['Database', 'FileSystem', 'Authentication', 'API', 'Scheduler'];
+      
+      for (let i = 0; i < 5; i++) {
+        const level = levels[i];
+        const source = sources[i];
+        const message = `Test ${level} message from ${source}`;
+        const details = JSON.stringify({ test: `detail ${i}`, timestamp: new Date().toISOString() });
+        
+        // Insert using direct SQL for reliability
+        await client.query(
+          'INSERT INTO system_logs (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)',
+          [level, source, message, details, new Date()]
+        );
+      }
+      
+      await client.query('COMMIT');
+      
+      // Now test if we can retrieve the system logs
+      const systemLogsData = await client.query(
+        'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 10'
+      );
+      
+      // Return both the creation status and the fetched logs for verification
+      return res.json({
+        success: true,
+        message: 'Created and verified system logs',
+        logsCreated: 5,
+        sampleLogs: systemLogsData.rows.slice(0, 3) // First 3 logs for sample
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error testing system logs:", error);
+    return res.status(500).json({ error: "Failed to test system logs", details: error.message });
   }
 });
 
