@@ -289,7 +289,10 @@ export default function Logs() {
                     .then(data => {
                       if (data.success) {
                         // Force refetch to show newly created logs
-                        setTimeout(() => refetch(), 500);
+                        setTimeout(() => {
+                          refetch();
+                          console.log("Refreshed logs after generation");
+                        }, 1000); // Increased timeout for more reliable refresh
                       }
                     });
                   }}

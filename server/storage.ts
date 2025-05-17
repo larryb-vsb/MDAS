@@ -2674,7 +2674,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Get system logs with pagination and filtering
-  async getSystemLogs(params: any = {}): Promise<any[]> {
+  async getSystemLogs(params: any = {}): Promise<any> {
     try {
       const { 
         page = 1, 
@@ -2713,18 +2713,33 @@ export class DatabaseStorage implements IStorage {
         : undefined;
         
       // Execute query
-      const result = await db
+      const logs = await db
         .select()
         .from(systemLogs)
         .where(whereClause)
         .orderBy(desc(systemLogs.timestamp))
         .limit(limit)
         .offset(offset);
-        
-      return result;
+      
+      // Get total count for pagination
+      const [{ count }] = await db
+        .select({ count: sql`count(*)` })
+        .from(systemLogs)
+        .where(whereClause);
+      
+      // Return formatted response with pagination
+      return {
+        logs,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(count / limit),
+          totalItems: count,
+          itemsPerPage: limit
+        }
+      };
     } catch (error) {
       console.error('Error getting system logs:', error);
-      return [];
+      return { logs: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0, itemsPerPage: limit } };
     }
   }
   
