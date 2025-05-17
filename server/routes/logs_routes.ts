@@ -46,23 +46,27 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         try {
-          // Bypass the regular method and always use direct DB access for system logs
-          const systemLogsData = await storage.getSystemLogsDirectly();
-          console.log(`Retrieved ${systemLogsData.length} system logs directly`);
+          // Use direct SQL query since our ORM approach isn't working
+          const systemLogsData = await db.execute(
+            `SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1`,
+            [params.limit || 10]
+          );
+          
+          console.log(`Retrieved ${systemLogsData.length} system logs directly via SQL`);
           
           // Format the logs for client-side display
           const formattedLogs = systemLogsData.map(log => ({
             id: log.id,
             timestamp: log.timestamp,
-            level: log.level,
-            source: log.source,
-            message: log.message,
-            details: log.details,
+            level: log.level || 'info',
+            source: log.source || 'System',
+            message: log.message || '',
+            details: log.details || {},
             // Add additional fields needed for the UI display
             username: "System", // Most system logs are from the system
             entityType: "system",
             entityId: `SYS-${log.id}`,
-            action: log.level // Use log level as the action
+            action: log.level || 'info' // Use log level as the action
           }));
           
           result = {
