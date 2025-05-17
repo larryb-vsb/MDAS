@@ -1,169 +1,126 @@
-import { Express, Request, Response } from "express";
+import { Router } from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../routes";
-import { z } from "zod";
 
-// Schema for log query parameters
-const logQuerySchema = z.object({
-  page: z.string().optional().transform(val => (val ? parseInt(val, 10) : 1)),
-  limit: z.string().optional().transform(val => (val ? parseInt(val, 10) : 20)),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  entityType: z.string().optional(),
-  entityId: z.string().optional(),
-  username: z.string().optional(),
-  level: z.string().optional(),
-  eventType: z.string().optional(),
-  source: z.string().optional(),
-  result: z.string().optional()
+const router = Router();
+
+// Endpoint to get logs with pagination and filtering
+router.get("/api/logs", async (req, res) => {
+  try {
+    // Check if user is authenticated and is an admin
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    // Get query parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const logType = (req.query.logType as string) || "audit";
+    
+    // Optional filtering params
+    const entityType = req.query.entityType as string;
+    const entityId = req.query.entityId as string;
+    const action = req.query.action as string;
+    const username = req.query.username as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+    
+    // Build filter params object
+    const params: any = {
+      page,
+      limit,
+      ...(entityType && { entityType }),
+      ...(entityId && { entityId }),
+      ...(action && { action }),
+      ...(username && { username }),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate })
+    };
+    
+    let result;
+    
+    // Get logs based on type
+    switch (logType) {
+      case "system":
+        result = await storage.getSystemLogs(params);
+        break;
+      case "security":
+        result = await storage.getSecurityLogs(params);
+        break;
+      case "audit":
+      default:
+        result = await storage.getAuditLogs(params);
+        break;
+    }
+    
+    return res.json(result);
+  } catch (error) {
+    console.error("Error getting logs:", error);
+    return res.status(500).json({ error: "Failed to retrieve logs" });
+  }
 });
 
-type LogQueryParams = z.infer<typeof logQuerySchema>;
-
-export function registerLogRoutes(app: Express) {
-  // Get audit logs with pagination and filtering
-  app.get("/api/logs/audit", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const queryParams = logQuerySchema.parse(req.query);
-      const logs = await storage.getAuditLogs(queryParams);
-      const totalCount = await storage.getAuditLogsCount(queryParams);
-      
-      res.json({
-        logs,
-        pagination: {
-          page: queryParams.page,
-          limit: queryParams.limit,
-          totalCount,
-          totalPages: Math.ceil(totalCount / queryParams.limit)
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching audit logs:", error);
-      res.status(500).json({ error: "Failed to fetch audit logs" });
+// Export logs to CSV
+router.get("/api/logs/export", async (req, res) => {
+  try {
+    // Check if user is authenticated and is an admin
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
-  });
-
-  // Get system logs with pagination and filtering
-  app.get("/api/logs/system", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const queryParams = logQuerySchema.parse(req.query);
-      const logs = await storage.getSystemLogs(queryParams);
-      const totalCount = await storage.getSystemLogsCount(queryParams);
-      
-      res.json({
-        logs,
-        pagination: {
-          page: queryParams.page,
-          limit: queryParams.limit,
-          totalCount,
-          totalPages: Math.ceil(totalCount / queryParams.limit)
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching system logs:", error);
-      res.status(500).json({ error: "Failed to fetch system logs" });
+    
+    // Get query parameters
+    const logType = (req.query.logType as string) || "audit";
+    
+    // Optional filtering params
+    const entityType = req.query.entityType as string;
+    const entityId = req.query.entityId as string;
+    const action = req.query.action as string;
+    const username = req.query.username as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+    
+    // Build filter params object without pagination
+    const params: any = {
+      ...(entityType && { entityType }),
+      ...(entityId && { entityId }),
+      ...(action && { action }),
+      ...(username && { username }),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate })
+    };
+    
+    let logs;
+    let filename;
+    
+    // Get logs based on type
+    switch (logType) {
+      case "system":
+        logs = await storage.getSystemLogs(params);
+        filename = "system_logs.csv";
+        break;
+      case "security":
+        logs = await storage.getSecurityLogs(params);
+        filename = "security_logs.csv";
+        break;
+      case "audit":
+      default:
+        logs = await storage.getAuditLogs(params);
+        filename = "audit_logs.csv";
+        break;
     }
-  });
+    
+    // Generate CSV from logs
+    const csv = storage.formatLogsToCSV(logs.logs);
+    
+    // Set response headers for CSV download
+    res.header('Content-Type', 'text/csv');
+    res.attachment(filename);
+    
+    // Send CSV data
+    return res.send(csv);
+  } catch (error) {
+    console.error("Error exporting logs:", error);
+    return res.status(500).json({ error: "Failed to export logs" });
+  }
+});
 
-  // Get security logs with pagination and filtering
-  app.get("/api/logs/security", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const queryParams = logQuerySchema.parse(req.query);
-      const logs = await storage.getSecurityLogs(queryParams);
-      const totalCount = await storage.getSecurityLogsCount(queryParams);
-      
-      res.json({
-        logs,
-        pagination: {
-          page: queryParams.page,
-          limit: queryParams.limit,
-          totalCount,
-          totalPages: Math.ceil(totalCount / queryParams.limit)
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching security logs:", error);
-      res.status(500).json({ error: "Failed to fetch security logs" });
-    }
-  });
-
-  // Get log statistics - counts by type and recent activity
-  app.get("/api/logs/stats", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const auditCount = await storage.getAuditLogsCount({});
-      const systemCount = await storage.getSystemLogsCount({});
-      const securityCount = await storage.getSecurityLogsCount({});
-      
-      // Get counts for last 24 hours
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString();
-      
-      const recentAuditCount = await storage.getAuditLogsCount({ startDate: yesterdayStr });
-      const recentSystemCount = await storage.getSystemLogsCount({ startDate: yesterdayStr });
-      const recentSecurityCount = await storage.getSecurityLogsCount({ startDate: yesterdayStr });
-      
-      res.json({
-        totalCounts: {
-          audit: auditCount,
-          system: systemCount,
-          security: securityCount,
-          total: auditCount + systemCount + securityCount
-        },
-        recentCounts: {
-          audit: recentAuditCount,
-          system: recentSystemCount,
-          security: recentSecurityCount,
-          total: recentAuditCount + recentSystemCount + recentSecurityCount
-        }
-      });
-    } catch (error) {
-      console.error("Error fetching log statistics:", error);
-      res.status(500).json({ error: "Failed to fetch log statistics" });
-    }
-  });
-
-  // Export logs as CSV
-  app.get("/api/logs/export/:type", isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const { type } = req.params;
-      const queryParams = logQuerySchema.parse(req.query);
-      
-      // Remove pagination for exports
-      delete queryParams.page;
-      delete queryParams.limit;
-      
-      let logs: any[] = [];
-      
-      if (type === "audit") {
-        logs = await storage.getAuditLogs(queryParams);
-      } else if (type === "system") {
-        logs = await storage.getSystemLogs(queryParams);
-      } else if (type === "security") {
-        logs = await storage.getSecurityLogs(queryParams);
-      } else {
-        return res.status(400).json({ error: "Invalid log type" });
-      }
-      
-      // Format data as CSV
-      const filename = `${type}_logs_${new Date().toISOString().slice(0, 10)}.csv`;
-      
-      // Set headers for CSV download
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename=${filename}`);
-      
-      // Convert JSON objects to CSV
-      if (logs.length === 0) {
-        return res.send("No data available");
-      }
-      
-      // Format the logs as CSV
-      const csvData = storage.formatLogsToCSV(logs);
-      
-      res.send(csvData);
-    } catch (error) {
-      console.error(`Error exporting ${req.params.type} logs:`, error);
-      res.status(500).json({ error: `Failed to export ${req.params.type} logs` });
-    }
-  });
-}
+export default router;

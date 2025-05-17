@@ -17,6 +17,7 @@ import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "
 import { registerS3Routes } from "./routes/s3_routes";
 import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { fileProcessorService } from "./services/file-processor";
+import logsRoutes from "./routes/logs_routes";
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
