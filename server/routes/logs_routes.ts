@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { storage } from "../storage";
+import { generateTestLogs } from "../test-logs";
 
 const router = Router();
 
@@ -120,6 +121,26 @@ router.get("/api/logs/export", async (req, res) => {
   } catch (error) {
     console.error("Error exporting logs:", error);
     return res.status(500).json({ error: "Failed to export logs" });
+  }
+});
+
+// Generate test logs for demonstration purposes
+router.post("/api/logs/generate", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const { logType = "audit" } = req.body;
+    
+    // Generate test logs
+    const result = await generateTestLogs(logType);
+    
+    return res.json(result);
+  } catch (error) {
+    console.error("Error generating test logs:", error);
+    return res.status(500).json({ error: "Failed to generate test logs" });
   }
 });
 

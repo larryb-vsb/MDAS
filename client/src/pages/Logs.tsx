@@ -276,6 +276,25 @@ export default function Logs() {
                 {activeTab === "security" && "Security & Authentication Events"}
               </span>
               <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    fetch('/api/logs/generate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ logType: activeTab })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.success) {
+                        refetch();
+                      }
+                    });
+                  }}
+                >
+                  Generate Test Logs
+                </Button>
                 <Input
                   placeholder="Search logs..."
                   className="max-w-xs"
