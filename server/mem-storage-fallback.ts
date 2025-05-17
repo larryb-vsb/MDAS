@@ -503,4 +503,70 @@ export class MemStorageFallback implements IStorage {
       throw new Error(`Failed to retrieve audit history for ${entityType} in fallback mode`);
     }
   }
+  
+  /**
+   * Log a general system error to the audit log
+   * This method can be called from any part of the application to log errors
+   * @param errorMessage The error message to log
+   * @param errorDetails Additional error details or exception information
+   * @param source The source of the error (component, module, etc.)
+   * @param username The username of the user who triggered the error (if applicable)
+   * @returns The created audit log entry
+   */
+  async logSystemError(
+    errorMessage: string, 
+    errorDetails: any = null, 
+    source: string = 'System', 
+    username: string = 'System'
+  ): Promise<AuditLog> {
+    try {
+      // Create a unique error ID for reference
+      const errorId = `ERR${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      
+      // Create audit log data
+      const auditLog: AuditLog = {
+        id: this.auditLogs.length + 1,
+        entityType: 'system',
+        entityId: errorId,
+        action: 'error',
+        userId: null,
+        username: username,
+        timestamp: new Date(),
+        oldValues: null,
+        newValues: {
+          errorMessage,
+          errorDetails,
+          source,
+          timestamp: new Date().toISOString()
+        },
+        changedFields: [],
+        notes: `System error in ${source}: ${errorMessage}`
+      };
+      
+      // Add to audit logs
+      this.auditLogs.push(auditLog);
+      console.error(`[SYSTEM ERROR] ${source}: ${errorMessage}`, errorDetails ? '\nDetails:' : '', errorDetails || '');
+      
+      return auditLog;
+    } catch (error) {
+      // If we can't log to the audit system, at least log to console
+      console.error('Failed to log system error to audit log in fallback mode:', error);
+      console.error('Original error:', errorMessage, errorDetails);
+      
+      // Return a minimal object to prevent further errors
+      return {
+        id: 0,
+        entityType: 'system',
+        entityId: 'error-logging-failed',
+        action: 'error',
+        userId: null,
+        username: username,
+        timestamp: new Date(),
+        oldValues: null,
+        newValues: { errorMessage, errorDetails },
+        changedFields: [],
+        notes: errorMessage
+      };
+    }
+  }
 }

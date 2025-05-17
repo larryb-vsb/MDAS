@@ -81,7 +81,7 @@ export interface IStorage {
   updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any>;
   
   // Delete multiple merchants
-  deleteMerchants(merchantIds: string[]): Promise<void>;
+  deleteMerchants(merchantIds: string[], username?: string): Promise<void>;
   
   // Transaction operations
   getTransactions(
@@ -100,8 +100,8 @@ export interface IStorage {
       itemsPerPage: number;
     };
   }>;
-  addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }): Promise<any>;
-  deleteTransactions(transactionIds: string[]): Promise<void>;
+  addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }, username?: string): Promise<any>;
+  deleteTransactions(transactionIds: string[], username?: string): Promise<void>;
   exportTransactionsToCSV(
     merchantId?: string, 
     startDate?: string, 
@@ -135,6 +135,14 @@ export interface IStorage {
     }
   }>;
   getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]>;
+  
+  // System error logging
+  logSystemError(
+    errorMessage: string, 
+    errorDetails?: any, 
+    source?: string, 
+    username?: string
+  ): Promise<AuditLog>;
 }
 
 // Database storage implementation
@@ -2589,6 +2597,70 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching audit history for ${entityType} ${entityId}:`, error);
       throw new Error(`Failed to retrieve audit history for ${entityType}`);
+    }
+  }
+  
+  /**
+   * Log a general system error to the audit log
+   * This method can be called from any part of the application to log errors
+   * @param errorMessage The error message to log
+   * @param errorDetails Additional error details or exception information
+   * @param source The source of the error (component, module, etc.)
+   * @param username The username of the user who triggered the error (if applicable)
+   * @returns The created audit log entry
+   */
+  async logSystemError(
+    errorMessage: string, 
+    errorDetails: any = null, 
+    source: string = 'System', 
+    username: string = 'System'
+  ): Promise<AuditLog> {
+    try {
+      // Create a unique error ID for reference
+      const errorId = `ERR${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      
+      // Prepare audit log data
+      const auditLogData: InsertAuditLog = {
+        entityType: 'system',
+        entityId: errorId,
+        action: 'error',
+        userId: null,
+        username: username,
+        oldValues: null,
+        newValues: {
+          errorMessage,
+          errorDetails: this.filterSensitiveData(errorDetails),
+          source,
+          timestamp: new Date().toISOString()
+        },
+        changedFields: [],
+        notes: `System error in ${source}: ${errorMessage}`
+      };
+      
+      // Create the audit log entry
+      const auditLog = await this.createAuditLog(auditLogData);
+      console.error(`[SYSTEM ERROR] ${source}: ${errorMessage}`, errorDetails ? '\nDetails:' : '', errorDetails || '');
+      
+      return auditLog;
+    } catch (error) {
+      // If we can't log to the audit system, at least log to console
+      console.error('Failed to log system error to audit log:', error);
+      console.error('Original error:', errorMessage, errorDetails);
+      
+      // Return a minimal object to prevent further errors
+      return {
+        id: 0,
+        entityType: 'system',
+        entityId: 'error-logging-failed',
+        action: 'error',
+        userId: null,
+        username: username,
+        timestamp: new Date(),
+        oldValues: null,
+        newValues: { errorMessage, errorDetails },
+        changedFields: [],
+        notes: errorMessage
+      };
     }
   }
 }
