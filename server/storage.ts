@@ -45,6 +45,11 @@ export interface IStorage {
   hashPassword(password: string): Promise<string>;
   verifyPassword(supplied: string, stored: string): Promise<boolean>;
   
+  // Log operations
+  getSystemLogs(params: any): Promise<any>;
+  getSecurityLogs(params: any): Promise<any>;
+  formatLogsToCSV(logs: any[]): string;
+  
   // Session store for authentication
   sessionStore: session.Store;
 

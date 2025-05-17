@@ -40,7 +40,15 @@ router.get("/api/logs", async (req, res) => {
       ...(endDate && { endDate })
     };
     
-    let responseData: any;
+    let responseData: any = {
+      logs: [],
+      pagination: {
+        currentPage: page,
+        totalPages: 0,
+        totalItems: 0,
+        itemsPerPage: limit
+      }
+    };
     
     // Get logs based on type
     switch (logType) {
@@ -92,15 +100,6 @@ router.get("/api/logs", async (req, res) => {
           console.log(`System logs formatted: ${formattedLogs.length} logs`);
         } catch (error) {
           console.error("Error fetching system logs:", error);
-          responseData = { 
-            logs: [], 
-            pagination: {
-              currentPage: 1,
-              totalPages: 0,
-              totalItems: 0,
-              itemsPerPage: 10
-            }
-          };
         }
         break;
       case "security":
@@ -110,7 +109,15 @@ router.get("/api/logs", async (req, res) => {
             .select()
             .from(securityLogs)
             .orderBy(desc(securityLogs.timestamp))
-            .limit(params.limit || 10);
+            .limit(params.limit || 10)
+            .offset((params.page - 1) * (params.limit || 10));
+          
+          // Get total count for pagination
+          const [countResult] = await db
+            .select({ count: db.fn.count() })
+            .from(securityLogs);
+          
+          const totalCount = Number(countResult?.count || 0);
             
           console.log(`Retrieved ${securityLogsData.length} security logs directly`);
           
@@ -133,8 +140,8 @@ router.get("/api/logs", async (req, res) => {
             logs: formattedLogs,
             pagination: {
               currentPage: params.page || 1,
-              totalPages: Math.ceil(securityLogsData.length / (params.limit || 10)),
-              totalItems: securityLogsData.length,
+              totalPages: Math.ceil(totalCount / (params.limit || 10)),
+              totalItems: totalCount,
               itemsPerPage: params.limit || 10
             }
           };
@@ -142,61 +149,23 @@ router.get("/api/logs", async (req, res) => {
           console.log(`Security logs formatted: ${formattedLogs.length} logs`);
         } catch (error) {
           console.error("Error fetching security logs:", error);
-          responseData = { 
-            logs: [], 
-            pagination: {
-              currentPage: 1,
-              totalPages: 0,
-              totalItems: 0,
-              itemsPerPage: 10
-            }
-          };
         }
         break;
       case "audit":
       default:
-        responseData = await storage.getAuditLogs(params);
+        try {
+          const auditLogsResult = await storage.getAuditLogs(params);
+          if (auditLogsResult && typeof auditLogsResult === 'object') {
+            responseData = auditLogsResult;
+          }
+        } catch (error) {
+          console.error("Error fetching audit logs:", error);
+        }
         break;
     }
     
-    // Make sure we always return logs in a consistent format
-    if (Array.isArray(responseData)) {
-      // If responseData is directly an array, format it properly
-      return res.json({
-        logs: responseData,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(responseData.length / limit),
-          totalItems: responseData.length,
-          itemsPerPage: limit
-        }
-      });
-    } else if (responseData && 'logs' in responseData) {
-      // Already in the correct format
-      return res.json(responseData);
-    } else if (responseData) {
-      // Transform to a consistent format
-      return res.json({
-        logs: responseData,
-        pagination: {
-          currentPage: page,
-          totalPages: 1,
-          totalItems: Array.isArray(responseData) ? responseData.length : 1,
-          itemsPerPage: limit
-        }
-      });
-    }
-    
-    // Fallback for empty responseData
-    return res.json({
-      logs: [],
-      pagination: {
-        currentPage: page,
-        totalPages: 0,
-        totalItems: 0,
-        itemsPerPage: limit
-      }
-    });
+    // Return the logs data
+    return res.json(responseData);
   } catch (error) {
     console.error("Error getting logs:", error);
     return res.status(500).json({ error: "Failed to retrieve logs" });
@@ -232,25 +201,22 @@ router.get("/api/logs/export", async (req, res) => {
       ...(endDate && { endDate })
     };
     
-    let logs: any;
+    let logsData: any[] = [];
     let filename = "logs.csv";
     
     // Get logs based on type
     switch (logType) {
       case "system":
-        // Use alternative approach for system logs
-        logs = { logs: [] };
+        // Use direct database query for system logs
         try {
           const result = await pool.query('SELECT * FROM system_logs ORDER BY timestamp DESC');
-          logs = { 
-            logs: result.rows.map((log: any) => ({
-              id: log.id,
-              timestamp: log.timestamp,
-              level: log.level,
-              source: log.source,
-              message: log.message
-            }))
-          };
+          logsData = result.rows.map((log: any) => ({
+            id: log.id,
+            timestamp: log.timestamp,
+            level: log.level,
+            source: log.source,
+            message: log.message
+          }));
         } catch (err) {
           console.error("Error exporting system logs:", err);
         }
@@ -258,14 +224,13 @@ router.get("/api/logs/export", async (req, res) => {
         break;
       case "security":
         // Use direct database query for security logs
-        logs = { logs: [] };
         try {
           const securityLogsData = await db
             .select()
             .from(securityLogs)
             .orderBy(desc(securityLogs.timestamp));
           
-          logs = { logs: securityLogsData };
+          logsData = securityLogsData;
         } catch (err) {
           console.error("Error exporting security logs:", err);
         }
@@ -273,7 +238,16 @@ router.get("/api/logs/export", async (req, res) => {
         break;
       case "audit":
       default:
-        logs = await storage.getAuditLogs(params);
+        try {
+          const auditLogsResult = await storage.getAuditLogs(params);
+          if (auditLogsResult && auditLogsResult.logs) {
+            logsData = auditLogsResult.logs;
+          } else if (Array.isArray(auditLogsResult)) {
+            logsData = auditLogsResult;
+          }
+        } catch (err) {
+          console.error("Error exporting audit logs:", err);
+        }
         filename = "audit_logs.csv";
         break;
     }
@@ -281,13 +255,13 @@ router.get("/api/logs/export", async (req, res) => {
     // Format logs to CSV
     let csv = "";
     
-    if (logs && logs.logs && logs.logs.length > 0) {
+    if (logsData && logsData.length > 0) {
       // Get headers from first log
-      const headers = Object.keys(logs.logs[0]);
+      const headers = Object.keys(logsData[0]);
       csv = headers.join(',') + '\n';
       
       // Add data rows
-      logs.logs.forEach((log: any) => {
+      logsData.forEach((log: any) => {
         const row = headers.map(header => {
           const value = log[header];
           // Handle formatting of values
