@@ -585,7 +585,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Create a new merchant 
+  // Create a new merchant with audit logging
   async createMerchant(merchantData: InsertMerchant): Promise<Merchant> {
     try {
       // Generate a unique merchant ID if not provided
@@ -606,6 +606,25 @@ export class DatabaseStorage implements IStorage {
       const [newMerchant] = await db.insert(merchantsTable)
         .values(merchantData)
         .returning();
+      
+      // Create audit log entry for merchant creation
+      const username = merchantData.updatedBy || 'System';
+      
+      // Prepare audit log data
+      const auditLogData: InsertAuditLog = {
+        entityType: 'merchant',
+        entityId: newMerchant.id,
+        action: 'create',
+        userId: null, // Can be set if user ID is available
+        username: username,
+        oldValues: null, // No old values for creation
+        newValues: this.filterSensitiveData(newMerchant),
+        changedFields: Object.keys(merchantData),
+        notes: `Created new merchant: ${newMerchant.name}`
+      };
+      
+      // Create the audit log entry
+      await this.createAuditLog(auditLogData);
       
       return newMerchant;
     } catch (error) {
@@ -690,18 +709,45 @@ export class DatabaseStorage implements IStorage {
     return filtered;
   }
   
-  // Delete multiple merchants
-  async deleteMerchants(merchantIds: string[]): Promise<void> {
+  // Delete multiple merchants with audit logging
+  async deleteMerchants(merchantIds: string[], username: string = 'System'): Promise<void> {
     try {
       // Delete related transactions first to maintain referential integrity
       for (const merchantId of merchantIds) {
-        // Delete transactions associated with this merchant
-        await db.delete(transactionsTable)
-          .where(eq(transactionsTable.merchantId, merchantId));
+        // Get merchant data before deletion for audit log
+        const [existingMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
         
-        // Delete the merchant
-        await db.delete(merchantsTable)
-          .where(eq(merchantsTable.id, merchantId));
+        if (existingMerchant) {
+          // Get transaction count for this merchant
+          const [{ count: transactionCount }] = await db
+            .select({ count: count() })
+            .from(transactionsTable)
+            .where(eq(transactionsTable.merchantId, merchantId));
+          
+          // Delete transactions associated with this merchant
+          await db.delete(transactionsTable)
+            .where(eq(transactionsTable.merchantId, merchantId));
+          
+          // Delete the merchant
+          await db.delete(merchantsTable)
+            .where(eq(merchantsTable.id, merchantId));
+          
+          // Create audit log entry
+          const auditLogData: InsertAuditLog = {
+            entityType: 'merchant',
+            entityId: merchantId,
+            action: 'delete',
+            userId: null, // Can be set if user ID is available
+            username: username,
+            oldValues: this.filterSensitiveData(existingMerchant),
+            newValues: null, // No new values for deletion
+            changedFields: [],
+            notes: `Deleted merchant: ${existingMerchant.name} with ${transactionCount} associated transactions`
+          };
+          
+          // Create the audit log entry
+          await this.createAuditLog(auditLogData);
+        }
       }
       
       console.log(`Successfully deleted ${merchantIds.length} merchants and their transactions`);
@@ -711,8 +757,8 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Add a new transaction for a merchant
-  async addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }): Promise<any> {
+  // Add a new transaction for a merchant with audit logging
+  async addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }, username: string = 'System'): Promise<any> {
     try {
       // Check if the merchant exists
       const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
@@ -759,6 +805,29 @@ export class DatabaseStorage implements IStorage {
       await db.update(merchantsTable)
         .set({ lastUploadDate: new Date() })
         .where(eq(merchantsTable.id, merchantId));
+      
+      // Create audit log entry for the transaction creation
+      const auditLogData: InsertAuditLog = {
+        entityType: 'transaction',
+        entityId: insertedTransaction.id,
+        action: 'create',
+        userId: null,
+        username: username,
+        oldValues: null,
+        newValues: {
+          id: insertedTransaction.id,
+          merchantId: insertedTransaction.merchantId,
+          merchantName: merchant.name,
+          amount: insertedTransaction.amount,
+          date: insertedTransaction.date.toISOString(),
+          type: insertedTransaction.type
+        },
+        changedFields: ['id', 'merchantId', 'amount', 'date', 'type'],
+        notes: `Added ${insertedTransaction.type} transaction of ${insertedTransaction.amount} for merchant: ${merchant.name}`
+      };
+      
+      // Create the audit log entry
+      await this.createAuditLog(auditLogData);
       
       // Format the transaction for response
       return {
@@ -997,12 +1066,50 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Delete multiple transactions
-  async deleteTransactions(transactionIds: string[]): Promise<void> {
+  async deleteTransactions(transactionIds: string[], username: string = 'System'): Promise<void> {
     try {
       if (transactionIds.length === 0) {
         return;
       }
       
+      // Get transaction data before deletion for audit logs
+      const transactionsToDelete = await db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name
+      })
+      .from(transactionsTable)
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .where(or(...transactionIds.map(id => eq(transactionsTable.id, id))));
+      
+      // Create audit logs for each transaction before deleting them
+      for (const result of transactionsToDelete) {
+        const { transaction, merchantName } = result;
+        
+        // Prepare audit log data
+        const auditLogData: InsertAuditLog = {
+          entityType: 'transaction',
+          entityId: transaction.id,
+          action: 'delete',
+          userId: null,
+          username: username,
+          oldValues: {
+            id: transaction.id,
+            merchantId: transaction.merchantId,
+            merchantName: merchantName,
+            amount: transaction.amount,
+            date: transaction.date.toISOString(),
+            type: transaction.type
+          },
+          newValues: null, // No new values for deletion
+          changedFields: [],
+          notes: `Deleted ${transaction.type} transaction of ${transaction.amount} for merchant: ${merchantName || transaction.merchantId}`
+        };
+        
+        // Create audit log entry
+        await this.createAuditLog(auditLogData);
+      }
+      
+      // Delete the transactions
       await db.delete(transactionsTable).where(
         or(...transactionIds.map(id => eq(transactionsTable.id, id)))
       );
