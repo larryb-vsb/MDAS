@@ -207,6 +207,11 @@ export default function Logs() {
           </div>
         }
       />
+      
+      {/* Add System Logs Test Component */}
+      <div className="mb-6">
+        <TestSystemLogs />
+      </div>
 
       {isFilterOpen && (
         <Card className="mb-6">
