@@ -53,6 +53,20 @@ router.get("/api/logs", async (req, res) => {
         break;
     }
     
+    // Make sure we always return logs in a consistent format
+    if (Array.isArray(result)) {
+      // If result is directly an array, format it properly
+      return res.json({
+        logs: result,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(result.length / limit),
+          totalItems: result.length,
+          itemsPerPage: limit
+        }
+      });
+    }
+    
     return res.json(result);
   } catch (error) {
     console.error("Error getting logs:", error);
