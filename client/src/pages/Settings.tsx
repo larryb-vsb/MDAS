@@ -215,7 +215,7 @@ export default function Settings() {
                   className="ml-auto"
                 >
                   <ScrollText className="w-4 h-4 mr-2" />
-                  View Logs
+                  View App Logs
                 </Button>
               </CardTitle>
               <CardDescription>

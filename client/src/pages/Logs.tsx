@@ -131,7 +131,7 @@ export default function Logs() {
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader 
-        title="System Logs" 
+        title="App Logs" 
         description="View and manage system activity logs"
         actions={
           <div className="flex items-center space-x-2">
@@ -261,9 +261,9 @@ export default function Logs() {
         setCurrentPage(1);
       }}>
         <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="audit">Audit Logs</TabsTrigger>
-          <TabsTrigger value="system">System Logs</TabsTrigger>
-          <TabsTrigger value="security">Security Logs</TabsTrigger>
+          <TabsTrigger value="audit">Change Logs</TabsTrigger>
+          <TabsTrigger value="system">System Events</TabsTrigger>
+          <TabsTrigger value="security">Security Events</TabsTrigger>
         </TabsList>
 
         {/* Shared content for all tabs */}
@@ -288,12 +288,15 @@ export default function Logs() {
                     .then(res => res.json())
                     .then(data => {
                       if (data.success) {
-                        refetch();
+                        // Force refetch to show newly created logs
+                        setTimeout(() => refetch(), 500);
                       }
                     });
                   }}
                 >
-                  Generate Test Logs
+                  {activeTab === "audit" && "Generate Change Log"}
+                  {activeTab === "system" && "Generate System Event Test"}
+                  {activeTab === "security" && "Generate Security Event Test"}
                 </Button>
                 <Input
                   placeholder="Search logs..."
