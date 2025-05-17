@@ -18,6 +18,7 @@ import { registerS3Routes } from "./routes/s3_routes";
 import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
+import logTestRoutes from "./routes/log_test_routes";
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -77,6 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register logs routes
   app.use(logsRoutes);
+  app.use(logTestRoutes);
   
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');

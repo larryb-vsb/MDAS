@@ -46,16 +46,16 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         try {
-          // Use direct SQL query with proper parameter format for Neon database
-          const systemLogsData = await db.execute({
-            text: 'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1',
-            values: [params.limit || 10]
-          });
+          // Use direct pool query which is more reliable
+          const result = await pool.query(
+            'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1',
+            [params.limit || 10]
+          );
           
-          console.log(`Retrieved ${systemLogsData.length} system logs directly via SQL`);
+          console.log(`Retrieved ${result.rowCount} system logs directly`);
           
           // Format the logs for client-side display
-          const formattedLogs = systemLogsData.map(log => ({
+          const formattedLogs = result.rows.map(log => ({
             id: log.id,
             timestamp: log.timestamp,
             level: log.level || 'info',
