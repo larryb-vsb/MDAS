@@ -2802,9 +2802,7 @@ export class DatabaseStorage implements IStorage {
         conditions.push(eq(securityLogs.username, username));
       }
       
-      if (result) {
-        conditions.push(eq(securityLogs.result, result));
-      }
+      // Security logs don't have a result field, this was causing the error
       
       if (startDate && endDate) {
         conditions.push(between(securityLogs.timestamp, new Date(startDate), new Date(endDate)));
