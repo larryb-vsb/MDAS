@@ -46,10 +46,14 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         try {
-          // Use direct pool query which is more reliable
+          // Get the total count for pagination
+          const countResult = await pool.query('SELECT COUNT(*) as count FROM system_logs');
+          const totalCount = parseInt(countResult.rows[0].count);
+          
+          // Use direct pool query which is more reliable, with pagination
           const result = await pool.query(
-            'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1',
-            [params.limit || 10]
+            'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
           );
           
           console.log(`Retrieved ${result.rowCount} system logs directly`);

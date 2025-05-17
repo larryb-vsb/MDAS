@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/common/Pagination";
 import PageHeader from "@/components/common/PageHeader";
+import TestSystemLogs from "@/components/logs/TestSystemLogs";
 import { Badge } from "@/components/ui/badge";
 import { FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { 
