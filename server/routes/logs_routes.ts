@@ -42,31 +42,100 @@ router.get("/api/logs", async (req, res) => {
     // Get logs based on type
     switch (logType) {
       case "system":
-        result = await storage.getSystemLogs(params);
-        // Make sure we have correct response format for empty result
-        if (result && result.logs && result.logs.length === 0) {
-          // Try to fetch directly from the database to see if we have logs
+        try {
+          // Bypass the regular method and always use direct DB access for system logs
           const systemLogsData = await storage.getSystemLogsDirectly();
-          if (systemLogsData.length > 0) {
-            result = {
-              logs: systemLogsData,
-              pagination: {
-                currentPage: params.page || 1,
-                totalPages: Math.ceil(systemLogsData.length / (params.limit || 20)),
-                totalItems: systemLogsData.length,
-                itemsPerPage: params.limit || 20
-              }
-            };
-          }
+          console.log(`Retrieved ${systemLogsData.length} system logs directly`);
+          
+          // Format the logs for client-side display
+          const formattedLogs = systemLogsData.map(log => ({
+            id: log.id,
+            timestamp: log.timestamp,
+            level: log.level,
+            source: log.source,
+            message: log.message,
+            details: log.details,
+            // Add additional fields needed for the UI display
+            username: "System", // Most system logs are from the system
+            entityType: "system",
+            entityId: `SYS-${log.id}`,
+            action: log.level // Use log level as the action
+          }));
+          
+          result = {
+            logs: formattedLogs,
+            pagination: {
+              currentPage: params.page || 1,
+              totalPages: Math.ceil(systemLogsData.length / (params.limit || 10)),
+              totalItems: systemLogsData.length,
+              itemsPerPage: params.limit || 10
+            }
+          };
+          
+          // Log the result for debugging
+          console.log(`System logs formatted: ${formattedLogs.length} logs`);
+        } catch (error) {
+          console.error("Error fetching system logs:", error);
+          result = { 
+            logs: [], 
+            pagination: {
+              currentPage: 1,
+              totalPages: 0,
+              totalItems: 0,
+              itemsPerPage: 10
+            }
+          };
         }
-        
-        // Log the result for debugging
-        console.log("System logs result:", JSON.stringify(result).substring(0, 200) + "...");
         break;
       case "security":
-        result = await storage.getSecurityLogs(params);
-        // Log the result for debugging
-        console.log("Security logs result:", JSON.stringify(result).substring(0, 200) + "...");
+        try {
+          // Use a direct approach for security logs similar to system logs
+          const securityLogsData = await db
+            .select()
+            .from(securityLogs)
+            .orderBy(desc(securityLogs.timestamp))
+            .limit(params.limit || 10);
+            
+          console.log(`Retrieved ${securityLogsData.length} security logs directly`);
+          
+          // Format the logs for client-side display
+          const formattedLogs = securityLogsData.map(log => ({
+            id: log.id,
+            timestamp: log.timestamp,
+            eventType: log.eventType,
+            username: log.username,
+            ipAddress: log.ipAddress,
+            userAgent: log.userAgent,
+            action: log.action,
+            result: log.result,
+            // Add additional fields needed for UI consistency
+            entityType: "security",
+            entityId: `SEC-${log.id}`
+          }));
+          
+          result = {
+            logs: formattedLogs,
+            pagination: {
+              currentPage: params.page || 1,
+              totalPages: Math.ceil(securityLogsData.length / (params.limit || 10)),
+              totalItems: securityLogsData.length,
+              itemsPerPage: params.limit || 10
+            }
+          };
+          
+          console.log(`Security logs formatted: ${formattedLogs.length} logs`);
+        } catch (error) {
+          console.error("Error fetching security logs:", error);
+          result = { 
+            logs: [], 
+            pagination: {
+              currentPage: 1,
+              totalPages: 0,
+              totalItems: 0,
+              itemsPerPage: 10
+            }
+          };
+        }
         break;
       case "audit":
       default:

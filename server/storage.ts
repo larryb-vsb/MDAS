@@ -2753,6 +2753,12 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(systemLogs.timestamp))
         .limit(20);
       
+      console.log(`Found ${logs.length} system logs directly from database`);
+      
+      if (logs.length > 0) {
+        console.log('Sample system log:', JSON.stringify(logs[0]).substring(0, 200));
+      }
+      
       return logs;
     } catch (error) {
       console.error('Error getting system logs directly:', error);

@@ -72,10 +72,25 @@ export default function Logs() {
   // Query for logs based on active tab
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['/api/logs', activeTab, currentPage, filters],
-    queryFn: () => fetch(`/api/logs?${new URLSearchParams({
-      ...createQueryParams(activeTab),
-      logType: activeTab
-    } as any).toString()}`).then(res => res.json()),
+    queryFn: async () => {
+      // Add a specific type parameter for system and security logs
+      const params = new URLSearchParams({
+        ...createQueryParams(activeTab),
+        type: activeTab,
+        logType: activeTab
+      } as any);
+      
+      console.log(`Fetching ${activeTab} logs with params:`, params.toString());
+      const res = await fetch(`/api/logs?${params.toString()}`);
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch logs');
+      }
+      
+      const responseData = await res.json();
+      console.log(`Fetched ${activeTab} logs:`, responseData);
+      return responseData;
+    },
     enabled: true,
   });
 
