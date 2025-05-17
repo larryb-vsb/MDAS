@@ -40,7 +40,7 @@ router.get("/api/logs", async (req, res) => {
       ...(endDate && { endDate })
     };
     
-    let result;
+    let responseData: any;
     
     // Get logs based on type
     switch (logType) {
@@ -50,21 +50,21 @@ router.get("/api/logs", async (req, res) => {
           const countResult = await pool.query('SELECT COUNT(*) as count FROM system_logs');
           const totalCount = parseInt(countResult.rows[0].count);
           
-          // Calculate pagination offset (making sure page and limit are defined)
-          const page = params.page || 1;
-          const limit = params.limit || 10;
-          const offset = (page - 1) * limit;
+          // Calculate pagination offset
+          const pageNum = params.page || 1;
+          const limitNum = params.limit || 10;
+          const offset = (pageNum - 1) * limitNum;
           
           // Use direct pool query which is more reliable, with pagination
-          const result = await pool.query(
+          const queryResult = await pool.query(
             'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
-            [limit, offset]
+            [limitNum, offset]
           );
           
-          console.log(`Retrieved ${result.rowCount} system logs directly`);
+          console.log(`Retrieved ${queryResult.rowCount} system logs directly`);
           
           // Format the logs for client-side display
-          const formattedLogs = result.rows.map(log => ({
+          const formattedLogs = queryResult.rows.map((log: any) => ({
             id: log.id,
             timestamp: log.timestamp,
             level: log.level || 'info',
@@ -78,13 +78,13 @@ router.get("/api/logs", async (req, res) => {
             action: log.level || 'info' // Use log level as the action
           }));
           
-          result = {
+          responseData = {
             logs: formattedLogs,
             pagination: {
-              currentPage: params.page || 1,
-              totalPages: Math.ceil(systemLogsData.length / (params.limit || 10)),
-              totalItems: systemLogsData.length,
-              itemsPerPage: params.limit || 10
+              currentPage: pageNum,
+              totalPages: Math.ceil(totalCount / limitNum),
+              totalItems: totalCount,
+              itemsPerPage: limitNum
             }
           };
           
@@ -92,7 +92,7 @@ router.get("/api/logs", async (req, res) => {
           console.log(`System logs formatted: ${formattedLogs.length} logs`);
         } catch (error) {
           console.error("Error fetching system logs:", error);
-          result = { 
+          responseData = { 
             logs: [], 
             pagination: {
               currentPage: 1,
@@ -129,7 +129,7 @@ router.get("/api/logs", async (req, res) => {
             entityId: `SEC-${log.id}`
           }));
           
-          result = {
+          responseData = {
             logs: formattedLogs,
             pagination: {
               currentPage: params.page || 1,
@@ -142,7 +142,7 @@ router.get("/api/logs", async (req, res) => {
           console.log(`Security logs formatted: ${formattedLogs.length} logs`);
         } catch (error) {
           console.error("Error fetching security logs:", error);
-          result = { 
+          responseData = { 
             logs: [], 
             pagination: {
               currentPage: 1,
@@ -155,39 +155,39 @@ router.get("/api/logs", async (req, res) => {
         break;
       case "audit":
       default:
-        result = await storage.getAuditLogs(params);
+        responseData = await storage.getAuditLogs(params);
         break;
     }
     
     // Make sure we always return logs in a consistent format
-    if (Array.isArray(result)) {
-      // If result is directly an array, format it properly
+    if (Array.isArray(responseData)) {
+      // If responseData is directly an array, format it properly
       return res.json({
-        logs: result,
+        logs: responseData,
         pagination: {
           currentPage: page,
-          totalPages: Math.ceil(result.length / limit),
-          totalItems: result.length,
+          totalPages: Math.ceil(responseData.length / limit),
+          totalItems: responseData.length,
           itemsPerPage: limit
         }
       });
-    } else if (result && result.logs) {
+    } else if (responseData && 'logs' in responseData) {
       // Already in the correct format
-      return res.json(result);
-    } else if (result) {
+      return res.json(responseData);
+    } else if (responseData) {
       // Transform to a consistent format
       return res.json({
-        logs: result,
+        logs: responseData,
         pagination: {
           currentPage: page,
           totalPages: 1,
-          totalItems: Array.isArray(result) ? result.length : 1,
+          totalItems: Array.isArray(responseData) ? responseData.length : 1,
           itemsPerPage: limit
         }
       });
     }
     
-    // Fallback for empty result
+    // Fallback for empty responseData
     return res.json({
       logs: [],
       pagination: {
@@ -232,17 +232,43 @@ router.get("/api/logs/export", async (req, res) => {
       ...(endDate && { endDate })
     };
     
-    let logs;
-    let filename;
+    let logs: any;
+    let filename = "logs.csv";
     
     // Get logs based on type
     switch (logType) {
       case "system":
-        logs = await storage.getSystemLogs(params);
+        // Use alternative approach for system logs
+        logs = { logs: [] };
+        try {
+          const result = await pool.query('SELECT * FROM system_logs ORDER BY timestamp DESC');
+          logs = { 
+            logs: result.rows.map((log: any) => ({
+              id: log.id,
+              timestamp: log.timestamp,
+              level: log.level,
+              source: log.source,
+              message: log.message
+            }))
+          };
+        } catch (err) {
+          console.error("Error exporting system logs:", err);
+        }
         filename = "system_logs.csv";
         break;
       case "security":
-        logs = await storage.getSecurityLogs(params);
+        // Use direct database query for security logs
+        logs = { logs: [] };
+        try {
+          const securityLogsData = await db
+            .select()
+            .from(securityLogs)
+            .orderBy(desc(securityLogs.timestamp));
+          
+          logs = { logs: securityLogsData };
+        } catch (err) {
+          console.error("Error exporting security logs:", err);
+        }
         filename = "security_logs.csv";
         break;
       case "audit":
@@ -252,8 +278,26 @@ router.get("/api/logs/export", async (req, res) => {
         break;
     }
     
-    // Generate CSV from logs
-    const csv = storage.formatLogsToCSV(logs.logs);
+    // Format logs to CSV
+    let csv = "";
+    
+    if (logs && logs.logs && logs.logs.length > 0) {
+      // Get headers from first log
+      const headers = Object.keys(logs.logs[0]);
+      csv = headers.join(',') + '\n';
+      
+      // Add data rows
+      logs.logs.forEach((log: any) => {
+        const row = headers.map(header => {
+          const value = log[header];
+          // Handle formatting of values
+          if (value === null || value === undefined) return '';
+          if (typeof value === 'object') return JSON.stringify(value).replace(/"/g, '""');
+          return String(value).replace(/"/g, '""');
+        });
+        csv += row.join(',') + '\n';
+      });
+    }
     
     // Set response headers for CSV download
     res.header('Content-Type', 'text/csv');
@@ -332,15 +376,16 @@ router.post("/api/logs/system-test", async (req, res) => {
         logsCreated: 5,
         sampleLogs: systemLogsData.rows.slice(0, 3) // First 3 logs for sample
       });
-    } catch (error) {
+    } catch (err) {
       await client.query('ROLLBACK');
-      throw error;
+      throw err;
     } finally {
       client.release();
     }
-  } catch (error) {
-    console.error("Error testing system logs:", error);
-    return res.status(500).json({ error: "Failed to test system logs", details: error.message });
+  } catch (err) {
+    console.error("Error testing system logs:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    return res.status(500).json({ error: "Failed to test system logs", details: errorMessage });
   }
 });
 
