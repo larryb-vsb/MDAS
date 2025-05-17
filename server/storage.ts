@@ -614,29 +614,80 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Update merchant details
+  // Update merchant details with audit logging
   async updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any> {
     try {
-      // Check if merchant exists
+      // Check if merchant exists and get original values
       const [existingMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
       
       if (!existingMerchant) {
         throw new Error(`Merchant with ID ${merchantId} not found`);
       }
       
-      // Update merchant
-      await db.update(merchantsTable)
-        .set(merchantData)
-        .where(eq(merchantsTable.id, merchantId));
+      // Track which fields are being changed
+      const changedFields = Object.keys(merchantData).filter(key => 
+        JSON.stringify(merchantData[key as keyof typeof merchantData]) !== 
+        JSON.stringify(existingMerchant[key as keyof typeof existingMerchant])
+      );
       
-      // Get updated merchant
-      const [updatedMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
-      
-      return updatedMerchant;
+      // Only proceed with update if there are actual changes
+      if (changedFields.length > 0) {
+        // Update merchant
+        await db.update(merchantsTable)
+          .set(merchantData)
+          .where(eq(merchantsTable.id, merchantId));
+        
+        // Get updated merchant
+        const [updatedMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+        
+        // Create audit log entry
+        const username = merchantData.updatedBy || 'System';
+        
+        // Prepare audit log data
+        const auditLogData: InsertAuditLog = {
+          entityType: 'merchant',
+          entityId: merchantId,
+          action: 'update',
+          userId: null, // Can be set if user ID is available
+          username: username,
+          oldValues: this.filterSensitiveData(existingMerchant),
+          newValues: this.filterSensitiveData(updatedMerchant),
+          changedFields: changedFields,
+          notes: `Updated merchant fields: ${changedFields.join(', ')}`
+        };
+        
+        // Create the audit log entry
+        await this.createAuditLog(auditLogData);
+        
+        return updatedMerchant;
+      } else {
+        // No changes detected
+        return existingMerchant;
+      }
     } catch (error) {
       console.error(`Error updating merchant ${merchantId}:`, error);
       throw error;
     }
+  }
+  
+  // Helper method to filter out sensitive data before logging
+  private filterSensitiveData(data: any): any {
+    if (!data) return null;
+    
+    // Create a deep copy to avoid modifying the original
+    const filtered = JSON.parse(JSON.stringify(data));
+    
+    // Define sensitive fields that should be redacted
+    const sensitiveFields = ['password', 'secret', 'token', 'key'];
+    
+    // Filter at top level
+    for (const field of sensitiveFields) {
+      if (field in filtered) {
+        filtered[field] = '[REDACTED]';
+      }
+    }
+    
+    return filtered;
   }
   
   // Delete multiple merchants

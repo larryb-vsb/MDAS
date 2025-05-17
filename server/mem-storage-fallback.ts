@@ -7,7 +7,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import session from 'express-session';
 import createMemoryStore from 'memorystore';
-import { User, InsertUser } from "@shared/schema";
+import { User, InsertUser, AuditLog, InsertAuditLog } from "@shared/schema";
 import { IStorage } from "./storage";
 
 const MemoryStore = createMemoryStore(session);
@@ -16,6 +16,7 @@ export class MemStorageFallback implements IStorage {
   private users: User[] = [];
   private merchants: any[] = [];
   private transactions: any[] = [];
+  private auditLogs: AuditLog[] = [];
   readonly sessionStore: session.Store;
 
   constructor() {
@@ -406,5 +407,100 @@ export class MemStorageFallback implements IStorage {
 
   async generateMerchantsExport(): Promise<string> {
     return "Export not available in fallback mode";
+  }
+
+  // Audit log implementation for fallback mode
+  async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
+    try {
+      const newId = this.auditLogs.length + 1;
+      const timestamp = new Date();
+      
+      const auditLog: AuditLog = {
+        id: newId,
+        entityType: auditLogData.entityType,
+        entityId: auditLogData.entityId,
+        action: auditLogData.action,
+        userId: auditLogData.userId,
+        username: auditLogData.username,
+        timestamp: timestamp,
+        oldValues: auditLogData.oldValues || null,
+        newValues: auditLogData.newValues || null,
+        changedFields: auditLogData.changedFields || [],
+        ipAddress: auditLogData.ipAddress || null,
+        userAgent: auditLogData.userAgent || null,
+        notes: auditLogData.notes || null
+      };
+      
+      this.auditLogs.push(auditLog);
+      return auditLog;
+    } catch (error) {
+      console.error("Error creating audit log in fallback mode:", error);
+      throw new Error("Failed to create audit log entry in fallback mode");
+    }
+  }
+  
+  async getAuditLogs(entityType?: string, entityId?: string, page: number = 1, limit: number = 20): Promise<{
+    logs: AuditLog[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    }
+  }> {
+    try {
+      // Filter logs based on provided parameters
+      let filteredLogs = this.auditLogs;
+      
+      if (entityType) {
+        filteredLogs = filteredLogs.filter(log => log.entityType === entityType);
+      }
+      
+      if (entityId) {
+        filteredLogs = filteredLogs.filter(log => log.entityId === entityId);
+      }
+      
+      // Sort by timestamp descending (newest first)
+      filteredLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      // Calculate pagination
+      const totalItems = filteredLogs.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, totalItems);
+      
+      // Get page of logs
+      const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+      
+      return {
+        logs: paginatedLogs,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching audit logs in fallback mode:", error);
+      throw new Error("Failed to retrieve audit logs in fallback mode");
+    }
+  }
+  
+  async getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]> {
+    try {
+      // Get all logs for the specified entity
+      const logs = this.auditLogs.filter(log => 
+        log.entityType === entityType && log.entityId === entityId
+      );
+      
+      // Sort by timestamp descending (newest first)
+      logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      return logs;
+    } catch (error) {
+      console.error(`Error fetching audit history for ${entityType} ${entityId} in fallback mode:`, error);
+      throw new Error(`Failed to retrieve audit history for ${entityType} in fallback mode`);
+    }
   }
 }
