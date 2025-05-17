@@ -8,13 +8,16 @@ import {
   transactions as transactionsTable,
   uploadedFiles as uploadedFilesTable,
   users as usersTable,
+  auditLogs as auditLogsTable,
   Merchant,
   Transaction,
   InsertMerchant,
   InsertTransaction,
   InsertUploadedFile,
   User,
-  InsertUser
+  InsertUser,
+  AuditLog,
+  InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, isNotNull } from "drizzle-orm";
@@ -119,6 +122,19 @@ export interface IStorage {
   combineAndProcessUploads(fileIds: string[]): Promise<void>;
   generateTransactionsExport(): Promise<string>;
   generateMerchantsExport(): Promise<string>;
+  
+  // Audit log operations
+  createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(entityType?: string, entityId?: string, page?: number, limit?: number): Promise<{
+    logs: AuditLog[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    }
+  }>;
+  getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]>;
 }
 
 // Database storage implementation
@@ -2318,6 +2334,103 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error generating merchants export:", error);
       throw new Error("Failed to generate merchants export");
+    }
+  }
+  
+  // Create audit log entry
+  async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
+    try {
+      // Insert the audit log and return the inserted record
+      const [newAuditLog] = await db.insert(auditLogsTable)
+        .values(auditLogData)
+        .returning();
+      
+      return newAuditLog;
+    } catch (error) {
+      console.error("Error creating audit log:", error);
+      throw new Error("Failed to create audit log entry");
+    }
+  }
+  
+  // Get paginated audit logs with optional filtering
+  async getAuditLogs(entityType?: string, entityId?: string, page: number = 1, limit: number = 20): Promise<{
+    logs: AuditLog[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    }
+  }> {
+    try {
+      // Calculate offset for pagination
+      const offset = (page - 1) * limit;
+      
+      // Build query conditions
+      let conditions = [];
+      if (entityType) {
+        conditions.push(eq(auditLogsTable.entityType, entityType));
+      }
+      if (entityId) {
+        conditions.push(eq(auditLogsTable.entityId, entityId));
+      }
+      
+      // Query with filters if provided
+      const whereClause = conditions.length > 0 
+        ? and(...conditions)
+        : undefined;
+      
+      // Count total items for pagination
+      const [{ value: totalItems }] = await db
+        .select({ value: count() })
+        .from(auditLogsTable)
+        .where(whereClause || sql`1=1`);
+      
+      // Get logs with pagination
+      const logs = await db
+        .select()
+        .from(auditLogsTable)
+        .where(whereClause || sql`1=1`)
+        .orderBy(desc(auditLogsTable.timestamp))
+        .limit(limit)
+        .offset(offset);
+      
+      // Calculate pagination metadata
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      return {
+        logs,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      throw new Error("Failed to retrieve audit logs");
+    }
+  }
+  
+  // Get complete audit history for a specific entity
+  async getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]> {
+    try {
+      const logs = await db
+        .select()
+        .from(auditLogsTable)
+        .where(
+          and(
+            eq(auditLogsTable.entityType, entityType),
+            eq(auditLogsTable.entityId, entityId)
+          )
+        )
+        .orderBy(desc(auditLogsTable.timestamp));
+      
+      return logs;
+    } catch (error) {
+      console.error(`Error fetching audit history for ${entityType} ${entityId}:`, error);
+      throw new Error(`Failed to retrieve audit history for ${entityType}`);
     }
   }
 }

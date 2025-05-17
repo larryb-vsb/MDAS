@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -167,3 +167,36 @@ export type BackupSchedule = typeof backupSchedules.$inferSelect;
 export type InsertBackupSchedule = typeof backupSchedules.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// Audit log table with performance optimizations
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  entityType: text("entity_type").notNull(), // "merchant" or "transaction"
+  entityId: text("entity_id").notNull(),
+  action: text("action").notNull(), // "create", "update", "delete"
+  userId: integer("user_id").references(() => users.id),
+  username: text("username").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  oldValues: jsonb("old_values"), // Store previous values as JSON
+  newValues: jsonb("new_values"), // Store new values as JSON
+  changedFields: text("changed_fields").array(), // Array of field names that were changed
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  notes: text("notes")
+}, (table) => {
+  return {
+    // Create indexes for better query performance
+    entityTypeIdx: index("audit_logs_entity_type_idx").on(table.entityType),
+    entityIdIdx: index("audit_logs_entity_id_idx").on(table.entityId),
+    timestampIdx: index("audit_logs_timestamp_idx").on(table.timestamp),
+    userIdIdx: index("audit_logs_user_id_idx").on(table.userId)
+  };
+});
+
+// Zod schemas for audit logs
+export const auditLogsSchema = createInsertSchema(auditLogs);
+export const insertAuditLogSchema = auditLogsSchema.omit({ id: true });
+
+// Export audit log types
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
