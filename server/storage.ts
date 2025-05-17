@@ -2791,7 +2791,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Get security logs with pagination and filtering
-  async getSecurityLogs(params: any = {}): Promise<any[]> {
+  async getSecurityLogs(params: any = {}): Promise<any> {
     try {
       const { 
         page = 1, 
@@ -2817,7 +2817,9 @@ export class DatabaseStorage implements IStorage {
         conditions.push(eq(securityLogs.username, username));
       }
       
-      // Security logs don't have a result field, this was causing the error
+      if (resultFilter && securityLogs.result) {
+        conditions.push(eq(securityLogs.result, resultFilter));
+      }
       
       if (startDate && endDate) {
         conditions.push(between(securityLogs.timestamp, new Date(startDate), new Date(endDate)));
@@ -2833,18 +2835,33 @@ export class DatabaseStorage implements IStorage {
         : undefined;
         
       // Execute query
-      const securityLogsResult = await db
+      const logs = await db
         .select()
         .from(securityLogs)
         .where(whereClause)
         .orderBy(desc(securityLogs.timestamp))
         .limit(limit)
         .offset(offset);
-        
-      return securityLogsResult;
+      
+      // Get total count for pagination
+      const [{ count }] = await db
+        .select({ count: sql`count(*)` })
+        .from(securityLogs)
+        .where(whereClause || sql`1=1`);
+      
+      // Return formatted response with pagination
+      return {
+        logs,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(Number(count) / limit),
+          totalItems: Number(count),
+          itemsPerPage: limit
+        }
+      };
     } catch (error) {
       console.error('Error getting security logs:', error);
-      return [];
+      return { logs: [], pagination: { currentPage: 1, totalPages: 0, totalItems: 0, itemsPerPage: limit } };
     }
   }
   

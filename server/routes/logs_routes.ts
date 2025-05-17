@@ -43,9 +43,13 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         result = await storage.getSystemLogs(params);
+        // Log the result for debugging
+        console.log("System logs result:", JSON.stringify(result).substring(0, 200) + "...");
         break;
       case "security":
         result = await storage.getSecurityLogs(params);
+        // Log the result for debugging
+        console.log("Security logs result:", JSON.stringify(result).substring(0, 200) + "...");
         break;
       case "audit":
       default:
@@ -65,9 +69,32 @@ router.get("/api/logs", async (req, res) => {
           itemsPerPage: limit
         }
       });
+    } else if (result && result.logs) {
+      // Already in the correct format
+      return res.json(result);
+    } else if (result) {
+      // Transform to a consistent format
+      return res.json({
+        logs: result,
+        pagination: {
+          currentPage: page,
+          totalPages: 1,
+          totalItems: Array.isArray(result) ? result.length : 1,
+          itemsPerPage: limit
+        }
+      });
     }
     
-    return res.json(result);
+    // Fallback for empty result
+    return res.json({
+      logs: [],
+      pagination: {
+        currentPage: page,
+        totalPages: 0,
+        totalItems: 0,
+        itemsPerPage: limit
+      }
+    });
   } catch (error) {
     console.error("Error getting logs:", error);
     return res.status(500).json({ error: "Failed to retrieve logs" });

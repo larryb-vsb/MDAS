@@ -79,7 +79,38 @@ export default function Logs() {
     enabled: true,
   });
 
-  const logs: LogEntry[] = data?.logs || [];
+  // Make sure we have consistent log data format
+  let logs: LogEntry[] = [];
+  
+  if (data?.logs) {
+    logs = data.logs.map((log: any) => {
+      // Transform system logs to match LogEntry format
+      if (activeTab === "system" && log.level) {
+        return {
+          id: log.id,
+          timestamp: log.timestamp,
+          username: log.source || "system",
+          action: log.level || "info",
+          notes: log.message + (log.details ? ` - ${JSON.stringify(log.details)}` : ""),
+          ipAddress: log.hostname || undefined
+        };
+      } 
+      // Transform security logs to match LogEntry format
+      else if (activeTab === "security" && log.eventType) {
+        return {
+          id: log.id,
+          timestamp: log.timestamp,
+          username: log.username || "anonymous",
+          action: `${log.eventType}:${log.action || "access"}`,
+          notes: log.notes || "",
+          ipAddress: log.ipAddress || undefined
+        };
+      }
+      // Use audit logs as is
+      return log;
+    });
+  }
+  
   const pagination = data?.pagination || { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 };
 
   const handlePageChange = (page: number) => {
@@ -288,12 +319,17 @@ export default function Logs() {
                     .then(res => res.json())
                     .then(data => {
                       if (data.success) {
-                        // Force refetch to show newly created logs
+                        // Force refetch to show newly created logs and message
+                        alert(data.message);
                         setTimeout(() => {
                           refetch();
                           console.log("Refreshed logs after generation");
-                        }, 1000); // Increased timeout for more reliable refresh
+                        }, 1500); // Increased timeout for more reliable refresh
                       }
+                    })
+                    .catch(err => {
+                      console.error("Error generating logs:", err);
+                      alert("Failed to generate logs. Please try again.");
                     });
                   }}
                 >
