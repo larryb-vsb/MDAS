@@ -75,6 +75,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register S3 configuration routes
   registerS3Routes(app);
   
+  // Register logs routes
+  app.use(logsRoutes);
+  
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
   
