@@ -90,6 +90,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
       name: "Logs",
       href: "/logs",
       icon: <ScrollText className="w-5 h-5 mr-3" />,
+      adminOnly: true, // Only admins can see system logs
     },
     // Only show Backups link for admin users - forcing to true for now
     {

@@ -2513,7 +2513,7 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
     try {
       // Insert the audit log and return the inserted record
-      const [newAuditLog] = await db.insert(auditLogsTable)
+      const [newAuditLog] = await db.insert(auditLogs)
         .values(auditLogData)
         .returning();
       
