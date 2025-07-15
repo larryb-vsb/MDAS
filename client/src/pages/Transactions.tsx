@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -386,7 +387,7 @@ export default function Transactions() {
             <CardDescription>Filter transactions by merchant, date range, and type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Merchant filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Merchant</label>
@@ -414,64 +415,131 @@ export default function Transactions() {
                 </Select>
               </div>
               
-              {/* Start date filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Start Date</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !startDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={(date) => {
-                        setStartDate(date);
-                        handleFilterChange();
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              {/* End date filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">End Date</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={(date) => {
-                        setEndDate(date);
-                        handleFilterChange();
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              {/* Date range filter */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Date Range</label>
+                
+                {/* Quick filter buttons */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      setStartDate(today);
+                      setEndDate(today);
+                      handleFilterChange();
+                    }}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const startOfWeek = new Date(today);
+                      startOfWeek.setDate(today.getDate() - today.getDay());
+                      setStartDate(startOfWeek);
+                      setEndDate(today);
+                      handleFilterChange();
+                    }}
+                  >
+                    This Week
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                      setStartDate(startOfMonth);
+                      setEndDate(today);
+                      handleFilterChange();
+                    }}
+                  >
+                    This Month
+                  </Button>
+                </div>
+
+                {/* Start and End Date inputs */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Start Date</label>
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          setStartDate(date);
+                          handleFilterChange();
+                        }}
+                        className="flex-1"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              setStartDate(date);
+                              handleFilterChange();
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">End Date</label>
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          setEndDate(date);
+                          handleFilterChange();
+                        }}
+                        className="flex-1"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(date) => {
+                              setEndDate(date);
+                              handleFilterChange();
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               {/* Transaction type filter */}
