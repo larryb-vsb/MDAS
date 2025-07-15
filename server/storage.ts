@@ -455,13 +455,12 @@ export class DatabaseStorage implements IStorage {
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
         const searchTerm = `%${search.trim()}%`;
-        conditions.push(
-          or(
-            like(merchantsTable.name, searchTerm),
-            like(merchantsTable.id, searchTerm),
-            like(merchantsTable.clientMid, searchTerm)
-          )
-        );
+        // Build individual search conditions
+        const nameCondition = like(merchantsTable.name, searchTerm);
+        const idCondition = like(merchantsTable.id, searchTerm);
+        const midCondition = like(merchantsTable.clientMID, searchTerm);
+        
+        conditions.push(or(nameCondition, idCondition, midCondition));
       }
       
       // Apply all conditions to both queries

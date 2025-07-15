@@ -183,7 +183,7 @@ export class MemStorageFallback implements IStorage {
       filteredMerchants = filteredMerchants.filter(m => 
         (m.name && m.name.toLowerCase().includes(searchTerm)) ||
         (m.id && m.id.toLowerCase().includes(searchTerm)) ||
-        (m.clientMid && m.clientMid.toLowerCase().includes(searchTerm))
+        (m.clientMID && m.clientMID.toLowerCase().includes(searchTerm))
       );
     }
     
