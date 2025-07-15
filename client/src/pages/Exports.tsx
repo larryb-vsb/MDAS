@@ -41,6 +41,9 @@ export default function Exports() {
     to: new Date()
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isFromDateOpen, setIsFromDateOpen] = useState(false);
+  const [isToDateOpen, setIsToDateOpen] = useState(false);
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -204,6 +207,9 @@ export default function Exports() {
                       onClick={() => {
                         const today = new Date();
                         setDateRange({ from: today, to: today });
+                        setIsDatePickerOpen(false);
+                        setIsFromDateOpen(false);
+                        setIsToDateOpen(false);
                       }}
                     >
                       Today
@@ -218,6 +224,8 @@ export default function Exports() {
                             const startOfWeek = new Date(today);
                             startOfWeek.setDate(today.getDate() - today.getDay());
                             setDateRange({ from: startOfWeek, to: today });
+                            setIsFromDateOpen(false);
+                            setIsToDateOpen(false);
                           }}
                         >
                           This Week
@@ -229,6 +237,8 @@ export default function Exports() {
                             const today = new Date();
                             const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                             setDateRange({ from: startOfMonth, to: today });
+                            setIsFromDateOpen(false);
+                            setIsToDateOpen(false);
                           }}
                         >
                           This Month
@@ -239,7 +249,7 @@ export default function Exports() {
 
                   {exportType === 'batch-summary' ? (
                     // Single date picker for batch summary
-                    <Popover>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="justify-start text-left font-normal w-full">
                           <CalendarIcon className="mr-2 h-4 w-4" />
@@ -250,14 +260,17 @@ export default function Exports() {
                         <Calendar
                           mode="single"
                           selected={dateRange.from}
-                          onSelect={(date) => setDateRange({ from: date || new Date(), to: date || new Date() })}
+                          onSelect={(date) => {
+                            setDateRange({ from: date || new Date(), to: date || new Date() });
+                            setIsDatePickerOpen(false);
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
                   ) : (
                     // Date range picker for other exports
                     <div className="grid grid-cols-2 gap-2">
-                      <Popover>
+                      <Popover open={isFromDateOpen} onOpenChange={setIsFromDateOpen}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="justify-start text-left font-normal">
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -268,12 +281,15 @@ export default function Exports() {
                           <Calendar
                             mode="single"
                             selected={dateRange.from}
-                            onSelect={(date) => setDateRange({ ...dateRange, from: date || new Date() })}
+                            onSelect={(date) => {
+                              setDateRange({ ...dateRange, from: date || new Date() });
+                              setIsFromDateOpen(false);
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
                       
-                      <Popover>
+                      <Popover open={isToDateOpen} onOpenChange={setIsToDateOpen}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="justify-start text-left font-normal">
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -284,7 +300,10 @@ export default function Exports() {
                           <Calendar
                             mode="single"
                             selected={dateRange.to}
-                            onSelect={(date) => setDateRange({ ...dateRange, to: date || new Date() })}
+                            onSelect={(date) => {
+                              setDateRange({ ...dateRange, to: date || new Date() });
+                              setIsToDateOpen(false);
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
