@@ -1343,12 +1343,17 @@ export class DatabaseStorage implements IStorage {
         mkdirSync(tempDir, { recursive: true });
       }
       
-      // Generate all three export types as content
-      const merchantsContent = await this.exportAllMerchantsForDateToCSV(targetDate);
-      const transactionsContent = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
-      const batchSummaryContent = await this.exportBatchSummaryToCSV(targetDate);
+      // Generate all three export types (these return file paths)
+      const merchantsFilePath = await this.exportAllMerchantsForDateToCSV(targetDate);
+      const transactionsFilePath = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
+      const batchSummaryFilePath = await this.exportBatchSummaryToCSV(targetDate);
       
-      // Create individual CSV files
+      // Read the content from the generated files
+      const merchantsContent = await fsPromises.readFile(merchantsFilePath, 'utf8');
+      const transactionsContent = await fsPromises.readFile(transactionsFilePath, 'utf8');
+      const batchSummaryContent = await fsPromises.readFile(batchSummaryFilePath, 'utf8');
+      
+      // Create individual CSV files for the ZIP
       const merchantsFile = path.join(tempDir, `merchants_${dateForFileName}_${timestamp}.csv`);
       const transactionsFile = path.join(tempDir, `transactions_${dateForFileName}_${timestamp}.csv`);
       const batchSummaryFile = path.join(tempDir, `batch_summary_${dateForFileName}_${timestamp}.csv`);
@@ -1356,6 +1361,15 @@ export class DatabaseStorage implements IStorage {
       writeFileSync(merchantsFile, merchantsContent);
       writeFileSync(transactionsFile, transactionsContent);
       writeFileSync(batchSummaryFile, batchSummaryContent);
+      
+      // Clean up the temporary source files
+      try {
+        await fsPromises.unlink(merchantsFilePath);
+        await fsPromises.unlink(transactionsFilePath);
+        await fsPromises.unlink(batchSummaryFilePath);
+      } catch (cleanupError) {
+        console.warn('Warning: Could not clean up source export files:', cleanupError);
+      }
       
       // Create ZIP file
       const zipFileName = `all_exports_${dateForFileName}_${timestamp}.zip`;
