@@ -1008,6 +1008,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Helper method to generate CSV content from data
+  private generateCSVContent(data: any[]): string {
+    if (!data || data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    
+    for (const row of data) {
+      const values = headers.map(header => {
+        const val = row[header] ?? '';
+        // Escape commas and quotes
+        return typeof val === 'string' && (val.includes(',') || val.includes('"')) 
+          ? `"${val.replace(/"/g, '""')}"` 
+          : val;
+      });
+      csvRows.push(values.join(','));
+    }
+    
+    return csvRows.join('\n');
+  }
+
   // Export transactions to CSV
   async exportTransactionsToCSV(
     merchantId?: string,
@@ -1017,7 +1038,7 @@ export class DatabaseStorage implements IStorage {
   ): Promise<string> {
     try {
       // Get all transactions matching the filters (without pagination)
-      const query = db.select({
+      let query = db.select({
         transaction: transactionsTable,
         merchantName: merchantsTable.name
       })
@@ -1025,24 +1046,32 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
       .orderBy(desc(transactionsTable.date));
       
-      // Apply filters
+      // Build filter conditions
+      const conditions = [];
+      
       if (merchantId) {
-        query.where(eq(transactionsTable.merchantId, merchantId));
+        conditions.push(eq(transactionsTable.merchantId, merchantId));
       }
       
       if (startDate) {
         const startDateObj = new Date(startDate);
-        query.where(gte(transactionsTable.date, startDateObj));
+        conditions.push(gte(transactionsTable.date, startDateObj));
       }
       
       if (endDate) {
         const endDateObj = new Date(endDate);
         endDateObj.setHours(23, 59, 59, 999);
-        query.where(sql`${transactionsTable.date} <= ${endDateObj}`);
+        conditions.push(sql`${transactionsTable.date} <= ${endDateObj}`);
       }
       
       if (type) {
-        query.where(eq(transactionsTable.type, type));
+        conditions.push(eq(transactionsTable.type, type));
+      }
+      
+      // Apply conditions to query
+      if (conditions.length > 0) {
+        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+        query = query.where(whereClause);
       }
       
       const results = await query;
@@ -1073,18 +1102,15 @@ export class DatabaseStorage implements IStorage {
       // Generate a temp file path
       const tempFilePath = path.join(os.tmpdir(), `transactions_export_${Date.now()}.csv`);
       
+      // Generate CSV content manually
+      const csvContent = this.generateCSVContent(csvData);
+      
       // Write CSV data to file
       return new Promise((resolve, reject) => {
         const writableStream = createWriteStream(tempFilePath);
-        const csvStream = formatCSV({ headers: true, delimiter: ',' });
         
-        csvStream.pipe(writableStream);
-        
-        for (const row of csvData) {
-          csvStream.write(row);
-        }
-        
-        csvStream.end();
+        writableStream.write(csvContent);
+        writableStream.end();
         
         writableStream.on('finish', () => {
           resolve(tempFilePath);
