@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 - Added support for multiple date formats: YYYY-MM-DD, MM/DD/YYYY, MM-DD-YYYY
 - Auto-corrects date format to YYYY-MM-DD when user finishes typing
 - Enhanced error handling to gracefully reset invalid dates to previous valid values
-- Preserved quick filter buttons (Today, This Week, This Month) for common date ranges
+- Preserved quick filter buttons (Today, This Week, This Month, This Year) for common date ranges
 - Eliminated complex calendar/text input combinations for cleaner user experience
 
 ### Enhanced Merchant Export Functionality (July 15, 2025)

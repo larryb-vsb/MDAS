@@ -537,6 +537,22 @@ export default function Transactions() {
                   >
                     This Month
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const startOfYear = new Date(today.getFullYear(), 0, 1);
+                      startOfYear.setHours(0, 0, 0, 0);
+                      const endOfDay = new Date(today);
+                      endOfDay.setHours(23, 59, 59, 999);
+                      setStartDate(startOfYear);
+                      setEndDate(endOfDay);
+                      handleFilterChange();
+                    }}
+                  >
+                    This Year
+                  </Button>
                 </div>
 
                 {/* Start and End Date inputs */}
