@@ -123,12 +123,20 @@ export default function Exports() {
         // Build query parameters for the export request
         const queryParams = new URLSearchParams();
         
-        if (dateRange.from) {
-          queryParams.append('startDate', dateRange.from.toISOString().split('T')[0]);
-        }
-        
-        if (dateRange.to) {
-          queryParams.append('endDate', dateRange.to.toISOString().split('T')[0]);
+        if (exportType === 'batch-summary') {
+          // For batch summary, use the "from" date as the target date
+          if (dateRange.from) {
+            queryParams.append('targetDate', dateRange.from.toISOString().split('T')[0]);
+          }
+        } else {
+          // For other exports, use date range
+          if (dateRange.from) {
+            queryParams.append('startDate', dateRange.from.toISOString().split('T')[0]);
+          }
+          
+          if (dateRange.to) {
+            queryParams.append('endDate', dateRange.to.toISOString().split('T')[0]);
+          }
         }
         
         // Create direct download link with query parameters
@@ -216,12 +224,20 @@ export default function Exports() {
                     <SelectContent>
                       <SelectItem value="merchants">Merchants</SelectItem>
                       <SelectItem value="transactions">Transactions</SelectItem>
+                      <SelectItem value="batch-summary">Batch Summary</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Date Range</label>
+                  <label className="text-sm font-medium">
+                    {exportType === 'batch-summary' ? 'Target Date' : 'Date Range'}
+                  </label>
+                  {exportType === 'batch-summary' && (
+                    <p className="text-xs text-muted-foreground">
+                      Select a specific date to generate batch summary
+                    </p>
+                  )}
                   
                   {/* Quick filter buttons */}
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -235,64 +251,88 @@ export default function Exports() {
                     >
                       Today
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const today = new Date();
-                        const startOfWeek = new Date(today);
-                        startOfWeek.setDate(today.getDate() - today.getDay());
-                        setDateRange({ from: startOfWeek, to: today });
-                      }}
-                    >
-                      This Week
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const today = new Date();
-                        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                        setDateRange({ from: startOfMonth, to: today });
-                      }}
-                    >
-                      This Month
-                    </Button>
+                    {exportType !== 'batch-summary' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            const startOfWeek = new Date(today);
+                            startOfWeek.setDate(today.getDate() - today.getDay());
+                            setDateRange({ from: startOfWeek, to: today });
+                          }}
+                        >
+                          This Week
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const today = new Date();
+                            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                            setDateRange({ from: startOfMonth, to: today });
+                          }}
+                        >
+                          This Month
+                        </Button>
+                      </>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  {exportType === 'batch-summary' ? (
+                    // Single date picker for batch summary
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-normal">
+                        <Button variant="outline" className="justify-start text-left font-normal w-full">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateRange.from ? format(dateRange.from, "PPP") : "From date"}
+                          {dateRange.from ? format(dateRange.from, "PPP") : "Select target date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
                         <Calendar
                           mode="single"
                           selected={dateRange.from}
-                          onSelect={(date) => setDateRange({ ...dateRange, from: date || new Date() })}
+                          onSelect={(date) => setDateRange({ from: date || new Date(), to: date || new Date() })}
                         />
                       </PopoverContent>
                     </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateRange.to ? format(dateRange.to, "PPP") : "To date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.to}
-                          onSelect={(date) => setDateRange({ ...dateRange, to: date || new Date() })}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                  ) : (
+                    // Date range picker for other exports
+                    <div className="grid grid-cols-2 gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange.from ? format(dateRange.from, "PPP") : "From date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.from}
+                            onSelect={(date) => setDateRange({ ...dateRange, from: date || new Date() })}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange.to ? format(dateRange.to, "PPP") : "To date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={dateRange.to}
+                            onSelect={(date) => setDateRange({ ...dateRange, to: date || new Date() })}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
@@ -309,7 +349,11 @@ export default function Exports() {
                   ) : (
                     <>
                       <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Export {exportType === "merchants" ? "Merchants" : "Transactions"}
+                      Export {
+                        exportType === "merchants" ? "Merchants" : 
+                        exportType === "transactions" ? "Transactions" : 
+                        "Batch Summary"
+                      }
                     </>
                   )}
                 </Button>

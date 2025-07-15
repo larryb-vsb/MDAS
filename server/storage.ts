@@ -123,6 +123,9 @@ export interface IStorage {
     startDate?: string, 
     endDate?: string
   ): Promise<string>;
+  exportBatchSummaryToCSV(
+    targetDate: string
+  ): Promise<string>;
   
   // Dashboard stats
   getDashboardStats(): Promise<{
@@ -1130,6 +1133,97 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error exporting transactions to CSV:', error);
       throw new Error('Failed to export transactions to CSV');
+    }
+  }
+
+  // Export batch summary to CSV - groups transactions by ClientMID for a given day
+  async exportBatchSummaryToCSV(
+    targetDate: string
+  ): Promise<string> {
+    try {
+      // Parse the target date and set to beginning and end of day
+      const startDate = new Date(targetDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(targetDate);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Get all transactions for the specified date
+      const transactions = await db.select({
+        transaction: transactionsTable,
+        merchantName: merchantsTable.name,
+        merchantId: merchantsTable.id,
+        clientMid: merchantsTable.clientMid
+      })
+      .from(transactionsTable)
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .where(and(
+        gte(transactionsTable.date, startDate),
+        sql`${transactionsTable.date} <= ${endDate}`
+      ));
+      
+      // Group transactions by ClientMID
+      const summaryMap = new Map();
+      
+      transactions.forEach(record => {
+        const { transaction, clientMid } = record;
+        const clientMidKey = clientMid || transaction.merchantId; // Use merchantId as fallback
+        
+        if (!summaryMap.has(clientMidKey)) {
+          summaryMap.set(clientMidKey, {
+            clientMid: clientMidKey,
+            transactionCount: 0,
+            dailyTotal: 0,
+            feeTotal: 0,
+            feesWithh: 0
+          });
+        }
+        
+        const summary = summaryMap.get(clientMidKey);
+        summary.transactionCount += 1;
+        summary.dailyTotal += parseFloat(transaction.amount.toString());
+      });
+      
+      // Convert map to array and format for CSV
+      const csvData = Array.from(summaryMap.values()).map(summary => {
+        const asOfDate = `${startDate.getMonth() + 1}/${startDate.getDate()}/${startDate.getFullYear()}`;
+        
+        return {
+          'ClientMid': summary.clientMid,
+          'AsOfDate': asOfDate,
+          'BatchNum': '', // Empty as shown in image
+          'TranCoun': summary.transactionCount,
+          'DailyTotal': summary.dailyTotal.toFixed(2),
+          'FeeTotal': summary.feeTotal.toFixed(2),
+          'FeesWithh': summary.feesWithh.toFixed(2)
+        };
+      });
+      
+      // Generate a temp file path
+      const tempFilePath = path.join(os.tmpdir(), `batch_summary_export_${Date.now()}.csv`);
+      
+      // Generate CSV content manually
+      const csvContent = this.generateCSVContent(csvData);
+      
+      // Write CSV data to file
+      return new Promise((resolve, reject) => {
+        const writableStream = createWriteStream(tempFilePath);
+        
+        writableStream.write(csvContent);
+        writableStream.end();
+        
+        writableStream.on('finish', () => {
+          resolve(tempFilePath);
+        });
+        
+        writableStream.on('error', (error) => {
+          console.error('Error writing CSV file:', error);
+          reject(new Error('Failed to create CSV export'));
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting batch summary to CSV:', error);
+      throw new Error('Failed to export batch summary to CSV');
     }
   }
 

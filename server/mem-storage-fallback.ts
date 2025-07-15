@@ -394,6 +394,12 @@ export class MemStorageFallback implements IStorage {
     return "No data available in fallback mode";
   }
 
+  async exportBatchSummaryToCSV(
+    targetDate: string
+  ): Promise<string> {
+    return "No data available in fallback mode";
+  }
+
   // Dashboard stats
   async getDashboardStats(): Promise<{
     totalMerchants: number;

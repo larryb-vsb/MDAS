@@ -1573,6 +1573,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/exports/batch-summary/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ 
+          error: "Target date is required for batch summary export" 
+        });
+      }
+      
+      const csvFilePath = await storage.exportBatchSummaryToCSV(targetDate);
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `batch_summary_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting batch summary:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export batch summary" 
+      });
+    }
+  });
+
   // Download merchant demographics export
   app.get("/api/export/merchants", async (req, res) => {
     try {
