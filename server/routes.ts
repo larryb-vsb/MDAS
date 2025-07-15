@@ -1508,6 +1508,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export endpoints for the dedicated Exports page
+  app.get("/api/exports/merchants/download", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      
+      const csvFilePath = await storage.exportMerchantsToCSV(startDate, endDate);
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `merchants_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting merchants:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export merchants" 
+      });
+    }
+  });
+
+  app.get("/api/exports/transactions/download", async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      
+      const csvFilePath = await storage.exportTransactionsToCSV(undefined, startDate, endDate, undefined);
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `transactions_export_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export transactions" 
+      });
+    }
+  });
+
   // Download merchant demographics export
   app.get("/api/export/merchants", async (req, res) => {
     try {

@@ -120,9 +120,23 @@ export default function Exports() {
         // Refresh the export history
         refetch();
         
+        // Build query parameters for the export request
+        const queryParams = new URLSearchParams();
+        
+        if (dateRange.from) {
+          queryParams.append('startDate', dateRange.from.toISOString().split('T')[0]);
+        }
+        
+        if (dateRange.to) {
+          queryParams.append('endDate', dateRange.to.toISOString().split('T')[0]);
+        }
+        
+        // Create direct download link with query parameters
+        const downloadUrl = `/api/exports/${exportType}/download?${queryParams.toString()}`;
+        
         // Simulate download
         const link = document.createElement('a');
-        link.href = `/api/exports/${exportType}/download`;
+        link.href = downloadUrl;
         link.click();
       }, 2000);
     } catch (error) {

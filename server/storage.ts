@@ -119,6 +119,10 @@ export interface IStorage {
     endDate?: string,
     type?: string
   ): Promise<string>;
+  exportMerchantsToCSV(
+    startDate?: string, 
+    endDate?: string
+  ): Promise<string>;
   
   // Dashboard stats
   getDashboardStats(): Promise<{
@@ -1124,6 +1128,84 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error exporting transactions to CSV:', error);
       throw new Error('Failed to export transactions to CSV');
+    }
+  }
+
+  // Export merchants to CSV
+  async exportMerchantsToCSV(
+    startDate?: string,
+    endDate?: string
+  ): Promise<string> {
+    try {
+      // Get all merchants matching the filters
+      let query = db.select().from(merchantsTable).orderBy(merchantsTable.name);
+      
+      // Build filter conditions if date range is provided
+      const conditions = [];
+      
+      if (startDate) {
+        const startDateObj = new Date(startDate);
+        conditions.push(gte(merchantsTable.createdAt, startDateObj));
+      }
+      
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        conditions.push(sql`${merchantsTable.createdAt} <= ${endDateObj}`);
+      }
+      
+      // Apply conditions to query
+      if (conditions.length > 0) {
+        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+        query = query.where(whereClause);
+      }
+      
+      const results = await query;
+      
+      // Format results for CSV
+      const csvData = results.map(merchant => ({
+        MerchantID: merchant.id,
+        Name: merchant.name,
+        MID: merchant.mid || '',
+        Status: merchant.status,
+        Address: merchant.address || '',
+        City: merchant.city || '',
+        State: merchant.state || '',
+        ZipCode: merchant.zipCode || '',
+        Phone: merchant.phone || '',
+        Email: merchant.email || '',
+        Website: merchant.website || '',
+        Industry: merchant.industry || '',
+        Description: merchant.description || '',
+        CreatedAt: merchant.createdAt ? new Date(merchant.createdAt).toISOString().split('T')[0] : '',
+        UpdatedAt: merchant.updatedAt ? new Date(merchant.updatedAt).toISOString().split('T')[0] : ''
+      }));
+      
+      // Generate a temp file path
+      const tempFilePath = path.join(os.tmpdir(), `merchants_export_${Date.now()}.csv`);
+      
+      // Generate CSV content manually
+      const csvContent = this.generateCSVContent(csvData);
+      
+      // Write CSV data to file
+      return new Promise((resolve, reject) => {
+        const writableStream = createWriteStream(tempFilePath);
+        
+        writableStream.write(csvContent);
+        writableStream.end();
+        
+        writableStream.on('finish', () => {
+          resolve(tempFilePath);
+        });
+        
+        writableStream.on('error', (error) => {
+          console.error('Error writing CSV file:', error);
+          reject(new Error('Failed to create CSV export'));
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting merchants to CSV:', error);
+      throw new Error('Failed to export merchants to CSV');
     }
   }
   
