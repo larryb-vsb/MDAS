@@ -397,10 +397,11 @@ export default function Transactions() {
                     size="sm"
                     onClick={() => {
                       const today = new Date();
-                      const startOfDay = new Date(today);
-                      startOfDay.setHours(0, 0, 0, 0);
-                      const endOfDay = new Date(today);
-                      endOfDay.setHours(23, 59, 59, 999);
+                      const year = today.getFullYear();
+                      const month = today.getMonth();
+                      const day = today.getDate();
+                      const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+                      const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
                       setStartDate(startOfDay);
                       setEndDate(endOfDay);
                       handleFilterChange();
@@ -453,8 +454,8 @@ export default function Transactions() {
                         value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
                           if (e.target.value) {
-                            // Create date in local timezone at start of day
-                            const date = new Date(e.target.value + 'T00:00:00');
+                            // Create date in UTC to match database storage
+                            const date = new Date(e.target.value + 'T00:00:00.000Z');
                             setStartDate(date);
                           } else {
                             setStartDate(undefined);
@@ -479,10 +480,12 @@ export default function Transactions() {
                             selected={startDate}
                             onSelect={(date) => {
                               if (date) {
-                                // Ensure start of day in local timezone
-                                const adjustedDate = new Date(date);
-                                adjustedDate.setHours(0, 0, 0, 0);
-                                setStartDate(adjustedDate);
+                                // Create UTC date at start of day to match database storage
+                                const year = date.getFullYear();
+                                const month = date.getMonth();
+                                const day = date.getDate();
+                                const utcDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+                                setStartDate(utcDate);
                               } else {
                                 setStartDate(undefined);
                               }
@@ -503,8 +506,8 @@ export default function Transactions() {
                         value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
                           if (e.target.value) {
-                            // Create date in local timezone at end of day
-                            const date = new Date(e.target.value + 'T23:59:59');
+                            // Create date in UTC to match database storage
+                            const date = new Date(e.target.value + 'T23:59:59.999Z');
                             setEndDate(date);
                           } else {
                             setEndDate(undefined);
@@ -529,10 +532,12 @@ export default function Transactions() {
                             selected={endDate}
                             onSelect={(date) => {
                               if (date) {
-                                // Ensure end of day in local timezone
-                                const adjustedDate = new Date(date);
-                                adjustedDate.setHours(23, 59, 59, 999);
-                                setEndDate(adjustedDate);
+                                // Create UTC date at end of day to match database storage
+                                const year = date.getFullYear();
+                                const month = date.getMonth();
+                                const day = date.getDate();
+                                const utcDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+                                setEndDate(utcDate);
                               } else {
                                 setEndDate(undefined);
                               }
