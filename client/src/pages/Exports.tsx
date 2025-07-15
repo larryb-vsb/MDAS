@@ -222,6 +222,44 @@ export default function Exports() {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Date Range</label>
+                  
+                  {/* Quick filter buttons */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const today = new Date();
+                        setDateRange({ from: today, to: today });
+                      }}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const today = new Date();
+                        const startOfWeek = new Date(today);
+                        startOfWeek.setDate(today.getDate() - today.getDay());
+                        setDateRange({ from: startOfWeek, to: today });
+                      }}
+                    >
+                      This Week
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const today = new Date();
+                        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                        setDateRange({ from: startOfMonth, to: today });
+                      }}
+                    >
+                      This Month
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <Popover>
                       <PopoverTrigger asChild>
