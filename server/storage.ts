@@ -911,50 +911,44 @@ export class DatabaseStorage implements IStorage {
       .from(transactionsTable)
       .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
       
-      // Apply filters
+      // Build filter conditions
+      const conditions = [];
+      
       if (merchantId) {
-        query = query.where(eq(transactionsTable.merchantId, merchantId));
+        conditions.push(eq(transactionsTable.merchantId, merchantId));
       }
       
       if (startDate) {
         const startDateObj = new Date(startDate);
-        query = query.where(gte(transactionsTable.date, startDateObj));
+        conditions.push(gte(transactionsTable.date, startDateObj));
       }
       
       if (endDate) {
         const endDateObj = new Date(endDate);
         // Set time to end of day
         endDateObj.setHours(23, 59, 59, 999);
-        query = query.where(sql`${transactionsTable.date} <= ${endDateObj}`);
+        conditions.push(sql`${transactionsTable.date} <= ${endDateObj}`);
       }
       
       if (type) {
-        query = query.where(eq(transactionsTable.type, type));
+        conditions.push(eq(transactionsTable.type, type));
       }
       
-      // Get total count for pagination
-      const countQuery = db.select({ count: count() })
+      // Apply conditions to query
+      if (conditions.length > 0) {
+        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+        query = query.where(whereClause);
+      }
+      
+      // Get total count for pagination with same filters
+      let countQuery = db.select({ count: count() })
         .from(transactionsTable)
         .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
       
-      // Apply the same filters to count query
-      if (merchantId) {
-        countQuery.where(eq(transactionsTable.merchantId, merchantId));
-      }
-      
-      if (startDate) {
-        const startDateObj = new Date(startDate);
-        countQuery.where(gte(transactionsTable.date, startDateObj));
-      }
-      
-      if (endDate) {
-        const endDateObj = new Date(endDate);
-        endDateObj.setHours(23, 59, 59, 999);
-        countQuery.where(sql`${transactionsTable.date} <= ${endDateObj}`);
-      }
-      
-      if (type) {
-        countQuery.where(eq(transactionsTable.type, type));
+      // Apply the same conditions to count query
+      if (conditions.length > 0) {
+        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+        countQuery = countQuery.where(whereClause);
       }
       
       const countResult = await countQuery;
