@@ -1520,6 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAuditLog({
         userId: req.user?.id || 0,
         action: 'export_merchants',
+        entityType: 'merchants',
         tableName: 'merchants',
         recordId: null,
         details: `Merchants export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`,
@@ -1562,6 +1563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAuditLog({
         userId: req.user?.id || 0,
         action: 'export_transactions',
+        entityType: 'transactions',
         tableName: 'transactions',
         recordId: null,
         details: `Transactions export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`,
@@ -1609,6 +1611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createAuditLog({
         userId: req.user?.id || 0,
         action: 'export_batch_summary',
+        entityType: 'batch_summary',
         tableName: 'transactions',
         recordId: null,
         details: `Batch summary export for date: ${targetDate}`,
