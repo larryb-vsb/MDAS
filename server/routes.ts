@@ -1825,6 +1825,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = req.query.endDate as string | undefined;
       const type = req.query.type as string | undefined;
       
+      console.log("Transaction query params:", { page, limit, merchantId, startDate, endDate, type });
+      
       const transactions = await storage.getTransactions(
         page,
         limit,
@@ -1833,6 +1835,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate,
         type
       );
+      
+      console.log(`Returning ${transactions.transactions.length} transactions, total: ${transactions.pagination.totalItems}`);
       
       res.json(transactions);
     } catch (error) {
