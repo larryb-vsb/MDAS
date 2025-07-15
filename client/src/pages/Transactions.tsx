@@ -298,40 +298,9 @@ export default function Transactions() {
     deleteMutation.mutate(selectedTransactions);
   };
   
-  const handleFilterChange = (customMerchantId?: string) => {
+  const handleFilterChange = () => {
     // Reset to page 1 when filters change
-    console.log("Applying filter - merchantId:", customMerchantId !== undefined ? customMerchantId : merchantId);
     setPage(1);
-    // If a custom merchantId is provided, use it for the refetch
-    const params = new URLSearchParams();
-    params.append('page', '1');
-    params.append('limit', limit.toString());
-    
-    if (customMerchantId !== undefined) {
-      if (customMerchantId !== null) params.append('merchantId', customMerchantId);
-    } else if (merchantId) {
-      params.append('merchantId', merchantId);
-    }
-    
-    if (startDate) params.append('startDate', startDate.toISOString());
-    if (endDate) params.append('endDate', endDate.toISOString());
-    if (transactionType) params.append('type', transactionType);
-    
-    // Manual fetch to avoid React Query update timing issues
-    fetch(`/api/transactions?${params.toString()}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch transactions');
-        }
-        return response.json();
-      })
-      .then(data => {
-        // Force update React Query cache and trigger refetch
-        refetch();
-      })
-      .catch(error => {
-        console.error("Error fetching transactions:", error);
-      });
   };
   
   const handleLimitChange = (newLimit: string) => {
@@ -397,8 +366,7 @@ export default function Transactions() {
                     const newMerchantId = value === "all" ? undefined : value;
                     console.log("Selected merchant ID:", newMerchantId);
                     setMerchantId(newMerchantId);
-                    // Pass the new merchant ID directly to handleFilterChange
-                    handleFilterChange(newMerchantId);
+                    handleFilterChange();
                   }}
                 >
                   <SelectTrigger>
