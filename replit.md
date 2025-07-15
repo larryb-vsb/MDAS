@@ -1,0 +1,131 @@
+# Merchant Management System (MMS) - Architecture Guide
+
+## Overview
+
+The Merchant Management System (MMS) is a comprehensive web application designed to help businesses manage merchant relationships, process transactions, and analyze business data. The system provides features for merchant management, transaction processing, file uploads, data analytics, and automated backup management.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+MMS follows a modern client-server architecture with clear separation between frontend and backend components:
+
+### High-Level Architecture
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│  React Frontend │<─────│  Express.js API │<─────│  PostgreSQL DB  │
+│                 │      │                 │      │                 │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+The architecture is designed for scalability and maintainability with:
+- **Frontend**: React-based SPA with TypeScript and modern UI components
+- **Backend**: RESTful Express.js API with comprehensive business logic
+- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **State Management**: React Query for efficient server state management
+
+## Key Components
+
+### Frontend Architecture
+- **Component Structure**: Organized into pages, reusable components, and UI primitives
+- **Styling**: TailwindCSS with shadcn/ui component system based on Radix UI
+- **Routing**: Wouter for lightweight client-side routing
+- **State Management**: React Query for server state, React hooks for local state
+- **Authentication**: Context-based auth system with protected routes
+- **Forms**: React Hook Form with Zod validation
+
+### Backend Architecture
+- **API Layer**: Express.js with TypeScript for type safety
+- **Database Layer**: Drizzle ORM with PostgreSQL for schema management
+- **File Processing**: Multer for file uploads with CSV parsing capabilities
+- **Authentication**: Passport.js with local strategy and bcrypt password hashing
+- **Storage Interface**: Abstracted storage layer supporting database and in-memory fallback
+- **Backup System**: Automated backup scheduling with local and S3 storage options
+
+### Database Schema
+- **Merchants**: Core entity with comprehensive profile information
+- **Transactions**: Financial transaction records linked to merchants
+- **Users**: Authentication and authorization management
+- **Uploaded Files**: File upload tracking and processing status
+- **Backup Management**: Automated backup history and scheduling
+- **Audit Logging**: System, security, and audit log tracking
+- **Schema Versioning**: Database migration and version tracking
+
+## Data Flow
+
+### User Interaction Flow
+1. User authenticates through login page
+2. Protected routes verify authentication status
+3. Dashboard displays key metrics and recent activity
+4. Users can navigate to specific features (merchants, transactions, uploads)
+5. All data changes trigger audit logging
+
+### File Processing Flow
+1. User uploads CSV files through upload interface
+2. Files are validated and stored with metadata
+3. Background processing parses CSV data
+4. Data is mapped to database schema using field mappings
+5. Processing results are logged and displayed to user
+
+### Backup Flow
+1. Scheduled backups run automatically based on configured schedules
+2. Backup data is created with complete database snapshot
+3. Backups can be stored locally or uploaded to S3
+4. Backup history is maintained with retention policies
+5. Manual backup creation and restoration capabilities
+
+## External Dependencies
+
+### Core Dependencies
+- **@neondatabase/serverless**: PostgreSQL database connectivity
+- **drizzle-orm**: Type-safe ORM for database operations
+- **express**: Web application framework
+- **react**: Frontend UI library
+- **@tanstack/react-query**: Server state management
+- **passport**: Authentication middleware
+
+### UI Dependencies
+- **@radix-ui/***: Accessible UI primitives
+- **tailwindcss**: Utility-first CSS framework
+- **lucide-react**: Icon library
+- **wouter**: Lightweight routing
+
+### File Processing
+- **multer**: File upload handling
+- **csv-parse**: CSV file parsing
+- **fast-csv**: CSV file generation
+
+### Cloud Services
+- **@aws-sdk/client-s3**: AWS S3 integration for backup storage
+- **node-schedule**: Automated task scheduling
+
+## Deployment Strategy
+
+### Environment Configuration
+- **Development**: Local database with environment-specific naming (_dev suffix)
+- **Production**: Direct database connection without environment suffix
+- **Testing**: Isolated test database (_test suffix)
+
+### Database Management
+- **Schema Versioning**: Tracks database schema changes and migrations
+- **Environment Separation**: Different database instances for each environment
+- **Backup Strategy**: Automated daily backups with configurable retention
+- **Fallback Storage**: In-memory storage fallback when database is unavailable
+
+### Security Considerations
+- **Authentication**: Session-based authentication with secure password hashing
+- **Authorization**: Role-based access control (admin, manager, analyst roles)
+- **Audit Logging**: Comprehensive logging of all user actions and system events
+- **Data Validation**: Input validation using Zod schemas
+- **Environment Variables**: Secure configuration management
+
+### Performance Optimizations
+- **Database Indexing**: Optimized queries with appropriate indexes
+- **Caching**: React Query provides intelligent caching of server data
+- **File Processing**: Async processing of large CSV files
+- **Pagination**: Efficient data loading with pagination support
+
+The system is designed to be deployed on Replit with PostgreSQL via Neon.tech, providing a scalable and maintainable solution for merchant management operations.

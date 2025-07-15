@@ -54,7 +54,7 @@ export interface IStorage {
   sessionStore: session.Store;
 
   // Merchant operations
-  getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
+  getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
     merchants: any[];
     pagination: {
       currentPage: number;
@@ -404,7 +404,8 @@ export class DatabaseStorage implements IStorage {
     page: number = 1, 
     limit: number = 10, 
     status: string = "All", 
-    lastUpload: string = "Any time"
+    lastUpload: string = "Any time",
+    search: string = ""
   ): Promise<{
     merchants: any[];
     pagination: {
@@ -417,10 +418,14 @@ export class DatabaseStorage implements IStorage {
     try {
       // Create a base query
       let query = db.select().from(merchantsTable);
+      let countQuery = db.select({ count: count() }).from(merchantsTable);
+      
+      // Build conditions array for WHERE clause
+      const conditions = [];
       
       // Apply status filter
       if (status !== "All") {
-        query = query.where(eq(merchantsTable.status, status));
+        conditions.push(eq(merchantsTable.status, status));
       }
       
       // Apply last upload filter
@@ -431,24 +436,43 @@ export class DatabaseStorage implements IStorage {
         switch(lastUpload) {
           case "Last 24 hours":
             cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
             break;
           case "Last 7 days":
             cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
             break;
           case "Last 30 days":
             cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            query = query.where(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
             break;
           case "Never":
-            query = query.where(sql`${merchantsTable.lastUploadDate} IS NULL`);
+            conditions.push(sql`${merchantsTable.lastUploadDate} IS NULL`);
             break;
         }
       }
       
-      // Get total count for pagination
-      const countResult = await db.select({ count: count() }).from(merchantsTable);
+      // Apply search filter (search by name or ID/MID)
+      if (search && search.trim() !== "") {
+        const searchTerm = `%${search.trim()}%`;
+        conditions.push(
+          or(
+            like(merchantsTable.name, searchTerm),
+            like(merchantsTable.id, searchTerm),
+            like(merchantsTable.clientMid, searchTerm)
+          )
+        );
+      }
+      
+      // Apply all conditions to both queries
+      if (conditions.length > 0) {
+        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+        query = query.where(whereClause);
+        countQuery = countQuery.where(whereClause);
+      }
+      
+      // Get total count for pagination (with filters applied)
+      const countResult = await countQuery;
       const totalItems = parseInt(countResult[0].count.toString(), 10);
       const totalPages = Math.ceil(totalItems / limit);
       const offset = (page - 1) * limit;

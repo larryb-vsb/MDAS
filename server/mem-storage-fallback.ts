@@ -162,7 +162,7 @@ export class MemStorageFallback implements IStorage {
   }
 
   // Merchant operations with minimal implementation
-  async getMerchants(page: number, limit: number, status?: string, lastUpload?: string): Promise<{
+  async getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
     merchants: any[];
     pagination: {
       currentPage: number;
@@ -173,8 +173,18 @@ export class MemStorageFallback implements IStorage {
   }> {
     let filteredMerchants = [...this.merchants];
     
-    if (status) {
+    if (status && status !== "All") {
       filteredMerchants = filteredMerchants.filter(m => m.status === status);
+    }
+    
+    // Apply search filter (search by name or ID/MID)
+    if (search && search.trim() !== "") {
+      const searchTerm = search.trim().toLowerCase();
+      filteredMerchants = filteredMerchants.filter(m => 
+        (m.name && m.name.toLowerCase().includes(searchTerm)) ||
+        (m.id && m.id.toLowerCase().includes(searchTerm)) ||
+        (m.clientMid && m.clientMid.toLowerCase().includes(searchTerm))
+      );
     }
     
     const totalItems = filteredMerchants.length;

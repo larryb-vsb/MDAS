@@ -27,12 +27,13 @@ export default function Merchants() {
   // State for filters and pagination
   const [statusFilter, setStatusFilter] = useState("All");
   const [uploadFilter, setUploadFilter] = useState("Any time");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
-    queryKey: ['/api/merchants', currentPage, statusFilter, uploadFilter],
+    queryKey: ['/api/merchants', currentPage, statusFilter, uploadFilter, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -44,6 +45,10 @@ export default function Merchants() {
       
       if (uploadFilter !== "Any time") {
         params.append('lastUpload', uploadFilter);
+      }
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
       }
       
       const response = await fetch(`/api/merchants?${params.toString()}`);
@@ -110,6 +115,8 @@ export default function Merchants() {
           setStatusFilter={setStatusFilter}
           uploadFilter={uploadFilter}
           setUploadFilter={setUploadFilter}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
         
         <MerchantList
