@@ -1149,12 +1149,7 @@ export class DatabaseStorage implements IStorage {
       endDate.setHours(23, 59, 59, 999);
       
       // Get all transactions for the specified date
-      const transactions = await db.select({
-        transaction: transactionsTable,
-        merchantName: merchantsTable.name,
-        merchantId: merchantsTable.id,
-        clientMid: merchantsTable.clientMid
-      })
+      const transactions = await db.select()
       .from(transactionsTable)
       .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
       .where(and(
@@ -1166,8 +1161,9 @@ export class DatabaseStorage implements IStorage {
       const summaryMap = new Map();
       
       transactions.forEach(record => {
-        const { transaction, clientMid } = record;
-        const clientMidKey = clientMid || transaction.merchantId; // Use merchantId as fallback
+        const transaction = record.transactions;
+        const merchant = record.merchants;
+        const clientMidKey = merchant?.clientMid || transaction.merchantId; // Use merchantId as fallback
         
         if (!summaryMap.has(clientMidKey)) {
           summaryMap.set(clientMidKey, {
