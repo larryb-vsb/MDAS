@@ -26,7 +26,7 @@ import {
   InsertSecurityLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, isNotNull } from "drizzle-orm";
+import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, ilike, isNotNull } from "drizzle-orm";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
@@ -455,10 +455,10 @@ export class DatabaseStorage implements IStorage {
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
         const searchTerm = `%${search.trim()}%`;
-        // Build individual search conditions
-        const nameCondition = like(merchantsTable.name, searchTerm);
-        const idCondition = like(merchantsTable.id, searchTerm);
-        const midCondition = like(merchantsTable.clientMID, searchTerm);
+        // Build individual search conditions using case-insensitive search
+        const nameCondition = ilike(merchantsTable.name, searchTerm);
+        const idCondition = ilike(merchantsTable.id, searchTerm);
+        const midCondition = ilike(merchantsTable.clientMID, searchTerm);
         
         conditions.push(or(nameCondition, idCondition, midCondition));
       }
