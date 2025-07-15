@@ -1519,12 +1519,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track the export in audit log
       await storage.createAuditLog({
         userId: req.user?.id || 0,
+        username: req.user?.username || 'unknown',
         action: 'export_merchants',
         entityType: 'merchants',
-        tableName: 'merchants',
-        recordId: null,
-        details: `Merchants export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`,
-        timestamp: new Date()
+        entityId: `export_${Date.now()}`,
+        notes: `Merchants export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
       });
       
       // Set download headers
@@ -1562,12 +1561,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track the export in audit log
       await storage.createAuditLog({
         userId: req.user?.id || 0,
+        username: req.user?.username || 'unknown',
         action: 'export_transactions',
         entityType: 'transactions',
-        tableName: 'transactions',
-        recordId: null,
-        details: `Transactions export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`,
-        timestamp: new Date()
+        entityId: `export_${Date.now()}`,
+        notes: `Transactions export${startDate ? ` from ${startDate}` : ''}${endDate ? ` to ${endDate}` : ''}`
       });
       
       // Set download headers
@@ -1610,12 +1608,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track the export in audit log
       await storage.createAuditLog({
         userId: req.user?.id || 0,
+        username: req.user?.username || 'unknown',
         action: 'export_batch_summary',
         entityType: 'batch_summary',
-        tableName: 'transactions',
-        recordId: null,
-        details: `Batch summary export for date: ${targetDate}`,
-        timestamp: new Date()
+        entityId: `export_${Date.now()}`,
+        notes: `Batch summary export for date: ${targetDate}`
       });
       
       // Set download headers
