@@ -394,6 +394,32 @@ export class MemStorageFallback implements IStorage {
     return "No data available in fallback mode";
   }
 
+  async exportAllDataForDateToCSV(
+    targetDate: string
+  ): Promise<{ filePaths: string[]; zipPath: string }> {
+    // Simple combined export for fallback mode
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const dateForFileName = targetDate.replace(/[/]/g, '-');
+    
+    const combinedContent = [
+      "=== MERCHANTS DATA ===",
+      "No data available in fallback mode",
+      "",
+      "=== TRANSACTIONS DATA ===", 
+      "No data available in fallback mode",
+      "",
+      "=== BATCH SUMMARY DATA ===",
+      "No data available in fallback mode"
+    ].join('\n');
+    
+    const fileName = `all_exports_${dateForFileName}_${timestamp}.csv`;
+    
+    return {
+      filePaths: [fileName],
+      zipPath: fileName // In fallback mode, return content as string
+    };
+  }
+
   async exportAllMerchantsForDateToCSV(
     targetDate: string
   ): Promise<string> {

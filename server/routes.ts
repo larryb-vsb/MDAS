@@ -1678,11 +1678,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export all data types for a specific date (ZIP file)
+  app.get("/api/exports/all-data/download", isAuthenticated, async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+
+      const { filePaths, zipPath } = await storage.exportAllDataForDateToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_all_data',
+        entityType: 'export',
+        entityId: `export_all_data_${Date.now()}`,
+        notes: `All data export for date ${targetDate} - includes merchants, transactions, and batch summary`
+      });
+      
+      // Set headers for CSV download
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `all_exports_${targetDate.replace(/[/]/g, '-')}_${timestamp}.csv`;
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      // Send the combined CSV file
+      const fs = await import('fs');
+      const fileStream = fs.createReadStream(zipPath);
+      
+      fileStream.on('end', () => {
+        // Clean up the file after sending
+        try {
+          fs.unlinkSync(zipPath);
+        } catch (cleanupError) {
+          console.warn('Warning: Could not clean up export file:', cleanupError);
+        }
+      });
+      
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error('Error exporting all data for date:', error);
+      res.status(500).json({ error: "Failed to export all data" });
+    }
+  });
+
   // Get export history from audit logs
   app.get("/api/exports/history", isAuthenticated, async (req, res) => {
     try {
       const logs = await storage.getAuditLogs({
-        actions: ['export_merchants', 'export_transactions', 'export_batch_summary', 'export_merchants_all'],
+        actions: ['export_merchants', 'export_transactions', 'export_batch_summary', 'export_merchants_all', 'export_all_data'],
         limit: 50,
         offset: 0
       });

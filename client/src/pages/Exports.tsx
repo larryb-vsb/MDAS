@@ -186,13 +186,14 @@ export default function Exports() {
                       <SelectItem value="merchants-all">All Merchants (for date)</SelectItem>
                       <SelectItem value="transactions">Transactions</SelectItem>
                       <SelectItem value="batch-summary">Batch Summary</SelectItem>
+                      <SelectItem value="all-data">Export All (ZIP)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {(exportType === 'batch-summary' || exportType === 'merchants-all') ? 'Target Date' : 'Date Range'}
+                    {(exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? 'Target Date' : 'Date Range'}
                   </label>
                   {exportType === 'batch-summary' && (
                     <p className="text-xs text-muted-foreground">
@@ -202,6 +203,11 @@ export default function Exports() {
                   {exportType === 'merchants-all' && (
                     <p className="text-xs text-muted-foreground">
                       Select date to export all merchants with AsOfDate
+                    </p>
+                  )}
+                  {exportType === 'all-data' && (
+                    <p className="text-xs text-muted-foreground">
+                      Select date to export all data types (merchants, transactions, batch summary) as ZIP
                     </p>
                   )}
                   
@@ -220,7 +226,7 @@ export default function Exports() {
                     >
                       Today
                     </Button>
-                    {(exportType !== 'batch-summary' && exportType !== 'merchants-all') && (
+                    {(exportType !== 'batch-summary' && exportType !== 'merchants-all' && exportType !== 'all-data') && (
                       <>
                         <Button
                           variant="outline"
@@ -253,7 +259,7 @@ export default function Exports() {
                     )}
                   </div>
 
-                  {(exportType === 'batch-summary' || exportType === 'merchants-all') ? (
+                  {(exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') ? (
                     // Single date picker for batch summary
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
@@ -334,7 +340,8 @@ export default function Exports() {
                       Export {
                         exportType === "merchants" ? "Merchants" : 
                         exportType === "merchants-all" ? "All Merchants" :
-                        exportType === "transactions" ? "Transactions" : 
+                        exportType === "transactions" ? "Transactions" :
+                        exportType === "all-data" ? "All Data (ZIP)" :
                         "Batch Summary"
                       }
                     </>

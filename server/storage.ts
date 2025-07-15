@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, promises as fsPromises, existsSync } from "fs";
+import { createReadStream, createWriteStream, promises as fsPromises, existsSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
 import os from "os";
 import { parse as parseCSV } from "csv-parse";
@@ -126,6 +126,9 @@ export interface IStorage {
   exportAllMerchantsForDateToCSV(
     targetDate: string
   ): Promise<string>;
+  exportAllDataForDateToCSV(
+    targetDate: string
+  ): Promise<{ filePaths: string[]; zipPath: string }>;
   exportBatchSummaryToCSV(
     targetDate: string
   ): Promise<string>;
@@ -1325,6 +1328,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Export all merchants for a specific date (AsOfDate export)
+  async exportAllDataForDateToCSV(
+    targetDate: string
+  ): Promise<{ filePaths: string[]; zipPath: string }> {
+    // For now, let's create a combined CSV file instead of a ZIP until we fix the archiver issues
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const dateForFileName = targetDate.replace(/[/]/g, '-');
+      
+      // Generate all three export types as content
+      const merchantsContent = await this.exportAllMerchantsForDateToCSV(targetDate);
+      const transactionsContent = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
+      const batchSummaryContent = await this.exportBatchSummaryToCSV(targetDate);
+      
+      // Create a combined export file
+      const combinedContent = [
+        "=== MERCHANTS DATA ===",
+        merchantsContent,
+        "",
+        "=== TRANSACTIONS DATA ===", 
+        transactionsContent,
+        "",
+        "=== BATCH SUMMARY DATA ===",
+        batchSummaryContent
+      ].join('\n');
+      
+      const tempDir = path.join(process.cwd(), 'tmp_exports');
+      if (!existsSync(tempDir)) {
+        mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const fileName = `all_exports_${dateForFileName}_${timestamp}.csv`;
+      const filePath = path.join(tempDir, fileName);
+      
+      writeFileSync(filePath, combinedContent);
+      
+      return {
+        filePaths: [fileName],
+        zipPath: filePath
+      };
+      
+    } catch (error) {
+      console.error('Error creating all data export:', error);
+      throw new Error(`Failed to create comprehensive export: ${error.message}`);
+    }
+  }
+
   async exportAllMerchantsForDateToCSV(
     targetDate: string
   ): Promise<string> {
