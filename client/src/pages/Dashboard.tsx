@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [uploadFilter, setUploadFilter] = useState("Any time");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch dashboard stats
@@ -27,10 +28,25 @@ export default function Dashboard() {
 
   // Fetch merchants list with filters
   const { data: merchantsData, isLoading: isLoadingMerchants } = useQuery({
-    queryKey: ["/api/merchants", statusFilter, uploadFilter, currentPage],
+    queryKey: ["/api/merchants", statusFilter, uploadFilter, searchQuery, currentPage],
     queryFn: async () => {
-      const url = `/api/merchants?page=${currentPage}&status=${statusFilter}&lastUpload=${encodeURIComponent(uploadFilter)}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', '10');
+      
+      if (statusFilter !== "All") {
+        params.append('status', statusFilter);
+      }
+      
+      if (uploadFilter !== "Any time") {
+        params.append('lastUpload', uploadFilter);
+      }
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+      
+      const res = await fetch(`/api/merchants?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch merchants');
       return res.json();
     }
@@ -116,6 +132,8 @@ export default function Dashboard() {
                   setStatusFilter={setStatusFilter}
                   uploadFilter={uploadFilter}
                   setUploadFilter={setUploadFilter}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
                 />
                 <Button 
                   onClick={refreshData}
