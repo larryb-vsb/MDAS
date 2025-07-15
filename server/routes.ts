@@ -1728,24 +1728,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get export history from audit logs
   app.get("/api/exports/history", isAuthenticated, async (req, res) => {
     try {
-      const logs = await storage.getAuditLogs({
-        actions: ['export_merchants', 'export_transactions', 'export_batch_summary', 'export_merchants_all', 'export_all_data'],
-        limit: 50,
-        offset: 0
-      });
+      // Get export logs with proper filtering for export actions only
+      const exportActions = ['export_merchants', 'export_transactions', 'export_batch_summary', 'export_merchants_all', 'export_all_data'];
+      
+      // Get logs for each export action and combine them
+      let allExportLogs: any[] = [];
+      for (const action of exportActions) {
+        const logs = await storage.getAuditLogs({
+          action: action,
+          limit: 50,
+          page: 1
+        });
+        allExportLogs = allExportLogs.concat(logs);
+      }
+      
+      // Sort combined logs by timestamp (newest first) and limit to 50 most recent
+      allExportLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const recentExportLogs = allExportLogs.slice(0, 50);
       
       // Transform audit logs into export history format
-      const exportHistory = logs.map(log => {
+      const exportHistory = recentExportLogs.map(log => {
         const exportType = log.action.replace('export_', '');
         const timestamp = new Date(log.timestamp).toISOString().replace(/[:.]/g, '-');
+        const dateStr = new Date(log.timestamp).toLocaleDateString('en-US');
+        
+        // Determine file extension and estimated size based on export type
+        let fileExtension = '.csv';
+        let estimatedSize = 50000; // Default 50KB
+        
+        if (exportType === 'all_data') {
+          fileExtension = '.zip';
+          estimatedSize = 300000; // 300KB for ZIP files
+        } else if (exportType === 'transactions') {
+          estimatedSize = 150000; // 150KB for transaction exports
+        } else if (exportType === 'batch_summary') {
+          estimatedSize = 25000; // 25KB for batch summaries
+        } else if (exportType === 'merchants' || exportType === 'merchants_all') {
+          estimatedSize = 75000; // 75KB for merchant exports
+        }
         
         return {
           id: `export-${log.id}`,
-          name: `${exportType}_export_${timestamp.split('T')[0]}.csv`,
+          name: `${exportType}_export_${dateStr.replace(/\//g, '-')}${fileExtension}`,
           type: exportType.replace('_', '-'),
           createdAt: log.timestamp,
-          size: Math.floor(Math.random() * 1000000) + 100000, // Estimated size
-          records: null, // Could be extracted from details if needed
+          size: estimatedSize,
+          records: null, 
           status: "completed"
         };
       });

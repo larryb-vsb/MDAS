@@ -19,6 +19,9 @@ Preferred communication style: Simple, everyday language.
 - Updated backend to serve proper ZIP files with correct MIME type (application/zip)
 - ZIP files contain separate CSV files for integration with external systems
 - Automatic cleanup of temporary files after ZIP creation
+- Fixed ZIP content issue to include actual CSV data instead of file paths
+- Enhanced export history with proper date sorting (newest first) and realistic file sizes
+- Improved export history display with correct file extensions (.zip for all-data exports)
 
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping
