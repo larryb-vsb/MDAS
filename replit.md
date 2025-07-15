@@ -8,6 +8,16 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### Search Functionality Enhancement (July 15, 2025)
+- Fixed case-sensitive search issue by implementing ilike instead of like in PostgreSQL queries
+- Added missing searchQuery state management to Dashboard component
+- Connected search functionality to work from both home screen and merchants page
+- Search now supports case-insensitive partial matching for merchant names, IDs, and MIDs
+- Created comprehensive unit tests for search functionality
+- User confirmed search functionality is working properly
+
 ## System Architecture
 
 MMS follows a modern client-server architecture with clear separation between frontend and backend components:
