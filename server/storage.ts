@@ -123,6 +123,9 @@ export interface IStorage {
     startDate?: string, 
     endDate?: string
   ): Promise<string>;
+  exportAllMerchantsForDateToCSV(
+    targetDate: string
+  ): Promise<string>;
   exportBatchSummaryToCSV(
     targetDate: string
   ): Promise<string>;
@@ -1265,24 +1268,33 @@ export class DatabaseStorage implements IStorage {
       
       const results = await query;
       
-      // Format results for CSV
-      const csvData = results.map(merchant => ({
-        MerchantID: merchant.id,
-        Name: merchant.name,
-        MID: merchant.mid || '',
-        Status: merchant.status,
-        Address: merchant.address || '',
-        City: merchant.city || '',
-        State: merchant.state || '',
-        ZipCode: merchant.zipCode || '',
-        Phone: merchant.phone || '',
-        Email: merchant.email || '',
-        Website: merchant.website || '',
-        Industry: merchant.industry || '',
-        Description: merchant.description || '',
-        CreatedAt: merchant.createdAt ? new Date(merchant.createdAt).toISOString().split('T')[0] : '',
-        UpdatedAt: merchant.updatedAt ? new Date(merchant.updatedAt).toISOString().split('T')[0] : ''
-      }));
+      // Format results for CSV - matching the format from the provided image
+      const csvData = results.map(merchant => {
+        // Use the export date or asOfDate for AsOfDate field
+        const asOfDate = endDate || startDate || new Date().toISOString().split('T')[0];
+        const formattedAsOfDate = new Date(asOfDate).toLocaleDateString('en-US');
+        
+        return {
+          'AsOfDate': formattedAsOfDate,
+          'ClientNum': merchant.otherClientNumber1 || '',
+          'ClientLega': merchant.name || '',
+          'ClientMID': merchant.clientMID || merchant.id,
+          'ClientPAd': merchant.address || '',
+          'ClientPAd1': '', // Additional address line
+          'ClientPAd2': '', // Additional address line
+          'ClientPAd3': '', // Additional address line
+          'ClientPAd4': '', // Additional address line
+          'ClientPAd5': '', // Additional address line
+          'ClientPAd6': '', // Additional address line
+          'ClientSinc': merchant.clientSinceDate ? new Date(merchant.clientSinceDate).toLocaleDateString('en-US') : '',
+          'ClientCity': merchant.city || '',
+          'ClientStat': merchant.state || '',
+          'ClientCoun': merchant.country || 'US',
+          'ClientZip': merchant.zipCode || '',
+          'MType': merchant.merchantType || '',
+          'SalesChannel': merchant.salesChannel || ''
+        };
+      });
       
       // Generate a temp file path
       const tempFilePath = path.join(os.tmpdir(), `merchants_export_${Date.now()}.csv`);
@@ -1309,6 +1321,67 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error exporting merchants to CSV:', error);
       throw new Error('Failed to export merchants to CSV');
+    }
+  }
+
+  // Export all merchants for a specific date (AsOfDate export)
+  async exportAllMerchantsForDateToCSV(
+    targetDate: string
+  ): Promise<string> {
+    try {
+      // Get all merchants (no date filtering - we want all merchants as of the target date)
+      const query = db.select().from(merchantsTable).orderBy(merchantsTable.name);
+      const results = await query;
+      
+      // Format results for CSV with the target date as AsOfDate
+      const formattedAsOfDate = new Date(targetDate).toLocaleDateString('en-US');
+      
+      const csvData = results.map(merchant => ({
+        'AsOfDate': formattedAsOfDate,
+        'ClientNum': merchant.otherClientNumber1 || '',
+        'ClientLega': merchant.name || '',
+        'ClientMID': merchant.clientMID || merchant.id,
+        'ClientPAd': merchant.address || '',
+        'ClientPAd1': '', // Additional address line
+        'ClientPAd2': '', // Additional address line  
+        'ClientPAd3': '', // Additional address line
+        'ClientPAd4': '', // Additional address line
+        'ClientPAd5': '', // Additional address line
+        'ClientPAd6': '', // Additional address line
+        'ClientSinc': merchant.clientSinceDate ? new Date(merchant.clientSinceDate).toLocaleDateString('en-US') : '',
+        'ClientCity': merchant.city || '',
+        'ClientStat': merchant.state || '',
+        'ClientCoun': merchant.country || 'US',
+        'ClientZip': merchant.zipCode || '',
+        'MType': merchant.merchantType || '',
+        'SalesChannel': merchant.salesChannel || ''
+      }));
+      
+      // Generate a temp file path
+      const tempFilePath = path.join(os.tmpdir(), `merchants_all_${Date.now()}.csv`);
+      
+      // Generate CSV content manually
+      const csvContent = this.generateCSVContent(csvData);
+      
+      // Write CSV data to file
+      return new Promise((resolve, reject) => {
+        const writableStream = createWriteStream(tempFilePath);
+        
+        writableStream.write(csvContent);
+        writableStream.end();
+        
+        writableStream.on('finish', () => {
+          resolve(tempFilePath);
+        });
+        
+        writableStream.on('error', (error) => {
+          console.error('Error writing CSV file:', error);
+          reject(new Error('Failed to create CSV export'));
+        });
+      });
+    } catch (error) {
+      console.error('Error exporting all merchants to CSV:', error);
+      throw new Error('Failed to export all merchants to CSV');
     }
   }
   

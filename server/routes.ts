@@ -1632,11 +1632,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export all merchants for a specific date
+  app.get("/api/exports/merchants-all/download", async (req, res) => {
+    try {
+      const targetDate = req.query.targetDate as string;
+      
+      if (!targetDate) {
+        return res.status(400).json({ error: "Target date is required" });
+      }
+      
+      const csvFilePath = await storage.exportAllMerchantsForDateToCSV(targetDate);
+      
+      // Track the export in audit log
+      await storage.createAuditLog({
+        userId: req.user?.id || null,
+        username: req.user?.username || 'unknown',
+        action: 'export_merchants_all',
+        entityType: 'merchants',
+        entityId: `export_all_${Date.now()}`,
+        notes: `All merchants export for date ${targetDate}`
+      });
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `merchants_all_${targetDate.replace(/[:.]/g, '-')}_${timestamp}.csv`;
+      
+      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      res.setHeader('Content-Type', 'text/csv');
+      
+      // Stream the file to client
+      const fileStream = fs.createReadStream(csvFilePath);
+      fileStream.pipe(res);
+      
+      // Clean up the file after sending
+      fileStream.on('end', () => {
+        fs.unlink(csvFilePath, (err) => {
+          if (err) console.error(`Error deleting temporary CSV file: ${csvFilePath}`, err);
+        });
+      });
+    } catch (error) {
+      console.error("Error exporting all merchants:", error);
+      res.status(500).json({
+        error: "Failed to export all merchants to CSV"
+      });
+    }
+  });
+
   // Get export history from audit logs
   app.get("/api/exports/history", isAuthenticated, async (req, res) => {
     try {
       const logs = await storage.getAuditLogs({
-        actions: ['export_merchants', 'export_transactions', 'export_batch_summary'],
+        actions: ['export_merchants', 'export_transactions', 'export_batch_summary', 'export_merchants_all'],
         limit: 50,
         offset: 0
       });

@@ -83,8 +83,8 @@ export default function Exports() {
         // Build query parameters for the export request
         const queryParams = new URLSearchParams();
         
-        if (exportType === 'batch-summary') {
-          // For batch summary, use the "from" date as the target date
+        if (exportType === 'batch-summary' || exportType === 'merchants-all') {
+          // For batch summary and merchants-all, use the "from" date as the target date
           if (dateRange.from) {
             queryParams.append('targetDate', dateRange.from.toISOString().split('T')[0]);
           }
@@ -183,6 +183,7 @@ export default function Exports() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="merchants">Merchants</SelectItem>
+                      <SelectItem value="merchants-all">All Merchants (for date)</SelectItem>
                       <SelectItem value="transactions">Transactions</SelectItem>
                       <SelectItem value="batch-summary">Batch Summary</SelectItem>
                     </SelectContent>
@@ -191,11 +192,16 @@ export default function Exports() {
                 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {exportType === 'batch-summary' ? 'Target Date' : 'Date Range'}
+                    {(exportType === 'batch-summary' || exportType === 'merchants-all') ? 'Target Date' : 'Date Range'}
                   </label>
                   {exportType === 'batch-summary' && (
                     <p className="text-xs text-muted-foreground">
                       Select a specific date to generate batch summary
+                    </p>
+                  )}
+                  {exportType === 'merchants-all' && (
+                    <p className="text-xs text-muted-foreground">
+                      Select date to export all merchants with AsOfDate
                     </p>
                   )}
                   
@@ -214,7 +220,7 @@ export default function Exports() {
                     >
                       Today
                     </Button>
-                    {exportType !== 'batch-summary' && (
+                    {(exportType !== 'batch-summary' && exportType !== 'merchants-all') && (
                       <>
                         <Button
                           variant="outline"
@@ -247,7 +253,7 @@ export default function Exports() {
                     )}
                   </div>
 
-                  {exportType === 'batch-summary' ? (
+                  {(exportType === 'batch-summary' || exportType === 'merchants-all') ? (
                     // Single date picker for batch summary
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                       <PopoverTrigger asChild>
@@ -327,6 +333,7 @@ export default function Exports() {
                       <FileSpreadsheet className="mr-2 h-4 w-4" />
                       Export {
                         exportType === "merchants" ? "Merchants" : 
+                        exportType === "merchants-all" ? "All Merchants" :
                         exportType === "transactions" ? "Transactions" : 
                         "Batch Summary"
                       }

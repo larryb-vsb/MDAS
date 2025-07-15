@@ -10,6 +10,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Enhanced Merchant Export Functionality (July 15, 2025)
+- Updated merchant export format to match business requirements with proper field mapping
+- Added new "All Merchants for Date" export option for AsOfDate-based merchant exports
+- Fields now include: AsOfDate, ClientNum, ClientLega, ClientMID, ClientPAd fields, ClientSinc, location data, MType, SalesChannel
+- Added API endpoint: /api/exports/merchants-all/download with targetDate parameter
+- Updated UI to support single date selection for merchants-all export type
+- Verified both regular merchant export and all-merchants-for-date export working correctly
+- Export format matches provided specification with proper date formatting (M/D/YYYY)
+
+### Batch Summary Export Implementation (July 15, 2025)
+- Fixed batch summary export SQL syntax issues and variable references
+- Corrected date handling to use proper date range comparisons instead of timezone-dependent logic
+- Export now works with real transaction data grouping by ClientMID for specific dates
+- Fields include: ClientMid, AsOfDate, BatchNum, TranCoun, DailyTotal, FeeTotal, FeesWithh
+- Added API endpoint: /api/exports/batch-summary/download
+- UI shows single date picker for batch summary vs date range for other exports
+- Verified functionality working correctly with real transaction data
+- User confirmed batch summary export produces expected results
+
 ### Export Functionality Enhancement (July 15, 2025)
 - Fixed export button to use current screen filter values for transactions
 - Corrected date filtering logic in backend export function to properly combine filter conditions
@@ -17,16 +36,6 @@ Preferred communication style: Simple, everyday language.
 - Export now properly applies merchant, date range, and transaction type filters
 - Verified export works correctly with all filter combinations
 - User confirmed export functionality is working properly
-
-### Batch Summary Export Implementation (July 15, 2025)
-- Created new "Batch Summary" export type for daily transaction analysis
-- Groups transactions by ClientMID for a specific target date
-- Fields include: ClientMid, AsOfDate, BatchNum, TranCoun, DailyTotal, FeeTotal, FeesWithh
-- Added API endpoint: /api/exports/batch-summary/download
-- Fixed database query issues and proper data access from Drizzle join results
-- UI shows single date picker for batch summary vs date range for other exports
-- Verified functionality working correctly with real transaction data
-- User confirmed batch summary export produces expected results
 
 ### Search Functionality Enhancement (July 15, 2025)
 - Fixed case-sensitive search issue by implementing ilike instead of like in PostgreSQL queries
