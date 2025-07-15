@@ -397,8 +397,12 @@ export default function Transactions() {
                     size="sm"
                     onClick={() => {
                       const today = new Date();
-                      setStartDate(today);
-                      setEndDate(today);
+                      const startOfDay = new Date(today);
+                      startOfDay.setHours(0, 0, 0, 0);
+                      const endOfDay = new Date(today);
+                      endOfDay.setHours(23, 59, 59, 999);
+                      setStartDate(startOfDay);
+                      setEndDate(endOfDay);
                       handleFilterChange();
                     }}
                   >
@@ -411,8 +415,11 @@ export default function Transactions() {
                       const today = new Date();
                       const startOfWeek = new Date(today);
                       startOfWeek.setDate(today.getDate() - today.getDay());
+                      startOfWeek.setHours(0, 0, 0, 0);
+                      const endOfDay = new Date(today);
+                      endOfDay.setHours(23, 59, 59, 999);
                       setStartDate(startOfWeek);
-                      setEndDate(today);
+                      setEndDate(endOfDay);
                       handleFilterChange();
                     }}
                   >
@@ -424,8 +431,11 @@ export default function Transactions() {
                     onClick={() => {
                       const today = new Date();
                       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                      startOfMonth.setHours(0, 0, 0, 0);
+                      const endOfDay = new Date(today);
+                      endOfDay.setHours(23, 59, 59, 999);
                       setStartDate(startOfMonth);
-                      setEndDate(today);
+                      setEndDate(endOfDay);
                       handleFilterChange();
                     }}
                   >
@@ -442,8 +452,13 @@ export default function Transactions() {
                         type="date"
                         value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          setStartDate(date);
+                          if (e.target.value) {
+                            // Create date in local timezone at start of day
+                            const date = new Date(e.target.value + 'T00:00:00');
+                            setStartDate(date);
+                          } else {
+                            setStartDate(undefined);
+                          }
                           handleFilterChange();
                         }}
                         className="flex-1"
@@ -463,7 +478,14 @@ export default function Transactions() {
                             mode="single"
                             selected={startDate}
                             onSelect={(date) => {
-                              setStartDate(date);
+                              if (date) {
+                                // Ensure start of day in local timezone
+                                const adjustedDate = new Date(date);
+                                adjustedDate.setHours(0, 0, 0, 0);
+                                setStartDate(adjustedDate);
+                              } else {
+                                setStartDate(undefined);
+                              }
                               handleFilterChange();
                             }}
                             initialFocus
@@ -480,8 +502,13 @@ export default function Transactions() {
                         type="date"
                         value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          setEndDate(date);
+                          if (e.target.value) {
+                            // Create date in local timezone at end of day
+                            const date = new Date(e.target.value + 'T23:59:59');
+                            setEndDate(date);
+                          } else {
+                            setEndDate(undefined);
+                          }
                           handleFilterChange();
                         }}
                         className="flex-1"
@@ -501,7 +528,14 @@ export default function Transactions() {
                             mode="single"
                             selected={endDate}
                             onSelect={(date) => {
-                              setEndDate(date);
+                              if (date) {
+                                // Ensure end of day in local timezone
+                                const adjustedDate = new Date(date);
+                                adjustedDate.setHours(23, 59, 59, 999);
+                                setEndDate(adjustedDate);
+                              } else {
+                                setEndDate(undefined);
+                              }
                               handleFilterChange();
                             }}
                             initialFocus
