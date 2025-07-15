@@ -210,6 +210,9 @@ export default function Transactions() {
       if (endDate) params.append('endDate', endDate.toISOString());
       if (transactionType) params.append('type', transactionType);
       
+      console.log('Frontend sending query params:', { page, limit, merchantId, startDate: startDate?.toISOString(), endDate: endDate?.toISOString(), transactionType });
+      console.log('API URL:', `/api/transactions?${params.toString()}`);
+      
       const response = await fetch(`/api/transactions?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
