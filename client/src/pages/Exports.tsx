@@ -83,8 +83,8 @@ export default function Exports() {
         // Build query parameters for the export request
         const queryParams = new URLSearchParams();
         
-        if (exportType === 'batch-summary' || exportType === 'merchants-all') {
-          // For batch summary and merchants-all, use the "from" date as the target date
+        if (exportType === 'batch-summary' || exportType === 'merchants-all' || exportType === 'all-data') {
+          // For batch summary, merchants-all, and all-data, use the "from" date as the target date
           if (dateRange.from) {
             queryParams.append('targetDate', dateRange.from.toISOString().split('T')[0]);
           }
