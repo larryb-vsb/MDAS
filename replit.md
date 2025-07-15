@@ -25,11 +25,12 @@ Preferred communication style: Simple, everyday language.
 - Set "Export All (ZIP)" as the default export option for streamlined external system integration
 
 ### Transaction Filters Enhancement (July 15, 2025)
-- Improved date filter interface to provide both text input and calendar picker options
-- Text input allows direct typing in YYYY-MM-DD format with search on complete date entry
-- Calendar picker button provides visual date selection for easier navigation
-- Maintained quick filter buttons (Today, This Week, This Month) for common date ranges
-- Enhanced user experience with flexible date input methods
+- Fixed date input validation to prevent searches during incomplete typing
+- Enhanced date parsing to only trigger searches for valid, complete dates (year > 1900)
+- Maintained both text input (YYYY-MM-DD format) and calendar picker options
+- Eliminated invalid partial date parsing that caused strange search queries
+- Improved error handling to ignore invalid date entries gracefully
+- Preserved quick filter buttons (Today, This Week, This Month) for common date ranges
 
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping

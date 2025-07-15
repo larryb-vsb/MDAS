@@ -193,6 +193,12 @@ export default function Transactions() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [transactionType, setTransactionType] = useState<string | undefined>(undefined);
   
+  // Filter change handler
+  const handleFilterChange = () => {
+    // Reset to page 1 when filters change
+    setPage(1);
+  };
+  
   // Selected transactions for deletion
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -305,11 +311,6 @@ export default function Transactions() {
       return;
     }
     deleteMutation.mutate(selectedTransactions);
-  };
-  
-  const handleFilterChange = () => {
-    // Reset to page 1 when filters change
-    setPage(1);
   };
   
   const handleLimitChange = (newLimit: string) => {
@@ -460,10 +461,16 @@ export default function Transactions() {
                         value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
                           if (e.target.value) {
-                            // Create date in UTC to match database storage
-                            const date = new Date(e.target.value + 'T00:00:00.000Z');
-                            setStartDate(date);
-                            handleFilterChange();
+                            // Only set date if it's a valid complete date
+                            try {
+                              const date = new Date(e.target.value + 'T00:00:00.000Z');
+                              if (!isNaN(date.getTime()) && date.getFullYear() > 1900) {
+                                setStartDate(date);
+                                handleFilterChange();
+                              }
+                            } catch (error) {
+                              // Ignore invalid dates
+                            }
                           } else {
                             setStartDate(undefined);
                             handleFilterChange();
@@ -514,10 +521,16 @@ export default function Transactions() {
                         value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
                         onChange={(e) => {
                           if (e.target.value) {
-                            // Create date in UTC to match database storage
-                            const date = new Date(e.target.value + 'T23:59:59.999Z');
-                            setEndDate(date);
-                            handleFilterChange();
+                            // Only set date if it's a valid complete date
+                            try {
+                              const date = new Date(e.target.value + 'T23:59:59.999Z');
+                              if (!isNaN(date.getTime()) && date.getFullYear() > 1900) {
+                                setEndDate(date);
+                                handleFilterChange();
+                              }
+                            } catch (error) {
+                              // Ignore invalid dates
+                            }
                           } else {
                             setEndDate(undefined);
                             handleFilterChange();
