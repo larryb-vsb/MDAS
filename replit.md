@@ -22,6 +22,7 @@ Preferred communication style: Simple, everyday language.
 - Fixed ZIP content issue to include actual CSV data instead of file paths
 - Enhanced export history with proper date sorting (newest first) and realistic file sizes
 - Improved export history display with correct file extensions (.zip for all-data exports)
+- Set "Export All (ZIP)" as the default export option for streamlined external system integration
 
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping

@@ -32,7 +32,7 @@ interface ExportHistoryItem {
 export default function Exports() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [exportType, setExportType] = useState("merchants");
+  const [exportType, setExportType] = useState("all-data");
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
