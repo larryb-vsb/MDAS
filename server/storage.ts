@@ -1,6 +1,7 @@
 import { createReadStream, createWriteStream, promises as fsPromises, existsSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
 import os from "os";
+import archiver from "archiver";
 import { parse as parseCSV } from "csv-parse";
 import { format as formatCSV } from "fast-csv";
 import { 
@@ -1327,50 +1328,84 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Export all merchants for a specific date (AsOfDate export)
+  // Export all data types for a specific date as a ZIP file
   async exportAllDataForDateToCSV(
     targetDate: string
   ): Promise<{ filePaths: string[]; zipPath: string }> {
-    // For now, let's create a combined CSV file instead of a ZIP until we fix the archiver issues
     try {
+      console.log(`Creating ZIP export with all data types for date: ${targetDate}`);
+      
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const dateForFileName = targetDate.replace(/[/]/g, '-');
-      
-      // Generate all three export types as content
-      const merchantsContent = await this.exportAllMerchantsForDateToCSV(targetDate);
-      const transactionsContent = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
-      const batchSummaryContent = await this.exportBatchSummaryToCSV(targetDate);
-      
-      // Create a combined export file
-      const combinedContent = [
-        "=== MERCHANTS DATA ===",
-        merchantsContent,
-        "",
-        "=== TRANSACTIONS DATA ===", 
-        transactionsContent,
-        "",
-        "=== BATCH SUMMARY DATA ===",
-        batchSummaryContent
-      ].join('\n');
       
       const tempDir = path.join(process.cwd(), 'tmp_exports');
       if (!existsSync(tempDir)) {
         mkdirSync(tempDir, { recursive: true });
       }
       
-      const fileName = `all_exports_${dateForFileName}_${timestamp}.csv`;
-      const filePath = path.join(tempDir, fileName);
+      // Generate all three export types as content
+      const merchantsContent = await this.exportAllMerchantsForDateToCSV(targetDate);
+      const transactionsContent = await this.exportTransactionsToCSV(undefined, targetDate, targetDate);
+      const batchSummaryContent = await this.exportBatchSummaryToCSV(targetDate);
       
-      writeFileSync(filePath, combinedContent);
+      // Create individual CSV files
+      const merchantsFile = path.join(tempDir, `merchants_${dateForFileName}_${timestamp}.csv`);
+      const transactionsFile = path.join(tempDir, `transactions_${dateForFileName}_${timestamp}.csv`);
+      const batchSummaryFile = path.join(tempDir, `batch_summary_${dateForFileName}_${timestamp}.csv`);
       
-      return {
-        filePaths: [fileName],
-        zipPath: filePath
-      };
+      writeFileSync(merchantsFile, merchantsContent);
+      writeFileSync(transactionsFile, transactionsContent);
+      writeFileSync(batchSummaryFile, batchSummaryContent);
+      
+      // Create ZIP file
+      const zipFileName = `all_exports_${dateForFileName}_${timestamp}.zip`;
+      const zipFilePath = path.join(tempDir, zipFileName);
+      
+      return new Promise((resolve, reject) => {
+        const output = createWriteStream(zipFilePath);
+        const archive = archiver('zip', {
+          zlib: { level: 9 }
+        });
+        
+        output.on('close', () => {
+          console.log(`ZIP export created successfully: ${zipFilePath} (${archive.pointer()} total bytes)`);
+          // Clean up individual CSV files
+          try {
+            fsPromises.unlink(merchantsFile);
+            fsPromises.unlink(transactionsFile);
+            fsPromises.unlink(batchSummaryFile);
+          } catch (cleanupError) {
+            console.warn('Warning: Could not clean up temporary CSV files:', cleanupError);
+          }
+          resolve({
+            filePaths: [`merchants_${targetDate}.csv`, `transactions_${targetDate}.csv`, `batch_summary_${targetDate}.csv`],
+            zipPath: zipFilePath
+          });
+        });
+        
+        output.on('error', (err) => {
+          console.error('Error creating ZIP file:', err);
+          reject(err);
+        });
+        
+        archive.on('error', (err) => {
+          console.error('Archive error:', err);
+          reject(err);
+        });
+        
+        archive.pipe(output);
+        
+        // Add files to the archive with meaningful names
+        archive.file(merchantsFile, { name: `merchants_${targetDate}.csv` });
+        archive.file(transactionsFile, { name: `transactions_${targetDate}.csv` });
+        archive.file(batchSummaryFile, { name: `batch_summary_${targetDate}.csv` });
+        
+        archive.finalize();
+      });
       
     } catch (error) {
-      console.error('Error creating all data export:', error);
-      throw new Error(`Failed to create comprehensive export: ${error.message}`);
+      console.error('Error creating ZIP export:', error);
+      throw new Error(`Failed to create ZIP export: ${error.message}`);
     }
   }
 

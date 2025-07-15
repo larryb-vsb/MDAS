@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### ZIP Export Functionality Implementation (July 15, 2025)
+- Implemented true ZIP file export for "Export All (ZIP)" functionality
+- Added archiver library for proper ZIP file creation with compression
+- Updated export process to create three separate CSV files (merchants, transactions, batch summary)
+- Each CSV file is properly named and packaged in a downloadable ZIP file
+- Fixed frontend date parameter handling for all-data export type
+- Updated backend to serve proper ZIP files with correct MIME type (application/zip)
+- ZIP files contain separate CSV files for integration with external systems
+- Automatic cleanup of temporary files after ZIP creation
+
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping
 - Added new "All Merchants for Date" export option for AsOfDate-based merchant exports

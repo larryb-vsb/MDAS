@@ -1699,13 +1699,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: `All data export for date ${targetDate} - includes merchants, transactions, and batch summary`
       });
       
-      // Set headers for CSV download
+      // Set headers for ZIP download
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `all_exports_${targetDate.replace(/[/]/g, '-')}_${timestamp}.csv`;
-      res.setHeader('Content-Type', 'text/csv');
+      const filename = `all_exports_${targetDate.replace(/[/]/g, '-')}_${timestamp}.zip`;
+      res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       
-      // Send the combined CSV file
+      // Send the ZIP file
       const fs = await import('fs');
       const fileStream = fs.createReadStream(zipPath);
       
