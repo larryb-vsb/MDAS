@@ -18,60 +18,25 @@ import { format } from "date-fns";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
-// Mock data for export history (would come from API in real implementation)
-const exportHistory = [
-  {
-    id: "export-001",
-    name: "merchants_export_20250505.csv",
-    type: "merchants",
-    createdAt: "2025-05-05T12:30:45.000Z",
-    size: 256789,
-    records: 145,
-    status: "completed"
-  },
-  {
-    id: "export-002",
-    name: "transactions_export_20250504.csv",
-    type: "transactions",
-    createdAt: "2025-05-04T16:22:33.000Z",
-    size: 1853421,
-    records: 984,
-    status: "completed"
-  },
-  {
-    id: "export-003",
-    name: "merchants_export_20250503.csv",
-    type: "merchants",
-    createdAt: "2025-05-03T09:15:12.000Z",
-    size: 234567,
-    records: 132,
-    status: "completed"
-  },
-  {
-    id: "export-004",
-    name: "transactions_export_20250502.csv",
-    type: "transactions",
-    createdAt: "2025-05-02T14:45:21.000Z",
-    size: 1654321,
-    records: 876,
-    status: "completed"
-  },
-  {
-    id: "export-005",
-    name: "merchants_export_20250501.csv",
-    type: "merchants",
-    createdAt: "2025-05-01T10:33:18.000Z",
-    size: 223456,
-    records: 128,
-    status: "completed"
-  }
-];
+// Interface for export history items
+interface ExportHistoryItem {
+  id: string;
+  name: string;
+  type: string;
+  createdAt: string;
+  size: number;
+  records: number | null;
+  status: string;
+}
 
 export default function Exports() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [exportType, setExportType] = useState("merchants");
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
     from: new Date(),
     to: new Date()
   });
@@ -85,22 +50,14 @@ export default function Exports() {
     setIsUploadModalOpen(prev => !prev);
   };
   
-  // Simulated data fetching
+  // Fetch real export history from API
   const {
     data: exportHistoryData,
     isLoading,
     isError,
     refetch
-  } = useQuery({
+  } = useQuery<ExportHistoryItem[]>({
     queryKey: ["/api/exports/history"],
-    queryFn: () => {
-      // In a real app, this would be an API call
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve(exportHistory);
-        }, 500);
-      });
-    },
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
   
