@@ -24,6 +24,12 @@ Preferred communication style: Simple, everyday language.
 - Improved export history display with correct file extensions (.zip for all-data exports)
 - Set "Export All (ZIP)" as the default export option for streamlined external system integration
 
+### Transaction Filters Enhancement (July 15, 2025)
+- Fixed duplicate date picker issues in transaction filters
+- Removed problematic text inputs that triggered searches during typing
+- Replaced with clean calendar button popovers for better user experience
+- Enhanced date display formatting for improved readability
+
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping
 - Added new "All Merchants for Date" export option for AsOfDate-based merchant exports
