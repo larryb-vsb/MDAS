@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Export Functionality Enhancement (July 15, 2025)
+- Fixed export button to use current screen filter values for transactions
+- Corrected date filtering logic in backend export function to properly combine filter conditions
+- Fixed CSV generation to properly create export files using manual CSV formatting
+- Export now properly applies merchant, date range, and transaction type filters
+- Verified export works correctly with all filter combinations
+- User confirmed export functionality is working properly
+
 ### Search Functionality Enhancement (July 15, 2025)
 - Fixed case-sensitive search issue by implementing ilike instead of like in PostgreSQL queries
 - Added missing searchQuery state management to Dashboard component
