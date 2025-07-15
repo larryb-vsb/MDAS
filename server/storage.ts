@@ -26,7 +26,7 @@ import {
   InsertSecurityLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, lt, and, or, count, desc, sql, between, like, ilike, isNotNull } from "drizzle-orm";
+import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull } from "drizzle-orm";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
@@ -1143,26 +1143,35 @@ export class DatabaseStorage implements IStorage {
     try {
       // Parse the target date and set to beginning and end of day
       const startDate = new Date(targetDate);
-      startDate.setHours(0, 0, 0, 0);
+      startDate.setUTCHours(0, 0, 0, 0);
       
       const endDate = new Date(targetDate);
-      endDate.setHours(23, 59, 59, 999);
+      endDate.setUTCHours(23, 59, 59, 999);
       
-      // Get all transactions for the specified date
-      const transactions = await db.select()
+      // Get all transactions for the specified date using the same pattern as exportTransactionsToCSV
+      let query = db.select({
+        transaction: transactionsTable,
+        merchant: merchantsTable
+      })
       .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-      .where(and(
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+      
+      // Build filter conditions for the specific date
+      const conditions = [
         gte(transactionsTable.date, startDate),
         sql`${transactionsTable.date} <= ${endDate}`
-      ));
+      ];
+      
+      query = query.where(and(...conditions));
+      
+      const results = await query;
       
       // Group transactions by ClientMID
       const summaryMap = new Map();
       
-      transactions.forEach(record => {
-        const transaction = record.transactions;
-        const merchant = record.merchants;
+      results.forEach(record => {
+        const transaction = record.transaction;
+        const merchant = record.merchant;
         const clientMidKey = merchant?.clientMid || transaction.merchantId; // Use merchantId as fallback
         
         if (!summaryMap.has(clientMidKey)) {
@@ -1182,7 +1191,9 @@ export class DatabaseStorage implements IStorage {
       
       // Convert map to array and format for CSV
       const csvData = Array.from(summaryMap.values()).map(summary => {
-        const asOfDate = `${startDate.getMonth() + 1}/${startDate.getDate()}/${startDate.getFullYear()}`;
+        // Use the target date for AsOfDate
+        const dateObj = new Date(targetDate);
+        const asOfDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
         
         return {
           'ClientMid': summary.clientMid,
