@@ -454,72 +454,110 @@ export default function Transactions() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Start Date</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {startDate ? format(startDate, "MMM dd, yyyy") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              // Create UTC date at start of day to match database storage
-                              const year = date.getFullYear();
-                              const month = date.getMonth();
-                              const day = date.getDate();
-                              const utcDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-                              setStartDate(utcDate);
-                            } else {
-                              setStartDate(undefined);
-                            }
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            // Create date in UTC to match database storage
+                            const date = new Date(e.target.value + 'T00:00:00.000Z');
+                            setStartDate(date);
                             handleFilterChange();
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          } else {
+                            setStartDate(undefined);
+                            handleFilterChange();
+                          }
+                        }}
+                        className="flex-1"
+                        placeholder="YYYY-MM-DD"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                // Create UTC date at start of day to match database storage
+                                const year = date.getFullYear();
+                                const month = date.getMonth();
+                                const day = date.getDate();
+                                const utcDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+                                setStartDate(utcDate);
+                              } else {
+                                setStartDate(undefined);
+                              }
+                              handleFilterChange();
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                   
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">End Date</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {endDate ? format(endDate, "MMM dd, yyyy") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={endDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              // Create UTC date at end of day to match database storage
-                              const year = date.getFullYear();
-                              const month = date.getMonth();
-                              const day = date.getDate();
-                              const utcDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
-                              setEndDate(utcDate);
-                            } else {
-                              setEndDate(undefined);
-                            }
+                    <div className="flex gap-1">
+                      <Input
+                        type="date"
+                        value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            // Create date in UTC to match database storage
+                            const date = new Date(e.target.value + 'T23:59:59.999Z');
+                            setEndDate(date);
                             handleFilterChange();
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          } else {
+                            setEndDate(undefined);
+                            handleFilterChange();
+                          }
+                        }}
+                        className="flex-1"
+                        placeholder="YYYY-MM-DD"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-2"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                // Create UTC date at end of day to match database storage
+                                const year = date.getFullYear();
+                                const month = date.getMonth();
+                                const day = date.getDate();
+                                const utcDate = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+                                setEndDate(utcDate);
+                              } else {
+                                setEndDate(undefined);
+                              }
+                              handleFilterChange();
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 </div>
               </div>

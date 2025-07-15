@@ -25,10 +25,11 @@ Preferred communication style: Simple, everyday language.
 - Set "Export All (ZIP)" as the default export option for streamlined external system integration
 
 ### Transaction Filters Enhancement (July 15, 2025)
-- Fixed duplicate date picker issues in transaction filters
-- Removed problematic text inputs that triggered searches during typing
-- Replaced with clean calendar button popovers for better user experience
-- Enhanced date display formatting for improved readability
+- Improved date filter interface to provide both text input and calendar picker options
+- Text input allows direct typing in YYYY-MM-DD format with search on complete date entry
+- Calendar picker button provides visual date selection for easier navigation
+- Maintained quick filter buttons (Today, This Week, This Month) for common date ranges
+- Enhanced user experience with flexible date input methods
 
 ### Enhanced Merchant Export Functionality (July 15, 2025)
 - Updated merchant export format to match business requirements with proper field mapping
