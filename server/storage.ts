@@ -1084,22 +1084,24 @@ export class DatabaseStorage implements IStorage {
       const csvData = results.map(result => {
         const { transaction, merchantName } = result;
         const dateObj = new Date(transaction.date);
+        const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+        const tranType = transaction.type === "Credit" ? "C" : (transaction.type === "Debit" ? "D" : transaction.type.charAt(0).toUpperCase());
         
         return {
-          TranSeqNumber: transaction.id.replace('T', ''),
-          TranAccountNumber: transaction.merchantId,
-          TranDate: dateObj.toISOString().split('T')[0],
-          TranType: transaction.type,
-          TranAmount: parseFloat(transaction.amount.toString()).toFixed(2),
-          NetTranAmount: parseFloat(transaction.amount.toString()).toFixed(2),
-          TranCategory: transaction.type === "Credit" ? "Income" : (transaction.type === "Debit" ? "Expense" : "Sale"),
-          TranPostDate: dateObj.toISOString().split('T')[0],
-          TranTrailer1: merchantName || '',
-          TranTrailer2: '',
-          TranTrailer3: '',
-          TranTrailer4: '',
-          TranTrailer5: '',
-          TranTrailer6: ''
+          'TranSeqN': transaction.id.replace('T', ''),
+          'TranAccou': transaction.merchantId,
+          'TranDate': formattedDate,
+          'TranType': tranType,
+          'TranAmou': parseFloat(transaction.amount.toString()).toFixed(2),
+          'NetTranAr': parseFloat(transaction.amount.toString()).toFixed(2),
+          'TranCategory': transaction.type === "Credit" ? "ACH-PURCH" : (transaction.type === "Debit" ? "ACH-PURCH" : "ACH-PURCH"),
+          'TranPostD': formattedDate,
+          'TranTraile': merchantName || 'MICHIGAN ASPIRE III LL',
+          'TranTraile1': '',
+          'TranTraile2': '',
+          'TranTraile3': '',
+          'TranTraile4': '',
+          'TranTraile5': ''
         };
       });
       
