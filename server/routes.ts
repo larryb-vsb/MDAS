@@ -949,24 +949,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         });
         
+        // Get current year and previous year for display
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+        
+        // Create complete month structure for both years if data exists
+        const completeMonthlyData: any[] = [];
+        
+        // Check if we have data for current year or previous year
+        const hasCurrentYearData = finalMonthlyData.some(d => d.year === currentYear);
+        const hasPreviousYearData = finalMonthlyData.some(d => d.year === previousYear);
+        
+        // Add months for previous year if we have data
+        if (hasPreviousYearData) {
+          monthNames.forEach(monthName => {
+            const existingData = finalMonthlyData.find(d => d.year === previousYear && d.name === monthName);
+            completeMonthlyData.push({
+              name: monthName,
+              transactions: existingData?.transactions || 0,
+              revenue: existingData?.revenue || 0,
+              year: previousYear
+            });
+          });
+        }
+        
+        // Add months for current year if we have data
+        if (hasCurrentYearData) {
+          monthNames.forEach(monthName => {
+            const existingData = finalMonthlyData.find(d => d.year === currentYear && d.name === monthName);
+            completeMonthlyData.push({
+              name: monthName,
+              transactions: existingData?.transactions || 0,
+              revenue: existingData?.revenue || 0,
+              year: currentYear
+            });
+          });
+        }
+        
+        // If no current/previous year data, fall back to showing whatever years we have
+        const dataToUse = completeMonthlyData.length > 0 ? completeMonthlyData : finalMonthlyData;
+        
         // Sort by year and month
-        finalMonthlyData.sort((a, b) => {
+        dataToUse.sort((a, b) => {
           if (a.year !== b.year) return a.year - b.year;
           return monthNames.indexOf(a.name) - monthNames.indexOf(b.name);
         });
         
         console.log(`ANALYTICS - Generated monthly data from actual transactions`);
-        console.log(`Generated monthly data: ${JSON.stringify(finalMonthlyData)}`);
+        console.log(`Generated monthly data: ${JSON.stringify(dataToUse)}`);
         
         // Calculate summary metrics from actual data
-        const totalTransactions = finalMonthlyData.reduce((sum, month) => sum + month.transactions, 0);
-        const totalRevenue = finalMonthlyData.reduce((sum, month) => sum + month.revenue, 0);
+        const totalTransactions = dataToUse.reduce((sum, month) => sum + month.transactions, 0);
+        const totalRevenue = dataToUse.reduce((sum, month) => sum + month.revenue, 0);
         const avgTransactionValue = totalTransactions > 0 
           ? Number((totalRevenue / totalTransactions).toFixed(2))
           : 0;
         
         res.json({
-          transactionData: finalMonthlyData,
+          transactionData: dataToUse,
           merchantCategoryData: categoryData,
           summary: {
             totalTransactions: totalTransactions,
