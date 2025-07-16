@@ -541,17 +541,15 @@ export default function Transactions() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const today = new Date();
-                      const startOfYear = new Date(today.getFullYear(), 0, 1);
-                      startOfYear.setHours(0, 0, 0, 0);
-                      const endOfDay = new Date(today);
-                      endOfDay.setHours(23, 59, 59, 999);
-                      setStartDate(startOfYear);
-                      setEndDate(endOfDay);
+                      // Set to 2024 since that's where all the transaction data is
+                      const startOf2024 = new Date('2024-01-01T00:00:00.000Z');
+                      const endOf2024 = new Date('2024-12-31T23:59:59.999Z');
+                      setStartDate(startOf2024);
+                      setEndDate(endOf2024);
                       handleFilterChange();
                     }}
                   >
-                    This Year
+                    2024 (All Data)
                   </Button>
                 </div>
 
