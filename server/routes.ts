@@ -896,7 +896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         value: Number(cat.count)
       }));
       
-      // Special case for year view to ensure we always show 12 months
+      // Special case for year view to show real transaction data by month
       if (timeframe === 'year') {
         console.log(`ANALYTICS - Total transactions found: ${allTransactions.length}`);
         
@@ -908,175 +908,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // For analytics, create data for current year (2025) and previous year (2024)
+        // Group transactions by month and year based on actual data
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const now = new Date();
+        const monthlyData = new Map<string, { transactions: number; revenue: number; year: number }>();
         
-        // Calculate total transactions and revenue for distribution
-        let totalTransactions = 0;
-        let totalRevenue = 0;
-        
+        // Process all transactions to group by month/year
         allTransactions.forEach(item => {
           const { transaction } = item;
+          const date = new Date(transaction.date);
+          const year = date.getFullYear();
+          const monthIndex = date.getMonth();
+          const monthName = monthNames[monthIndex];
+          const key = `${year}-${monthName}`;
+          
           const amount = parseFloat(transaction.amount.toString());
           
-          // Count the transaction
-          totalTransactions++;
+          if (!monthlyData.has(key)) {
+            monthlyData.set(key, { transactions: 0, revenue: 0, year });
+          }
           
-          // Add to total revenue (respecting transaction type)
+          const monthData = monthlyData.get(key)!;
+          monthData.transactions++;
+          
+          // Add to revenue (respecting transaction type)
           if (transaction.type === "Credit" || transaction.type === "Sale") {
-            totalRevenue += amount;
+            monthData.revenue += amount;
           } else if (transaction.type === "Debit" || transaction.type === "Refund") {
-            totalRevenue -= amount;
+            monthData.revenue -= amount;
           }
         });
         
-        // Month names already defined above
-        
-        // Create data structures for current year (2025)
-        const currentYearData = monthNames.map(monthName => ({
-          name: monthName,
-          transactions: 0,
-          revenue: 0,
-          year: 2025
-        }));
-        
-        // Create data structures for previous year (2024)
-        const previousYearData = monthNames.map(monthName => ({
-          name: monthName,
-          transactions: 0,
-          revenue: 0,
-          year: 2024
-        }));
-        
-        // Current year (2025) distribution pattern - we're in May 2025, so only Jan-May should have data
-        const currentYearPattern = new Map<string, number>([
-          ['Jan', 0.15], ['Feb', 0.20], ['Mar', 0.25], ['Apr', 0.20], ['May', 0.20],
-          ['Jun', 0.00], ['Jul', 0.00], ['Aug', 0.00], ['Sep', 0.00], ['Oct', 0.00], 
-          ['Nov', 0.00], ['Dec', 0.00]
-        ]);
-        
-        // Previous year (2024) distribution pattern - full year of data available
-        const previousYearPattern = new Map<string, number>([
-          ['Jan', 0.06], ['Feb', 0.07], ['Mar', 0.08], ['Apr', 0.09], ['May', 0.10],
-          ['Jun', 0.09], ['Jul', 0.08], ['Aug', 0.08], ['Sep', 0.09], ['Oct', 0.09], 
-          ['Nov', 0.08], ['Dec', 0.09]
-        ]);
-        
-        // Apply distributions to the data
-        currentYearData.forEach(month => {
-          const factor = currentYearPattern.get(month.name) || 0;
-          
-          // Only set values for months up to May since it's May 2025 in our timeline
-          const currentMonth = new Date().getMonth(); // May = 4 (0-indexed)
-          const monthIndex = monthNames.indexOf(month.name);
-          
-          if (monthIndex <= currentMonth) {
-            month.transactions = Math.round(totalTransactions * factor);
-            month.revenue = totalRevenue * factor;
-          } else {
-            // Future months should have zero values
-            month.transactions = 0;
-            month.revenue = 0;
-          }
+        // Convert map to array format expected by frontend
+        const finalMonthlyData = Array.from(monthlyData.entries()).map(([key, data]) => {
+          const [year, monthName] = key.split('-');
+          return {
+            name: monthName,
+            transactions: data.transactions,
+            revenue: data.revenue,
+            year: parseInt(year)
+          };
         });
         
-        previousYearData.forEach(month => {
-          const factor = previousYearPattern.get(month.name) || 0;
-          month.transactions = Math.round(totalTransactions * factor);
-          month.revenue = totalRevenue * factor;
+        // Sort by year and month
+        finalMonthlyData.sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
+          return monthNames.indexOf(a.name) - monthNames.indexOf(b.name);
         });
         
-        // Combine the data into one array - will be split back out in the UI
-        const monthlyData = [...currentYearData, ...previousYearData];
-        
-        // Sort alphabetically by month name (Jan, Feb, etc.) since we don't have monthIndex anymore
-        monthlyData.sort((a, b) => {
-          // First sort by month name
-          const monthOrder = monthNames.indexOf(a.name) - monthNames.indexOf(b.name);
-          // If same month, sort by year (2024 first, then 2025)
-          return monthOrder !== 0 ? monthOrder : a.year - b.year;
-        });
-        
-        // Include the year property for year-over-year comparison
-        const finalMonthlyData = monthlyData.map(month => ({
-          name: month.name,
-          transactions: month.transactions,
-          revenue: month.revenue,
-          year: month.year
-        }));
-        
-        console.log(`ANALYTICS - Generated monthly data with ${totalTransactions} transactions distributed`);
-        
-        // Log the generated data for debugging
+        console.log(`ANALYTICS - Generated monthly data from actual transactions`);
         console.log(`Generated monthly data: ${JSON.stringify(finalMonthlyData)}`);
         
-        // Return the analytics data
-        // Calculate summary metrics from the transactions we distributed
-        const totalTransactionsSum = finalMonthlyData.reduce((sum, month) => sum + month.transactions, 0);
-        const totalRevenueSum = finalMonthlyData.reduce((sum, month) => sum + month.revenue, 0);
-        const avgTransactionValue = totalTransactionsSum > 0 
-          ? Number((totalRevenueSum / totalTransactionsSum).toFixed(2))
+        // Calculate summary metrics from actual data
+        const totalTransactions = finalMonthlyData.reduce((sum, month) => sum + month.transactions, 0);
+        const totalRevenue = finalMonthlyData.reduce((sum, month) => sum + month.revenue, 0);
+        const avgTransactionValue = totalTransactions > 0 
+          ? Number((totalRevenue / totalTransactions).toFixed(2))
           : 0;
         
         res.json({
           transactionData: finalMonthlyData,
           merchantCategoryData: categoryData,
           summary: {
-            totalTransactions: totalTransactionsSum,
-            totalRevenue: totalRevenueSum,
+            totalTransactions: totalTransactions,
+            totalRevenue: totalRevenue,
             totalMerchants: dashboardStats.totalMerchants,
             avgTransactionValue: avgTransactionValue,
-            growthRate: 12.7 // This would need historical data to calculate properly
-          }
-        });
-        return;
-        if (allTransactions.length > 0) {
-          console.log(`Sample transaction dates:`);
-          for (let i = 0; i < Math.min(5, allTransactions.length); i++) {
-            const txDate = new Date(allTransactions[i].transaction.date);
-            console.log(`Transaction ${i}: ${txDate.toISOString()} - ${txDate.toLocaleString('default', { month: 'short' })} ${txDate.getFullYear()}`);
-          }
-        }
-        
-        // If we have no transactions, we still want to return data for all 12 months
-        if (allTransactions.length === 0) {
-          const now = new Date();
-          for (let i = 0; i < 12; i++) {
-            const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            monthlyData.push({
-              name: month.toLocaleString('default', { month: 'short' }),
-              year: month.getFullYear(),
-              transactions: 0,
-              revenue: 0
-            });
-          }
-        }
-        
-        // Sort by year and month for proper chronological order
-        monthlyData.sort((a, b) => {
-          const monthA = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(a.name);
-          const monthB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(b.name);
-          
-          if (a.year !== b.year) {
-            return a.year - b.year;
-          }
-          return monthA - monthB;
-        });
-        
-        // Return the data
-        res.json({
-          transactionData: monthlyData,
-          merchantCategoryData: categoryData,
-          summary: {
-            totalTransactions: dashboardStats.dailyTransactions,
-            totalRevenue: dashboardStats.monthlyRevenue,
-            totalMerchants: dashboardStats.totalMerchants,
-            avgTransactionValue: 
-              dashboardStats.dailyTransactions > 0 
-                ? Number((dashboardStats.monthlyRevenue / dashboardStats.dailyTransactions).toFixed(2))
-                : 0,
-            growthRate: 12.7 // This would need historical data to calculate properly
+            growthRate: 0 // No growth data available without historical comparison
           }
         });
         return;
