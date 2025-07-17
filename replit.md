@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Database Money Handling Assessment (July 17, 2025)
+- **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues
+- **PRECISION SPECIFICATIONS**: 10 total digits with 2 decimal places supports transactions up to $99,999,999.99
+- **EXACT DECIMAL ACCURACY**: No rounding errors or "money weirdness" - PostgreSQL NUMERIC is enterprise-grade for financial data
+- **MERGE OPERATION READY**: Transaction amounts will transfer between merchants without precision loss during merge operations
+- **CURRENT CAPABILITIES**: Handles negative amounts (refunds/chargebacks), large transactions, and accurate revenue calculations
+- **VALIDATED IN LOGS**: System correctly processes various amounts (25554.18, 7741.5, 199, 50000) without precision issues
+
 ### Smart Duplicate Transaction Handling with Date Matching (July 17, 2025)
 - **ENHANCED LOGIC**: Modified upload logic to check transaction dates when duplicates are found
 - **DATE MATCHING**: If Transaction ID and date match exactly, system compares values and either updates or skips
