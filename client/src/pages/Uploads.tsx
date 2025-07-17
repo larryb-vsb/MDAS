@@ -109,6 +109,7 @@ export default function Uploads() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMultiDeleteDialogOpen, setIsMultiDeleteDialogOpen] = useState(false);
+  const [isMultiReprocessDialogOpen, setIsMultiReprocessDialogOpen] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     totalPages: 1,
@@ -441,6 +442,59 @@ export default function Uploads() {
     }
   }
   
+  // Handle reprocessing multiple files
+  function handleMultiReprocess() {
+    if (selectedFiles.length === 0) return;
+    setIsMultiReprocessDialogOpen(true);
+  }
+  
+  // Confirm multi-file reprocessing
+  function confirmMultiReprocess() {
+    // Sequential reprocessing of multiple files
+    const reprocessFiles = async () => {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const file of selectedFiles) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            reprocessFile.mutate(file.id, {
+              onSuccess: () => {
+                successCount++;
+                resolve();
+              },
+              onError: (error) => {
+                errorCount++;
+                console.error(`Error reprocessing file ${file.id}:`, error);
+                resolve(); // Still resolve to continue with other files
+              }
+            });
+          });
+        } catch (error) {
+          errorCount++;
+          console.error(`Error in reprocessFiles for ${file.id}:`, error);
+        }
+      }
+      
+      // Show result toast
+      toast({
+        title: "Bulk Reprocess Complete",
+        description: `Successfully reprocessed ${successCount} files. ${errorCount > 0 ? `Failed to reprocess ${errorCount} files.` : ''}`,
+        variant: successCount > 0 ? "default" : "destructive"
+      });
+      
+      // Clear selection and close dialog
+      setSelectedFiles([]);
+      setSelectMode(false);
+      setIsMultiReprocessDialogOpen(false);
+      
+      // Refresh the file list
+      refetch();
+    };
+    
+    reprocessFiles();
+  }
+
   // Confirm multi-file deletion
   function confirmMultiDelete() {
     // Sequential deletion of multiple files
@@ -575,15 +629,26 @@ export default function Uploads() {
           </Button>
           
           {selectMode && selectedFiles.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="text-xs"
-              onClick={handleMultiDelete}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete {selectedFiles.length} Selected
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={handleMultiReprocess}
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                Reprocess {selectedFiles.length} Selected
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs"
+                onClick={handleMultiDelete}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete {selectedFiles.length} Selected
+              </Button>
+            </>
           )}
         </div>
 
@@ -1082,6 +1147,54 @@ export default function Uploads() {
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete {selectedFiles.length} Files
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Multi-Reprocess Confirmation Dialog */}
+      <Dialog
+        open={isMultiReprocessDialogOpen}
+        onOpenChange={(open) => setIsMultiReprocessDialogOpen(open)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <RefreshCw className="h-5 w-5" />
+              Confirm Reprocessing
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reprocess {selectedFiles.length} selected file{selectedFiles.length === 1 ? '' : 's'}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3">
+            <p className="text-sm text-muted-foreground">
+              This will re-run the processing pipeline for the selected files. Any previous processing results will be updated.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsMultiReprocessDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmMultiReprocess}
+              disabled={reprocessFile.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {reprocessFile.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Reprocessing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reprocess Files
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
