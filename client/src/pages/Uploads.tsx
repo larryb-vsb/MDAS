@@ -554,25 +554,12 @@ export default function Uploads() {
     }));
   }
 
-  // Calculate pagination details based on current files
+  // Reset pagination to page 1 when files data changes
   useEffect(() => {
-    if (files) {
-      const totalItems = files.length;
-      const totalPages = Math.ceil(totalItems / pagination.itemsPerPage);
-      
-      setPagination(prev => ({
-        ...prev,
-        totalPages: Math.max(1, totalPages)
-      }));
-      
-      // Reset to page 1 if current page exceeds new total pages
-      if (pagination.currentPage > totalPages && totalPages > 0) {
-        setPagination(prev => ({
-          ...prev,
-          currentPage: 1
-        }));
-      }
-    }
+    setPagination(prev => ({
+      ...prev,
+      currentPage: 1
+    }));
   }, [files]);
 
   // Helper function to render the file table
@@ -602,8 +589,13 @@ export default function Uploads() {
       return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
     });
     
+    // Calculate pagination based on filtered data
+    const totalItems = sortedFiles.length;
+    const totalPages = Math.ceil(totalItems / pagination.itemsPerPage);
+    const currentPage = Math.min(pagination.currentPage, Math.max(1, totalPages));
+    
     // Apply pagination
-    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    const startIndex = (currentPage - 1) * pagination.itemsPerPage;
     const endIndex = startIndex + pagination.itemsPerPage;
     const paginatedFiles = sortedFiles.slice(startIndex, endIndex);
 
@@ -805,14 +797,14 @@ export default function Uploads() {
               </TableBody>
             </Table>
           </CardContent>
-          {sortedFiles.length > pagination.itemsPerPage && (
+          {totalPages > 1 && (
             <CardFooter className="flex justify-center pt-2 pb-4">
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => handlePageChange(1)}
-                  disabled={pagination.currentPage === 1}
+                  disabled={currentPage === 1}
                   className="h-8 w-8"
                 >
                   <ChevronsLeft className="h-4 w-4" />
@@ -820,22 +812,22 @@ export default function Uploads() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
                   className="h-8 w-8"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 
                 <span className="text-sm px-2">
-                  Page {pagination.currentPage} of {pagination.totalPages}
+                  Page {currentPage} of {totalPages}
                 </span>
                 
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
                   className="h-8 w-8"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -843,8 +835,8 @@ export default function Uploads() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => handlePageChange(pagination.totalPages)}
-                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages}
                   className="h-8 w-8"
                 >
                   <ChevronsRight className="h-4 w-4" />
