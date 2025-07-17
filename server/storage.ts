@@ -2644,14 +2644,8 @@ export class DatabaseStorage implements IStorage {
                         return true;
                       }
                       
-                      // Only check for substantial overlap in the cleaned names (no business suffixes)
-                      // Both cleaned names must be at least 4 characters and one must contain the other
-                      if (cleanMerchantName.length >= 4 && cleanTransactionName.length >= 4) {
-                        if (cleanMerchantName.includes(cleanTransactionName) || cleanTransactionName.includes(cleanMerchantName)) {
-                          console.log(`[FUZZY MATCH] Found substantial overlap: "${cleanMerchantName}" ~ "${cleanTransactionName}"`);
-                          return true;
-                        }
-                      }
+                      // DISABLED: No fuzzy matching - only exact core name matches allowed
+                      // This prevents false matches between unrelated businesses
                       
                       return false;
                     });
