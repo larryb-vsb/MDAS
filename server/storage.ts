@@ -2785,15 +2785,39 @@ export class DatabaseStorage implements IStorage {
                 .where(eq(merchantsTable.id, transaction.merchantId));
             }
             
-            // Insert transaction
+            // Insert transaction with enhanced error reporting
             console.log(`[TRANSACTION] Inserting: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
-            await db.insert(transactionsTable).values(transaction);
-            insertedCount++;
-            insertedTransactionsList.push({
-              id: transaction.id,
-              merchantId: transaction.merchantId,
-              amount: transaction.amount
-            });
+            try {
+              await db.insert(transactionsTable).values(transaction);
+              insertedCount++;
+              insertedTransactionsList.push({
+                id: transaction.id,
+                merchantId: transaction.merchantId,
+                amount: transaction.amount
+              });
+            } catch (insertError) {
+              // Enhanced error reporting with specific details
+              console.error(`\n❌ TRANSACTION INSERT ERROR ❌`);
+              console.error(`CSV Row Number: ${rowCount}`);
+              console.error(`Transaction ID: ${transaction.id}`);
+              console.error(`Merchant ID: ${transaction.merchantId}`);
+              console.error(`Amount: ${transaction.amount}`);
+              console.error(`Date: ${transaction.date}`);
+              console.error(`Type: ${transaction.type}`);
+              console.error(`Error Details: ${insertError.message}`);
+              console.error(`Full Error:`, insertError);
+              
+              // If it's a duplicate key error, provide specific guidance
+              if (insertError.message.includes('duplicate key') || insertError.message.includes('unique constraint')) {
+                console.error(`\n💡 DUPLICATE KEY GUIDANCE:`);
+                console.error(`- Transaction ID '${transaction.id}' already exists in database`);
+                console.error(`- This transaction was likely processed in a previous upload`);
+                console.error(`- Check if this CSV file was already uploaded before`);
+                console.error(`- Consider using a different Transaction ID or removing duplicate rows`);
+              }
+              
+              throw new Error(`Transaction insert failed at CSV row ${rowCount} (TransID: ${transaction.id}): ${insertError.message}`);
+            }
           }
           
           console.log(`\n================ TRANSACTION PROCESSING SUMMARY ================`);
