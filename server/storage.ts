@@ -2645,13 +2645,18 @@ export class DatabaseStorage implements IStorage {
                       }
                       
                       // Check if either name contains the other (ignoring case)
-                      return merchantName.includes(transactionName) || 
-                             transactionName.includes(merchantName) ||
-                             cleanMerchantName.includes(cleanTransactionName) ||
-                             cleanTransactionName.includes(cleanMerchantName) ||
-                             // Check for abbreviated names (like "LLC" to match with full versions)
-                             (merchantName.includes("llc") && transactionName.includes("llc")) ||
-                             (merchantName.includes("inc") && transactionName.includes("inc"));
+                      // Only match if there's substantial overlap, not just business suffixes
+                      const hasSubstantialOverlap = merchantName.includes(transactionName) || 
+                                                   transactionName.includes(merchantName) ||
+                                                   cleanMerchantName.includes(cleanTransactionName) ||
+                                                   cleanTransactionName.includes(cleanMerchantName);
+                      
+                      // Additional check: both names must have at least 4 characters overlap excluding business suffixes
+                      if (hasSubstantialOverlap && Math.min(cleanMerchantName.length, cleanTransactionName.length) >= 4) {
+                        return true;
+                      }
+                      
+                      return false;
                     });
                     
                     if (fuzzyMatchMerchants.length > 0) {
