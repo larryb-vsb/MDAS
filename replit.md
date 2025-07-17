@@ -13,11 +13,12 @@ Preferred communication style: Simple, everyday language.
 ### Processed Time Column Implementation (July 17, 2025)
 - **PROCESSED TIME TRACKING**: Added "Processed Time" column to uploads table between upload date and actions
 - **DATABASE SCHEMA FIXES**: Resolved schema synchronization issues that were preventing uploads page from loading
-- **VISUAL DISPLAY**: Column shows actual processing timestamps when files are reprocessed, "-" for files not yet reprocessed
-- **FRAMEWORK READY**: Infrastructure prepared to capture and display processing timestamps during file reprocessing operations
+- **TIMESTAMP POPULATION**: Fixed backend to actually set processedAt timestamp when files are processed
+- **COMPLETE IMPLEMENTATION**: All file processing paths now properly update processedAt field with current timestamp
+- **REAL PROCESSING TIMES**: Files processed after this fix will show actual processing timestamps instead of "-"
+- **LEGACY FILE HANDLING**: Previously processed files (before fix) will continue showing "-" as expected
 - **UPLOADS PAGE RESTORED**: Fixed critical database column errors that made uploads page completely non-functional
 - **BACKGROUND PROCESSING**: Maintained queued status display with spinning loader for files waiting for processing
-- **API INTEGRATION**: Backend returns processedAt field as null, ready for future timestamp population
 - **USER EXPERIENCE**: Clear visual indication of when files were last processed for better tracking and visibility
 
 ### Database Money Handling Assessment (July 17, 2025)
