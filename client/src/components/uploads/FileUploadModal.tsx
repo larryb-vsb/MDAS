@@ -272,14 +272,22 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         </Tabs>
         
         <div className="mt-4">
-          <h4 className="mb-2 text-sm font-medium text-gray-700">Selected Files</h4>
+          <h4 className="mb-2 text-sm font-medium text-gray-700">
+            Selected Files {files.length > 0 && `(${files.length})`}
+          </h4>
           
           {files.length === 0 ? (
             <div className="p-4 text-center border rounded-md border-gray-200">
               <p className="text-sm text-gray-500">No files selected</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div 
+              className={`space-y-2 ${files.length > 5 ? 'max-h-60 overflow-y-auto pr-2' : ''}`}
+              style={files.length > 5 ? { 
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#d1d5db #f3f4f6'
+              } : undefined}
+            >
               {files.map((file) => (
                 <div key={file.id} className="p-3 border rounded-md border-gray-200">
                   <div className="flex items-center justify-between">
