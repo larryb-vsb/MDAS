@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Auto-Increment Duplicate Transaction ID Resolution (July 17, 2025)
+- Implemented automatic duplicate Transaction ID resolution by incrementing by 0.1
+- System now automatically handles duplicate Transaction IDs during CSV processing
+- For numeric IDs: increments by 0.1 (e.g., 123456 becomes 123456.1, 123456.2, etc.)
+- For non-numeric IDs: appends suffix (e.g., ABC123 becomes ABC123_1, ABC123_2, etc.)
+- Enhanced error reporting shows when duplicates are detected and resolved
+- Prevents processing failures due to duplicate Transaction IDs from previous uploads
+- Allows all transaction records to be inserted successfully without manual intervention
+- Added comprehensive logging to track duplicate resolution attempts and final IDs
+
 ### ZIP Export Functionality Implementation (July 15, 2025)
 - Implemented true ZIP file export for "Export All (ZIP)" functionality
 - Added archiver library for proper ZIP file creation with compression
