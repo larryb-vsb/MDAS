@@ -1999,11 +1999,31 @@ export class DatabaseStorage implements IStorage {
             } catch (error) {
               console.error(`Error processing transaction file ${file.id}:`, error);
               
+              // Enhanced error message for database constraint violations
+              let errorMessage = error instanceof Error ? error.message : "Unknown error during processing";
+              
+              if (error.code === '23505' && error.constraint === 'transactions_pkey') {
+                const duplicateId = error.detail?.match(/Key \(id\)=\(([^)]+)\)/)?.[1];
+                errorMessage = `DUPLICATE TRANSACTION ID: ${duplicateId}\n\n` +
+                             `This Transaction ID already exists in the database.\n` +
+                             `This usually means:\n` +
+                             `• This CSV file was already uploaded before\n` +
+                             `• The file contains duplicate Transaction IDs\n` +
+                             `• Another file already contained this Transaction ID\n\n` +
+                             `To fix this:\n` +
+                             `• Remove duplicate rows from your CSV file\n` +
+                             `• Use unique Transaction IDs\n` +
+                             `• Check if this file was already processed\n\n` +
+                             `Technical Details:\n` +
+                             `Database Error: ${error.detail}\n` +
+                             `Error Code: ${error.code}`;
+              }
+              
               // Mark with error
               await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
-                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing" 
+                  processingErrors: errorMessage
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
@@ -2850,6 +2870,24 @@ export class DatabaseStorage implements IStorage {
           resolve();
         } catch (error) {
           console.error("Error processing transactions in database:", error);
+          
+          // Enhanced error reporting for database constraint violations
+          if (error.code === '23505' && error.constraint === 'transactions_pkey') {
+            const duplicateId = error.detail?.match(/Key \(id\)=\(([^)]+)\)/)?.[1];
+            console.error(`\n❌ ENHANCED ERROR DETAILS ❌`);
+            console.error(`Database Error Code: ${error.code}`);
+            console.error(`Constraint: ${error.constraint}`);
+            console.error(`Table: ${error.table}`);
+            console.error(`Duplicate Transaction ID: ${duplicateId}`);
+            console.error(`Error Detail: ${error.detail}`);
+            console.error(`\n💡 DUPLICATE KEY GUIDANCE:`);
+            console.error(`- Transaction ID '${duplicateId}' already exists in database`);
+            console.error(`- This transaction was likely processed in a previous upload`);
+            console.error(`- Check if this CSV file was already uploaded before`);
+            console.error(`- Remove duplicate rows or use different Transaction IDs`);
+            console.error(`- Look for Transaction ID '${duplicateId}' in your CSV file and remove/modify it`);
+          }
+          
           reject(error);
         }
       });
