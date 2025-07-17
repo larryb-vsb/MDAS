@@ -316,7 +316,8 @@ export class MemStorageFallback implements IStorage {
     merchantId?: string, 
     startDate?: string, 
     endDate?: string,
-    type?: string
+    type?: string,
+    transactionId?: string
   ): Promise<{
     transactions: any[];
     pagination: {
@@ -344,6 +345,12 @@ export class MemStorageFallback implements IStorage {
     if (endDate) {
       const endDateObj = new Date(endDate);
       filteredTransactions = filteredTransactions.filter(t => new Date(t.date) <= endDateObj);
+    }
+    
+    if (transactionId) {
+      filteredTransactions = filteredTransactions.filter(t => 
+        t.id.toLowerCase().includes(transactionId.toLowerCase())
+      );
     }
     
     const totalItems = filteredTransactions.length;

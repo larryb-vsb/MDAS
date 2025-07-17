@@ -102,7 +102,8 @@ export interface IStorage {
     merchantId?: string, 
     startDate?: string, 
     endDate?: string,
-    type?: string
+    type?: string,
+    transactionId?: string
   ): Promise<{
     transactions: any[];
     pagination: {
@@ -118,7 +119,8 @@ export interface IStorage {
     merchantId?: string, 
     startDate?: string, 
     endDate?: string,
-    type?: string
+    type?: string,
+    transactionId?: string
   ): Promise<string>;
   exportMerchantsToCSV(
     startDate?: string, 
@@ -906,7 +908,8 @@ export class DatabaseStorage implements IStorage {
     merchantId?: string,
     startDate?: string,
     endDate?: string,
-    type?: string
+    type?: string,
+    transactionId?: string
   ): Promise<{
     transactions: any[];
     pagination: {
@@ -946,6 +949,10 @@ export class DatabaseStorage implements IStorage {
       
       if (type) {
         conditions.push(eq(transactionsTable.type, type));
+      }
+      
+      if (transactionId) {
+        conditions.push(ilike(transactionsTable.id, `%${transactionId}%`));
       }
       
       // Apply conditions to query
@@ -1048,7 +1055,8 @@ export class DatabaseStorage implements IStorage {
     merchantId?: string,
     startDate?: string,
     endDate?: string,
-    type?: string
+    type?: string,
+    transactionId?: string
   ): Promise<string> {
     try {
       // Get all transactions matching the filters (without pagination)
@@ -1080,6 +1088,10 @@ export class DatabaseStorage implements IStorage {
       
       if (type) {
         conditions.push(eq(transactionsTable.type, type));
+      }
+      
+      if (transactionId) {
+        conditions.push(ilike(transactionsTable.id, `%${transactionId}%`));
       }
       
       // Apply conditions to query

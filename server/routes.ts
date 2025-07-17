@@ -1938,8 +1938,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
       const type = req.query.type as string | undefined;
+      const transactionId = req.query.transactionId as string | undefined;
       
-      console.log("Transaction query params:", { page, limit, merchantId, startDate, endDate, type });
+      console.log("Transaction query params:", { page, limit, merchantId, startDate, endDate, type, transactionId });
       
       const transactions = await storage.getTransactions(
         page,
@@ -1947,7 +1948,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchantId,
         startDate,
         endDate,
-        type
+        type,
+        transactionId
       );
       
       console.log(`Returning ${transactions.transactions.length} transactions, total: ${transactions.pagination.totalItems}`);
@@ -1968,12 +1970,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
       const type = req.query.type as string | undefined;
+      const transactionId = req.query.transactionId as string | undefined;
       
       const csvFilePath = await storage.exportTransactionsToCSV(
         merchantId,
         startDate,
         endDate,
-        type
+        type,
+        transactionId
       );
       
       // Set download headers

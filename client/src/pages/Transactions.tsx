@@ -186,6 +186,7 @@ export default function Transactions() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [transactionType, setTransactionType] = useState<string | undefined>(undefined);
+  const [transactionId, setTransactionId] = useState<string>("");
   
   // Text input state for dates
   const [startDateText, setStartDateText] = useState("");
@@ -293,7 +294,7 @@ export default function Transactions() {
   
   // Fetch transactions with filters
   const { data, isLoading, error, refetch } = useQuery<TransactionsResponse>({
-    queryKey: ['/api/transactions', page, limit, merchantId, startDate, endDate, transactionType],
+    queryKey: ['/api/transactions', page, limit, merchantId, startDate, endDate, transactionType, transactionId],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -303,6 +304,7 @@ export default function Transactions() {
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
       if (transactionType) params.append('type', transactionType);
+      if (transactionId.trim()) params.append('transactionId', transactionId.trim());
       
       console.log('Frontend query state:', { 
         page, limit, merchantId, transactionType,
@@ -383,6 +385,7 @@ export default function Transactions() {
     if (startDate) params.append('startDate', startDate.toISOString());
     if (endDate) params.append('endDate', endDate.toISOString());
     if (transactionType) params.append('type', transactionType);
+    if (transactionId.trim()) params.append('transactionId', transactionId.trim());
     
     // Open the URL in a new tab or trigger download
     window.open(`/api/transactions/export?${params.toString()}`, '_blank');
@@ -454,7 +457,7 @@ export default function Transactions() {
             <CardDescription>Filter transactions by merchant, date range, and type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Merchant filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Merchant</label>
@@ -479,6 +482,21 @@ export default function Transactions() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Transaction ID filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Transaction ID</label>
+                <Input
+                  type="text"
+                  value={transactionId}
+                  onChange={(e) => {
+                    setTransactionId(e.target.value);
+                    handleFilterChange();
+                  }}
+                  className="w-full"
+                  placeholder="Enter Transaction ID"
+                />
               </div>
               
               {/* Date range filter */}
@@ -613,6 +631,9 @@ export default function Transactions() {
                   setStartDate(undefined);
                   setEndDate(undefined);
                   setTransactionType(undefined);
+                  setTransactionId("");
+                  setStartDateText("");
+                  setEndDateText("");
                   handleFilterChange();
                 }}
               >
