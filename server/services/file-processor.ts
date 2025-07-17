@@ -162,7 +162,17 @@ class FileProcessorService {
    * Get all unprocessed files from the database
    */
   async fetchUnprocessedFiles(): Promise<any[]> {
-    const unprocessedFiles = await db.select()
+    // Use basic fields to avoid schema issues
+    const unprocessedFiles = await db.select({
+      id: uploadedFiles.id,
+      originalFilename: uploadedFiles.originalFilename,
+      storagePath: uploadedFiles.storagePath,
+      fileType: uploadedFiles.fileType,
+      uploadedAt: uploadedFiles.uploadedAt,
+      processed: uploadedFiles.processed,
+      processingErrors: uploadedFiles.processingErrors,
+      deleted: uploadedFiles.deleted
+    })
       .from(uploadedFiles)
       .where(
         and(

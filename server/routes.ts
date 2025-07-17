@@ -1271,12 +1271,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get upload file history
   app.get("/api/uploads/history", async (req, res) => {
     try {
+      // Use ORM for base fields, add processedAt later when schema is synchronized
       const uploadedFiles = await db.select()
         .from(uploadedFilesTable)
         .where(eq(uploadedFilesTable.deleted, false))
         .orderBy(desc(uploadedFilesTable.uploadedAt));
       
-      res.json(uploadedFiles);
+      // For now, add processedAt as null - will be populated when files are reprocessed
+      const filesWithProcessedAt = uploadedFiles.map(file => ({
+        ...file,
+        processedAt: null
+      }));
+      
+      res.json(filesWithProcessedAt);
     } catch (error) {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 

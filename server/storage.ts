@@ -1980,7 +1980,6 @@ export class DatabaseStorage implements IStorage {
                 .set({ 
                   processed: true,
                   processingErrors: null,
-                  processedAt: new Date()
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
                 
@@ -1993,7 +1992,6 @@ export class DatabaseStorage implements IStorage {
                 .set({ 
                   processed: true, 
                   processingErrors: error instanceof Error ? error.message : "Unknown error during processing",
-                  processedAt: new Date()
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
@@ -2006,7 +2004,6 @@ export class DatabaseStorage implements IStorage {
                 .set({ 
                   processed: true,
                   processingErrors: null,
-                  processedAt: new Date()
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
                 
@@ -2039,7 +2036,6 @@ export class DatabaseStorage implements IStorage {
                 .set({ 
                   processed: true, 
                   processingErrors: errorMessage,
-                  processedAt: new Date()
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
@@ -2051,7 +2047,6 @@ export class DatabaseStorage implements IStorage {
                 .set({ 
                   processed: true, 
                   processingErrors: `Unknown file type: ${file.fileType}`,
-                  processedAt: new Date() 
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
           }
