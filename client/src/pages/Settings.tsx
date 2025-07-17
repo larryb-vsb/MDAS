@@ -201,6 +201,11 @@ export default function Settings() {
           
           <Separator />
           
+          {/* Processing Status Widget - Top Priority */}
+          <div className="grid grid-cols-1 gap-6">
+            <ProcessingStatus />
+          </div>
+          
           {/* System Information Section */}
           <Card>
             <CardHeader>
@@ -493,10 +498,6 @@ export default function Settings() {
             </Card>
           </div>
           
-          
-          <div className="grid grid-cols-1 gap-6">
-            <ProcessingStatus />
-          </div>
           
           <div className="grid grid-cols-1 gap-6">
             <UserManagement />
