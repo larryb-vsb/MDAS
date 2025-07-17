@@ -2826,11 +2826,11 @@ export class DatabaseStorage implements IStorage {
                 await db.insert(transactionsTable).values(finalTransaction);
                 
                 // Update file processor statistics
-                const { fileProcessor } = await import("./services/file-processor");
+                const { fileProcessorService } = await import("./services/file-processor");
                 if (duplicateInfo) {
-                  fileProcessor.updateProcessingStats(finalTransaction.id, duplicateInfo);
+                  fileProcessorService.updateProcessingStats(finalTransaction.id, duplicateInfo);
                 } else {
-                  fileProcessor.updateProcessingStats(finalTransaction.id);
+                  fileProcessorService.updateProcessingStats(finalTransaction.id);
                 }
                 
                 if (insertAttempts > 0) {
@@ -2902,8 +2902,8 @@ export class DatabaseStorage implements IStorage {
                           duplicateInfo = { increments: 0, wasSkipped: true };
                           
                           // Update file processor statistics for skipped transaction
-                          const { fileProcessor } = await import("./services/file-processor");
-                          fileProcessor.updateProcessingStats(originalId, duplicateInfo);
+                          const { fileProcessorService } = await import("./services/file-processor");
+                          fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
                           
                           break; // Exit the retry loop without counting as inserted
                         }
