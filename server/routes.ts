@@ -1271,24 +1271,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get upload file history
   app.get("/api/uploads/history", async (req, res) => {
     try {
-      // Use raw SQL to get all uploaded files with processing status including processed_at
-      const result = await db.execute(sql`
-        SELECT 
-          id, 
-          original_filename as "originalFilename", 
-          storage_path as "storagePath", 
-          file_type as "fileType", 
-          uploaded_at as "uploadedAt", 
-          processed, 
-          processing_errors as "processingErrors", 
-          processed_at as "processedAt", 
-          deleted 
-        FROM uploaded_files 
-        WHERE deleted = false 
-        ORDER BY uploaded_at DESC
-      `);
+      const uploadedFiles = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.deleted, false))
+        .orderBy(desc(uploadedFilesTable.uploadedAt));
       
-      res.json(result.rows);
+      res.json(uploadedFiles);
     } catch (error) {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 

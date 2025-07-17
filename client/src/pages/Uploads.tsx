@@ -86,6 +86,7 @@ interface UploadedFile {
   uploadedAt: string;
   processed: boolean;
   processingErrors: string | null;
+  processedAt: string | null;
   deleted?: boolean;
 }
 
