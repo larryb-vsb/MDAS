@@ -1173,6 +1173,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Pause file processor
+  app.post("/api/file-processor/pause", async (req, res) => {
+    try {
+      fileProcessorService.pause();
+      res.json({ success: true, message: "File processor paused" });
+    } catch (error) {
+      console.error("Error pausing file processor:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to pause processor"
+      });
+    }
+  });
+
+  // Resume file processor
+  app.post("/api/file-processor/resume", async (req, res) => {
+    try {
+      fileProcessorService.resume();
+      res.json({ success: true, message: "File processor resumed" });
+    } catch (error) {
+      console.error("Error resuming file processor:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to resume processor"
+      });
+    }
+  });
   
   // Force processing of unprocessed files
   app.post("/api/file-processor/force-process", async (req, res) => {

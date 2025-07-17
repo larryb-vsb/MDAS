@@ -81,64 +81,66 @@ export default function FileProcessingHistory() {
         ) : !files || files.length === 0 ? (
           <div className="py-6 text-center text-gray-500">No files have been uploaded yet</div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Uploaded</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {files?.map((file: ProcessedFile) => (
-                <TableRow key={file.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} />
-                      <span className="truncate max-w-[200px]">
-                        {file.originalFilename}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatFileType(file.fileType)}</TableCell>
-                  <TableCell>{formatFileDate(file.uploadedAt)}</TableCell>
-                  <TableCell>
-                    {file.processed ? (
-                      file.processingErrors ? (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertCircle size={12} />
-                          Error
-                        </Badge>
-                      ) : (
-                        <Badge variant="default" className="flex items-center gap-1 bg-green-500">
-                          <Check size={12} />
-                          Processed
-                        </Badge>
-                      )
-                    ) : (
-                      <Badge variant="outline" className="flex items-center gap-1">
-                        <AlertTriangle size={12} />
-                        Pending
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {file.processingErrors && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewError(file)}
-                      >
-                        View Error
-                      </Button>
-                    )}
-                  </TableCell>
+          <div className="overflow-auto max-h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>File Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Uploaded</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {files?.map((file: ProcessedFile) => (
+                  <TableRow key={file.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText size={16} />
+                        <span className="truncate max-w-[200px]">
+                          {file.originalFilename}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatFileType(file.fileType)}</TableCell>
+                    <TableCell>{formatFileDate(file.uploadedAt)}</TableCell>
+                    <TableCell>
+                      {file.processed ? (
+                        file.processingErrors ? (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertCircle size={12} />
+                            Error
+                          </Badge>
+                        ) : (
+                          <Badge variant="default" className="flex items-center gap-1 bg-green-500">
+                            <Check size={12} />
+                            Processed
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          Pending
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {file.processingErrors && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewError(file)}
+                        >
+                          View Error
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
         <Dialog
