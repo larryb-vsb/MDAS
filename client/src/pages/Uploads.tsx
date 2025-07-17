@@ -282,8 +282,8 @@ export default function Uploads() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "File has been reprocessed successfully",
+        title: "File Queued",
+        description: "File has been queued for reprocessing and will be processed in the background",
       });
       refetch();
     },
@@ -478,8 +478,8 @@ export default function Uploads() {
       
       // Show result toast
       toast({
-        title: "Bulk Reprocess Complete",
-        description: `Successfully reprocessed ${successCount} files. ${errorCount > 0 ? `Failed to reprocess ${errorCount} files.` : ''}`,
+        title: "Files Queued for Reprocessing",
+        description: `Successfully queued ${successCount} files for background processing. ${errorCount > 0 ? `Failed to queue ${errorCount} files.` : ''}`,
         variant: successCount > 0 ? "default" : "destructive"
       });
       
@@ -714,9 +714,9 @@ export default function Uploads() {
                           </Badge>
                         )
                       ) : (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Unprocessed
+                        <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-800 hover:bg-blue-200">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Queued
                         </Badge>
                       )}
                     </TableCell>

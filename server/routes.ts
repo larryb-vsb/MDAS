@@ -1394,26 +1394,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Process based on file type
-      if (fileInfo.fileType === "merchant") {
-        await storage.processMerchantFile(fileInfo.storagePath);
-      } else if (fileInfo.fileType === "transaction") {
-        await storage.processTransactionFile(fileInfo.storagePath);
-      } else {
-        return res.status(400).json({ error: "Unsupported file type" });
-      }
-      
-      // Mark file as processed successfully
+      // Mark file as queued for reprocessing (not processed, no errors)
       await db.update(uploadedFilesTable)
         .set({ 
-          processed: true,
+          processed: false,
           processingErrors: null 
         })
         .where(eq(uploadedFilesTable.id, fileId));
       
-      res.json({ success: true });
+      // Respond immediately that the file is queued
+      res.json({ 
+        success: true, 
+        message: "File queued for reprocessing. Processing will happen in background.",
+        status: "queued"
+      });
+      
+      // Trigger background processing (but don't wait for it)
+      fileProcessorService.forceProcessing()
+        .catch(err => console.error("Error triggering file processing:", err));
+        
     } catch (error) {
-      console.error("Error reprocessing file:", error);
+      console.error("Error queuing file for reprocessing:", error);
       
       // Update file with the error message
       if (req.params.id) {
@@ -1426,7 +1427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to reprocess file"
+        error: error instanceof Error ? error.message : "Failed to queue file for reprocessing"
       });
     }
   });

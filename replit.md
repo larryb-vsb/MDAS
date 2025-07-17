@@ -10,15 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Enhanced Processing Status Widget with Real-Time KPIs (July 17, 2025)
-- **COMPREHENSIVE MONITORING**: Added Processing Status widget to Settings page with real-time updates every 2 seconds
-- **ENHANCED KPI METRICS**: Shows processing speed (transactions/second), total processed count, duplicate resolution rate, and estimated completion time
-- **PAUSE/RESUME CONTROLS**: Implemented file processor pause/resume functionality with API endpoints and UI controls
-- **INTELLIGENT DISPLAY**: Different KPI sets for active processing vs idle states - shows performance metrics during processing and session summaries when idle
-- **SCROLL OPTIMIZATION**: Added max-height scroll functionality to File Processing History component to prevent infinite scrolling
-- **PERFORMANCE TRACKING**: Real-time calculation of processing efficiency, duplicate resolution statistics, and completion estimates
-- **USER PREFERENCE**: Widget integrated into Settings page layout as requested rather than separate page
-- **LAYOUT OPTIMIZATION**: Moved Processing Status widget to top of Settings page for improved visibility and priority access
+### Background File Processing with Queued Status (July 17, 2025)
+- **QUEUED STATUS DISPLAY**: Updated file status to show "Queued" with spinning loader when files are waiting for background processing
+- **BACKGROUND PROCESSING**: Modified reprocess endpoint to mark files as queued and trigger background processing instead of blocking requests
+- **IMPROVED USER EXPERIENCE**: Files are immediately marked as queued when reprocessing is requested, providing instant feedback
+- **BULK REPROCESS FUNCTIONALITY**: Added "Reprocess Selected" button to uploads screen for bulk file reprocessing operations
+- **REAL-TIME KPI FIXES**: Fixed import issues between fileProcessor and fileProcessorService for proper statistics tracking
+- **ENHANCED MESSAGING**: Updated success messages to clearly indicate files are queued for background processing
+- **VISUAL FEEDBACK**: Queued files display with blue badge and spinning loader to distinguish from unprocessed files
+- **NON-BLOCKING OPERATIONS**: Processing happens in background without blocking user interface or requiring page refresh
 
 ### Database Money Handling Assessment (July 17, 2025)
 - **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues
