@@ -2638,22 +2638,19 @@ export class DatabaseStorage implements IStorage {
                         .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
                         .trim();
                       
-                      // First check if core names (without business types) match exactly
-                      if (cleanMerchantName === cleanTransactionName) {
+                      // Only match if core names (without business types) match exactly
+                      if (cleanMerchantName === cleanTransactionName && cleanMerchantName.length >= 4) {
                         console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
                         return true;
                       }
                       
-                      // Check if either name contains the other (ignoring case)
-                      // Only match if there's substantial overlap, not just business suffixes
-                      const hasSubstantialOverlap = merchantName.includes(transactionName) || 
-                                                   transactionName.includes(merchantName) ||
-                                                   cleanMerchantName.includes(cleanTransactionName) ||
-                                                   cleanTransactionName.includes(cleanMerchantName);
-                      
-                      // Additional check: both names must have at least 4 characters overlap excluding business suffixes
-                      if (hasSubstantialOverlap && Math.min(cleanMerchantName.length, cleanTransactionName.length) >= 4) {
-                        return true;
+                      // Only check for substantial overlap in the cleaned names (no business suffixes)
+                      // Both cleaned names must be at least 4 characters and one must contain the other
+                      if (cleanMerchantName.length >= 4 && cleanTransactionName.length >= 4) {
+                        if (cleanMerchantName.includes(cleanTransactionName) || cleanTransactionName.includes(cleanMerchantName)) {
+                          console.log(`[FUZZY MATCH] Found substantial overlap: "${cleanMerchantName}" ~ "${cleanTransactionName}"`);
+                          return true;
+                        }
                       }
                       
                       return false;
