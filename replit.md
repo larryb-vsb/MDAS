@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Merchant Name Matching Algorithm Optimization (July 17, 2025)
+- **RESOLVED**: Fixed false fuzzy matching that incorrectly matched unrelated businesses based on business suffixes
+- **ISSUE**: "SOODAKS INC" was incorrectly matching to "Alternate Health Collective Association Inc" just because both contained "inc"
+- **SOLUTION**: Completely disabled aggressive fuzzy matching that matched on business entity types (LLC, INC, etc.)
+- **NEW LOGIC**: Only allows exact core business name matches after removing business suffixes
+- **RESULT**: New merchants with unique names now properly create with "Pending" status instead of false matches
+- **CONFIRMED WORKING**: SOODAKS INC merchant successfully created with ID 43132391 and "Pending" status
+- Prevents false associations between completely different businesses
+- Maintains exact name matching and core business name matching (e.g., "McDonald's LLC" matches "McDonald's Inc")
+
 ### Auto-Increment Duplicate Transaction ID Resolution (July 17, 2025)
 - Implemented automatic duplicate Transaction ID resolution by incrementing by 0.1
 - System now automatically handles duplicate Transaction IDs during CSV processing
