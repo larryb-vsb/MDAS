@@ -18,6 +18,13 @@ interface ProcessingStatus {
     averageIncrements: number;
     skipCount: number;
   };
+  processingStats?: {
+    transactionsProcessed: number;
+    processingSpeed: number;
+    estimatedCompletion: Date | null;
+    startTime: Date | null;
+    duplicateResolutionRate: number;
+  };
 }
 
 /**
@@ -63,6 +70,14 @@ class FileProcessorService {
    * Get the current processing status
    */
   getProcessingStatus(): ProcessingStatus {
+    // Calculate processing speed
+    const processingSpeed = this.calculateProcessingSpeed();
+    
+    // Calculate duplicate resolution rate
+    const duplicateResolutionRate = this.duplicateStats.totalDuplicates > 0 
+      ? ((this.duplicateStats.totalDuplicates - this.duplicateStats.skipCount) / this.duplicateStats.totalDuplicates) * 100
+      : 0;
+
     return {
       isRunning: this.isRunning,
       nextScheduledRun: this.processingJob?.nextInvocation() || null,
@@ -72,8 +87,27 @@ class FileProcessorService {
       processedFileCount: this.processedFileCount,
       isPaused: this.isPaused,
       currentTransactionRange: this.currentTransactionRange,
-      duplicateResolutionStats: this.duplicateStats
+      duplicateResolutionStats: this.duplicateStats,
+      processingStats: {
+        transactionsProcessed: this.processingStats.transactionsProcessed,
+        processingSpeed,
+        estimatedCompletion: this.processingStats.estimatedCompletion,
+        startTime: this.processingStats.startTime,
+        duplicateResolutionRate
+      }
     };
+  }
+
+  /**
+   * Calculate current processing speed (transactions per second)
+   */
+  private calculateProcessingSpeed(): number {
+    if (!this.processingStats.startTime || this.processingStats.transactionsProcessed === 0) {
+      return 0;
+    }
+    
+    const elapsed = (Date.now() - this.processingStats.startTime.getTime()) / 1000; // seconds
+    return this.processingStats.transactionsProcessed / elapsed;
   }
   
   /**

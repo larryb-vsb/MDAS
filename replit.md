@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Enhanced Processing Status Widget with Real-Time KPIs (July 17, 2025)
+- **COMPREHENSIVE MONITORING**: Added Processing Status widget to Settings page with real-time updates every 2 seconds
+- **ENHANCED KPI METRICS**: Shows processing speed (transactions/second), total processed count, duplicate resolution rate, and estimated completion time
+- **PAUSE/RESUME CONTROLS**: Implemented file processor pause/resume functionality with API endpoints and UI controls
+- **INTELLIGENT DISPLAY**: Different KPI sets for active processing vs idle states - shows performance metrics during processing and session summaries when idle
+- **SCROLL OPTIMIZATION**: Added max-height scroll functionality to File Processing History component to prevent infinite scrolling
+- **PERFORMANCE TRACKING**: Real-time calculation of processing efficiency, duplicate resolution statistics, and completion estimates
+- **USER PREFERENCE**: Widget integrated into Settings page layout as requested rather than separate page
+
 ### Database Money Handling Assessment (July 17, 2025)
 - **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues
 - **PRECISION SPECIFICATIONS**: 10 total digits with 2 decimal places supports transactions up to $99,999,999.99

@@ -22,6 +22,13 @@ interface ProcessingStatus {
     averageIncrements: number;
     skipCount: number;
   };
+  processingStats?: {
+    transactionsProcessed: number;
+    processingSpeed: number;
+    estimatedCompletion: string | null;
+    startTime: string | null;
+    duplicateResolutionRate: number;
+  };
 }
 
 export default function ProcessingStatus() {
@@ -168,11 +175,57 @@ export default function ProcessingStatus() {
             </div>
           )}
 
-          {/* Duplicate Resolution Stats */}
-          {status.duplicateResolutionStats && status.duplicateResolutionStats.totalDuplicates > 0 && (
+          {/* Enhanced Processing KPIs */}
+          {status.isRunning && (
+            <div className="space-y-4">
+              <Separator />
+              <div className="text-sm font-medium">Processing Performance KPIs</div>
+              
+              {/* Processing Speed & Efficiency */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-blue-600">
+                    {status.processingStats?.processingSpeed?.toFixed(1) || 'N/A'}
+                  </div>
+                  <div className="text-muted-foreground">Txns/sec</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-purple-600">
+                    {status.processingStats?.transactionsProcessed?.toLocaleString() || '0'}
+                  </div>
+                  <div className="text-muted-foreground">Processed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-orange-600">
+                    {status.duplicateResolutionStats?.totalDuplicates || 0}
+                  </div>
+                  <div className="text-muted-foreground">Duplicates</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-green-600">
+                    {status.processingStats?.duplicateResolutionRate?.toFixed(1) || 'N/A'}%
+                  </div>
+                  <div className="text-muted-foreground">Resolution Rate</div>
+                </div>
+              </div>
+
+              {/* Estimated Completion */}
+              {status.processingStats?.estimatedCompletion && (
+                <div className="text-center text-sm">
+                  <div className="text-muted-foreground">Estimated Completion</div>
+                  <div className="font-medium">
+                    {new Date(status.processingStats.estimatedCompletion).toLocaleString()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Duplicate Resolution Stats (when not processing) */}
+          {!status.isRunning && status.duplicateResolutionStats && status.duplicateResolutionStats.totalDuplicates > 0 && (
             <div className="space-y-3">
               <Separator />
-              <div className="text-sm font-medium">Duplicate Resolution Performance</div>
+              <div className="text-sm font-medium">Last Session Performance</div>
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div className="text-center">
                   <div className="text-lg font-semibold text-orange-600">
