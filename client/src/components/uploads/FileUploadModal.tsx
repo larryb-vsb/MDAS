@@ -24,7 +24,7 @@ interface FileUploadModalProps {
 
 export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"merchant" | "transaction">("merchant");
+  const [activeTab, setActiveTab] = useState<"merchant" | "transaction">("transaction");
   const [files, setFiles] = useState<UploadedFile[]>([]);
 
   const handleFilesSelected = (acceptedFiles: File[]) => {
@@ -264,7 +264,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         
         <FileUploader onFilesSelected={handleFilesSelected} />
         
-        <Tabs defaultValue="merchant" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction")}>
+        <Tabs defaultValue="transaction" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction")}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="merchant">Merchant Demographics</TabsTrigger>
             <TabsTrigger value="transaction">Transactions</TabsTrigger>
