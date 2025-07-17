@@ -2819,10 +2819,19 @@ export class DatabaseStorage implements IStorage {
             let finalTransaction = { ...transaction };
             let insertAttempts = 0;
             let originalId = transaction.id;
+            let duplicateInfo: { increments: number; wasSkipped: boolean } | undefined;
             
             while (insertAttempts < 100) { // Prevent infinite loop
               try {
                 await db.insert(transactionsTable).values(finalTransaction);
+                
+                // Update file processor statistics
+                const { fileProcessor } = await import("./services/file-processor");
+                if (duplicateInfo) {
+                  fileProcessor.updateProcessingStats(finalTransaction.id, duplicateInfo);
+                } else {
+                  fileProcessor.updateProcessingStats(finalTransaction.id);
+                }
                 
                 if (insertAttempts > 0) {
                   console.log(`[DUPLICATE RESOLVED] Original ID ${originalId} incremented to ${finalTransaction.id} after ${insertAttempts} attempts`);
@@ -2888,12 +2897,23 @@ export class DatabaseStorage implements IStorage {
                         } else {
                           // Same values, skip this transaction
                           console.log(`[SKIP] Transaction ${originalId} with same date and values already exists. Skipping...`);
+                          
+                          // Set duplicate info for statistics (skipped)
+                          duplicateInfo = { increments: 0, wasSkipped: true };
+                          
+                          // Update file processor statistics for skipped transaction
+                          const { fileProcessor } = await import("./services/file-processor");
+                          fileProcessor.updateProcessingStats(originalId, duplicateInfo);
+                          
                           break; // Exit the retry loop without counting as inserted
                         }
                       } else {
                         // Different date - increment the ID as before
                         console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
                         insertAttempts++;
+                        
+                        // Set duplicate info for statistics
+                        duplicateInfo = { increments: insertAttempts, wasSkipped: false };
                         
                         const numericId = parseFloat(originalId);
                         if (!isNaN(numericId)) {

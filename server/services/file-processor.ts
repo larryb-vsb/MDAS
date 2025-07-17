@@ -111,6 +111,44 @@ class FileProcessorService {
   }
   
   /**
+   * Update processing statistics for real-time KPI tracking
+   */
+  updateProcessingStats(transactionId: string, duplicateInfo?: { increments: number; wasSkipped: boolean }): void {
+    // Initialize start time if not set
+    if (!this.processingStats.startTime) {
+      this.processingStats.startTime = new Date();
+    }
+    
+    // Update basic stats
+    this.processingStats.transactionsProcessed++;
+    this.processingStats.currentTransactionId = transactionId;
+    
+    // Handle duplicate statistics
+    if (duplicateInfo) {
+      this.duplicateStats.totalDuplicates++;
+      if (duplicateInfo.wasSkipped) {
+        this.duplicateStats.skipCount++;
+      }
+      if (duplicateInfo.increments > 0) {
+        // Update average increments calculation
+        const totalIncrements = (this.duplicateStats.averageIncrements * (this.duplicateStats.totalDuplicates - 1)) + duplicateInfo.increments;
+        this.duplicateStats.averageIncrements = totalIncrements / this.duplicateStats.totalDuplicates;
+      }
+    }
+    
+    // Update estimated completion time based on current processing speed
+    const processingSpeed = this.calculateProcessingSpeed();
+    if (processingSpeed > 0 && this.queuedFiles.length > 0) {
+      // Rough estimate based on average transactions per file
+      const estimatedRemainingTransactions = this.queuedFiles.length * 100; // Assume 100 transactions per file
+      const estimatedSecondsRemaining = estimatedRemainingTransactions / processingSpeed;
+      this.processingStats.estimatedCompletion = new Date(Date.now() + (estimatedSecondsRemaining * 1000));
+    } else {
+      this.processingStats.estimatedCompletion = null;
+    }
+  }
+  
+  /**
    * Force immediate processing of unprocessed files
    */
   async forceProcessing(): Promise<ProcessingStatus> {
