@@ -2839,17 +2839,87 @@ export class DatabaseStorage implements IStorage {
               } catch (insertError) {
                 // Check if it's a duplicate key error
                 if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
-                  insertAttempts++;
-                  // Increment the transaction ID by 0.1
-                  const numericId = parseFloat(originalId);
-                  if (!isNaN(numericId)) {
-                    const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
-                    finalTransaction.id = incrementedId;
-                    console.log(`[DUPLICATE DETECTED] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
-                  } else {
-                    // For non-numeric IDs, append increment suffix
-                    finalTransaction.id = `${originalId}_${insertAttempts}`;
-                    console.log(`[DUPLICATE DETECTED] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                  // First, check if the existing transaction has the same date
+                  console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
+                  
+                  try {
+                    const existingTransaction = await db.select()
+                      .from(transactionsTable)
+                      .where(eq(transactionsTable.id, originalId))
+                      .limit(1);
+                    
+                    if (existingTransaction.length > 0) {
+                      const existing = existingTransaction[0];
+                      const existingDate = new Date(existing.date);
+                      const newDate = new Date(finalTransaction.date);
+                      
+                      // Compare dates (only date part, not time)
+                      const existingDateStr = existingDate.toISOString().split('T')[0];
+                      const newDateStr = newDate.toISOString().split('T')[0];
+                      
+                      if (existingDateStr === newDateStr) {
+                        // Same date - check if we should update values or skip
+                        console.log(`[DATE MATCH] Transaction ${originalId} has same date (${existingDateStr}). Checking for updates...`);
+                        
+                        // Check if amounts are different
+                        const existingAmount = parseFloat(existing.amount.toString());
+                        const newAmount = parseFloat(finalTransaction.amount.toString());
+                        
+                        if (Math.abs(existingAmount - newAmount) > 0.01 || existing.type !== finalTransaction.type) {
+                          // Values are different, update the existing transaction
+                          console.log(`[UPDATE] Updating transaction ${originalId}: Amount ${existingAmount} -> ${newAmount}, Type ${existing.type} -> ${finalTransaction.type}`);
+                          
+                          await db.update(transactionsTable)
+                            .set({
+                              amount: finalTransaction.amount,
+                              type: finalTransaction.type,
+                              merchantId: finalTransaction.merchantId
+                            })
+                            .where(eq(transactionsTable.id, originalId));
+                          
+                          console.log(`[UPDATE SUCCESS] Transaction ${originalId} updated successfully`);
+                          insertedCount++; // Count as processed
+                          insertedTransactionsList.push({
+                            id: originalId,
+                            merchantId: finalTransaction.merchantId,
+                            amount: finalTransaction.amount
+                          });
+                          break; // Exit the retry loop
+                        } else {
+                          // Same values, skip this transaction
+                          console.log(`[SKIP] Transaction ${originalId} with same date and values already exists. Skipping...`);
+                          break; // Exit the retry loop without counting as inserted
+                        }
+                      } else {
+                        // Different date - increment the ID as before
+                        console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
+                        insertAttempts++;
+                        
+                        const numericId = parseFloat(originalId);
+                        if (!isNaN(numericId)) {
+                          const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
+                          finalTransaction.id = incrementedId;
+                          console.log(`[DUPLICATE RESOLVED] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
+                        } else {
+                          // For non-numeric IDs, append increment suffix
+                          finalTransaction.id = `${originalId}_${insertAttempts}`;
+                          console.log(`[DUPLICATE RESOLVED] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                        }
+                      }
+                    }
+                  } catch (checkError) {
+                    console.error(`Error checking existing transaction: ${checkError.message}`);
+                    // Fall back to original incrementation logic
+                    insertAttempts++;
+                    const numericId = parseFloat(originalId);
+                    if (!isNaN(numericId)) {
+                      const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
+                      finalTransaction.id = incrementedId;
+                      console.log(`[FALLBACK] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
+                    } else {
+                      finalTransaction.id = `${originalId}_${insertAttempts}`;
+                      console.log(`[FALLBACK] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                    }
                   }
                 } else {
                   // Non-duplicate error, log and rethrow

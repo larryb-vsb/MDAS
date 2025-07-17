@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Smart Duplicate Transaction Handling with Date Matching (July 17, 2025)
+- **ENHANCED LOGIC**: Modified upload logic to check transaction dates when duplicates are found
+- **DATE MATCHING**: If Transaction ID and date match exactly, system compares values and either updates or skips
+- **VALUE COMPARISON**: When dates match, compares amounts and transaction types for differences
+- **UPDATE LOGIC**: Automatically updates existing transactions if values differ (amount or type)
+- **SKIP LOGIC**: Skips duplicate transactions with identical date, amount, and type to avoid redundancy
+- **FALLBACK**: Still creates incremented IDs (e.g., .1, .2) only when dates differ but Transaction ID is same
+- **SMART HANDLING**: Prevents unnecessary duplicate creation while allowing legitimate same-ID different-date transactions
+- **COMPREHENSIVE LOGGING**: Enhanced logging shows date matches, updates, skips, and incrementation decisions
+
 ### Transaction ID Quick Filter Implementation (July 17, 2025)
 - **COMPLETED**: Added Transaction ID quick filter to Transactions page for improved search capabilities
 - **FRONTEND**: Updated filter layout to 4-column grid with new Transaction ID input field
