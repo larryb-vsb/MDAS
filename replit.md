@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 - Prevents processing failures due to duplicate Transaction IDs from previous uploads
 - Allows all transaction records to be inserted successfully without manual intervention
 - Added comprehensive logging to track duplicate resolution attempts and final IDs
+- Updated auto-created merchant status to "Pending" for all new merchants created during transaction imports
 
 ### ZIP Export Functionality Implementation (July 15, 2025)
 - Implemented true ZIP file export for "Export All (ZIP)" functionality
