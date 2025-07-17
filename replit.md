@@ -10,6 +10,17 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Transaction ID Quick Filter Implementation (July 17, 2025)
+- **COMPLETED**: Added Transaction ID quick filter to Transactions page for improved search capabilities
+- **FRONTEND**: Updated filter layout to 4-column grid with new Transaction ID input field
+- **BACKEND**: Enhanced API endpoints (/api/transactions and /api/transactions/export) to support transactionId parameter
+- **DATABASE**: Updated storage interface and implementations with case-insensitive partial matching using ILIKE
+- **REAL-TIME SEARCH**: Filter works as you type with instant results and proper pagination
+- **EXPORT INTEGRATION**: Transaction ID filter included in CSV export functionality
+- **FALLBACK SUPPORT**: Updated both database and in-memory storage implementations
+- **CONFIRMED WORKING**: Successfully filters transactions including auto-incremented duplicate IDs (e.g., "71127230000358.2")
+- Supports partial Transaction ID searches for easy lookup and verification
+
 ### Merchant Name Matching Algorithm Optimization (July 17, 2025)
 - **RESOLVED**: Fixed false fuzzy matching that incorrectly matched unrelated businesses based on business suffixes
 - **ISSUE**: "SOODAKS INC" was incorrectly matching to "Alternate Health Collective Association Inc" just because both contained "inc"
