@@ -675,6 +675,7 @@ export default function Uploads() {
                   <TableHead>File Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Upload Date</TableHead>
+                  <TableHead>Processed Time</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -727,6 +728,20 @@ export default function Uploads() {
                       <div className="text-xs text-muted-foreground">
                         {formatFullDate(file.uploadedAt)}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {file.processedAt ? (
+                        <div>
+                          <div className="font-medium">
+                            {formatFileDate(file.processedAt)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatFullDate(file.processedAt)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
