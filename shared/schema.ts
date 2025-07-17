@@ -44,7 +44,6 @@ export const uploadedFiles = pgTable("uploaded_files", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
   processingErrors: text("processing_errors"),
-  processedAt: timestamp("processed_at"),
   deleted: boolean("deleted").default(false).notNull()
 });
 

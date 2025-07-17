@@ -10,15 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Background File Processing with Queued Status (July 17, 2025)
-- **QUEUED STATUS DISPLAY**: Updated file status to show "Queued" with spinning loader when files are waiting for background processing
-- **BACKGROUND PROCESSING**: Modified reprocess endpoint to mark files as queued and trigger background processing instead of blocking requests
-- **IMPROVED USER EXPERIENCE**: Files are immediately marked as queued when reprocessing is requested, providing instant feedback
-- **BULK REPROCESS FUNCTIONALITY**: Added "Reprocess Selected" button to uploads screen for bulk file reprocessing operations
-- **REAL-TIME KPI FIXES**: Fixed import issues between fileProcessor and fileProcessorService for proper statistics tracking
-- **ENHANCED MESSAGING**: Updated success messages to clearly indicate files are queued for background processing
-- **VISUAL FEEDBACK**: Queued files display with blue badge and spinning loader to distinguish from unprocessed files
-- **NON-BLOCKING OPERATIONS**: Processing happens in background without blocking user interface or requiring page refresh
+### Processed Time Column Implementation (July 17, 2025)
+- **PROCESSED TIME TRACKING**: Added "Processed Time" column to uploads table between upload date and actions
+- **DATABASE SCHEMA FIXES**: Resolved schema synchronization issues that were preventing uploads page from loading
+- **VISUAL DISPLAY**: Column shows actual processing timestamps when files are reprocessed, "-" for files not yet reprocessed
+- **FRAMEWORK READY**: Infrastructure prepared to capture and display processing timestamps during file reprocessing operations
+- **UPLOADS PAGE RESTORED**: Fixed critical database column errors that made uploads page completely non-functional
+- **BACKGROUND PROCESSING**: Maintained queued status display with spinning loader for files waiting for processing
+- **API INTEGRATION**: Backend returns processedAt field as null, ready for future timestamp population
+- **USER EXPERIENCE**: Clear visual indication of when files were last processed for better tracking and visibility
 
 ### Database Money Handling Assessment (July 17, 2025)
 - **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues
