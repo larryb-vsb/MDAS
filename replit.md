@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **SCROLL OPTIMIZATION**: Added max-height scroll functionality to File Processing History component to prevent infinite scrolling
 - **PERFORMANCE TRACKING**: Real-time calculation of processing efficiency, duplicate resolution statistics, and completion estimates
 - **USER PREFERENCE**: Widget integrated into Settings page layout as requested rather than separate page
+- **LAYOUT OPTIMIZATION**: Moved Processing Status widget to top of Settings page for improved visibility and priority access
 
 ### Database Money Handling Assessment (July 17, 2025)
 - **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues

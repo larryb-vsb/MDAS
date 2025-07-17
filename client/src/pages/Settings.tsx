@@ -495,11 +495,11 @@ export default function Settings() {
           
           
           <div className="grid grid-cols-1 gap-6">
-            <UserManagement />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6">
             <ProcessingStatus />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <UserManagement />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
