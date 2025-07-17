@@ -2709,7 +2709,7 @@ export class DatabaseStorage implements IStorage {
                   id: transaction.merchantId,
                   name: merchantNameFromTransaction,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
-                  status: "Active",
+                  status: "Pending",
                   address: templateMerchant?.address || "123 Business St",
                   city: templateMerchant?.city || "Chicago",
                   state: templateMerchant?.state || "IL",
@@ -2744,7 +2744,7 @@ export class DatabaseStorage implements IStorage {
                   id: transaction.merchantId,
                   name: merchantName,
                   clientMID: `CM-${transaction.merchantId}`, // Generate a client MID based on merchant ID
-                  status: "Active",
+                  status: "Pending",
                   address: templateMerchant.address || "123 Business St",
                   city: templateMerchant.city,
                   state: templateMerchant.state,
