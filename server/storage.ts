@@ -478,18 +478,17 @@ export class DatabaseStorage implements IStorage {
       
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
-        const searchTerm = search.trim().toLowerCase();
+        const searchTerm = `%${search.trim().toLowerCase()}%`;
         console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}" (forced lowercase)`);
         
-        // Force both sides to lowercase for guaranteed case-insensitive matching
-        const nameCondition = sql`LOWER(${merchantsTable.name}) LIKE ${`%${searchTerm}%`}`;
-        const idCondition = sql`LOWER(${merchantsTable.id}) LIKE ${`%${searchTerm}%`}`;
-        const midCondition = sql`LOWER(${merchantsTable.clientMID}) LIKE ${`%${searchTerm}%`}`;
-        
-        // Create OR condition with raw SQL
-        const searchCondition = sql`(${nameCondition} OR ${idCondition} OR ${midCondition})`;
+        // Use a single SQL condition that works correctly
+        const searchCondition = sql`(
+          LOWER(${merchantsTable.name}) LIKE ${searchTerm} OR 
+          LOWER(${merchantsTable.id}) LIKE ${searchTerm} OR 
+          LOWER(${merchantsTable.clientMID}) LIKE ${searchTerm}
+        )`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added lowercase OR search condition`);
+        console.log(`[SEARCH DEBUG] Added single SQL OR search condition`);
       }
       
       // Apply all conditions to both queries
@@ -506,13 +505,17 @@ export class DatabaseStorage implements IStorage {
       // Debug: Test the raw SQL that should work
       if (search && search.trim() !== "") {
         console.log(`[SEARCH DEBUG] Testing raw SQL query for comparison...`);
-        const rawTestQuery = await db.execute(sql`
-          SELECT COUNT(*) as count FROM merchants 
-          WHERE LOWER(name) LIKE ${`%${search.trim().toLowerCase()}%`} 
-          OR LOWER(id) LIKE ${`%${search.trim().toLowerCase()}%`} 
-          OR LOWER(client_mid) LIKE ${`%${search.trim().toLowerCase()}%`}
-        `);
-        console.log(`[SEARCH DEBUG] Raw SQL found ${rawTestQuery[0].count} matches`);
+        try {
+          const rawTestQuery = await db.execute(sql`
+            SELECT COUNT(*) as count FROM merchants 
+            WHERE LOWER(name) LIKE ${`%${search.trim().toLowerCase()}%`} 
+            OR LOWER(id) LIKE ${`%${search.trim().toLowerCase()}%`} 
+            OR LOWER(client_mid) LIKE ${`%${search.trim().toLowerCase()}%`}
+          `);
+          console.log(`[SEARCH DEBUG] Raw SQL found ${rawTestQuery[0]?.count || 0} matches`);
+        } catch (error) {
+          console.log(`[SEARCH DEBUG] Raw SQL error:`, error);
+        }
       }
       
       // Get total count for pagination (with filters applied)
