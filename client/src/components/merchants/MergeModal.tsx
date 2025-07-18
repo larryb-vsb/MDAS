@@ -43,6 +43,12 @@ export default function MergeModal({
       .filter(merchant => merchant.id !== targetMerchantId)
       .map(merchant => merchant.id);
     
+    console.log('[MERGE MODAL] Confirming merge:', {
+      targetMerchantId,
+      sourceMerchantIds,
+      selectedMerchants: selectedMerchants?.map(m => ({ id: m.id, name: m.name }))
+    });
+    
     onConfirm(targetMerchantId, sourceMerchantIds);
     setTargetMerchantId("");
   };
