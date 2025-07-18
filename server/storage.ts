@@ -2191,15 +2191,17 @@ export class DatabaseStorage implements IStorage {
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
               
-              // Update processedAt via raw SQL (gracefully handle if column doesn't exist)
+              // Update processing status and completion time
               try {
                 await db.execute(sql`
                   UPDATE uploaded_files 
-                  SET processed_at = NOW() 
+                  SET processing_status = 'completed',
+                      processing_completed_at = NOW(),
+                      processed_at = NOW()
                   WHERE id = ${file.id}
                 `);
               } catch (error) {
-                console.log(`processed_at column not available for ${file.id}`);
+                console.log(`processing timestamp columns not available for ${file.id}`);
               }
                 
               // Clean up the processed file

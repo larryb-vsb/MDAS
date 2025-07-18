@@ -1167,7 +1167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create file record with content stored in database
       const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Store file record in database directly
+      // Store file record in database directly with processing status
       await db.insert(uploadedFilesTable).values({
         id: fileId,
         originalFilename: req.file.originalname,
@@ -1178,13 +1178,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deleted: false
       });
       
-      // Store file content in database using direct SQL (bypassing ORM schema)
+      // Store file content and processing status in database using direct SQL
       try {
         await db.execute(sql`
           UPDATE uploaded_files 
           SET file_content = ${base64Content},
               file_size = ${fileSize},
-              mime_type = ${mimeType}
+              mime_type = ${mimeType},
+              processing_status = 'queued'
           WHERE id = ${fileId}
         `);
         
@@ -2446,6 +2447,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Cleanup failed"
+      });
+    }
+  });
+
+  // Import all file content to database
+  app.post("/api/import-file-content", isAuthenticated, async (req, res) => {
+    try {
+      const { migrateFileContent } = await import('./migrate-file-content');
+      const result = await migrateFileContent();
+      
+      res.json({
+        success: true,
+        ...result,
+        message: `Migration complete! Successfully migrated: ${result.migratedCount} files, Already migrated: ${result.alreadyMigrated}, Errors: ${result.errorCount}`
+      });
+      
+    } catch (error) {
+      console.error('Import failed:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Import failed"
       });
     }
   });
