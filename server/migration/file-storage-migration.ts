@@ -35,7 +35,7 @@ export async function migrateFileStorageToDatabase(): Promise<MigrationStats> {
     const filesToMigrate = await db
       .select()
       .from(uploadedFiles)
-      .where(isNull(uploadedFiles.fileContent));
+      .where(sql`file_content IS NULL`);
 
     stats.totalFiles = filesToMigrate.length;
     console.log(`Found ${stats.totalFiles} files to migrate`);
@@ -125,7 +125,7 @@ export async function verifyMigration(): Promise<void> {
   const migratedFiles = await db
     .select({ count: db.$count() })
     .from(uploadedFiles)
-    .where(isNotNull(uploadedFiles.fileContent));
+    .where(sql`file_content IS NOT NULL`);
 
   console.log(`Total active files: ${totalFiles[0]?.count || 0}`);
   console.log(`Migrated files: ${migratedFiles[0]?.count || 0}`);

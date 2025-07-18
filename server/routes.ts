@@ -1146,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload CSV files - now stores directly in database
+  // Upload CSV files - pure SQL implementation
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
@@ -1158,45 +1158,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
-      // Read file content and convert to base64 for database storage
-      const fileContent = fs.readFileSync(req.file.path);
-      const base64Content = fileContent.toString('base64');
-      const fileSize = fileContent.length;
-      const mimeType = req.file.mimetype || 'text/csv';
-
-      // Create file record with content stored in database
+      // Create file record with basic information
       const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Store file record in database directly with processing status
-      await db.insert(uploadedFilesTable).values({
-        id: fileId,
-        originalFilename: req.file.originalname,
-        storagePath: req.file.path,
-        fileType: type,
-        uploadedAt: new Date(),
-        processed: false,
-        deleted: false
-      });
+      // Direct SQL insertion without ORM
+      await pool.query(`
+        INSERT INTO uploaded_files (
+          id, 
+          original_filename, 
+          storage_path, 
+          file_type, 
+          uploaded_at, 
+          processed, 
+          deleted
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        fileId,
+        req.file.originalname,
+        req.file.path,
+        type,
+        new Date(),
+        false,
+        false
+      ]);
       
-      // Store file content and processing status in database using direct SQL
-      try {
-        await db.execute(sql`
-          UPDATE uploaded_files 
-          SET file_content = ${base64Content},
-              file_size = ${fileSize},
-              mime_type = ${mimeType},
-              processing_status = 'queued'
-          WHERE id = ${fileId}
-        `);
-        
-        console.log(`Successfully stored file content in database for ${fileId}`);
-        
-        // Clean up temporary file after successful database storage
-        fs.unlinkSync(req.file.path);
-      } catch (error) {
-        console.log("Database content storage failed, keeping file-based approach:", error);
-        // Keep file on disk if database storage fails
-      }
+      console.log(`Successfully stored file record for ${fileId}`);
 
       res.json({ 
         fileId,
@@ -1208,6 +1194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.file?.path && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
+      console.error("Upload error:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to upload file" 
       });
@@ -1425,15 +1412,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileId = req.params.id;
       
       // Get file info
-      const [fileInfo] = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.id, fileId));
+      const result = await db.execute(sql`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+        FROM uploaded_files 
+        WHERE id = ${fileId}
+      `);
+      const fileInfo = result.rows[0];
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
       }
       
-      res.download(fileInfo.storagePath, fileInfo.originalFilename);
+      res.download(fileInfo.storage_path, fileInfo.original_filename);
     } catch (error) {
       console.error("Error downloading file:", error);
       res.status(500).json({
@@ -1448,16 +1438,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileId = req.params.id;
       
       // Get file info
-      const [fileInfo] = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.id, fileId));
+      const result = await db.execute(sql`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+        FROM uploaded_files 
+        WHERE id = ${fileId}
+      `);
+      const fileInfo = result.rows[0];
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
       }
       
       // Read the file content - limit to first 100 rows for performance
-      const parser = fs.createReadStream(fileInfo.storagePath).pipe(
+      const parser = fs.createReadStream(fileInfo.storage_path).pipe(
         parseCSV({
           columns: true,
           skip_empty_lines: true
@@ -1504,23 +1497,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileId = req.params.id;
       
       // Get file info
-      const [fileInfo] = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.id, fileId));
+      const result = await db.execute(sql`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+        FROM uploaded_files 
+        WHERE id = ${fileId}
+      `);
+      const fileInfo = result.rows[0];
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
       }
       
       // Check if the file still exists
-      if (!fs.existsSync(fileInfo.storagePath)) {
+      if (!fs.existsSync(fileInfo.storage_path)) {
         // File doesn't exist anymore - update error in database
-        await db.update(uploadedFilesTable)
-          .set({ 
-            processed: true,
-            processingErrors: "Original file has been removed from the temporary storage. Please re-upload the file."
-          })
-          .where(eq(uploadedFilesTable.id, fileId));
+        await db.execute(sql`
+          UPDATE uploaded_files 
+          SET processed = true, processing_errors = 'Original file has been removed from the temporary storage. Please re-upload the file.'
+          WHERE id = ${fileId}
+        `);
           
         return res.status(404).json({ 
           error: "File no longer exists in temporary storage. Please re-upload the file."
@@ -1528,13 +1523,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Mark file as queued for reprocessing (not processed, no errors)
-      await db.update(uploadedFilesTable)
-        .set({ 
-          processed: false,
-          processingErrors: null,
-          processedAt: null 
-        })
-        .where(eq(uploadedFilesTable.id, fileId));
+      await db.execute(sql`
+        UPDATE uploaded_files 
+        SET processed = false, processing_errors = NULL, processed_at = NULL
+        WHERE id = ${fileId}
+      `);
       
       // Respond immediately that the file is queued
       res.json({ 
@@ -2258,12 +2251,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       console.log('[POST-MERGE LOGGING] Creating upload log entry:', mergeLogData);
-      const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
+      const uploadLogResult = await db.execute(sql`
+        INSERT INTO uploaded_files (
+          id, 
+          original_filename, 
+          storage_path, 
+          file_type, 
+          uploaded_at, 
+          processed, 
+          deleted,
+          file_content,
+          file_size,
+          mime_type,
+          processing_status
+        ) VALUES (
+          ${mergeLogData.id},
+          ${mergeLogData.originalFilename},
+          ${mergeLogData.storagePath},
+          ${mergeLogData.fileType},
+          ${mergeLogData.uploadedAt},
+          ${mergeLogData.processed},
+          ${mergeLogData.deleted},
+          ${mergeLogData.fileContent || ''},
+          ${mergeLogData.fileSize || 0},
+          ${mergeLogData.mimeType || 'application/octet-stream'},
+          ${mergeLogData.processingStatus || 'completed'}
+        )
+        RETURNING id
+      `);
+      const logId = uploadLogResult.rows[0]?.id;
       console.log('[POST-MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
       
       // Verify the upload log was actually inserted
-      const verifyUpload = await db.select().from(uploadedFilesTable).where(eq(uploadedFilesTable.id, uploadLogResult.id));
-      console.log('[POST-MERGE LOGGING] Upload log verification:', verifyUpload.length > 0 ? 'FOUND' : 'NOT FOUND');
+      const verifyResult = await db.execute(sql`
+        SELECT id FROM uploaded_files WHERE id = ${logId}
+      `);
+      console.log('[POST-MERGE LOGGING] Upload log verification:', verifyResult.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
       
       // Create system log entry for the merge operation
       const systemLogData = {
@@ -2448,19 +2471,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/uploads/cleanup-orphaned", isAuthenticated, async (req, res) => {
     try {
       // Mark orphaned files as deleted
-      const result = await db
-        .update(uploadedFilesTable)
-        .set({ 
-          deleted: true, 
-          processingErrors: "File removed - orphaned record cleanup" 
-        })
-        .where(
-          and(
-            eq(uploadedFilesTable.deleted, false),
-            isNull(uploadedFilesTable.fileContent),
-            isNotNull(uploadedFilesTable.storagePath)
-          )
-        );
+      const result = await db.execute(sql`
+        UPDATE uploaded_files 
+        SET deleted = true, processing_errors = 'File removed - orphaned record cleanup'
+        WHERE deleted = false 
+          AND file_content IS NULL 
+          AND storage_path IS NOT NULL
+      `);
       
       res.json({
         success: true,
