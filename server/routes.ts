@@ -1411,19 +1411,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info
-      const result = await db.execute(sql`
-        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-        FROM uploaded_files 
-        WHERE id = ${fileId}
-      `);
+      // Get file info including content from database
+      let result;
+      try {
+        result = await db.execute(sql`
+          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
+          FROM uploaded_files 
+          WHERE id = ${fileId}
+        `);
+      } catch (error) {
+        // Fallback query without file_content column if it doesn't exist yet
+        console.log("Fallback query - file_content column not available");
+        result = await db.execute(sql`
+          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+          FROM uploaded_files 
+          WHERE id = ${fileId}
+        `);
+      }
+      
       const fileInfo = result.rows[0];
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
       }
       
-      res.download(fileInfo.storage_path, fileInfo.original_filename);
+      // Try database content first
+      if (fileInfo.file_content) {
+        console.log(`Downloading file content from database for file: ${fileId}`);
+        const fileContent = Buffer.from(fileInfo.file_content, 'base64');
+        
+        res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.original_filename}"`);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Length', fileContent.length.toString());
+        res.send(fileContent);
+      }
+      // Fallback to file system if database content not available
+      else if (fs.existsSync(fileInfo.storage_path)) {
+        console.log(`Downloading file from file system: ${fileInfo.storage_path}`);
+        res.download(fileInfo.storage_path, fileInfo.original_filename);
+      }
+      else {
+        return res.status(404).json({ 
+          error: "File not available for download",
+          details: "File has been processed and cleaned up. Content is no longer accessible."
+        });
+      }
+      
     } catch (error) {
       console.error("Error downloading file:", error);
       res.status(500).json({
@@ -1437,25 +1470,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info
-      const result = await db.execute(sql`
-        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-        FROM uploaded_files 
-        WHERE id = ${fileId}
-      `);
+      // Get file info including content from database
+      let result;
+      try {
+        result = await db.execute(sql`
+          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
+          FROM uploaded_files 
+          WHERE id = ${fileId}
+        `);
+      } catch (error) {
+        // Fallback query without file_content column if it doesn't exist yet
+        console.log("Fallback query - file_content column not available");
+        result = await db.execute(sql`
+          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+          FROM uploaded_files 
+          WHERE id = ${fileId}
+        `);
+      }
+      
       const fileInfo = result.rows[0];
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
       }
       
-      // Read the file content - limit to first 100 rows for performance
-      const parser = fs.createReadStream(fileInfo.storage_path).pipe(
-        parseCSV({
-          columns: true,
-          skip_empty_lines: true
-        })
-      );
+      let csvContent = null;
+      
+      // Try database content first
+      if (fileInfo.file_content) {
+        console.log(`Reading file content from database for file: ${fileId}`);
+        csvContent = Buffer.from(fileInfo.file_content, 'base64').toString('utf8');
+      }
+      // Fallback to file system if database content not available
+      else if (fs.existsSync(fileInfo.storage_path)) {
+        console.log(`Reading file content from file system: ${fileInfo.storage_path}`);
+        csvContent = fs.readFileSync(fileInfo.storage_path, 'utf8');
+      }
+      else {
+        return res.status(404).json({ 
+          error: "File content not available",
+          details: "File has been processed and cleaned up. Content is no longer accessible."
+        });
+      }
+      
+      // Parse CSV content
+      const parser = parseCSV({
+        columns: true,
+        skip_empty_lines: true
+      });
       
       const rows: any[] = [];
       let headers: string[] = [];
@@ -1472,6 +1534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       parser.on("error", (error) => {
+        console.error("Error parsing CSV content:", error);
         res.status(500).json({ error: "Failed to parse CSV file" });
       });
       
@@ -1483,6 +1546,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           truncated: rowCount > 100
         });
       });
+      
+      // Write CSV content to parser
+      parser.write(csvContent);
+      parser.end();
+      
     } catch (error) {
       console.error("Error retrieving file content:", error);
       res.status(500).json({
