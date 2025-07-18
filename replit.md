@@ -10,6 +10,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Upload Filter Tabs Enhancement (July 18, 2025)
+- **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
+- **REAL-TIME UPDATES**: Counts automatically update as files are processed or uploaded (e.g., "All Files (547)", "Queued (101)")
+- **INSTANT VISIBILITY**: Users can now see distribution of files across categories without clicking through tabs
+- **COMPREHENSIVE DISPLAY**: Shows counts for All Files, Merchant Files, Transaction Files, Queued, and Files with Errors
+
 ### Processed Time Column Implementation (July 17, 2025)
 - **PROCESSED TIME TRACKING**: Added "Processed Time" column to uploads table between upload date and actions
 - **DATABASE SCHEMA FIXES**: Resolved schema synchronization issues that were preventing uploads page from loading
@@ -20,6 +26,7 @@ Preferred communication style: Simple, everyday language.
 - **UPLOADS PAGE RESTORED**: Fixed critical database column errors that made uploads page completely non-functional
 - **BACKGROUND PROCESSING**: Maintained queued status display with spinning loader for files waiting for processing
 - **USER EXPERIENCE**: Clear visual indication of when files were last processed for better tracking and visibility
+- **CONFIRMED WORKING**: Code correctly implements timestamps - waiting for next file completion to validate display
 
 ### Database Money Handling Assessment (July 17, 2025)
 - **CONFIRMED PROPER SETUP**: PostgreSQL NUMERIC(10,2) type correctly handles currency without floating-point precision issues
