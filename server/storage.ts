@@ -481,12 +481,14 @@ export class DatabaseStorage implements IStorage {
         const searchTerm = `%${search.trim()}%`;
         console.log(`[SEARCH DEBUG] Searching for: "${search.trim()}" with term: "${searchTerm}"`);
         
-        // Build individual search conditions using case-insensitive search
-        const nameCondition = ilike(merchantsTable.name, searchTerm);
-        const idCondition = ilike(merchantsTable.id, searchTerm);
-        const midCondition = ilike(merchantsTable.clientMID, searchTerm);
+        // Use SQL template for OR condition to ensure proper query construction
+        const searchCondition = sql`(
+          ${merchantsTable.name} ILIKE ${searchTerm} OR 
+          ${merchantsTable.id} ILIKE ${searchTerm} OR 
+          ${merchantsTable.clientMID} ILIKE ${searchTerm}
+        )`;
         
-        conditions.push(or(nameCondition, idCondition, midCondition));
+        conditions.push(searchCondition);
         console.log(`[SEARCH DEBUG] Added search conditions to query`);
       }
       
