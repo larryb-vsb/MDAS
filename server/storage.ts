@@ -871,9 +871,10 @@ export class DatabaseStorage implements IStorage {
     merchantsRemoved: number;
     targetMerchant: Merchant;
   }> {
-    try {
+    // Use database transaction to ensure all operations including logging are committed together
+    return await db.transaction(async (tx) => {
       // Validate target merchant exists
-      const [targetMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, targetMerchantId));
+      const [targetMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, targetMerchantId));
       if (!targetMerchant) {
         throw new Error(`Target merchant with ID ${targetMerchantId} not found`);
       }
@@ -891,24 +892,24 @@ export class DatabaseStorage implements IStorage {
       // Process each source merchant
       for (const sourceMerchantId of filteredSourceIds) {
         // Get source merchant data before merging
-        const [sourceMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
+        const [sourceMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
         
         if (sourceMerchant) {
           // Count transactions to be transferred
-          const [{ count: transactionCount }] = await db
+          const [{ count: transactionCount }] = await tx
             .select({ count: count() })
             .from(transactionsTable)
             .where(eq(transactionsTable.merchantId, sourceMerchantId));
 
           // Transfer all transactions from source to target merchant
-          await db.update(transactionsTable)
+          await tx.update(transactionsTable)
             .set({ merchantId: targetMerchantId })
             .where(eq(transactionsTable.merchantId, sourceMerchantId));
 
           totalTransactionsTransferred += Number(transactionCount);
 
           // Mark source merchant as removed instead of deleting
-          await db.update(merchantsTable)
+          await tx.update(merchantsTable)
             .set({ 
               status: 'Removed',
               notes: `Merged into merchant "${targetMerchant.name}" (${targetMerchantId}) on ${new Date().toISOString()}. ${Number(transactionCount)} transactions transferred.`
@@ -933,8 +934,8 @@ export class DatabaseStorage implements IStorage {
           // Create audit log entry directly within the transaction
           try {
             console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
-            await this.createAuditLog(auditLogData);
-            console.log('[MERGE LOGGING] Audit log created successfully');
+            const [auditLog] = await tx.insert(auditLogsTable).values(auditLogData).returning();
+            console.log('[MERGE LOGGING] Audit log created successfully with ID:', auditLog.id);
           } catch (error) {
             console.error('[MERGE LOGGING] Failed to create audit log:', error);
           }
@@ -961,7 +962,7 @@ export class DatabaseStorage implements IStorage {
 
       try {
         console.log('[MERGE LOGGING] Creating system log entry:', systemLogData);
-        const [systemLogResult] = await db.insert(systemLogsTable).values(systemLogData).returning();
+        const [systemLogResult] = await tx.insert(systemLogsTable).values(systemLogData).returning();
         console.log('[MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
       } catch (error) {
         console.error('[MERGE LOGGING] Failed to create system log:', error);
@@ -982,7 +983,7 @@ export class DatabaseStorage implements IStorage {
       // Create upload log entry directly within the transaction
       try {
         console.log('[MERGE LOGGING] Creating upload log entry:', mergeLogData);
-        const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
+        const [uploadLogResult] = await tx.insert(uploadedFilesTable).values(mergeLogData).returning();
         console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
       } catch (error) {
         console.error('[MERGE LOGGING] Failed to create upload log:', error);
@@ -995,11 +996,7 @@ export class DatabaseStorage implements IStorage {
         merchantsRemoved: merchantsRemoved,
         targetMerchant: targetMerchant
       };
-
-    } catch (error) {
-      console.error('Error merging merchants:', error);
-      throw error;
-    }
+    });
   }
   
   // Add a new transaction for a merchant with audit logging
