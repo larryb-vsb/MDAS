@@ -478,17 +478,13 @@ export class DatabaseStorage implements IStorage {
       
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
-        const searchTerm = `%${search.trim().toLowerCase()}%`;
-        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}" (forced lowercase)`);
+        const searchTerm = search.trim().toLowerCase();
+        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}"`);
         
-        // Use a single SQL condition that works correctly
-        const searchCondition = sql`(
-          LOWER(${merchantsTable.name}) LIKE ${searchTerm} OR 
-          LOWER(${merchantsTable.id}) LIKE ${searchTerm} OR 
-          LOWER(${merchantsTable.clientMID}) LIKE ${searchTerm}
-        )`;
+        // Test with just name search first - simplest possible approach
+        const searchCondition = like(merchantsTable.name, `%${searchTerm}%`);
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added single SQL OR search condition`);
+        console.log(`[SEARCH DEBUG] Added simple name LIKE condition`);
       }
       
       // Apply all conditions to both queries
