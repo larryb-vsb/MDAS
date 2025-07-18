@@ -476,15 +476,19 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Apply search filter (search by name or ID/MID)
+      // Apply search filter - bypass broken Drizzle search with raw SQL
       if (search && search.trim() !== "") {
         const searchTerm = search.trim().toLowerCase();
-        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}"`);
+        console.log(`[SEARCH DEBUG] Using raw SQL search for: "${searchTerm}"`);
         
-        // Test with just name search first - simplest possible approach
-        const searchCondition = like(merchantsTable.name, `%${searchTerm}%`);
+        // Use raw SQL that we know works from shell testing
+        const searchCondition = sql`(
+          LOWER(${merchantsTable.name}) LIKE ${'%' + searchTerm + '%'} OR
+          LOWER(${merchantsTable.id}) LIKE ${'%' + searchTerm + '%'} OR  
+          LOWER(${merchantsTable.clientMID}) LIKE ${'%' + searchTerm + '%'}
+        )`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added simple name LIKE condition`);
+        console.log(`[SEARCH DEBUG] Added raw SQL search condition`);
       }
       
       // Apply all conditions to both queries

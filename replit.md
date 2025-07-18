@@ -10,12 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Search Functionality Verification (July 18, 2025)
-- **CONFIRMED WORKING**: Real-time search functionality fully operational for merchant names, IDs, and Client MIDs
-- **CASE-INSENSITIVE**: Uses PostgreSQL `ilike` for partial matching (e.g., "JAR" finds "JAR CAPITAL LLC")
-- **IMMEDIATE RESULTS**: No search index lag - queries live database directly for instant updates
-- **MULTI-FIELD SEARCH**: Searches across merchant name, merchant ID, and Client MID fields simultaneously
-- **RESOLVED**: Temporary connection issue that prevented search from working - now functioning correctly
+### Search Functionality Crisis (July 18, 2025)
+- **BROKEN**: Search functionality completely non-functional despite extensive debugging attempts
+- **DATABASE CONFIRMED**: Direct PostgreSQL queries show 7 merchants with "bel" and 9 with "jar" exist in database
+- **DRIZZLE ORM ISSUE**: All Drizzle ORM query approaches (ilike, like, sql templates) return 0 results
+- **QUERY CONSTRUCTION**: Multiple debugging attempts show query conditions are being applied but return no results
+- **SHELL COMMANDS WORK**: Direct psql commands successfully find matching merchants
+- **REQUIRES REWRITE**: Search functionality needs complete rebuild with different approach
 
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
