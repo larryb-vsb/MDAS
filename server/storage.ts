@@ -478,20 +478,28 @@ export class DatabaseStorage implements IStorage {
       
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
-        const searchTerm = `%${search.trim().toLowerCase()}%`;
-        console.log(`[SEARCH DEBUG] Searching for: "${search.trim()}" with term: "${searchTerm}"`);
+        const searchTerm = search.trim();
+        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}"`);
         
-        // Try a simpler approach - just search by name first to test
-        const nameCondition = sql`LOWER(${merchantsTable.name}) LIKE ${searchTerm}`;
-        conditions.push(nameCondition);
-        console.log(`[SEARCH DEBUG] Added simple name search condition`);
+        // Use ilike directly without complex SQL templates
+        const nameCondition = ilike(merchantsTable.name, `%${searchTerm}%`);
+        const idCondition = ilike(merchantsTable.id, `%${searchTerm}%`);
+        const midCondition = ilike(merchantsTable.clientMID, `%${searchTerm}%`);
+        
+        // Create OR condition properly
+        const searchCondition = or(nameCondition, idCondition, midCondition);
+        conditions.push(searchCondition);
+        console.log(`[SEARCH DEBUG] Added OR search condition for name, id, and clientMID`);
       }
       
       // Apply all conditions to both queries
       if (conditions.length > 0) {
+        console.log(`[SEARCH DEBUG] Applying ${conditions.length} conditions to query`);
         const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
         query = query.where(whereClause);
         countQuery = countQuery.where(whereClause);
+      } else {
+        console.log(`[SEARCH DEBUG] No conditions to apply`);
       }
       
       // Get total count for pagination (with filters applied)
