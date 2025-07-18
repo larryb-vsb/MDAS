@@ -95,6 +95,14 @@ export interface IStorage {
   // Delete multiple merchants
   deleteMerchants(merchantIds: string[], username?: string): Promise<void>;
   
+  // Merge merchants - transfer all transactions from source merchants to target merchant
+  mergeMerchants(targetMerchantId: string, sourceMerchantIds: string[], username?: string): Promise<{
+    success: boolean;
+    transactionsTransferred: number;
+    merchantsRemoved: number;
+    targetMerchant: Merchant;
+  }>;
+  
   // Transaction operations
   getTransactions(
     page: number, 
@@ -811,6 +819,91 @@ export class DatabaseStorage implements IStorage {
       console.log(`Successfully deleted ${merchantIds.length} merchants and their transactions`);
     } catch (error) {
       console.error('Error deleting merchants:', error);
+      throw error;
+    }
+  }
+
+  // Merge merchants - transfer all transactions from source merchants to target merchant
+  async mergeMerchants(targetMerchantId: string, sourceMerchantIds: string[], username: string = 'System'): Promise<{
+    success: boolean;
+    transactionsTransferred: number;
+    merchantsRemoved: number;
+    targetMerchant: Merchant;
+  }> {
+    try {
+      // Validate target merchant exists
+      const [targetMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, targetMerchantId));
+      if (!targetMerchant) {
+        throw new Error(`Target merchant with ID ${targetMerchantId} not found`);
+      }
+
+      // Remove target merchant from source list if accidentally included
+      const filteredSourceIds = sourceMerchantIds.filter(id => id !== targetMerchantId);
+      
+      if (filteredSourceIds.length === 0) {
+        throw new Error('No source merchants to merge');
+      }
+
+      let totalTransactionsTransferred = 0;
+      let merchantsRemoved = 0;
+
+      // Process each source merchant
+      for (const sourceMerchantId of filteredSourceIds) {
+        // Get source merchant data before merging
+        const [sourceMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
+        
+        if (sourceMerchant) {
+          // Count transactions to be transferred
+          const [{ count: transactionCount }] = await db
+            .select({ count: count() })
+            .from(transactionsTable)
+            .where(eq(transactionsTable.merchantId, sourceMerchantId));
+
+          // Transfer all transactions from source to target merchant
+          await db.update(transactionsTable)
+            .set({ merchantId: targetMerchantId })
+            .where(eq(transactionsTable.merchantId, sourceMerchantId));
+
+          totalTransactionsTransferred += Number(transactionCount);
+
+          // Mark source merchant as removed instead of deleting
+          await db.update(merchantsTable)
+            .set({ 
+              status: 'Removed',
+              notes: `Merged into merchant "${targetMerchant.name}" (${targetMerchantId}) on ${new Date().toISOString()}. ${Number(transactionCount)} transactions transferred.`
+            })
+            .where(eq(merchantsTable.id, sourceMerchantId));
+
+          merchantsRemoved++;
+
+          // Create audit log entry for the merge
+          const auditLogData: InsertAuditLog = {
+            entityType: 'merchant',
+            entityId: targetMerchantId,
+            action: 'merge',
+            userId: null,
+            username: username,
+            oldValues: this.filterSensitiveData(sourceMerchant),
+            newValues: this.filterSensitiveData(targetMerchant),
+            changedFields: ['transactions'],
+            notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
+          };
+
+          await this.createAuditLog(auditLogData);
+        }
+      }
+
+      console.log(`Successfully merged ${merchantsRemoved} merchants into ${targetMerchant.name}, transferring ${totalTransactionsTransferred} transactions`);
+
+      return {
+        success: true,
+        transactionsTransferred: totalTransactionsTransferred,
+        merchantsRemoved: merchantsRemoved,
+        targetMerchant: targetMerchant
+      };
+
+    } catch (error) {
+      console.error('Error merging merchants:', error);
       throw error;
     }
   }

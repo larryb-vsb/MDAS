@@ -84,6 +84,33 @@ export default function Merchants() {
       });
     },
   });
+
+  // Merge merchants mutation
+  const mergeMutation = useMutation({
+    mutationFn: async ({ targetMerchantId, sourceMerchantIds }: { targetMerchantId: string; sourceMerchantIds: string[] }) => {
+      const response = await apiRequest(`/api/merchants/merge`, {
+        method: 'POST',
+        body: { targetMerchantId, sourceMerchantIds }
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Merchants merged successfully",
+        description: `Merged ${data.merchantsRemoved} merchants into ${data.targetMerchant.name}. Transferred ${data.transactionsTransferred} transactions.`,
+      });
+      setSelectedMerchants([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to merge merchants: ${error}`,
+        variant: "destructive",
+      });
+    },
+  });
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -135,6 +162,7 @@ export default function Merchants() {
           setSelectedMerchants={setSelectedMerchants}
           onDeleteSelected={handleDeleteSelected}
           deleteMutation={deleteMutation}
+          mergeMutation={mergeMutation}
         />
       </div>
     </MainLayout>

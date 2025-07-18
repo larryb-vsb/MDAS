@@ -27,8 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Upload, Edit, Trash2, CheckSquare } from "lucide-react";
+import { Eye, Upload, Edit, Trash2, CheckSquare, GitMerge } from "lucide-react";
 import MerchantPagination from "./MerchantPagination";
+import MergeModal from "./MergeModal";
 import { Merchant, Pagination } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,7 +39,11 @@ interface MerchantListProps {
   merchants: Merchant[];
   pagination: Pagination;
   onPageChange: (page: number) => void;
-  toggleUploadModal: () => void;
+  selectedMerchants: string[];
+  setSelectedMerchants: (merchants: string[]) => void;
+  onDeleteSelected: () => void;
+  deleteMutation: any;
+  mergeMutation: any;
 }
 
 export default function MerchantList({
@@ -46,11 +51,15 @@ export default function MerchantList({
   merchants,
   pagination,
   onPageChange,
-  toggleUploadModal,
+  selectedMerchants,
+  setSelectedMerchants,
+  onDeleteSelected,
+  deleteMutation,
+  mergeMutation,
 }: MerchantListProps) {
   const [, setLocation] = useLocation();
-  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const getStatusBadgeColor = (status: string) => {
@@ -103,58 +112,14 @@ export default function MerchantList({
       setSelectedMerchants(merchants.map(m => m.id));
     }
   };
-  
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (merchantIds: string[]) => {
-      return await fetch("/api/merchants/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ merchantIds })
-      }).then(res => {
-        if (!res.ok) throw new Error("Failed to delete merchants");
-        return res.json();
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: `${selectedMerchants.length} merchant(s) deleted successfully.`,
-        duration: 3000
-      });
-      setSelectedMerchants([]);
-      queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to delete merchants: ${error.message}`,
-        variant: "destructive",
-        duration: 5000
-      });
-    }
-  });
-  
-  // Handle delete action
-  const handleDelete = () => {
-    if (selectedMerchants.length === 0) {
-      toast({
-        title: "No merchants selected",
-        description: "Please select at least one merchant to delete.",
-        variant: "destructive",
-        duration: 3000
-      });
-      return;
-    }
-    setShowDeleteDialog(true);
+
+  // Handler for merge confirmation
+  const handleMergeConfirm = (targetMerchantId: string, sourceMerchantIds: string[]) => {
+    mergeMutation.mutate({ targetMerchantId, sourceMerchantIds });
+    setShowMergeModal(false);
   };
   
-  // Confirm delete
-  const confirmDelete = () => {
-    deleteMutation.mutate(selectedMerchants);
-    setShowDeleteDialog(false);
-  };
+
 
   return (
     <div className="flex flex-col mt-4">
@@ -171,10 +136,22 @@ export default function MerchantList({
           
           {selectedMerchants.length > 0 && (
             <div className="flex space-x-2">
+              {selectedMerchants.length >= 2 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowMergeModal(true)}
+                  className="flex items-center bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                  disabled={mergeMutation.isPending}
+                >
+                  <GitMerge className="w-4 h-4 mr-1" />
+                  Merge Selected
+                </Button>
+              )}
               <Button 
                 variant="destructive" 
                 size="sm"
-                onClick={handleDelete}
+                onClick={onDeleteSelected}
                 className="flex items-center"
                 disabled={deleteMutation.isPending}
               >
@@ -362,6 +339,15 @@ export default function MerchantList({
         onPageChange={onPageChange}
       />
       
+      {/* Merge Modal */}
+      <MergeModal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        onConfirm={handleMergeConfirm}
+        selectedMerchants={merchants.filter(m => selectedMerchants.includes(m.id))}
+        isLoading={mergeMutation.isPending}
+      />
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -375,7 +361,7 @@ export default function MerchantList({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={onDeleteSelected}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
               Delete

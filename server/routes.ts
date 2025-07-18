@@ -2055,6 +2055,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merge merchants endpoint
+  app.post("/api/merchants/merge", isAuthenticated, async (req, res) => {
+    try {
+      const { targetMerchantId, sourceMerchantIds } = req.body;
+      
+      if (!targetMerchantId || !sourceMerchantIds || !Array.isArray(sourceMerchantIds) || sourceMerchantIds.length === 0) {
+        return res.status(400).json({ 
+          error: "Invalid request: targetMerchantId and sourceMerchantIds array required" 
+        });
+      }
+      
+      const username = req.user?.username || 'System';
+      const result = await storage.mergeMerchants(targetMerchantId, sourceMerchantIds, username);
+      
+      res.json({
+        success: true,
+        message: `Successfully merged ${result.merchantsRemoved} merchants into ${result.targetMerchant.name}`,
+        ...result
+      });
+    } catch (error) {
+      console.error('Error merging merchants:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to merge merchants" 
+      });
+    }
+  });
+
   // Database Connection Settings Routes
   
   // Get current database connection settings
