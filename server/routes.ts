@@ -2058,16 +2058,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Merge merchants endpoint
   app.post("/api/merchants/merge", isAuthenticated, async (req, res) => {
     try {
+      console.log('[MERGE REQUEST] Received merge request:', { 
+        targetMerchantId: req.body.targetMerchantId, 
+        sourceMerchantIds: req.body.sourceMerchantIds 
+      });
+      
       const { targetMerchantId, sourceMerchantIds } = req.body;
       
       if (!targetMerchantId || !sourceMerchantIds || !Array.isArray(sourceMerchantIds) || sourceMerchantIds.length === 0) {
+        console.log('[MERGE ERROR] Invalid request parameters:', { targetMerchantId, sourceMerchantIds });
         return res.status(400).json({ 
           error: "Invalid request: targetMerchantId and sourceMerchantIds array required" 
         });
       }
       
       const username = req.user?.username || 'System';
+      console.log('[MERGE START] Starting merge process with user:', username);
+      
       const result = await storage.mergeMerchants(targetMerchantId, sourceMerchantIds, username);
+      
+      console.log('[MERGE SUCCESS] Merge completed successfully:', result);
       
       res.json({
         success: true,
@@ -2075,7 +2085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...result
       });
     } catch (error) {
-      console.error('Error merging merchants:', error);
+      console.error('[MERGE ERROR] Error merging merchants:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to merge merchants" 
       });
