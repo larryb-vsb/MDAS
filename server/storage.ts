@@ -486,15 +486,20 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Apply search filter using PostgreSQL full-text search
+      // Apply search filter using hybrid approach (full-text + ILIKE fallback)
       if (search && search.trim() !== "") {
         const searchTerm = search.trim();
-        console.log(`[SEARCH DEBUG] Using PostgreSQL full-text search for: "${searchTerm}"`);
+        console.log(`[SEARCH DEBUG] Using hybrid search for: "${searchTerm}"`);
         
-        // Use PostgreSQL's full-text search with GIN index for high performance
-        const searchCondition = sql`to_tsvector('english', COALESCE(${merchantsTable.name}, '') || ' ' || COALESCE(${merchantsTable.id}, '') || ' ' || COALESCE(${merchantsTable.clientMID}, '')) @@ plainto_tsquery('english', ${searchTerm})`;
+        // Hybrid approach: full-text search OR ILIKE fallback for short terms
+        const searchCondition = sql`(
+          to_tsvector('english', COALESCE(${merchantsTable.name}, '') || ' ' || COALESCE(${merchantsTable.id}, '') || ' ' || COALESCE(${merchantsTable.clientMID}, '')) @@ plainto_tsquery('english', ${searchTerm})
+          OR LOWER(${merchantsTable.name}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
+          OR LOWER(${merchantsTable.id}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
+          OR LOWER(${merchantsTable.clientMID}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
+        )`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added full-text search condition`);
+        console.log(`[SEARCH DEBUG] Added hybrid search condition (full-text + ILIKE fallback)`);
       }
       
       // Apply all conditions to both queries
