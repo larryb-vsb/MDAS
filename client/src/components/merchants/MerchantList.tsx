@@ -242,12 +242,12 @@ export default function MerchantList({
                   <TableRow>
                     <TableCell colSpan={7} className="px-6 py-10 text-center">
                       <p className="text-gray-500">No merchants found</p>
-                      <button 
-                        onClick={toggleUploadModal}
-                        className="px-4 py-2 mt-4 text-sm font-medium text-white bg-primary rounded-md"
+                      <Button 
+                        onClick={() => setLocation('/uploads')}
+                        className="mt-4"
                       >
                         Upload Data
-                      </button>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ) : (
