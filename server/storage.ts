@@ -486,19 +486,15 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Apply search filter using working raw SQL approach
+      // Apply search filter using PostgreSQL full-text search
       if (search && search.trim() !== "") {
-        const searchTerm = search.trim().toLowerCase();
-        console.log(`[SEARCH DEBUG] Using working raw SQL search for: "${searchTerm}"`);
+        const searchTerm = search.trim();
+        console.log(`[SEARCH DEBUG] Using PostgreSQL full-text search for: "${searchTerm}"`);
         
-        // Use the raw SQL approach that we know works from shell testing
-        const searchCondition = sql`(
-          LOWER(${merchantsTable.name}) LIKE ${'%' + searchTerm + '%'} OR
-          LOWER(${merchantsTable.id}) LIKE ${'%' + searchTerm + '%'} OR  
-          LOWER(${merchantsTable.clientMID}) LIKE ${'%' + searchTerm + '%'}
-        )`;
+        // Use PostgreSQL's full-text search with GIN index for high performance
+        const searchCondition = sql`to_tsvector('english', COALESCE(${merchantsTable.name}, '') || ' ' || COALESCE(${merchantsTable.id}, '') || ' ' || COALESCE(${merchantsTable.clientMID}, '')) @@ plainto_tsquery('english', ${searchTerm})`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added working raw SQL search condition`);
+        console.log(`[SEARCH DEBUG] Added full-text search condition`);
       }
       
       // Apply all conditions to both queries

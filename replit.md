@@ -17,7 +17,9 @@ Preferred communication style: Simple, everyday language.
 - **CONFIRMED RESULTS**: Search for "bel" now correctly returns 5 merchants (BELEAF CHEROKEE, BELEAF THE GROVE, etc.)
 - **RAW SQL SOLUTION**: Bypassed broken Drizzle ORM query builder with direct SQL that mirrors working shell commands
 - **MULTI-FIELD SEARCH**: Single search term checks across all key merchant identification fields
-- **CONCATENATED INDEX**: Added database-level search_index field and index for improved performance (populated with lowercase combined merchant data)
+- **FULL-TEXT SEARCH**: Implemented PostgreSQL GIN full-text search index for high-performance intelligent text matching
+- **OPTIMIZED PERFORMANCE**: GIN index provides excellent search performance even with large datasets
+- **INTELLIGENT MATCHING**: Uses PostgreSQL's built-in text search with word boundaries and stemming support
 
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
