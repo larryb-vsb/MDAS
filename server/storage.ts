@@ -2168,6 +2168,16 @@ export class DatabaseStorage implements IStorage {
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
                 
+              // Clean up the processed file
+              try {
+                if (existsSync(file.storagePath)) {
+                  await fsPromises.unlink(file.storagePath);
+                  console.log(`Cleaned up processed file: ${file.storagePath}`);
+                }
+              } catch (cleanupError) {
+                console.warn(`Warning: Could not clean up file ${file.storagePath}:`, cleanupError);
+              }
+                
               console.log(`Merchant file ${file.id} successfully processed`);
             } catch (error) {
               console.error(`Error processing merchant file ${file.id}:`, error);
@@ -2193,6 +2203,16 @@ export class DatabaseStorage implements IStorage {
                   processedAt: new Date(),
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
+                
+              // Clean up the processed file
+              try {
+                if (existsSync(file.storagePath)) {
+                  await fsPromises.unlink(file.storagePath);
+                  console.log(`Cleaned up processed file: ${file.storagePath}`);
+                }
+              } catch (cleanupError) {
+                console.warn(`Warning: Could not clean up file ${file.storagePath}:`, cleanupError);
+              }
                 
               console.log(`Transaction file ${file.id} successfully processed`);
             } catch (error) {

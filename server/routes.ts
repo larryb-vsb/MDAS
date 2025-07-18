@@ -66,9 +66,16 @@ import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } 
 
 const execPromise = promisify(exec);
 
-// Set up multer for file uploads
+// Create persistent upload directory
+const uploadDir = path.join(process.cwd(), 'tmp_uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log(`Created upload directory: ${uploadDir}`);
+}
+
+// Set up multer for file uploads with persistent storage
 const upload = multer({ 
-  dest: os.tmpdir(),
+  dest: uploadDir,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
