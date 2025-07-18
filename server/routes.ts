@@ -1158,10 +1158,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
-      // Create file record with basic information
+      // Create file record with basic information and file content
       const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Direct SQL insertion without ORM
+      // Read file content and encode as base64 for database storage
+      const fileContent = fs.readFileSync(req.file.path, 'utf8');
+      const fileContentBase64 = Buffer.from(fileContent).toString('base64');
+      
+      console.log(`Storing file content for ${fileId}: ${fileContent.length} characters, ${fileContentBase64.length} base64 chars`);
+      
+      // Direct SQL insertion using raw pool query (ORM schema mismatch)
       await pool.query(`
         INSERT INTO uploaded_files (
           id, 
@@ -1170,8 +1176,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           file_type, 
           uploaded_at, 
           processed, 
-          deleted
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          deleted,
+          file_content
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `, [
         fileId,
         req.file.originalname,
@@ -1179,7 +1186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type,
         new Date(),
         false,
-        false
+        false,
+        fileContentBase64
       ]);
       
       console.log(`Successfully stored file record for ${fileId}`);
@@ -1411,23 +1419,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info including content from database
-      let result;
-      try {
-        result = await db.execute(sql`
-          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
-          FROM uploaded_files 
-          WHERE id = ${fileId}
-        `);
-      } catch (error) {
-        // Fallback query without file_content column if it doesn't exist yet
-        console.log("Fallback query - file_content column not available");
-        result = await db.execute(sql`
-          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-          FROM uploaded_files 
-          WHERE id = ${fileId}
-        `);
-      }
+      // Get file info including content from database using raw pool query
+      const result = await pool.query(`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
+        FROM uploaded_files 
+        WHERE id = $1
+      `, [fileId]);
       
       const fileInfo = result.rows[0];
       
@@ -1470,23 +1467,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info including content from database
-      let result;
-      try {
-        result = await db.execute(sql`
-          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
-          FROM uploaded_files 
-          WHERE id = ${fileId}
-        `);
-      } catch (error) {
-        // Fallback query without file_content column if it doesn't exist yet
-        console.log("Fallback query - file_content column not available");
-        result = await db.execute(sql`
-          SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-          FROM uploaded_files 
-          WHERE id = ${fileId}
-        `);
-      }
+      // Get file info including content from database using raw pool query  
+      const result = await pool.query(`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
+        FROM uploaded_files 
+        WHERE id = $1
+      `, [fileId]);
       
       const fileInfo = result.rows[0];
       

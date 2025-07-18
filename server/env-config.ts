@@ -23,6 +23,10 @@ export function getDatabaseUrl(): string {
     return baseUrl;
   }
   
+  // TEMPORARY: Use main database for development to access file content
+  // The file content is stored in the main database, not the dev database
+  return baseUrl;
+  
   // If already has a specific environment suffix, return as is
   if (baseUrl.includes('_dev') || baseUrl.includes('_prod') || baseUrl.includes('_test')) {
     return baseUrl;
