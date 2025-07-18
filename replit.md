@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Search Functionality Verification (July 18, 2025)
+- **CONFIRMED WORKING**: Real-time search functionality fully operational for merchant names, IDs, and Client MIDs
+- **CASE-INSENSITIVE**: Uses PostgreSQL `ilike` for partial matching (e.g., "JAR" finds "JAR CAPITAL LLC")
+- **IMMEDIATE RESULTS**: No search index lag - queries live database directly for instant updates
+- **MULTI-FIELD SEARCH**: Searches across merchant name, merchant ID, and Client MID fields simultaneously
+- **RESOLVED**: Temporary connection issue that prevented search from working - now functioning correctly
+
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
 - **REAL-TIME UPDATES**: Counts automatically update as files are processed or uploaded (e.g., "All Files (547)", "Queued (101)")
