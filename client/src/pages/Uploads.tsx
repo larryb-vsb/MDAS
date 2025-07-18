@@ -937,11 +937,21 @@ export default function Uploads() {
             <TabsContent value="files" className="mt-6">
               <Tabs defaultValue="all">
                 <TabsList>
-                  <TabsTrigger value="all">All Files</TabsTrigger>
-                  <TabsTrigger value="merchant">Merchant Files</TabsTrigger>
-                  <TabsTrigger value="transaction">Transaction Files</TabsTrigger>
-                  <TabsTrigger value="queued">Queued</TabsTrigger>
-                  <TabsTrigger value="errors">Files with Errors</TabsTrigger>
+                  <TabsTrigger value="all">
+                    All Files ({files?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="merchant">
+                    Merchant Files ({files?.filter(file => file.fileType === 'merchant').length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="transaction">
+                    Transaction Files ({files?.filter(file => file.fileType === 'transaction').length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="queued">
+                    Queued ({files?.filter(file => !file.processed && !file.processingErrors).length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="errors">
+                    Files with Errors ({files?.filter(file => file.processingErrors).length || 0})
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="all" className="mt-4">
                   {renderFileTable(files)}
