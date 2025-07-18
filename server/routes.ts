@@ -1167,22 +1167,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create file record with content stored in database
       const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Store file in database instead of disk
+      // Store file record in database directly
       await db.insert(uploadedFilesTable).values({
         id: fileId,
         originalFilename: req.file.originalname,
-        fileContent: base64Content,
-        fileSize: fileSize,
-        mimeType: mimeType,
+        storagePath: req.file.path,
         fileType: type,
         uploadedAt: new Date(),
         processed: false,
-        deleted: false,
-        storagePath: null // No longer needed with database storage
+        deleted: false
       });
-
-      // Clean up temporary file from multer
-      fs.unlinkSync(req.file.path);
+      
+      // Store file content in database using direct SQL (bypassing ORM schema)
+      try {
+        await db.execute(sql`
+          UPDATE uploaded_files 
+          SET file_content = ${base64Content},
+              file_size = ${fileSize},
+              mime_type = ${mimeType}
+          WHERE id = ${fileId}
+        `);
+        
+        console.log(`Successfully stored file content in database for ${fileId}`);
+        
+        // Clean up temporary file after successful database storage
+        fs.unlinkSync(req.file.path);
+      } catch (error) {
+        console.log("Database content storage failed, keeping file-based approach:", error);
+        // Keep file on disk if database storage fails
+      }
 
       res.json({ 
         fileId,

@@ -162,7 +162,7 @@ class FileProcessorService {
    * Get all unprocessed files from the database
    */
   async fetchUnprocessedFiles(): Promise<any[]> {
-    // Use basic fields to avoid schema issues
+    // Use basic fields that definitely exist to avoid schema issues
     const unprocessedFiles = await db.select({
       id: uploadedFiles.id,
       originalFilename: uploadedFiles.originalFilename,
