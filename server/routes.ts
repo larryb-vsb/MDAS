@@ -2081,6 +2081,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('[POST-MERGE LOGGING] Creating audit log entry:', auditLogData);
           const [auditLog] = await db.insert(auditLogsTable).values(auditLogData).returning();
           console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLog.id);
+          
+          // Verify the audit log was actually inserted
+          const verifyAudit = await db.select().from(auditLogsTable).where(eq(auditLogsTable.id, auditLog.id));
+          console.log('[POST-MERGE LOGGING] Audit log verification:', verifyAudit.length > 0 ? 'FOUND' : 'NOT FOUND');
         }
       }
       
@@ -2102,6 +2106,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
       console.log('[POST-MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
       
+      // Verify the upload log was actually inserted
+      const verifyUpload = await db.select().from(uploadedFilesTable).where(eq(uploadedFilesTable.id, uploadLogResult.id));
+      console.log('[POST-MERGE LOGGING] Upload log verification:', verifyUpload.length > 0 ? 'FOUND' : 'NOT FOUND');
+      
       // Create system log entry for the merge operation
       const systemLogData = {
         level: 'info',
@@ -2120,6 +2128,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[POST-MERGE LOGGING] Creating system log entry:', systemLogData);
       const [systemLogResult] = await db.insert(systemLogsTable).values(systemLogData).returning();
       console.log('[POST-MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
+      
+      // Verify the system log was actually inserted
+      const verifySystem = await db.select().from(systemLogsTable).where(eq(systemLogsTable.id, systemLogResult.id));
+      console.log('[POST-MERGE LOGGING] System log verification:', verifySystem.length > 0 ? 'FOUND' : 'NOT FOUND');
     } catch (error) {
       console.error('[POST-MERGE LOGGING] Failed to create logs:', error);
     }
@@ -2148,24 +2160,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[MERGE SUCCESS] Merge completed successfully:', result);
       
-      // Note: Logging moved to post-response async handler
+      // Create logs immediately before response to ensure they persist
+      console.log('[MERGE LOGGING] Creating logs immediately before response...');
+      await processPostMergeLogs(targetMerchantId, sourceMerchantIds, result, username);
+      console.log('[MERGE LOGGING] All logs created successfully');
       
-      // Send response immediately 
+      // Send response after logs are created
       res.json({
         success: true,
         message: `Successfully merged ${result.merchantsRemoved} merchants into ${result.targetMerchant.name}`,
         ...result
-      });
-      
-      // Process logs asynchronously after response is sent
-      setImmediate(async () => {
-        try {
-          console.log('[MERGE LOGGING] Starting post-response logging...');
-          await processPostMergeLogs(targetMerchantId, sourceMerchantIds, result, username);
-          console.log('[MERGE LOGGING] Post-response logging completed successfully');
-        } catch (error) {
-          console.error('[MERGE LOGGING] Post-response logging failed:', error);
-        }
       });
     } catch (error) {
       console.error('[MERGE ERROR] Error merging merchants:', error);
