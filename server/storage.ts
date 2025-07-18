@@ -478,18 +478,18 @@ export class DatabaseStorage implements IStorage {
       
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
-        const searchTerm = search.trim();
-        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}"`);
+        const searchTerm = search.trim().toLowerCase();
+        console.log(`[SEARCH DEBUG] Searching for: "${searchTerm}" (forced lowercase)`);
         
-        // Use ilike directly without complex SQL templates
-        const nameCondition = ilike(merchantsTable.name, `%${searchTerm}%`);
-        const idCondition = ilike(merchantsTable.id, `%${searchTerm}%`);
-        const midCondition = ilike(merchantsTable.clientMID, `%${searchTerm}%`);
+        // Force both sides to lowercase for guaranteed case-insensitive matching
+        const nameCondition = sql`LOWER(${merchantsTable.name}) LIKE ${`%${searchTerm}%`}`;
+        const idCondition = sql`LOWER(${merchantsTable.id}) LIKE ${`%${searchTerm}%`}`;
+        const midCondition = sql`LOWER(${merchantsTable.clientMID}) LIKE ${`%${searchTerm}%`}`;
         
-        // Create OR condition properly
-        const searchCondition = or(nameCondition, idCondition, midCondition);
+        // Create OR condition with raw SQL
+        const searchCondition = sql`(${nameCondition} OR ${idCondition} OR ${midCondition})`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added OR search condition for name, id, and clientMID`);
+        console.log(`[SEARCH DEBUG] Added lowercase OR search condition`);
       }
       
       // Apply all conditions to both queries
