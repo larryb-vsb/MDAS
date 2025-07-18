@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Transaction-Based Merge Logging Fix (July 18, 2025)
+- **CRITICAL FIX**: Implemented proper database transaction-based logging for merchant merge operations
+- **DATABASE TRANSACTIONS**: Wrapped entire merge operation in db.transaction() to ensure all operations commit together
+- **PERSISTENT LOGGING**: Audit logs, system logs, and upload logs now properly persist to database
+- **FIXED LOGGING ISSUE**: Previous logging appeared successful in console but didn't persist due to separate database sessions
+- **TRANSACTION ISOLATION**: All merge operations and logging now use same transaction context (tx.insert()) ensuring atomicity
+- **READY FOR TESTING**: System now properly logs when "Merge 2 Merchants" button is clicked in web interface
+- **COMPREHENSIVE AUDIT TRAIL**: Three-tier logging system (audit, system, upload) now works correctly with database persistence
+
 ### Comprehensive Merge Logging Implementation (July 18, 2025)
 - **COMPLETE LOGGING SYSTEM**: Enhanced merchant merge operations with comprehensive logging across all three systems
 - **UPLOAD LOGS**: Merge operations now create entries in uploaded_files table with "Merchant Merge Operation" titles
