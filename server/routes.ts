@@ -1299,6 +1299,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Clean up orphaned file records (files that no longer exist on disk)
+  app.post("/api/uploads/cleanup-orphaned", isAuthenticated, async (req, res) => {
+    try {
+      console.log("Starting orphaned file cleanup...");
+      
+      // Get all non-deleted uploaded files
+      const uploadedFiles = await db.select()
+        .from(uploadedFilesTable)
+        .where(eq(uploadedFilesTable.deleted, false));
+      
+      let orphanedCount = 0;
+      let cleanedUpIds: string[] = [];
+      
+      // Check each file to see if it exists on disk
+      for (const file of uploadedFiles) {
+        try {
+          // Check if the file exists at the storage path
+          if (!fs.existsSync(file.storagePath)) {
+            console.log(`Orphaned file found: ${file.originalFilename} (${file.id}) - path: ${file.storagePath}`);
+            
+            // Mark the file as deleted (soft delete)
+            await db
+              .update(uploadedFilesTable)
+              .set({ 
+                deleted: true,
+                processingErrors: "File not found: The temporary file may have been removed by the system."
+              })
+              .where(eq(uploadedFilesTable.id, file.id));
+            
+            orphanedCount++;
+            cleanedUpIds.push(file.id);
+          }
+        } catch (checkError) {
+          console.error(`Error checking file ${file.id}:`, checkError);
+        }
+      }
+      
+      console.log(`Cleanup completed: ${orphanedCount} orphaned files marked as deleted`);
+      
+      res.json({
+        success: true,
+        message: `Cleanup completed: ${orphanedCount} orphaned files removed`,
+        orphanedCount,
+        cleanedUpIds,
+        totalChecked: uploadedFiles.length
+      });
+    } catch (error) {
+      console.error("Error cleaning up orphaned files:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to cleanup orphaned files"
+      });
+    }
+  });
   
   // Download original uploaded file
   app.get("/api/uploads/:id/download", async (req, res) => {
