@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Comprehensive Merge Logging Implementation (July 18, 2025)
+- **COMPLETE LOGGING SYSTEM**: Enhanced merchant merge operations with comprehensive logging across all three systems
+- **UPLOAD LOGS**: Merge operations now create entries in uploaded_files table with "Merchant Merge Operation" titles
+- **SYSTEM LOGS**: Automatic system log creation with detailed merge information including transaction counts and merchant names
+- **AUDIT LOGS**: Complete audit trail for each merged merchant with old/new values and detailed notes
+- **BACKGROUND INTEGRATION**: Merge logs appear in uploads page showing as processed operations with merchant file type
+- **CONFIRMED WORKING**: Successfully tested merge operation transferring 10 transactions between merchants
+- **REAL-TIME VISIBILITY**: All merge operations now visible in uploads logs for tracking and monitoring
+
 ### Search Functionality Fixed (July 18, 2025)
 - **WORKING**: Search functionality restored using raw SQL approach after Drizzle ORM query construction issues
 - **SINGLE SEARCH TERM**: Users can search with one term across merchant name, ID, and Client MID fields simultaneously

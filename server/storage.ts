@@ -936,6 +936,20 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Successfully merged ${merchantsRemoved} merchants into ${targetMerchant.name}, transferring ${totalTransactionsTransferred} transactions`);
 
+      // Create an upload log entry for the merge operation using existing schema
+      const mergeLogData: InsertUploadedFile = {
+        id: `merge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        originalFilename: `Merchant Merge Operation: ${targetMerchant.name}`,
+        storagePath: `/logs/merge_${targetMerchantId}_${Date.now()}.log`,
+        fileType: 'merchant',
+        uploadedAt: new Date(),
+        processed: true,
+        processingErrors: null,
+        deleted: false
+      };
+
+      await db.insert(uploadedFilesTable).values(mergeLogData);
+
       return {
         success: true,
         transactionsTransferred: totalTransactionsTransferred,

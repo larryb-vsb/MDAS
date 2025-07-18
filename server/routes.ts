@@ -57,7 +57,8 @@ import {
   InsertBackupHistory,
   schemaVersions,
   backupSchedules as backupSchedulesTable,
-  users as usersTable
+  users as usersTable,
+  systemLogs as systemLogsTable
 } from "@shared/schema";
 import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } from "./schema_version";
 
@@ -1276,13 +1277,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(uploadedFilesTable.deleted, false))
         .orderBy(desc(uploadedFilesTable.uploadedAt));
       
-      // Add processedAt field as null for now - will implement proper tracking later
-      const filesWithProcessedAt = uploadedFiles.map(file => ({
-        ...file,
-        processedAt: null
+      // Return files without processedAt field since it doesn't exist in current schema
+      const filesWithExtendedInfo = uploadedFiles.map(file => ({
+        ...file
       }));
       
-      res.json(filesWithProcessedAt);
+      res.json(filesWithExtendedInfo);
     } catch (error) {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 
@@ -2078,6 +2078,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await storage.mergeMerchants(targetMerchantId, sourceMerchantIds, username);
       
       console.log('[MERGE SUCCESS] Merge completed successfully:', result);
+      
+      // Create system log entry for the merge operation
+      await db.insert(systemLogsTable).values({
+        level: 'info',
+        source: 'MerchantMerge',
+        message: `Merchant merge completed successfully: ${result.merchantsRemoved} merchants merged into ${result.targetMerchant.name}`,
+        details: {
+          targetMerchantId,
+          sourceMerchantIds,
+          transactionsTransferred: result.transactionsTransferred,
+          merchantsRemoved: result.merchantsRemoved,
+          targetMerchantName: result.targetMerchant.name,
+          performedBy: username,
+          timestamp: new Date().toISOString()
+        }
+      });
       
       res.json({
         success: true,
