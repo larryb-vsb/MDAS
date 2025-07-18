@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import MainLayout from "@/components/layout/MainLayout";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -9,7 +9,7 @@ import FileUploadModal from "@/components/uploads/FileUploadModal";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, RefreshCw, Upload } from "lucide-react";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [uploadFilter, setUploadFilter] = useState("Any time");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
 
   // Fetch dashboard stats
   const { data: stats, isLoading: isLoadingStats } = useQuery<DashboardStatsType>({
@@ -62,6 +63,65 @@ export default function Dashboard() {
 
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Delete selected merchants mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (merchantIds: string[]) => {
+      await apiRequest(`/api/merchants`, {
+        method: 'DELETE',
+        body: { merchantIds }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Merchants deleted",
+        description: `Successfully deleted ${selectedMerchants.length} merchant${selectedMerchants.length > 1 ? 's' : ''}`,
+      });
+      setSelectedMerchants([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete merchants: ${error}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Merge merchants mutation
+  const mergeMutation = useMutation({
+    mutationFn: async ({ targetMerchantId, sourceMerchantIds }: { targetMerchantId: string; sourceMerchantIds: string[] }) => {
+      const response = await apiRequest(`/api/merchants/merge`, {
+        method: 'POST',
+        body: { targetMerchantId, sourceMerchantIds }
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Merchants merged successfully",
+        description: `Merged ${data.merchantsRemoved} merchants into ${data.targetMerchant.name}. Transferred ${data.transactionsTransferred} transactions.`,
+      });
+      setSelectedMerchants([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to merge merchants: ${error}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle delete selected merchants
+  const handleDeleteSelected = () => {
+    if (selectedMerchants.length === 0) return;
+    deleteMutation.mutate(selectedMerchants);
+  };
   
   // Function to refresh merchant data
   const refreshData = async () => {
@@ -158,7 +218,11 @@ export default function Dashboard() {
                   itemsPerPage: 10
                 }}
                 onPageChange={setCurrentPage}
-                toggleUploadModal={toggleUploadModal}
+                selectedMerchants={selectedMerchants}
+                setSelectedMerchants={setSelectedMerchants}
+                onDeleteSelected={handleDeleteSelected}
+                deleteMutation={deleteMutation}
+                mergeMutation={mergeMutation}
               />
             </div>
           </div>

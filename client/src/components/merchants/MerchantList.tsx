@@ -98,15 +98,15 @@ export default function MerchantList({
   // Handler for selecting/deselecting a merchant
   const toggleMerchantSelection = (merchantId: string) => {
     setSelectedMerchants(prev => 
-      prev.includes(merchantId) 
-        ? prev.filter(id => id !== merchantId) 
-        : [...prev, merchantId]
+      (prev || []).includes(merchantId) 
+        ? (prev || []).filter(id => id !== merchantId) 
+        : [...(prev || []), merchantId]
     );
   };
   
   // Handler for selecting/deselecting all merchants
   const toggleSelectAll = () => {
-    if (selectedMerchants.length === merchants.length) {
+    if ((selectedMerchants || []).length === merchants.length) {
       setSelectedMerchants([]);
     } else {
       setSelectedMerchants(merchants.map(m => m.id));
@@ -115,7 +115,9 @@ export default function MerchantList({
 
   // Handler for merge confirmation
   const handleMergeConfirm = (targetMerchantId: string, sourceMerchantIds: string[]) => {
-    mergeMutation.mutate({ targetMerchantId, sourceMerchantIds });
+    if (mergeMutation?.mutate) {
+      mergeMutation.mutate({ targetMerchantId, sourceMerchantIds });
+    }
     setShowMergeModal(false);
   };
   
@@ -128,21 +130,21 @@ export default function MerchantList({
         <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500">
-              {selectedMerchants.length > 0 
-                ? `${selectedMerchants.length} merchant${selectedMerchants.length > 1 ? 's' : ''} selected` 
+              {(selectedMerchants || []).length > 0 
+                ? `${(selectedMerchants || []).length} merchant${(selectedMerchants || []).length > 1 ? 's' : ''} selected` 
                 : ''}
             </span>
           </div>
           
-          {selectedMerchants.length > 0 && (
+          {(selectedMerchants || []).length > 0 && (
             <div className="flex space-x-2">
-              {selectedMerchants.length >= 2 && (
+              {(selectedMerchants || []).length >= 2 && (
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowMergeModal(true)}
                   className="flex items-center bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                  disabled={mergeMutation.isPending}
+                  disabled={mergeMutation?.isPending}
                 >
                   <GitMerge className="w-4 h-4 mr-1" />
                   Merge Selected
@@ -153,7 +155,7 @@ export default function MerchantList({
                 size="sm"
                 onClick={onDeleteSelected}
                 className="flex items-center"
-                disabled={deleteMutation.isPending}
+                disabled={deleteMutation?.isPending}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 Delete Selected
@@ -172,7 +174,7 @@ export default function MerchantList({
                   <TableHead className="w-8 px-6 py-3">
                     {merchants.length > 0 && (
                       <Checkbox 
-                        checked={selectedMerchants.length === merchants.length && merchants.length > 0} 
+                        checked={(selectedMerchants || []).length === merchants.length && merchants.length > 0} 
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all"
                       />
@@ -252,11 +254,11 @@ export default function MerchantList({
                   merchants.map((merchant) => (
                     <TableRow 
                       key={merchant.id} 
-                      className={`hover:bg-gray-50 ${selectedMerchants.includes(merchant.id) ? 'bg-blue-50' : ''}`}
+                      className={`hover:bg-gray-50 ${(selectedMerchants || []).includes(merchant.id) ? 'bg-blue-50' : ''}`}
                     >
                       <TableCell className="w-8 px-6 py-4">
                         <Checkbox 
-                          checked={selectedMerchants.includes(merchant.id)}
+                          checked={(selectedMerchants || []).includes(merchant.id)}
                           onCheckedChange={() => toggleMerchantSelection(merchant.id)}
                           aria-label={`Select ${merchant.name}`}
                         />
@@ -344,8 +346,8 @@ export default function MerchantList({
         isOpen={showMergeModal}
         onClose={() => setShowMergeModal(false)}
         onConfirm={handleMergeConfirm}
-        selectedMerchants={merchants.filter(m => selectedMerchants.includes(m.id))}
-        isLoading={mergeMutation.isPending}
+        selectedMerchants={merchants.filter(m => (selectedMerchants || []).includes(m.id))}
+        isLoading={mergeMutation?.isPending || false}
       />
 
       {/* Delete Confirmation Dialog */}
