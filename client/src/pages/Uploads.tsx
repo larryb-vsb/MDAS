@@ -554,6 +554,15 @@ export default function Uploads() {
     }));
   }
 
+  // Function to handle records per page change
+  function handleItemsPerPageChange(newItemsPerPage: number) {
+    setPagination(prev => ({
+      ...prev,
+      itemsPerPage: newItemsPerPage,
+      currentPage: 1 // Reset to first page when changing items per page
+    }));
+  }
+
   // Reset pagination to page 1 when files data changes
   useEffect(() => {
     setPagination(prev => ({
@@ -797,50 +806,77 @@ export default function Uploads() {
               </TableBody>
             </Table>
           </CardContent>
-          {totalPages > 1 && (
-            <CardFooter className="flex justify-center pt-2 pb-4">
+          {totalItems > 0 && (
+            <CardFooter className="flex flex-col sm:flex-row justify-between items-center pt-2 pb-4 gap-4">
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                  className="h-8 w-8"
+                <Label htmlFor="items-per-page" className="text-sm">Show:</Label>
+                <Select 
+                  value={pagination.itemsPerPage.toString()} 
+                  onValueChange={(value) => handleItemsPerPageChange(Number(value))}
                 >
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="h-8 w-8"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <span className="text-sm px-2">
-                  Page {currentPage} of {totalPages}
+                  <SelectTrigger id="items-per-page" className="w-20 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  per page
                 </span>
-                
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="h-8 w-8"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="h-8 w-8"
-                >
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
+              </div>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8"
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <span className="text-sm px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8"
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} files
               </div>
             </CardFooter>
           )}
