@@ -69,7 +69,7 @@ export default function Merchants() {
     mutationFn: async (merchantIds: string[]) => {
       console.log('[MERCHANTS DELETE] Attempting to delete merchants:', merchantIds);
       try {
-        const response = await apiRequest('DELETE', `/api/merchants`, { merchantIds });
+        const response = await apiRequest(`/api/merchants`, { method: 'DELETE', body: { merchantIds } });
         console.log('[MERCHANTS DELETE] Delete response:', response);
         return response;
       } catch (error) {
