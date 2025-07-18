@@ -930,18 +930,42 @@ export class DatabaseStorage implements IStorage {
             notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
           };
 
-          // Note: Audit logging moved to post-response handler in routes.ts
-          // try {
-          //   console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
-          //   await this.createAuditLog(auditLogData);
-          //   console.log('[MERGE LOGGING] Audit log created successfully');
-          // } catch (error) {
-          //   console.error('[MERGE LOGGING] Failed to create audit log:', error);
-          // }
+          // Create audit log entry directly within the transaction
+          try {
+            console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
+            await this.createAuditLog(auditLogData);
+            console.log('[MERGE LOGGING] Audit log created successfully');
+          } catch (error) {
+            console.error('[MERGE LOGGING] Failed to create audit log:', error);
+          }
         }
       }
 
       console.log(`Successfully merged ${merchantsRemoved} merchants into ${targetMerchant.name}, transferring ${totalTransactionsTransferred} transactions`);
+
+      // Create system log entry for the merge operation
+      const systemLogData: InsertSystemLog = {
+        level: 'info',
+        source: 'MerchantMerge',
+        message: `Merchant merge completed successfully: ${merchantsRemoved} merchants merged into ${targetMerchant.name}`,
+        details: {
+          targetMerchantId,
+          sourceMerchantIds: filteredSourceIds,
+          transactionsTransferred: totalTransactionsTransferred,
+          merchantsRemoved: merchantsRemoved,
+          targetMerchantName: targetMerchant.name,
+          performedBy: username,
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      try {
+        console.log('[MERGE LOGGING] Creating system log entry:', systemLogData);
+        const [systemLogResult] = await db.insert(systemLogsTable).values(systemLogData).returning();
+        console.log('[MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
+      } catch (error) {
+        console.error('[MERGE LOGGING] Failed to create system log:', error);
+      }
 
       // Create an upload log entry for the merge operation using existing schema
       const mergeLogData: InsertUploadedFile = {
@@ -955,15 +979,15 @@ export class DatabaseStorage implements IStorage {
         deleted: false
       };
 
-      // Note: Upload logging moved to post-response handler in routes.ts
-      // try {
-      //   console.log('[MERGE LOGGING] Creating upload log entry:', mergeLogData);
-      //   const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
-      //   console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
-      // } catch (error) {
-      //   console.error('[MERGE LOGGING] Failed to create upload log:', error);
-      //   console.error('[MERGE LOGGING] Upload log data:', mergeLogData);
-      // }
+      // Create upload log entry directly within the transaction
+      try {
+        console.log('[MERGE LOGGING] Creating upload log entry:', mergeLogData);
+        const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
+        console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
+      } catch (error) {
+        console.error('[MERGE LOGGING] Failed to create upload log:', error);
+        console.error('[MERGE LOGGING] Upload log data:', mergeLogData);
+      }
 
       return {
         success: true,

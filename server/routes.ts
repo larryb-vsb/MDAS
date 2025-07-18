@@ -2160,10 +2160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[MERGE SUCCESS] Merge completed successfully:', result);
       
-      // Create logs immediately before response to ensure they persist
-      console.log('[MERGE LOGGING] Creating logs immediately before response...');
-      await processPostMergeLogs(targetMerchantId, sourceMerchantIds, result, username);
-      console.log('[MERGE LOGGING] All logs created successfully');
+      // Logging is now handled directly in storage.ts within the merge transaction
+      console.log('[MERGE LOGGING] Logs created within merge transaction');
       
       // Send response after logs are created
       res.json({
