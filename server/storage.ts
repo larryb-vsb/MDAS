@@ -930,7 +930,14 @@ export class DatabaseStorage implements IStorage {
             notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
           };
 
-          await this.createAuditLog(auditLogData);
+          // Note: Audit logging moved to post-response handler in routes.ts
+          // try {
+          //   console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
+          //   await this.createAuditLog(auditLogData);
+          //   console.log('[MERGE LOGGING] Audit log created successfully');
+          // } catch (error) {
+          //   console.error('[MERGE LOGGING] Failed to create audit log:', error);
+          // }
         }
       }
 
@@ -948,7 +955,15 @@ export class DatabaseStorage implements IStorage {
         deleted: false
       };
 
-      await db.insert(uploadedFilesTable).values(mergeLogData);
+      // Note: Upload logging moved to post-response handler in routes.ts
+      // try {
+      //   console.log('[MERGE LOGGING] Creating upload log entry:', mergeLogData);
+      //   const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
+      //   console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
+      // } catch (error) {
+      //   console.error('[MERGE LOGGING] Failed to create upload log:', error);
+      //   console.error('[MERGE LOGGING] Upload log data:', mergeLogData);
+      // }
 
       return {
         success: true,
@@ -3248,14 +3263,23 @@ export class DatabaseStorage implements IStorage {
   // Create audit log entry
   async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
     try {
+      console.log('[AUDIT LOG] Attempting to insert audit log:', auditLogData);
+      
       // Insert the audit log and return the inserted record
       const [newAuditLog] = await db.insert(auditLogs)
         .values(auditLogData)
         .returning();
       
+      console.log('[AUDIT LOG] Successfully inserted audit log with ID:', newAuditLog?.id);
+      
+      // Test direct database query to verify the log was actually inserted
+      const verifyQuery = await db.select().from(auditLogs).where(eq(auditLogs.id, newAuditLog.id));
+      console.log('[AUDIT LOG] Verification query result:', verifyQuery.length > 0 ? 'FOUND' : 'NOT FOUND');
+      
       return newAuditLog;
     } catch (error) {
-      console.error("Error creating audit log:", error);
+      console.error("[AUDIT LOG] Error creating audit log:", error);
+      console.error("[AUDIT LOG] Failed audit log data:", auditLogData);
       throw new Error("Failed to create audit log entry");
     }
   }

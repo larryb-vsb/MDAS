@@ -53,6 +53,8 @@ import {
   merchants as merchantsTable, 
   transactions as transactionsTable, 
   uploadedFiles as uploadedFilesTable,
+  auditLogs as auditLogsTable,
+  systemLogs as systemLogsTable,
   backupHistory,
   InsertBackupHistory,
   schemaVersions,
@@ -2056,6 +2058,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merge merchants endpoint
+  // Function to process merge logs after response is sent
+  async function processPostMergeLogs(targetMerchantId: string, sourceMerchantIds: string[], result: any, username: string) {
+    try {
+      // Create audit log entries for each merged merchant
+      for (const sourceMerchantId of sourceMerchantIds) {
+        // Get the source merchant directly from database since it's been removed
+        const [sourceMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
+        if (sourceMerchant) {
+          const auditLogData = {
+            entityType: 'merchant',
+            entityId: targetMerchantId,
+            action: 'merge',
+            userId: null,
+            username,
+            oldValues: sourceMerchant,
+            newValues: result.targetMerchant,
+            changedFields: ['transactions'],
+            notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${result.targetMerchant.name}" (${targetMerchantId}). Transferred ${result.transactionsTransferred} transactions.`
+          };
+          
+          console.log('[POST-MERGE LOGGING] Creating audit log entry:', auditLogData);
+          const [auditLog] = await db.insert(auditLogsTable).values(auditLogData).returning();
+          console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLog.id);
+        }
+      }
+      
+      // Create upload log entry
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substr(2, 9);
+      const mergeLogData = {
+        id: `merge_${timestamp}_${randomId}`,
+        originalFilename: `Merchant Merge Operation: ${result.targetMerchant.name}`,
+        storagePath: `/logs/merge_${targetMerchantId}_${timestamp}.log`,
+        fileType: 'merchant',
+        uploadedAt: new Date(),
+        processed: true,
+        processingErrors: null,
+        deleted: false
+      };
+      
+      console.log('[POST-MERGE LOGGING] Creating upload log entry:', mergeLogData);
+      const [uploadLogResult] = await db.insert(uploadedFilesTable).values(mergeLogData).returning();
+      console.log('[POST-MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
+      
+      // Create system log entry for the merge operation
+      const systemLogData = {
+        level: 'info',
+        source: 'MerchantMerge',
+        message: `Merchant merge completed successfully: ${result.merchantsRemoved} merchants merged into ${result.targetMerchant.name}`,
+        details: {
+          targetMerchantId,
+          sourceMerchantIds,
+          transactionsTransferred: result.transactionsTransferred,
+          merchantsRemoved: result.merchantsRemoved,
+          targetMerchantName: result.targetMerchant.name,
+          performedBy: username,
+          timestamp: new Date().toISOString()
+        }
+      };
+      console.log('[POST-MERGE LOGGING] Creating system log entry:', systemLogData);
+      const [systemLogResult] = await db.insert(systemLogsTable).values(systemLogData).returning();
+      console.log('[POST-MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
+    } catch (error) {
+      console.error('[POST-MERGE LOGGING] Failed to create logs:', error);
+    }
+  }
+
   app.post("/api/merchants/merge", isAuthenticated, async (req, res) => {
     try {
       console.log('[MERGE REQUEST] Received merge request:', { 
@@ -2079,26 +2148,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('[MERGE SUCCESS] Merge completed successfully:', result);
       
-      // Create system log entry for the merge operation
-      await db.insert(systemLogsTable).values({
-        level: 'info',
-        source: 'MerchantMerge',
-        message: `Merchant merge completed successfully: ${result.merchantsRemoved} merchants merged into ${result.targetMerchant.name}`,
-        details: {
-          targetMerchantId,
-          sourceMerchantIds,
-          transactionsTransferred: result.transactionsTransferred,
-          merchantsRemoved: result.merchantsRemoved,
-          targetMerchantName: result.targetMerchant.name,
-          performedBy: username,
-          timestamp: new Date().toISOString()
-        }
-      });
+      // Note: Logging moved to post-response async handler
       
+      // Send response immediately 
       res.json({
         success: true,
         message: `Successfully merged ${result.merchantsRemoved} merchants into ${result.targetMerchant.name}`,
         ...result
+      });
+      
+      // Process logs asynchronously after response is sent
+      setImmediate(async () => {
+        try {
+          console.log('[MERGE LOGGING] Starting post-response logging...');
+          await processPostMergeLogs(targetMerchantId, sourceMerchantIds, result, username);
+          console.log('[MERGE LOGGING] Post-response logging completed successfully');
+        } catch (error) {
+          console.error('[MERGE LOGGING] Post-response logging failed:', error);
+        }
       });
     } catch (error) {
       console.error('[MERGE ERROR] Error merging merchants:', error);
