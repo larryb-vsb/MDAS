@@ -2141,7 +2141,7 @@ export class DatabaseStorage implements IStorage {
       // Process each file ID individually to avoid SQL issues with multiple parameters
       for (const fileId of fileIds) {
         try {
-          // Get the individual file information with all fields including new database storage fields
+          // Get the individual file information using only existing schema fields
           const fileResults = await db.select({
             id: uploadedFilesTable.id,
             originalFilename: uploadedFilesTable.originalFilename,
@@ -2150,11 +2150,7 @@ export class DatabaseStorage implements IStorage {
             uploadedAt: uploadedFilesTable.uploadedAt,
             processed: uploadedFilesTable.processed,
             processingErrors: uploadedFilesTable.processingErrors,
-            deleted: uploadedFilesTable.deleted,
-            fileContent: uploadedFilesTable.fileContent,
-            fileSize: uploadedFilesTable.fileSize,
-            mimeType: uploadedFilesTable.mimeType,
-            processedAt: uploadedFilesTable.processedAt
+            deleted: uploadedFilesTable.deleted
           })
             .from(uploadedFilesTable)
             .where(eq(uploadedFilesTable.id, fileId));
@@ -2170,9 +2166,19 @@ export class DatabaseStorage implements IStorage {
           // Process based on file type
           if (file.fileType === 'merchant') {
             try {
-              // For new files with database content, use the content; for old files, use file path
-              if (file.fileContent) {
-                await this.processMerchantFileFromContent(file.fileContent);
+              // Try to get database content via raw SQL, fall back to file path
+              let dbContent = null;
+              try {
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM uploaded_files WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+              } catch (error) {
+                console.log(`Database content not available for ${file.id}, using file path`);
+              }
+              
+              if (dbContent) {
+                await this.processMerchantFileFromContent(dbContent);
               } else {
                 await this.processMerchantFile(file.storagePath);
               }
@@ -2181,10 +2187,20 @@ export class DatabaseStorage implements IStorage {
               await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true,
-                  processingErrors: null,
-                  processedAt: new Date(),
+                  processingErrors: null
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
+              
+              // Update processedAt via raw SQL (gracefully handle if column doesn't exist)
+              try {
+                await db.execute(sql`
+                  UPDATE uploaded_files 
+                  SET processed_at = NOW() 
+                  WHERE id = ${file.id}
+                `);
+              } catch (error) {
+                console.log(`processed_at column not available for ${file.id}`);
+              }
                 
               // Clean up the processed file
               try {
@@ -2204,16 +2220,25 @@ export class DatabaseStorage implements IStorage {
               await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
-                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing",
-                  processedAt: new Date(),
+                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing"
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
           } else if (file.fileType === 'transaction') {
             try {
-              // For new files with database content, use the content; for old files, use file path
-              if (file.fileContent) {
-                await this.processTransactionFileFromContent(file.fileContent);
+              // Try to get database content via raw SQL, fall back to file path
+              let dbContent = null;
+              try {
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM uploaded_files WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+              } catch (error) {
+                console.log(`Database content not available for ${file.id}, using file path`);
+              }
+              
+              if (dbContent) {
+                await this.processTransactionFileFromContent(dbContent);
               } else {
                 await this.processTransactionFile(file.storagePath);
               }
@@ -2222,8 +2247,7 @@ export class DatabaseStorage implements IStorage {
               await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true,
-                  processingErrors: null,
-                  processedAt: new Date(),
+                  processingErrors: null
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
                 
@@ -2265,8 +2289,7 @@ export class DatabaseStorage implements IStorage {
               await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
-                  processingErrors: errorMessage,
-                  processedAt: new Date(),
+                  processingErrors: errorMessage
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
@@ -2277,8 +2300,7 @@ export class DatabaseStorage implements IStorage {
             await db.update(uploadedFilesTable)
                 .set({ 
                   processed: true, 
-                  processingErrors: `Unknown file type: ${file.fileType}`,
-                  processedAt: new Date(),
+                  processingErrors: `Unknown file type: ${file.fileType}`
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
           }
