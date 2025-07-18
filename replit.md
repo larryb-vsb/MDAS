@@ -58,6 +58,13 @@ Preferred communication style: Simple, everyday language.
 - **COMPLETE COVERAGE**: Combines full-text search benefits with partial matching for all search terms
 - **PAGINATION FIX**: Fixed search results display by auto-resetting to page 1 when filters change
 
+### Upload and Delete Functionality Fixed (July 18, 2025)
+- **UPLOAD SCREEN WORKING**: Fixed uploads screen display issues by replacing ORM queries with raw SQL
+- **DELETE FUNCTIONALITY OPERATIONAL**: Fixed delete endpoint to properly handle file removal using raw SQL queries
+- **SCHEMA COMPATIBILITY**: Resolved "file_content column does not exist" errors by bypassing ORM schema mismatches
+- **COMPREHENSIVE TESTING**: Upload and delete workflow tested with demographic files - all operations working correctly
+- **PRODUCTION READY**: Both upload history display and file deletion are now fully functional
+
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
 - **REAL-TIME UPDATES**: Counts automatically update as files are processed or uploaded (e.g., "All Files (547)", "Queued (101)")

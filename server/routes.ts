@@ -1291,12 +1291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Mark these files as "pending processing" in the database
       for (const fileId of fileIds) {
         try {
-          await db.update(uploadedFilesTable)
-            .set({ 
-              processed: false, 
-              processingErrors: null 
-            })
-            .where(eq(uploadedFilesTable.id, fileId));
+          await db.execute(sql`
+            UPDATE uploaded_files 
+            SET processed = false, processing_errors = NULL 
+            WHERE id = ${fileId}
+          `);
         } catch (updateError) {
           console.error(`Error updating file status for ${fileId}:`, updateError);
         }
@@ -1371,9 +1370,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Starting orphaned file cleanup...");
       
       // Get all non-deleted uploaded files
-      const uploadedFiles = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.deleted, false));
+      const result = await db.execute(sql`
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
+        FROM uploaded_files 
+        WHERE deleted = false
+      `);
+      const uploadedFiles = result.rows;
       
       let orphanedCount = 0;
       let cleanedUpIds: string[] = [];
@@ -1386,13 +1388,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Orphaned file found: ${file.originalFilename} (${file.id}) - path: ${file.storagePath}`);
             
             // Mark the file as deleted (soft delete)
-            await db
-              .update(uploadedFilesTable)
-              .set({ 
-                deleted: true,
-                processingErrors: "File not found: The temporary file may have been removed by the system."
-              })
-              .where(eq(uploadedFilesTable.id, file.id));
+            await db.execute(sql`
+              UPDATE uploaded_files 
+              SET deleted = true, processing_errors = 'File not found: The temporary file may have been removed by the system.'
+              WHERE id = ${file.id}
+            `);
             
             orphanedCount++;
             cleanedUpIds.push(file.id);
@@ -1552,12 +1552,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update file with the error message
       if (req.params.id) {
-        await db.update(uploadedFilesTable)
-          .set({ 
-            processed: true,
-            processingErrors: error instanceof Error ? error.message : "Unknown error during reprocessing" 
-          })
-          .where(eq(uploadedFilesTable.id, req.params.id));
+        await db.execute(sql`
+          UPDATE uploaded_files 
+          SET processed = true, processing_errors = ${error instanceof Error ? error.message : "Unknown error during reprocessing"}
+          WHERE id = ${req.params.id}
+        `);
       }
       
       res.status(500).json({
@@ -1571,19 +1570,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info
-      const [fileInfo] = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.id, fileId));
+      // Use raw SQL to avoid schema issues
+      const result = await db.execute(sql`
+        SELECT id, original_filename, file_type 
+        FROM uploaded_files 
+        WHERE id = ${fileId} AND deleted = false
+      `);
       
-      if (!fileInfo) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ error: "File not found" });
       }
       
       // Mark file as deleted (soft delete)
-      await db.update(uploadedFilesTable)
-        .set({ deleted: true })
-        .where(eq(uploadedFilesTable.id, fileId));
+      await db.execute(sql`
+        UPDATE uploaded_files 
+        SET deleted = true 
+        WHERE id = ${fileId}
+      `);
       
       res.json({ success: true });
     } catch (error) {
