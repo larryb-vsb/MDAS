@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
@@ -30,6 +30,11 @@ export default function Merchants() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  
+  // Reset page to 1 when search query, status filter, or upload filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, uploadFilter]);
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({

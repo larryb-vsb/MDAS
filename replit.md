@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **HYBRID SEARCH**: Implemented PostgreSQL GIN full-text search with ILIKE fallback for comprehensive coverage
 - **OPTIMIZED PERFORMANCE**: GIN index provides excellent search performance with intelligent word matching
 - **COMPLETE COVERAGE**: Combines full-text search benefits with partial matching for all search terms
+- **PAGINATION FIX**: Fixed search results display by auto-resetting to page 1 when filters change
 
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
