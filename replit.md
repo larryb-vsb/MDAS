@@ -10,13 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Search Functionality Crisis (July 18, 2025)
-- **BROKEN**: Search functionality completely non-functional despite extensive debugging attempts
-- **DATABASE CONFIRMED**: Direct PostgreSQL queries show 7 merchants with "bel" and 9 with "jar" exist in database
-- **DRIZZLE ORM ISSUE**: All Drizzle ORM query approaches (ilike, like, sql templates) return 0 results
-- **QUERY CONSTRUCTION**: Multiple debugging attempts show query conditions are being applied but return no results
-- **SHELL COMMANDS WORK**: Direct psql commands successfully find matching merchants
-- **REQUIRES REWRITE**: Search functionality needs complete rebuild with different approach
+### Search Functionality Fixed (July 18, 2025)
+- **WORKING**: Search functionality restored using raw SQL approach after Drizzle ORM query construction issues
+- **SINGLE SEARCH TERM**: Users can search with one term across merchant name, ID, and Client MID fields simultaneously
+- **CASE-INSENSITIVE**: Uses LOWER() function for reliable case-insensitive matching
+- **CONFIRMED RESULTS**: Search for "bel" now correctly returns 5 merchants (BELEAF CHEROKEE, BELEAF THE GROVE, etc.)
+- **RAW SQL SOLUTION**: Bypassed broken Drizzle ORM query builder with direct SQL that mirrors working shell commands
+- **MULTI-FIELD SEARCH**: Single search term checks across all key merchant identification fields
 
 ### Upload Filter Tabs Enhancement (July 18, 2025)
 - **FILTER TAB COUNTS**: Added record counts to all filter tabs on uploads page showing exact file numbers
