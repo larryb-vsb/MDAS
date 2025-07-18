@@ -47,6 +47,9 @@ export const uploadedFiles = pgTable("uploaded_files", {
   deleted: boolean("deleted").default(false).notNull(),
   // New fields for production file processing
   fileContent: text("file_content"), // Store file content for reliable processing
+  fileSize: integer("file_size"), // Size of the file in bytes
+  mimeType: text("mime_type"), // MIME type of the file
+  processedAt: timestamp("processed_at"), // When the file was processed
   processingStatus: text("processing_status").default("queued").notNull(), // queued, processing, completed, failed
   processingStartedAt: timestamp("processing_started_at"),
   processingCompletedAt: timestamp("processing_completed_at"),

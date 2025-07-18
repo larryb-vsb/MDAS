@@ -1324,17 +1324,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get upload file history
   app.get("/api/uploads/history", async (req, res) => {
     try {
-      const uploadedFiles = await db.select()
-        .from(uploadedFilesTable)
-        .where(eq(uploadedFilesTable.deleted, false))
-        .orderBy(desc(uploadedFilesTable.uploadedAt));
+      // Use raw SQL to avoid schema issues - only select columns that exist
+      const result = await db.execute(sql`
+        SELECT 
+          id,
+          original_filename,
+          storage_path,
+          file_type,
+          uploaded_at,
+          processed,
+          processing_errors,
+          deleted
+        FROM uploaded_files 
+        WHERE deleted = false
+        ORDER BY uploaded_at DESC
+      `);
       
-      // Return files without processedAt field since it doesn't exist in current schema
-      const filesWithExtendedInfo = uploadedFiles.map(file => ({
-        ...file
+      const uploadedFiles = result.rows.map(row => ({
+        id: row.id,
+        originalFilename: row.original_filename,
+        storagePath: row.storage_path,
+        fileType: row.file_type,
+        uploadedAt: row.uploaded_at,
+        processed: row.processed,
+        processingErrors: row.processing_errors,
+        deleted: row.deleted,
+        processedAt: null, // Will be added later
+        processingStatus: row.processed ? 'completed' : 'queued',
+        processingStartedAt: null,
+        processingCompletedAt: null,
+        processingServerId: null
       }));
       
-      res.json(filesWithExtendedInfo);
+      res.json(uploadedFiles);
     } catch (error) {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 
