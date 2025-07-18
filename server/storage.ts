@@ -479,12 +479,15 @@ export class DatabaseStorage implements IStorage {
       // Apply search filter (search by name or ID/MID)
       if (search && search.trim() !== "") {
         const searchTerm = `%${search.trim()}%`;
+        console.log(`[SEARCH DEBUG] Searching for: "${search.trim()}" with term: "${searchTerm}"`);
+        
         // Build individual search conditions using case-insensitive search
         const nameCondition = ilike(merchantsTable.name, searchTerm);
         const idCondition = ilike(merchantsTable.id, searchTerm);
         const midCondition = ilike(merchantsTable.clientMID, searchTerm);
         
         conditions.push(or(nameCondition, idCondition, midCondition));
+        console.log(`[SEARCH DEBUG] Added search conditions to query`);
       }
       
       // Apply all conditions to both queries
@@ -504,7 +507,9 @@ export class DatabaseStorage implements IStorage {
       query = query.limit(limit).offset(offset);
       
       // Execute query
+      console.log(`[SEARCH DEBUG] Executing query with ${conditions.length} conditions`);
       const merchants = await query;
+      console.log(`[SEARCH DEBUG] Query returned ${merchants.length} merchants`);
       
       // Calculate stats for each merchant and format lastUploadDate
       const merchantsWithStats = await Promise.all(merchants.map(async (merchant) => {
