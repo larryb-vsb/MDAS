@@ -2058,22 +2058,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete multiple merchants (DELETE route)
-  app.delete("/api/merchants", async (req, res) => {
+  app.delete("/api/merchants", isAuthenticated, async (req, res) => {
     try {
+      console.log(`[DELETE MERCHANTS API] Received DELETE request for merchants`);
+      console.log(`[DELETE MERCHANTS API] Request body:`, req.body);
+      console.log(`[DELETE MERCHANTS API] User authenticated:`, req.isAuthenticated());
+      
       const { merchantIds } = req.body;
       
       if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        console.log(`[DELETE MERCHANTS API] Invalid request: merchantIds must be a non-empty array`);
         return res.status(400).json({ error: "Invalid request: merchantIds must be a non-empty array" });
       }
       
-      console.log(`[DELETE MERCHANTS] Attempting to delete ${merchantIds.length} merchants:`, merchantIds);
+      console.log(`[DELETE MERCHANTS API] Attempting to delete ${merchantIds.length} merchants:`, merchantIds);
       
       await storage.deleteMerchants(merchantIds);
       
-      console.log(`[DELETE MERCHANTS] Successfully deleted ${merchantIds.length} merchants`);
+      console.log(`[DELETE MERCHANTS API] Successfully deleted ${merchantIds.length} merchants`);
       res.json({ success: true, message: `Successfully deleted ${merchantIds.length} merchants` });
     } catch (error) {
-      console.error('Error deleting merchants:', error);
+      console.error('[DELETE MERCHANTS API] Error deleting merchants:', error);
       res.status(500).json({ error: "Failed to delete merchants" });
     }
   });

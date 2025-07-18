@@ -67,9 +67,18 @@ export default function Merchants() {
   // Delete selected merchants mutation
   const deleteMutation = useMutation({
     mutationFn: async (merchantIds: string[]) => {
-      await apiRequest('DELETE', `/api/merchants`, { merchantIds });
+      console.log('[MERCHANTS DELETE] Attempting to delete merchants:', merchantIds);
+      try {
+        const response = await apiRequest('DELETE', `/api/merchants`, { merchantIds });
+        console.log('[MERCHANTS DELETE] Delete response:', response);
+        return response;
+      } catch (error) {
+        console.error('[MERCHANTS DELETE] Delete error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log('[MERCHANTS DELETE] Delete successful');
       toast({
         title: "Merchants deleted",
         description: `Successfully deleted ${selectedMerchants.length} merchant${selectedMerchants.length > 1 ? 's' : ''}`,
@@ -79,6 +88,7 @@ export default function Merchants() {
       queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
     },
     onError: (error) => {
+      console.error('[MERCHANTS DELETE] Delete mutation error:', error);
       toast({
         title: "Error",
         description: `Failed to delete merchants: ${error}`,
