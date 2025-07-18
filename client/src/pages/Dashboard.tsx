@@ -99,7 +99,7 @@ export default function Dashboard() {
     onSuccess: (data) => {
       toast({
         title: "Merchants merged successfully",
-        description: `Merged ${data.merchantsRemoved} merchants into ${data.targetMerchant.name}. Transferred ${data.transactionsTransferred} transactions.`,
+        description: `Merged ${data.merchantsRemoved} merchants into ${data.targetMerchant?.name || 'target merchant'}. Transferred ${data.transactionsTransferred} transactions.`,
       });
       setSelectedMerchants([]);
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
