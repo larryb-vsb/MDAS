@@ -495,11 +495,24 @@ export class DatabaseStorage implements IStorage {
       // Apply all conditions to both queries
       if (conditions.length > 0) {
         console.log(`[SEARCH DEBUG] Applying ${conditions.length} conditions to query`);
+        console.log(`[SEARCH DEBUG] Conditions details:`, conditions.map((_, i) => `Condition ${i+1}`));
         const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
         query = query.where(whereClause);
         countQuery = countQuery.where(whereClause);
       } else {
         console.log(`[SEARCH DEBUG] No conditions to apply`);
+      }
+      
+      // Debug: Test the raw SQL that should work
+      if (search && search.trim() !== "") {
+        console.log(`[SEARCH DEBUG] Testing raw SQL query for comparison...`);
+        const rawTestQuery = await db.execute(sql`
+          SELECT COUNT(*) as count FROM merchants 
+          WHERE LOWER(name) LIKE ${`%${search.trim().toLowerCase()}%`} 
+          OR LOWER(id) LIKE ${`%${search.trim().toLowerCase()}%`} 
+          OR LOWER(client_mid) LIKE ${`%${search.trim().toLowerCase()}%`}
+        `);
+        console.log(`[SEARCH DEBUG] Raw SQL found ${rawTestQuery[0].count} matches`);
       }
       
       // Get total count for pagination (with filters applied)
