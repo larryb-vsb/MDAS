@@ -281,6 +281,16 @@ export class DatabaseStorage implements IStorage {
     return await bcrypt.compare(supplied, stored);
   }
   
+  // Helper function to generate search index
+  private generateSearchIndex(merchantData: Partial<InsertMerchant>): string {
+    const searchable = [
+      merchantData.name || '',
+      merchantData.id || '',
+      merchantData.clientMID || ''
+    ];
+    return searchable.join(' ').toLowerCase();
+  }
+
   // Check if we need to initialize data
   private async checkAndInitializeData() {
     try {
@@ -476,19 +486,19 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // Apply search filter - bypass broken Drizzle search with raw SQL
+      // Apply search filter using working raw SQL approach
       if (search && search.trim() !== "") {
         const searchTerm = search.trim().toLowerCase();
-        console.log(`[SEARCH DEBUG] Using raw SQL search for: "${searchTerm}"`);
+        console.log(`[SEARCH DEBUG] Using working raw SQL search for: "${searchTerm}"`);
         
-        // Use raw SQL that we know works from shell testing
+        // Use the raw SQL approach that we know works from shell testing
         const searchCondition = sql`(
           LOWER(${merchantsTable.name}) LIKE ${'%' + searchTerm + '%'} OR
           LOWER(${merchantsTable.id}) LIKE ${'%' + searchTerm + '%'} OR  
           LOWER(${merchantsTable.clientMID}) LIKE ${'%' + searchTerm + '%'}
         )`;
         conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added raw SQL search condition`);
+        console.log(`[SEARCH DEBUG] Added working raw SQL search condition`);
       }
       
       // Apply all conditions to both queries
@@ -694,6 +704,8 @@ export class DatabaseStorage implements IStorage {
         merchantData.createdAt = new Date();
       }
       
+      // Search index will be maintained at database level
+      
       // Insert the merchant into the database
       const [newMerchant] = await db.insert(merchantsTable)
         .values(merchantData)
@@ -743,6 +755,8 @@ export class DatabaseStorage implements IStorage {
       
       // Only proceed with update if there are actual changes
       if (changedFields.length > 0) {
+        // Search index will be maintained at database level
+        
         // Update merchant
         await db.update(merchantsTable)
           .set(merchantData)
