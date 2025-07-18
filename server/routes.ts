@@ -1432,8 +1432,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "File not found" });
       }
       
-      // Try database content first
-      if (fileInfo.file_content) {
+      // Try database content first (but not if it's a placeholder)
+      if (fileInfo.file_content && !fileInfo.file_content.startsWith('MIGRATED_PLACEHOLDER_')) {
         console.log(`Downloading file content from database for file: ${fileId}`);
         const fileContent = Buffer.from(fileInfo.file_content, 'base64');
         
@@ -1442,9 +1442,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Length', fileContent.length.toString());
         res.send(fileContent);
       }
-      // Fallback to file system if database content not available
+      // Fallback to file system if database content is placeholder or not available
       else if (fs.existsSync(fileInfo.storage_path)) {
-        console.log(`Downloading file from file system: ${fileInfo.storage_path}`);
+        console.log(`Downloading file from file system (database has placeholder): ${fileInfo.storage_path}`);
         res.download(fileInfo.storage_path, fileInfo.original_filename);
       }
       else {
@@ -1483,13 +1483,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let csvContent = null;
       
       // Try database content first
-      if (fileInfo.file_content) {
+      if (fileInfo.file_content && !fileInfo.file_content.startsWith('MIGRATED_PLACEHOLDER_')) {
         console.log(`Reading file content from database for file: ${fileId}`);
         csvContent = Buffer.from(fileInfo.file_content, 'base64').toString('utf8');
       }
-      // Fallback to file system if database content not available
+      // If database content is a placeholder, try file system
       else if (fs.existsSync(fileInfo.storage_path)) {
-        console.log(`Reading file content from file system: ${fileInfo.storage_path}`);
+        console.log(`Reading file content from file system (database has placeholder): ${fileInfo.storage_path}`);
         csvContent = fs.readFileSync(fileInfo.storage_path, 'utf8');
       }
       else {

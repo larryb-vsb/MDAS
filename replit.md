@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Transaction Content Display Resolution (July 18, 2025)
+- **CONTENT DISPLAY WORKING**: Fixed file content viewing to properly display transaction data for new uploads
+- **PLACEHOLDER DETECTION**: Added logic to detect and bypass migration placeholder content in database
+- **FALLBACK MECHANISM**: Implemented file system fallback when database contains placeholder content
+- **NEW UPLOADS CONFIRMED**: All new transaction file uploads display content correctly with proper CSV parsing
+- **EXISTING FILE ISSUE**: Legacy files contain migration placeholders instead of actual CSV content
+- **COMPREHENSIVE TESTING**: Verified complete workflow from upload to content display to download works perfectly
+- **PRODUCTION READY**: New file uploads work completely, existing files need content restoration from original sources
+
 ### File Content Access Protection Implementation (July 18, 2025)
 - **CRASH PROTECTION COMPLETE**: Fixed file system crashes when viewing/downloading processed files by implementing database content access
 - **DATABASE-FIRST CONTENT**: Both view content and download endpoints now read from database-stored file_content first, fallback to file system
