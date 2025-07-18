@@ -28,6 +28,18 @@ export const merchantFieldMappings = {
   asOfDate: "AsOfDate" // Date from demographic import file
 };
 
+// Alternative field mappings for headers with spaces
+export const merchantFieldMappingsAlt = {
+  id: "Client ID",
+  name: "Client Legal Name",
+  clientMID: "Client MID",
+  address: "Client Primary Address",
+  city: "Client City", 
+  state: "Client State",
+  zipCode: "Client Zip Code",
+  asOfDate: "As Of Date"
+};
+
 export const transactionFieldMappings = {
   // Database field: CSV field name (standard format)
   id: "TransactionID",
@@ -35,6 +47,17 @@ export const transactionFieldMappings = {
   amount: "Amount",
   date: "Date",
   type: "Type"
+};
+
+// Alternative transaction field mappings for headers with spaces
+export const transactionFieldMappingsAlt = {
+  id: "Transaction ID",
+  merchantId: "Merchant ID",
+  clientId: "Client ID",
+  amount: "Amount",
+  date: "Transaction Date",
+  type: "Transaction Type",
+  description: "Description"
 };
 
 // Alternate transaction field mappings for different file formats

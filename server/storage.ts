@@ -2442,11 +2442,27 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
+          // Handle spaced headers for merchant name - CRITICAL for database constraint
+          if (!merchantData.name && row["Client Legal Name"]) {
+            merchantData.name = row["Client Legal Name"];
+          }
+          
+          // Handle spaced headers for merchant ID 
+          if (!merchantData.clientMID && row["Client MID"]) {
+            merchantData.clientMID = row["Client MID"];
+          }
+          
           // Apply default values for any missing fields
           for (const [dbField, defaultValue] of Object.entries(defaultMerchantValues)) {
             if (merchantData[dbField as keyof InsertMerchant] === undefined) {
               merchantData[dbField as keyof InsertMerchant] = defaultValue as any;
             }
+          }
+          
+          // CRITICAL: Ensure name field is not null for database constraint
+          if (!merchantData.name) {
+            merchantData.name = `Merchant ${merchantId}`;
+            console.warn(`Missing merchant name for ${merchantId}, using fallback: ${merchantData.name}`);
           }
           
           console.log(`Final merchant data: ${JSON.stringify(merchantData)}`);
@@ -2957,6 +2973,13 @@ export class DatabaseStorage implements IStorage {
             // Handle missing transaction ID
             if (!transactionData.id) {
               transactionData.id = `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`;
+            }
+            
+            // CRITICAL: Ensure merchantId is set to prevent database constraint violation
+            if (!transactionData.merchantId) {
+              // Use Client ID or Merchant ID from the row data with spaces
+              transactionData.merchantId = row["Client ID"] || row["Merchant ID"] || row["ClientID"] || row["MerchantID"] || transactionData.id;
+              console.warn(`Fixed missing merchantId for row ${rowCount}: ${transactionData.merchantId}`);
             }
             
             // Set creation timestamp
