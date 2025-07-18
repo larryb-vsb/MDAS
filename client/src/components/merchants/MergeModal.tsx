@@ -39,7 +39,7 @@ export default function MergeModal({
   const handleConfirm = () => {
     if (!targetMerchantId) return;
     
-    const sourceMerchantIds = selectedMerchants
+    const sourceMerchantIds = (selectedMerchants || [])
       .filter(merchant => merchant.id !== targetMerchantId)
       .map(merchant => merchant.id);
     
@@ -52,8 +52,8 @@ export default function MergeModal({
     onClose();
   };
 
-  const targetMerchant = selectedMerchants.find(m => m.id === targetMerchantId);
-  const sourceMerchants = selectedMerchants.filter(m => m.id !== targetMerchantId);
+  const targetMerchant = (selectedMerchants || []).find(m => m.id === targetMerchantId);
+  const sourceMerchants = (selectedMerchants || []).filter(m => m.id !== targetMerchantId);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -76,12 +76,9 @@ export default function MergeModal({
                 <SelectValue placeholder="Choose the merchant to keep" />
               </SelectTrigger>
               <SelectContent>
-                {selectedMerchants.map((merchant) => (
+                {(selectedMerchants || []).map((merchant) => (
                   <SelectItem key={merchant.id} value={merchant.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{merchant.name}</span>
-                      <Badge variant="secondary">{merchant.status}</Badge>
-                    </div>
+                    {merchant.name} ({merchant.status})
                   </SelectItem>
                 ))}
               </SelectContent>
