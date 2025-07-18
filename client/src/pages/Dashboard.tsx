@@ -67,10 +67,7 @@ export default function Dashboard() {
   // Delete selected merchants mutation
   const deleteMutation = useMutation({
     mutationFn: async (merchantIds: string[]) => {
-      await apiRequest(`/api/merchants`, {
-        method: 'DELETE',
-        body: { merchantIds }
-      });
+      await apiRequest('DELETE', `/api/merchants`, { merchantIds });
     },
     onSuccess: () => {
       toast({
@@ -93,11 +90,11 @@ export default function Dashboard() {
   // Merge merchants mutation
   const mergeMutation = useMutation({
     mutationFn: async ({ targetMerchantId, sourceMerchantIds }: { targetMerchantId: string; sourceMerchantIds: string[] }) => {
-      const response = await apiRequest(`/api/merchants/merge`, {
-        method: 'POST',
-        body: { targetMerchantId, sourceMerchantIds }
+      const response = await apiRequest('POST', `/api/merchants/merge`, {
+        targetMerchantId, 
+        sourceMerchantIds
       });
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       toast({
