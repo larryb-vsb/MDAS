@@ -35,14 +35,18 @@ export const transactions = pgTable("transactions", {
   type: text("type").notNull().default("Sale")
 });
 
-// Uploaded files table
+// Uploaded files table - migrated to database storage
 export const uploadedFiles = pgTable("uploaded_files", {
   id: text("id").primaryKey(),
   originalFilename: text("original_filename").notNull(),
-  storagePath: text("storage_path").notNull(),
+  storagePath: text("storage_path"), // Legacy field - nullable during migration
+  fileContent: text("file_content"), // New: Base64 encoded file content
+  fileSize: integer("file_size"), // New: File size in bytes
+  mimeType: text("mime_type").default("text/csv"), // New: MIME type
   fileType: text("file_type").notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
+  processedAt: timestamp("processed_at"), // When processing completed
   processingErrors: text("processing_errors"),
   deleted: boolean("deleted").default(false).notNull()
 });

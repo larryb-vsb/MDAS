@@ -1146,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload CSV files
+  // Upload CSV files - now stores directly in database
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
@@ -1158,13 +1158,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
-      const fileId = await storage.processUploadedFile(req.file.path, type, req.file.originalname);
+      // Read file content and convert to base64 for database storage
+      const fileContent = fs.readFileSync(req.file.path);
+      const base64Content = fileContent.toString('base64');
+      const fileSize = fileContent.length;
+      const mimeType = req.file.mimetype || 'text/csv';
+
+      // Create file record with content stored in database
+      const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Store file in database instead of disk
+      await db.insert(uploadedFilesTable).values({
+        id: fileId,
+        originalFilename: req.file.originalname,
+        fileContent: base64Content,
+        fileSize: fileSize,
+        mimeType: mimeType,
+        fileType: type,
+        uploadedAt: new Date(),
+        processed: false,
+        deleted: false,
+        storagePath: null // No longer needed with database storage
+      });
+
+      // Clean up temporary file from multer
+      fs.unlinkSync(req.file.path);
+
       res.json({ 
         fileId,
         success: true,
         message: "File uploaded successfully"
       });
     } catch (error) {
+      // Clean up temporary file if error occurs
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to upload file" 
       });
@@ -2347,6 +2376,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "Failed to test database connection" 
+      });
+    }
+  });
+
+  // Migration endpoint for file storage to database
+  app.post("/api/migrate/file-storage", isAuthenticated, async (req, res) => {
+    try {
+      const { migrateFileStorageToDatabase, verifyMigration } = await import("./migration/file-storage-migration");
+      
+      console.log("Starting file storage migration...");
+      const stats = await migrateFileStorageToDatabase();
+      
+      console.log("Verifying migration...");
+      await verifyMigration();
+      
+      res.json({
+        success: true,
+        message: "File storage migration completed",
+        stats: stats
+      });
+    } catch (error) {
+      console.error("Migration failed:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Migration failed"
+      });
+    }
+  });
+
+  // Cleanup orphaned files endpoint
+  app.post("/api/uploads/cleanup-orphaned", isAuthenticated, async (req, res) => {
+    try {
+      // Mark orphaned files as deleted
+      const result = await db
+        .update(uploadedFilesTable)
+        .set({ 
+          deleted: true, 
+          processingErrors: "File removed - orphaned record cleanup" 
+        })
+        .where(
+          and(
+            eq(uploadedFilesTable.deleted, false),
+            isNull(uploadedFilesTable.fileContent),
+            isNotNull(uploadedFilesTable.storagePath)
+          )
+        );
+      
+      res.json({
+        success: true,
+        message: `Cleaned up orphaned file records`,
+        result
+      });
+    } catch (error) {
+      console.error("Cleanup failed:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Cleanup failed"
       });
     }
   });
