@@ -2265,9 +2265,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set the updatedBy field to the logged-in user's username
       let updatedBy = "System";
       
+      // Debug: Log user information
+      console.log('[MERCHANT CREATE] User info:', {
+        hasUser: !!req.user,
+        username: req.user?.username,
+        userId: req.user?.id,
+        role: req.user?.role
+      });
+      
       // If a user is logged in, use their username
       if (req.user && req.user.username) {
         updatedBy = req.user.username;
+        console.log('[MERCHANT CREATE] Setting updatedBy to:', updatedBy);
+      } else {
+        console.log('[MERCHANT CREATE] No user found, using System');
       }
       
       // Create merchant with current date
@@ -2313,9 +2324,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set the updatedBy field to the logged-in user's username
       let updatedBy = "System";
       
+      // Debug: Log user information for updates
+      console.log('[MERCHANT UPDATE] User info:', {
+        hasUser: !!req.user,
+        username: req.user?.username,
+        userId: req.user?.id,
+        role: req.user?.role
+      });
+      
       // If a user is logged in, use their username
       if (req.user && req.user.username) {
         updatedBy = req.user.username;
+        console.log('[MERCHANT UPDATE] Setting updatedBy to:', updatedBy);
+      } else {
+        console.log('[MERCHANT UPDATE] No user found, using System');
       }
       
       // Check if this is from a file upload by checking referrer or headers

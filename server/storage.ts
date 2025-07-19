@@ -10,6 +10,7 @@ import {
   uploadedFiles as uploadedFilesTable,
   users as usersTable,
   auditLogs,
+  auditLogs as auditLogsTable,
   systemLogs,
   securityLogs,
   Merchant,
