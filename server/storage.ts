@@ -3733,7 +3733,7 @@ export class DatabaseStorage implements IStorage {
                 console.log(`Successfully inserted transaction ${updatedTransaction.id} with merchant ${merchantId}`);
                 
               } catch (insertError: any) {
-                if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
+                if (insertError.code === '23505' && insertError.constraint && insertError.constraint.endsWith('_transactions_pkey')) {
                   // Transaction ID already exists - now check date and implement smart handling
                   console.log(`Duplicate transaction ID detected: ${updatedTransaction.id}`);
                   

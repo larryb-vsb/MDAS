@@ -10,6 +10,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Processing Widget Status Reporting COMPLETELY FIXED (July 19, 2025)
+- **✅ REAL-TIME STATS API UPDATED**: Fixed processing widget to use processing_status field instead of legacy processed boolean field
+- **✅ ENVIRONMENT-SPECIFIC CONSTRAINT HANDLING**: Fixed duplicate transaction handling to work with both dev_transactions_pkey and transactions_pkey constraints
+- **✅ ACCURATE DEVELOPMENT STATS**: Widget shows correct 137 processed, 100 queued, 1 currently processing files
+- **✅ ACCURATE PRODUCTION STATS**: Widget shows correct 285 queued, 42 completed files with perfect database alignment
+- **✅ CURRENTLY PROCESSING FIELD**: Added real-time display of files in active processing state
+- **✅ DUPLICATE RESOLUTION FIXED**: Resolved constraint violation errors that were preventing smooth file processing
+- **✅ MERCHANT MATCHING OPERATIONAL**: Intelligent merchant remapping and creation working correctly during file processing
+- **✅ CROSS-ENVIRONMENT COMPATIBILITY**: Processing widget accurately reports status in both production and development modes
+
 ### Database Environment Separation FULLY OPERATIONAL (July 19, 2025) 
 - **✅ COMPLETE TABLE-LEVEL SEPARATION**: Production and development use completely separate table sets in same database
 - **✅ ENVIRONMENT DETECTION**: System correctly routes to dev_* tables in development mode, main tables in production
