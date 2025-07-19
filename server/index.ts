@@ -144,11 +144,11 @@ app.use((req, res, next) => {
       // Start the file processor service to process uploaded files
       fileProcessorService.initialize();
       
-      // Initialize sample logs for demonstration
-      const { initSampleLogs } = await import('./init-sample-logs');
-      await initSampleLogs().catch(err => {
-        console.log("Warning: Could not initialize sample logs:", err.message);
-      });
+      // Skip sample logs initialization during development database setup
+      // const { initSampleLogs } = await import('./init-sample-logs');
+      // await initSampleLogs().catch(err => {
+      //   console.log("Warning: Could not initialize sample logs:", err.message);
+      // });
     } else if (useFallbackStorage) {
       // Skip schema version tracking and backup scheduler when using fallback storage
       console.log("In-memory storage mode: Skipping schema version tracking and backup scheduler");

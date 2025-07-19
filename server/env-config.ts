@@ -16,13 +16,13 @@ console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev:
 // FORCE DEVELOPMENT MODE for testing
 process.env.NODE_ENV = 'development';
 
-// IMPLEMENTING SIMPLE DATABASE SEPARATION
-// Use table prefixes instead of separate databases for easier management
+// IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
+// Use same database with dev_ table prefixes for complete separation
+console.log(`[DB CONFIG] ${NODE_ENV} mode: Using table-level separation`);
 if (NODE_ENV === 'development') {
-  console.log(`[DB CONFIG] Development mode: Using main database with table prefixes`);
-  // We'll use the same database but distinguish data through application logic
+  console.log(`[DB CONFIG] Development tables: dev_merchants, dev_transactions, etc.`);
 } else {
-  console.log(`[DB CONFIG] Production mode: Using main database`);
+  console.log(`[DB CONFIG] Production tables: merchants, transactions, etc.`);
 }
 
 // Base paths for file storage
