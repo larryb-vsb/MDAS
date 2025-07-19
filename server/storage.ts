@@ -3532,42 +3532,96 @@ export class DatabaseStorage implements IStorage {
               // Update transaction with correct merchant ID and implement intelligent duplicate handling
               const updatedTransaction = { ...transaction, merchantId };
               
-              // Intelligent duplicate handling with incrementation
-              let finalTransactionId = updatedTransaction.id;
-              let insertAttempt = 0;
-              let insertSuccessful = false;
-              
-              while (!insertSuccessful && insertAttempt < 100) { // Prevent infinite loop
-                try {
-                  const transactionToInsert = { ...updatedTransaction, id: finalTransactionId };
-                  await db.insert(transactionsTable).values(transactionToInsert);
-                  console.log(`Successfully inserted transaction ${finalTransactionId} with merchant ${merchantId}`);
-                  insertSuccessful = true;
-                } catch (insertError: any) {
-                  if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
-                    // Transaction ID already exists - implement intelligent incrementation
-                    insertAttempt++;
+              try {
+                // First attempt - try to insert normally
+                await db.insert(transactionsTable).values(updatedTransaction);
+                console.log(`Successfully inserted transaction ${updatedTransaction.id} with merchant ${merchantId}`);
+                
+              } catch (insertError: any) {
+                if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
+                  // Transaction ID already exists - now check date and implement smart handling
+                  console.log(`Duplicate transaction ID detected: ${updatedTransaction.id}`);
+                  
+                  // Get the existing transaction to check the date
+                  const existingTransactions = await db.select()
+                    .from(transactionsTable)
+                    .where(eq(transactionsTable.id, updatedTransaction.id))
+                    .limit(1);
+                  
+                  if (existingTransactions.length > 0) {
+                    const existingTransaction = existingTransactions[0];
+                    const existingDate = new Date(existingTransaction.date);
+                    const newDate = new Date(updatedTransaction.date);
                     
-                    // Check if original ID is numeric
-                    if (!isNaN(Number(updatedTransaction.id))) {
-                      // Numeric ID - increment by 0.1
-                      const baseId = parseFloat(updatedTransaction.id);
-                      finalTransactionId = (baseId + (insertAttempt * 0.1)).toString();
+                    // Check if dates are the same (same day)
+                    const sameDate = existingDate.toDateString() === newDate.toDateString();
+                    
+                    if (sameDate) {
+                      // Same date - check if values differ, update if different
+                      const sameAmount = parseFloat(existingTransaction.amount.toString()) === parseFloat(updatedTransaction.amount.toString());
+                      const sameType = existingTransaction.type === updatedTransaction.type;
+                      
+                      if (!sameAmount || !sameType) {
+                        // Values differ - update the existing transaction
+                        console.log(`Updating existing transaction ${updatedTransaction.id} with new values (amount: ${existingTransaction.amount} -> ${updatedTransaction.amount}, type: ${existingTransaction.type} -> ${updatedTransaction.type})`);
+                        await db.update(transactionsTable)
+                          .set({
+                            amount: updatedTransaction.amount,
+                            type: updatedTransaction.type,
+                            description: updatedTransaction.description,
+                            merchantId: updatedTransaction.merchantId
+                          })
+                          .where(eq(transactionsTable.id, updatedTransaction.id));
+                        console.log(`Successfully updated transaction ${updatedTransaction.id}`);
+                      } else {
+                        // Same values - skip duplicate
+                        console.log(`Skipping duplicate transaction ${updatedTransaction.id} (same date and values)`);
+                      }
                     } else {
-                      // Non-numeric ID - append suffix
-                      finalTransactionId = `${updatedTransaction.id}_${insertAttempt}`;
+                      // Different dates - create incremented ID
+                      let finalTransactionId = updatedTransaction.id;
+                      let insertAttempt = 0;
+                      let insertSuccessful = false;
+                      
+                      while (!insertSuccessful && insertAttempt < 100) {
+                        insertAttempt++;
+                        
+                        // Check if original ID is numeric
+                        if (!isNaN(Number(updatedTransaction.id))) {
+                          // Numeric ID - increment by 0.1
+                          const baseId = parseFloat(updatedTransaction.id);
+                          finalTransactionId = (baseId + (insertAttempt * 0.1)).toString();
+                        } else {
+                          // Non-numeric ID - append suffix
+                          finalTransactionId = `${updatedTransaction.id}_${insertAttempt}`;
+                        }
+                        
+                        console.log(`Different dates detected. Trying incremented ID: ${finalTransactionId}`);
+                        
+                        try {
+                          const incrementedTransaction = { ...updatedTransaction, id: finalTransactionId };
+                          await db.insert(transactionsTable).values(incrementedTransaction);
+                          console.log(`Successfully inserted transaction ${finalTransactionId} with incremented ID`);
+                          insertSuccessful = true;
+                        } catch (incrementError: any) {
+                          if (incrementError.code === '23505') {
+                            // Still duplicate, try next increment
+                            continue;
+                          } else {
+                            throw incrementError;
+                          }
+                        }
+                      }
+                      
+                      if (!insertSuccessful) {
+                        throw new Error(`Failed to insert transaction after ${insertAttempt} attempts due to persistent duplicates`);
+                      }
                     }
-                    
-                    console.log(`Duplicate transaction ID detected. Trying incremented ID: ${finalTransactionId}`);
-                  } else {
-                    // Different error - re-throw
-                    throw insertError;
                   }
-                } 
-              }
-              
-              if (!insertSuccessful) {
-                throw new Error(`Failed to insert transaction after ${insertAttempt} attempts due to persistent duplicates`);
+                } else {
+                  // Different error - re-throw
+                  throw insertError;
+                }
               }
               
             } catch (individualError: any) {
