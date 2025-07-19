@@ -42,6 +42,47 @@ interface RealTimeStats {
   timestamp: string;
 }
 
+// Extracted component to prevent React hooks issues
+const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
+  const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
+  const peakPercentage = Math.min((peakSpeed / maxScale) * 100, 100);
+  
+  return (
+    <div className="w-full space-y-1">
+      {/* Gauge Bar */}
+      <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+        {/* Background segments for visual reference */}
+        <div className="absolute inset-0 flex">
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} className="flex-1 border-r border-gray-300 last:border-r-0" />
+          ))}
+        </div>
+        
+        {/* Current speed bar */}
+        <div 
+          className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${currentPercentage}%` }}
+        />
+        
+        {/* Peak indicator */}
+        {peakPercentage > 0 && (
+          <div 
+            className="absolute top-0 w-0.5 h-full bg-red-500 shadow-sm"
+            style={{ left: `${peakPercentage}%` }}
+          />
+        )}
+      </div>
+      
+      {/* Scale labels */}
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>0</span>
+        <span>{maxScale/2}</span>
+        <span>{maxScale}</span>
+      </div>
+    </div>
+  );
+};
+
 export default function ProcessingStatus() {
   const queryClient = useQueryClient();
   
@@ -175,58 +216,7 @@ export default function ProcessingStatus() {
     }
   }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed, lastPeakTime]);
 
-  // Create gauge visualization component
-  const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
-    const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
-    const peakPercentage = Math.min((peakSpeed / maxScale) * 100, 100);
-    
-    return (
-      <div className="w-full space-y-1">
-        {/* Gauge Bar */}
-        <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-          {/* Background segments for visual reference */}
-          <div className="absolute inset-0 flex">
-            {Array.from({ length: 10 }, (_, i) => (
-              <div key={i} className="flex-1 border-r border-gray-300 last:border-r-0" />
-            ))}
-          </div>
-          
-          {/* Current speed bar */}
-          <div 
-            className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${currentPercentage}%` }}
-          />
-          
-          {/* Peak indicator */}
-          {peakPercentage > 0 && (
-            <div 
-              className="absolute top-0 w-0.5 h-full bg-red-500 shadow-sm"
-              style={{ left: `${peakPercentage}%` }}
-            />
-          )}
-        </div>
-        
-        {/* Scale labels */}
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>0</span>
-          <span>{maxScale/2}</span>
-          <span>{maxScale}</span>
-        </div>
-        
-        {/* Peak info */}
-        {peakSpeed > 0 && (
-          <div className="text-xs text-muted-foreground text-center">
-            Peak: {peakSpeed.toFixed(1)} txns/sec
-            {lastPeakTime && (
-              <span className="ml-2">
-                ({Math.round((new Date().getTime() - lastPeakTime.getTime()) / 1000)}s ago)
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
+
 
   return (
     <Card>
@@ -269,7 +259,7 @@ export default function ProcessingStatus() {
           </div>
 
           {/* Processing Progress */}
-          {status.isRunning && status.currentTransactionRange && (
+          {status?.isRunning && status?.currentTransactionRange && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Processing Progress</span>
