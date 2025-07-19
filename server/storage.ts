@@ -2522,11 +2522,11 @@ export class DatabaseStorage implements IStorage {
           
           // If no merchant ID found, generate one
           if (!merchantId) {
-            merchantId = `M${++this.lastMerchantId}`;
-            console.log(`No merchant ID found in row ${rowCount}, generated: ${merchantId}`);
+            console.log(`[SKIP ROW] No merchant ID found in row ${rowCount}, skipping to maintain authentic data only`); stats.skippedRows++; return;
+            // Skipped row due to missing merchant ID
           } else {
             // Normalize the merchant ID (add prefix if needed)
-            merchantId = normalizeMerchantId(merchantId);
+            merchantId = merchantId.trim(); // Use authentic merchant ID without M-prefix generation
           }
           
           // Create merchant object with system fields
@@ -2806,11 +2806,11 @@ export class DatabaseStorage implements IStorage {
           
           // If no merchant ID found, generate one
           if (!merchantId) {
-            merchantId = `M${++this.lastMerchantId}`;
-            console.log(`No merchant ID found in row ${rowCount}, generated: ${merchantId}`);
+            console.log(`[SKIP ROW] No merchant ID found in row ${rowCount}, skipping to maintain authentic data only`); stats.skippedRows++; return;
+            // Skipped row due to missing merchant ID
           } else {
             // Normalize the merchant ID (add prefix if needed)
-            merchantId = normalizeMerchantId(merchantId);
+            merchantId = merchantId.trim(); // Use authentic merchant ID without M-prefix generation
           }
           
           // Create merchant object with system fields
@@ -3779,7 +3779,7 @@ export class DatabaseStorage implements IStorage {
           }
           
           // Normalize merchant ID (add prefix if needed)
-          merchantId = normalizeMerchantId(merchantId);
+          merchantId = merchantId.trim(); // Use authentic merchant ID without M-prefix generation
           
           // Create transaction object with defaults
           const transaction: Partial<InsertTransaction> = {
