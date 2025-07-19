@@ -2284,10 +2284,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[MERCHANT CREATE] No user found, using System');
       }
       
-      // Create merchant with current date
+      // Create merchant with authentic ID (remove M-prefix generation completely)
+      // Manual merchant creation should require proper merchant ID from user
+      if (!merchantData.id) {
+        return res.status(400).json({ 
+          error: "Merchant ID is required for manual merchant creation" 
+        });
+      }
+      
       const newMerchant = await storage.createMerchant({
         ...merchantData,
-        id: `M${Date.now().toString().slice(-4)}`,
         createdAt: new Date(),
         editDate: new Date(),
         lastUploadDate: null,
