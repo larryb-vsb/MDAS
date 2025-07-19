@@ -506,20 +506,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const versionResult = await pool.query("SELECT version()");
       const version = versionResult.rows[0].version.split(" ")[1];
       
-      // Get environment-specific table names using the same approach as other APIs
+      // Get environment-specific table names for data tables, use shared tables for system tables
       const envMerchants = getTableName('merchants');
       const envTransactions = getTableName('transactions');
       const envUploadedFiles = getTableName('uploaded_files');
-      const envBackupHistory = getTableName('backup_history');
-      const envSchemaVersions = getTableName('schema_versions');
       
-      // Get table information using environment-specific table names
+      // System tables are shared across environments (no prefixes)
+      const systemBackupHistory = 'backup_history';
+      const systemSchemaVersions = 'schema_versions';
+      
+      // Get table information using environment-specific table names for data, shared for system
       const tables = [
         { name: 'merchants', tableName: envMerchants, tableObj: merchantsTable },
         { name: 'transactions', tableName: envTransactions, tableObj: transactionsTable },
         { name: 'uploaded_files', tableName: envUploadedFiles, tableObj: uploadedFilesTable },
-        { name: 'backup_history', tableName: envBackupHistory, tableObj: backupHistory },
-        { name: 'schema_versions', tableName: envSchemaVersions, tableObj: schemaVersions }
+        { name: 'backup_history', tableName: systemBackupHistory, tableObj: backupHistory },
+        { name: 'schema_versions', tableName: systemSchemaVersions, tableObj: schemaVersions }
       ];
       
       const tableStats = [];
