@@ -3027,6 +3027,50 @@ export class DatabaseStorage implements IStorage {
         return 'default';
       };
       
+      // Optimized unified Transaction ID extraction function
+      const extractTransactionId = (row: any): string => {
+        // Priority-based Transaction ID extraction across all possible column names
+        const transactionIdColumns = [
+          'TransactionID', 'TransactionId', 'TranID', 'ID', 'TraceNbr', 'TraceNumber', 
+          'Transaction_ID', 'TXN_ID', 'TxnID', 'RefNumber', 'ReferenceNumber',
+          'BatchID', 'SequenceNumber', 'ConfirmationNumber'
+        ];
+        
+        for (const column of transactionIdColumns) {
+          if (row[column] && row[column].toString().trim()) {
+            console.log(`[TRANSACTION ID] Found ${column}: ${row[column]}`);
+            return row[column].toString().trim();
+          }
+        }
+        
+        console.warn(`[TRANSACTION ID] No valid Transaction ID found in row, available columns: ${Object.keys(row).join(', ')}`);
+        return null;
+      };
+
+      // Optimized unified Merchant ID extraction function  
+      const extractMerchantId = (row: any): string => {
+        // Try advanced merchant ID extraction first
+        let merchantId = findMerchantId(row, transactionMerchantIdAliases);
+        if (merchantId) return normalizeMerchantId(merchantId);
+        
+        // Priority-based merchant ID extraction
+        const merchantIdColumns = [
+          'MerchantID', 'Merchant_ID', 'ClientID', 'Client_ID', 'Account', 'AccountNumber',
+          'Name', 'MerchantName', 'ClientMID', 'CompanyID', 'StoreID'
+        ];
+        
+        for (const column of merchantIdColumns) {
+          if (row[column] && row[column].toString().trim()) {
+            const extracted = row[column].toString().trim();
+            console.log(`[MERCHANT ID] Found ${column}: ${extracted}`);
+            return normalizeMerchantId(extracted);
+          }
+        }
+        
+        console.warn(`[MERCHANT ID] No valid Merchant ID found in row, using fallback`);
+        return `AUTO_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+      };
+
       parser.on("data", (row) => {
         rowCount++;
         
@@ -3039,117 +3083,65 @@ export class DatabaseStorage implements IStorage {
         }
         
         try {
-          let transactionData: Partial<InsertTransaction> = {};
+          // UNIFIED PROCESSING: Extract core data regardless of format
+          const transactionId = extractTransactionId(row);
+          const merchantId = extractMerchantId(row);
           
+          // Skip row if no Transaction ID found (critical data missing)
+          if (!transactionId) {
+            console.error(`[SKIP ROW] Row ${rowCount} has no Transaction ID, skipping to avoid timestamp fallback`);
+            errorCount++;
+            return;
+          }
+          
+          // Store original merchant name for advanced matching
+          let originalMerchantName = null;
+          if (row.Name) {
+            originalMerchantName = row.Name.trim();
+            console.log(`[PARSING DEBUG] Found merchant name: ${originalMerchantName}`);
+          }
+          
+          // Unified transaction data extraction
+          let transactionData: Partial<InsertTransaction> = {
+            id: transactionId,
+            merchantId: merchantId,
+            createdAt: new Date(),
+            // RAW DATA PRESERVATION - always preserve complete CSV row
+            rawData: row,
+            sourceFileId: sourceFileId || null,
+            sourceRowNumber: rowCount,
+            recordedAt: new Date()
+          };
+          
+          // Format-specific field extraction
           if (detectedFormat === 'format1') {
-            // Handle new format (Name, Account, Amount, Date, Code, Descr)
-            let merchantId = findMerchantId(row, transactionMerchantIdAliases);
-            
-            if (!merchantId) {
-              // Try to extract merchant ID from the Name field or Account field
-              merchantId = row.Name || row.Account;
-              if (merchantId) {
-                merchantId = normalizeMerchantId(merchantId);
-              } else {
-                // If still no merchant ID, create a unique transaction-based ID
-                merchantId = `TXN_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-                console.warn(`No merchant ID found for transaction row ${rowCount}, generated: ${merchantId}`);
-              }
-            } else {
-              merchantId = normalizeMerchantId(merchantId);
-            }
-            
-            // Store original merchant name for advanced matching
-            let originalMerchantName = null;
-            if (row.Name) {
-              originalMerchantName = row.Name.trim();
-              console.log(`[PARSING DEBUG] Found merchant name: ${originalMerchantName} for ID: ${merchantId}`);
-            }
-            
-            // Map the new format fields using TraceNbr as transaction ID
-            transactionData = {
-              id: row.TraceNbr || `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`,
-              merchantId: merchantId,
-              amount: parseFloat(row.Amount.toString().replace(/[$,"]/g, '').trim()) || 0,
-              date: new Date(row.Date),
-              type: transactionCodeMapping[row.Code] || row.Code || 'Unknown',
-              description: row.Descr || '',
-              createdAt: new Date(),
-              // RAW DATA PRESERVATION
-              rawData: row, // Store complete original CSV row data
-              sourceFileId: sourceFileId || null,
-              sourceRowNumber: rowCount,
-              recordedAt: new Date()
-            };
-            
-            // Add original merchant name to transaction object for advanced matching
-            if (originalMerchantName) {
-              (transactionData as any).originalMerchantName = originalMerchantName;
-              console.log(`[PARSING DEBUG] Added originalMerchantName to transaction: ${originalMerchantName}`);
-            }
+            // Format1: Name, Account, Amount, Date, Code, Descr, TraceNbr
+            transactionData.amount = parseFloat(row.Amount?.toString().replace(/[$,"]/g, '').trim() || '0');
+            transactionData.date = new Date(row.Date);
+            transactionData.type = transactionCodeMapping[row.Code] || row.Code || 'Unknown';
+            transactionData.description = row.Descr || '';
           } else {
-            // Store original merchant name for advanced matching (default format)
-            let originalMerchantName = null;
-            if (row.Name) {
-              originalMerchantName = row.Name.trim();
-              console.log(`[PARSING DEBUG DEFAULT] Found merchant name: ${originalMerchantName}`);
-            }
-            
-            // Handle default format using existing field mappings
+            // Default format: Use field mappings for flexible column handling
             for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
               if (csvField && row[csvField] !== undefined) {
                 if (dbField === 'date') {
                   transactionData[dbField as keyof InsertTransaction] = new Date(row[csvField]) as any;
                 } else if (dbField === 'amount') {
-                  // Handle amount parsing with comma stripping for default format too
                   const cleanAmount = row[csvField].toString().replace(/[$,"]/g, '').trim();
-                  const amount = parseFloat(cleanAmount) || 0;
-                  transactionData[dbField as keyof InsertTransaction] = amount.toString() as any;
-                } else if (dbField === 'merchantId') {
-                  let merchantId = findMerchantId(row, transactionMerchantIdAliases);
-                  if (merchantId) {
-                    transactionData[dbField as keyof InsertTransaction] = normalizeMerchantId(merchantId) as any;
-                  } else {
-                    transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
-                  }
-                } else if (dbField === 'id') {
-                  // CRITICAL: Ensure we use the actual CSV TransactionID
-                  transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
+                  transactionData[dbField as keyof InsertTransaction] = parseFloat(cleanAmount || '0').toString() as any;
+                } else if (dbField === 'id' || dbField === 'merchantId') {
+                  // Skip - already handled by unified extraction
+                  continue;
                 } else {
                   transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
                 }
               }
             }
-            
-            // Add original merchant name to transaction object for advanced matching (default format)
-            if (originalMerchantName) {
-              (transactionData as any).originalMerchantName = originalMerchantName;
-              console.log(`[PARSING DEBUG DEFAULT] Added originalMerchantName to transaction: ${originalMerchantName}`);
-            }
-            
-            // Handle missing transaction ID - only generate if TransactionID not in CSV
-            if (!transactionData.id) {
-              transactionData.id = row.TransactionID || `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`;
-            }
-            
-            // CRITICAL: Ensure merchantId is set and exists in merchants table
-            if (!transactionData.merchantId) {
-              // Use Client ID or Merchant ID from the row data with spaces
-              transactionData.merchantId = row["Client ID"] || row["Merchant ID"] || row["ClientID"] || row["MerchantID"] || transactionData.id;
-              console.warn(`Fixed missing merchantId for row ${rowCount}: ${transactionData.merchantId}`);
-            }
-            
-            // Smart merchant ID handling - use as-is, system will auto-create if missing
-          console.log(`Transaction ${rowCount} will use merchantId: ${transactionData.merchantId} (will auto-create if missing)`)
-            
-            // Set creation timestamp
-            transactionData.createdAt = new Date();
-            
-            // RAW DATA PRESERVATION for default format
-            (transactionData as any).rawData = row; // Store complete original CSV row data
-            (transactionData as any).sourceFileId = sourceFileId || null;
-            (transactionData as any).sourceRowNumber = rowCount;
-            (transactionData as any).recordedAt = new Date();
+          }
+          
+          // Add original merchant name for advanced matching
+          if (originalMerchantName) {
+            (transactionData as any).originalMerchantName = originalMerchantName;
           }
           
           console.log(`Transaction ${rowCount}: ${JSON.stringify(transactionData)}`);
