@@ -122,9 +122,7 @@ export function findMerchantId(record: Record<string, any>, aliases: string[]): 
 
 // Fix issues with some merchant IDs that might be missing prefixes
 export function normalizeMerchantId(id: string): string {
-  // If the ID doesn't have a prefix like "VS" or "M", add one
-  if (!/^[A-Za-z]/.test(id)) {
-    return `M${id}`;
-  }
-  return id;
+  // Return merchant ID exactly as found in CSV - no automatic prefixing
+  // Only use authentic merchant IDs from CSV data
+  return id.trim();
 }
