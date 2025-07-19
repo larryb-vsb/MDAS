@@ -3130,6 +3130,7 @@ export class DatabaseStorage implements IStorage {
           console.log(`Batch inserting ${transactions.length} transactions into database...`);
           await db.insert(transactionsTable).values(transactions);
           console.log(`Successfully inserted ${transactions.length} transactions`);
+          console.log(`Resolving with metrics: rowsProcessed=${rowCount}, transactionsCreated=${transactions.length}, errors=${errorCount}`);
           resolve({ rowsProcessed: rowCount, transactionsCreated: transactions.length, errors: errorCount });
         } catch (error) {
           console.error("Error inserting transactions into database:", error);
