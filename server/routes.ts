@@ -19,6 +19,7 @@ import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
+import { getTableName } from "./table-config";
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -1389,6 +1390,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get upload file history
   app.get("/api/uploads/history", async (req, res) => {
     try {
+      // Use environment-specific table for uploads
+      const tableName = getTableName('uploaded_files');
+      console.log(`[UPLOADS API] Using table: ${tableName} for environment: ${process.env.NODE_ENV}`);
+      
       // Use raw SQL to avoid schema issues - only select columns that exist
       const result = await db.execute(sql`
         SELECT 
@@ -1406,7 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_started_at,
           processing_completed_at,
           processing_server_id
-        FROM uploaded_files 
+        FROM ${sql.identifier(tableName)}
         WHERE deleted = false
         ORDER BY uploaded_at DESC
       `);

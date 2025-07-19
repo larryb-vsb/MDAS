@@ -10,6 +10,11 @@ export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
 
+// Export environment getter function for table-config
+export function getEnvironment() {
+  return { NODE_ENV, isProd, isDev, isTest };
+}
+
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
 
