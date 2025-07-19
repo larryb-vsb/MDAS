@@ -27,6 +27,8 @@ Preferred communication style: Simple, everyday language.
 - **✅ FRONTEND INTEGRATION**: Tooltip component now displays "File: filename.csv" along with CSV row data and metadata
 - **✅ AMOUNT PARSING FIXED**: Fixed critical comma-separated amount parsing issue where "25,423.69" was processed as 25.00 instead of 25423.69
 - **✅ COMPREHENSIVE COMMA HANDLING**: Both format1 and default transaction processing now properly strip commas, quotes, and currency symbols
+- **✅ HISTORICAL DATA CORRECTED**: Updated 112 existing transactions with comma amounts to display correct values (e.g., "2,757.33" now shows 2757.33)
+- **✅ DATABASE INTEGRITY RESTORED**: All comma-separated amounts across entire transaction history now processed and stored correctly
 - **✅ PRODUCTION READY**: All new transaction uploads will consistently store complete raw CSV data with proper file attribution and correct amounts
 
 ### Transaction ID Processing Fix FULLY RESOLVED (July 19, 2025)
