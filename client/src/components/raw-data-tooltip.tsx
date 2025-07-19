@@ -11,9 +11,10 @@ interface RawDataTooltipProps {
   rawData: Record<string, any> | null;
   sourceRowNumber?: number;
   recordedAt?: string;
+  sourceFileName?: string;
 }
 
-export function RawDataTooltip({ rawData, sourceRowNumber, recordedAt }: RawDataTooltipProps) {
+export function RawDataTooltip({ rawData, sourceRowNumber, recordedAt, sourceFileName }: RawDataTooltipProps) {
   if (!rawData) {
     return null;
   }
@@ -51,8 +52,11 @@ export function RawDataTooltip({ rawData, sourceRowNumber, recordedAt }: RawData
                 </div>
               ))}
             </div>
-            {(sourceRowNumber || recordedAt) && (
+            {(sourceFileName || sourceRowNumber || recordedAt) && (
               <div className="border-t pt-2 mt-2 space-y-1 text-xs text-muted-foreground">
+                {sourceFileName && (
+                  <div className="font-medium">File: {sourceFileName}</div>
+                )}
                 {sourceRowNumber && (
                   <div>CSV Row: {sourceRowNumber}</div>
                 )}

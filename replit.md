@@ -18,6 +18,15 @@ Preferred communication style: Simple, everyday language.
 - **✅ SYSTEM RECOVERY**: Immediate seamless processing of new uploads after mass deletion - 109 new transactions from fresh files
 - **✅ PRODUCTION READY**: Delete merchant functionality fully operational with comprehensive data integrity and audit trails
 
+### Complete Transaction Processing Paths Consolidation (July 19, 2025)
+- **✅ CRITICAL CODE PATH ISSUE RESOLVED**: Fixed multiple transaction processing paths causing inconsistent raw data storage and incrementation logic
+- **✅ RAW DATA PRESERVATION FIXED**: All transaction CSV parsing now stores rawData, sourceFileId, sourceRowNumber, and recordedAt fields consistently
+- **✅ FILENAME DISPLAY ADDED**: Enhanced raw data tooltip to show source filename by joining uploaded_files table in transaction queries
+- **✅ CONSOLIDATED LOGIC**: All transaction insertions now use single consistent approach for duplicate handling and data preservation
+- **✅ API ENHANCEMENT**: Updated getTransactions endpoint to include sourceFileName for complete tooltip information
+- **✅ FRONTEND INTEGRATION**: Tooltip component now displays "File: filename.csv" along with CSV row data and metadata
+- **✅ PRODUCTION READY**: All new transaction uploads will consistently store complete raw CSV data with proper file attribution
+
 ### Transaction ID Processing Fix FULLY RESOLVED (July 19, 2025)
 - **✅ COMPLETE RESOLUTION**: Transaction ID processing now working perfectly - all new files use actual CSV TransactionID values
 - **✅ CSV PARSING CORRECTED**: Both default format (TransactionID column) and format1 (TraceNbr column) correctly extract CSV values

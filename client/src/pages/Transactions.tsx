@@ -791,6 +791,7 @@ export default function Transactions() {
                             rawData={transaction.rawData}
                             sourceRowNumber={transaction.sourceRowNumber}
                             recordedAt={transaction.recordedAt}
+                            sourceFileName={transaction.sourceFileName}
                           />
                         </TableCell>
                       </TableRow>

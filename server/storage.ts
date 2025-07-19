@@ -1136,13 +1136,15 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Create base query
+      // Create base query with filename lookup
       let query = db.select({
         transaction: transactionsTable,
-        merchantName: merchantsTable.name
+        merchantName: merchantsTable.name,
+        sourceFileName: uploadedFilesTable.originalFilename
       })
       .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+      .leftJoin(uploadedFilesTable, eq(transactionsTable.sourceFileId, uploadedFilesTable.id));
       
       // Build filter conditions
       const conditions = [];
@@ -1180,7 +1182,8 @@ export class DatabaseStorage implements IStorage {
       // Get total count for pagination with same filters
       let countQuery = db.select({ count: count() })
         .from(transactionsTable)
-        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
+        .leftJoin(uploadedFilesTable, eq(transactionsTable.sourceFileId, uploadedFilesTable.id));
       
       // Apply the same conditions to count query
       if (conditions.length > 0) {
@@ -1204,7 +1207,7 @@ export class DatabaseStorage implements IStorage {
       
       // Format results
       const transactions = results.map(result => {
-        const { transaction, merchantName } = result;
+        const { transaction, merchantName, sourceFileName } = result;
         return {
           id: transaction.id, // Keep id for backward compatibility
           transactionId: transaction.id, // Add transactionId to match getMerchantById format
@@ -1216,6 +1219,7 @@ export class DatabaseStorage implements IStorage {
           // Raw data fields for tooltip display
           rawData: transaction.rawData,
           sourceFileId: transaction.sourceFileId,
+          sourceFileName: sourceFileName,
           sourceRowNumber: transaction.sourceRowNumber,
           recordedAt: transaction.recordedAt?.toISOString(),
           // Additional fields for CSV export
