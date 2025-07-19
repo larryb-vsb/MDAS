@@ -179,9 +179,9 @@ export default function ProcessingStatus() {
           setLastPeakTime(new Date());
         }
         
-        // Reset peak if all readings are low and it's been more than 10 minutes
-        const hasRecentActivity = newHistory.some(r => r.value > 0.1);
-        if (!hasRecentActivity && peakTxnSpeed > 0) {
+        // Only reset peak if no readings exist in the last 10 minutes (complete inactivity)
+        // This preserves the peak value even when processing batches finish
+        if (newHistory.length === 0 && lastPeakTime && (currentTime - lastPeakTime.getTime()) > (10 * 60 * 1000)) {
           setPeakTxnSpeed(0);
         }
         
