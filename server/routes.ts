@@ -1487,13 +1487,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status !== 'all') {
         switch (status) {
           case 'queued':
-            uploads = uploads.filter(f => !f.processed && !f.processingErrors);
+            uploads = uploads.filter(f => f.processingStatus === 'queued' || (!f.processed && !f.processingErrors && !f.processingStatus));
             break;
           case 'processing':
             uploads = uploads.filter(f => f.processingStatus === 'processing');
             break;
           case 'completed':
-            uploads = uploads.filter(f => f.processed);
+            uploads = uploads.filter(f => f.processingStatus === 'completed' || (f.processed && !f.processingErrors));
             break;
           case 'error':
             uploads = uploads.filter(f => f.processingErrors);

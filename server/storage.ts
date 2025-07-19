@@ -2207,7 +2207,7 @@ export class DatabaseStorage implements IStorage {
                 const processingCompletedTime = new Date();
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
-                // Update database with processing metrics
+                // Update database with processing metrics and completion status
                 await db.execute(sql`
                   UPDATE uploaded_files 
                   SET records_processed = ${processingMetrics.rowsProcessed},
@@ -2220,11 +2220,17 @@ export class DatabaseStorage implements IStorage {
                         merchantsUpdated: processingMetrics.merchantsUpdated,
                         errors: processingMetrics.errors,
                         processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
-                      })}
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
                   WHERE id = ${file.id}
                 `);
                 
                 console.log(`📊 METRICS: Processed ${processingMetrics.rowsProcessed} rows, created ${processingMetrics.merchantsCreated} merchants, updated ${processingMetrics.merchantsUpdated} merchants, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
               } else {
                 console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
                 console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
@@ -2232,27 +2238,6 @@ export class DatabaseStorage implements IStorage {
                 console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
                 console.error(`[TRACE] Storage path: ${file.storagePath}`);
                 throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
-              }
-              
-              // Mark as successfully processed
-              await db.update(uploadedFilesTable)
-                .set({ 
-                  processed: true,
-                  processingErrors: null
-                })
-                .where(eq(uploadedFilesTable.id, file.id));
-              
-              // Update processing status and completion time
-              try {
-                await db.execute(sql`
-                  UPDATE uploaded_files 
-                  SET processing_status = 'completed',
-                      processing_completed_at = NOW(),
-                      processed_at = NOW()
-                  WHERE id = ${file.id}
-                `);
-              } catch (error) {
-                console.log(`processing timestamp columns not available for ${file.id}`);
               }
                 
               // Clean up the processed file
@@ -2304,7 +2289,7 @@ export class DatabaseStorage implements IStorage {
                 const processingCompletedTime = new Date();
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
-                // Update database with processing metrics
+                // Update database with processing metrics and completion status
                 await db.execute(sql`
                   UPDATE uploaded_files 
                   SET records_processed = ${processingMetrics.rowsProcessed},
@@ -2316,11 +2301,17 @@ export class DatabaseStorage implements IStorage {
                         transactionsCreated: processingMetrics.transactionsCreated,
                         errors: processingMetrics.errors,
                         processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
-                      })}
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
                   WHERE id = ${file.id}
                 `);
                 
                 console.log(`📊 METRICS: Processed ${processingMetrics.rowsProcessed} rows, created ${processingMetrics.transactionsCreated} transactions, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
               } else {
                 console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
                 console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
@@ -2328,27 +2319,6 @@ export class DatabaseStorage implements IStorage {
                 console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
                 console.error(`[TRACE] Storage path: ${file.storagePath}`);
                 throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
-              }
-              
-              // Mark as successfully processed
-              await db.update(uploadedFilesTable)
-                .set({ 
-                  processed: true,
-                  processingErrors: null
-                })
-                .where(eq(uploadedFilesTable.id, file.id));
-              
-              // Update processing status and completion time
-              try {
-                await db.execute(sql`
-                  UPDATE uploaded_files 
-                  SET processing_status = 'completed',
-                      processing_completed_at = NOW(),
-                      processed_at = NOW()
-                  WHERE id = ${file.id}
-                `);
-              } catch (error) {
-                console.log(`processing timestamp columns not available for ${file.id}`);
               }
                 
               // Clean up the processed file
