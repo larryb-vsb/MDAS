@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RefreshCw } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -409,6 +410,11 @@ export default function Transactions() {
     setPage(1); // Reset to page 1 when limit changes
   };
 
+  // Handle refresh functionality
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+  };
+
   return (
     <MainLayout>
       {/* Delete Confirmation Dialog */}
@@ -437,6 +443,15 @@ export default function Transactions() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Transactions</h1>
           <div className="flex space-x-2">
+            <Button 
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+              Refresh
+            </Button>
             <Button 
               variant="destructive"
               disabled={selectedTransactions.length === 0}
