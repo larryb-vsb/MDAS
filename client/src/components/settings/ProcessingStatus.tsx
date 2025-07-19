@@ -90,7 +90,7 @@ export default function ProcessingStatus() {
   
   // Peak meter state management
   const [peakTxnSpeed, setPeakTxnSpeed] = useState(0);
-  const [speedHistory, setSpeedHistory] = useState<number[]>([]);
+  const [speedHistory, setSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
   const [lastPeakTime, setLastPeakTime] = useState<Date | null>(null);
 
   // Fetch processing status with real-time updates
@@ -154,27 +154,41 @@ export default function ProcessingStatus() {
 
   // Update peak tracking when real-time stats change
   useEffect(() => {
-    if (realTimeStats?.transactionsPerSecond) {
-      const currentSpeed = realTimeStats.transactionsPerSecond;
+    if (realTimeStats?.transactionsPerSecond !== undefined) {
+      const currentTime = Date.now();
+      const tenMinutesAgo = currentTime - (10 * 60 * 1000);
       
-      // Update speed history (keep last 20 readings for smoothing)
+      // Store current reading with timestamp
+      const currentReading = {
+        value: realTimeStats.transactionsPerSecond,
+        timestamp: currentTime
+      };
+      
+      // Update speed history - keep readings from last 10 minutes only
       setSpeedHistory(prev => {
-        const newHistory = [...prev, currentSpeed].slice(-20);
+        const newHistory = [...prev, currentReading]
+          .filter(reading => reading.timestamp > tenMinutesAgo)
+          .slice(-100); // Keep max 100 readings for performance
+        
+        // Calculate peak from the last 10 minutes of data
+        const peakValue = Math.max(...newHistory.map(r => r.value), 0);
+        
+        // Update peak if we found a higher value
+        if (peakValue > peakTxnSpeed) {
+          setPeakTxnSpeed(peakValue);
+          setLastPeakTime(new Date());
+        }
+        
+        // Reset peak if all readings are low and it's been more than 10 minutes
+        const hasRecentActivity = newHistory.some(r => r.value > 0.1);
+        if (!hasRecentActivity && peakTxnSpeed > 0) {
+          setPeakTxnSpeed(0);
+        }
+        
         return newHistory;
       });
-      
-      // Update peak if current speed is higher
-      if (currentSpeed > peakTxnSpeed) {
-        setPeakTxnSpeed(currentSpeed);
-        setLastPeakTime(new Date());
-      }
-      
-      // Reset peak if no activity for 30 seconds and current speed is very low
-      if (currentSpeed < 0.1 && lastPeakTime && (new Date().getTime() - lastPeakTime.getTime()) > 30000) {
-        setPeakTxnSpeed(0);
-      }
     }
-  }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed, lastPeakTime]);
+  }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed]);
 
   // Helper functions
   const getStatusBadge = () => {
@@ -308,7 +322,6 @@ export default function ProcessingStatus() {
                   {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
                 </div>
                 <div className="text-muted-foreground">Txns/sec</div>
-                <div className="text-xs text-muted-foreground">(last 10 min)</div>
                 {/* Transaction Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
@@ -317,6 +330,7 @@ export default function ProcessingStatus() {
                     maxScale={Math.max(peakTxnSpeed * 1.2, 10)}
                   />
                 </div>
+                <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
