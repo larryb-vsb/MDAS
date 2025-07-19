@@ -44,7 +44,12 @@ export default function ProcessingFilters() {
         fileType: activeFileTypeFilter,
         limit: '20'
       });
-      const response = await fetch(`/api/uploads/processing-status?${params}`);
+      const response = await fetch(`/api/uploads/processing-status?${params}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       return response.json();
     },
     refetchInterval: 5000, // Update every 5 seconds
