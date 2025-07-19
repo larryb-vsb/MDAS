@@ -32,6 +32,8 @@ Preferred communication style: Simple, everyday language.
 - **✅ "FILE NOT FOUND" ERROR ELIMINATED**: Complete resolution of temporary file removal errors
 - **✅ MERCHANT CHART DISPLAY FIXED**: Updated getMerchantStats and getTransactionHistoryByMonth to use environment-specific tables
 - **✅ DASHBOARD CHARTS OPERATIONAL**: Merchant detail charts now display real transaction data (e.g., SOODAKS INC shows $2796.00 revenue)
+- **✅ SETTINGS PAGE DATABASE FIXED**: Updated /api/settings/database endpoint to use environment-specific tables instead of hardcoded production tables
+- **✅ COMPLETE ENVIRONMENT CONSISTENCY**: All APIs (merchants, transactions, uploads, settings, charts) now use correct development vs production table routing
 - **✅ PRODUCTION READY**: Full web interface authentication and data separation working correctly
 
 ### Dashboard Revenue Calculation Issue COMPLETELY RESOLVED (July 19, 2025)

@@ -506,51 +506,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const versionResult = await pool.query("SELECT version()");
       const version = versionResult.rows[0].version.split(" ")[1];
       
-      // Get table information
-      const tables = ['merchants', 'transactions', 'uploaded_files', 'backup_history', 'schema_versions'];
+      // Get environment-specific table names using the same approach as other APIs
+      const envMerchants = getTableName('merchants');
+      const envTransactions = getTableName('transactions');
+      const envUploadedFiles = getTableName('uploaded_files');
+      const envBackupHistory = getTableName('backup_history');
+      const envSchemaVersions = getTableName('schema_versions');
+      
+      // Get table information using environment-specific table names
+      const tables = [
+        { name: 'merchants', tableName: envMerchants, tableObj: merchantsTable },
+        { name: 'transactions', tableName: envTransactions, tableObj: transactionsTable },
+        { name: 'uploaded_files', tableName: envUploadedFiles, tableObj: uploadedFilesTable },
+        { name: 'backup_history', tableName: envBackupHistory, tableObj: backupHistory },
+        { name: 'schema_versions', tableName: envSchemaVersions, tableObj: schemaVersions }
+      ];
+      
       const tableStats = [];
       let totalRows = 0;
       let totalSizeBytes = 0;
       
-      for (const tableName of tables) {
+      for (const { name, tableName, tableObj } of tables) {
         try {
-          console.log(`Processing table: ${tableName}`);
-          // Get row count for each table
-          const table = 
-            tableName === 'merchants' ? merchantsTable : 
-            tableName === 'transactions' ? transactionsTable : 
-            tableName === 'backup_history' ? backupHistory : 
-            tableName === 'schema_versions' ? schemaVersions : uploadedFilesTable;
+          console.log(`[SETTINGS DATABASE] Processing table: ${name} (${tableName})`);
           
-          console.log(`Selected table object for ${tableName}`);
-          
-          const rowCountResult = await db.select({ count: count() }).from(table);
-          console.log(`Row count result for ${tableName}:`, rowCountResult);
+          const rowCountResult = await db.select({ count: count() }).from(tableObj);
+          console.log(`[SETTINGS DATABASE] Row count result for ${name}:`, rowCountResult);
           
           const rowCount = parseInt(rowCountResult[0].count.toString(), 10);
           
-          // Get table size in bytes
+          // Get table size in bytes using environment-specific table name
           const sizeResult = await pool.query(`
             SELECT pg_total_relation_size('${tableName}') as size
           `);
-          console.log(`Size result for ${tableName}:`, sizeResult.rows);
+          console.log(`[SETTINGS DATABASE] Size result for ${name}:`, sizeResult.rows);
           
           const sizeBytes = parseInt(sizeResult.rows[0].size, 10);
           
           tableStats.push({
-            name: tableName,
+            name: name,  // Use display name, not actual table name
             rowCount,
             sizeBytes
           });
-          console.log(`Added ${tableName} to tableStats`);
+          console.log(`[SETTINGS DATABASE] Added ${name} (${tableName}) to tableStats`);
           
           totalRows += rowCount;
           totalSizeBytes += sizeBytes;
         } catch (error) {
-          console.error(`Error processing table ${tableName}:`, error);
+          console.error(`[SETTINGS DATABASE] Error processing table ${name}:`, error);
           // If we can't get stats for this table, still add a placeholder
           tableStats.push({
-            name: tableName,
+            name: name,
             rowCount: 0,
             sizeBytes: 0
           });
