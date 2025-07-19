@@ -637,7 +637,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Merchant with ID ${merchantId} not found`);
       }
       
-      // Note: updatedBy field requires explicit string conversion due to database encoding
+      // updatedBy field requires explicit string conversion due to database encoding
       
       // Get merchant transactions
       const transactions = await db.select()

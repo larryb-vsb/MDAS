@@ -2331,9 +2331,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If a user is logged in, use their username
       if (req.user && req.user.username) {
         updatedBy = req.user.username;
-        console.log('[MERCHANT UPDATE] Setting updatedBy to:', updatedBy);
-      } else {
-        console.log('[MERCHANT UPDATE] No user found, using System');
       }
       
       // Check if this is from a file upload by checking referrer or headers
@@ -2349,18 +2346,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedBy: updatedBy
       };
       
-      console.log('[MERCHANT UPDATE] Final data to update:', updatedMerchantData);
-      
       const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);
-      
-      console.log('[MERCHANT UPDATE] Update successful, returning:', updatedMerchant);
       
       res.json({ 
         success: true, 
         merchant: updatedMerchant 
       });
     } catch (error) {
-      console.error('[MERCHANT UPDATE] Error occurred:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to update merchant" 
       });

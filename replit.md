@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### User Tracking Display Issue Resolution (July 19, 2025)
+- **USER TRACKING COMPLETELY FIXED**: "Updated By" field now correctly displays logged-in user ("admin") instead of "System"
+- **ROOT CAUSE IDENTIFIED**: getMerchantById method was missing updatedBy field in API response object construction
+- **DATABASE ENCODING FIX**: Applied string conversion to handle database encoding issues for user tracking fields
+- **API RESPONSE FIXED**: Added explicit string conversion with `String(merchant.updatedBy).trim()` to getMerchantById response
+- **MERCHANT UPDATES WORKING**: Update functionality fully operational with proper user tracking and audit logging
+- **COMPLETE END-TO-END**: User authentication → merchant updates → database persistence → frontend display all working correctly
+- **PRODUCTION READY**: All merchant operations now properly track and display the logged-in user for accountability
+
 ### Complete Pagination System Implementation (July 19, 2025)
 - **SERVER-SIDE PAGINATION COMPLETE**: Processing Monitor now supports efficient server-side pagination with page/limit parameters
 - **BACKEND API ENHANCED**: Added OFFSET/LIMIT SQL queries to processing-status endpoint for handling large file volumes

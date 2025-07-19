@@ -407,10 +407,9 @@ export default function MerchantDetail() {
       queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
     },
     onError: (error: any) => {
-      console.error('[FRONTEND] Update error:', error);
       toast({
         title: 'Update failed',
-        description: `Failed to update merchant details: ${error?.message || 'Please try again.'}`,
+        description: 'Failed to update merchant details. Please try again.',
         variant: 'destructive',
       });
     }
