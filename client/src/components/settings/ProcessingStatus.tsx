@@ -152,6 +152,12 @@ export default function ProcessingStatus() {
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
             Processing Status
+            <Badge 
+              variant="outline" 
+              className={import.meta.env.MODE === "production" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}
+            >
+              {import.meta.env.MODE === "production" ? "Production" : "Development"}
+            </Badge>
           </div>
           {getStatusBadge()}
         </CardTitle>
