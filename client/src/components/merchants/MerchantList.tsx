@@ -300,12 +300,12 @@ export default function MerchantList({
                         {merchant.lastUpload}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{merchant.dailyStats.transactions.toLocaleString()} transactions</div>
-                        <div className="text-sm text-gray-500">${merchant.dailyStats.revenue.toLocaleString()} revenue</div>
+                        <div className="text-sm text-gray-900">{(merchant.dailyStats?.transactions || 0).toLocaleString()} transactions</div>
+                        <div className="text-sm text-gray-500">${(merchant.dailyStats?.revenue || 0).toLocaleString()} revenue</div>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{merchant.monthlyStats.transactions.toLocaleString()} transactions</div>
-                        <div className="text-sm text-gray-500">${merchant.monthlyStats.revenue.toLocaleString()} revenue</div>
+                        <div className="text-sm text-gray-900">{(merchant.monthlyStats?.transactions || 0).toLocaleString()} transactions</div>
+                        <div className="text-sm text-gray-500">${(merchant.monthlyStats?.revenue || 0).toLocaleString()} revenue</div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                         <div className="flex items-center justify-end space-x-3">
