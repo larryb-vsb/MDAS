@@ -29,7 +29,7 @@ if (NODE_ENV === 'development') {
 const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
 const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
 
-// Generate environment-specific database URL
+// TABLE-LEVEL separation: Use same database with different table prefixes
 export function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || '';
   if (!baseUrl) return '';
@@ -37,45 +37,12 @@ export function getDatabaseUrl(): string {
   console.log(`[DB CONFIG] NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
   console.log(`[DB CONFIG] Base URL: ${baseUrl.substring(0, 80)}...`);
   
-  // For production deployment, use the original database URL without modification
-  if (isProd) {
-    console.log(`[DB CONFIG] Using production database (no suffix)`);
-    return baseUrl;
-  }
+  // IMPORTANT: Use same database for both environments
+  // Separation is achieved through table prefixes (dev_merchants vs merchants)
+  console.log(`[DB CONFIG] Using table-level separation - same database, different table prefixes`);
+  console.log(`[DB CONFIG] ${NODE_ENV} tables: ${isDev ? 'dev_*' : 'main'} tables`);
   
-  // Restore proper environment separation for database safety
-  // Development should use separate database to avoid polluting production data
-  console.log(`[DB CONFIG] Applying environment separation for ${NODE_ENV}`);
-  // (Removed temporary override that was sharing production database)
-  
-  // If already has a specific environment suffix, return as is
-  if (baseUrl.includes('_dev') || baseUrl.includes('_prod') || baseUrl.includes('_test')) {
-    console.log(`[DB CONFIG] URL already has environment suffix, using as-is`);
-    return baseUrl;
-  }
-  
-  // Add environment suffix to database name for development and testing
-  try {
-    const url = new URL(baseUrl);
-    const pathParts = url.pathname.split('/');
-    const dbName = pathParts[pathParts.length - 1];
-    
-    // Create a new database name with environment suffix
-    const envSuffix = isDev ? '_dev' : '_test';
-    const newDbName = `${dbName}${envSuffix}`;
-    
-    // Replace database name in the URL
-    pathParts[pathParts.length - 1] = newDbName;
-    url.pathname = pathParts.join('/');
-    
-    const finalUrl = url.toString();
-    console.log(`[DB CONFIG] Final database URL: ${finalUrl.substring(0, 80)}...`);
-    console.log(`[DB CONFIG] Database name changed from '${dbName}' to '${newDbName}'`);
-    return finalUrl;
-  } catch (error) {
-    console.error('Failed to parse database URL for environment separation:', error);
-    return baseUrl;
-  }
+  return baseUrl;
 }
 
 // Environment-specific configuration
