@@ -2167,6 +2167,15 @@ export class DatabaseStorage implements IStorage {
           const file = fileResults[0];
           console.log(`Processing file: ID=${file.id}, Type=${file.fileType}, Name=${file.originalFilename}`);
           
+          // Mark file as currently processing
+          await db.execute(sql`
+            UPDATE uploaded_files 
+            SET processing_status = 'processing', 
+                processing_started_at = NOW(),
+                processing_server_id = 'main'
+            WHERE id = ${file.id}
+          `);
+          
           // Process based on file type
           if (file.fileType === 'merchant') {
             try {
@@ -2280,6 +2289,19 @@ export class DatabaseStorage implements IStorage {
                   processingErrors: null
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
+              
+              // Update processing status and completion time
+              try {
+                await db.execute(sql`
+                  UPDATE uploaded_files 
+                  SET processing_status = 'completed',
+                      processing_completed_at = NOW(),
+                      processed_at = NOW()
+                  WHERE id = ${file.id}
+                `);
+              } catch (error) {
+                console.log(`processing timestamp columns not available for ${file.id}`);
+              }
                 
               // Clean up the processed file
               try {
