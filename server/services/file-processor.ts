@@ -319,43 +319,6 @@ class FileProcessorService {
   }
 
   /**
-   * Update processing statistics (called from storage layer)
-   */
-  updateProcessingStats(transactionId: string, duplicateInfo?: { increments: number; wasSkipped: boolean }): void {
-    this.currentTransactionRange = transactionId;
-    this.processingStats.currentTransactionId = transactionId;
-    this.processingStats.transactionsProcessed++;
-    
-    // Update currently processing file stats
-    if (this.currentlyProcessingFile) {
-      this.currentlyProcessingFile.transactionsProcessed++;
-      if (this.currentlyProcessingFile.totalTransactions) {
-        this.currentlyProcessingFile.progress = 
-          Math.round((this.currentlyProcessingFile.transactionsProcessed / this.currentlyProcessingFile.totalTransactions) * 100);
-      }
-    }
-    
-    if (duplicateInfo) {
-      this.duplicateStats.totalDuplicates++;
-      if (duplicateInfo.wasSkipped) {
-        this.duplicateStats.skipCount++;
-      }
-      // Update average increments
-      const totalIncrements = this.duplicateStats.totalDuplicates * this.duplicateStats.averageIncrements + duplicateInfo.increments;
-      this.duplicateStats.averageIncrements = totalIncrements / this.duplicateStats.totalDuplicates;
-    }
-
-    // Update estimated completion time
-    if (this.processingStats.startTime && this.processingStats.transactionsProcessed > 0) {
-      const elapsed = Date.now() - this.processingStats.startTime.getTime();
-      const avgTimePerTransaction = elapsed / this.processingStats.transactionsProcessed;
-      // Rough estimate assuming 50,000 more transactions to process
-      const estimatedRemainingTime = avgTimePerTransaction * 50000;
-      this.processingStats.estimatedCompletion = new Date(Date.now() + estimatedRemainingTime);
-    }
-  }
-
-  /**
    * Stop the file processor service
    */
   stop(): void {

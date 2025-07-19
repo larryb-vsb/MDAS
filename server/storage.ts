@@ -3083,7 +3083,7 @@ export class DatabaseStorage implements IStorage {
         skip_empty_lines: true
       });
       
-      const transactions: InsertTransaction[] = [];
+      let transactions: InsertTransaction[] = [];
       let rowCount = 0;
       let errorCount = 0;
       let sampleRow: any = null;
@@ -3781,7 +3781,7 @@ export class DatabaseStorage implements IStorage {
         })
       );
       
-      const transactions: InsertTransaction[] = [];
+      let transactions: InsertTransaction[] = [];
       let rowCount = 0;
       let errorCount = 0;
       let sampleRow: any = null;
