@@ -66,6 +66,13 @@ export default function FileProcessorStatus() {
     staleTime: 2000
   });
 
+  // Fetch real-time database statistics for accurate file counts
+  const { data: realTimeStats, isLoading: isStatsLoading } = useQuery<RealTimeStats>({
+    queryKey: ["/api/processing/real-time-stats"],
+    refetchInterval: 2000, // Update every 2 seconds
+    staleTime: 0, // Always consider data stale to force fresh requests
+  });
+
   // Trigger processing manually
   const forceProcessMutation = useMutation({
     mutationFn: async () => {
@@ -117,7 +124,7 @@ export default function FileProcessorStatus() {
     return formatDistanceToNow(date, { addSuffix: true });
   }
 
-  if (isStatusLoading) {
+  if (isStatusLoading || isStatsLoading) {
     return (
       <Card>
         <CardHeader className="pb-2">
@@ -188,12 +195,12 @@ export default function FileProcessorStatus() {
           
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Files processed:</span>
-            <span className="text-sm">{status?.processedFileCount || 0}</span>
+            <span className="text-sm">{realTimeStats?.processedFiles || status?.processedFileCount || 0}</span>
           </div>
           
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Files in queue:</span>
-            <span className="text-sm">{status?.queuedFiles?.length || 0}</span>
+            <span className="text-sm">{realTimeStats?.queuedFiles || status?.queuedFiles?.length || 0}</span>
           </div>
           
           {hasErrors && (
