@@ -637,10 +637,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Merchant with ID ${merchantId} not found`);
       }
       
-      // Debug: Log what fields are actually returned
-      console.log('[STORAGE DEBUG] Merchant object keys:', Object.keys(merchant));
-      console.log('[STORAGE DEBUG] updatedBy field:', merchant.updatedBy);
-      console.log('[STORAGE DEBUG] editDate field:', merchant.editDate);
+      // Note: updatedBy field requires explicit string conversion due to database encoding
       
       // Get merchant transactions
       const transactions = await db.select()
@@ -683,7 +680,8 @@ export class DatabaseStorage implements IStorage {
           zipCode: merchant.zipCode || '',
           country: merchant.country || null,
           category: merchant.category || '',
-          editDate: merchant.editDate ? merchant.editDate.toISOString() : null
+          editDate: merchant.editDate ? merchant.editDate.toISOString() : null,
+          updatedBy: merchant.updatedBy ? String(merchant.updatedBy).trim() : null
         },
         transactions: formattedTransactions,
         analytics: {

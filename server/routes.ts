@@ -2236,6 +2236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const merchantId = req.params.id;
       const merchantDetails = await storage.getMerchantById(merchantId);
+      
+      // API returns complete merchant details with user tracking
+      
       res.json(merchantDetails);
     } catch (error) {
       res.status(500).json({ 
