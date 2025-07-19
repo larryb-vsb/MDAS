@@ -2291,7 +2291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Generate a timestamp-based merchant ID for manual creation
         const timestamp = Date.now();
         const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        merchantId = `MAN${timestamp}${randomSuffix}`;
+        merchantId = `MMS${timestamp}${randomSuffix}`;
         console.log(`[MANUAL MERCHANT] Auto-generated ID: ${merchantId} for merchant: ${merchantData.name}`);
       }
       
