@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### CSV Info Tooltip Rendering Error COMPLETELY FIXED (July 19, 2025)
+- **✅ REACT ERROR RESOLVED**: Fixed merchant detail page CSV tooltip that was incorrectly trying to render raw data object directly
+- **✅ COMPONENT STANDARDIZATION**: Replaced broken tooltip implementation with proper RawDataTooltip component
+- **✅ CODE CONSISTENCY**: Both merchant detail and transaction pages now use identical CSV tooltip implementation
+- **✅ PROPER DATA DISPLAY**: CSV info tooltips correctly show file name, row number, import timestamp, and formatted raw CSV data
+- **✅ ERROR ELIMINATION**: Removed direct object rendering in <pre> tag that was causing React console errors
+- **✅ USER VALIDATION**: System confirmed "nice work" after successful CSV info functionality testing
+- **✅ PRODUCTION READY**: All CSV info tooltips throughout application now function correctly without rendering errors
+
 ### M-Prefix Merchant Creation Issue PERMANENTLY RESOLVED (July 19, 2025)
 - **✅ CRITICAL FIX COMPLETED**: Eliminated all "Merchant M..." placeholder name generation permanently from codebase
 - **✅ COMPREHENSIVE DATABASE CLEANUP**: Successfully removed all 76 M-prefixed merchants and 213 M-transactions from database
