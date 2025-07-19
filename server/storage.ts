@@ -3876,7 +3876,7 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`\n==============================================================`);
           console.log(`Transaction processing complete. Inserted: ${insertedCount}, Created merchants: ${createdMerchants}, Updated merchants: ${updatedMerchants}`);
-          resolve();
+          resolve({ rowsProcessed: rowCount, transactionsCreated: insertedCount, errors: errorCount });
         } catch (error) {
           console.error("Error processing transactions in database:", error);
           

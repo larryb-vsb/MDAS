@@ -1,0 +1,3 @@
+Transaction ID,Merchant ID,Amount,Date,Type,Description
+T1001,M43132391,10.00,2024-02-01,Credit,Test Transaction
+T1002,M43132391,20.00,2024-02-02,Credit,Another Test

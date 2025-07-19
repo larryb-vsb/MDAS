@@ -20,12 +20,13 @@ Preferred communication style: Simple, everyday language.
 - **PRODUCTION READY**: Transaction imports now correctly match existing merchants and prevent duplicate creation
 
 ### File Processing Metrics Error Resolution (July 19, 2025)
-- **PROCESSING METRICS ERROR FIXED**: Resolved "Cannot read properties of undefined (reading 'rowsProcessed')" error in merchant file processing
-- **ROOT CAUSE IDENTIFIED**: processMerchantFileFromContent function was calling resolve() without returning expected ProcessingMetrics object
-- **RETURN VALUE CORRECTED**: Fixed function to return proper metrics object with rowsProcessed, merchantsCreated, merchantsUpdated, and errors
-- **EMPTY FILE HANDLING**: Added proper metrics return for cases where no merchant data is found to process
-- **DATABASE METRICS**: Processing completion now properly stores comprehensive metrics in database fields
-- **PRODUCTION READY**: All merchant file uploads now complete successfully with full metrics tracking and display
+- **PROCESSING METRICS ERROR FIXED**: Resolved "Cannot read properties of undefined (reading 'rowsProcessed')" error in both merchant and transaction file processing
+- **ROOT CAUSE IDENTIFIED**: Multiple resolve() calls in processing functions were returning undefined instead of expected ProcessingMetrics object
+- **RETURN VALUE CORRECTED**: Fixed all processing functions to return proper metrics object with rowsProcessed, transactionsCreated/merchantsCreated, and errors
+- **TRANSACTION PROCESSING FIXED**: Updated transaction processing resolve() calls to include rowsProcessed, transactionsCreated, and errors fields
+- **COMPREHENSIVE METRICS**: All file processing paths now return consistent ProcessingMetrics interface structure
+- **DATABASE METRICS**: Processing completion properly stores comprehensive metrics in database fields (records_processed, records_with_errors, processing_time_ms)
+- **PRODUCTION READY**: All file uploads (merchant and transaction) now complete successfully with full metrics tracking and display
 
 ### User Tracking Display Issue Resolution (July 19, 2025)
 - **USER TRACKING COMPLETELY FIXED**: "Updated By" field now correctly displays logged-in user ("admin") instead of "System"
