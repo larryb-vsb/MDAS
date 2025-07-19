@@ -15,7 +15,9 @@ Preferred communication style: Simple, everyday language.
 - **BACKEND API ENHANCED**: Added OFFSET/LIMIT SQL queries to processing-status endpoint for handling large file volumes
 - **FRONTEND PAGINATION UPDATED**: ProcessingFilters component now uses server-side pagination data with proper metadata handling
 - **PROCESSING STATUS FIX**: Resolved legacy files stuck in "processing" status by updating 9 files to correct "completed" status
-- **COMPREHENSIVE PAGINATION**: Main uploads table already had complete pagination with navigation controls and item count display
+- **MERCHANTS PAGINATION COMPLETE**: Added comprehensive pagination with 10, 20, 50, 100 items per page dropdown selector
+- **AUTOMATIC PAGE RESET**: Page resets to 1 when changing items per page or applying filters for better user experience
+- **COMPREHENSIVE PAGINATION**: All data tables (uploads, processing monitor, merchants) now have complete pagination controls
 - **PRODUCTION READY**: All file management screens now handle large datasets efficiently with proper pagination controls
 
 ### Database Schema Fix for Processing Metrics (July 19, 2025)
