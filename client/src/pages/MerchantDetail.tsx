@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import MainLayout from '@/components/layout/MainLayout';
+import { RawDataTooltip } from '@/components/raw-data-tooltip';
 import { Slider } from "@/components/ui/slider";
 import { 
   Card, 
@@ -983,42 +984,12 @@ export default function MerchantDetail() {
                                 </TableCell>
                                 <TableCell>
                                   {(transaction as any).sourceFileName || (transaction as any).rawData ? (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button variant="ghost" size="sm" className="h-8 px-2 text-blue-600 hover:text-blue-800">
-                                            CSV
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-md p-3">
-                                          <div className="space-y-2 text-sm">
-                                            {(transaction as any).sourceFileName && (
-                                              <div>
-                                                <strong>File:</strong> {(transaction as any).sourceFileName}
-                                              </div>
-                                            )}
-                                            {(transaction as any).sourceRowNumber && (
-                                              <div>
-                                                <strong>Row:</strong> {(transaction as any).sourceRowNumber}
-                                              </div>
-                                            )}
-                                            {(transaction as any).recordedAt && (
-                                              <div>
-                                                <strong>Imported:</strong> {new Date((transaction as any).recordedAt).toLocaleString()}
-                                              </div>
-                                            )}
-                                            {(transaction as any).rawData && (
-                                              <div>
-                                                <strong>CSV Data:</strong>
-                                                <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                                                  {(transaction as any).rawData}
-                                                </pre>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
+                                    <RawDataTooltip 
+                                      rawData={(transaction as any).rawData}
+                                      sourceRowNumber={(transaction as any).sourceRowNumber}
+                                      recordedAt={(transaction as any).recordedAt}
+                                      sourceFileName={(transaction as any).sourceFileName}
+                                    />
                                   ) : (
                                     <span className="text-gray-400 text-sm">-</span>
                                   )}
