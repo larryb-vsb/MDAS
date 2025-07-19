@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### File Processing Metrics Error Resolution (July 19, 2025)
+- **PROCESSING METRICS ERROR FIXED**: Resolved "Cannot read properties of undefined (reading 'rowsProcessed')" error in merchant file processing
+- **ROOT CAUSE IDENTIFIED**: processMerchantFileFromContent function was calling resolve() without returning expected ProcessingMetrics object
+- **RETURN VALUE CORRECTED**: Fixed function to return proper metrics object with rowsProcessed, merchantsCreated, merchantsUpdated, and errors
+- **EMPTY FILE HANDLING**: Added proper metrics return for cases where no merchant data is found to process
+- **DATABASE METRICS**: Processing completion now properly stores comprehensive metrics in database fields
+- **PRODUCTION READY**: All merchant file uploads now complete successfully with full metrics tracking and display
+
 ### User Tracking Display Issue Resolution (July 19, 2025)
 - **USER TRACKING COMPLETELY FIXED**: "Updated By" field now correctly displays logged-in user ("admin") instead of "System"
 - **ROOT CAUSE IDENTIFIED**: getMerchantById method was missing updatedBy field in API response object construction

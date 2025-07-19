@@ -2583,7 +2583,12 @@ export class DatabaseStorage implements IStorage {
         
         if (merchants.length === 0) {
           console.log("No valid merchant data found to insert.");
-          return resolve();
+          return resolve({ 
+            rowsProcessed: rowCount, 
+            merchantsCreated: 0, 
+            merchantsUpdated: 0, 
+            errors: errorCount 
+          });
         }
         
         try {
@@ -2657,7 +2662,12 @@ export class DatabaseStorage implements IStorage {
           console.log(`Inserted merchants: ${stats.newMerchants}`);
           
           console.log(`\n=================== COMPLETE ===================`);
-          resolve();
+          resolve({
+            rowsProcessed: rowCount,
+            merchantsCreated: stats.newMerchants,
+            merchantsUpdated: stats.updatedMerchants,
+            errors: errorCount
+          });
         } catch (error) {
           console.error("Error updating merchants in database:", error);
           reject(error);
