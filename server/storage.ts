@@ -29,6 +29,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull } from "drizzle-orm";
+import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
@@ -630,9 +631,13 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
+      // Use environment-specific table
+      const merchantsTableName = getTableName('merchants');
+      console.log(`[GET MERCHANT] Using table: ${merchantsTableName} for merchant ID: ${merchantId}`);
+      
       // Use raw SQL to avoid Drizzle ORM issues
       const merchantQuery = await db.execute(sql`
-        SELECT * FROM merchants WHERE id = ${merchantId} LIMIT 1
+        SELECT * FROM ${sql.identifier(merchantsTableName)} WHERE id = ${merchantId} LIMIT 1
       `);
       
       const merchant = merchantQuery.rows[0];
@@ -643,10 +648,13 @@ export class DatabaseStorage implements IStorage {
       
       // updatedBy field requires explicit string conversion due to database encoding
       
+      // Get merchant transactions using environment-specific table
+      const transactionsTableName = getTableName('transactions');
+      
       // Get merchant transactions using raw SQL to avoid Drizzle issues
       const transactionsQuery = await db.execute(sql`
         SELECT id, merchant_id, amount, date, type, raw_data, source_file_id, source_row_number, recorded_at
-        FROM transactions 
+        FROM ${sql.identifier(transactionsTableName)}
         WHERE merchant_id = ${merchantId} 
         ORDER BY date DESC 
         LIMIT 100
@@ -754,10 +762,32 @@ export class DatabaseStorage implements IStorage {
       
       // Search index will be maintained at database level
       
-      // Insert the merchant into the database
-      const [newMerchant] = await db.insert(merchantsTable)
-        .values(merchantData)
-        .returning();
+      // Use environment-specific table for merchant creation
+      const merchantsTableName = getTableName('merchants');
+      console.log(`[CREATE MERCHANT] Using table: ${merchantsTableName} for merchant: ${merchantData.name}`);
+      
+      // Insert the merchant into the database using raw SQL for environment separation
+      const insertResult = await db.execute(sql`
+        INSERT INTO ${sql.identifier(merchantsTableName)} (
+          id, name, client_mid, other_client_number1, other_client_number2, 
+          client_since_date, status, merchant_type, sales_channel, address, 
+          city, state, zip_code, country, category, created_at, last_upload_date, 
+          as_of_date, edit_date, updated_by
+        ) VALUES (
+          ${merchantData.id}, ${merchantData.name}, ${merchantData.clientMID || null}, 
+          ${merchantData.otherClientNumber1 || null}, ${merchantData.otherClientNumber2 || null},
+          ${merchantData.clientSinceDate || null}, ${merchantData.status}, 
+          ${merchantData.merchantType || 'none'}, ${merchantData.salesChannel || null}, 
+          ${merchantData.address || ''}, ${merchantData.city || ''}, ${merchantData.state || ''}, 
+          ${merchantData.zipCode || ''}, ${merchantData.country || null}, 
+          ${merchantData.category || ''}, ${merchantData.createdAt}, 
+          ${merchantData.lastUploadDate || null}, ${merchantData.asOfDate || null}, 
+          ${merchantData.editDate || merchantData.createdAt}, ${merchantData.updatedBy || 'system'}
+        )
+        RETURNING *
+      `);
+      
+      const newMerchant = insertResult.rows[0] as Merchant;
       
       // Create audit log entry for merchant creation
       const username = merchantData.updatedBy || 'System';
