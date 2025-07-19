@@ -24,6 +24,9 @@ Preferred communication style: Simple, everyday language.
 - **✅ MERCHANT CRUD OPERATIONS**: Create, read, update, delete all working with proper environment routing
 - **✅ UPLOAD FILE SEPARATION**: Upload history shows 0 files in development vs 431 in production - complete isolation
 - **✅ ERROR RESOLUTION**: Fixed all 404 file deletion errors by proper environment table routing
+- **✅ UPLOAD ENDPOINT FIXED**: File upload API now correctly routes to dev_uploaded_files table in development
+- **✅ PROCESS UPLOADS FIXED**: File processing queue API uses environment-specific tables
+- **✅ COMPLETE ENVIRONMENT SEPARATION**: All APIs (merchants, transactions, uploads, file processing) use correct environment tables
 - **✅ PRODUCTION READY**: Full web interface authentication and data separation working correctly
 
 ### Dashboard Revenue Calculation Issue COMPLETELY RESOLVED (July 19, 2025)

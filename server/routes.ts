@@ -1214,9 +1214,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Storing file content for ${fileId}: ${fileContent.length} characters, ${fileContentBase64.length} base64 chars`);
       
-      // Direct SQL insertion using raw pool query (ORM schema mismatch)
+      // Use environment-specific table for file uploads
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}`);
+      
+      // Direct SQL insertion using environment-specific table
       await pool.query(`
-        INSERT INTO uploaded_files (
+        INSERT INTO ${uploadedFilesTableName} (
           id, 
           original_filename, 
           storage_path, 
@@ -1355,11 +1359,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Processing ${fileIds.length} files with IDs:`, fileIds);
 
-      // Mark these files as "pending processing" in the database
+      // Mark these files as "pending processing" in the database using environment-specific table
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
       for (const fileId of fileIds) {
         try {
           await db.execute(sql`
-            UPDATE uploaded_files 
+            UPDATE ${sql.identifier(uploadedFilesTableName)}
             SET processed = false, processing_errors = NULL 
             WHERE id = ${fileId}
           `);
