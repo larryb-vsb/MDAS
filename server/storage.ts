@@ -3067,8 +3067,8 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        console.warn(`[MERCHANT ID] No valid Merchant ID found in row, using fallback`);
-        return `AUTO_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+        console.warn(`[MERCHANT ID] No valid Merchant ID found in row, skipping row to avoid bad merchant IDs`);
+        return null;
       };
 
       parser.on("data", (row) => {
@@ -3090,6 +3090,13 @@ export class DatabaseStorage implements IStorage {
           // Skip row if no Transaction ID found (critical data missing)
           if (!transactionId) {
             console.error(`[SKIP ROW] Row ${rowCount} has no Transaction ID, skipping to avoid timestamp fallback`);
+            errorCount++;
+            return;
+          }
+          
+          // Skip row if no Merchant ID found (avoid bad merchant ID generation)
+          if (!merchantId) {
+            console.error(`[SKIP ROW] Row ${rowCount} has no Merchant ID, skipping to avoid AUTO_ merchant IDs`);
             errorCount++;
             return;
           }
@@ -3315,26 +3322,35 @@ export class DatabaseStorage implements IStorage {
                 await db.insert(merchantsTable).values(newMerchant);
                 console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
               } else {
-                console.log(`[FALLBACK MERCHANT] No name found for ${transaction.merchantId}, using generic name`);
+                // Try to extract name directly from this transaction's originalMerchantName
+                const directMerchantName = (transaction as any).originalMerchantName;
                 
-                const newMerchant = {
-                  id: transaction.merchantId,
-                  name: `Merchant ${transaction.merchantId}`,
-                  clientMID: `CM-${transaction.merchantId}`,
-                  status: "Pending",
-                  address: "100 Main Street",
-                  city: "Chicago", 
-                  state: "IL",
-                  zipCode: "60601",
-                  country: "US",
-                  category: "General",
-                  createdAt: new Date(),
-                  lastUploadDate: new Date(),
-                  editDate: new Date()
-                };
-                
-                await db.insert(merchantsTable).values(newMerchant);
-                console.log(`Created generic merchant ${newMerchant.id}: ${newMerchant.name}`);
+                if (directMerchantName) {
+                  console.log(`[NEW MERCHANT] Using direct transaction name: ${directMerchantName} for ID: ${transaction.merchantId}`);
+                  
+                  const newMerchant = {
+                    id: transaction.merchantId,
+                    name: directMerchantName,
+                    clientMID: `CM-${transaction.merchantId}`,
+                    status: "Pending",
+                    address: "123 Business St",
+                    city: "Chicago",
+                    state: "IL",
+                    zipCode: "60601",
+                    country: "US",
+                    category: "Retail",
+                    createdAt: new Date(),
+                    lastUploadDate: new Date(),
+                    editDate: new Date()
+                  };
+                  
+                  await db.insert(merchantsTable).values(newMerchant);
+                  console.log(`Created merchant ${newMerchant.id} with direct name: ${newMerchant.name}`);
+                } else {
+                  console.log(`[SKIP MERCHANT] No name available for ${transaction.merchantId}, skipping merchant creation to avoid placeholder names`);
+                  // Skip creating merchants without proper names to avoid "Merchant MXXXXX" entries
+                  // The transaction will still be processed but with the original merchant ID
+                }
               }
             }
           }
