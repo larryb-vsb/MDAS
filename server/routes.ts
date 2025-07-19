@@ -463,13 +463,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}`);
       
-      // Get real-time file processing statistics from environment-specific database
+      // Get real-time file processing statistics using new processing_status field
       const result = await pool.query(`
         SELECT 
           COUNT(*) as total_files,
-          COUNT(CASE WHEN processed = false AND deleted = false THEN 1 END) as queued_files,
-          COUNT(CASE WHEN processed = true AND deleted = false THEN 1 END) as processed_files,
-          COUNT(CASE WHEN processed = true AND processing_errors IS NOT NULL AND deleted = false THEN 1 END) as files_with_errors,
+          COUNT(CASE WHEN processing_status = 'queued' AND deleted = false THEN 1 END) as queued_files,
+          COUNT(CASE WHEN processing_status = 'completed' AND deleted = false THEN 1 END) as processed_files,
+          COUNT(CASE WHEN processing_status = 'processing' AND deleted = false THEN 1 END) as currently_processing,
+          COUNT(CASE WHEN processing_status = 'failed' AND deleted = false THEN 1 END) as files_with_errors,
           COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files
         FROM ${uploadedFilesTableName}
       `);
@@ -493,6 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalFiles: parseInt(stats.total_files),
         queuedFiles: parseInt(stats.queued_files),
         processedFiles: parseInt(stats.processed_files),
+        currentlyProcessing: parseInt(stats.currently_processing),
         filesWithErrors: parseInt(stats.files_with_errors),
         recentFiles: parseInt(stats.recent_files),
         transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1)),

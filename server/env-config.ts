@@ -4,7 +4,7 @@
  */
 
 // Determine the current environment  
-// Switch to development mode to check dev processing status
+// Switch back to development mode
 export const NODE_ENV = 'development';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
