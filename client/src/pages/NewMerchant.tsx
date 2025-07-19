@@ -100,8 +100,8 @@ export default function NewMerchant() {
         body: values
       });
     },
-    onSuccess: async (response) => {
-      const data = await response.json();
+    onSuccess: (data) => {
+      // apiRequest already returns parsed JSON data, not a Response object
       toast({
         title: 'Merchant created',
         description: 'New merchant has been successfully created.',
