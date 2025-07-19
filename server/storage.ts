@@ -2110,15 +2110,36 @@ export class DatabaseStorage implements IStorage {
       const latestTransactionDate = latestTransactionResult[0]?.latestDate;
       
       if (!latestTransactionDate) {
-        // No transactions in database, return zero stats
+        // No transactions in database, but still count merchants
+        const merchantCount = await db.select({ count: count() }).from(merchantsTable);
+        const totalMerchants = parseInt(merchantCount[0].count.toString(), 10);
+        
+        // Count active merchants (merchants with status 'Active')
+        const activeMerchantsResult = await db.select({ count: count() })
+          .from(merchantsTable)
+          .where(eq(merchantsTable.status, 'Active'));
+        const activeMerchants = parseInt(activeMerchantsResult[0].count.toString(), 10);
+        
+        // Calculate active rate (percentage of merchants that are active)
+        const activeRate = totalMerchants > 0 ? (activeMerchants / totalMerchants) * 100 : 0;
+        
+        // Get all merchants for new merchant calculation
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const newMerchantsResult = await db.select({ count: count() })
+          .from(merchantsTable)
+          .where(gte(merchantsTable.createdAt, thirtyDaysAgo));
+        const newMerchants = parseInt(newMerchantsResult[0].count.toString(), 10);
+        
         return {
-          totalMerchants: 0,
-          newMerchants: 0,
+          totalMerchants,
+          newMerchants,
           dailyTransactions: 0,
           monthlyRevenue: 0,
           transactionGrowth: 0,
           revenueGrowth: 0,
-          activeRate: 0,
+          activeRate,
           avgTransactionValue: 0,
           totalTransactions: 0,
           totalRevenue: 0
