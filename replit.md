@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 - **✅ VERIFIED DATA ISOLATION**: Production has "Test Larry Billinghurst4", Development has "Test Larry Billinghurst"
 - **✅ COMPLETE API SEPARATION**: All APIs (uploads, merchants, transactions) correctly use environment-specific tables
 - **✅ MERCHANT CRUD OPERATIONS**: Create, read, update, delete all working with proper environment routing
-- **✅ UPLOAD FILE SEPARATION**: Upload history shows 0 files in development vs 431 in production - complete isolation
+- **✅ UPLOAD FILE SEPARATION**: Upload history shows 67 files in development vs 3635 in production - complete isolation verified
 - **✅ ERROR RESOLUTION**: Fixed all 404 file deletion errors by proper environment table routing
 - **✅ UPLOAD ENDPOINT FIXED**: File upload API now correctly routes to dev_uploaded_files table in development
 - **✅ PROCESS UPLOADS FIXED**: File processing queue API uses environment-specific tables
@@ -33,7 +33,9 @@ Preferred communication style: Simple, everyday language.
 - **✅ MERCHANT CHART DISPLAY FIXED**: Updated getMerchantStats and getTransactionHistoryByMonth to use environment-specific tables
 - **✅ DASHBOARD CHARTS OPERATIONAL**: Merchant detail charts now display real transaction data (e.g., SOODAKS INC shows $2796.00 revenue)
 - **✅ SETTINGS PAGE DATABASE FIXED**: Updated /api/settings/database endpoint to use environment-specific tables instead of hardcoded production tables
-- **✅ COMPLETE ENVIRONMENT CONSISTENCY**: All APIs (merchants, transactions, uploads, settings, charts) now use correct development vs production table routing
+- **✅ PROCESSING WIDGET STATISTICS FIXED**: Real-time stats API now correctly queries environment-specific tables showing accurate development data (67 files vs 3635 production)
+- **✅ SYSTEM TABLES SHARED**: backup_history and schema_versions properly configured as shared system tables without environment prefixes
+- **✅ COMPLETE ENVIRONMENT CONSISTENCY**: All APIs (merchants, transactions, uploads, settings, charts, processing stats) now use correct development vs production table routing
 - **✅ PRODUCTION READY**: Full web interface authentication and data separation working correctly
 
 ### Dashboard Revenue Calculation Issue COMPLETELY RESOLVED (July 19, 2025)

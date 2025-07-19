@@ -457,7 +457,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-time database processing statistics endpoint
   app.get("/api/processing/real-time-stats", async (req, res) => {
     try {
-      // Get real-time file processing statistics from database
+      // Use environment-specific table names
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const transactionsTableName = getTableName('transactions');
+      
+      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}`);
+      
+      // Get real-time file processing statistics from environment-specific database
       const result = await pool.query(`
         SELECT 
           COUNT(*) as total_files,
@@ -465,7 +471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN processed = true AND deleted = false THEN 1 END) as processed_files,
           COUNT(CASE WHEN processed = true AND processing_errors IS NOT NULL AND deleted = false THEN 1 END) as files_with_errors,
           COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files
-        FROM uploaded_files
+        FROM ${uploadedFilesTableName}
       `);
 
       // Calculate transaction processing speed based on recent transaction IDs (using timestamp pattern)
@@ -474,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const transactionSpeedResult = await pool.query(`
         SELECT COUNT(*) as recent_transactions
-        FROM transactions 
+        FROM ${transactionsTableName} 
         WHERE id LIKE $1
       `, [`${twoMinutesAgo.toString().substring(0, 11)}%`]);
 
