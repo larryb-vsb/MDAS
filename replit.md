@@ -28,6 +28,8 @@ Preferred communication style: Simple, everyday language.
 - **✅ GAUGE LABEL POSITIONING**: Moved "(last 10 min)" label under the meter for improved layout and clarity
 - **✅ ROBUST PEAK TRACKING**: Peak values persist for full 10-minute window and only reset after complete inactivity period
 - **✅ INSTANTANEOUS VS PEAK DISTINCTION**: Current value shows most recent sample, peak indicator shows highest value from last 10 minutes
+- **⚠️ PRODUCTION TABLE REQUIREMENT**: Identified missing `processing_metrics` table in production environment causing processing status widget errors
+- **🔧 DEPLOYMENT NOTE**: Production deployment requires `processing_metrics` table creation for complete processing status functionality
 
 ### Database Environment Separation FULLY OPERATIONAL (July 19, 2025) 
 - **✅ COMPLETE TABLE-LEVEL SEPARATION**: Production and development use completely separate table sets in same database
