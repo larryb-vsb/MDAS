@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import MainLayout from "@/components/layout/MainLayout";
 import { useToast } from "@/hooks/use-toast";
+import { RawDataTooltip } from "@/components/raw-data-tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,11 @@ interface Transaction {
   amount: number;
   date: string;
   type: string;
+  // Raw data preservation fields
+  rawData?: Record<string, any> | null;
+  sourceFileId?: string | null;
+  sourceRowNumber?: number | null;
+  recordedAt?: string | null;
 }
 
 interface TransactionsResponse {
@@ -734,6 +740,7 @@ export default function Transactions() {
                       <TableHead>Type</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="w-[50px]">CSV</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -778,6 +785,13 @@ export default function Transactions() {
                           transaction.amount >= 0 ? "text-green-600" : "text-red-600"
                         )}>
                           {formatCurrency(transaction.amount)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <RawDataTooltip 
+                            rawData={transaction.rawData}
+                            sourceRowNumber={transaction.sourceRowNumber}
+                            recordedAt={transaction.recordedAt}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

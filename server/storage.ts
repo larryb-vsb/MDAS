@@ -1213,6 +1213,11 @@ export class DatabaseStorage implements IStorage {
           amount: parseFloat(transaction.amount.toString()),
           date: transaction.date.toISOString(),
           type: transaction.type,
+          // Raw data fields for tooltip display
+          rawData: transaction.rawData,
+          sourceFileId: transaction.sourceFileId,
+          sourceRowNumber: transaction.sourceRowNumber,
+          recordedAt: transaction.recordedAt?.toISOString(),
           // Additional fields for CSV export
           sequenceNumber: transaction.id.replace('T', ''),
           accountNumber: transaction.merchantId,
@@ -2311,7 +2316,7 @@ export class DatabaseStorage implements IStorage {
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing transaction file from database content: ${file.id}`);
-                const processingMetrics = await this.processTransactionFileFromContent(dbContent);
+                const processingMetrics = await this.processTransactionFileFromContent(dbContent, file.id);
                 
                 // Calculate processing time in milliseconds
                 const processingCompletedTime = new Date();
@@ -2968,7 +2973,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process transaction file from database content (new format)
-  async processTransactionFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; transactionsCreated: number; errors: number }> {
+  async processTransactionFileFromContent(base64Content: string, sourceFileId?: string): Promise<{ rowsProcessed: number; transactionsCreated: number; errors: number }> {
     console.log(`=================== TRANSACTION FILE PROCESSING (DATABASE) ===================`);
     console.log(`Processing transaction file from database content`);
     
@@ -3065,7 +3070,12 @@ export class DatabaseStorage implements IStorage {
               date: new Date(row.Date),
               type: transactionCodeMapping[row.Code] || row.Code || 'Unknown',
               description: row.Descr || '',
-              createdAt: new Date()
+              createdAt: new Date(),
+              // RAW DATA PRESERVATION
+              rawData: row, // Store complete original CSV row data
+              sourceFileId: sourceFileId || null,
+              sourceRowNumber: rowCount,
+              recordedAt: new Date()
             };
             
             // Add original merchant name to transaction object for advanced matching
@@ -3127,6 +3137,12 @@ export class DatabaseStorage implements IStorage {
             
             // Set creation timestamp
             transactionData.createdAt = new Date();
+            
+            // RAW DATA PRESERVATION for default format
+            (transactionData as any).rawData = row; // Store complete original CSV row data
+            (transactionData as any).sourceFileId = sourceFileId || null;
+            (transactionData as any).sourceRowNumber = rowCount;
+            (transactionData as any).recordedAt = new Date();
           }
           
           console.log(`Transaction ${rowCount}: ${JSON.stringify(transactionData)}`);

@@ -32,7 +32,12 @@ export const transactions = pgTable("transactions", {
   merchantId: text("merchant_id").notNull().references(() => merchants.id),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   date: timestamp("date").defaultNow().notNull(),
-  type: text("type").notNull().default("Sale")
+  type: text("type").notNull().default("Sale"),
+  // Raw data preservation fields
+  rawData: jsonb("raw_data"), // Store complete original CSV row as JSON
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id), // Link to source file
+  sourceRowNumber: integer("source_row_number"), // Row number in original CSV
+  recordedAt: timestamp("recorded_at").defaultNow().notNull() // When transaction record was added
 });
 
 // Uploaded files table 
