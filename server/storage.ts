@@ -1895,8 +1895,8 @@ export class DatabaseStorage implements IStorage {
           } else if (tx.type === "Debit") {
             return sum - amount;
           }
-          // For other types like "Sale", continue using previous logic
-          return sum + (tx.type === "Sale" ? amount : -amount);
+          // For other types like "Sale", treat as positive revenue
+          return sum + amount;
         }, 0);
         
         // Add to result
@@ -1935,7 +1935,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get all transactions for this merchant using raw SQL
       const transactionsQuery = await db.execute(sql`
-        SELECT id, amount, date FROM transactions WHERE merchant_id = ${merchantId}
+        SELECT id, amount, date, type FROM transactions WHERE merchant_id = ${merchantId}
       `);
       const allTransactions = transactionsQuery.rows;
         
@@ -1979,8 +1979,8 @@ export class DatabaseStorage implements IStorage {
         } else if (tx.type === "Debit") {
           return sum - amount;
         }
-        // For other types like "Sale", continue using previous logic
-        return sum + (tx.type === "Sale" ? amount : -amount);
+        // For other types like "Sale", treat as positive revenue
+        return sum + amount;
       }, 0);
       
       // Get monthly transactions (from last 30 days of the latest date)
@@ -1999,8 +1999,8 @@ export class DatabaseStorage implements IStorage {
         } else if (tx.type === "Debit") {
           return sum - amount;
         }
-        // For other types like "Sale", continue using previous logic
-        return sum + (tx.type === "Sale" ? amount : -amount);
+        // For other types like "Sale", treat as positive revenue
+        return sum + amount;
       }, 0);
       
       console.log(`Found ${monthlyTransactions.length} monthly transactions and ${dailyTransactions.length} daily transactions`);
