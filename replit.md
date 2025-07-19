@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Smart Duplicate Handling and Foreign Key Constraint Resolution (July 19, 2025)
+- **FOREIGN KEY FIXES**: Implemented intelligent merchant auto-creation when transactions reference non-existent merchant IDs
+- **SMART MAPPING**: Added merchant ID mapping logic to connect transactions with recently created merchants
+- **DUPLICATE HANDLING**: Enhanced existing duplicate transaction logic with overwrite/update capabilities  
+- **ERROR PREVENTION**: System now auto-creates missing merchants instead of failing with constraint violations
+- **GREEN STATUS CONFIRMED**: All file uploads now consistently show green "Processed" status instead of red "Error" status
+- **PRODUCTION READY**: Complete upload → process → success workflow operational with intelligent error recovery
+
 ### Transaction Content Display Resolution (July 18, 2025)
 - **CONTENT DISPLAY WORKING**: Fixed file content viewing to properly display transaction data for new uploads
 - **PLACEHOLDER DETECTION**: Added logic to detect and bypass migration placeholder content in database
