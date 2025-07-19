@@ -2166,7 +2166,7 @@ export class DatabaseStorage implements IStorage {
           // Process based on file type
           if (file.fileType === 'merchant') {
             try {
-              // Try to get database content via raw SQL, fall back to file path
+              // Always use database content first (database-first approach)
               let dbContent = null;
               try {
                 const dbContentResults = await db.execute(sql`
@@ -2174,13 +2174,15 @@ export class DatabaseStorage implements IStorage {
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
               } catch (error) {
-                console.log(`Database content not available for ${file.id}, using file path`);
+                console.log(`Database content not available for ${file.id}`);
               }
               
-              if (dbContent) {
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`Processing merchant file from database content: ${file.id}`);
                 await this.processMerchantFileFromContent(dbContent);
               } else {
-                await this.processMerchantFile(file.storagePath);
+                console.error(`File ${file.id} (${file.originalFilename}): File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
               }
               
               // Mark as successfully processed
@@ -2228,7 +2230,7 @@ export class DatabaseStorage implements IStorage {
             }
           } else if (file.fileType === 'transaction') {
             try {
-              // Try to get database content via raw SQL, fall back to file path
+              // Always use database content first (database-first approach)
               let dbContent = null;
               try {
                 const dbContentResults = await db.execute(sql`
@@ -2236,13 +2238,15 @@ export class DatabaseStorage implements IStorage {
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
               } catch (error) {
-                console.log(`Database content not available for ${file.id}, using file path`);
+                console.log(`Database content not available for ${file.id}`);
               }
               
-              if (dbContent) {
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`Processing transaction file from database content: ${file.id}`);
                 await this.processTransactionFileFromContent(dbContent);
               } else {
-                await this.processTransactionFile(file.storagePath);
+                console.error(`File ${file.id} (${file.originalFilename}): File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
               }
               
               // Mark as successfully processed

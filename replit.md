@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **DUPLICATE HANDLING**: Enhanced existing duplicate transaction logic with overwrite/update capabilities  
 - **ERROR PREVENTION**: System now auto-creates missing merchants instead of failing with constraint violations
 - **GREEN STATUS CONFIRMED**: All file uploads now consistently show green "Processed" status instead of red "Error" status
+- **DATABASE-FIRST PROCESSING**: Fixed file processing to always use database content instead of temporary files that get cleaned up
 - **PRODUCTION READY**: Complete upload → process → success workflow operational with intelligent error recovery
 
 ### Transaction Content Display Resolution (July 18, 2025)
