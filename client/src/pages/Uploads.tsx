@@ -26,7 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  BarChart3
 } from "lucide-react";
 import {
   Card,
@@ -89,6 +90,13 @@ interface UploadedFile {
   processingErrors: string | null;
   processedAt: string | null;
   deleted?: boolean;
+  processingStartedAt?: string | null;
+  processingCompletedAt?: string | null;
+  processingTimeMs?: number | null;
+  recordsProcessed?: number;
+  recordsSkipped?: number;
+  recordsWithErrors?: number;
+  processingDetails?: string | null;
 }
 
 interface FileContentResponse {
@@ -120,6 +128,7 @@ export default function Uploads() {
   const [fileContent, setFileContent] = useState<FileContentResponse | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<UploadedFile[]>([]);
   const [selectMode, setSelectMode] = useState(false);
+  const [metadataFile, setMetadataFile] = useState<UploadedFile | null>(null);
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -406,6 +415,11 @@ export default function Uploads() {
   function handleViewContent(file: UploadedFile) {
     setSelectedFile(file);
     fetchFileContent.mutate(file.id);
+  }
+
+  // Handle viewing file metadata
+  function handleViewMetadata(file: UploadedFile) {
+    setMetadataFile(file);
   }
 
   // Handle reprocessing file
@@ -796,6 +810,10 @@ export default function Uploads() {
                           <DropdownMenuItem onClick={() => handleViewContent(file)}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Content
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewMetadata(file)}>
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            View Metadata
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDownloadFile(file)}>
                             <DownloadCloud className="mr-2 h-4 w-4" />
@@ -1282,6 +1300,156 @@ export default function Uploads() {
                   Reprocess Files
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Processing Metadata Dialog */}
+      <Dialog
+        open={!!metadataFile}
+        onOpenChange={(open) => !open && setMetadataFile(null)}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Processing Metadata
+            </DialogTitle>
+            <DialogDescription>
+              Detailed processing information for {metadataFile?.originalFilename}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {metadataFile && (
+            <div className="space-y-6">
+              {/* File Information */}
+              <div className="space-y-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  File Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-muted-foreground">File ID:</span>
+                    <div className="font-mono">{metadataFile.id}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">File Type:</span>
+                    <div>{metadataFile.fileType}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Upload Time:</span>
+                    <div>{formatFullDate(metadataFile.uploadedAt)}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Status:</span>
+                    <div>{metadataFile.processed ? "Processed" : "Queued"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Processing Timeline */}
+              {(metadataFile.processingStartedAt || metadataFile.processingCompletedAt) && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Loader2 className="h-4 w-4" />
+                    Processing Timeline
+                  </h4>
+                  <div className="grid grid-cols-1 gap-4 text-sm">
+                    {metadataFile.processingStartedAt && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Started:</span>
+                        <div>{formatFullDate(metadataFile.processingStartedAt)}</div>
+                      </div>
+                    )}
+                    {metadataFile.processingCompletedAt && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Completed:</span>
+                        <div>{formatFullDate(metadataFile.processingCompletedAt)}</div>
+                      </div>
+                    )}
+                    {metadataFile.processingTimeMs && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Duration:</span>
+                        <div>{(metadataFile.processingTimeMs / 1000).toFixed(2)} seconds</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Processing Statistics */}
+              {(metadataFile.recordsProcessed !== undefined || 
+                metadataFile.recordsSkipped !== undefined || 
+                metadataFile.recordsWithErrors !== undefined) && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Processing Statistics
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    {metadataFile.recordsProcessed !== undefined && (
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {metadataFile.recordsProcessed}
+                        </div>
+                        <div className="text-green-700">Records Processed</div>
+                      </div>
+                    )}
+                    {metadataFile.recordsSkipped !== undefined && (
+                      <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {metadataFile.recordsSkipped}
+                        </div>
+                        <div className="text-yellow-700">Records Skipped</div>
+                      </div>
+                    )}
+                    {metadataFile.recordsWithErrors !== undefined && (
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-600">
+                          {metadataFile.recordsWithErrors}
+                        </div>
+                        <div className="text-red-700">Records with Errors</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Processing Details */}
+              {metadataFile.processingDetails && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Processing Details
+                  </h4>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <pre className="text-xs whitespace-pre-wrap text-gray-700">
+                      {JSON.stringify(JSON.parse(metadataFile.processingDetails), null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {/* Processing Errors */}
+              {metadataFile.processingErrors && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    Processing Errors
+                  </h4>
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <p className="text-red-800 text-sm">{metadataFile.processingErrors}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMetadataFile(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

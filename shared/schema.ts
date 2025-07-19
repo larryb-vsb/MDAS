@@ -53,7 +53,13 @@ export const uploadedFiles = pgTable("uploaded_files", {
   processingStatus: text("processing_status").default("queued").notNull(), // queued, processing, completed, failed
   processingStartedAt: timestamp("processing_started_at"),
   processingCompletedAt: timestamp("processing_completed_at"),
-  processingServerId: text("processing_server_id") // Which server is processing this file
+  processingServerId: text("processing_server_id"), // Which server is processing this file
+  // Processing metrics
+  recordsProcessed: integer("records_processed").default(0),
+  recordsSkipped: integer("records_skipped").default(0),
+  recordsWithErrors: integer("records_with_errors").default(0),
+  processingTimeMs: integer("processing_time_ms"),
+  processingDetails: text("processing_details") // JSON string with detailed stats
 });
 
 // Backup history table
