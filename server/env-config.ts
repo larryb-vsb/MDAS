@@ -18,8 +18,10 @@ export function getEnvironment() {
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
 
-// FORCE DEVELOPMENT MODE for testing
-process.env.NODE_ENV = 'development';
+// CONDITIONAL ENVIRONMENT SETUP - Don't force in production
+if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+  process.env.NODE_ENV = 'development';
+}
 
 // IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
 // Use same database with dev_ table prefixes for complete separation

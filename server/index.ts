@@ -160,8 +160,8 @@ app.use((req, res, next) => {
     // Register routes
     await registerRoutes(app);
 
-    // Set up Vite in development
-    if (app.get("env") === "development") {
+    // Set up Vite in development, serve static in production
+    if (NODE_ENV === "development") {
       await setupVite(app, httpServer);
     } else {
       serveStatic(app);
