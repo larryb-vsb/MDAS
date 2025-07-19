@@ -291,3 +291,35 @@ export const insertSecurityLogSchema = securityLogsSchema.omit({ id: true });
 // Export security log types
 export type SecurityLog = typeof securityLogs.$inferSelect;
 export type InsertSecurityLog = typeof securityLogs.$inferInsert;
+
+// Processing performance metrics for persistent tracking (environment-specific)
+export const processingMetrics = pgTable(getTableName("processing_metrics"), {
+  id: serial("id").primaryKey(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  transactionsPerSecond: numeric("transactions_per_second", { precision: 8, scale: 2 }).notNull(),
+  peakTransactionsPerSecond: numeric("peak_transactions_per_second", { precision: 8, scale: 2 }).notNull(),
+  totalFiles: integer("total_files").notNull(),
+  queuedFiles: integer("queued_files").notNull(),
+  processedFiles: integer("processed_files").notNull(),
+  filesWithErrors: integer("files_with_errors").notNull(),
+  currentlyProcessing: integer("currently_processing").notNull(),
+  averageProcessingTimeMs: integer("average_processing_time_ms"),
+  systemStatus: text("system_status").notNull().default("idle"), // idle, processing, paused
+  metricType: text("metric_type").notNull().default("snapshot"), // snapshot, peak_update, hourly_summary
+  notes: text("notes")
+}, (table) => {
+  return {
+    // Create indexes for better query performance
+    timestampIdx: index("processing_metrics_timestamp_idx").on(table.timestamp),
+    metricTypeIdx: index("processing_metrics_type_idx").on(table.metricType),
+    systemStatusIdx: index("processing_metrics_status_idx").on(table.systemStatus)
+  };
+});
+
+// Zod schemas for processing metrics
+export const processingMetricsSchema = createInsertSchema(processingMetrics);
+export const insertProcessingMetricsSchema = processingMetricsSchema.omit({ id: true });
+
+// Export processing metrics types
+export type ProcessingMetrics = typeof processingMetrics.$inferSelect;
+export type InsertProcessingMetrics = typeof processingMetrics.$inferInsert;

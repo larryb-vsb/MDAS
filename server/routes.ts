@@ -490,20 +490,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate actual transaction processing speed (2 minutes = 120 seconds)
       const transactionsPerSecond = recentTransactions > 0 ? recentTransactions / 120 : 0;
       
-      res.json({
+      // Store metrics in database for persistent tracking
+      const metricsTableName = getTableName('processing_metrics');
+      const currentStats = {
         totalFiles: parseInt(stats.total_files),
         queuedFiles: parseInt(stats.queued_files),
         processedFiles: parseInt(stats.processed_files),
         currentlyProcessing: parseInt(stats.currently_processing),
         filesWithErrors: parseInt(stats.files_with_errors),
         recentFiles: parseInt(stats.recent_files),
-        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1)),
+        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1))
+      };
+
+      // Get current peak from latest database record
+      const latestPeakResult = await pool.query(`
+        SELECT peak_transactions_per_second 
+        FROM ${metricsTableName} 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      `);
+      
+      const currentPeak = latestPeakResult.rows[0]?.peak_transactions_per_second || 0;
+      const newPeak = Math.max(parseFloat(currentPeak), currentStats.transactionsPerSecond);
+      
+      // Save metrics snapshot to database
+      try {
+        await pool.query(`
+          INSERT INTO ${metricsTableName} (
+            transactions_per_second, 
+            peak_transactions_per_second,
+            total_files,
+            queued_files, 
+            processed_files,
+            files_with_errors,
+            currently_processing,
+            system_status,
+            metric_type
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          currentStats.transactionsPerSecond,
+          newPeak,
+          currentStats.totalFiles,
+          currentStats.queuedFiles,
+          currentStats.processedFiles,
+          currentStats.filesWithErrors,
+          currentStats.currentlyProcessing,
+          currentStats.currentlyProcessing > 0 ? 'processing' : 'idle',
+          'snapshot'
+        ]);
+      } catch (dbError) {
+        console.error('Error saving processing metrics to database:', dbError);
+        // Continue without failing the API response
+      }
+      
+      res.json({
+        ...currentStats,
+        peakTransactionsPerSecond: newPeak,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
       console.error("Error fetching real-time processing stats:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch processing statistics" 
+      });
+    }
+  });
+
+  // Get gauge metrics for persistent peak tracking
+  app.get("/api/processing/gauge-metrics", async (req, res) => {
+    try {
+      const metricsTableName = getTableName('processing_metrics');
+      
+      // Get latest peak value and current speed
+      const result = await pool.query(`
+        SELECT 
+          transactions_per_second,
+          peak_transactions_per_second,
+          timestamp,
+          system_status
+        FROM ${metricsTableName} 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.json({
+          currentSpeed: 0.0,
+          peakSpeed: 0.0,
+          systemStatus: 'idle',
+          lastUpdated: new Date().toISOString()
+        });
+      }
+      
+      const metrics = result.rows[0];
+      res.json({
+        currentSpeed: parseFloat(metrics.transactions_per_second),
+        peakSpeed: parseFloat(metrics.peak_transactions_per_second),
+        systemStatus: metrics.system_status,
+        lastUpdated: metrics.timestamp
+      });
+    } catch (error) {
+      console.error("Error getting gauge metrics:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get gauge metrics" 
       });
     }
   });

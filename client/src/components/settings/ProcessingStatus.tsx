@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Pause, Play, Activity, Clock, FileText, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -43,6 +44,11 @@ interface RealTimeStats {
 
 export default function ProcessingStatus() {
   const queryClient = useQueryClient();
+  
+  // Peak meter state management
+  const [peakTxnSpeed, setPeakTxnSpeed] = useState(0);
+  const [speedHistory, setSpeedHistory] = useState<number[]>([]);
+  const [lastPeakTime, setLastPeakTime] = useState<Date | null>(null);
 
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
@@ -145,6 +151,83 @@ export default function ProcessingStatus() {
     return new Date(dateString).toLocaleString();
   };
 
+  // Update peak tracking when real-time stats change
+  useEffect(() => {
+    if (realTimeStats?.transactionsPerSecond) {
+      const currentSpeed = realTimeStats.transactionsPerSecond;
+      
+      // Update speed history (keep last 20 readings for smoothing)
+      setSpeedHistory(prev => {
+        const newHistory = [...prev, currentSpeed].slice(-20);
+        return newHistory;
+      });
+      
+      // Update peak if current speed is higher
+      if (currentSpeed > peakTxnSpeed) {
+        setPeakTxnSpeed(currentSpeed);
+        setLastPeakTime(new Date());
+      }
+      
+      // Reset peak if no activity for 30 seconds and current speed is very low
+      if (currentSpeed < 0.1 && lastPeakTime && (new Date().getTime() - lastPeakTime.getTime()) > 30000) {
+        setPeakTxnSpeed(0);
+      }
+    }
+  }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed, lastPeakTime]);
+
+  // Create gauge visualization component
+  const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
+    const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
+    const peakPercentage = Math.min((peakSpeed / maxScale) * 100, 100);
+    
+    return (
+      <div className="w-full space-y-1">
+        {/* Gauge Bar */}
+        <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+          {/* Background segments for visual reference */}
+          <div className="absolute inset-0 flex">
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} className="flex-1 border-r border-gray-300 last:border-r-0" />
+            ))}
+          </div>
+          
+          {/* Current speed bar */}
+          <div 
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${currentPercentage}%` }}
+          />
+          
+          {/* Peak indicator */}
+          {peakPercentage > 0 && (
+            <div 
+              className="absolute top-0 w-0.5 h-full bg-red-500 shadow-sm"
+              style={{ left: `${peakPercentage}%` }}
+            />
+          )}
+        </div>
+        
+        {/* Scale labels */}
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>0</span>
+          <span>{maxScale/2}</span>
+          <span>{maxScale}</span>
+        </div>
+        
+        {/* Peak info */}
+        {peakSpeed > 0 && (
+          <div className="text-xs text-muted-foreground text-center">
+            Peak: {peakSpeed.toFixed(1)} txns/sec
+            {lastPeakTime && (
+              <span className="ml-2">
+                ({Math.round((new Date().getTime() - lastPeakTime.getTime()) / 1000)}s ago)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -206,11 +289,19 @@ export default function ProcessingStatus() {
             
             {/* Processing Speed & Efficiency */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center">
+              <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-blue-600">
                   {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
                 </div>
                 <div className="text-muted-foreground">Txns/sec</div>
+                {/* Transaction Speed Gauge */}
+                <div className="mt-2 px-2">
+                  <TransactionSpeedGauge 
+                    currentSpeed={realTimeStats.transactionsPerSecond || 0}
+                    peakSpeed={peakTxnSpeed}
+                    maxScale={Math.max(peakTxnSpeed * 1.2, 10)} // Dynamic scale based on peak
+                  />
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
