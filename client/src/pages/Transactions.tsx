@@ -782,9 +782,9 @@ export default function Transactions() {
                         <TableCell>{formatDate(transaction.date)}</TableCell>
                         <TableCell className={cn(
                           "text-right",
-                          transaction.amount >= 0 ? "text-green-600" : "text-red-600"
+                          transaction.type === "Debit" ? "text-red-600" : "text-green-600"
                         )}>
-                          {formatCurrency(transaction.amount)}
+                          {formatCurrency(transaction.type === "Debit" ? -Math.abs(transaction.amount) : Math.abs(transaction.amount))}
                         </TableCell>
                         <TableCell className="text-center">
                           <RawDataTooltip 
