@@ -2284,16 +2284,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[MERCHANT CREATE] No user found, using System');
       }
       
-      // Create merchant with authentic ID (remove M-prefix generation completely)
-      // Manual merchant creation should require proper merchant ID from user
-      if (!merchantData.id) {
-        return res.status(400).json({ 
-          error: "Merchant ID is required for manual merchant creation" 
-        });
+      // Auto-generate merchant ID for manual creation (user-friendly approach)
+      // CSV imports use authentic IDs, manual creation gets auto-generated IDs
+      let merchantId = merchantData.id;
+      if (!merchantId) {
+        // Generate a timestamp-based merchant ID for manual creation
+        const timestamp = Date.now();
+        const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        merchantId = `MAN${timestamp}${randomSuffix}`;
+        console.log(`[MANUAL MERCHANT] Auto-generated ID: ${merchantId} for merchant: ${merchantData.name}`);
       }
       
       const newMerchant = await storage.createMerchant({
         ...merchantData,
+        id: merchantId,
         createdAt: new Date(),
         editDate: new Date(),
         lastUploadDate: null,

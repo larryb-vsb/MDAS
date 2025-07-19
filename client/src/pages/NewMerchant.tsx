@@ -38,6 +38,7 @@ import { Store, ArrowLeft, Save } from 'lucide-react';
 
 // Define the merchant form schema
 const merchantSchema = z.object({
+  id: z.string().optional(), // Merchant ID - optional since backend will auto-generate if empty
   name: z.string().min(1, { message: 'Name is required' }),
   clientMID: z.string().optional(),
   otherClientNumber1: z.string().optional(),
@@ -75,6 +76,7 @@ export default function NewMerchant() {
   const form = useForm<MerchantFormValues>({
     resolver: zodResolver(merchantSchema),
     defaultValues: {
+      id: '', // Merchant ID - leave empty for auto-generation
       name: '',
       clientMID: '',
       otherClientNumber1: '',
@@ -163,6 +165,24 @@ export default function NewMerchant() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Merchant ID</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Leave empty for auto-generation" 
+                              {...field} 
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="name"
