@@ -2310,9 +2310,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const merchantId = req.params.id;
       
-      console.log('[MERCHANT UPDATE] Starting update for merchant:', merchantId);
-      console.log('[MERCHANT UPDATE] Request body:', req.body);
-      
       const schema = z.object({
         name: z.string().optional(),
         clientMID: z.string().nullable().optional(),
@@ -2327,7 +2324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const merchantData = schema.parse(req.body);
-      console.log('[MERCHANT UPDATE] Parsed merchant data:', merchantData);
       
       // Set the updatedBy field to the logged-in user's username
       let updatedBy = "System";
