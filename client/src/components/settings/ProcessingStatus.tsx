@@ -86,6 +86,8 @@ const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { cur
 export default function ProcessingStatus() {
   const queryClient = useQueryClient();
   
+  // ALL HOOKS MUST BE AT THE TOP LEVEL - NO CONDITIONAL HOOKS
+  
   // Peak meter state management
   const [peakTxnSpeed, setPeakTxnSpeed] = useState(0);
   const [speedHistory, setSpeedHistory] = useState<number[]>([]);
@@ -94,16 +96,16 @@ export default function ProcessingStatus() {
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
     queryKey: ["/api/file-processor/status"],
-    refetchInterval: 2000, // Update every 2 seconds
-    staleTime: 1000, // Consider data stale after 1 second
+    refetchInterval: 2000,
+    staleTime: 1000,
   });
 
   // Fetch real-time database statistics
   const { data: realTimeStats, isLoading: isStatsLoading } = useQuery<RealTimeStats>({
     queryKey: ["/api/processing/real-time-stats"],
-    refetchInterval: 2000, // Update every 2 seconds
-    staleTime: 0, // Always consider data stale to force fresh requests
-    gcTime: 0, // Don't cache responses (gcTime replaces cacheTime in v5)
+    refetchInterval: 2000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Pause processing mutation
@@ -150,48 +152,6 @@ export default function ProcessingStatus() {
     },
   });
 
-  if (isLoading || !status || isStatsLoading || !realTimeStats) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Processing Status
-          </CardTitle>
-          <CardDescription>Real-time file processing monitoring</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const getStatusBadge = () => {
-    if (status.isPaused) {
-      return <Badge variant="secondary" className="flex items-center gap-1"><Pause className="h-3 w-3" />Paused</Badge>;
-    }
-    if (status.isRunning) {
-      return <Badge variant="default" className="flex items-center gap-1 bg-green-600"><Activity className="h-3 w-3" />Processing</Badge>;
-    }
-    return <Badge variant="outline" className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />Idle</Badge>;
-  };
-
-  const calculateProgress = () => {
-    if (!status.currentTransactionRange) return 0;
-    // Simple progress calculation based on transaction ID progression
-    const currentId = parseInt(status.currentTransactionRange.replace(/\D/g, ''));
-    const maxEstimatedId = 71127230050000; // Rough estimate of max transaction IDs
-    return Math.min((currentId / maxEstimatedId) * 100, 95); // Cap at 95% to show ongoing work
-  };
-
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleString();
-  };
-
   // Update peak tracking when real-time stats change
   useEffect(() => {
     if (realTimeStats?.transactionsPerSecond) {
@@ -216,7 +176,71 @@ export default function ProcessingStatus() {
     }
   }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed, lastPeakTime]);
 
+  // Helper functions
+  const getStatusBadge = () => {
+    if (isLoading || !status) {
+      return <Badge variant="secondary">Loading...</Badge>;
+    }
+    
+    if (status.isPaused) {
+      return <Badge variant="secondary" className="flex items-center gap-1"><Pause className="h-3 w-3" />Paused</Badge>;
+    }
+    if (status.isRunning) {
+      return <Badge variant="default" className="flex items-center gap-1 bg-green-600"><Activity className="h-3 w-3" />Processing</Badge>;
+    }
+    return <Badge variant="outline" className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />Idle</Badge>;
+  };
 
+  const calculateProgress = () => {
+    if (!status?.currentTransactionRange) return 0;
+    const currentId = parseInt(status.currentTransactionRange.replace(/\D/g, ''));
+    const maxEstimatedId = 71127230050000;
+    return Math.min((currentId / maxEstimatedId) * 100, 95);
+  };
+
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleString();
+  };
+
+  // EARLY RETURNS FOR LOADING STATES MUST COME AFTER ALL HOOKS
+  if (isLoading || isStatsLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Processing Status
+            <Badge variant="secondary">Loading...</Badge>
+          </CardTitle>
+          <CardDescription>Real-time file processing monitoring</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!status || !realTimeStats) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Processing Status
+            <Badge variant="destructive">Offline</Badge>
+          </CardTitle>
+          <CardDescription>Real-time file processing monitoring</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">Unable to connect to processing service</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -289,7 +313,7 @@ export default function ProcessingStatus() {
                   <TransactionSpeedGauge 
                     currentSpeed={realTimeStats.transactionsPerSecond || 0}
                     peakSpeed={peakTxnSpeed}
-                    maxScale={Math.max(peakTxnSpeed * 1.2, 10)} // Dynamic scale based on peak
+                    maxScale={Math.max(peakTxnSpeed * 1.2, 10)}
                   />
                 </div>
               </div>
@@ -313,96 +337,54 @@ export default function ProcessingStatus() {
               </div>
             </div>
           </div>
-
-          {/* Duplicate Resolution Stats (when not processing) */}
-          {!status.isRunning && status.duplicateResolutionStats && status.duplicateResolutionStats.totalDuplicates > 0 && (
-            <div className="space-y-3">
-              <Separator />
-              <div className="text-sm font-medium">Last Session Performance</div>
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-orange-600">
-                    {status.duplicateResolutionStats.totalDuplicates}
-                  </div>
-                  <div className="text-muted-foreground">Total Duplicates</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-blue-600">
-                    {status.duplicateResolutionStats.averageIncrements.toFixed(1)}
-                  </div>
-                  <div className="text-muted-foreground">Avg Increments</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-green-600">
-                    {status.duplicateResolutionStats.skipCount}
-                  </div>
-                  <div className="text-muted-foreground">Skipped</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {Object.keys(status.processingErrors).length > 0 && (
-            <div className="space-y-2">
-              <Separator />
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">Processing Errors ({Object.keys(status.processingErrors).length})</span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Recent errors detected - check logs for details
-              </div>
-            </div>
-          )}
         </div>
 
-        <Separator />
+        {/* Control Buttons */}
+        <div className="flex gap-2">
+          {status.isPaused ? (
+            <Button 
+              onClick={() => resumeMutation.mutate()} 
+              disabled={resumeMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              <Play className="h-4 w-4" />
+              Resume Processing
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => pauseMutation.mutate()} 
+              disabled={pauseMutation.isPending}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Pause className="h-4 w-4" />
+              Pause Processing
+            </Button>
+          )}
+          
+          <Button
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/file-processor/status"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/processing/real-time-stats"] });
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Refresh
+          </Button>
+        </div>
 
-        {/* Control Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-sm font-medium">Processing Controls</div>
-              <div className="text-xs text-muted-foreground">
-                Manage file processing operations
-              </div>
+        {/* Processing Details */}
+        <div className="space-y-4 pt-4 border-t">
+          <div className="text-sm font-medium">Processing Details</div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Last Run:</span>
+              <div className="font-medium">{formatDateTime(status.lastRunTime)}</div>
             </div>
-            <div className="flex gap-2">
-              {status.isPaused ? (
-                <Button
-                  size="sm"
-                  onClick={() => resumeMutation.mutate()}
-                  disabled={resumeMutation.isPending}
-                  className="flex items-center gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  Resume
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => pauseMutation.mutate()}
-                  disabled={pauseMutation.isPending || !status.isRunning}
-                  className="flex items-center gap-2"
-                >
-                  <Pause className="h-4 w-4" />
-                  Pause
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Schedule Information */}
-          <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3" />
-              <span>Last Run: {formatDateTime(status.lastRunTime)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-3 w-3" />
-              <span>Next Run: {formatDateTime(status.nextScheduledRun)}</span>
+            <div>
+              <span className="text-muted-foreground">Next Scheduled:</span>
+              <div className="font-medium">{formatDateTime(status.nextScheduledRun)}</div>
             </div>
           </div>
         </div>
