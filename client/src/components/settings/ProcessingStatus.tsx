@@ -308,6 +308,7 @@ export default function ProcessingStatus() {
                   {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
                 </div>
                 <div className="text-muted-foreground">Txns/sec</div>
+                <div className="text-xs text-muted-foreground">(last 10 min)</div>
                 {/* Transaction Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
