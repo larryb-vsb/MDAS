@@ -342,7 +342,7 @@ export class DatabaseStorage implements IStorage {
       const demoMerchants: InsertMerchant[] = [
         {
           id: "M2358",
-          name: "City Supermarket",
+          name: "City Supermarket-demo",
           status: "Active",
           address: "123 Main St",
           city: "New York",
@@ -354,7 +354,7 @@ export class DatabaseStorage implements IStorage {
         },
         {
           id: "M1157",
-          name: "Fresh Foods Market",
+          name: "Fresh Foods Market-demo",
           status: "Active",
           address: "456 Park Ave",
           city: "Chicago",
@@ -366,7 +366,7 @@ export class DatabaseStorage implements IStorage {
         },
         {
           id: "M4592",
-          name: "Tech Corner",
+          name: "Tech Corner-demo",
           status: "Pending",
           address: "789 Tech Blvd",
           city: "San Francisco",
@@ -378,7 +378,7 @@ export class DatabaseStorage implements IStorage {
         },
         {
           id: "M3721",
-          name: "Fashion Corner",
+          name: "Fashion Corner-demo",
           status: "Inactive",
           address: "101 Fashion St",
           city: "Los Angeles",
@@ -390,7 +390,7 @@ export class DatabaseStorage implements IStorage {
         },
         {
           id: "M9053",
-          name: "Health & Care",
+          name: "Health & Care-demo",
           status: "Active",
           address: "202 Health Ave",
           city: "Boston",
