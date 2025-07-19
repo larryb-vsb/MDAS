@@ -16,12 +16,13 @@ console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev:
 // FORCE DEVELOPMENT MODE for testing
 process.env.NODE_ENV = 'development';
 
+// TEMPORARY ROLLBACK: Use main database for both dev and prod until proper Neon branching is set up
 // For immediate testing, let's manually override the database URL
-if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('_dev') && NODE_ENV === 'development') {
-  // Replace neondb with neondb_dev directly
-  process.env.DATABASE_URL = process.env.DATABASE_URL.replace('/neondb', '/neondb_dev');
-  console.log(`[DB CONFIG] Development mode: Switching to neondb_dev database`);
-}
+// if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('_dev') && NODE_ENV === 'development') {
+//   // Replace neondb with neondb_dev directly
+//   process.env.DATABASE_URL = process.env.DATABASE_URL.replace('/neondb', '/neondb_dev');
+//   console.log(`[DB CONFIG] Development mode: Switching to neondb_dev database`);
+// }
 
 // Base paths for file storage
 const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
