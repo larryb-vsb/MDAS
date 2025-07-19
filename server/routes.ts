@@ -475,20 +475,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${uploadedFilesTableName}
       `);
 
-      // Calculate transaction processing speed based on recent transaction IDs (using timestamp pattern)
-      const currentTime = Date.now();
-      const twoMinutesAgo = currentTime - (2 * 60 * 1000); // 2 minutes ago in milliseconds
+      // Calculate transaction processing speed based on recent transaction completion timestamps
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
       
       const transactionSpeedResult = await pool.query(`
         SELECT COUNT(*) as recent_transactions
         FROM ${transactionsTableName} 
-        WHERE id LIKE $1
-      `, [`${twoMinutesAgo.toString().substring(0, 11)}%`]);
+        WHERE recorded_at >= $1
+      `, [tenMinutesAgo]);
 
       const stats = result.rows[0];
       const recentTransactions = parseInt(transactionSpeedResult.rows[0]?.recent_transactions || '0');
-      // Calculate actual transaction processing speed (2 minutes = 120 seconds)
-      const transactionsPerSecond = recentTransactions > 0 ? recentTransactions / 120 : 0;
+      // Calculate actual transaction processing speed (10 minutes = 600 seconds)
+      const transactionsPerSecond = recentTransactions > 0 ? recentTransactions / 600 : 0;
       
       // Store metrics in database for persistent tracking
       const metricsTableName = getTableName('processing_metrics');
