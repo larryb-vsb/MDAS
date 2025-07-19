@@ -24,6 +24,10 @@ Preferred communication style: Simple, everyday language.
 - **✅ CROSS-ENVIRONMENT COMPATIBILITY**: Processing widget accurately reports status in both production and development modes
 - **✅ ENVIRONMENT TAG CONSISTENCY**: Added dynamic environment detection to Processing Status widget matching System Information widget (blue "Development", orange "Production")
 - **✅ UNIFIED STATISTICS SOURCE**: Both Processing Status (Settings) and File Processor Status (Uploads) widgets now use identical real-time stats API for consistent accuracy
+- **✅ PEAK PERSISTENCE FIX**: Fixed peak tracking logic to maintain peak values even when batch processing finishes and current speed drops to zero
+- **✅ GAUGE LABEL POSITIONING**: Moved "(last 10 min)" label under the meter for improved layout and clarity
+- **✅ ROBUST PEAK TRACKING**: Peak values persist for full 10-minute window and only reset after complete inactivity period
+- **✅ INSTANTANEOUS VS PEAK DISTINCTION**: Current value shows most recent sample, peak indicator shows highest value from last 10 minutes
 
 ### Database Environment Separation FULLY OPERATIONAL (July 19, 2025) 
 - **✅ COMPLETE TABLE-LEVEL SEPARATION**: Production and development use completely separate table sets in same database
