@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import MainLayout from "@/components/layout/MainLayout";
@@ -20,7 +20,13 @@ export default function Dashboard() {
   const [uploadFilter, setUploadFilter] = useState("Any time");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+
+  // Reset page to 1 when search query, status filter, upload filter, or itemsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
 
   // Fetch dashboard stats
   const { data: stats, isLoading: isLoadingStats } = useQuery<DashboardStatsType>({
@@ -29,11 +35,11 @@ export default function Dashboard() {
 
   // Fetch merchants list with filters
   const { data: merchantsData, isLoading: isLoadingMerchants } = useQuery({
-    queryKey: ["/api/merchants", statusFilter, uploadFilter, searchQuery, currentPage],
+    queryKey: ["/api/merchants", statusFilter, uploadFilter, searchQuery, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
-      params.append('limit', '10');
+      params.append('limit', itemsPerPage.toString());
       
       if (statusFilter !== "All") {
         params.append('status', statusFilter);
@@ -129,6 +135,15 @@ export default function Dashboard() {
     if (selectedMerchants.length === 0) return;
     deleteMutation.mutate(selectedMerchants);
   };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
   
   // Function to refresh merchant data
   const refreshData = async () => {
@@ -222,9 +237,11 @@ export default function Dashboard() {
                   currentPage: 1,
                   totalPages: 1,
                   totalItems: 0,
-                  itemsPerPage: 10
+                  itemsPerPage: itemsPerPage
                 }}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={handleItemsPerPageChange}
                 selectedMerchants={selectedMerchants}
                 setSelectedMerchants={setSelectedMerchants}
                 onDeleteSelected={handleDeleteSelected}
