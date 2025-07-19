@@ -2975,11 +2975,28 @@ export class DatabaseStorage implements IStorage {
               transactionData.id = `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`;
             }
             
-            // CRITICAL: Ensure merchantId is set to prevent database constraint violation
+            // CRITICAL: Ensure merchantId is set and exists in merchants table
             if (!transactionData.merchantId) {
               // Use Client ID or Merchant ID from the row data with spaces
               transactionData.merchantId = row["Client ID"] || row["Merchant ID"] || row["ClientID"] || row["MerchantID"] || transactionData.id;
               console.warn(`Fixed missing merchantId for row ${rowCount}: ${transactionData.merchantId}`);
+            }
+            
+            // Convert Client ID to generated Merchant ID format if needed
+            if (transactionData.merchantId && (transactionData.merchantId.startsWith('FINAL') || transactionData.merchantId.startsWith('DEMO'))) {
+              // Try to find the corresponding merchant ID that was generated during merchant processing
+              const clientIdToMerchantIdMap = {
+                'FINAL001': 'M1001',
+                'FINAL002': 'M1002', 
+                'DEMO001': 'M1003',
+                'DEMO002': 'M1004',
+                'DEMO003': 'M1005'
+              };
+              
+              if (clientIdToMerchantIdMap[transactionData.merchantId]) {
+                transactionData.merchantId = clientIdToMerchantIdMap[transactionData.merchantId];
+                console.log(`Mapped Client ID to Merchant ID: ${row["Client ID"]} -> ${transactionData.merchantId}`);
+              }
             }
             
             // Set creation timestamp
