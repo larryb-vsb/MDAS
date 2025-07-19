@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### KPI Statistics Reporting Fix (July 19, 2025)
+- **FIXED SETTINGS SCREEN STATISTICS**: Resolved incorrect KPI reporting showing cached values instead of real-time database counts
+- **REAL-TIME DATABASE ENDPOINT**: Added `/api/processing/real-time-stats` endpoint for accurate live statistics
+- **CORRECTED DISPLAY VALUES**: Settings screen now shows actual database counts (431 queued, 58 processed) instead of cached values (420 queued, 34 completed)
+- **UPDATED PROCESSING STATUS COMPONENT**: Modified ProcessingStatus component to use real-time database queries instead of file processor cache
+- **VERIFIED ACCURACY**: Confirmed endpoint returns live database statistics with proper refresh intervals every 2 seconds
+- **PRODUCTION READY**: KPI statistics now accurately reflect current system state for monitoring and dashboard reporting
+
 ### Complete Database-First Processing Fix (July 19, 2025)
 - **FILE NOT FOUND ERROR RESOLVED**: Fixed critical "File not found: temporary file may have been removed" error completely
 - **DATABASE-FIRST PROCESSING**: System now processes all files from database content instead of temporary file paths

@@ -37,6 +37,7 @@ interface RealTimeStats {
   processedFiles: number;
   filesWithErrors: number;
   recentFiles: number;
+  transactionsPerSecond: number;
   timestamp: string;
 }
 
@@ -201,7 +202,7 @@ export default function ProcessingStatus() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
                   <div className="text-lg font-semibold text-blue-600">
-                    {status.processingStats?.processingSpeed?.toFixed(1) || 'N/A'}
+                    {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
                   </div>
                   <div className="text-muted-foreground">Txns/sec</div>
                 </div>

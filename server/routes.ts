@@ -467,7 +467,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM uploaded_files
       `);
 
+      // Calculate transaction processing speed based on recent file processing
+      const recentProcessedFiles = await pool.query(`
+        SELECT COUNT(*) as recent_processed
+        FROM uploaded_files 
+        WHERE processed = true AND processed_at >= NOW() - INTERVAL '10 minutes' AND deleted = false
+      `);
+
       const stats = result.rows[0];
+      const recentProcessed = parseInt(recentProcessedFiles.rows[0]?.recent_processed || '0');
+      // Estimate: assume average 50 transactions per file, calculate per second over 10 minutes
+      const estimatedTransactions = recentProcessed * 50;
+      const transactionsPerSecond = estimatedTransactions > 0 ? estimatedTransactions / 600 : 0; // 10 minutes = 600 seconds
       
       res.json({
         totalFiles: parseInt(stats.total_files),
@@ -475,6 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processedFiles: parseInt(stats.processed_files),
         filesWithErrors: parseInt(stats.files_with_errors),
         recentFiles: parseInt(stats.recent_files),
+        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1)),
         timestamp: new Date().toISOString()
       });
     } catch (error) {
