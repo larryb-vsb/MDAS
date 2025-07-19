@@ -1328,7 +1328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uploaded_at,
           processed,
           processing_errors,
-          deleted
+          deleted,
+          file_content,
+          processed_at,
+          processing_status,
+          processing_started_at,
+          processing_completed_at,
+          processing_server_id
         FROM uploaded_files 
         WHERE deleted = false
         ORDER BY uploaded_at DESC
@@ -1343,11 +1349,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processed: row.processed,
         processingErrors: row.processing_errors,
         deleted: row.deleted,
-        processedAt: null, // Will be added later
-        processingStatus: row.processed ? 'completed' : 'queued',
-        processingStartedAt: null,
-        processingCompletedAt: null,
-        processingServerId: null
+        file_content: row.file_content, // Include file content for database-first processing
+        processedAt: row.processed_at,
+        processingStatus: row.processing_status || (row.processed ? 'completed' : 'queued'),
+        processingStartedAt: row.processing_started_at,
+        processingCompletedAt: row.processing_completed_at,
+        processingServerId: row.processing_server_id
       }));
       
       res.json(uploadedFiles);

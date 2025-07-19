@@ -1,120 +1,103 @@
-// Final test to verify green "Processed" status instead of red "Error" status
+// Final verification test for database-first processing fix
 import fetch from 'node-fetch';
 import fs from 'fs';
 import FormData from 'form-data';
 
 const BASE_URL = 'http://localhost:5000';
 
-async function createTestFiles() {
-  // Create merchant test file with spaced headers
-  const merchantCSV = `Client ID,Client Legal Name,Client Primary Address,Client City,Client State,Client Zip Code,Client MID,As Of Date
-FINAL001,Final Test Coffee LLC,123 Test Street,Portland,OR,97205,MID_FINAL_001,7/18/2025
-FINAL002,Final Test Restaurant,456 Main Ave,Seattle,WA,98101,MID_FINAL_002,7/18/2025`;
-
-  // Create transaction test file with spaced headers
-  const transactionCSV = `Transaction ID,Client ID,Amount,Transaction Date,Transaction Type,Merchant ID,Description
-TX_FINAL_001,FINAL001,99.99,2025-07-18,Sale,MID_FINAL_001,Final Test Purchase
-TX_FINAL_002,FINAL002,150.00,2025-07-18,Sale,MID_FINAL_002,Final Test Order`;
-
-  fs.writeFileSync('test-final-merchant.csv', merchantCSV);
-  fs.writeFileSync('test-final-transaction.csv', transactionCSV);
-}
-
-async function uploadAndVerify(filename, type, description) {
-  console.log(`\n📁 Uploading ${description}...`);
-  
-  const formData = new FormData();
-  formData.append('file', fs.createReadStream(filename));
-  formData.append('type', type);
-  
-  const uploadResponse = await fetch(`${BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: formData
-  });
-  
-  if (uploadResponse.ok) {
-    const uploadData = await uploadResponse.json();
-    console.log(`✅ Upload successful: ${uploadData.fileId}`);
-    return uploadData.fileId;
-  } else {
-    const error = await uploadResponse.json();
-    console.log(`❌ Upload failed: ${error.error}`);
-    return null;
-  }
-}
-
-async function checkProcessingStatus(fileId) {
-  // Wait a moment for processing
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  const response = await fetch(`${BASE_URL}/api/uploads/history`);
-  const files = await response.json();
-  
-  const file = files.find(f => f.id === fileId);
-  if (file) {
-    const status = file.processed ? 'Processed ✅' : 'Error ❌';
-    console.log(`Status: ${status} (${file.originalFilename})`);
-    return file.processed;
-  }
-  
-  console.log(`File not found in history: ${fileId}`);
-  return false;
-}
-
-async function runFinalTest() {
+async function finalVerificationTest() {
   console.log('=== FINAL VERIFICATION TEST ===');
-  console.log('Testing fixed field mappings and constraint handling...\n');
+  console.log('Verifying complete fix for "File not found" error\n');
   
-  // Create test files
-  createTestFiles();
+  // Create a comprehensive test transaction file
+  const testCSV = `TransactionID,MerchantID,Amount,Date,Type
+FIX_TEST_001,M888001,100.00,2024-01-01,Credit
+FIX_TEST_002,M888002,250.50,2024-01-02,Debit
+FIX_TEST_003,M888001,75.25,2024-01-03,Credit`;
   
-  // Upload merchant file
-  const merchantFileId = await uploadAndVerify('test-final-merchant.csv', 'merchant', 'Final Merchant Test');
+  fs.writeFileSync('final-verification.csv', testCSV);
   
-  // Upload transaction file
-  const transactionFileId = await uploadAndVerify('test-final-transaction.csv', 'transaction', 'Final Transaction Test');
-  
-  if (merchantFileId && transactionFileId) {
-    // Trigger processing
-    console.log(`\n🔄 Starting processing...`);
+  try {
+    // Step 1: Upload file
+    console.log('📤 Step 1: Uploading test file...');
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream('final-verification.csv'));
+    formData.append('type', 'transaction');
     
+    const uploadResponse = await fetch(`${BASE_URL}/api/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    const uploadData = await uploadResponse.json();
+    const fileId = uploadData.fileId;
+    console.log(`✅ File uploaded with ID: ${fileId}`);
+    
+    // Step 2: Wait for temporary file cleanup
+    console.log('⏳ Step 2: Waiting for temporary file cleanup...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Step 3: Verify database content exists
+    console.log('🔍 Step 3: Verifying database content...');
+    const historyResponse = await fetch(`${BASE_URL}/api/uploads/history?limit=5`);
+    const historyData = await historyResponse.json();
+    const ourFile = historyData.find(f => f.id === fileId);
+    
+    if (!ourFile?.file_content) {
+      console.log('❌ CRITICAL: File content not found in database');
+      return;
+    }
+    
+    const decodedContent = Buffer.from(ourFile.file_content, 'base64').toString('utf8');
+    console.log(`✅ Database content verified (${decodedContent.length} chars)`);
+    
+    // Step 4: Trigger processing manually
+    console.log('🔧 Step 4: Triggering file processing...');
     const processResponse = await fetch(`${BASE_URL}/api/process-uploads`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileIds: [merchantFileId, transactionFileId] })
+      body: JSON.stringify({ fileIds: [fileId] })
     });
     
-    if (processResponse.ok) {
-      console.log(`✅ Processing initiated`);
-      
-      // Wait for processing to complete
-      await new Promise(resolve => setTimeout(resolve, 8000));
-      
-      // Check final status
-      console.log(`\n📊 FINAL STATUS CHECK:`);
-      const merchantProcessed = await checkProcessingStatus(merchantFileId);
-      const transactionProcessed = await checkProcessingStatus(transactionFileId);
-      
-      if (merchantProcessed && transactionProcessed) {
-        console.log(`\n🎉 SUCCESS! Both files show green "Processed" status!`);
-        console.log(`✓ Field mapping fixes working correctly`);
-        console.log(`✓ Database constraint violations resolved`);
-      } else {
-        console.log(`\n⚠️  Some files still showing red "Error" status`);
-        console.log(`Merchant processed: ${merchantProcessed}`);
-        console.log(`Transaction processed: ${transactionProcessed}`);
-      }
-    } else {
-      console.log(`❌ Processing initiation failed`);
+    if (!processResponse.ok) {
+      console.log(`❌ Processing failed: ${processResponse.status}`);
+      return;
     }
+    
+    console.log('✅ Processing request successful');
+    
+    // Step 5: Wait for processing to complete
+    console.log('⏳ Step 5: Waiting for processing to complete...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Step 6: Check final status
+    console.log('🔍 Step 6: Checking final processing status...');
+    const finalHistoryResponse = await fetch(`${BASE_URL}/api/uploads/history?limit=5`);
+    const finalHistoryData = await finalHistoryResponse.json();
+    const finalFile = finalHistoryData.find(f => f.id === fileId);
+    
+    console.log('📊 Final Results:');
+    console.log(`   File ID: ${finalFile?.id}`);
+    console.log(`   Status: ${finalFile?.processed ? 'PROCESSED' : 'PENDING'}`);
+    console.log(`   Errors: ${finalFile?.processingErrors || 'None'}`);
+    console.log(`   Has Content: ${finalFile?.file_content ? 'YES' : 'NO'}`);
+    
+    if (finalFile?.processed && !finalFile?.processingErrors) {
+      console.log('\n🎉 SUCCESS: Complete database-first processing working!');
+      console.log('✅ Files are processed from database content');
+      console.log('✅ No "File not found" errors');
+      console.log('✅ Temporary file cleanup does not break processing');
+    } else if (finalFile?.processingErrors) {
+      console.log(`\n❌ Processing Error: ${finalFile.processingErrors}`);
+    } else {
+      console.log('\n⏳ Processing still in progress...');
+    }
+    
+  } catch (error) {
+    console.error('❌ Test failed:', error);
+  } finally {
+    try { fs.unlinkSync('final-verification.csv'); } catch (e) {}
   }
-  
-  // Cleanup
-  ['test-final-merchant.csv', 'test-final-transaction.csv'].forEach(file => {
-    try { fs.unlinkSync(file); } catch (e) {}
-  });
-  
-  console.log(`\n💡 Check the uploads page to verify green "Processed" status!`);
 }
 
-runFinalTest().catch(console.error);
+finalVerificationTest().catch(console.error);
