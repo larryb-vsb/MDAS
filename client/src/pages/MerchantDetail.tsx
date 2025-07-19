@@ -259,6 +259,7 @@ export default function MerchantDetail() {
         id: data.merchant.id,
         editDate: data.merchant.editDate,
         updatedBy: data.merchant.updatedBy,
+        fullMerchant: data.merchant,
         timestamp: new Date().toISOString()
       });
     }

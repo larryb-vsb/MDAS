@@ -637,6 +637,11 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Merchant with ID ${merchantId} not found`);
       }
       
+      // Debug: Log what fields are actually returned
+      console.log('[STORAGE DEBUG] Merchant object keys:', Object.keys(merchant));
+      console.log('[STORAGE DEBUG] updatedBy field:', merchant.updatedBy);
+      console.log('[STORAGE DEBUG] editDate field:', merchant.editDate);
+      
       // Get merchant transactions
       const transactions = await db.select()
         .from(transactionsTable)
