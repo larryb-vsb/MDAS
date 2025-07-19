@@ -630,8 +630,12 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Get merchant details
-      const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      // Use raw SQL to avoid Drizzle ORM issues
+      const merchantQuery = await db.execute(sql`
+        SELECT * FROM merchants WHERE id = ${merchantId} LIMIT 1
+      `);
+      
+      const merchant = merchantQuery.rows[0];
       
       if (!merchant) {
         throw new Error(`Merchant with ID ${merchantId} not found`);
@@ -639,22 +643,16 @@ export class DatabaseStorage implements IStorage {
       
       // updatedBy field requires explicit string conversion due to database encoding
       
-      // Get merchant transactions with raw data and source file info
-      const transactions = await db.select({
-        id: transactionsTable.id,
-        merchantId: transactionsTable.merchantId,
-        amount: transactionsTable.amount,
-        date: transactionsTable.date,
-        type: transactionsTable.type,
-        rawData: transactionsTable.rawData,
-        sourceFileId: transactionsTable.sourceFileId,
-        sourceRowNumber: transactionsTable.sourceRowNumber,
-        recordedAt: transactionsTable.recordedAt
-      })
-        .from(transactionsTable)
-        .where(eq(transactionsTable.merchantId, merchantId))
-        .orderBy(desc(transactionsTable.date))
-        .limit(100);
+      // Get merchant transactions using raw SQL to avoid Drizzle issues
+      const transactionsQuery = await db.execute(sql`
+        SELECT id, merchant_id, amount, date, type, raw_data, source_file_id, source_row_number, recorded_at
+        FROM transactions 
+        WHERE merchant_id = ${merchantId} 
+        ORDER BY date DESC 
+        LIMIT 100
+      `);
+      
+      const transactions = transactionsQuery.rows;
       
       // Get merchant stats
       const stats = await this.getMerchantStats(merchantId);
@@ -664,59 +662,65 @@ export class DatabaseStorage implements IStorage {
       
       console.log("Transaction history for charts:", JSON.stringify(transactionHistory));
       
-      // Get source file names for transactions that have sourceFileId
+      // Get source file names for transactions that have source_file_id
       const sourceFileIds = transactions
-        .map(t => t.sourceFileId)
+        .map(t => t.source_file_id)
         .filter(Boolean)
         .filter((id, index, arr) => arr.indexOf(id) === index); // Unique IDs
 
       let sourceFiles: Record<string, string> = {};
       if (sourceFileIds.length > 0) {
-        const filesData = await db.select({
-          id: uploadedFilesTable.id,
-          originalName: uploadedFilesTable.originalName
-        })
-          .from(uploadedFilesTable)
-          .where(sql`${uploadedFilesTable.id} = ANY(${sourceFileIds})`);
+        // Use raw SQL for file queries with individual lookups
+        const filePromises = sourceFileIds.map(async (fileId) => {
+          const filesQuery = await db.execute(sql`
+            SELECT id, original_filename 
+            FROM uploaded_files 
+            WHERE id = ${fileId}
+          `);
+          return filesQuery.rows[0];
+        });
         
-        sourceFiles = filesData.reduce((acc, file) => {
-          acc[file.id] = file.originalName;
-          return acc;
-        }, {} as Record<string, string>);
+        const filesData = await Promise.all(filePromises);
+        sourceFiles = filesData
+          .filter(Boolean)
+          .reduce((acc, file) => {
+            acc[file.id] = file.original_filename;
+            return acc;
+          }, {} as Record<string, string>);
       }
 
       // Format transactions for display
       const formattedTransactions = transactions.map(t => ({
         transactionId: t.id,
-        merchantId: t.merchantId,
+        merchantId: t.merchant_id,
         amount: parseFloat(t.amount.toString()),
-        date: t.date.toISOString(),
+        date: new Date(t.date).toISOString(),
         type: t.type,
-        rawData: t.rawData,
-        sourceFileName: t.sourceFileId ? sourceFiles[t.sourceFileId] || 'Unknown' : null,
-        sourceRowNumber: t.sourceRowNumber,
-        recordedAt: t.recordedAt ? t.recordedAt.toISOString() : null
+        rawData: t.raw_data,
+        sourceFileName: t.source_file_id ? sourceFiles[t.source_file_id] || 'Unknown' : null,
+        sourceRowNumber: t.source_row_number,
+        recordedAt: t.recorded_at ? new Date(t.recorded_at).toISOString() : null
       }));
       
       return {
         merchant: {
           id: merchant.id,
           name: merchant.name,
-          clientMID: merchant.clientMID || null,
-          otherClientNumber1: merchant.otherClientNumber1 || null,
-          otherClientNumber2: merchant.otherClientNumber2 || null,
-          clientSinceDate: merchant.clientSinceDate ? merchant.clientSinceDate.toISOString() : null,
+          clientMID: merchant.client_mid || null,
+          otherClientNumber1: merchant.other_client_number1 || null,
+          otherClientNumber2: merchant.other_client_number2 || null,
+          clientSinceDate: merchant.client_since_date ? new Date(merchant.client_since_date).toISOString() : null,
           status: merchant.status,
-          merchantType: merchant.merchantType || 'none',
-          salesChannel: merchant.salesChannel || null,
+          merchantType: merchant.merchant_type || 'none',
+          salesChannel: merchant.sales_channel || null,
           address: merchant.address || '',
           city: merchant.city || '',
           state: merchant.state || '',
-          zipCode: merchant.zipCode || '',
+          zipCode: merchant.zip_code || '',
           country: merchant.country || null,
           category: merchant.category || '',
-          editDate: merchant.editDate ? merchant.editDate.toISOString() : null,
-          updatedBy: merchant.updatedBy ? String(merchant.updatedBy).trim() : null
+          editDate: merchant.edit_date ? new Date(merchant.edit_date).toISOString() : null,
+          updatedBy: merchant.updated_by ? String(merchant.updated_by).trim() : null
         },
         transactions: formattedTransactions,
         analytics: {
@@ -1799,10 +1803,14 @@ export class DatabaseStorage implements IStorage {
         await this.createAuditLog(auditLogData);
       }
       
-      // Delete the transactions
-      await db.delete(transactionsTable).where(
-        or(...transactionIds.map(id => eq(transactionsTable.id, id)))
-      );
+      // Delete the transactions using raw SQL to avoid Drizzle ORM array issues
+      if (transactionIds.length === 1) {
+        await db.execute(sql`DELETE FROM transactions WHERE id = ${transactionIds[0]}`);
+      } else {
+        // Build a parameterized query for multiple IDs
+        const placeholders = transactionIds.map(() => '?').join(',');
+        await db.execute(sql.raw(`DELETE FROM transactions WHERE id IN (${transactionIds.map(id => `'${id}'`).join(',')})`));
+      }
       
       console.log(`Successfully deleted ${transactionIds.length} transactions`);
     } catch (error) {
@@ -1819,10 +1827,11 @@ export class DatabaseStorage implements IStorage {
     year?: number;
   }[]> {
     try {
-      // Fetch all transactions for this merchant to analyze available dates
-      const allMerchantTransactions = await db.select()
-        .from(transactionsTable)
-        .where(eq(transactionsTable.merchantId, merchantId));
+      // Fetch all transactions for this merchant using raw SQL
+      const transactionsQuery = await db.execute(sql`
+        SELECT id, amount, date FROM transactions WHERE merchant_id = ${merchantId}
+      `);
+      const allMerchantTransactions = transactionsQuery.rows;
         
       console.log(`Found ${allMerchantTransactions.length} total transactions for merchant ${merchantId}`);
       
@@ -1864,13 +1873,15 @@ export class DatabaseStorage implements IStorage {
         
         console.log(`Looking for transactions for merchant ${merchantId} between ${month.toISOString()} and ${nextMonth.toISOString()}`);
         
-        // Get transactions for this month
-        const monthTransactions = await db.select()
-          .from(transactionsTable)
-          .where(and(
-            eq(transactionsTable.merchantId, merchantId),
-            between(transactionsTable.date, month, nextMonth)
-          ));
+        // Get transactions for this month using raw SQL
+        const monthQuery = await db.execute(sql`
+          SELECT id, amount, type, date 
+          FROM transactions 
+          WHERE merchant_id = ${merchantId} 
+          AND date >= ${month.toISOString()} 
+          AND date <= ${nextMonth.toISOString()}
+        `);
+        const monthTransactions = monthQuery.rows;
         
         console.log(`Found ${monthTransactions.length} transactions in ${month.toLocaleString('default', { month: 'short' })} ${month.getFullYear()} for merchant ${merchantId}`);
         
@@ -1922,10 +1933,11 @@ export class DatabaseStorage implements IStorage {
     monthly: { transactions: number; revenue: number };
   }> {
     try {
-      // Get all transactions for this merchant
-      const allTransactions = await db.select()
-        .from(transactionsTable)
-        .where(eq(transactionsTable.merchantId, merchantId));
+      // Get all transactions for this merchant using raw SQL
+      const transactionsQuery = await db.execute(sql`
+        SELECT id, amount, date FROM transactions WHERE merchant_id = ${merchantId}
+      `);
+      const allTransactions = transactionsQuery.rows;
         
       console.log(`Got ${allTransactions.length} transactions for merchant ${merchantId}`);
       
