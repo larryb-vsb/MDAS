@@ -3101,7 +3101,10 @@ export class DatabaseStorage implements IStorage {
                 if (dbField === 'date') {
                   transactionData[dbField as keyof InsertTransaction] = new Date(row[csvField]) as any;
                 } else if (dbField === 'amount') {
-                  transactionData[dbField as keyof InsertTransaction] = parseFloat(row[csvField]) || 0 as any;
+                  // Handle amount parsing with comma stripping for default format too
+                  const cleanAmount = row[csvField].toString().replace(/[$,"]/g, '').trim();
+                  const amount = parseFloat(cleanAmount) || 0;
+                  transactionData[dbField as keyof InsertTransaction] = amount.toString() as any;
                 } else if (dbField === 'merchantId') {
                   let merchantId = findMerchantId(row, transactionMerchantIdAliases);
                   if (merchantId) {
@@ -3780,7 +3783,10 @@ export class DatabaseStorage implements IStorage {
             : transactionFieldMappings;
           
           // Apply field mappings from CSV based on detected format
+          console.log(`[FIELD MAPPING DEBUG] Processing ${Object.keys(fieldMappings).length} field mappings for format: ${detectedFormat}`);
+          console.log(`[FIELD MAPPING DEBUG] Available CSV fields:`, Object.keys(row));
           for (const [dbField, csvField] of Object.entries(fieldMappings)) {
+            console.log(`[FIELD MAPPING DEBUG] Checking mapping: ${dbField} <- ${csvField}, value: "${row[csvField]}", type: ${typeof row[csvField]}`);
             if (csvField && row[csvField] !== undefined) {
               if (dbField === 'date') {
                 try {
@@ -3797,15 +3803,18 @@ export class DatabaseStorage implements IStorage {
               else if (dbField === 'amount' && row[csvField]) {
                 // Parse amount from string to number, handling different formats
                 try {
-                  // Remove any currency symbols and commas
-                  const cleanAmount = row[csvField].toString().replace(/[$,]/g, '');
+                  // Remove any currency symbols, commas, and quotes
+                  const cleanAmount = row[csvField].toString().replace(/[$,"]/g, '').trim();
                   const amount = parseFloat(cleanAmount);
+                  
+                  console.log(`[AMOUNT DEBUG] Original: "${row[csvField]}", Clean: "${cleanAmount}", Parsed: ${amount}`);
                   
                   if (isNaN(amount)) {
                     console.error(`Invalid amount format in row ${rowCount}: ${row[csvField]}`);
                     transaction[dbField as keyof InsertTransaction] = 0 as any;
                   } else {
-                    transaction[dbField as keyof InsertTransaction] = amount as any;
+                    // Store amount as string representation for consistency with schema
+                    transaction[dbField as keyof InsertTransaction] = amount.toString() as any;
                   }
                 } catch (e) {
                   console.error(`Error parsing amount: ${row[csvField]}`);

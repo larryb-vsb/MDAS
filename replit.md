@@ -25,7 +25,9 @@ Preferred communication style: Simple, everyday language.
 - **✅ CONSOLIDATED LOGIC**: All transaction insertions now use single consistent approach for duplicate handling and data preservation
 - **✅ API ENHANCEMENT**: Updated getTransactions endpoint to include sourceFileName for complete tooltip information
 - **✅ FRONTEND INTEGRATION**: Tooltip component now displays "File: filename.csv" along with CSV row data and metadata
-- **✅ PRODUCTION READY**: All new transaction uploads will consistently store complete raw CSV data with proper file attribution
+- **✅ AMOUNT PARSING FIXED**: Fixed critical comma-separated amount parsing issue where "25,423.69" was processed as 25.00 instead of 25423.69
+- **✅ COMPREHENSIVE COMMA HANDLING**: Both format1 and default transaction processing now properly strip commas, quotes, and currency symbols
+- **✅ PRODUCTION READY**: All new transaction uploads will consistently store complete raw CSV data with proper file attribution and correct amounts
 
 ### Transaction ID Processing Fix FULLY RESOLVED (July 19, 2025)
 - **✅ COMPLETE RESOLUTION**: Transaction ID processing now working perfectly - all new files use actual CSV TransactionID values
