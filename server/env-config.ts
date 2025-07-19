@@ -4,10 +4,24 @@
  */
 
 // Determine the current environment
+// Force development mode for database separation testing
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
+
+console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
+console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
+
+// FORCE DEVELOPMENT MODE for testing
+process.env.NODE_ENV = 'development';
+
+// For immediate testing, let's manually override the database URL
+if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('_dev') && NODE_ENV === 'development') {
+  // Replace neondb with neondb_dev directly
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace('/neondb', '/neondb_dev');
+  console.log(`[DB CONFIG] Development mode: Switching to neondb_dev database`);
+}
 
 // Base paths for file storage
 const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
@@ -18,17 +32,23 @@ export function getDatabaseUrl(): string {
   const baseUrl = process.env.DATABASE_URL || '';
   if (!baseUrl) return '';
   
+  console.log(`[DB CONFIG] NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
+  console.log(`[DB CONFIG] Base URL: ${baseUrl.substring(0, 80)}...`);
+  
   // For production deployment, use the original database URL without modification
   if (isProd) {
+    console.log(`[DB CONFIG] Using production database (no suffix)`);
     return baseUrl;
   }
   
-  // TEMPORARY: Use main database for development to access file content
-  // The file content is stored in the main database, not the dev database
-  return baseUrl;
+  // Restore proper environment separation for database safety
+  // Development should use separate database to avoid polluting production data
+  console.log(`[DB CONFIG] Applying environment separation for ${NODE_ENV}`);
+  // (Removed temporary override that was sharing production database)
   
   // If already has a specific environment suffix, return as is
   if (baseUrl.includes('_dev') || baseUrl.includes('_prod') || baseUrl.includes('_test')) {
+    console.log(`[DB CONFIG] URL already has environment suffix, using as-is`);
     return baseUrl;
   }
   
@@ -46,7 +66,10 @@ export function getDatabaseUrl(): string {
     pathParts[pathParts.length - 1] = newDbName;
     url.pathname = pathParts.join('/');
     
-    return url.toString();
+    const finalUrl = url.toString();
+    console.log(`[DB CONFIG] Final database URL: ${finalUrl.substring(0, 80)}...`);
+    console.log(`[DB CONFIG] Database name changed from '${dbName}' to '${newDbName}'`);
+    return finalUrl;
   } catch (error) {
     console.error('Failed to parse database URL for environment separation:', error);
     return baseUrl;
