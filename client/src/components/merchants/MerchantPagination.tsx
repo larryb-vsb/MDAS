@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MerchantPaginationProps {
@@ -8,6 +9,7 @@ interface MerchantPaginationProps {
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
+  onItemsPerPageChange?: (itemsPerPage: number) => void;
 }
 
 export default function MerchantPagination({
@@ -16,6 +18,7 @@ export default function MerchantPagination({
   totalItems,
   itemsPerPage,
   onPageChange,
+  onItemsPerPageChange,
 }: MerchantPaginationProps) {
   const renderPageNumbers = () => {
     const pageNumbers = [];
@@ -117,12 +120,30 @@ export default function MerchantPagination({
         </Button>
       </div>
       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-        <div>
+        <div className="flex items-center gap-4">
           <p className="text-sm text-gray-700">
             Showing <span className="font-medium">{startItem}</span> to{" "}
             <span className="font-medium">{endItem}</span> of{" "}
             <span className="font-medium">{totalItems}</span> merchants
           </p>
+          {onItemsPerPageChange && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Show:</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => onItemsPerPageChange(parseInt(value))}
+              >
+                <SelectTrigger className="w-20 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <div>
           <nav className="flex items-center gap-1" aria-label="Pagination">

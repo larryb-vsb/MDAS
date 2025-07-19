@@ -29,20 +29,21 @@ export default function Merchants() {
   const [uploadFilter, setUploadFilter] = useState("Any time");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   
-  // Reset page to 1 when search query, status filter, or upload filter changes
+  // Reset page to 1 when search query, status filter, upload filter, or itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, uploadFilter]);
+  }, [searchQuery, statusFilter, uploadFilter, itemsPerPage]);
   
   // Query merchants with filters
   const { data, isLoading, error } = useQuery<MerchantsResponse>({
-    queryKey: ['/api/merchants', currentPage, statusFilter, uploadFilter, searchQuery],
+    queryKey: ['/api/merchants', currentPage, itemsPerPage, statusFilter, uploadFilter, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
-      params.append('limit', '10');  // Default limit
+      params.append('limit', itemsPerPage.toString());
       
       if (statusFilter !== "All") {
         params.append('status', statusFilter);
@@ -127,6 +128,11 @@ export default function Merchants() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
   
   const handleDeleteSelected = () => {
     if (selectedMerchants.length > 0) {
@@ -164,12 +170,14 @@ export default function Merchants() {
             currentPage: 1,
             totalPages: 1,
             totalItems: 0,
-            itemsPerPage: 10
+            itemsPerPage: itemsPerPage
           }}
           isLoading={isLoading}
           error={error}
           currentPage={currentPage}
           onPageChange={handlePageChange}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
           selectedMerchants={selectedMerchants}
           setSelectedMerchants={setSelectedMerchants}
           onDeleteSelected={handleDeleteSelected}

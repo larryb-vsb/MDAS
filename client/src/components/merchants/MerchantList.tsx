@@ -39,6 +39,8 @@ interface MerchantListProps {
   merchants: Merchant[];
   pagination: Pagination;
   onPageChange: (page: number) => void;
+  itemsPerPage: number;
+  onItemsPerPageChange: (itemsPerPage: number) => void;
   selectedMerchants: string[];
   setSelectedMerchants: (merchants: string[]) => void;
   onDeleteSelected: () => void;
@@ -51,6 +53,8 @@ export default function MerchantList({
   merchants,
   pagination,
   onPageChange,
+  itemsPerPage,
+  onItemsPerPageChange,
   selectedMerchants,
   setSelectedMerchants,
   onDeleteSelected,
@@ -337,8 +341,9 @@ export default function MerchantList({
         currentPage={pagination.currentPage}
         totalPages={pagination.totalPages}
         totalItems={pagination.totalItems}
-        itemsPerPage={pagination.itemsPerPage}
+        itemsPerPage={itemsPerPage}
         onPageChange={onPageChange}
+        onItemsPerPageChange={onItemsPerPageChange}
       />
       
       {/* Merge Modal */}
