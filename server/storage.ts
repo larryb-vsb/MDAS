@@ -3412,13 +3412,43 @@ export class DatabaseStorage implements IStorage {
                       .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
                       .trim();
                     
-                    // Only match if core names (without business types) match exactly and are substantial
+                    // First check if core names (without business types) match exactly and are substantial
                     if (cleanMerchantName === cleanTransactionName && cleanMerchantName.length > 4) {
                       console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
                       return true;
                     }
                     
-                    // DISABLED: No aggressive fuzzy matching to prevent false matches
+                    // Smart fuzzy matching for legitimate variations
+                    // Only match if names are substantial (>6 chars) to prevent false short matches
+                    if (cleanMerchantName.length > 6 && cleanTransactionName.length > 6) {
+                      // Check if one name contains the other (for cases like "McDonald's" vs "McDonald's Restaurant")
+                      if (cleanMerchantName.includes(cleanTransactionName) || cleanTransactionName.includes(cleanMerchantName)) {
+                        console.log(`[FUZZY MATCH] Name containment match: "${cleanMerchantName}" <-> "${cleanTransactionName}"`);
+                        return true;
+                      }
+                      
+                      // Check for common variations (Massachusetts vs Massachusett, etc.)
+                      const isStateVariation = (name1: string, name2: string) => {
+                        const stateVariations = [
+                          ['massachusetts', 'massachusett', 'mass'],
+                          ['california', 'calif', 'ca'],
+                          ['pennsylvania', 'penn', 'pa']
+                        ];
+                        
+                        for (const variations of stateVariations) {
+                          const hasVariation1 = variations.some(v => name1.includes(v));
+                          const hasVariation2 = variations.some(v => name2.includes(v));
+                          if (hasVariation1 && hasVariation2) return true;
+                        }
+                        return false;
+                      };
+                      
+                      if (isStateVariation(cleanMerchantName, cleanTransactionName)) {
+                        console.log(`[FUZZY MATCH] State variation match: "${cleanMerchantName}" <-> "${cleanTransactionName}"`);
+                        return true;
+                      }
+                    }
+                    
                     return false;
                   });
                   
