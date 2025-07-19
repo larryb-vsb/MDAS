@@ -3126,17 +3126,302 @@ export class DatabaseStorage implements IStorage {
         }
         
         try {
-          // Try direct batch insert first (fastest path)
-          console.log(`Batch inserting ${transactions.length} transactions into database...`);
-          await db.insert(transactionsTable).values(transactions);
-          console.log(`Successfully inserted ${transactions.length} transactions`);
-          console.log(`Resolving with metrics: rowsProcessed=${rowCount}, transactionsCreated=${transactions.length}, errors=${errorCount}`);
-          resolve({ rowsProcessed: rowCount, transactionsCreated: transactions.length, errors: errorCount });
-        } catch (error) {
-          console.error("Error inserting transactions into database:", error);
+          // Advanced merchant matching using business name intelligence
+          console.log(`\n=================== ADVANCED MERCHANT MATCHING ===================`);
+          console.log(`Processing ${transactions.length} transactions for intelligent merchant matching...`);
           
-          // If batch insert fails, try one by one with merchant ID mapping and auto-creation
-          console.log("Trying individual transaction insertion with merchant auto-creation...");
+          // Get all existing merchants for comprehensive matching
+          const allExistingMerchants = await db.select().from(merchantsTable);
+          console.log(`Loaded ${allExistingMerchants.length} existing merchants for name matching`);
+          
+          // Create map to track merchant names used in transactions
+          const merchantNameMapping = new Map<string, string>();
+          const nameToIdMapping = new Map<string, string[]>();
+          
+          // First pass: collect unique merchant names from transactions
+          const merchantNames = new Set<string>();
+          
+          for (const transaction of transactions) {
+            // Check if transaction has originalMerchantName property (from Name column)
+            const originalName = (transaction as any).originalMerchantName;
+            if (originalName) {
+              merchantNames.add(originalName);
+              merchantNameMapping.set(transaction.merchantId, originalName);
+              
+              // Track which transaction IDs use this name
+              if (!nameToIdMapping.has(originalName)) {
+                nameToIdMapping.set(originalName, []);
+              }
+              nameToIdMapping.get(originalName)!.push(transaction.merchantId);
+            }
+          }
+          
+          console.log(`Found ${merchantNames.size} unique merchant names in transactions`);
+          
+          // Second pass: intelligent merchant name matching
+          if (merchantNames.size > 0) {
+            for (const name of merchantNames) {
+              try {
+                console.log(`\n[MATCHING PROCESS] Checking for merchant match with name: "${name}"`);
+                
+                // Try exact match first
+                const exactMatchMerchants = allExistingMerchants.filter(m => 
+                  m.name.toLowerCase() === name.toLowerCase()
+                );
+                
+                if (exactMatchMerchants.length > 0) {
+                  console.log(`[EXACT MATCH] Found existing merchant with name "${name}": ${exactMatchMerchants[0].id}`);
+                  
+                  // Get all transaction IDs that had this name
+                  const transactionIds = nameToIdMapping.get(name) || [];
+                  
+                  // Remap transactions to existing merchant
+                  for (const transId of transactionIds) {
+                    for (const trans of transactions) {
+                      if (trans.merchantId === transId) {
+                        console.log(`Remapping transaction ${trans.id} from ${trans.merchantId} to existing merchant ${exactMatchMerchants[0].id} based on exact name match "${name}"`);
+                        trans.merchantId = exactMatchMerchants[0].id;
+                      }
+                    }
+                  }
+                } else {
+                  // Try intelligent fuzzy match
+                  const fuzzyMatchMerchants = allExistingMerchants.filter(m => {
+                    const merchantName = m.name.toLowerCase();
+                    const transactionName = name.toLowerCase();
+                    
+                    // Remove common business suffixes for better core name matching
+                    const cleanMerchantName = merchantName
+                      .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
+                      .trim();
+                      
+                    const cleanTransactionName = transactionName
+                      .replace(/\s+(llc|inc|ltd|corp|corporation|company)(\s+|$)/g, '')
+                      .trim();
+                    
+                    // Only match if core names (without business types) match exactly and are substantial
+                    if (cleanMerchantName === cleanTransactionName && cleanMerchantName.length > 4) {
+                      console.log(`[NAME MATCH] Core names match exactly: "${cleanMerchantName}" = "${cleanTransactionName}"`);
+                      return true;
+                    }
+                    
+                    // DISABLED: No aggressive fuzzy matching to prevent false matches
+                    return false;
+                  });
+                  
+                  if (fuzzyMatchMerchants.length > 0) {
+                    console.log(`[FUZZY MATCH] Found similar merchant for "${name}": ${fuzzyMatchMerchants[0].id} (${fuzzyMatchMerchants[0].name})`);
+                    
+                    // Get all transaction IDs that had this name
+                    const transactionIds = nameToIdMapping.get(name) || [];
+                    
+                    // Remap transactions to existing merchant
+                    for (const transId of transactionIds) {
+                      for (const trans of transactions) {
+                        if (trans.merchantId === transId) {
+                          console.log(`Remapping transaction ${trans.id} from ${trans.merchantId} to similar merchant ${fuzzyMatchMerchants[0].id} based on fuzzy name match "${name}" ~ "${fuzzyMatchMerchants[0].name}"`);
+                          trans.merchantId = fuzzyMatchMerchants[0].id;
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error(`Error checking for existing merchant with name "${name}":`, error);
+              }
+            }
+          }
+          
+          // Third pass: create missing merchants with intelligent names
+          console.log(`\n=================== CREATING MISSING MERCHANTS ===================`);
+          
+          for (const transaction of transactions) {
+            // Check if merchant exists
+            const existingMerchant = await db.select()
+              .from(merchantsTable)
+              .where(eq(merchantsTable.id, transaction.merchantId));
+              
+            if (existingMerchant.length === 0) {
+              console.log(`No merchant found with ID: ${transaction.merchantId}, creating with intelligent name...`);
+              
+              // Get the merchant name from the Name column if available
+              const merchantNameFromTransaction = merchantNameMapping.get(transaction.merchantId);
+              
+              if (merchantNameFromTransaction) {
+                console.log(`[NEW MERCHANT] Using actual name from transaction: ${merchantNameFromTransaction} for ID: ${transaction.merchantId}`);
+                
+                const newMerchant = {
+                  id: transaction.merchantId,
+                  name: merchantNameFromTransaction,
+                  clientMID: `CM-${transaction.merchantId}`,
+                  status: "Pending",
+                  address: "123 Business St",
+                  city: "Chicago",
+                  state: "IL",
+                  zipCode: "60601",
+                  country: "US",
+                  category: "Retail",
+                  createdAt: new Date(),
+                  lastUploadDate: new Date(),
+                  editDate: new Date()
+                };
+                
+                await db.insert(merchantsTable).values(newMerchant);
+                console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
+              } else {
+                console.log(`[FALLBACK MERCHANT] No name found for ${transaction.merchantId}, using generic name`);
+                
+                const newMerchant = {
+                  id: transaction.merchantId,
+                  name: `Merchant ${transaction.merchantId}`,
+                  clientMID: `CM-${transaction.merchantId}`,
+                  status: "Pending",
+                  address: "100 Main Street",
+                  city: "Chicago", 
+                  state: "IL",
+                  zipCode: "60601",
+                  country: "US",
+                  category: "General",
+                  createdAt: new Date(),
+                  lastUploadDate: new Date(),
+                  editDate: new Date()
+                };
+                
+                await db.insert(merchantsTable).values(newMerchant);
+                console.log(`Created generic merchant ${newMerchant.id}: ${newMerchant.name}`);
+              }
+            }
+          }
+          
+          // Final step: intelligent duplicate handling and insertion
+          console.log(`\n=================== INTELLIGENT DUPLICATE HANDLING ===================`);
+          
+          let insertedCount = 0;
+          const insertedTransactionsList: any[] = [];
+          
+          for (const transaction of transactions) {
+            let insertAttempts = 0;
+            const originalId = transaction.id;
+            let finalTransaction = { ...transaction };
+            
+            while (insertAttempts < 100) {
+              try {
+                // Attempt to insert transaction
+                await db.insert(transactionsTable).values(finalTransaction);
+                
+                insertedCount++;
+                insertedTransactionsList.push({
+                  id: finalTransaction.id,
+                  merchantId: finalTransaction.merchantId,
+                  amount: finalTransaction.amount
+                });
+                
+                if (insertAttempts > 0) {
+                  console.log(`[DUPLICATE RESOLVED] Original ID ${originalId} incremented to ${finalTransaction.id} after ${insertAttempts} attempts`);
+                }
+                
+                break; // Success, exit the retry loop
+                
+              } catch (insertError: any) {
+                // Check if it's a duplicate key error
+                if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
+                  console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
+                  
+                  try {
+                    const existingTransaction = await db.select()
+                      .from(transactionsTable)
+                      .where(eq(transactionsTable.id, originalId))
+                      .limit(1);
+                    
+                    if (existingTransaction.length > 0) {
+                      const existingDate = new Date(existingTransaction[0].date);
+                      const newDate = new Date(finalTransaction.date);
+                      
+                      const existingDateStr = existingDate.toISOString().split('T')[0];
+                      const newDateStr = newDate.toISOString().split('T')[0];
+                      
+                      // If dates match exactly, check if values differ
+                      if (existingDateStr === newDateStr) {
+                        const existingAmount = parseFloat(existingTransaction[0].amount.toString());
+                        const newAmount = parseFloat(finalTransaction.amount.toString());
+                        const existingType = existingTransaction[0].type;
+                        const newType = finalTransaction.type;
+                        
+                        console.log(`[DATE MATCH] Same date ${newDateStr}. Existing: $${existingAmount} (${existingType}), New: $${newAmount} (${newType})`);
+                        
+                        // If values are different, update the existing transaction
+                        if (existingAmount !== newAmount || existingType !== newType) {
+                          console.log(`[UPDATING] Values differ, updating existing transaction ${originalId}`);
+                          
+                          await db.update(transactionsTable)
+                            .set({
+                              amount: finalTransaction.amount,
+                              type: finalTransaction.type,
+                              description: finalTransaction.description
+                            })
+                            .where(eq(transactionsTable.id, originalId));
+                          
+                          console.log(`[UPDATED] Transaction ${originalId} updated with new values`);
+                          break; // Exit without counting as inserted
+                        } else {
+                          console.log(`[SKIPPING] Identical transaction ${originalId} already exists`);
+                          break; // Exit without counting as inserted
+                        }
+                      } else {
+                        // Different date - increment the ID
+                        console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
+                        insertAttempts++;
+                        
+                        const numericId = parseFloat(originalId);
+                        if (!isNaN(numericId)) {
+                          const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
+                          finalTransaction.id = incrementedId;
+                          console.log(`[DUPLICATE RESOLVED] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
+                        } else {
+                          // For non-numeric IDs, append increment suffix
+                          finalTransaction.id = `${originalId}_${insertAttempts}`;
+                          console.log(`[DUPLICATE RESOLVED] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                        }
+                      }
+                    }
+                  } catch (checkError: any) {
+                    console.error(`Error checking existing transaction: ${checkError.message}`);
+                    // Fall back to original incrementation logic
+                    insertAttempts++;
+                    const numericId = parseFloat(originalId);
+                    if (!isNaN(numericId)) {
+                      const incrementedId = (numericId + (insertAttempts * 0.1)).toFixed(1);
+                      finalTransaction.id = incrementedId;
+                      console.log(`[FALLBACK] Incrementing Transaction ID from ${originalId} to ${incrementedId} (attempt ${insertAttempts})`);
+                    } else {
+                      finalTransaction.id = `${originalId}_${insertAttempts}`;
+                      console.log(`[FALLBACK] Appending suffix to Transaction ID: ${originalId} -> ${finalTransaction.id} (attempt ${insertAttempts})`);
+                    }
+                  }
+                } else {
+                  // Non-duplicate error, log and rethrow
+                  console.error(`\n❌ TRANSACTION INSERT ERROR (Non-duplicate) ❌`);
+                  console.error(`CSV Row Number: ${rowCount}`);
+                  console.error(`Transaction ID: ${finalTransaction.id}`);
+                  console.error(`Error Details: ${insertError.message}`);
+                  throw insertError;
+                }
+              }
+            }
+            
+            if (insertAttempts >= 100) {
+              throw new Error(`Failed to insert transaction after 100 attempts: ${originalId}`);
+            }
+          }
+          
+          console.log(`Successfully processed ${insertedCount} transactions with intelligent duplicate handling`);
+          console.log(`Resolving with metrics: rowsProcessed=${rowCount}, transactionsCreated=${insertedCount}, errors=${errorCount}`);
+          resolve({ rowsProcessed: rowCount, transactionsCreated: insertedCount, errors: errorCount });
+        } catch (error) {
+          console.error("Error processing transactions:", error);
+          
+          // If still fails, try one by one with merchant ID mapping and auto-creation
+          console.log("Trying individual transaction insertion as fallback...");
           
           for (const transaction of transactions) {
             try {

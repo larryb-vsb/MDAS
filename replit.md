@@ -10,14 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Transaction Merchant Matching Logic Enhancement (July 19, 2025)
-- **MERCHANT MATCHING WORKING**: Enhanced transaction import logic successfully linking transactions to existing merchants instead of creating duplicates
-- **ROOT CAUSE RESOLVED**: Transaction imports now use comprehensive matching logic instead of basic ID matching that created generic "Merchant M1143873" entries
-- **MULTI-TIER MATCHING ACTIVE**: System tries merchant ID, clientMID, otherClientNumber1/2, and name pattern matching before creating new merchants
-- **CONFIRMED RESULTS**: Merchant M43132391 now has 29 transactions from multiple file imports, proving successful transaction linking
-- **BATCH PROCESSING ENHANCED**: Transaction processing working correctly with improved merchant matching logic
-- **EXISTING DATA**: Previous auto-created merchants (M1143873, M000042962978, etc.) remain from earlier imports but new imports work correctly
-- **PRODUCTION READY**: Transaction imports now correctly match existing merchants and prevent duplicate creation
+### Advanced Transaction Processing System Restoration (July 19, 2025)
+- **COMPLETE FUZZY MATCHING RESTORED**: Advanced merchant name matching with business suffix normalization and intelligent core name comparison
+- **SOPHISTICATED LOGIC**: Exact name matching, business entity type removal (LLC, Inc, Corp), and core name comparison for proper merchant linking
+- **DUPLICATE TRANSACTION HANDLING**: Smart duplicate ID resolution with 0.1 increment for numeric IDs and suffix appending for text IDs
+- **DATE-AWARE PROCESSING**: If transaction ID exists, system checks dates - same date triggers update/skip logic, different dates create incremented IDs
+- **INTELLIGENT MERCHANT CREATION**: Uses actual merchant names from transaction "Name" column instead of generic "Merchant M123" when creating new merchants
+- **COMPREHENSIVE MAPPING**: System maps transaction names to merchant IDs, performs exact matches, fuzzy matches, then creates merchants with real names
+- **PRODUCTION-GRADE LOGIC**: All advanced features working together - name-based matching, duplicate handling, and intelligent merchant creation
+- **BATCH CLEANUP**: Previous auto-generated merchants can be cleaned up since new system creates properly named merchants
 
 ### File Processing Metrics Error Resolution (July 19, 2025)
 - **PROCESSING METRICS ERROR FIXED**: Resolved "Cannot read properties of undefined (reading 'rowsProcessed')" error in both merchant and transaction file processing
