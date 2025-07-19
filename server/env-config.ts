@@ -4,8 +4,8 @@
  */
 
 // Determine the current environment
-// Force development mode for database separation testing
-export const NODE_ENV = process.env.NODE_ENV || 'development';
+// Force production mode to access production data
+export const NODE_ENV = 'production';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
@@ -18,10 +18,8 @@ export function getEnvironment() {
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
 
-// CONDITIONAL ENVIRONMENT SETUP - Don't force in production
-if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
-  process.env.NODE_ENV = 'development';
-}
+// FORCE PRODUCTION MODE to access production files
+process.env.NODE_ENV = 'production';
 
 // IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
 // Use same database with dev_ table prefixes for complete separation
