@@ -193,51 +193,39 @@ export default function ProcessingStatus() {
             </div>
           )}
 
-          {/* Enhanced Processing KPIs */}
-          {status.isRunning && (
-            <div className="space-y-4">
-              <Separator />
-              <div className="text-sm font-medium">Processing Performance KPIs</div>
-              
-              {/* Processing Speed & Efficiency */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-blue-600">
-                    {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
-                  </div>
-                  <div className="text-muted-foreground">Txns/sec</div>
+          {/* Enhanced Processing KPIs - Always Visible */}
+          <div className="space-y-4">
+            <Separator />
+            <div className="text-sm font-medium">Processing Performance KPIs</div>
+            
+            {/* Processing Speed & Efficiency */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-lg font-semibold text-blue-600">
+                  {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
                 </div>
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-purple-600">
-                    {status.processingStats?.transactionsProcessed?.toLocaleString() || '0'}
-                  </div>
-                  <div className="text-muted-foreground">Processed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-orange-600">
-                    {realTimeStats.filesWithErrors}
-                  </div>
-                  <div className="text-muted-foreground">Errors</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-semibold text-green-600">
-                    {status.processingStats?.duplicateResolutionRate?.toFixed(1) || 'N/A'}%
-                  </div>
-                  <div className="text-muted-foreground">Resolution Rate</div>
-                </div>
+                <div className="text-muted-foreground">Txns/sec</div>
               </div>
-
-              {/* Estimated Completion */}
-              {status.processingStats?.estimatedCompletion && (
-                <div className="text-center text-sm">
-                  <div className="text-muted-foreground">Estimated Completion</div>
-                  <div className="font-medium">
-                    {new Date(status.processingStats.estimatedCompletion).toLocaleString()}
-                  </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-purple-600">
+                  {realTimeStats.processedFiles?.toLocaleString() || '0'}
                 </div>
-              )}
+                <div className="text-muted-foreground">Processed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-orange-600">
+                  {realTimeStats.filesWithErrors || '0'}
+                </div>
+                <div className="text-muted-foreground">Errors</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-green-600">
+                  {realTimeStats.filesWithErrors === 0 && realTimeStats.processedFiles > 0 ? '100.0' : '0.0'}%
+                </div>
+                <div className="text-muted-foreground">Resolution Rate</div>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Duplicate Resolution Stats (when not processing) */}
           {!status.isRunning && status.duplicateResolutionStats && status.duplicateResolutionStats.totalDuplicates > 0 && (
