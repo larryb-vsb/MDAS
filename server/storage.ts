@@ -2070,12 +2070,42 @@ export class DatabaseStorage implements IStorage {
     totalRevenue: number;
   }> {
     try {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // Find the latest transaction date to base our calculations on actual data
+      const latestTransactionResult = await db.select({ 
+        latestDate: sql<Date>`MAX(${transactionsTable.date})` 
+      }).from(transactionsTable);
       
-      // Time periods for comparisons
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+      const latestTransactionDate = latestTransactionResult[0]?.latestDate;
+      
+      if (!latestTransactionDate) {
+        // No transactions in database, return zero stats
+        return {
+          totalMerchants: 0,
+          newMerchants: 0,
+          dailyTransactions: 0,
+          monthlyRevenue: 0,
+          transactionGrowth: 0,
+          revenueGrowth: 0,
+          activeRate: 0,
+          avgTransactionValue: 0,
+          totalTransactions: 0,
+          totalRevenue: 0
+        };
+      }
+      
+      // Use the latest transaction date as our reference point
+      const referenceDate = new Date(latestTransactionDate);
+      const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+      
+      // Calculate time periods based on actual data dates, not current calendar date
+      const thirtyDaysAgo = new Date(referenceDate);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const sixtyDaysAgo = new Date(referenceDate);
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      
+      console.log(`[DASHBOARD STATS] Using reference date: ${referenceDate.toISOString()}`);
+      console.log(`[DASHBOARD STATS] Last 30 days from: ${thirtyDaysAgo.toISOString()} to ${referenceDate.toISOString()}`);
       
       // Get total merchants count
       const merchantCount = await db.select({ count: count() }).from(merchantsTable);
@@ -2090,35 +2120,35 @@ export class DatabaseStorage implements IStorage {
       // Calculate active rate (percentage of merchants that are active)
       const activeRate = totalMerchants > 0 ? (activeMerchants / totalMerchants) * 100 : 0;
       
-      // Get new merchants in the last 30 days
+      // Get new merchants in the last 30 days (using actual transaction dates)
       const newMerchantsResult = await db.select({ count: count() })
         .from(merchantsTable)
-        .where(gte(merchantsTable.createdAt, oneMonthAgo));
+        .where(gte(merchantsTable.createdAt, thirtyDaysAgo));
       const newMerchants = parseInt(newMerchantsResult[0].count.toString(), 10);
       
-      // Get daily transaction count
+      // Get daily transaction count (from the latest day with transactions)
       const dailyTransactionsResult = await db.select({ count: count() })
         .from(transactionsTable)
         .where(gte(transactionsTable.date, today));
       const dailyTransactions = parseInt(dailyTransactionsResult[0].count.toString(), 10);
       
-      // Get monthly transactions (current month)
-      const monthlyTransactions = await db.select()
+      // Get recent transactions (last 30 days from latest transaction date)
+      const recentTransactions = await db.select()
         .from(transactionsTable)
-        .where(gte(transactionsTable.date, oneMonthAgo));
+        .where(gte(transactionsTable.date, thirtyDaysAgo));
       
-      // Get previous month transactions
-      const prevMonthTransactions = await db.select()
+      // Get previous period transactions (30-60 days ago from latest transaction date)
+      const prevPeriodTransactions = await db.select()
         .from(transactionsTable)
         .where(
           and(
-            gte(transactionsTable.date, twoMonthsAgo),
-            lt(transactionsTable.date, oneMonthAgo)
+            gte(transactionsTable.date, sixtyDaysAgo),
+            lt(transactionsTable.date, thirtyDaysAgo)
           )
         );
         
-      // Calculate monthly revenue (current month)
-      const monthlyRevenue = monthlyTransactions.reduce((sum, tx) => {
+      // Calculate recent period revenue (last 30 days)
+      const recentRevenue = recentTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
         // For Credit/Debit types, use the amount directly
         if (tx.type === "Credit" || tx.type === "Debit") {
@@ -2128,8 +2158,8 @@ export class DatabaseStorage implements IStorage {
         return sum + (tx.type === "Sale" ? amount : 0);
       }, 0);
       
-      // Calculate previous month revenue
-      const prevMonthlyRevenue = prevMonthTransactions.reduce((sum, tx) => {
+      // Calculate previous period revenue (30-60 days ago)
+      const prevPeriodRevenue = prevPeriodTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
         if (tx.type === "Credit" || tx.type === "Debit") {
           return sum + (tx.type === "Credit" ? amount : 0);
@@ -2137,18 +2167,21 @@ export class DatabaseStorage implements IStorage {
         return sum + (tx.type === "Sale" ? amount : 0);
       }, 0);
       
+      console.log(`[DASHBOARD STATS] Recent revenue (last 30 days): $${recentRevenue.toFixed(2)} from ${recentTransactions.length} transactions`);
+      console.log(`[DASHBOARD STATS] Previous period revenue (30-60 days ago): $${prevPeriodRevenue.toFixed(2)} from ${prevPeriodTransactions.length} transactions`);
+      
       // Calculate growth rates
-      const transactionGrowth = prevMonthTransactions.length > 0 
-        ? ((monthlyTransactions.length - prevMonthTransactions.length) / prevMonthTransactions.length) * 100 
+      const transactionGrowth = prevPeriodTransactions.length > 0 
+        ? ((recentTransactions.length - prevPeriodTransactions.length) / prevPeriodTransactions.length) * 100 
         : 0;
         
-      const revenueGrowth = prevMonthlyRevenue > 0 
-        ? ((monthlyRevenue - prevMonthlyRevenue) / prevMonthlyRevenue) * 100 
+      const revenueGrowth = prevPeriodRevenue > 0 
+        ? ((recentRevenue - prevPeriodRevenue) / prevPeriodRevenue) * 100 
         : 0;
       
       // Calculate average transaction value
-      const avgTransactionValue = monthlyTransactions.length > 0 
-        ? monthlyRevenue / monthlyTransactions.length 
+      const avgTransactionValue = recentTransactions.length > 0 
+        ? recentRevenue / recentTransactions.length 
         : 0;
       
       // Get total transactions (all time)
@@ -2169,7 +2202,7 @@ export class DatabaseStorage implements IStorage {
         totalMerchants,
         newMerchants,
         dailyTransactions,
-        monthlyRevenue: Number(monthlyRevenue.toFixed(2)),
+        monthlyRevenue: Number(recentRevenue.toFixed(2)),
         transactionGrowth: Number(transactionGrowth.toFixed(2)),
         revenueGrowth: Number(revenueGrowth.toFixed(2)),
         activeRate: Number(activeRate.toFixed(2)),
