@@ -2292,32 +2292,46 @@ export class DatabaseStorage implements IStorage {
       // Process each file ID individually to avoid SQL issues with multiple parameters
       for (const fileId of fileIds) {
         try {
-          // Get the individual file information using only existing schema fields
-          const fileResults = await db.select({
-            id: uploadedFilesTable.id,
-            originalFilename: uploadedFilesTable.originalFilename,
-            storagePath: uploadedFilesTable.storagePath,
-            fileType: uploadedFilesTable.fileType,
-            uploadedAt: uploadedFilesTable.uploadedAt,
-            processed: uploadedFilesTable.processed,
-            processingErrors: uploadedFilesTable.processingErrors,
-            deleted: uploadedFilesTable.deleted
-          })
-            .from(uploadedFilesTable)
-            .where(eq(uploadedFilesTable.id, fileId));
+          // Use environment-specific table for file lookups
+          const uploadedFilesTableName = getTableName('uploaded_files');
+          console.log(`[FILE PROCESSOR] Using table: ${uploadedFilesTableName} for file: ${fileId}`);
           
-          if (fileResults.length === 0) {
+          // Get the individual file information using raw SQL for environment separation
+          const fileResults = await db.execute(sql`
+            SELECT 
+              id,
+              original_filename,
+              storage_path,
+              file_type,
+              uploaded_at,
+              processed,
+              processing_errors,
+              deleted
+            FROM ${sql.identifier(uploadedFilesTableName)}
+            WHERE id = ${fileId}
+          `);
+          
+          if (fileResults.rows.length === 0) {
             console.warn(`File with ID ${fileId} not found`);
             continue;
           }
           
-          const file = fileResults[0];
+          const file = {
+            id: fileResults.rows[0].id,
+            originalFilename: fileResults.rows[0].original_filename,
+            storagePath: fileResults.rows[0].storage_path,
+            fileType: fileResults.rows[0].file_type,
+            uploadedAt: fileResults.rows[0].uploaded_at,
+            processed: fileResults.rows[0].processed,
+            processingErrors: fileResults.rows[0].processing_errors,
+            deleted: fileResults.rows[0].deleted
+          };
           console.log(`Processing file: ID=${file.id}, Type=${file.fileType}, Name=${file.originalFilename}`);
           
-          // Mark file as currently processing with detailed tracking
+          // Mark file as currently processing with detailed tracking using environment-specific table
           const processingStartTime = new Date();
           await db.execute(sql`
-            UPDATE uploaded_files 
+            UPDATE ${sql.identifier(uploadedFilesTableName)}
             SET processing_status = 'processing', 
                 processing_started_at = ${processingStartTime.toISOString()},
                 processing_server_id = 'main'
@@ -2335,7 +2349,7 @@ export class DatabaseStorage implements IStorage {
               try {
                 console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
                 const dbContentResults = await db.execute(sql`
-                  SELECT file_content FROM uploaded_files WHERE id = ${file.id}
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
                 console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
@@ -2354,9 +2368,9 @@ export class DatabaseStorage implements IStorage {
                 const processingCompletedTime = new Date();
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
-                // Update database with processing metrics and completion status
+                // Update database with processing metrics and completion status using environment-specific table
                 await db.execute(sql`
-                  UPDATE uploaded_files 
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
                       records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.merchantsCreated - processingMetrics.merchantsUpdated},
                       records_with_errors = ${processingMetrics.errors},
@@ -2417,7 +2431,7 @@ export class DatabaseStorage implements IStorage {
               try {
                 console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
                 const dbContentResults = await db.execute(sql`
-                  SELECT file_content FROM uploaded_files WHERE id = ${file.id}
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
                 console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
@@ -2436,9 +2450,9 @@ export class DatabaseStorage implements IStorage {
                 const processingCompletedTime = new Date();
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
-                // Update database with processing metrics and completion status
+                // Update database with processing metrics and completion status using environment-specific table
                 await db.execute(sql`
-                  UPDATE uploaded_files 
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
                       records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.transactionsCreated},
                       records_with_errors = ${processingMetrics.errors},
