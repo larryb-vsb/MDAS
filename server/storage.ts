@@ -178,6 +178,10 @@ export interface IStorage {
     source?: string, 
     username?: string
   ): Promise<AuditLog>;
+  
+  // Enhanced file processing methods for real-time monitoring
+  getQueuedFiles(): Promise<any[]>;
+  getRecentlyProcessedFiles(limit: number): Promise<any[]>;
 }
 
 // Database storage implementation
@@ -4390,6 +4394,72 @@ export class DatabaseStorage implements IStorage {
         changedFields: [],
         notes: errorMessage
       };
+    }
+  }
+
+  // Enhanced file processing methods for real-time monitoring
+  async getQueuedFiles(): Promise<any[]> {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          id,
+          original_filename,
+          file_type,
+          uploaded_at,
+          processing_status,
+          processing_started_at
+        FROM uploaded_files 
+        WHERE deleted = false 
+          AND (processing_status = 'queued' OR processing_status IS NULL)
+          AND processed = false
+        ORDER BY uploaded_at ASC
+      `);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        originalFilename: row.original_filename,
+        fileType: row.file_type,
+        uploadedAt: row.uploaded_at,
+        processingStatus: row.processing_status || 'queued',
+        processingStartedAt: row.processing_started_at
+      }));
+    } catch (error) {
+      console.error('Error getting queued files:', error);
+      return [];
+    }
+  }
+
+  async getRecentlyProcessedFiles(limit: number): Promise<any[]> {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          id,
+          original_filename,
+          file_type,
+          uploaded_at,
+          processed_at,
+          processing_status,
+          processing_completed_at
+        FROM uploaded_files 
+        WHERE deleted = false 
+          AND processed = true
+          AND processing_completed_at IS NOT NULL
+        ORDER BY processing_completed_at DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        originalFilename: row.original_filename,
+        fileType: row.file_type,
+        uploadedAt: row.uploaded_at,
+        processedAt: row.processed_at,
+        processingStatus: row.processing_status || 'completed',
+        processingCompletedAt: row.processing_completed_at
+      }));
+    } catch (error) {
+      console.error('Error getting recently processed files:', error);
+      return [];
     }
   }
 }

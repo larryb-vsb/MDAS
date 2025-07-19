@@ -13,6 +13,15 @@ interface ProcessingStatus {
   processedFileCount: number;
   isPaused: boolean;
   currentTransactionRange?: string;
+  currentlyProcessingFile?: {
+    id: string;
+    filename: string;
+    fileType: string;
+    startTime: Date;
+    transactionsProcessed: number;
+    totalTransactions?: number;
+    progress?: number;
+  };
   duplicateResolutionStats?: {
     totalDuplicates: number;
     averageIncrements: number;
@@ -40,6 +49,15 @@ class FileProcessorService {
   private processingErrors: Record<string, string> = {};
   private processedFileCount = 0;
   private currentTransactionRange: string = '';
+  private currentlyProcessingFile: {
+    id: string;
+    filename: string;
+    fileType: string;
+    startTime: Date;
+    transactionsProcessed: number;
+    totalTransactions?: number;
+    progress?: number;
+  } | null = null;
   private duplicateStats = {
     totalDuplicates: 0,
     averageIncrements: 0,
@@ -87,6 +105,7 @@ class FileProcessorService {
       processedFileCount: this.processedFileCount,
       isPaused: this.isPaused,
       currentTransactionRange: this.currentTransactionRange,
+      currentlyProcessingFile: this.currentlyProcessingFile,
       duplicateResolutionStats: this.duplicateStats,
       processingStats: {
         transactionsProcessed: this.processingStats.transactionsProcessed,
@@ -259,12 +278,43 @@ class FileProcessorService {
   }
 
   /**
+   * Set currently processing file information
+   */
+  setCurrentlyProcessingFile(fileId: string, filename: string, fileType: string): void {
+    this.currentlyProcessingFile = {
+      id: fileId,
+      filename,
+      fileType,
+      startTime: new Date(),
+      transactionsProcessed: 0,
+      totalTransactions: undefined,
+      progress: 0
+    };
+  }
+
+  /**
+   * Clear currently processing file information
+   */
+  clearCurrentlyProcessingFile(): void {
+    this.currentlyProcessingFile = null;
+  }
+
+  /**
    * Update processing statistics (called from storage layer)
    */
   updateProcessingStats(transactionId: string, duplicateInfo?: { increments: number; wasSkipped: boolean }): void {
     this.currentTransactionRange = transactionId;
     this.processingStats.currentTransactionId = transactionId;
     this.processingStats.transactionsProcessed++;
+    
+    // Update currently processing file stats
+    if (this.currentlyProcessingFile) {
+      this.currentlyProcessingFile.transactionsProcessed++;
+      if (this.currentlyProcessingFile.totalTransactions) {
+        this.currentlyProcessingFile.progress = 
+          Math.round((this.currentlyProcessingFile.transactionsProcessed / this.currentlyProcessingFile.totalTransactions) * 100);
+      }
+    }
     
     if (duplicateInfo) {
       this.duplicateStats.totalDuplicates++;

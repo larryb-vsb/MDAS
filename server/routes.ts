@@ -1311,6 +1311,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
+  // Get files currently in processing queue with detailed status
+  app.get("/api/uploads/queue-status", async (req, res) => {
+    try {
+      // Get files that are queued or currently processing
+      const queuedFiles = await storage.getQueuedFiles();
+      const processingFile = fileProcessorService.getProcessingStatus().currentlyProcessingFile;
+      
+      // Get recent processing activity (last 5 completed files)
+      const recentlyCompleted = await storage.getRecentlyProcessedFiles(5);
+
+      res.json({
+        queuedFiles,
+        currentlyProcessing: processingFile,
+        recentlyCompleted,
+        queueLength: queuedFiles.length,
+        estimatedWaitTime: queuedFiles.length * 60 // Rough estimate: 1 minute per file
+      });
+    } catch (error) {
+      console.error("Error getting queue status:", error);
+      res.status(500).json({ error: "Failed to get queue status" });
+    }
+  });
+
   // Process uploaded files
   app.post("/api/process-uploads", async (req, res) => {
     try {
@@ -1408,6 +1433,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to retrieve upload history" 
+      });
+    }
+  });
+
+  // Get enhanced processing status with filters
+  app.get("/api/uploads/processing-status", isAuthenticated, async (req, res) => {
+    try {
+      const { status = 'all', fileType = 'all', limit = '20' } = req.query;
+      const limitNum = parseInt(limit as string) || 20;
+      
+      // Use the existing uploads/history logic that works
+      const result = await db.execute(sql`
+        SELECT 
+          id,
+          original_filename,
+          storage_path,
+          file_type,
+          uploaded_at,
+          processed,
+          processing_errors,
+          deleted,
+          file_content,
+          processed_at,
+          processing_status,
+          processing_started_at,
+          processing_completed_at,
+          processing_server_id
+        FROM uploaded_files 
+        WHERE deleted = false
+        ORDER BY uploaded_at DESC
+        LIMIT ${limitNum}
+      `);
+      
+      let uploads = result.rows.map(row => ({
+        id: row.id,
+        originalFilename: row.original_filename,
+        storagePath: row.storage_path,
+        fileType: row.file_type,
+        uploadedAt: row.uploaded_at,
+        processed: row.processed,
+        processingErrors: row.processing_errors,
+        deleted: row.deleted,
+        file_content: row.file_content,
+        processedAt: row.processed_at,
+        processingStatus: row.processing_status || (row.processed ? 'completed' : 'queued'),
+        processingStartedAt: row.processing_started_at,
+        processingCompletedAt: row.processing_completed_at,
+        processingServerId: row.processing_server_id
+      }));
+
+      // Apply filters after query
+      if (status !== 'all') {
+        switch (status) {
+          case 'queued':
+            uploads = uploads.filter(f => !f.processed && !f.processingErrors);
+            break;
+          case 'processing':
+            uploads = uploads.filter(f => f.processingStatus === 'processing');
+            break;
+          case 'completed':
+            uploads = uploads.filter(f => f.processed);
+            break;
+          case 'error':
+            uploads = uploads.filter(f => f.processingErrors);
+            break;
+        }
+      }
+
+      if (fileType !== 'all') {
+        uploads = uploads.filter(f => f.fileType === fileType);
+      }
+
+      const processorStatus = {
+        isRunning: true,
+        currentlyProcessingFile: uploads.find(f => f.processingStatus === 'processing'),
+        queuedFiles: uploads.filter(f => f.processingStatus === 'queued')
+      };
+
+      res.json({
+        uploads: uploads.slice(0, limitNum),
+        processorStatus,
+        filters: {
+          status: ['all', 'queued', 'processing', 'completed', 'error'],
+          fileType: ['all', 'merchant', 'transaction'],
+          sortBy: ['uploadDate', 'processedDate', 'filename']
+        }
+      });
+    } catch (error) {
+      console.error("Error getting upload processing status:", error);
+      console.error("Stack trace:", error instanceof Error ? error.stack : error);
+      res.status(500).json({ 
+        error: "Failed to get upload processing status",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Get queue status for real-time monitoring
+  app.get("/api/uploads/queue-status", isAuthenticated, async (req, res) => {
+    try {
+      // Get queued files
+      const queuedFiles = await storage.getQueuedFiles();
+      
+      // Get recently completed files (last 5)
+      const recentlyCompleted = await storage.getRecentlyProcessedFiles(5);
+      
+      // Find currently processing file
+      const currentlyProcessing = queuedFiles.find(f => f.processingStatus === 'processing');
+      
+      // Calculate estimated wait time (rough estimate: 1 minute per file)
+      const queueLength = queuedFiles.filter(f => f.processingStatus === 'queued').length;
+      const estimatedWaitTime = queueLength * 60; // seconds
+      
+      res.json({
+        queuedFiles,
+        currentlyProcessing,
+        recentlyCompleted,
+        queueLength,
+        estimatedWaitTime
+      });
+    } catch (error) {
+      console.error("Error getting queue status:", error);
+      res.status(500).json({ 
+        error: "Failed to get queue status"
       });
     }
   });

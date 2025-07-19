@@ -8,6 +8,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
 import MappingSettings from "@/components/uploads/MappingSettings";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
+import ProcessingFilters from "@/components/uploads/ProcessingFilters";
 import { 
   AlertCircle, 
   Check, 
@@ -984,10 +985,11 @@ export default function Uploads() {
             </div>
           </div>
           
-          {/* Top-level tabs for File Management and Settings */}
+          {/* Top-level tabs for File Management, Processing Monitor, and Settings */}
           <Tabs defaultValue="files" className="mt-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-lg grid-cols-3">
               <TabsTrigger value="files">File History</TabsTrigger>
+              <TabsTrigger value="processing">Processing Monitor</TabsTrigger>
               <TabsTrigger value="settings">Field Mappings</TabsTrigger>
             </TabsList>
             
@@ -1027,6 +1029,11 @@ export default function Uploads() {
                   {renderFileTable(files?.filter(file => file.processingErrors))}
                 </TabsContent>
               </Tabs>
+            </TabsContent>
+            
+            {/* Processing Monitor Tab Content */}
+            <TabsContent value="processing" className="mt-6">
+              <ProcessingFilters />
             </TabsContent>
             
             {/* Settings Tab Content */}
