@@ -33,7 +33,8 @@ Preferred communication style: Simple, everyday language.
 - **✅ MERCHANT CHART DISPLAY FIXED**: Updated getMerchantStats and getTransactionHistoryByMonth to use environment-specific tables
 - **✅ DASHBOARD CHARTS OPERATIONAL**: Merchant detail charts now display real transaction data (e.g., SOODAKS INC shows $2796.00 revenue)
 - **✅ SETTINGS PAGE DATABASE FIXED**: Updated /api/settings/database endpoint to use environment-specific tables instead of hardcoded production tables
-- **✅ PROCESSING WIDGET STATISTICS FIXED**: Real-time stats API now correctly queries environment-specific tables showing accurate development data (67 files vs 3635 production)
+- **✅ PROCESSING WIDGET STATISTICS FIXED**: Real-time stats API now correctly queries environment-specific tables showing accurate development data (67 files vs 312 production after cleanup)
+- **✅ PRODUCTION DATABASE CLEANUP COMPLETED**: Removed 3,323 processed files from production environment for better visibility and management
 - **✅ SYSTEM TABLES SHARED**: backup_history and schema_versions properly configured as shared system tables without environment prefixes
 - **✅ COMPLETE ENVIRONMENT CONSISTENCY**: All APIs (merchants, transactions, uploads, settings, charts, processing stats) now use correct development vs production table routing
 - **✅ PRODUCTION READY**: Full web interface authentication and data separation working correctly
