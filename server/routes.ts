@@ -2309,6 +2309,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/merchants/:id", isAuthenticated, async (req, res) => {
     try {
       const merchantId = req.params.id;
+      
+      console.log('[MERCHANT UPDATE] Starting update for merchant:', merchantId);
+      console.log('[MERCHANT UPDATE] Request body:', req.body);
+      
       const schema = z.object({
         name: z.string().optional(),
         clientMID: z.string().nullable().optional(),
@@ -2323,17 +2327,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const merchantData = schema.parse(req.body);
+      console.log('[MERCHANT UPDATE] Parsed merchant data:', merchantData);
       
       // Set the updatedBy field to the logged-in user's username
       let updatedBy = "System";
-      
-      // Debug: Log user information for updates
-      console.log('[MERCHANT UPDATE] User info:', {
-        hasUser: !!req.user,
-        username: req.user?.username,
-        userId: req.user?.id,
-        role: req.user?.role
-      });
       
       // If a user is logged in, use their username
       if (req.user && req.user.username) {
@@ -2356,13 +2353,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedBy: updatedBy
       };
       
+      console.log('[MERCHANT UPDATE] Final data to update:', updatedMerchantData);
+      
       const updatedMerchant = await storage.updateMerchant(merchantId, updatedMerchantData);
+      
+      console.log('[MERCHANT UPDATE] Update successful, returning:', updatedMerchant);
       
       res.json({ 
         success: true, 
         merchant: updatedMerchant 
       });
     } catch (error) {
+      console.error('[MERCHANT UPDATE] Error occurred:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to update merchant" 
       });
