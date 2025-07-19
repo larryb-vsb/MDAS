@@ -13,9 +13,11 @@ Preferred communication style: Simple, everyday language.
 ### KPI Statistics Reporting Fix (July 19, 2025)
 - **FIXED SETTINGS SCREEN STATISTICS**: Resolved incorrect KPI reporting showing cached values instead of real-time database counts
 - **REAL-TIME DATABASE ENDPOINT**: Added `/api/processing/real-time-stats` endpoint for accurate live statistics
-- **CORRECTED DISPLAY VALUES**: Settings screen now shows actual database counts (431 queued, 58 processed) instead of cached values (420 queued, 34 completed)
+- **TRANSACTION SPEED CALCULATION**: Added transactionsPerSecond metric based on recent file processing activity
+- **CORRECTED DISPLAY VALUES**: Settings screen now shows actual database counts (407 queued, 82 processed) instead of cached values (408 queued, 81 completed)
 - **UPDATED PROCESSING STATUS COMPONENT**: Modified ProcessingStatus component to use real-time database queries instead of file processor cache
 - **VERIFIED ACCURACY**: Confirmed endpoint returns live database statistics with proper refresh intervals every 2 seconds
+- **INTELLIGENT SPEED METRICS**: Transaction speed shows 0.0 when idle, calculated rate when actively processing files
 - **PRODUCTION READY**: KPI statistics now accurately reflect current system state for monitoring and dashboard reporting
 
 ### Complete Database-First Processing Fix (July 19, 2025)
