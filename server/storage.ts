@@ -3051,7 +3051,7 @@ export class DatabaseStorage implements IStorage {
       const extractMerchantId = (row: any): string => {
         // Try advanced merchant ID extraction first
         let merchantId = findMerchantId(row, transactionMerchantIdAliases);
-        if (merchantId) return normalizeMerchantId(merchantId);
+        if (merchantId) return merchantId.trim();
         
         // Priority-based merchant ID extraction
         const merchantIdColumns = [
@@ -3063,7 +3063,7 @@ export class DatabaseStorage implements IStorage {
           if (row[column] && row[column].toString().trim()) {
             const extracted = row[column].toString().trim();
             console.log(`[MERCHANT ID] Found ${column}: ${extracted}`);
-            return normalizeMerchantId(extracted);
+            return extracted;
           }
         }
         
@@ -3285,28 +3285,36 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          // Third pass: create missing merchants with intelligent names
+          // Third pass: create only truly missing merchants (after all remapping)
           console.log(`\n=================== CREATING MISSING MERCHANTS ===================`);
           
-          for (const transaction of transactions) {
-            // Check if merchant exists
+          // Get unique merchant IDs that we need to check
+          const uniqueMerchantIds = [...new Set(transactions.map(t => t.merchantId))];
+          console.log(`Checking ${uniqueMerchantIds.length} unique merchant IDs after remapping...`);
+          
+          for (const merchantId of uniqueMerchantIds) {
+            // Check if merchant exists (this should catch both original and remapped IDs)
             const existingMerchant = await db.select()
               .from(merchantsTable)
-              .where(eq(merchantsTable.id, transaction.merchantId));
+              .where(eq(merchantsTable.id, merchantId));
               
             if (existingMerchant.length === 0) {
-              console.log(`No merchant found with ID: ${transaction.merchantId}, creating with intelligent name...`);
+              console.log(`No merchant found with ID: ${merchantId}, checking if we should create...`);
               
-              // Get the merchant name from the Name column if available
-              const merchantNameFromTransaction = merchantNameMapping.get(transaction.merchantId);
+              // Get a transaction with this merchant ID to extract the name
+              const sampleTransaction = transactions.find(t => t.merchantId === merchantId);
+              const merchantNameFromTransaction = merchantNameMapping.get(merchantId);
+              const directMerchantName = sampleTransaction ? (sampleTransaction as any).originalMerchantName : null;
               
-              if (merchantNameFromTransaction) {
-                console.log(`[NEW MERCHANT] Using actual name from transaction: ${merchantNameFromTransaction} for ID: ${transaction.merchantId}`);
+              const nameToUse = merchantNameFromTransaction || directMerchantName;
+              
+              if (nameToUse) {
+                console.log(`[NEW MERCHANT] Creating merchant with name: ${nameToUse} for ID: ${merchantId}`);
                 
                 const newMerchant = {
-                  id: transaction.merchantId,
-                  name: merchantNameFromTransaction,
-                  clientMID: `CM-${transaction.merchantId}`,
+                  id: merchantId,
+                  name: nameToUse,
+                  clientMID: `CM-${merchantId}`,
                   status: "Pending",
                   address: "123 Business St",
                   city: "Chicago",
@@ -3322,36 +3330,13 @@ export class DatabaseStorage implements IStorage {
                 await db.insert(merchantsTable).values(newMerchant);
                 console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
               } else {
-                // Try to extract name directly from this transaction's originalMerchantName
-                const directMerchantName = (transaction as any).originalMerchantName;
-                
-                if (directMerchantName) {
-                  console.log(`[NEW MERCHANT] Using direct transaction name: ${directMerchantName} for ID: ${transaction.merchantId}`);
-                  
-                  const newMerchant = {
-                    id: transaction.merchantId,
-                    name: directMerchantName,
-                    clientMID: `CM-${transaction.merchantId}`,
-                    status: "Pending",
-                    address: "123 Business St",
-                    city: "Chicago",
-                    state: "IL",
-                    zipCode: "60601",
-                    country: "US",
-                    category: "Retail",
-                    createdAt: new Date(),
-                    lastUploadDate: new Date(),
-                    editDate: new Date()
-                  };
-                  
-                  await db.insert(merchantsTable).values(newMerchant);
-                  console.log(`Created merchant ${newMerchant.id} with direct name: ${newMerchant.name}`);
-                } else {
-                  console.log(`[SKIP MERCHANT] No name available for ${transaction.merchantId}, skipping merchant creation to avoid placeholder names`);
-                  // Skip creating merchants without proper names to avoid "Merchant MXXXXX" entries
-                  // The transaction will still be processed but with the original merchant ID
-                }
+                console.log(`[SKIP MERCHANT] No name available for ${merchantId}, will skip transactions for this merchant to avoid bad data`);
+                // Remove transactions without merchant names to avoid constraint violations
+                transactions = transactions.filter(t => t.merchantId !== merchantId);
+                console.log(`Filtered out transactions for merchant ${merchantId} due to missing name`);
               }
+            } else {
+              console.log(`Merchant ${merchantId} already exists, transactions will be added to existing merchant`);
             }
           }
           

@@ -27,6 +27,18 @@ Preferred communication style: Simple, everyday language.
 - **✅ SYSTEM RECOVERY**: Immediate seamless processing of new uploads after mass deletion - 109 new transactions from fresh files
 - **✅ PRODUCTION READY**: Delete merchant functionality fully operational with comprehensive data integrity and audit trails
 
+### Merchant Name and ID Generation Fix FULLY RESOLVED (July 19, 2025)
+- **✅ ELIMINATED PLACEHOLDER NAMES**: Fixed all "Merchant MXXXXX" placeholder name generation permanently
+- **✅ DISABLED M-PREFIX GENERATION**: Removed normalizeMerchantId() calls that automatically added "M" prefixes to numeric merchant IDs
+- **✅ AUTHENTIC CSV DATA ONLY**: System now uses merchant IDs and names exactly as found in CSV files
+- **✅ INTELLIGENT MATCHING FIRST**: When merchant names match existing merchants, transactions are added to existing merchants instead of creating duplicates
+- **✅ SELECTIVE MERCHANT CREATION**: Only creates new merchants when no match exists and authentic CSV name is available
+- **✅ SKIP BAD DATA**: System skips rows without valid Transaction IDs or Merchant IDs to prevent bad data generation
+- **✅ CLEAN DATABASE**: Successfully purged existing placeholder merchants from database
+- **✅ PRODUCTION READY**: Merchant creation now produces only authentic CSV-sourced merchants with proper names and IDs
+- **✅ DATABASE PURGE COMPLETED**: Successfully removed M-prefixed merchants and transactions from database to eliminate all legacy placeholder data
+- **✅ CLEAN MERCHANT DATABASE**: System now contains only authentic CSV merchants without artificial M-prefix IDs or placeholder names
+
 ### Complete Transaction Processing Paths Consolidation (July 19, 2025)
 - **✅ CRITICAL CODE PATH ISSUE RESOLVED**: Fixed multiple transaction processing paths causing inconsistent raw data storage and incrementation logic
 - **✅ RAW DATA PRESERVATION FIXED**: All transaction CSV parsing now stores rawData, sourceFileId, sourceRowNumber, and recordedAt fields consistently
