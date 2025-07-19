@@ -3130,7 +3130,7 @@ export class DatabaseStorage implements IStorage {
           console.log(`Batch inserting ${transactions.length} transactions into database...`);
           await db.insert(transactionsTable).values(transactions);
           console.log(`Successfully inserted ${transactions.length} transactions`);
-          resolve();
+          resolve({ rowsProcessed: rowCount, transactionsCreated: transactions.length, errors: errorCount });
         } catch (error) {
           console.error("Error inserting transactions into database:", error);
           
@@ -3144,24 +3144,52 @@ export class DatabaseStorage implements IStorage {
               // Check if merchant exists with the original merchant ID
               let existingMerchant = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId)).limit(1);
               
-              // If not found, try to find by generated ID pattern (M1001, M1002, etc.)
+              // If not found, try comprehensive merchant matching
               if (existingMerchant.length === 0) {
-                // Look for recently created merchants that might match this transaction
-                const recentMerchants = await db.select().from(merchantsTable)
-                  .where(like(merchantsTable.id, 'M%'))
-                  .orderBy(desc(merchantsTable.createdAt))
-                  .limit(10);
+                console.log(`Merchant ${merchantId} not found, trying comprehensive matching...`);
                 
-                // Try to find a merchant by name that contains the client ID
-                const nameMatch = recentMerchants.find(m => 
-                  m.name && m.name.toLowerCase().includes('final test') ||
-                  m.name && m.name.toLowerCase().includes('demo')
-                );
+                // Try to match by clientMID field
+                const clientMidMatch = await db.select().from(merchantsTable)
+                  .where(eq(merchantsTable.clientMID, merchantId))
+                  .limit(1);
                 
-                if (nameMatch) {
-                  merchantId = nameMatch.id;
-                  console.log(`Mapped transaction merchantId ${transaction.merchantId} to existing merchant ${merchantId}`);
-                  existingMerchant = [nameMatch];
+                if (clientMidMatch.length > 0) {
+                  merchantId = clientMidMatch[0].id;
+                  console.log(`Mapped transaction merchantId ${transaction.merchantId} to existing merchant ${merchantId} by clientMID`);
+                  existingMerchant = clientMidMatch;
+                } else {
+                  // Try to match by otherClientNumber1 or otherClientNumber2
+                  const clientNumberMatch = await db.select().from(merchantsTable)
+                    .where(
+                      or(
+                        eq(merchantsTable.otherClientNumber1, merchantId),
+                        eq(merchantsTable.otherClientNumber2, merchantId)
+                      )
+                    )
+                    .limit(1);
+                  
+                  if (clientNumberMatch.length > 0) {
+                    merchantId = clientNumberMatch[0].id;
+                    console.log(`Mapped transaction merchantId ${transaction.merchantId} to existing merchant ${merchantId} by client number`);
+                    existingMerchant = clientNumberMatch;
+                  } else {
+                    // Try to find merchant by partial name matching (for similar business names)
+                    const namePattern = merchantId.replace(/[^a-zA-Z0-9]/g, '%');
+                    const nameMatch = await db.select().from(merchantsTable)
+                      .where(
+                        or(
+                          like(merchantsTable.name, `%${namePattern}%`),
+                          like(merchantsTable.id, `%${merchantId}%`)
+                        )
+                      )
+                      .limit(1);
+                    
+                    if (nameMatch.length > 0) {
+                      merchantId = nameMatch[0].id;
+                      console.log(`Mapped transaction merchantId ${transaction.merchantId} to existing merchant ${merchantId} by name pattern`);
+                      existingMerchant = nameMatch;
+                    }
+                  }
                 }
               }
               

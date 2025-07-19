@@ -10,6 +10,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Transaction Merchant Matching Logic Enhancement (July 19, 2025)
+- **MERCHANT MATCHING IMPROVED**: Enhanced transaction import logic to properly link transactions to existing merchants instead of creating duplicates
+- **ROOT CAUSE IDENTIFIED**: Transaction imports were only checking basic ID matching, causing creation of generic "Merchant M1143873" entries
+- **COMPREHENSIVE MATCHING ADDED**: Added multi-tier matching by merchant ID, clientMID, otherClientNumber1/2, and name patterns
+- **INTELLIGENT FALLBACK**: System now tries clientMID matching, client number matching, and partial name matching before creating new merchants
+- **BATCH PROCESSING FIX**: Fixed return value in successful batch transaction insert to properly return processing metrics
+- **EXISTING DATA**: Current system has auto-created merchants (M1143873, M000042962978, etc.) from previous transaction imports that need manual cleanup
+- **FUTURE IMPORTS**: New transaction uploads will correctly match existing merchants and avoid duplicate creation
+
 ### File Processing Metrics Error Resolution (July 19, 2025)
 - **PROCESSING METRICS ERROR FIXED**: Resolved "Cannot read properties of undefined (reading 'rowsProcessed')" error in merchant file processing
 - **ROOT CAUSE IDENTIFIED**: processMerchantFileFromContent function was calling resolve() without returning expected ProcessingMetrics object
