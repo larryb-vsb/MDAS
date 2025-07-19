@@ -3203,7 +3203,14 @@ export class DatabaseStorage implements IStorage {
           // Format-specific field extraction
           if (detectedFormat === 'format1') {
             // Format1: Name, Account, Amount, Date, Code, Descr, TraceNbr
-            transactionData.amount = parseFloat(row.Amount?.toString().replace(/[$,"]/g, '').trim() || '0');
+            // Handle parentheses format (25.00) for negative amounts
+            let amountStr = row.Amount?.toString() || '0';
+            const isNegative = amountStr.includes('(') && amountStr.includes(')');
+            const cleanAmount = amountStr.replace(/[$,"()]/g, '').trim();
+            let amount = parseFloat(cleanAmount || '0');
+            if (isNegative) amount = Math.abs(amount); // Store as positive, let revenue calcs handle display
+            
+            transactionData.amount = amount;
             transactionData.date = new Date(row.Date);
             transactionData.type = transactionCodeMapping[row.Code] || row.Code || 'Unknown';
             transactionData.description = row.Descr || '';
@@ -3214,8 +3221,14 @@ export class DatabaseStorage implements IStorage {
                 if (dbField === 'date') {
                   transactionData[dbField as keyof InsertTransaction] = new Date(row[csvField]) as any;
                 } else if (dbField === 'amount') {
-                  const cleanAmount = row[csvField].toString().replace(/[$,"]/g, '').trim();
-                  transactionData[dbField as keyof InsertTransaction] = parseFloat(cleanAmount || '0').toString() as any;
+                  // Handle parentheses format (25.00) for negative amounts
+                  let amountStr = row[csvField].toString();
+                  const isNegative = amountStr.includes('(') && amountStr.includes(')');
+                  const cleanAmount = amountStr.replace(/[$,"()]/g, '').trim();
+                  let amount = parseFloat(cleanAmount || '0');
+                  if (isNegative) amount = Math.abs(amount); // Store as positive, let revenue calcs handle display
+                  
+                  transactionData[dbField as keyof InsertTransaction] = amount.toString() as any;
                 } else if (dbField === 'id' || dbField === 'merchantId') {
                   // Skip - already handled by unified extraction
                   continue;
