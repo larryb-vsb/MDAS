@@ -2,8 +2,15 @@ import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, ind
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Environment-specific table name helper
+function getTableName(baseName: string): string {
+  const NODE_ENV = typeof process !== 'undefined' ? process.env.NODE_ENV : 'production';
+  const prefix = NODE_ENV === 'development' ? 'dev_' : '';
+  return `${prefix}${baseName}`;
+}
+
 // Merchants table
-export const merchants = pgTable("merchants", {
+export const merchants = pgTable(getTableName("merchants"), {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   clientMID: text("client_mid"),
@@ -27,7 +34,7 @@ export const merchants = pgTable("merchants", {
 });
 
 // Transactions table
-export const transactions = pgTable("transactions", {
+export const transactions = pgTable(getTableName("transactions"), {
   id: text("id").primaryKey(),
   merchantId: text("merchant_id").notNull().references(() => merchants.id),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
@@ -41,7 +48,7 @@ export const transactions = pgTable("transactions", {
 });
 
 // Uploaded files table 
-export const uploadedFiles = pgTable("uploaded_files", {
+export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   id: text("id").primaryKey(),
   originalFilename: text("original_filename").notNull(),
   storagePath: text("storage_path"),
@@ -147,7 +154,7 @@ export const schemaVersionsSchema = createInsertSchema(schemaVersions);
 export const insertSchemaVersionSchema = schemaVersionsSchema.omit({ id: true });
 
 // Users table
-export const users = pgTable("users", {
+export const users = pgTable(getTableName("users"), {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
@@ -189,7 +196,7 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // Audit log table with performance optimizations
-export const auditLogs = pgTable("audit_logs", {
+export const auditLogs = pgTable(getTableName("audit_logs"), {
   id: serial("id").primaryKey(),
   entityType: text("entity_type").notNull(), // "merchant" or "transaction"
   entityId: text("entity_id").notNull(),
