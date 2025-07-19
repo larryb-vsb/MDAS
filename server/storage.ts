@@ -3057,9 +3057,9 @@ export class DatabaseStorage implements IStorage {
               console.log(`[PARSING DEBUG] Found merchant name: ${originalMerchantName} for ID: ${merchantId}`);
             }
             
-            // Map the new format fields
+            // Map the new format fields using TraceNbr as transaction ID
             transactionData = {
-              id: `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`,
+              id: row.TraceNbr || `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`,
               merchantId: merchantId,
               amount: parseFloat(row.Amount) || 0,
               date: new Date(row.Date),
@@ -3107,9 +3107,9 @@ export class DatabaseStorage implements IStorage {
               console.log(`[PARSING DEBUG DEFAULT] Added originalMerchantName to transaction: ${originalMerchantName}`);
             }
             
-            // Handle missing transaction ID
+            // Handle missing transaction ID - only generate if TransactionID not in CSV
             if (!transactionData.id) {
-              transactionData.id = `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`;
+              transactionData.id = row.TransactionID || `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`;
             }
             
             // CRITICAL: Ensure merchantId is set and exists in merchants table
