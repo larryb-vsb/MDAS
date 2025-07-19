@@ -3861,9 +3861,17 @@ export class DatabaseStorage implements IStorage {
           const originalName = (transaction as any).originalMerchantName;
           console.log(`[PRESERVATION DEBUG] Before pushing to array - originalMerchantName: ${originalName}`);
           
+          // Store raw CSV row data for tooltip display
+          const transactionWithRawData = {
+            ...transaction,
+            rawData: row,  // Store original CSV row for tooltip
+            sourceFileId: sourceFileId || null,  // Store source file ID
+            sourceRowNumber: rowCount,  // Store row number
+            recordedAt: new Date()  // Store processing timestamp
+          } as InsertTransaction & { originalMerchantName?: string; rawData?: any; sourceFileId?: string; sourceRowNumber?: number; recordedAt?: Date };
+          
           // Ensure originalMerchantName is preserved for advanced matching
-          const transactionWithName = transaction as InsertTransaction & { originalMerchantName?: string };
-          transactions.push(transactionWithName);
+          transactions.push(transactionWithRawData);
           
           // Verify after pushing
           const lastTrans = transactions[transactions.length - 1] as any;
@@ -4144,6 +4152,7 @@ export class DatabaseStorage implements IStorage {
             // Insert transaction with auto-increment for duplicates
             console.log(`[TRANSACTION] Inserting: ${transaction.id} for merchant ${transaction.merchantId}, amount: ${transaction.amount}`);
             
+            // The transaction already contains rawData from CSV parsing - use it directly
             let finalTransaction = { ...transaction };
             let insertAttempts = 0;
             let originalId = transaction.id;
