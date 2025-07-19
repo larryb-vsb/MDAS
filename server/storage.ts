@@ -2167,21 +2167,31 @@ export class DatabaseStorage implements IStorage {
           if (file.fileType === 'merchant') {
             try {
               // Always use database content first (database-first approach)
+              console.log(`[TRACE] Processing merchant file ${file.id} (${file.originalFilename})`);
               let dbContent = null;
               try {
+                console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
                 const dbContentResults = await db.execute(sql`
                   SELECT file_content FROM uploaded_files WHERE id = ${file.id}
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                }
               } catch (error) {
-                console.log(`Database content not available for ${file.id}`);
+                console.log(`[TRACE] Database content error for ${file.id}:`, error);
               }
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
-                console.log(`Processing merchant file from database content: ${file.id}`);
+                console.log(`[TRACE] Processing merchant file from database content: ${file.id}`);
                 await this.processMerchantFileFromContent(dbContent);
               } else {
-                console.error(`File ${file.id} (${file.originalFilename}): File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+                console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
+                console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
+                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
+                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.error(`[TRACE] Storage path: ${file.storagePath}`);
                 throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
               }
               
@@ -2231,21 +2241,31 @@ export class DatabaseStorage implements IStorage {
           } else if (file.fileType === 'transaction') {
             try {
               // Always use database content first (database-first approach)
+              console.log(`[TRACE] Processing transaction file ${file.id} (${file.originalFilename})`);
               let dbContent = null;
               try {
+                console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
                 const dbContentResults = await db.execute(sql`
                   SELECT file_content FROM uploaded_files WHERE id = ${file.id}
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                }
               } catch (error) {
-                console.log(`Database content not available for ${file.id}`);
+                console.log(`[TRACE] Database content error for ${file.id}:`, error);
               }
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
-                console.log(`Processing transaction file from database content: ${file.id}`);
+                console.log(`[TRACE] Processing transaction file from database content: ${file.id}`);
                 await this.processTransactionFileFromContent(dbContent);
               } else {
-                console.error(`File ${file.id} (${file.originalFilename}): File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+                console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
+                console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
+                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
+                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.error(`[TRACE] Storage path: ${file.storagePath}`);
                 throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
               }
               
