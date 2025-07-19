@@ -365,25 +365,34 @@ export default function Uploads() {
 
   function formatFileDate(dateString: string) {
     const date = new Date(dateString);
-    // Check if date is recent (within last 24 hours)
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
+    const diffInHours = diffInMinutes / 60;
     
-    if (diffInHours < 24 && diffInHours >= 0) {
-      // For recent uploads, show relative time without "ago" for very recent files
-      if (diffInHours < 1) {
-        return "Just now";
-      }
-      return formatDistanceToNow(date, { addSuffix: true });
-    } else {
-      // For older uploads or future dates (timezone issues), show actual date/time
+    // For very recent uploads (less than 2 minutes)
+    if (diffInMinutes < 2 && diffInMinutes >= 0) {
+      return "Just now";
+    }
+    // For recent uploads (less than 1 hour)
+    else if (diffInHours < 1 && diffInHours >= 0) {
+      const minutes = Math.floor(diffInMinutes);
+      return `${minutes} min ago`;
+    }
+    // For uploads today (less than 24 hours)
+    else if (diffInHours < 24 && diffInHours >= 0) {
+      const hours = Math.floor(diffInHours);
+      return `${hours}h ago`;
+    }
+    // For older uploads, show local date/time
+    else {
       return format(date, "MMM d, h:mm a");
     }
   }
 
   function formatFullDate(dateString: string) {
     const date = new Date(dateString);
-    return format(date, "PPpp"); // Example: "Apr 29, 2021, 2:00 PM"
+    // Show full local date and time with timezone
+    return format(date, "MMM d, yyyy 'at' h:mm:ss a"); 
   }
 
   // Handle viewing file error

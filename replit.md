@@ -12,6 +12,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Upload Time Display Fix and Smart Duplicate Handling (July 19, 2025)
 - **UPLOAD TIME FIXED**: Fixed timezone issue where upload times showed "in about 5 hours" instead of actual time
+- **LOCAL TIME DISPLAY**: Improved time formatting to show "Just now", "X min ago", "Xh ago" for recent uploads in local timezone
+- **DETAILED TIMESTAMPS**: Full date/time format shows complete local timestamp with seconds for precise tracking
 - **FOREIGN KEY FIXES**: Implemented intelligent merchant auto-creation when transactions reference non-existent merchant IDs
 - **SMART MAPPING**: Added merchant ID mapping logic to connect transactions with recently created merchants
 - **DUPLICATE HANDLING**: Enhanced existing duplicate transaction logic with overwrite/update capabilities  
