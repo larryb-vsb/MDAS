@@ -453,6 +453,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Real-time database processing statistics endpoint
+  app.get("/api/processing/real-time-stats", async (req, res) => {
+    try {
+      // Get real-time file processing statistics from database
+      const result = await pool.query(`
+        SELECT 
+          COUNT(*) as total_files,
+          COUNT(CASE WHEN processed = false AND deleted = false THEN 1 END) as queued_files,
+          COUNT(CASE WHEN processed = true AND deleted = false THEN 1 END) as processed_files,
+          COUNT(CASE WHEN processed = true AND processing_errors IS NOT NULL AND deleted = false THEN 1 END) as files_with_errors,
+          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files
+        FROM uploaded_files
+      `);
+
+      const stats = result.rows[0];
+      
+      res.json({
+        totalFiles: parseInt(stats.total_files),
+        queuedFiles: parseInt(stats.queued_files),
+        processedFiles: parseInt(stats.processed_files),
+        filesWithErrors: parseInt(stats.files_with_errors),
+        recentFiles: parseInt(stats.recent_files),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching real-time processing stats:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch processing statistics" 
+      });
+    }
+  });
+
   app.get("/api/settings/database", async (req, res) => {
     try {
       // Get PostgreSQL version

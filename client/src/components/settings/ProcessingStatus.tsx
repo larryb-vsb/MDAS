@@ -31,12 +31,28 @@ interface ProcessingStatus {
   };
 }
 
+interface RealTimeStats {
+  totalFiles: number;
+  queuedFiles: number;
+  processedFiles: number;
+  filesWithErrors: number;
+  recentFiles: number;
+  timestamp: string;
+}
+
 export default function ProcessingStatus() {
   const queryClient = useQueryClient();
 
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
     queryKey: ["/api/file-processor/status"],
+    refetchInterval: 2000, // Update every 2 seconds
+    staleTime: 1000, // Consider data stale after 1 second
+  });
+
+  // Fetch real-time database statistics
+  const { data: realTimeStats, isLoading: isStatsLoading } = useQuery<RealTimeStats>({
+    queryKey: ["/api/processing/real-time-stats"],
     refetchInterval: 2000, // Update every 2 seconds
     staleTime: 1000, // Consider data stale after 1 second
   });
@@ -85,7 +101,7 @@ export default function ProcessingStatus() {
     },
   });
 
-  if (isLoading || !status) {
+  if (isLoading || !status || isStatsLoading || !realTimeStats) {
     return (
       <Card>
         <CardHeader>
@@ -147,7 +163,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Queue Status</div>
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-lg font-semibold">{status.queuedFiles.length}</span>
+                <span className="text-lg font-semibold">{realTimeStats.queuedFiles}</span>
                 <span className="text-sm text-muted-foreground">files queued</span>
               </div>
             </div>
@@ -155,7 +171,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Files Processed</div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-lg font-semibold">{status.processedFileCount}</span>
+                <span className="text-lg font-semibold">{realTimeStats.processedFiles}</span>
                 <span className="text-sm text-muted-foreground">completed</span>
               </div>
             </div>
@@ -197,9 +213,9 @@ export default function ProcessingStatus() {
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-semibold text-orange-600">
-                    {status.duplicateResolutionStats?.totalDuplicates || 0}
+                    {realTimeStats.filesWithErrors}
                   </div>
-                  <div className="text-muted-foreground">Duplicates</div>
+                  <div className="text-muted-foreground">Errors</div>
                 </div>
                 <div className="text-center">
                   <div className="text-lg font-semibold text-green-600">
