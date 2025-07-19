@@ -2167,14 +2167,17 @@ export class DatabaseStorage implements IStorage {
           const file = fileResults[0];
           console.log(`Processing file: ID=${file.id}, Type=${file.fileType}, Name=${file.originalFilename}`);
           
-          // Mark file as currently processing
+          // Mark file as currently processing with detailed tracking
+          const processingStartTime = new Date();
           await db.execute(sql`
             UPDATE uploaded_files 
             SET processing_status = 'processing', 
-                processing_started_at = NOW(),
+                processing_started_at = ${processingStartTime.toISOString()},
                 processing_server_id = 'main'
             WHERE id = ${file.id}
           `);
+          
+          console.log(`⏱️ PROCESSING STARTED: ${file.originalFilename} at ${processingStartTime.toISOString()}`);
           
           // Process based on file type
           if (file.fileType === 'merchant') {

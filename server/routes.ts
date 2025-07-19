@@ -1530,6 +1530,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Processing metrics endpoint for detailed evidence
+  app.get("/api/uploads/processing-metrics", isAuthenticated, async (req, res) => {
+    try {
+      const processorStatus = fileProcessorService.getStatus();
+      const currentlyProcessing = fileProcessorService.getCurrentlyProcessingFile();
+      
+      // Get recent processing times from database with evidence
+      const recentCompletedFiles = await db.execute(sql`
+        SELECT id, original_filename, file_type, processed_at, 
+               processing_started_at, processing_completed_at,
+               processing_errors
+        FROM uploaded_files 
+        WHERE processing_status = 'completed' 
+          AND processing_started_at IS NOT NULL 
+          AND processing_completed_at IS NOT NULL
+          AND deleted = false
+        ORDER BY processing_completed_at DESC 
+        LIMIT 15
+      `);
+      
+      // Calculate detailed processing times with evidence
+      const processingTimes = recentCompletedFiles.rows.map(file => {
+        const startTime = new Date(file.processing_started_at as string);
+        const endTime = new Date(file.processing_completed_at as string);
+        const processingTimeMs = endTime.getTime() - startTime.getTime();
+        const processingTimeSec = (processingTimeMs / 1000).toFixed(2);
+        
+        return {
+          id: file.id,
+          filename: file.original_filename,
+          fileType: file.file_type,
+          processingTimeSeconds: parseFloat(processingTimeSec),
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          hasErrors: !!file.processing_errors
+        };
+      });
+      
+      // Calculate performance metrics
+      const averageProcessingTime = processingTimes.length > 0 
+        ? (processingTimes.reduce((sum, p) => sum + p.processingTimeSeconds, 0) / processingTimes.length).toFixed(2)
+        : 0;
+      
+      const fastestTime = processingTimes.length > 0 
+        ? Math.min(...processingTimes.map(p => p.processingTimeSeconds)).toFixed(2)
+        : 0;
+        
+      const slowestTime = processingTimes.length > 0 
+        ? Math.max(...processingTimes.map(p => p.processingTimeSeconds)).toFixed(2)
+        : 0;
+      
+      res.json({
+        processorStatus,
+        currentlyProcessing,
+        performanceMetrics: {
+          averageProcessingTimeSeconds: parseFloat(averageProcessingTime as string),
+          fastestProcessingTimeSeconds: parseFloat(fastestTime as string),
+          slowestProcessingTimeSeconds: parseFloat(slowestTime as string),
+          totalRecentFiles: processingTimes.length,
+          filesWithErrors: processingTimes.filter(p => p.hasErrors).length
+        },
+        recentProcessingEvidence: processingTimes,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error getting processing metrics:", error);
+      res.status(500).json({ error: "Failed to get processing metrics" });
+    }
+  });
+
   // Get queue status for real-time monitoring
   app.get("/api/uploads/queue-status", isAuthenticated, async (req, res) => {
     try {

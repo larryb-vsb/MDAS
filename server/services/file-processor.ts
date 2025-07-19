@@ -233,23 +233,42 @@ class FileProcessorService {
       console.log(`Found ${unprocessedFiles.length} unprocessed files to process`);
       this.queuedFiles = [...unprocessedFiles];
       
-      // Process each file
-      const fileIds = unprocessedFiles.map(file => file.id);
-      
-      try {
-        this.processingStats.startTime = new Date();
-        this.processingStats.transactionsProcessed = 0;
-        
-        await storage.combineAndProcessUploads(fileIds);
-        console.log(`Successfully processed ${fileIds.length} files`);
-        this.processedFileCount += fileIds.length;
-      } catch (error) {
-        console.error("Error processing files:", error);
-        // Record the error
-        if (error instanceof Error) {
-          fileIds.forEach(fileId => {
-            this.processingErrors[fileId] = error.message;
-          });
+      // Process files one by one to track individual processing
+      for (const file of unprocessedFiles) {
+        try {
+          console.log(`\n=== PROCESSING FILE: ${file.originalFilename} (ID: ${file.id}) ===`);
+          const startTime = new Date();
+          
+          // Update currently processing file info
+          this.currentlyProcessingFile = {
+            id: file.id,
+            filename: file.originalFilename,
+            fileType: file.fileType,
+            startTime: startTime,
+            transactionsProcessed: 0
+          };
+          
+          this.processingStats.startTime = startTime;
+          this.processingStats.transactionsProcessed = 0;
+          
+          await storage.combineAndProcessUploads([file.id]);
+          
+          const endTime = new Date();
+          const processingTimeMs = endTime.getTime() - startTime.getTime();
+          const processingTimeSec = (processingTimeMs / 1000).toFixed(2);
+          
+          console.log(`✅ COMPLETED: ${file.originalFilename} in ${processingTimeSec} seconds`);
+          this.processedFileCount += 1;
+          
+          // Clear currently processing file
+          this.currentlyProcessingFile = null;
+          
+        } catch (error) {
+          console.error(`❌ FAILED: ${file.originalFilename} - ${error.message}`);
+          if (error instanceof Error) {
+            this.processingErrors[file.id] = error.message;
+          }
+          this.currentlyProcessingFile = null;
         }
       }
       
