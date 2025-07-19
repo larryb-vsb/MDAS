@@ -10,7 +10,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Smart Duplicate Handling and Foreign Key Constraint Resolution (July 19, 2025)
+### Upload Time Display Fix and Smart Duplicate Handling (July 19, 2025)
+- **UPLOAD TIME FIXED**: Fixed timezone issue where upload times showed "in about 5 hours" instead of actual time
 - **FOREIGN KEY FIXES**: Implemented intelligent merchant auto-creation when transactions reference non-existent merchant IDs
 - **SMART MAPPING**: Added merchant ID mapping logic to connect transactions with recently created merchants
 - **DUPLICATE HANDLING**: Enhanced existing duplicate transaction logic with overwrite/update capabilities  
