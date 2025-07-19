@@ -3529,10 +3529,46 @@ export class DatabaseStorage implements IStorage {
                 await db.insert(merchantsTable).values(newMerchant);
               }
               
-              // Update transaction with correct merchant ID and insert
+              // Update transaction with correct merchant ID and implement intelligent duplicate handling
               const updatedTransaction = { ...transaction, merchantId };
-              await db.insert(transactionsTable).values(updatedTransaction);
-              console.log(`Successfully inserted transaction ${transaction.id} with merchant ${merchantId}`);
+              
+              // Intelligent duplicate handling with incrementation
+              let finalTransactionId = updatedTransaction.id;
+              let insertAttempt = 0;
+              let insertSuccessful = false;
+              
+              while (!insertSuccessful && insertAttempt < 100) { // Prevent infinite loop
+                try {
+                  const transactionToInsert = { ...updatedTransaction, id: finalTransactionId };
+                  await db.insert(transactionsTable).values(transactionToInsert);
+                  console.log(`Successfully inserted transaction ${finalTransactionId} with merchant ${merchantId}`);
+                  insertSuccessful = true;
+                } catch (insertError: any) {
+                  if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
+                    // Transaction ID already exists - implement intelligent incrementation
+                    insertAttempt++;
+                    
+                    // Check if original ID is numeric
+                    if (!isNaN(Number(updatedTransaction.id))) {
+                      // Numeric ID - increment by 0.1
+                      const baseId = parseFloat(updatedTransaction.id);
+                      finalTransactionId = (baseId + (insertAttempt * 0.1)).toString();
+                    } else {
+                      // Non-numeric ID - append suffix
+                      finalTransactionId = `${updatedTransaction.id}_${insertAttempt}`;
+                    }
+                    
+                    console.log(`Duplicate transaction ID detected. Trying incremented ID: ${finalTransactionId}`);
+                  } else {
+                    // Different error - re-throw
+                    throw insertError;
+                  }
+                } 
+              }
+              
+              if (!insertSuccessful) {
+                throw new Error(`Failed to insert transaction after ${insertAttempt} attempts due to persistent duplicates`);
+              }
               
             } catch (individualError: any) {
               console.error(`Failed to insert transaction ${transaction.id}:`, individualError);
