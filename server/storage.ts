@@ -3084,7 +3084,6 @@ export class DatabaseStorage implements IStorage {
             // Handle default format using existing field mappings
             for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
               if (csvField && row[csvField] !== undefined) {
-                console.log(`[FIELD MAPPING] Processing ${dbField} from CSV field ${csvField}: ${row[csvField]}`);
                 if (dbField === 'date') {
                   transactionData[dbField as keyof InsertTransaction] = new Date(row[csvField]) as any;
                 } else if (dbField === 'amount') {
@@ -3099,7 +3098,6 @@ export class DatabaseStorage implements IStorage {
                 } else if (dbField === 'id') {
                   // CRITICAL: Ensure we use the actual CSV TransactionID
                   transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
-                  console.log(`[TRANSACTION ID] Using CSV TransactionID: ${row[csvField]}`);
                 } else {
                   transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
                 }
