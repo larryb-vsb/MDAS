@@ -1369,10 +1369,19 @@ export default function Uploads() {
                         <div>{formatFullDate(metadataFile.processingCompletedAt)}</div>
                       </div>
                     )}
-                    {metadataFile.processingTimeMs && (
+                    {(metadataFile.processingTimeMs || 
+                      (metadataFile.processingStartedAt && metadataFile.processingCompletedAt)) && (
                       <div>
                         <span className="font-medium text-muted-foreground">Duration:</span>
-                        <div>{(metadataFile.processingTimeMs / 1000).toFixed(2)} seconds</div>
+                        <div>
+                          {metadataFile.processingTimeMs 
+                            ? `${(metadataFile.processingTimeMs / 1000).toFixed(2)} seconds`
+                            : metadataFile.processingStartedAt && metadataFile.processingCompletedAt
+                              ? `${((new Date(metadataFile.processingCompletedAt).getTime() - 
+                                   new Date(metadataFile.processingStartedAt).getTime()) / 1000).toFixed(2)} seconds`
+                              : 'Calculating...'
+                          }
+                        </div>
                       </div>
                     )}
                   </div>

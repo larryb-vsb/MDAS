@@ -2201,7 +2201,30 @@ export class DatabaseStorage implements IStorage {
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing merchant file from database content: ${file.id}`);
-                await this.processMerchantFileFromContent(dbContent);
+                const processingMetrics = await this.processMerchantFileFromContent(dbContent);
+                
+                // Calculate processing time in milliseconds
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics
+                await db.execute(sql`
+                  UPDATE uploaded_files 
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.merchantsCreated - processingMetrics.merchantsUpdated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({
+                        totalRows: processingMetrics.rowsProcessed,
+                        merchantsCreated: processingMetrics.merchantsCreated,
+                        merchantsUpdated: processingMetrics.merchantsUpdated,
+                        errors: processingMetrics.errors,
+                        processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
+                      })}
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`📊 METRICS: Processed ${processingMetrics.rowsProcessed} rows, created ${processingMetrics.merchantsCreated} merchants, updated ${processingMetrics.merchantsUpdated} merchants, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
               } else {
                 console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
                 console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
@@ -2275,7 +2298,29 @@ export class DatabaseStorage implements IStorage {
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing transaction file from database content: ${file.id}`);
-                await this.processTransactionFileFromContent(dbContent);
+                const processingMetrics = await this.processTransactionFileFromContent(dbContent);
+                
+                // Calculate processing time in milliseconds
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics
+                await db.execute(sql`
+                  UPDATE uploaded_files 
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.transactionsCreated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({
+                        totalRows: processingMetrics.rowsProcessed,
+                        transactionsCreated: processingMetrics.transactionsCreated,
+                        errors: processingMetrics.errors,
+                        processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
+                      })}
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`📊 METRICS: Processed ${processingMetrics.rowsProcessed} rows, created ${processingMetrics.transactionsCreated} transactions, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
               } else {
                 console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
                 console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
@@ -2372,7 +2417,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process merchant file from database content (new format)
-  async processMerchantFileFromContent(base64Content: string): Promise<void> {
+  async processMerchantFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
     console.log(`=================== MERCHANT FILE PROCESSING (DATABASE) ===================`);
     console.log(`Processing merchant file from database content`);
     
@@ -2900,7 +2945,12 @@ export class DatabaseStorage implements IStorage {
           });
           
           console.log(`\n=================== COMPLETE ===================`);
-          resolve();
+          resolve({ 
+            rowsProcessed: stats.totalRows, 
+            merchantsCreated: insertedCount, 
+            merchantsUpdated: updatedCount, 
+            errors: errorCount 
+          });
         } catch (error) {
           console.error("Error updating merchants in database:", error);
           reject(error);
@@ -2910,7 +2960,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process transaction file from database content (new format)
-  async processTransactionFileFromContent(base64Content: string): Promise<void> {
+  async processTransactionFileFromContent(base64Content: string): Promise<{ rowsProcessed: number; transactionsCreated: number; errors: number }> {
     console.log(`=================== TRANSACTION FILE PROCESSING (DATABASE) ===================`);
     console.log(`Processing transaction file from database content`);
     
@@ -3064,7 +3114,7 @@ export class DatabaseStorage implements IStorage {
         
         if (transactions.length === 0) {
           console.log("No valid transaction data found to insert.");
-          return resolve();
+          return resolve({ rowsProcessed: rowCount, transactionsCreated: 0, errors: errorCount });
         }
         
         try {
@@ -3139,7 +3189,7 @@ export class DatabaseStorage implements IStorage {
             }
           }
           
-          resolve();
+          resolve({ rowsProcessed: rowCount, transactionsCreated: transactions.length, errors: errorCount });
         }
       });
       
