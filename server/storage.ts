@@ -1857,9 +1857,10 @@ export class DatabaseStorage implements IStorage {
     year?: number;
   }[]> {
     try {
-      // Fetch all transactions for this merchant using raw SQL
+      // Fetch all transactions for this merchant using environment-specific table
+      const transactionsTableName = getTableName('transactions');
       const transactionsQuery = await db.execute(sql`
-        SELECT id, amount, date FROM transactions WHERE merchant_id = ${merchantId}
+        SELECT id, amount, date FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
       `);
       const allMerchantTransactions = transactionsQuery.rows;
         
@@ -1903,10 +1904,10 @@ export class DatabaseStorage implements IStorage {
         
         console.log(`Looking for transactions for merchant ${merchantId} between ${month.toISOString()} and ${nextMonth.toISOString()}`);
         
-        // Get transactions for this month using raw SQL
+        // Get transactions for this month using environment-specific table
         const monthQuery = await db.execute(sql`
           SELECT id, amount, type, date 
-          FROM transactions 
+          FROM ${sql.identifier(transactionsTableName)}
           WHERE merchant_id = ${merchantId} 
           AND date >= ${month.toISOString()} 
           AND date <= ${nextMonth.toISOString()}
@@ -1963,9 +1964,10 @@ export class DatabaseStorage implements IStorage {
     monthly: { transactions: number; revenue: number };
   }> {
     try {
-      // Get all transactions for this merchant using raw SQL
+      // Get all transactions for this merchant using environment-specific table
+      const transactionsTableName = getTableName('transactions');
       const transactionsQuery = await db.execute(sql`
-        SELECT id, amount, date, type FROM transactions WHERE merchant_id = ${merchantId}
+        SELECT id, amount, date, type FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
       `);
       const allTransactions = transactionsQuery.rows;
         

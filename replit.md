@@ -30,6 +30,8 @@ Preferred communication style: Simple, everyday language.
 - **✅ FILE PROCESSING FIXED**: combineAndProcessUploads function updated to use environment-specific tables
 - **✅ DATABASE-FIRST PROCESSING**: All file processing now uses database content instead of temporary file paths
 - **✅ "FILE NOT FOUND" ERROR ELIMINATED**: Complete resolution of temporary file removal errors
+- **✅ MERCHANT CHART DISPLAY FIXED**: Updated getMerchantStats and getTransactionHistoryByMonth to use environment-specific tables
+- **✅ DASHBOARD CHARTS OPERATIONAL**: Merchant detail charts now display real transaction data (e.g., SOODAKS INC shows $2796.00 revenue)
 - **✅ PRODUCTION READY**: Full web interface authentication and data separation working correctly
 
 ### Dashboard Revenue Calculation Issue COMPLETELY RESOLVED (July 19, 2025)
