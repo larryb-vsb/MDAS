@@ -5,11 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface ProcessingStatusData {
   uploads: any[];
+  pagination: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    totalPages: number;
+  };
   processorStatus: {
     isRunning: boolean;
     currentlyProcessingFile?: any;
@@ -34,15 +40,18 @@ export default function ProcessingFilters() {
   const [activeStatusFilter, setActiveStatusFilter] = useState('all');
   const [activeFileTypeFilter, setActiveFileTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('uploadDate');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Fetch processing status with filters
   const { data: processingData, isLoading, refetch } = useQuery<ProcessingStatusData>({
-    queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter],
+    queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams({
         status: activeStatusFilter,
         fileType: activeFileTypeFilter,
-        limit: '20'
+        limit: itemsPerPage.toString(),
+        page: currentPage.toString()
       });
       const response = await fetch(`/api/uploads/processing-status?${params}`, {
         credentials: 'include'
@@ -80,6 +89,28 @@ export default function ProcessingFilters() {
       default: return <FileText className="h-3 w-3" />;
     }
   };
+
+  // Reset to page 1 when filters change
+  const handleStatusFilterChange = (value: string) => {
+    setActiveStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleFileTypeFilterChange = (value: string) => {
+    setActiveFileTypeFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
+    setCurrentPage(1);
+  };
+
+  // Use server-side pagination data
+  const pagination = processingData?.pagination;
+  const totalFiles = pagination?.totalItems || 0;
+  const totalPages = pagination?.totalPages || 1;
+  const displayedFiles = processingData?.uploads || [];
 
   return (
     <div className="space-y-6">
@@ -176,7 +207,7 @@ export default function ProcessingFilters() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeStatusFilter} onValueChange={setActiveStatusFilter}>
+          <Tabs value={activeStatusFilter} onValueChange={handleStatusFilterChange}>
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">All Files</TabsTrigger>
               <TabsTrigger value="queued">Queued</TabsTrigger>
@@ -185,8 +216,8 @@ export default function ProcessingFilters() {
               <TabsTrigger value="error">Errors</TabsTrigger>
             </TabsList>
 
-            <div className="flex gap-4 mt-4">
-              <Select value={activeFileTypeFilter} onValueChange={setActiveFileTypeFilter}>
+            <div className="flex gap-4 mt-4 flex-wrap">
+              <Select value={activeFileTypeFilter} onValueChange={handleFileTypeFilterChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="File Type" />
                 </SelectTrigger>
@@ -197,7 +228,7 @@ export default function ProcessingFilters() {
                 </SelectContent>
               </Select>
 
-              <Select value={sortBy} onValueChange={setSortBy}>
+              <Select value={sortBy} onValueChange={handleSortChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
@@ -205,6 +236,21 @@ export default function ProcessingFilters() {
                   <SelectItem value="uploadDate">Upload Date</SelectItem>
                   <SelectItem value="processedDate">Processed Date</SelectItem>
                   <SelectItem value="filename">Filename</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Per Page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 per page</SelectItem>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -215,42 +261,90 @@ export default function ProcessingFilters() {
                   <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {(!processingData?.uploads || processingData.uploads.length === 0) ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No files found matching the current filters</p>
-                    </div>
-                  ) : (
-                    processingData.uploads.map((file) => (
-                      <Card key={file.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {(!processingData?.uploads || processingData.uploads.length === 0) ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No files found matching the current filters</p>
+                      </div>
+                    ) : (
+                      displayedFiles.map((file) => (
+                        <Card key={file.id} className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium truncate">{file.originalFilename}</h3>
+                                <Badge variant="outline" className="text-xs">
+                                  {file.fileType}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                <span>Uploaded: {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}</span>
+                                {file.processedAt && (
+                                  <span>Processed: {formatDistanceToNow(new Date(file.processedAt), { addSuffix: true })}</span>
+                                )}
+                                {file.processingStartedAt && !file.processedAt && (
+                                  <span>Started: {formatDistanceToNow(new Date(file.processingStartedAt), { addSuffix: true })}</span>
+                                )}
+                              </div>
+                            </div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-medium truncate">{file.originalFilename}</h3>
-                              <Badge variant="outline" className="text-xs">
-                                {file.fileType}
+                              <Badge className={`${getStatusColor(file.processingStatus)} flex items-center gap-1`}>
+                                {getStatusIcon(file.processingStatus)}
+                                {file.processingStatus || 'queued'}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                              <span>Uploaded: {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}</span>
-                              {file.processedAt && (
-                                <span>Processed: {formatDistanceToNow(new Date(file.processedAt), { addSuffix: true })}</span>
-                              )}
-                              {file.processingStartedAt && !file.processedAt && (
-                                <span>Started: {formatDistanceToNow(new Date(file.processingStartedAt), { addSuffix: true })}</span>
-                              )}
-                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={`${getStatusColor(file.processingStatus)} flex items-center gap-1`}>
-                              {getStatusIcon(file.processingStatus)}
-                              {file.processingStatus || 'queued'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </Card>
-                    ))
+                        </Card>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalFiles > 0 && (
+                    <div className="flex items-center justify-between border-t pt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalFiles)} of {totalFiles} files
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(1)}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronsLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm px-3">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(totalPages)}
+                          disabled={currentPage === totalPages}
+                        >
+                          <ChevronsRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

@@ -1440,8 +1440,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get enhanced processing status with filters
   app.get("/api/uploads/processing-status", isAuthenticated, async (req, res) => {
     try {
-      const { status = 'all', fileType = 'all', limit = '20' } = req.query;
+      const { status = 'all', fileType = 'all', limit = '20', page = '1' } = req.query;
       const limitNum = parseInt(limit as string) || 20;
+      const pageNum = parseInt(page as string) || 1;
+      const offset = (pageNum - 1) * limitNum;
       
       // Build query based on status filter to get relevant files
       let baseQuery = sql`
@@ -1512,8 +1514,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         queuedFiles: uploads.filter(f => f.processingStatus === 'queued')
       };
 
+      // Apply pagination
+      const paginatedUploads = uploads.slice(offset, offset + limitNum);
+      
       res.json({
-        uploads: uploads.slice(0, limitNum),
+        uploads: paginatedUploads,
+        pagination: {
+          currentPage: pageNum,
+          totalItems: uploads.length,
+          itemsPerPage: limitNum,
+          totalPages: Math.ceil(uploads.length / limitNum)
+        },
         processorStatus,
         filters: {
           status: ['all', 'queued', 'processing', 'completed', 'error'],
