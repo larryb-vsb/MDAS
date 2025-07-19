@@ -200,6 +200,7 @@ class FileProcessorService {
         )
       );
     
+    console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files in ${process.env.NODE_ENV} environment`);
     return unprocessedFiles;
   }
 
