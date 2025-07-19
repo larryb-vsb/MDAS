@@ -251,6 +251,18 @@ export default function MerchantDetail() {
       return res.json();
     })
   });
+
+  // Debug: Log when merchant data changes
+  React.useEffect(() => {
+    if (data?.merchant) {
+      console.log('[FRONTEND] Merchant data updated:', {
+        id: data.merchant.id,
+        editDate: data.merchant.editDate,
+        updatedBy: data.merchant.updatedBy,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [data?.merchant.editDate, data?.merchant.updatedBy]);
   
   // Date range for transaction history visualization
   const [dateRange, setDateRange] = useState({
