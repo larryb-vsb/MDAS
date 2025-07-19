@@ -3070,7 +3070,7 @@ export class DatabaseStorage implements IStorage {
             transactionData = {
               id: row.TraceNbr || `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`,
               merchantId: merchantId,
-              amount: parseFloat(row.Amount) || 0,
+              amount: parseFloat(row.Amount.toString().replace(/[$,"]/g, '').trim()) || 0,
               date: new Date(row.Date),
               type: transactionCodeMapping[row.Code] || row.Code || 'Unknown',
               description: row.Descr || '',
