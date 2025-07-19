@@ -639,8 +639,18 @@ export class DatabaseStorage implements IStorage {
       
       // updatedBy field requires explicit string conversion due to database encoding
       
-      // Get merchant transactions
-      const transactions = await db.select()
+      // Get merchant transactions with raw data and source file info
+      const transactions = await db.select({
+        id: transactionsTable.id,
+        merchantId: transactionsTable.merchantId,
+        amount: transactionsTable.amount,
+        date: transactionsTable.date,
+        type: transactionsTable.type,
+        rawData: transactionsTable.rawData,
+        sourceFileId: transactionsTable.sourceFileId,
+        sourceRowNumber: transactionsTable.sourceRowNumber,
+        recordedAt: transactionsTable.recordedAt
+      })
         .from(transactionsTable)
         .where(eq(transactionsTable.merchantId, merchantId))
         .orderBy(desc(transactionsTable.date))
@@ -654,13 +664,38 @@ export class DatabaseStorage implements IStorage {
       
       console.log("Transaction history for charts:", JSON.stringify(transactionHistory));
       
+      // Get source file names for transactions that have sourceFileId
+      const sourceFileIds = transactions
+        .map(t => t.sourceFileId)
+        .filter(Boolean)
+        .filter((id, index, arr) => arr.indexOf(id) === index); // Unique IDs
+
+      let sourceFiles: Record<string, string> = {};
+      if (sourceFileIds.length > 0) {
+        const filesData = await db.select({
+          id: uploadedFilesTable.id,
+          originalName: uploadedFilesTable.originalName
+        })
+          .from(uploadedFilesTable)
+          .where(sql`${uploadedFilesTable.id} = ANY(${sourceFileIds})`);
+        
+        sourceFiles = filesData.reduce((acc, file) => {
+          acc[file.id] = file.originalName;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
       // Format transactions for display
       const formattedTransactions = transactions.map(t => ({
         transactionId: t.id,
         merchantId: t.merchantId,
         amount: parseFloat(t.amount.toString()),
         date: t.date.toISOString(),
-        type: t.type
+        type: t.type,
+        rawData: t.rawData,
+        sourceFileName: t.sourceFileId ? sourceFiles[t.sourceFileId] || 'Unknown' : null,
+        sourceRowNumber: t.sourceRowNumber,
+        recordedAt: t.recordedAt ? t.recordedAt.toISOString() : null
       }));
       
       return {

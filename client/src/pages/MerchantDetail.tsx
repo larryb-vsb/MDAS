@@ -56,7 +56,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -933,6 +939,7 @@ export default function MerchantDetail() {
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>CSV Info</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -974,12 +981,54 @@ export default function MerchantDetail() {
                                     {transaction.type === 'Credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                                   </span>
                                 </TableCell>
+                                <TableCell>
+                                  {(transaction as any).sourceFileName || (transaction as any).rawData ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-8 px-2 text-blue-600 hover:text-blue-800">
+                                            CSV
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-md p-3">
+                                          <div className="space-y-2 text-sm">
+                                            {(transaction as any).sourceFileName && (
+                                              <div>
+                                                <strong>File:</strong> {(transaction as any).sourceFileName}
+                                              </div>
+                                            )}
+                                            {(transaction as any).sourceRowNumber && (
+                                              <div>
+                                                <strong>Row:</strong> {(transaction as any).sourceRowNumber}
+                                              </div>
+                                            )}
+                                            {(transaction as any).recordedAt && (
+                                              <div>
+                                                <strong>Imported:</strong> {new Date((transaction as any).recordedAt).toLocaleString()}
+                                              </div>
+                                            )}
+                                            {(transaction as any).rawData && (
+                                              <div>
+                                                <strong>CSV Data:</strong>
+                                                <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                                                  {(transaction as any).rawData}
+                                                </pre>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">-</span>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             ));
                           } else {
                             return (
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                                <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                                   No transactions found for the selected time period.
                                   <div className="mt-2">
                                     <span className="text-sm text-muted-foreground">
@@ -993,7 +1042,7 @@ export default function MerchantDetail() {
                         } else {
                           return (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                              <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                                 No transactions found for this merchant.
                               </TableCell>
                             </TableRow>
@@ -1121,7 +1170,7 @@ export default function MerchantDetail() {
                           />
                           <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
                           <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                          <Tooltip formatter={(value, name) => {
+                          <RechartsTooltip formatter={(value, name) => {
                             if (name === "revenue") return [formatCurrency(value as number), "Revenue"];
                             return [value, "Transactions"];
                           }} />
@@ -1222,7 +1271,7 @@ export default function MerchantDetail() {
                               }).format(value as number)
                             }
                           />
-                          <Tooltip formatter={(value) => [
+                          <RechartsTooltip formatter={(value) => [
                             formatCurrency(value as number), 
                             "Revenue"
                           ]} />
