@@ -535,13 +535,13 @@ export default function MerchantDetail() {
                 data?.merchant.name
               )}
             </h1>
-            <p className="text-gray-500">
+            <div className="text-gray-500">
               {isLoading ? (
                 <Skeleton className="w-24 h-6 mt-1" />
               ) : (
                 `ID: ${data?.merchant.id}`
               )}
-            </p>
+            </div>
           </div>
           <Button 
             variant="outline"
