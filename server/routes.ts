@@ -1443,8 +1443,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status = 'all', fileType = 'all', limit = '20' } = req.query;
       const limitNum = parseInt(limit as string) || 20;
       
-      // Use the existing uploads/history logic that works
-      const result = await db.execute(sql`
+      // Build query based on status filter to get relevant files
+      let baseQuery = sql`
         SELECT 
           id,
           original_filename,
@@ -1462,9 +1462,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_server_id
         FROM uploaded_files 
         WHERE deleted = false
-        ORDER BY uploaded_at DESC
-        LIMIT ${limitNum}
-      `);
+      `;
+
+      // Add status-specific conditions to improve performance
+      if (status === 'completed') {
+        baseQuery = sql`${baseQuery} AND (processing_status = 'completed' OR (processed = true AND processing_errors IS NULL))`;
+      } else if (status === 'processing') {
+        baseQuery = sql`${baseQuery} AND processing_status = 'processing'`;
+      } else if (status === 'queued') {
+        baseQuery = sql`${baseQuery} AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))`;
+      } else if (status === 'error') {
+        baseQuery = sql`${baseQuery} AND processing_errors IS NOT NULL`;
+      }
+
+      baseQuery = sql`${baseQuery} ORDER BY 
+        CASE 
+          WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
+          ELSE uploaded_at 
+        END DESC
+        LIMIT ${limitNum}`;
+
+      const result = await db.execute(baseQuery);
       
       let uploads = result.rows.map(row => ({
         id: row.id,
@@ -1483,24 +1501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingServerId: row.processing_server_id
       }));
 
-      // Apply filters after query
-      if (status !== 'all') {
-        switch (status) {
-          case 'queued':
-            uploads = uploads.filter(f => f.processingStatus === 'queued' || (!f.processed && !f.processingErrors && !f.processingStatus));
-            break;
-          case 'processing':
-            uploads = uploads.filter(f => f.processingStatus === 'processing');
-            break;
-          case 'completed':
-            uploads = uploads.filter(f => f.processingStatus === 'completed' || (f.processed && !f.processingErrors));
-            break;
-          case 'error':
-            uploads = uploads.filter(f => f.processingErrors);
-            break;
-        }
-      }
-
+      // Apply file type filter only (status filtering is now done in query)
       if (fileType !== 'all') {
         uploads = uploads.filter(f => f.fileType === fileType);
       }
