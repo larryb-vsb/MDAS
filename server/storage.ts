@@ -822,50 +822,74 @@ export class DatabaseStorage implements IStorage {
   
   // Delete multiple merchants with audit logging
   async deleteMerchants(merchantIds: string[], username: string = 'System'): Promise<void> {
-    try {
+    // Use database transaction to ensure all operations are committed together
+    return await db.transaction(async (tx) => {
+      console.log(`[DELETE MERCHANTS] Starting deletion of ${merchantIds.length} merchants:`, merchantIds);
+      
+      let deletedCount = 0;
+      let totalTransactionsDeleted = 0;
+      
       // Delete related transactions first to maintain referential integrity
       for (const merchantId of merchantIds) {
+        console.log(`[DELETE MERCHANTS] Processing merchant: ${merchantId}`);
+        
         // Get merchant data before deletion for audit log
-        const [existingMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+        const [existingMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
         
         if (existingMerchant) {
+          console.log(`[DELETE MERCHANTS] Found merchant: ${existingMerchant.name}`);
+          
           // Get transaction count for this merchant
-          const [{ count: transactionCount }] = await db
+          const [{ count: transactionCount }] = await tx
             .select({ count: count() })
             .from(transactionsTable)
             .where(eq(transactionsTable.merchantId, merchantId));
           
+          console.log(`[DELETE MERCHANTS] Found ${transactionCount} transactions for merchant ${merchantId}`);
+          
           // Delete transactions associated with this merchant
-          await db.delete(transactionsTable)
+          const deleteTransactionsResult = await tx.delete(transactionsTable)
             .where(eq(transactionsTable.merchantId, merchantId));
           
+          console.log(`[DELETE MERCHANTS] Deleted transactions for ${merchantId}:`, deleteTransactionsResult);
+          
           // Delete the merchant
-          await db.delete(merchantsTable)
+          const deleteMerchantResult = await tx.delete(merchantsTable)
             .where(eq(merchantsTable.id, merchantId));
           
-          // Create audit log entry
-          const auditLogData: InsertAuditLog = {
-            entityType: 'merchant',
-            entityId: merchantId,
-            action: 'delete',
-            userId: null, // Can be set if user ID is available
-            username: username,
-            oldValues: this.filterSensitiveData(existingMerchant),
-            newValues: null, // No new values for deletion
-            changedFields: [],
-            notes: `Deleted merchant: ${existingMerchant.name} with ${transactionCount} associated transactions`
-          };
+          console.log(`[DELETE MERCHANTS] Deleted merchant ${merchantId}:`, deleteMerchantResult);
           
-          // Create the audit log entry
-          await this.createAuditLog(auditLogData);
+          deletedCount++;
+          totalTransactionsDeleted += Number(transactionCount);
+          
+          // Create audit log entry within the transaction
+          try {
+            const auditLogData: InsertAuditLog = {
+              entityType: 'merchant',
+              entityId: merchantId,
+              action: 'delete',
+              userId: null, // Can be set if user ID is available
+              username: username,
+              oldValues: this.filterSensitiveData(existingMerchant),
+              newValues: null, // No new values for deletion
+              changedFields: [],
+              notes: `Deleted merchant: ${existingMerchant.name} with ${transactionCount} associated transactions`
+            };
+            
+            console.log(`[DELETE MERCHANTS] Creating audit log for ${merchantId}`);
+            await tx.insert(auditLogsTable).values(auditLogData);
+            console.log(`[DELETE MERCHANTS] Audit log created for ${merchantId}`);
+          } catch (auditError) {
+            console.error(`[DELETE MERCHANTS] Failed to create audit log for ${merchantId}:`, auditError);
+            // Don't let audit logging failure stop the deletion
+          }
+        } else {
+          console.log(`[DELETE MERCHANTS] Merchant ${merchantId} not found, skipping`);
         }
       }
       
-      console.log(`Successfully deleted ${merchantIds.length} merchants and their transactions`);
-    } catch (error) {
-      console.error('Error deleting merchants:', error);
-      throw error;
-    }
+      console.log(`[DELETE MERCHANTS] Successfully deleted ${deletedCount} merchants and ${totalTransactionsDeleted} transactions`);
+    });
   }
 
   // Merge merchants - transfer all transactions from source merchants to target merchant
