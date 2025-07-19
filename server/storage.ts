@@ -699,9 +699,9 @@ export class DatabaseStorage implements IStorage {
   // Create a new merchant with audit logging
   async createMerchant(merchantData: InsertMerchant): Promise<Merchant> {
     try {
-      // Generate a unique merchant ID if not provided
+      // Merchant ID must be provided - no automatic generation
       if (!merchantData.id) {
-        merchantData.id = `M${++this.lastMerchantId}`;
+        throw new Error("Merchant ID is required - automatic ID generation disabled to prevent placeholder merchants");
       }
       
       // Set default values if not provided
@@ -3526,26 +3526,12 @@ export class DatabaseStorage implements IStorage {
                 }
               }
               
-              // If still not found, create the merchant with the original merchant ID
+              // If still not found, skip creating merchant - only add transactions to existing merchants
               if (existingMerchant.length === 0) {
-                console.log(`Creating missing merchant: ${merchantId}`);
-                const newMerchant = {
-                  id: merchantId,
-                  name: `Merchant ${merchantId}`,
-                  clientMID: `CM-${merchantId}`,
-                  status: "Pending", 
-                  address: "100 Main Street",
-                  city: "Chicago",
-                  state: "IL",
-                  zipCode: "60601",
-                  country: "US",
-                  category: "General",
-                  createdAt: new Date(),
-                  lastUploadDate: new Date(),
-                  editDate: new Date()
-                };
-                
-                await db.insert(merchantsTable).values(newMerchant);
+                console.log(`[SKIP MERCHANT CREATION] Merchant ${merchantId} not found - skipping transaction to prevent placeholder merchant creation`);
+                console.log(`[ROW SKIPPED] Transaction ${transaction.id} skipped due to missing merchant ${merchantId}`);
+                errorCount++;
+                return; // Skip this transaction
               }
               
               // Update transaction with correct merchant ID and implement intelligent duplicate handling
