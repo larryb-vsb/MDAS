@@ -55,7 +55,8 @@ export default function ProcessingStatus() {
   const { data: realTimeStats, isLoading: isStatsLoading } = useQuery<RealTimeStats>({
     queryKey: ["/api/processing/real-time-stats"],
     refetchInterval: 2000, // Update every 2 seconds
-    staleTime: 1000, // Consider data stale after 1 second
+    staleTime: 0, // Always consider data stale to force fresh requests
+    gcTime: 0, // Don't cache responses (gcTime replaces cacheTime in v5)
   });
 
   // Pause processing mutation
