@@ -3050,6 +3050,13 @@ export class DatabaseStorage implements IStorage {
               merchantId = normalizeMerchantId(merchantId);
             }
             
+            // Store original merchant name for advanced matching
+            let originalMerchantName = null;
+            if (row.Name) {
+              originalMerchantName = row.Name.trim();
+              console.log(`[PARSING DEBUG] Found merchant name: ${originalMerchantName} for ID: ${merchantId}`);
+            }
+            
             // Map the new format fields
             transactionData = {
               id: `${Date.now()}_${rowCount}_${Math.random().toString(36).substring(2, 9)}`,
@@ -3060,7 +3067,20 @@ export class DatabaseStorage implements IStorage {
               description: row.Descr || '',
               createdAt: new Date()
             };
+            
+            // Add original merchant name to transaction object for advanced matching
+            if (originalMerchantName) {
+              (transactionData as any).originalMerchantName = originalMerchantName;
+              console.log(`[PARSING DEBUG] Added originalMerchantName to transaction: ${originalMerchantName}`);
+            }
           } else {
+            // Store original merchant name for advanced matching (default format)
+            let originalMerchantName = null;
+            if (row.Name) {
+              originalMerchantName = row.Name.trim();
+              console.log(`[PARSING DEBUG DEFAULT] Found merchant name: ${originalMerchantName}`);
+            }
+            
             // Handle default format using existing field mappings
             for (const [dbField, csvField] of Object.entries(transactionFieldMappings)) {
               if (csvField && row[csvField] !== undefined) {
@@ -3079,6 +3099,12 @@ export class DatabaseStorage implements IStorage {
                   transactionData[dbField as keyof InsertTransaction] = row[csvField] as any;
                 }
               }
+            }
+            
+            // Add original merchant name to transaction object for advanced matching (default format)
+            if (originalMerchantName) {
+              (transactionData as any).originalMerchantName = originalMerchantName;
+              console.log(`[PARSING DEBUG DEFAULT] Added originalMerchantName to transaction: ${originalMerchantName}`);
             }
             
             // Handle missing transaction ID
@@ -3144,7 +3170,9 @@ export class DatabaseStorage implements IStorage {
           for (const transaction of transactions) {
             // Check if transaction has originalMerchantName property (from Name column)
             const originalName = (transaction as any).originalMerchantName;
+            console.log(`[DEBUG] Transaction ${transaction.id} merchant ID: ${transaction.merchantId}, originalMerchantName: ${originalName}`);
             if (originalName) {
+              console.log(`[DEBUG] Adding merchant name "${originalName}" for transaction ${transaction.id}`);
               merchantNames.add(originalName);
               merchantNameMapping.set(transaction.merchantId, originalName);
               
@@ -3622,11 +3650,15 @@ export class DatabaseStorage implements IStorage {
           
           // Store original merchant name if available
           let originalMerchantName = null;
+          console.log(`[FORMAT DEBUG] detectedFormat: ${detectedFormat}, row.Name: ${row.Name}, has Name property: ${row.hasOwnProperty('Name')}`);
           if (detectedFormat === 'format1' && row.Name) {
             originalMerchantName = row.Name.trim();
-            console.log(`Found merchant name in transaction: ${originalMerchantName}`);
+            console.log(`[PARSING DEBUG] Found merchant name in transaction: ${originalMerchantName} for merchant ID: ${merchantId}`);
             // Store the merchant name in the transaction object for later use
             (transaction as any).originalMerchantName = originalMerchantName;
+            console.log(`[PARSING DEBUG] Set originalMerchantName property: ${(transaction as any).originalMerchantName}`);
+          } else {
+            console.log(`[FORMAT DEBUG] NOT setting originalMerchantName - format: ${detectedFormat}, Name value: "${row.Name}"`);
           }
           
           // Select the appropriate field mapping based on detected format
@@ -3716,7 +3748,17 @@ export class DatabaseStorage implements IStorage {
           }
           
           console.log(`Mapped transaction:`, JSON.stringify(transaction));
-          transactions.push(transaction as InsertTransaction);
+          // Add debug output to verify originalMerchantName property
+          const originalName = (transaction as any).originalMerchantName;
+          console.log(`[PRESERVATION DEBUG] Before pushing to array - originalMerchantName: ${originalName}`);
+          
+          // Ensure originalMerchantName is preserved for advanced matching
+          const transactionWithName = transaction as InsertTransaction & { originalMerchantName?: string };
+          transactions.push(transactionWithName);
+          
+          // Verify after pushing
+          const lastTrans = transactions[transactions.length - 1] as any;
+          console.log(`[PRESERVATION DEBUG] After pushing to array - originalMerchantName: ${lastTrans.originalMerchantName}`);
         } catch (error) {
           errorCount++;
           console.error(`Error processing transaction row ${rowCount}:`, error);
