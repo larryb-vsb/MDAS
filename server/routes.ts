@@ -1700,11 +1700,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentlyProcessing = fileProcessorService.getCurrentlyProcessingFile();
       
       // Get recent processing times from database with evidence
+      const { getTableName } = await import("./table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
       const recentCompletedFiles = await db.execute(sql`
         SELECT id, original_filename, file_type, processed_at, 
                processing_started_at, processing_completed_at,
                processing_errors
-        FROM uploaded_files 
+        FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'completed' 
           AND processing_started_at IS NOT NULL 
           AND processing_completed_at IS NOT NULL
