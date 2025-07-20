@@ -4692,7 +4692,7 @@ export class DatabaseStorage implements IStorage {
           const terminalData: Partial<InsertTerminal> = {
             vNumber: vNumber.trim(),
             masterMID: masterMID.trim(),
-            status: "Active", // Default status
+            status: "Active", // Default status, will be overridden by Record Status mapping
             // Will add more fields from CSV mapping below
           };
           
@@ -4701,8 +4701,27 @@ export class DatabaseStorage implements IStorage {
             if (csvField && row[csvField] !== undefined && row[csvField] !== null && row[csvField] !== '') {
               console.log(`Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
               
+              // Special handling for Record Status field to map to terminal status
+              if (dbField === 'recordStatus') {
+                const rawStatus = row[csvField];
+                if (rawStatus) {
+                  const statusValue = rawStatus.toString().trim().toLowerCase();
+                  if (statusValue === 'open') {
+                    terminalData.status = 'Active';
+                    console.log(`Record Status mapped: "${rawStatus}" -> "Active"`);
+                  } else if (statusValue === 'closed') {
+                    terminalData.status = 'Inactive';
+                    console.log(`Record Status mapped: "${rawStatus}" -> "Inactive"`);
+                  } else {
+                    terminalData.status = 'Active'; // Default to Active for unknown statuses
+                    console.log(`Unknown Record Status "${rawStatus}", defaulting to "Active"`);
+                  }
+                }
+                // Store the raw record status in recordStatus field
+                terminalData[dbField as keyof InsertTerminal] = row[csvField].toString().trim() as any;
+              }
               // Handle date fields
-              if (dbField === 'boardDate') {
+              else if (dbField === 'boardDate') {
                 try {
                   if (row[csvField] && row[csvField].trim() !== '') {
                     const parsedDate = new Date(row[csvField]);
