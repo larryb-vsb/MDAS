@@ -14,12 +14,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   const { user } = useAuth();
   
   // Check if user is an admin
-  console.log("Current user:", user);
-  console.log("User role:", user?.role);
-  
-  // Temporarily set all users as admin for testing
-  const isAdmin = true; // TEMPORARY: Will fix properly later
-  console.log("isAdmin set to:", isAdmin);
+  const isAdmin = user?.role === "admin";
 
   // Define the type for nav items
   interface NavItem {
@@ -110,11 +105,8 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
     },
   ];
 
-  // Debug nav items
-  console.log("Nav items before filter:", navItems);
   // Filter admin-only items based on user permissions
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
-  console.log("Nav items after filter:", filteredNavItems);
 
   return (
     <div className={cn(isVisible ? "block" : "hidden", className)}>
