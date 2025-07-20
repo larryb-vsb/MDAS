@@ -168,7 +168,7 @@ export interface IStorage {
   // File processing operations
   processUploadedFile(filePath: string, type: string, originalFilename: string): Promise<string>;
   combineAndProcessUploads(fileIds: string[]): Promise<void>;
-  processTerminalFileFromContent(base64Content: string, sourceFileId?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }>;
+  processTerminalFileFromContent(base64Content: string, sourceFileId?: string, sourceFilename?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }>;
   generateTransactionsExport(): Promise<string>;
   generateMerchantsExport(): Promise<string>;
   
@@ -2575,7 +2575,7 @@ export class DatabaseStorage implements IStorage {
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing terminal file from database content: ${file.id}`);
                 const processingStartTime = new Date();
-                const processingMetrics = await this.processTerminalFileFromContent(dbContent, file.id);
+                const processingMetrics = await this.processTerminalFileFromContent(dbContent, file.id, file.originalFilename);
                 
                 // Calculate processing time in milliseconds
                 const processingCompletedTime = new Date();
@@ -4642,7 +4642,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process terminal file from database content
-  async processTerminalFileFromContent(base64Content: string, sourceFileId?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }> {
+  async processTerminalFileFromContent(base64Content: string, sourceFileId?: string, sourceFilename?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }> {
     console.log(`=================== TERMINAL FILE PROCESSING (DATABASE) ===================`);
     console.log(`Processing terminal file from database content`);
     
@@ -4790,6 +4790,7 @@ export class DatabaseStorage implements IStorage {
                     id: existingTerminal.id,
                     updatedAt: new Date(),
                     lastUpdate: new Date(),
+                    updateSource: sourceFilename ? `File: ${sourceFilename}` : "System Import",
                     updatedBy: "System Import",
                   })
                   .where(eq(terminalsTable.vNumber, terminal.vNumber));
@@ -4805,6 +4806,7 @@ export class DatabaseStorage implements IStorage {
                     createdAt: new Date(),
                     updatedAt: new Date(), 
                     lastUpdate: new Date(),
+                    updateSource: sourceFilename ? `File: ${sourceFilename}` : "System Import",
                     createdBy: "System Import",
                     updatedBy: "System Import",
                   });

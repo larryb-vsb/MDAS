@@ -413,10 +413,24 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <p>{terminal.boardDate ? new Date(terminal.boardDate).toLocaleDateString() : "N/A"}</p>
               </div>
               <div>
+                <label className="text-sm font-medium text-muted-foreground">Last Activity</label>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <p>{formatTableDate(terminal.lastActivity)}</p>
+                </div>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-muted-foreground">Last Update</label>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <p>{formatTableDate(terminal.lastUpdate)}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Update Source</label>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <p>{terminal.updateSource || "N/A"}</p>
                 </div>
               </div>
             </CardContent>

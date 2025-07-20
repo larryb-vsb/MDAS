@@ -3155,7 +3155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...terminalData,
         createdAt: new Date(),
         updatedAt: new Date(),
-        lastActivity: new Date(),
+        lastUpdate: new Date(),
+        updateSource: `Form: ${req.user?.username || "System"}`,
         createdBy: req.user?.username || "System",
         updatedBy: req.user?.username || "System"
       };
@@ -3181,6 +3182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...terminalData,
         updatedAt: new Date(),
         lastUpdate: new Date(),
+        updateSource: `Form: ${req.user?.username || "System"}`,
         updatedBy: req.user?.username || "System"
       };
       

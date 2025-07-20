@@ -91,6 +91,7 @@ export const terminals = pgTable(getTableName("terminals"), {
   updatedBy: text("updated_by"), // Who last updated this terminal record
   lastActivity: timestamp("last_activity"), // For tracking terminal transaction activity (future use)
   lastUpdate: timestamp("last_update"), // For tracking when terminal record was last updated
+  updateSource: text("update_source"), // Source of last update: "File: filename.csv" or "Form: admin"
   lastSyncDate: timestamp("last_sync_date"), // Last sync with TSYS
   syncStatus: text("sync_status").default("Pending") // Sync status with external systems
 });

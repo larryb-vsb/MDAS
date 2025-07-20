@@ -16,15 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Last Update Field Added + Activity Tracking Separation COMPLETED
-- **✅ NEW DATABASE FIELD ADDED**: Successfully added last_update timestamp field to terminals table in both development and production environments
-- **✅ ACTIVITY TRACKING SEPARATION**: Implemented distinction between last_update (record modifications) and lastActivity (future terminal transaction activity)
-- **✅ DATABASE SCHEMA ENHANCED**: All existing terminals now have proper last_update timestamps populated from their creation dates
-- **✅ SCHEMA FILE UPDATED**: Added lastUpdate field to shared/schema.ts terminals table definition with proper comments distinguishing purposes
-- **✅ API ENDPOINTS UPDATED**: Both terminal update API and import process now use lastUpdate field for record modification tracking
-- **✅ FRONTEND DISPLAY UPDATED**: Terminals page Last Activity column now displays lastUpdate field instead of lastActivity for record changes
-- **✅ FIELD PURPOSE CLARIFIED**: lastActivity reserved for future terminal transaction activity, lastUpdate tracks when terminal record was modified
-- **✅ COMPLETE IMPLEMENTATION**: Database schema, API routes, import process, and frontend all updated to use new field structure
+- Current session: July 20, 2025 - Terminal Update Source Tracking COMPLETED
+- **✅ THREE-FIELD SEPARATION IMPLEMENTED**: Terminal details modal now displays lastUpdate (record modifications), lastActivity (future terminal transactions), and updateSource (modification source) as separate fields
+- **✅ UPDATE SOURCE TRACKING ADDED**: Successfully added updateSource field to terminals table in both development and production environments
+- **✅ DATABASE SCHEMA ENHANCED**: Added updateSource field to track whether updates came from file imports (e.g., "File: terminals_export.csv") or manual form entries (e.g., "Form - admin")
+- **✅ API ENDPOINTS UPDATED**: Terminal creation and update API routes now set updateSource field appropriately - "Form - {username}" for manual updates
+- **✅ FILE PROCESSING ENHANCED**: Terminal import processing now sets updateSource with actual filename during CSV imports using format "File: filename.csv"
+- **✅ FRONTEND DISPLAY COMPLETE**: TerminalDetailsModal updated to show all three timestamp/source fields with proper CST formatting using formatTableDate function
+- **✅ FIELD PURPOSE CLARIFIED**: lastActivity reserved for future terminal transaction activity, lastUpdate tracks when terminal record was modified, updateSource tracks modification source (file vs form)
+- **✅ COMPLETE IMPLEMENTATION**: Database schema, API routes, import process, and frontend all updated to use new three-field structure
 - Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking
