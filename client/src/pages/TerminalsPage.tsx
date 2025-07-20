@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
+import AddTerminalModal from "@/components/terminals/AddTerminalModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error } = useQuery<Terminal[]>({
@@ -86,7 +88,7 @@ export default function TerminalsPage() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Terminal
           </Button>
@@ -275,6 +277,12 @@ export default function TerminalsPage() {
         </CardContent>
       </Card>
       </div>
+
+      {/* Add Terminal Modal */}
+      <AddTerminalModal 
+        open={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </MainLayout>
   );
 }
