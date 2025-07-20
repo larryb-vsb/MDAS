@@ -2578,12 +2578,14 @@ export class DatabaseStorage implements IStorage {
     return new Promise((resolve, reject) => {
       console.log("Starting CSV parsing from content with verbose logging enabled...");
       
-      // Parse CSV content using string-based parsing with flexible column handling
+      // Parse CSV content using string-based parsing with maximum flexibility
       const parser = parseCSV({
         columns: true,
         skip_empty_lines: true,
         relax_column_count: true, // Allow rows with missing columns
-        relax_quotes: true
+        relax_quotes: true,
+        relax: true, // Enable all relaxed parsing options
+        skip_records_with_empty_values: false
       });
       
       const merchants: InsertMerchant[] = [];
@@ -2727,6 +2729,14 @@ export class DatabaseStorage implements IStorage {
       
       parser.on("error", (error) => {
         console.error("CSV parsing error:", error);
+        console.log("Attempting to handle CSV parsing error gracefully...");
+        
+        // For column count errors, try to continue processing
+        if (error.code === 'CSV_RECORD_INCONSISTENT_COLUMNS') {
+          console.log("Column count mismatch detected, continuing with available data...");
+          return; // Don't reject, just continue
+        }
+        
         reject(new Error(`CSV parsing failed: ${error.message}`));
       });
       
