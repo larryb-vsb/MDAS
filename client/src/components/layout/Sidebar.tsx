@@ -30,7 +30,7 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
   }
   
   // Create the navigation items array
-  const navItems: (NavItem | false)[] = [
+  const navItems: NavItem[] = [
     {
       name: "Merchants",
       href: "/",
@@ -112,11 +112,8 @@ export default function Sidebar({ isVisible = true, className }: SidebarProps) {
 
   // Debug nav items
   console.log("Nav items before filter:", navItems);
-  // Filter out false values, but make sure to keep admin items since isAdmin is true
-  const filteredNavItems = navItems
-    .filter((item): item is NavItem => 
-      Boolean(item) && (!item.adminOnly || isAdmin)
-    );
+  // Filter admin-only items based on user permissions
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
   console.log("Nav items after filter:", filteredNavItems);
 
   return (
