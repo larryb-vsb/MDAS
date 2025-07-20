@@ -318,6 +318,32 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 )}
               </div>
               <div>
+                <Label className="text-sm font-medium text-muted-foreground">M Type (Local)</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.mType || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, mType: e.target.value }))}
+                    className="mt-1"
+                    placeholder="Local merchant type"
+                  />
+                ) : (
+                  <p>{terminal.mType || "N/A"}</p>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">M Location (Local)</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.mLocation || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, mLocation: e.target.value }))}
+                    className="mt-1"
+                    placeholder="Local location information"
+                  />
+                ) : (
+                  <p>{terminal.mLocation || "N/A"}</p>
+                )}
+              </div>
+              <div>
                 <Label className="text-sm font-medium text-muted-foreground">IP Address</Label>
                 {isEditing ? (
                   <Input

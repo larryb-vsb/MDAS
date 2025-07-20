@@ -104,6 +104,10 @@ export const terminalFieldMappings: Record<string, string | null> = {
   location: null, // Internal field
   installationDate: null, // Internal field
   lastActivity: null, // Internal field
+  
+  // Local database-only fields (not from external systems)
+  mType: null, // Local merchant type information - database only
+  mLocation: null, // Local location information - database only
   hardwareModel: null, // Internal field
   manufacturer: null, // Internal field
   firmwareVersion: null, // Internal field

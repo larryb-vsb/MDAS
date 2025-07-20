@@ -64,8 +64,11 @@ export const terminals = pgTable(getTableName("terminals"), {
   terminalType: text("terminal_type"), // countertop, mobile, virtual, integrated POS, etc.
   status: text("status").notNull().default("Active"), // Active, Inactive, Maintenance, Deployed
   location: text("location"), // Physical location description
+  
+  // Local information fields (database-only, not from external systems)
+  mType: text("m_type"), // Local merchant type information
+  mLocation: text("m_location"), // Local location information
   installationDate: timestamp("installation_date"), // When terminal was installed
-  lastActivity: timestamp("last_activity"), // Last transaction timestamp
   hardwareModel: text("hardware_model"), // Terminal hardware model
   manufacturer: text("manufacturer"), // Terminal manufacturer
   firmwareVersion: text("firmware_version"), // Current firmware version
@@ -86,6 +89,7 @@ export const terminals = pgTable(getTableName("terminals"), {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdBy: text("created_by"), // Who created this terminal record
   updatedBy: text("updated_by"), // Who last updated this terminal record
+  lastActivity: timestamp("last_activity").defaultNow(), // Records when any change was made (replaces the old lastActivity field)
   lastSyncDate: timestamp("last_sync_date"), // Last sync with TSYS
   syncStatus: text("sync_status").default("Pending") // Sync status with external systems
 });

@@ -35,6 +35,8 @@ const terminalSchema = z.object({
   posMerchantNumber: z.string().optional(),
   terminalType: z.string().optional(),
   location: z.string().optional(),
+  mType: z.string().optional(),
+  mLocation: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -71,6 +73,8 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
       posMerchantNumber: "",
       terminalType: "countertop",
       location: "",
+      mType: "",
+      mLocation: "",
       notes: "",
     },
   });
@@ -355,6 +359,36 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
                     <FormLabel>Location</FormLabel>
                     <FormControl>
                       <Input placeholder="Store location" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* M Type (Local) */}
+              <FormField
+                control={form.control}
+                name="mType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>M Type (Local)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Local merchant type" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* M Location (Local) */}
+              <FormField
+                control={form.control}
+                name="mLocation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>M Location (Local)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Local location information" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

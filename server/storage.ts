@@ -4786,18 +4786,28 @@ export class DatabaseStorage implements IStorage {
                   .update(terminalsTable)
                   .set({
                     ...terminal,
-                    // Keep original ID and creation date
+                    // Keep original ID and creation date, but update timestamps and activity
                     id: existingTerminal.id,
+                    updatedAt: new Date(),
+                    lastActivity: new Date(),
+                    updatedBy: "System Import",
                   })
                   .where(eq(terminalsTable.vNumber, terminal.vNumber));
                 
                 updatedCount++;
                 console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
               } else {
-                // Create new terminal
+                // Create new terminal with proper timestamps
                 await db
                   .insert(terminalsTable)
-                  .values(terminal);
+                  .values({
+                    ...terminal,
+                    createdAt: new Date(),
+                    updatedAt: new Date(), 
+                    lastActivity: new Date(),
+                    createdBy: "System Import",
+                    updatedBy: "System Import",
+                  });
                 
                 createdCount++;
                 console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);

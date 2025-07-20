@@ -3155,6 +3155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...terminalData,
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastActivity: new Date(),
         createdBy: req.user?.username || "System",
         updatedBy: req.user?.username || "System"
       };
@@ -3179,6 +3180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData = {
         ...terminalData,
         updatedAt: new Date(),
+        lastActivity: new Date(),
         updatedBy: req.user?.username || "System"
       };
       
