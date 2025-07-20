@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield } from "lucide-react";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw } from "lucide-react";
 import { Terminal } from "@shared/schema";
 
 export default function TerminalsPage() {
@@ -18,7 +18,7 @@ export default function TerminalsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Fetch terminals data
-  const { data: terminals = [], isLoading, error } = useQuery<Terminal[]>({
+  const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
   });
 
@@ -84,6 +84,10 @@ export default function TerminalsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export

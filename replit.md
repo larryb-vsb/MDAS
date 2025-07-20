@@ -16,13 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Navigation Architecture Consolidation COMPLETED
-- User discovery: "exports page? also logs and backups are out of wack" - Found MainLayout vs Sidebar component confusion
-- Architecture issue resolved: All pages use MainLayout component, not master Sidebar component
-- Navigation fix applied: Added Terminals, Logs, Backups to MainLayout with proper admin role filtering
-- Admin security implemented: Logs and Backups only visible to users with role === "admin"
-- Complete navigation sync: MainLayout now matches master Sidebar functionality with proper filtering
-- Terminal positioning confirmed: Successfully placed between Merchants and Transactions as requested
+- Current session: July 20, 2025 - Terminal File Processing Integration COMPLETED
+- Terminal file upload functionality fully operational with 157+ terminals processed successfully
+- Complete terminal workflow: File upload → Processing → Database storage → UI display
+- "Add new terminal" button functionality implemented with comprehensive form modal
+- Refresh button added to terminals page for real-time updates during processing
+- Terminal processing uses TSYS field mappings with V Number as unique identifier and Master MID linking
+- Frontend integration: Upload modal, file tabs, statistics, and processing filters all support terminals
+- Production ready: All three file types (merchant, transaction, terminal) now fully supported
 
 ### Technical Insights & Patterns
 - Project uses environment-specific table separation (dev_ prefix for development)
