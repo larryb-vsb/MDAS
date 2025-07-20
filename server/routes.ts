@@ -1949,7 +1949,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse CSV content
       const parser = parseCSV({
         columns: true,
-        skip_empty_lines: true
+        skip_empty_lines: true,
+        relax_column_count: true,
+        relax_quotes: true,
+        skip_records_with_error: true
       });
       
       const rows: any[] = [];
@@ -1968,7 +1971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       parser.on("error", (error) => {
         console.error("Error parsing CSV content:", error);
-        res.status(500).json({ error: "Failed to parse CSV file" });
+        console.log("CSV content causing error:", csvContent.substring(0, 500));
+        res.status(500).json({ error: "Failed to parse CSV file", details: error.message });
       });
       
       parser.on("end", () => {
