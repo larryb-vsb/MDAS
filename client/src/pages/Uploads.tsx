@@ -4,7 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import { formatUploadTime, formatFullDateTime, formatTableDate, formatRelativeTime } from "@/lib/date-utils";
+import { formatUploadTime, formatFullDateTime, formatTableDate, formatRelativeTime, formatDetailedDate } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
 import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
 import MappingSettings from "@/components/uploads/MappingSettings";
@@ -1311,7 +1311,7 @@ export default function Uploads() {
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">Upload Time:</span>
-                    <div>{formatFullDate(metadataFile.uploadedAt)}</div>
+                    <div>{formatDetailedDate(metadataFile.uploadedAt)}</div>
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">Status:</span>
@@ -1331,13 +1331,13 @@ export default function Uploads() {
                     {metadataFile.processingStartedAt && (
                       <div>
                         <span className="font-medium text-muted-foreground">Started:</span>
-                        <div>{formatFullDate(metadataFile.processingStartedAt)}</div>
+                        <div>{formatDetailedDate(metadataFile.processingStartedAt)}</div>
                       </div>
                     )}
                     {metadataFile.processingCompletedAt && (
                       <div>
                         <span className="font-medium text-muted-foreground">Completed:</span>
-                        <div>{formatFullDate(metadataFile.processingCompletedAt)}</div>
+                        <div>{formatDetailedDate(metadataFile.processingCompletedAt)}</div>
                       </div>
                     )}
                     {(metadataFile.processingTimeMs || 
