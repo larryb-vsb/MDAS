@@ -1594,6 +1594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = (pageNum - 1) * limitNum;
       
       // Build query based on status filter to get relevant files
+      const { getTableName } = await import("./table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
       let baseQuery = sql`
         SELECT 
           id,
@@ -1610,7 +1613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_started_at,
           processing_completed_at,
           processing_server_id
-        FROM uploaded_files 
+        FROM ${sql.identifier(uploadsTableName)}
         WHERE deleted = false
       `;
 
@@ -1796,10 +1799,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Starting orphaned file cleanup...");
       
-      // Get all non-deleted uploaded files
+      // Get all non-deleted uploaded files using environment-specific table
+      const { getTableName } = await import("./table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
       const result = await db.execute(sql`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-        FROM uploaded_files 
+        FROM ${sql.identifier(uploadsTableName)}
         WHERE deleted = false
       `);
       const uploadedFiles = result.rows;
@@ -1816,7 +1822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Mark the file as deleted (soft delete)
             await db.execute(sql`
-              UPDATE uploaded_files 
+              UPDATE ${sql.identifier(uploadsTableName)}
               SET deleted = true, processing_errors = 'File not found: The temporary file may have been removed by the system.'
               WHERE id = ${file.id}
             `);
@@ -1851,10 +1857,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info including content from database using raw pool query
+      // Get file info including content from database using environment-specific table
+      const { getTableName } = await import("./table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
       const result = await pool.query(`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
-        FROM uploaded_files 
+        FROM ${uploadsTableName}
         WHERE id = $1
       `, [fileId]);
       
@@ -1899,10 +1908,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info including content from database using raw pool query  
+      // Get file info including content from database using environment-specific table
+      const { getTableName } = await import("./table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
       const result = await pool.query(`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
-        FROM uploaded_files 
+        FROM ${uploadsTableName}
         WHERE id = $1
       `, [fileId]);
       
