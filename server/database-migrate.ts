@@ -51,12 +51,11 @@ async function checkTablesExist() {
   ];
   
   try {
-    // Check which tables exist
+    // Check which tables exist using simpler approach
     const result = await db.execute(sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
-      AND table_name IN (${sql.join(requiredTables.map(t => t.name), sql`, `)})
     `);
     
     const existingTables = result.rows.map(row => row.table_name);
