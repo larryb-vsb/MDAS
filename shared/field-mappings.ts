@@ -80,7 +80,7 @@ export const alternateTransactionMappings = {
 // Terminal field mappings for TSYS export
 export const terminalFieldMappings: Record<string, string | null> = {
   vNumber: "V Number", // VAR Number from TSYS (unique identifier)
-  masterMID: "POS Merchant #", // Links to merchants.masterMID
+  posMerchantNumber: "POS Merchant #", // Links to merchants.masterMID
   bin: "BIN", // Bank Identification Number
   dbaName: "DBA Name", // Doing Business As name
   dailyAuth: "Daily Auth", // Daily authorization limit

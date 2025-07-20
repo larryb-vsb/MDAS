@@ -22,7 +22,7 @@ export const merchants = pgTable(getTableName("merchants"), {
   salesChannel: text("sales_channel"),
   association: text("association"), // Business association field
   mcc: text("mcc"), // Merchant Category Code
-  masterMID: text("master_mid"), // Master Merchant ID for terminal linkage
+  masterMID: text("master_mid"), // Master Merchant ID for terminal linkage (now renamed to pos_merchant_number in terminals table)
   address: text("address"),
   city: text("city"),
   state: text("state"),
@@ -40,7 +40,7 @@ export const merchants = pgTable(getTableName("merchants"), {
 export const terminals = pgTable(getTableName("terminals"), {
   id: serial("id").primaryKey(),
   vNumber: text("v_number").notNull().unique(), // VAR Number from TSYS (unique terminal identifier)
-  masterMID: text("master_mid").notNull(), // Links to merchants.masterMID (POS Merchant # from TSYS)
+  posMerchantNumber: text("pos_merchant_number").notNull(), // Links to merchants.masterMID (POS Merchant # from TSYS)
   
   // Core TSYS fields
   bin: text("bin"), // Bank Identification Number

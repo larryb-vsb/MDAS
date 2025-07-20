@@ -280,7 +280,7 @@ export default function TerminalsPage() {
                       </TableCell>
                       <TableCell>{terminal.dbaName || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {terminal.masterMID || "-"}
+                        {terminal.posMerchantNumber || "-"}
                       </TableCell>
                       <TableCell>
                         {terminal.terminalType ? (

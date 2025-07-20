@@ -178,12 +178,12 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <Label className="text-sm font-medium text-muted-foreground">POS Merchant #</Label>
                 {isEditing ? (
                   <Input
-                    value={editData.masterMID || ""}
-                    onChange={(e) => setEditData(prev => ({ ...prev, masterMID: e.target.value }))}
+                    value={editData.posMerchantNumber || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, posMerchantNumber: e.target.value }))}
                     className="font-mono mt-1"
                   />
                 ) : (
-                  <p className="font-mono">{terminal.masterMID || "N/A"}</p>
+                  <p className="font-mono">{terminal.posMerchantNumber || "N/A"}</p>
                 )}
               </div>
               <div>

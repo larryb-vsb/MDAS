@@ -32,7 +32,7 @@ const terminalSchema = z.object({
   status: z.string().default("Active"),
   boardDate: z.string().optional(),
   terminalVisa: z.string().optional(),
-  masterMID: z.string().optional(),
+  posMerchantNumber: z.string().optional(),
   terminalType: z.string().optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -68,7 +68,7 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
       status: "Active",
       boardDate: "",
       terminalVisa: "Y",
-      masterMID: "",
+      posMerchantNumber: "",
       terminalType: "countertop",
       location: "",
       notes: "",
@@ -179,7 +179,7 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
               {/* POS Merchant # */}
               <FormField
                 control={form.control}
-                name="masterMID"
+                name="posMerchantNumber"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>POS Merchant #</FormLabel>

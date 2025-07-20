@@ -3131,14 +3131,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get terminals by Master MID
+  // Get terminals by POS Merchant #
   app.get("/api/terminals/by-master-mid/:masterMID", isAuthenticated, async (req, res) => {
     try {
       const masterMID = req.params.masterMID;
       const terminals = await storage.getTerminalsByMasterMID(masterMID);
       res.json(terminals);
     } catch (error) {
-      console.error('Error fetching terminals by master MID:', error);
+      console.error('Error fetching terminals by POS Merchant #:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch terminals" 
       });

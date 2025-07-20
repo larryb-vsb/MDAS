@@ -5519,7 +5519,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTerminalsByMasterMID(masterMID: string): Promise<Terminal[]> {
-    const results = await db.select().from(terminalsTable).where(eq(terminalsTable.masterMID, masterMID));
+    const results = await db.select().from(terminalsTable).where(eq(terminalsTable.posMerchantNumber, masterMID));
     return results;
   }
 
