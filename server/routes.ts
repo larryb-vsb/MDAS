@@ -1324,29 +1324,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}, environment: ${currentEnvironment}`);
       
       // Direct SQL insertion using environment-specific table with environment tracking
-      await pool.query(`
-        INSERT INTO ${uploadedFilesTableName} (
-          id, 
-          original_filename, 
-          storage_path, 
-          file_type, 
-          uploaded_at, 
-          processed, 
-          deleted,
-          file_content,
-          upload_environment
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [
-        fileId,
-        req.file.originalname,
-        req.file.path,
-        type,
-        new Date(),
-        false,
-        false,
-        fileContentBase64,
-        currentEnvironment
-      ]);
+      try {
+        await pool.query(`
+          INSERT INTO ${uploadedFilesTableName} (
+            id, 
+            original_filename, 
+            storage_path, 
+            file_type, 
+            uploaded_at, 
+            processed, 
+            deleted,
+            file_content,
+            upload_environment
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          fileId,
+          req.file.originalname,
+          req.file.path,
+          type,
+          new Date(),
+          false,
+          false,
+          fileContentBase64,
+          currentEnvironment
+        ]);
+      } catch (error: any) {
+        // Fallback for environments where upload_environment column doesn't exist yet
+        if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
+          console.log(`[UPLOAD] upload_environment column doesn't exist, inserting without environment tracking`);
+          await pool.query(`
+            INSERT INTO ${uploadedFilesTableName} (
+              id, 
+              original_filename, 
+              storage_path, 
+              file_type, 
+              uploaded_at, 
+              processed, 
+              deleted,
+              file_content
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            fileId,
+            req.file.originalname,
+            req.file.path,
+            type,
+            new Date(),
+            false,
+            false,
+            fileContentBase64
+          ]);
+        } else {
+          throw error;
+        }
+      }
       
       console.log(`Successfully stored file record for ${fileId}`);
 

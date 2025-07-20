@@ -183,28 +183,56 @@ class FileProcessorService {
   async fetchUnprocessedFiles(): Promise<any[]> {
     const currentEnvironment = process.env.NODE_ENV || 'production';
     
-    // Use basic fields that definitely exist to avoid schema issues
-    const unprocessedFiles = await db.select({
-      id: uploadedFiles.id,
-      originalFilename: uploadedFiles.originalFilename,
-      storagePath: uploadedFiles.storagePath,
-      fileType: uploadedFiles.fileType,
-      uploadedAt: uploadedFiles.uploadedAt,
-      processed: uploadedFiles.processed,
-      processingErrors: uploadedFiles.processingErrors,
-      deleted: uploadedFiles.deleted
-    })
-      .from(uploadedFiles)
-      .where(
-        and(
-          eq(uploadedFiles.processed, false),
-          eq(uploadedFiles.deleted, false),
-          eq(uploadedFiles.uploadEnvironment, currentEnvironment)
-        )
-      );
-    
-    console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files for ${currentEnvironment} environment`);
-    return unprocessedFiles;
+    try {
+      // Try to use environment filtering first
+      const unprocessedFiles = await db.select({
+        id: uploadedFiles.id,
+        originalFilename: uploadedFiles.originalFilename,
+        storagePath: uploadedFiles.storagePath,
+        fileType: uploadedFiles.fileType,
+        uploadedAt: uploadedFiles.uploadedAt,
+        processed: uploadedFiles.processed,
+        processingErrors: uploadedFiles.processingErrors,
+        deleted: uploadedFiles.deleted
+      })
+        .from(uploadedFiles)
+        .where(
+          and(
+            eq(uploadedFiles.processed, false),
+            eq(uploadedFiles.deleted, false),
+            eq(uploadedFiles.uploadEnvironment, currentEnvironment)
+          )
+        );
+      
+      console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files for ${currentEnvironment} environment`);
+      return unprocessedFiles;
+    } catch (error: any) {
+      // Fallback for environments where upload_environment column doesn't exist yet
+      if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
+        console.log(`[FILE PROCESSOR] upload_environment column doesn't exist, using all unprocessed files`);
+        const unprocessedFiles = await db.select({
+          id: uploadedFiles.id,
+          originalFilename: uploadedFiles.originalFilename,
+          storagePath: uploadedFiles.storagePath,
+          fileType: uploadedFiles.fileType,
+          uploadedAt: uploadedFiles.uploadedAt,
+          processed: uploadedFiles.processed,
+          processingErrors: uploadedFiles.processingErrors,
+          deleted: uploadedFiles.deleted
+        })
+          .from(uploadedFiles)
+          .where(
+            and(
+              eq(uploadedFiles.processed, false),
+              eq(uploadedFiles.deleted, false)
+            )
+          );
+        
+        console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files (no environment filtering)`);
+        return unprocessedFiles;
+      }
+      throw error;
+    }
   }
 
   /**
