@@ -392,7 +392,11 @@ export type InsertProcessingMetrics = typeof processingMetrics.$inferInsert;
 export const insertTerminalSchema = createInsertSchema(terminals).omit({
   id: true,
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
+  lastUpdate: true,
+  updateSource: true,
+  createdBy: true,
+  updatedBy: true
 });
 export type Terminal = typeof terminals.$inferSelect;
 export type InsertTerminal = z.infer<typeof insertTerminalSchema>;

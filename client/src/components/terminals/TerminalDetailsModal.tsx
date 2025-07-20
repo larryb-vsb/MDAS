@@ -38,7 +38,12 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   const updateTerminalMutation = useMutation({
     mutationFn: async (data: Partial<Terminal>) => {
       const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
-      return response.json();
+      if (response.ok) {
+        return await response.json();
+      } else {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });

@@ -3175,7 +3175,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/terminals/:id", isAuthenticated, async (req, res) => {
     try {
       const terminalId = parseInt(req.params.id);
+      console.log(`Updating terminal ${terminalId} with data:`, req.body);
+      
       const terminalData = insertTerminalSchema.partial().parse(req.body);
+      console.log(`Parsed terminal data:`, terminalData);
       
       // Set updated timestamp and user
       const updateData = {
@@ -3185,8 +3188,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateSource: `Form: ${req.user?.username || "System"}`,
         updatedBy: req.user?.username || "System"
       };
+      console.log(`Final update data:`, updateData);
       
       const terminal = await storage.updateTerminal(terminalId, updateData);
+      console.log(`Updated terminal result:`, terminal);
       res.json(terminal);
     } catch (error) {
       console.error('Error updating terminal:', error);
