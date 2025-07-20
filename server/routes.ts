@@ -1307,7 +1307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const type = req.body.type;
-      if (!type || (type !== "merchant" && type !== "transaction")) {
+      if (!type || (type !== "merchant" && type !== "transaction" && type !== "terminal")) {
         return res.status(400).json({ error: "Invalid file type" });
       }
 

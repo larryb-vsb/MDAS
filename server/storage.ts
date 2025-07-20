@@ -168,6 +168,7 @@ export interface IStorage {
   // File processing operations
   processUploadedFile(filePath: string, type: string, originalFilename: string): Promise<string>;
   combineAndProcessUploads(fileIds: string[]): Promise<void>;
+  processTerminalFileFromContent(base64Content: string, sourceFileId?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }>;
   generateTransactionsExport(): Promise<string>;
   generateMerchantsExport(): Promise<string>;
   
@@ -2552,6 +2553,75 @@ export class DatabaseStorage implements IStorage {
                 })
                 .where(eq(uploadedFilesTable.id, file.id));
             }
+          } else if (file.fileType === 'terminal') {
+            try {
+              // Always use database content first (database-first approach)
+              console.log(`[TRACE] Processing terminal file ${file.id} (${file.originalFilename})`);
+              let dbContent = null;
+              try {
+                console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                }
+              } catch (error) {
+                console.log(`[TRACE] Database content error for ${file.id}:`, error);
+              }
+              
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`[TRACE] Processing terminal file from database content: ${file.id}`);
+                const processingStartTime = new Date();
+                const processingMetrics = await this.processTerminalFileFromContent(dbContent, file.id);
+                
+                // Calculate processing time in milliseconds
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics and completion status using environment-specific table
+                await db.execute(sql`
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.terminalsCreated - processingMetrics.terminalsUpdated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({ 
+                        terminalsCreated: processingMetrics.terminalsCreated, 
+                        terminalsUpdated: processingMetrics.terminalsUpdated,
+                        rowsProcessed: processingMetrics.rowsProcessed, 
+                        errors: processingMetrics.errors
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+                console.log(`📊 METRICS: ${processingMetrics.rowsProcessed} rows, ${processingMetrics.terminalsCreated} created, ${processingMetrics.terminalsUpdated} updated, ${processingMetrics.errors} errors`);
+              } else {
+                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
+                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.error(`[TRACE] Storage path: ${file.storagePath}`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+              }
+                
+              console.log(`Terminal file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing terminal file ${file.id}:`, error);
+              
+              // Mark with error
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true, 
+                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"}
+                WHERE id = ${file.id}
+              `);
+            }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
@@ -4568,6 +4638,179 @@ export class DatabaseStorage implements IStorage {
           reject(error);
         }
       });
+    });
+  }
+
+  // Process terminal file from database content
+  async processTerminalFileFromContent(base64Content: string, sourceFileId?: string): Promise<{ rowsProcessed: number; terminalsCreated: number; terminalsUpdated: number; errors: number }> {
+    console.log(`=================== TERMINAL FILE PROCESSING (DATABASE) ===================`);
+    console.log(`Processing terminal file from database content`);
+    
+    // Decode base64 content
+    const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
+    
+    // Import field mappings and utility functions
+    const { terminalFieldMappings } = await import("@shared/field-mappings");
+    
+    return new Promise((resolve, reject) => {
+      console.log("Starting terminal CSV parsing from content...");
+      
+      // Parse CSV content using string-based parsing
+      const parser = parseCSV({
+        columns: true,
+        skip_empty_lines: true,
+        relax_column_count: true,
+        relax_quotes: true,
+        relax: true
+      });
+      
+      let terminals: InsertTerminal[] = [];
+      let rowCount = 0;
+      let errorCount = 0;
+      
+      parser.on("data", (row) => {
+        rowCount++;
+        try {
+          console.log(`\n--- Processing terminal row ${rowCount} ---`);
+          console.log(`Row data: ${JSON.stringify(row)}`);
+          
+          // Find V Number (VAR Number) - required field
+          const vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"];
+          if (!vNumber || !vNumber.trim()) {
+            console.log(`[SKIP ROW] No V Number found in row ${rowCount}, skipping`);
+            return;
+          }
+          
+          // Find Master MID (POS Merchant #) - required field to link to merchants
+          const masterMID = row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"];
+          if (!masterMID || !masterMID.trim()) {
+            console.log(`[SKIP ROW] No Master MID found in row ${rowCount}, skipping`);
+            return;
+          }
+          
+          // Create terminal object with required fields
+          const terminalData: Partial<InsertTerminal> = {
+            vNumber: vNumber.trim(),
+            masterMID: masterMID.trim(),
+            status: "Active", // Default status
+            // Will add more fields from CSV mapping below
+          };
+          
+          // Apply field mappings - map CSV fields to database fields
+          for (const [dbField, csvField] of Object.entries(terminalFieldMappings)) {
+            if (csvField && row[csvField] !== undefined && row[csvField] !== null && row[csvField] !== '') {
+              console.log(`Mapping ${csvField} -> ${dbField}: ${row[csvField]}`);
+              
+              // Handle date fields
+              if (dbField === 'boardDate') {
+                try {
+                  if (row[csvField] && row[csvField].trim() !== '') {
+                    const parsedDate = new Date(row[csvField]);
+                    if (!isNaN(parsedDate.getTime())) {
+                      terminalData[dbField as keyof InsertTerminal] = parsedDate as any;
+                      console.log(`Parsed date ${csvField}: ${row[csvField]} -> ${parsedDate}`);
+                    }
+                  }
+                } catch (e) {
+                  console.warn(`Failed to parse date: ${row[csvField]}, skipping field`);
+                }
+              } else {
+                // Handle regular text fields
+                terminalData[dbField as keyof InsertTerminal] = row[csvField].toString().trim() as any;
+              }
+            }
+          }
+          
+          // Set default terminal type if not provided
+          if (!terminalData.terminalType) {
+            terminalData.terminalType = "unknown";
+          }
+          
+          console.log(`Mapped terminal:`, JSON.stringify(terminalData));
+          terminals.push(terminalData as InsertTerminal);
+          
+        } catch (error) {
+          errorCount++;
+          console.error(`Error processing terminal row ${rowCount}:`, error);
+          console.error("Row data:", JSON.stringify(row));
+        }
+      });
+      
+      parser.on("error", (error) => {
+        console.error("CSV parsing error:", error);
+        reject(error);
+      });
+      
+      parser.on("end", async () => {
+        console.log(`=================== TERMINAL CSV PROCESSING SUMMARY ===================`);
+        console.log(`CSV parsing complete. Processed ${rowCount} rows with ${errorCount} errors.`);
+        console.log(`Processing ${terminals.length} valid terminals...`);
+        console.log(`=============================================================`);
+        
+        try {
+          let createdCount = 0;
+          let updatedCount = 0;
+          
+          // Process each terminal
+          for (const terminal of terminals) {
+            try {
+              // Check if terminal already exists (by V Number)
+              const [existingTerminal] = await db
+                .select()
+                .from(terminalsTable)
+                .where(eq(terminalsTable.vNumber, terminal.vNumber))
+                .limit(1);
+              
+              if (existingTerminal) {
+                // Update existing terminal
+                await db
+                  .update(terminalsTable)
+                  .set({
+                    ...terminal,
+                    // Keep original ID and creation date
+                    id: existingTerminal.id,
+                  })
+                  .where(eq(terminalsTable.vNumber, terminal.vNumber));
+                
+                updatedCount++;
+                console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.masterMID}`);
+              } else {
+                // Create new terminal
+                await db
+                  .insert(terminalsTable)
+                  .values(terminal);
+                
+                createdCount++;
+                console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.masterMID}`);
+              }
+            } catch (insertError) {
+              console.error(`Error processing terminal ${terminal.vNumber}:`, insertError);
+              errorCount++;
+            }
+          }
+          
+          console.log(`\n================ TERMINAL PROCESSING SUMMARY ================`);
+          console.log(`Terminals created: ${createdCount}`);
+          console.log(`Terminals updated: ${updatedCount}`);
+          console.log(`Total processed: ${createdCount + updatedCount}`);
+          console.log(`Errors: ${errorCount}`);
+          console.log(`==============================================================`);
+          
+          resolve({ 
+            rowsProcessed: rowCount, 
+            terminalsCreated: createdCount, 
+            terminalsUpdated: updatedCount,
+            errors: errorCount 
+          });
+        } catch (error) {
+          console.error("Error processing terminals in database:", error);
+          reject(error);
+        }
+      });
+      
+      // Start parsing
+      parser.write(csvContent);
+      parser.end();
     });
   }
 

@@ -905,7 +905,7 @@ export default function Uploads() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">File Uploads</h1>
               <p className="text-muted-foreground">
-                Manage your uploaded merchant and transaction files
+                Manage your uploaded merchant, transaction, and terminal files
               </p>
             </div>
             <div className="flex gap-2">
@@ -951,7 +951,7 @@ export default function Uploads() {
                   <CardDescription>Overview of your file uploads and processing history</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">Total Files</div>
                       <div className="text-2xl font-bold">{files?.length || 0}</div>
@@ -961,12 +961,20 @@ export default function Uploads() {
                       <div className="text-2xl font-bold">{files?.filter(f => !f.processed).length || 0}</div>
                     </div>
                     <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Merchant Files</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'merchant').length || 0}</div>
+                    </div>
+                    <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">Transaction Files</div>
                       <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'transaction').length || 0}</div>
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">Merchant Files</div>
-                      <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'merchant').length || 0}</div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Terminal Files</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'terminal').length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">With Errors</div>
+                      <div className="text-2xl font-bold">{files?.filter(f => f.processingErrors).length || 0}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -995,6 +1003,9 @@ export default function Uploads() {
                   <TabsTrigger value="transaction">
                     Transaction Files ({files?.filter(file => file.fileType === 'transaction').length || 0})
                   </TabsTrigger>
+                  <TabsTrigger value="terminal">
+                    Terminal Files ({files?.filter(file => file.fileType === 'terminal').length || 0})
+                  </TabsTrigger>
                   <TabsTrigger value="queued">
                     Queued ({files?.filter(file => !file.processed && !file.processingErrors).length || 0})
                   </TabsTrigger>
@@ -1010,6 +1021,9 @@ export default function Uploads() {
                 </TabsContent>
                 <TabsContent value="transaction" className="mt-4">
                   {renderFileTable(files?.filter(file => file.fileType === 'transaction'))}
+                </TabsContent>
+                <TabsContent value="terminal" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.fileType === 'terminal'))}
                 </TabsContent>
                 <TabsContent value="queued" className="mt-4">
                   {renderFileTable(files?.filter(file => !file.processed && !file.processingErrors))}

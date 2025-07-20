@@ -223,6 +223,7 @@ export default function ProcessingFilters() {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="merchant">Merchant Files</SelectItem>
                   <SelectItem value="transaction">Transaction Files</SelectItem>
+                  <SelectItem value="terminal">Terminal Files</SelectItem>
                 </SelectContent>
               </Select>
 

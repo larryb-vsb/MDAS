@@ -161,7 +161,7 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Upload merchant demographics or transaction data files in CSV format.
+            Upload merchant demographics, transaction data, or payment terminal files in CSV format.
           </DialogDescription>
         </DialogHeader>
 
@@ -185,6 +185,7 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
                 <SelectContent>
                   <SelectItem value="merchant">Merchant Demographics</SelectItem>
                   <SelectItem value="transaction">Transaction Data</SelectItem>
+                  <SelectItem value="terminal">Payment Terminals</SelectItem>
                 </SelectContent>
               </Select>
             </div>
