@@ -531,32 +531,32 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
             </Card>
           </>
         )}
-      </DialogContent>
-      
-      {/* Bottom Save/Cancel buttons - always visible when editing */}
-      {isEditing && (
-        <DialogFooter className="px-6 py-4 bg-gradient-to-r from-muted/50 to-muted/30 border-t">
-          <div className="flex gap-3 w-full justify-end">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              disabled={updateTerminalMutation.isPending}
-              className="min-w-[100px]"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={updateTerminalMutation.isPending}
-              className="min-w-[100px] bg-primary hover:bg-primary/90"
-            >
-              <Save className="h-4 w-4 mr-1" />
-              {updateTerminalMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
+        
+        {/* Bottom Save/Cancel buttons - always visible when editing */}
+        {isEditing && (
+          <div className="mt-6 pt-4 border-t bg-gradient-to-r from-muted/20 to-muted/10 -mx-6 px-6 pb-2">
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                disabled={updateTerminalMutation.isPending}
+                className="min-w-[100px]"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={updateTerminalMutation.isPending}
+                className="min-w-[100px] bg-primary hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                {updateTerminalMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
           </div>
-        </DialogFooter>
-      )}
+        )}
+      </DialogContent>
     </Dialog>
   );
 }
