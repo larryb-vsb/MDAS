@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Local Fields & Activity Tracking Enhancement COMPLETED
+- Current session: July 20, 2025 - Terminal Local Fields & Activity Tracking Enhancement + Date Display Fix COMPLETED
 - **✅ LOCAL DATABASE FIELDS ADDED**: Successfully added M_Type and M_Location fields to terminals schema as requested local-only database fields
 - **✅ ACTIVITY TRACKING ENHANCED**: Import process now properly updates lastActivity timestamp when terminals are modified during file processing  
 - **✅ MANUAL EDIT TRACKING**: Both API routes (create/update terminal) now set lastActivity and updatedBy fields for proper audit trail
@@ -24,6 +24,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ FIELD MAPPINGS UPDATED**: Added M_Type and M_Location to terminal field mappings as local database-only fields (not from external systems)
 - **✅ DATABASE SCHEMA DEPLOYED**: Manual SQL execution successfully created m_type, m_location, and last_activity columns in both dev_terminals and terminals tables
 - **✅ IMPORT PROCESS FIXED**: Terminal import now sets createdBy="System Import", updatedBy="System Import", and lastActivity=current timestamp for proper tracking
+- **✅ DATE DISPLAY FIXED**: Terminals page Last Activity column now uses formatTableDate for proper CST timezone display instead of basic JavaScript date formatting
 - Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking

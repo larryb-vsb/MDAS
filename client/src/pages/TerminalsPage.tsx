@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw } from "lucide-react";
 import { Terminal } from "@shared/schema";
+import { formatTableDate } from "@/lib/date-utils";
 
 export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -294,10 +295,7 @@ export default function TerminalsPage() {
                       </TableCell>
                       <TableCell>{terminal.location || "-"}</TableCell>
                       <TableCell>
-                        {terminal.lastActivity ? 
-                          new Date(terminal.lastActivity).toLocaleDateString() 
-                          : "-"
-                        }
+                        {formatTableDate(terminal.lastActivity)}
                       </TableCell>
                       <TableCell>
                         <Button 
