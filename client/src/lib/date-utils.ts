@@ -1,9 +1,13 @@
 import { format, formatDistanceToNow, isValid } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+
+// User timezone setting - you can change this to your preferred timezone
+const USER_TIMEZONE = 'America/Chicago'; // CST/CDT timezone
 
 /**
- * Converts UTC timestamp to local Date object
+ * Converts UTC timestamp to user's preferred timezone
  * @param utcTimestamp - UTC timestamp string from database
- * @returns Date object in local timezone
+ * @returns Date object in user's timezone
  */
 export function utcToLocal(utcTimestamp: string | null): Date | null {
   if (!utcTimestamp) return null;
@@ -17,77 +21,93 @@ export function utcToLocal(utcTimestamp: string | null): Date | null {
     return null;
   }
   
-  // Return the date object - JavaScript Date automatically handles timezone conversion
-  return utcDate;
+  // Convert UTC to user's timezone
+  return toZonedTime(utcDate, USER_TIMEZONE);
 }
 
 /**
- * Formats a UTC timestamp to local time string
+ * Formats a UTC timestamp to user's timezone time string
  * @param utcTimestamp - UTC timestamp from database
  * @param formatStr - date-fns format string
- * @returns Formatted local time string or fallback
+ * @returns Formatted timezone-aware time string or fallback
  */
 export function formatLocalTime(utcTimestamp: string | null, formatStr: string = "MMM d, h:mm a", fallback: string = "-"): string {
-  const localDate = utcToLocal(utcTimestamp);
-  if (!localDate) return fallback;
+  if (!utcTimestamp) return fallback;
   
-  return format(localDate, formatStr);
+  const utcDate = new Date(utcTimestamp);
+  if (!isValid(utcDate)) return fallback;
+  
+  // Format in user's timezone
+  return formatInTimeZone(utcDate, USER_TIMEZONE, formatStr);
 }
 
 /**
- * Formats a UTC timestamp to relative time (e.g., "3 minutes ago")
+ * Formats a UTC timestamp to relative time (e.g., "3 minutes ago") 
  * @param utcTimestamp - UTC timestamp from database
  * @returns Relative time string or fallback
  */
 export function formatRelativeTime(utcTimestamp: string | null, fallback: string = "Never"): string {
-  const localDate = utcToLocal(utcTimestamp);
-  if (!localDate) return fallback;
+  if (!utcTimestamp) return fallback;
   
-  return formatDistanceToNow(localDate, { addSuffix: true });
+  const utcDate = new Date(utcTimestamp);
+  if (!isValid(utcDate)) return fallback;
+  
+  // Convert to user's timezone for accurate relative time calculation
+  const userDate = toZonedTime(utcDate, USER_TIMEZONE);
+  return formatDistanceToNow(userDate, { addSuffix: true });
 }
 
 /**
- * Smart date formatter for upload times
- * Shows relative time for recent dates, absolute time for older dates
+ * Smart date formatter for upload times in user's timezone
  * @param utcTimestamp - UTC timestamp from database
- * @returns Formatted string appropriate for context
+ * @returns Formatted string in user's timezone
  */
 export function formatUploadTime(utcTimestamp: string | null): string {
-  const localDate = utcToLocal(utcTimestamp);
-  if (!localDate) return "-";
+  if (!utcTimestamp) return "-";
   
-  return format(localDate, "MMM d, h:mm a");
+  const utcDate = new Date(utcTimestamp);
+  if (!isValid(utcDate)) return "-";
+  
+  return formatInTimeZone(utcDate, USER_TIMEZONE, "MMM d, h:mm a");
 }
 
 /**
- * Formats full date with seconds for detailed timestamps
- * @param utcTimestamp - UTC timestamp from database
- * @returns Full formatted local date and time with relative time
+ * Formats full date with seconds for detailed timestamps in user's timezone
+ * @param utcTimestamp - UTC timestamp from database  
+ * @returns Full formatted date and time in user's timezone
  */
 export function formatFullDateTime(utcTimestamp: string | null): string {
-  const localDate = utcToLocal(utcTimestamp);
-  if (!localDate) return "-";
+  if (!utcTimestamp) return "-";
   
-  const relativeTime = formatDistanceToNow(localDate, { addSuffix: true });
-  const absoluteTime = format(localDate, "MMM d, yyyy 'at' h:mm:ss a");
+  const utcDate = new Date(utcTimestamp);
+  if (!isValid(utcDate)) return "-";
+  
+  const userDate = toZonedTime(utcDate, USER_TIMEZONE);
+  const relativeTime = formatDistanceToNow(userDate, { addSuffix: true });
+  const absoluteTime = formatInTimeZone(utcDate, USER_TIMEZONE, "MMM d, yyyy 'at' h:mm:ss a zzz");
   
   return `${relativeTime} (${absoluteTime})`;
 }
 
 /**
- * Formats date for display in tables (compact format)
+ * Formats date for display in tables (compact format) in user's timezone
  * @param utcTimestamp - UTC timestamp from database
- * @returns Compact formatted date
+ * @returns Compact formatted date in user's timezone
  */
 export function formatTableDate(utcTimestamp: string | null): string {
   return formatLocalTime(utcTimestamp, "MMM d, h:mm a", "-");
 }
 
 /**
- * Formats date for tooltips and detailed views
+ * Formats date for tooltips and detailed views in user's timezone
  * @param utcTimestamp - UTC timestamp from database
- * @returns Detailed formatted date
+ * @returns Detailed formatted date in user's timezone
  */
 export function formatDetailedDate(utcTimestamp: string | null): string {
-  return formatLocalTime(utcTimestamp, "PPpp", "Never");
+  if (!utcTimestamp) return "Never";
+  
+  const utcDate = new Date(utcTimestamp);
+  if (!isValid(utcDate)) return "Never";
+  
+  return formatInTimeZone(utcDate, USER_TIMEZONE, "PPpp zzz");
 }

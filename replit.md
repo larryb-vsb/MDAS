@@ -7,6 +7,7 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
 
 ## Recent Changes
 
