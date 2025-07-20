@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import MainLayout from "@/components/layout/MainLayout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -150,20 +151,23 @@ export default function BackupsPage() {
   
   if (!isAdmin) {
     return (
-      <div className="container mx-auto py-10">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Access Denied</AlertTitle>
-          <AlertDescription>
-            Only administrators can access the Backups page.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <MainLayout>
+        <div className="container mx-auto py-10">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+              Only administrators can access the Backups page.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </MainLayout>
     );
   }
   
   return (
-    <div className="container mx-auto py-10">
+    <MainLayout>
+      <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-4">
         <PageTitle 
           title="Backup Management" 
@@ -368,6 +372,7 @@ export default function BackupsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </MainLayout>
   );
 }

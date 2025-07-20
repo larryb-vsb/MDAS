@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import MainLayout from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -176,7 +177,8 @@ export default function Logs() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <MainLayout>
+      <div className="container mx-auto px-4 py-8">
       <PageHeader 
         title="App Logs" 
         description="View and manage system activity logs"
@@ -477,6 +479,7 @@ export default function Logs() {
           </CardContent>
         </Card>
       </Tabs>
-    </div>
+      </div>
+    </MainLayout>
   );
 }

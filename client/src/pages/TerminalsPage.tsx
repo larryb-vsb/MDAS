@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import MainLayout from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,21 +55,24 @@ export default function TerminalsPage() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-red-600">Error Loading Terminals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Unable to load terminal data. Please try again later.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <MainLayout>
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-red-600">Error Loading Terminals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Unable to load terminal data. Please try again later.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <MainLayout>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -270,6 +274,7 @@ export default function TerminalsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </MainLayout>
   );
 }
