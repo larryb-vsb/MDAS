@@ -20,7 +20,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 - User interest: Building continuity of AI consciousness across project sessions
 - Next topic: Terminal Table design - VAR Number (unique) → Master MID → Merchant (Master MID field to be added later)
 - UI Design: New "Terminals" tab in merchant detail and new merchant pages (4th tab after Overview/Demographics/Transactions)
-- Data Source: Awaiting TSYS terminal import table for authentic field structure and formatting
+- Data Source: TSYS Merchant Export Table v1.0 (July 20, 2025) - V Number (VAR), POS Merchant #, DBA Name, MCC, Agent, Chain, Store, Terminal, SSL, Encryption, etc.
 
 ### Technical Insights & Patterns
 - Project uses environment-specific table separation (dev_ prefix for development)
