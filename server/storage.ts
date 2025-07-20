@@ -2459,6 +2459,7 @@ export class DatabaseStorage implements IStorage {
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
                 console.log(`[TRACE] Processing transaction file from database content: ${file.id}`);
+                const processingStartTime = new Date(); // Define processingStartTime here
                 const processingMetrics = await this.processTransactionFileFromContent(dbContent, file.id);
                 
                 // Calculate processing time in milliseconds

@@ -244,6 +244,14 @@ class FileProcessorService {
   async processUnprocessedFiles(): Promise<void> {
     const serverId = getCachedServerId();
     
+    // DATABASE-LEVEL GLOBAL LOCK: Check if ANY server is currently processing
+    // This prevents multiple servers AND multiple triggers on same server from running simultaneously
+    const isGloballyProcessing = await this.checkGlobalProcessingStatus();
+    if (isGloballyProcessing) {
+      console.log(`[${serverId}] Another server or process is currently processing files globally, skipping this run`);
+      return;
+    }
+    
     // Skip if already processing files or paused (in-memory check)
     if (this.isRunning) {
       console.log(`[${serverId}] File processor is already running locally, skipping this run`);
@@ -325,6 +333,31 @@ class FileProcessorService {
     } finally {
       this.queuedFiles = [];
       this.isRunning = false;
+    }
+  }
+
+  /**
+   * Check if any server is currently processing files globally
+   * This prevents multiple processing instances from running simultaneously
+   */
+  private async checkGlobalProcessingStatus(): Promise<boolean> {
+    try {
+      const { getTableName } = await import("../table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Check if ANY files are currently being processed by any server
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as processing_count
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE processing_status = 'processing'
+      `);
+      
+      const processingCount = parseInt(result.rows[0]?.processing_count || '0');
+      return processingCount > 0;
+    } catch (error) {
+      console.error('Error checking global processing status:', error);
+      // On error, assume processing is happening to be safe
+      return true;
     }
   }
 
