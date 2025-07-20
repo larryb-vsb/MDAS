@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { formatTableDate } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RefreshCw } from "lucide-react";
@@ -779,7 +780,7 @@ export default function Transactions() {
                             {transaction.type}
                           </span>
                         </TableCell>
-                        <TableCell>{formatDate(transaction.date)}</TableCell>
+                        <TableCell>{formatTableDate(transaction.date)}</TableCell>
                         <TableCell className={cn(
                           "text-right",
                           transaction.type === "Debit" ? "text-red-600" : "text-green-600"
@@ -788,10 +789,10 @@ export default function Transactions() {
                         </TableCell>
                         <TableCell className="text-center">
                           <RawDataTooltip 
-                            rawData={transaction.rawData}
-                            sourceRowNumber={transaction.sourceRowNumber}
-                            recordedAt={transaction.recordedAt}
-                            sourceFileName={transaction.sourceFileName}
+                            rawData={transaction.rawData || null}
+                            sourceRowNumber={transaction.sourceRowNumber || undefined}
+                            recordedAt={(transaction as any).recordedAt}
+                            sourceFileName={(transaction as any).sourceFileName}
                           />
                         </TableCell>
                       </TableRow>
