@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { formatUploadTime, formatRelativeTime, formatTableDate } from "@/lib/date-utils";
 
 interface ProcessingStatusData {
   uploads: any[];
@@ -180,10 +181,7 @@ export default function ProcessingFilters() {
                 <div key={file.id} className="text-xs">
                   <div className="truncate font-medium">{file.originalFilename}</div>
                   <div className="text-muted-foreground">
-                    {file.processingCompletedAt ? 
-                      formatDistanceToNow(new Date(file.processingCompletedAt), { addSuffix: true }) :
-                      'Recently'
-                    }
+                    {formatRelativeTime(file.processingCompletedAt, 'Recently')}
                   </div>
                 </div>
               )) || <div className="text-xs text-muted-foreground">No recent activity</div>}
@@ -280,12 +278,12 @@ export default function ProcessingFilters() {
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                <span>Uploaded: {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}</span>
+                                <span>Uploaded: {formatRelativeTime(file.uploadedAt)}</span>
                                 {file.processedAt && (
-                                  <span>Processed: {formatDistanceToNow(new Date(file.processedAt), { addSuffix: true })}</span>
+                                  <span>Processed: {formatRelativeTime(file.processedAt)}</span>
                                 )}
                                 {file.processingStartedAt && !file.processedAt && (
-                                  <span>Started: {formatDistanceToNow(new Date(file.processingStartedAt), { addSuffix: true })}</span>
+                                  <span>Started: {formatRelativeTime(file.processingStartedAt)}</span>
                                 )}
                               </div>
                             </div>

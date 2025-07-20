@@ -4,6 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
+import { formatUploadTime, formatFullDateTime, formatTableDate } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
 import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
 import MappingSettings from "@/components/uploads/MappingSettings";
@@ -373,36 +374,13 @@ export default function Uploads() {
     }
   }
 
+  // Use the centralized date utilities
   function formatFileDate(dateString: string) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60);
-    const diffInHours = diffInMinutes / 60;
-    
-    // For very recent uploads (less than 2 minutes)
-    if (diffInMinutes < 2 && diffInMinutes >= 0) {
-      return "Just now";
-    }
-    // For recent uploads (less than 1 hour)
-    else if (diffInHours < 1 && diffInHours >= 0) {
-      const minutes = Math.floor(diffInMinutes);
-      return `${minutes} min ago`;
-    }
-    // For uploads today (less than 24 hours)
-    else if (diffInHours < 24 && diffInHours >= 0) {
-      const hours = Math.floor(diffInHours);
-      return `${hours}h ago`;
-    }
-    // For older uploads, show local date/time
-    else {
-      return format(date, "MMM d, h:mm a");
-    }
+    return formatUploadTime(dateString);
   }
 
   function formatFullDate(dateString: string) {
-    const date = new Date(dateString);
-    // Show full local date and time with timezone
-    return format(date, "MMM d, yyyy 'at' h:mm:ss a"); 
+    return formatFullDateTime(dateString);
   }
 
   // Handle viewing file error

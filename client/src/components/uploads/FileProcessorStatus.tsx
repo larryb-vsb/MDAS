@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
+import { formatRelativeTime, formatDetailedDate } from "@/lib/date-utils";
 import {
   AlertCircle,
   RefreshCw,
@@ -111,17 +112,13 @@ export default function FileProcessorStatus() {
     }
   });
 
-  // Format dates for display
+  // Use centralized date utilities with proper UTC to local conversion
   function formatDate(dateString: string | null) {
-    if (!dateString) return "Never";
-    const date = new Date(dateString);
-    return format(date, "PPpp"); // Example: "Apr 29, 2021, 2:00 PM"
+    return formatDetailedDate(dateString);
   }
 
   function formatRelativeDate(dateString: string | null) {
-    if (!dateString) return "Never";
-    const date = new Date(dateString);
-    return formatDistanceToNow(date, { addSuffix: true });
+    return formatRelativeTime(dateString);
   }
 
   if (isStatusLoading || isStatsLoading) {
