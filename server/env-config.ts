@@ -3,9 +3,8 @@
  * Centralized place for environment-specific settings
  */
 
-// Determine the current environment  
-// Back to development mode
-export const NODE_ENV = 'development';
+// Determine the current environment from process.env
+export const NODE_ENV = process.env.NODE_ENV || 'production';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
@@ -17,9 +16,6 @@ export function getEnvironment() {
 
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
-
-// Set development mode 
-process.env.NODE_ENV = 'development';
 
 // IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
 // Use same database with dev_ table prefixes for complete separation
