@@ -4691,7 +4691,7 @@ export class DatabaseStorage implements IStorage {
           // Create terminal object with required fields
           const terminalData: Partial<InsertTerminal> = {
             vNumber: vNumber.trim(),
-            masterMID: masterMID.trim(),
+            posMerchantNumber: masterMID.trim(),
             status: "Active", // Default status, will be overridden by Record Status mapping
             // Will add more fields from CSV mapping below
           };
@@ -4792,7 +4792,7 @@ export class DatabaseStorage implements IStorage {
                   .where(eq(terminalsTable.vNumber, terminal.vNumber));
                 
                 updatedCount++;
-                console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.masterMID}`);
+                console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
               } else {
                 // Create new terminal
                 await db
@@ -4800,7 +4800,7 @@ export class DatabaseStorage implements IStorage {
                   .values(terminal);
                 
                 createdCount++;
-                console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.masterMID}`);
+                console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
               }
             } catch (insertError) {
               console.error(`Error processing terminal ${terminal.vNumber}:`, insertError);
