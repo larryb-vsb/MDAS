@@ -22,6 +22,8 @@ Timezone: CST (America/Chicago) - All dates and times should display in Central 
 - **✅ PRODUCTION READY**: Complete database-level concurrency control with horizontal scaling architecture
 - **✅ UPGRADE DOCUMENTATION**: Comprehensive upgrade guide created for development-to-production deployment
 - **✅ BACKWARD COMPATIBILITY**: Existing file processing continues without interruption during upgrade
+- **✅ SERVER RESTART ISSUE RESOLVED**: Fixed stuck file processing after server restarts by clearing orphaned processing status from previous server instances
+- **✅ PROCESSING MONITOR ACCURACY**: Resolved idle status display when files were actually stuck in processing - system now shows correct active processing status
 
 ### User Profile Timezone Support FULLY OPERATIONAL (July 20, 2025)
 - **✅ CST TIMEZONE IMPLEMENTATION**: Successfully implemented Central Time (America/Chicago) timezone support throughout the application
