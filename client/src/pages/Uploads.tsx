@@ -4,7 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
-import { formatUploadTime, formatFullDateTime, formatTableDate } from "@/lib/date-utils";
+import { formatUploadTime, formatFullDateTime, formatTableDate, formatRelativeTime } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
 import FileProcessorStatus from "@/components/uploads/FileProcessorStatus";
 import MappingSettings from "@/components/uploads/MappingSettings";
@@ -374,13 +374,13 @@ export default function Uploads() {
     }
   }
 
-  // Use the centralized date utilities
+  // Use the centralized date utilities  
   function formatFileDate(dateString: string) {
-    return formatUploadTime(dateString);
+    return formatRelativeTime(dateString);
   }
 
   function formatFullDate(dateString: string) {
-    return formatFullDateTime(dateString);
+    return formatUploadTime(dateString);
   }
 
   // Handle viewing file error
@@ -740,20 +740,20 @@ export default function Uploads() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        {formatFileDate(file.uploadedAt)}
+                        {formatRelativeTime(file.uploadedAt)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatFullDate(file.uploadedAt)}
+                        {formatUploadTime(file.uploadedAt)}
                       </div>
                     </TableCell>
                     <TableCell>
                       {file.processedAt ? (
                         <div>
                           <div className="font-medium">
-                            {formatFileDate(file.processedAt)}
+                            {formatRelativeTime(file.processedAt)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatFullDate(file.processedAt)}
+                            {formatUploadTime(file.processedAt)}
                           </div>
                         </div>
                       ) : (

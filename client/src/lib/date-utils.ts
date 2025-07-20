@@ -56,40 +56,22 @@ export function formatUploadTime(utcTimestamp: string | null): string {
   const localDate = utcToLocal(utcTimestamp);
   if (!localDate) return "-";
   
-  const now = new Date();
-  const diffInMinutes = (now.getTime() - localDate.getTime()) / (1000 * 60);
-  const diffInHours = diffInMinutes / 60;
-  
-  // For very recent uploads (less than 2 minutes)
-  if (diffInMinutes < 2 && diffInMinutes >= 0) {
-    return "Just now";
-  }
-  // For recent uploads (less than 1 hour)
-  else if (diffInHours < 1 && diffInHours >= 0) {
-    const minutes = Math.floor(diffInMinutes);
-    return `${minutes} min ago`;
-  }
-  // For uploads today (less than 24 hours)
-  else if (diffInHours < 24 && diffInHours >= 0) {
-    const hours = Math.floor(diffInHours);
-    return `${hours}h ago`;
-  }
-  // For older uploads, show local date/time
-  else {
-    return format(localDate, "MMM d, h:mm a");
-  }
+  return format(localDate, "MMM d, h:mm a");
 }
 
 /**
  * Formats full date with seconds for detailed timestamps
  * @param utcTimestamp - UTC timestamp from database
- * @returns Full formatted local date and time
+ * @returns Full formatted local date and time with relative time
  */
 export function formatFullDateTime(utcTimestamp: string | null): string {
   const localDate = utcToLocal(utcTimestamp);
   if (!localDate) return "-";
   
-  return format(localDate, "MMM d, yyyy 'at' h:mm:ss a");
+  const relativeTime = formatDistanceToNow(localDate, { addSuffix: true });
+  const absoluteTime = format(localDate, "MMM d, yyyy 'at' h:mm:ss a");
+  
+  return `${relativeTime} (${absoluteTime})`;
 }
 
 /**
