@@ -39,9 +39,18 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
     mutationFn: async (data: Partial<Terminal>) => {
       console.log("Sending terminal update:", data);
       try {
-        const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
+        // Use direct fetch instead of apiRequest to avoid any issues
+        const response = await fetch(`/api/terminals/${terminal?.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+          credentials: 'include', // This ensures cookies (session) are sent
+        });
+        
         console.log("API response status:", response.status);
-        console.log("API response headers:", Object.fromEntries(response.headers.entries()));
+        console.log("API response ok:", response.ok);
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -49,18 +58,9 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
           throw new Error(errorText || `HTTP ${response.status}`);
         }
         
-        const contentType = response.headers.get('content-type');
-        console.log("Content-Type:", contentType);
-        
-        if (contentType && contentType.includes('application/json')) {
-          const result = await response.json();
-          console.log("API success response:", result);
-          return result;
-        } else {
-          const textResult = await response.text();
-          console.log("API text response:", textResult);
-          throw new Error("API returned non-JSON response: " + textResult);
-        }
+        const result = await response.json();
+        console.log("API success response:", result);
+        return result;
       } catch (error) {
         console.error("Terminal update error:", error);
         throw error;
