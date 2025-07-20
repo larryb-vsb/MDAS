@@ -6,18 +6,27 @@ const USER_TIMEZONE = 'America/Chicago'; // CST/CDT timezone
 
 /**
  * Converts UTC timestamp to user's preferred timezone
- * @param utcTimestamp - UTC timestamp string from database
+ * @param utcTimestamp - UTC timestamp string from database (may or may not have Z suffix)
  * @returns Date object in user's timezone
  */
 export function utcToLocal(utcTimestamp: string | null): Date | null {
   if (!utcTimestamp) return null;
   
-  // Parse the UTC timestamp - assumes it's in ISO format
-  const utcDate = new Date(utcTimestamp);
+  // Handle database timestamps that don't have Z suffix (assume they are UTC from server)
+  let dateString = utcTimestamp;
+  if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('T')) {
+    // Format: "2025-07-20 01:22:22.961" - add Z to indicate UTC
+    dateString = dateString.replace(' ', 'T') + 'Z';
+  } else if (!dateString.endsWith('Z') && dateString.includes('T') && !dateString.includes('+')) {
+    // Format: "2025-07-20T01:22:22.961" - add Z to indicate UTC  
+    dateString = dateString + 'Z';
+  }
+  
+  const utcDate = new Date(dateString);
   
   // Validate the date
   if (!isValid(utcDate)) {
-    console.warn('Invalid date provided:', utcTimestamp);
+    console.warn('Invalid date provided:', utcTimestamp, 'converted to:', dateString);
     return null;
   }
   
@@ -27,14 +36,24 @@ export function utcToLocal(utcTimestamp: string | null): Date | null {
 
 /**
  * Formats a UTC timestamp to user's timezone time string
- * @param utcTimestamp - UTC timestamp from database
+ * @param utcTimestamp - UTC timestamp from database (may or may not have Z suffix)
  * @param formatStr - date-fns format string
  * @returns Formatted timezone-aware time string or fallback
  */
 export function formatLocalTime(utcTimestamp: string | null, formatStr: string = "MMM d, h:mm a", fallback: string = "-"): string {
   if (!utcTimestamp) return fallback;
   
-  const utcDate = new Date(utcTimestamp);
+  // Handle database timestamps that don't have Z suffix (assume they are UTC from server)
+  let dateString = utcTimestamp;
+  if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('T')) {
+    // Format: "2025-07-20 01:22:22.961" - add Z to indicate UTC
+    dateString = dateString.replace(' ', 'T') + 'Z';
+  } else if (!dateString.endsWith('Z') && dateString.includes('T') && !dateString.includes('+')) {
+    // Format: "2025-07-20T01:22:22.961" - add Z to indicate UTC  
+    dateString = dateString + 'Z';
+  }
+  
+  const utcDate = new Date(dateString);
   if (!isValid(utcDate)) return fallback;
   
   // Format in user's timezone
@@ -43,13 +62,23 @@ export function formatLocalTime(utcTimestamp: string | null, formatStr: string =
 
 /**
  * Formats a UTC timestamp to relative time (e.g., "3 minutes ago") 
- * @param utcTimestamp - UTC timestamp from database
+ * @param utcTimestamp - UTC timestamp from database (may or may not have Z suffix)
  * @returns Relative time string or fallback
  */
 export function formatRelativeTime(utcTimestamp: string | null, fallback: string = "Never"): string {
   if (!utcTimestamp) return fallback;
   
-  const utcDate = new Date(utcTimestamp);
+  // Handle database timestamps that don't have Z suffix (assume they are UTC from server)
+  let dateString = utcTimestamp;
+  if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('T')) {
+    // Format: "2025-07-20 01:22:22.961" - add Z to indicate UTC
+    dateString = dateString.replace(' ', 'T') + 'Z';
+  } else if (!dateString.endsWith('Z') && dateString.includes('T') && !dateString.includes('+')) {
+    // Format: "2025-07-20T01:22:22.961" - add Z to indicate UTC  
+    dateString = dateString + 'Z';
+  }
+  
+  const utcDate = new Date(dateString);
   if (!isValid(utcDate)) return fallback;
   
   // Convert to user's timezone for accurate relative time calculation
@@ -59,13 +88,23 @@ export function formatRelativeTime(utcTimestamp: string | null, fallback: string
 
 /**
  * Smart date formatter for upload times in user's timezone
- * @param utcTimestamp - UTC timestamp from database
+ * @param utcTimestamp - UTC timestamp from database (may or may not have Z suffix)
  * @returns Formatted string in user's timezone
  */
 export function formatUploadTime(utcTimestamp: string | null): string {
   if (!utcTimestamp) return "-";
   
-  const utcDate = new Date(utcTimestamp);
+  // Handle database timestamps that don't have Z suffix (assume they are UTC from server)
+  let dateString = utcTimestamp;
+  if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('T')) {
+    // Format: "2025-07-20 01:22:22.961" - add Z to indicate UTC
+    dateString = dateString.replace(' ', 'T') + 'Z';
+  } else if (!dateString.endsWith('Z') && dateString.includes('T') && !dateString.includes('+')) {
+    // Format: "2025-07-20T01:22:22.961" - add Z to indicate UTC  
+    dateString = dateString + 'Z';
+  }
+  
+  const utcDate = new Date(dateString);
   if (!isValid(utcDate)) return "-";
   
   return formatInTimeZone(utcDate, USER_TIMEZONE, "MMM d, h:mm a");
