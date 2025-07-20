@@ -13,10 +13,13 @@ import {
   auditLogs as auditLogsTable,
   systemLogs,
   securityLogs,
+  terminals as terminalsTable,
   Merchant,
   Transaction,
+  Terminal,
   InsertMerchant,
   InsertTransaction,
+  InsertTerminal,
   InsertUploadedFile,
   User,
   InsertUser,
@@ -55,6 +58,14 @@ export interface IStorage {
   
   // Session store for authentication
   sessionStore: session.Store;
+
+  // Terminal operations
+  getTerminals(): Promise<Terminal[]>;
+  getTerminalById(terminalId: number): Promise<Terminal | undefined>;
+  getTerminalsByMasterMID(masterMID: string): Promise<Terminal[]>;
+  createTerminal(insertTerminal: InsertTerminal): Promise<Terminal>;
+  updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal>;
+  deleteTerminal(terminalId: number): Promise<void>;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
@@ -5232,6 +5243,43 @@ export class DatabaseStorage implements IStorage {
       console.error('Error getting recently processed files:', error);
       return [];
     }
+  }
+
+  // Terminal operations
+  async getTerminals(): Promise<Terminal[]> {
+    const results = await db.select().from(terminalsTable);
+    return results;
+  }
+
+  async getTerminalById(terminalId: number): Promise<Terminal | undefined> {
+    const [terminal] = await db.select().from(terminalsTable).where(eq(terminalsTable.id, terminalId));
+    return terminal || undefined;
+  }
+
+  async getTerminalsByMasterMID(masterMID: string): Promise<Terminal[]> {
+    const results = await db.select().from(terminalsTable).where(eq(terminalsTable.masterMID, masterMID));
+    return results;
+  }
+
+  async createTerminal(insertTerminal: InsertTerminal): Promise<Terminal> {
+    const [terminal] = await db
+      .insert(terminalsTable)
+      .values(insertTerminal)
+      .returning();
+    return terminal;
+  }
+
+  async updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal> {
+    const [terminal] = await db
+      .update(terminalsTable)
+      .set(terminalData)
+      .where(eq(terminalsTable.id, terminalId))
+      .returning();
+    return terminal;
+  }
+
+  async deleteTerminal(terminalId: number): Promise<void> {
+    await db.delete(terminalsTable).where(eq(terminalsTable.id, terminalId));
   }
 }
 

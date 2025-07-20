@@ -20,6 +20,7 @@ export const merchantFieldMappings = {
   merchantType: "Mtype", // Merchant Type field (numeric: 1=Online, 2=Retail, 3=Mixed, 4=B2B, 5=Wholesale)
   association: "Association", // Business association field
   mcc: "MCC", // Merchant Category Code
+  masterMID: "POS Merchant #", // Master Merchant ID from TSYS (POS Merchant # field)
   address: "ClientPAddress1", 
   city: "ClientPAddressCity",
   state: "ClientPAddressState",
@@ -74,6 +75,45 @@ export const alternateTransactionMappings = {
     description: "Descr", // Additional field for description
     merchantName: "Name" // Name of merchant
   }
+};
+
+// Terminal field mappings for TSYS export
+export const terminalFieldMappings: Record<string, string | null> = {
+  vNumber: "V Number", // VAR Number from TSYS (unique identifier)
+  masterMID: "POS Merchant #", // Links to merchants.masterMID
+  bin: "BIN", // Bank Identification Number
+  dbaName: "DBA Name", // Doing Business As name
+  dailyAuth: "Daily Auth", // Daily authorization limit
+  dialPay: "Dial Pay", // Dial payment configuration
+  encryption: "Encryption", // Payment encryption settings
+  prr: "PRR", // Processing rate/rule
+  mcc: "MCC", // Merchant Category Code
+  ssl: "SSL", // SSL security configuration
+  tokenization: "Tokenization", // Tokenization settings
+  agent: "Agent", // Agent information
+  chain: "Chain", // Chain store identifier
+  store: "Store", // Store number
+  terminalInfo: "Terminal", // Terminal information
+  recordStatus: "Record Status", // Record status from TSYS
+  boardDate: "Board Date", // Board date from TSYS
+  terminalVisa: "Terminal Visa", // Visa terminal settings
+  
+  // Additional fields not directly from TSYS but managed internally
+  terminalType: null, // Will be set during processing
+  status: null, // Managed internally
+  location: null, // Internal field
+  installationDate: null, // Internal field
+  lastActivity: null, // Internal field
+  hardwareModel: null, // Internal field
+  manufacturer: null, // Internal field
+  firmwareVersion: null, // Internal field
+  networkType: null, // Internal field
+  ipAddress: null, // Internal field
+  genericField1: null, // Generic field for custom use
+  genericField2: null, // Generic field for custom use
+  description: null, // Internal field
+  notes: null, // Internal field
+  internalNotes: null, // Internal field
 };
 
 // Customizable default values for fields not found in CSV

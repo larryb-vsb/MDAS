@@ -61,7 +61,9 @@ import {
   schemaVersions,
   backupSchedules as backupSchedulesTable,
   users as usersTable,
-  systemLogs as systemLogsTable
+  systemLogs as systemLogsTable,
+  terminals as terminalsTable,
+  insertTerminalSchema
 } from "@shared/schema";
 import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } from "./schema_version";
 
@@ -3092,6 +3094,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching server info:", error);
       res.status(500).json({ error: "Failed to fetch server information" });
+    }
+  });
+
+  // Terminal management endpoints
+  
+  // Get all terminals
+  app.get("/api/terminals", isAuthenticated, async (req, res) => {
+    try {
+      const terminals = await storage.getTerminals();
+      res.json(terminals);
+    } catch (error) {
+      console.error('Error fetching terminals:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch terminals" 
+      });
+    }
+  });
+
+  // Get terminal by ID
+  app.get("/api/terminals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = parseInt(req.params.id);
+      const terminal = await storage.getTerminalById(terminalId);
+      
+      if (!terminal) {
+        return res.status(404).json({ error: "Terminal not found" });
+      }
+      
+      res.json(terminal);
+    } catch (error) {
+      console.error('Error fetching terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch terminal" 
+      });
+    }
+  });
+
+  // Get terminals by Master MID
+  app.get("/api/terminals/by-master-mid/:masterMID", isAuthenticated, async (req, res) => {
+    try {
+      const masterMID = req.params.masterMID;
+      const terminals = await storage.getTerminalsByMasterMID(masterMID);
+      res.json(terminals);
+    } catch (error) {
+      console.error('Error fetching terminals by master MID:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch terminals" 
+      });
+    }
+  });
+
+  // Create new terminal
+  app.post("/api/terminals", isAuthenticated, async (req, res) => {
+    try {
+      const terminalData = insertTerminalSchema.parse(req.body);
+      
+      // Set created timestamp and user
+      const newTerminalData = {
+        ...terminalData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: req.user?.username || "System",
+        updatedBy: req.user?.username || "System"
+      };
+      
+      const terminal = await storage.createTerminal(newTerminalData);
+      res.status(201).json(terminal);
+    } catch (error) {
+      console.error('Error creating terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create terminal" 
+      });
+    }
+  });
+
+  // Update terminal
+  app.put("/api/terminals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = parseInt(req.params.id);
+      const terminalData = insertTerminalSchema.partial().parse(req.body);
+      
+      // Set updated timestamp and user
+      const updateData = {
+        ...terminalData,
+        updatedAt: new Date(),
+        updatedBy: req.user?.username || "System"
+      };
+      
+      const terminal = await storage.updateTerminal(terminalId, updateData);
+      res.json(terminal);
+    } catch (error) {
+      console.error('Error updating terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update terminal" 
+      });
+    }
+  });
+
+  // Delete terminal
+  app.delete("/api/terminals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = parseInt(req.params.id);
+      await storage.deleteTerminal(terminalId);
+      res.json({ success: true, message: "Terminal deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete terminal" 
+      });
     }
   });
 

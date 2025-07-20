@@ -22,6 +22,7 @@ export const merchants = pgTable(getTableName("merchants"), {
   salesChannel: text("sales_channel"),
   association: text("association"), // Business association field
   mcc: text("mcc"), // Merchant Category Code
+  masterMID: text("master_mid"), // Master Merchant ID for terminal linkage
   address: text("address"),
   city: text("city"),
   state: text("state"),
@@ -33,6 +34,60 @@ export const merchants = pgTable(getTableName("merchants"), {
   asOfDate: timestamp("as_of_date"), // Date from demographic import
   editDate: timestamp("edit_date").defaultNow(), // System-controlled last edit date
   updatedBy: text("updated_by") // System-controlled field for tracking who made changes
+});
+
+// Terminals table - based on TSYS Merchant Export structure
+export const terminals = pgTable(getTableName("terminals"), {
+  id: serial("id").primaryKey(),
+  vNumber: text("v_number").notNull().unique(), // VAR Number from TSYS (unique terminal identifier)
+  masterMID: text("master_mid").notNull(), // Links to merchants.masterMID (POS Merchant # from TSYS)
+  
+  // Core TSYS fields
+  bin: text("bin"), // Bank Identification Number
+  dbaName: text("dba_name"), // Doing Business As name
+  dailyAuth: text("daily_auth"), // Daily authorization limit
+  dialPay: text("dial_pay"), // Dial payment configuration
+  encryption: text("encryption"), // Payment encryption settings
+  prr: text("prr"), // Processing rate/rule
+  mcc: text("mcc"), // Merchant Category Code
+  ssl: text("ssl"), // SSL security configuration
+  tokenization: text("tokenization"), // Tokenization settings
+  agent: text("agent"), // Agent information
+  chain: text("chain"), // Chain store identifier
+  store: text("store"), // Store number
+  terminalInfo: text("terminal_info"), // Terminal information from TSYS
+  recordStatus: text("record_status"), // Record status from TSYS
+  boardDate: timestamp("board_date"), // Board date from TSYS
+  terminalVisa: text("terminal_visa"), // Visa terminal settings
+  
+  // Additional management fields
+  terminalType: text("terminal_type"), // countertop, mobile, virtual, integrated POS, etc.
+  status: text("status").notNull().default("Active"), // Active, Inactive, Maintenance, Deployed
+  location: text("location"), // Physical location description
+  installationDate: timestamp("installation_date"), // When terminal was installed
+  lastActivity: timestamp("last_activity"), // Last transaction timestamp
+  hardwareModel: text("hardware_model"), // Terminal hardware model
+  manufacturer: text("manufacturer"), // Terminal manufacturer
+  firmwareVersion: text("firmware_version"), // Current firmware version
+  networkType: text("network_type"), // Connection type (ethernet, wifi, cellular, etc.)
+  ipAddress: text("ip_address"), // IP address if applicable
+  
+  // Generic fields as requested
+  genericField1: text("generic_field_1"), // Generic field for custom use
+  genericField2: text("generic_field_2"), // Generic field for custom use
+  
+  // Description and notes fields
+  description: text("description"), // Terminal description
+  notes: text("notes"), // Additional notes about terminal
+  internalNotes: text("internal_notes"), // Internal staff notes
+  
+  // Audit and logging fields
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: text("created_by"), // Who created this terminal record
+  updatedBy: text("updated_by"), // Who last updated this terminal record
+  lastSyncDate: timestamp("last_sync_date"), // Last sync with TSYS
+  syncStatus: text("sync_status").default("Pending") // Sync status with external systems
 });
 
 // Transactions table
@@ -326,3 +381,12 @@ export const insertProcessingMetricsSchema = processingMetricsSchema.omit({ id: 
 // Export processing metrics types
 export type ProcessingMetrics = typeof processingMetrics.$inferSelect;
 export type InsertProcessingMetrics = typeof processingMetrics.$inferInsert;
+
+// Terminal schema for validation and types
+export const insertTerminalSchema = createInsertSchema(terminals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+export type Terminal = typeof terminals.$inferSelect;
+export type InsertTerminal = z.infer<typeof insertTerminalSchema>;
