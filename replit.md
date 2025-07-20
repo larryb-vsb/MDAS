@@ -20,7 +20,8 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ DATABASE COLUMN RENAME COMPLETED**: Successfully renamed master_mid to pos_merchant_number in both terminals and merchants tables
 - **✅ SCHEMA UPDATES APPLIED**: Updated shared/schema.ts, field mappings, storage methods, API endpoints, and all frontend components
 - **✅ V NUMBER MATCHING CONFIRMED**: Terminal processing uses V Number as unique identifier for update/create logic as requested
-- **✅ LARGE TERMINAL IMPORT OPERATIONAL**: Successfully processing 1,743 terminals with zero errors using V Number matching
+- **✅ LARGE TERMINAL IMPORT COMPLETED**: Successfully processed 1,743 terminals (1 created, 1742 updated) with zero errors using V Number matching
+- **✅ STATUS MAPPING VERIFIED**: "Closed" terminals correctly mapped to "Inactive" status (8 closed terminals = 8 inactive status)
 - **✅ POS MERCHANT # TERMINOLOGY**: All UI labels now consistently display "POS Merchant #" matching TSYS import file structure
 - **✅ FIELD NAME CONSISTENCY**: Database uses pos_merchant_number, display shows "POS Merchant #", matching import files exactly
 - Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
