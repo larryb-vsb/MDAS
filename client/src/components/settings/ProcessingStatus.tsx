@@ -42,6 +42,14 @@ interface RealTimeStats {
   timestamp: string;
 }
 
+interface ConcurrencyStats {
+  totalFiles: number;
+  processingByServer: Record<string, number>;
+  staleProcessingFiles: number;
+  serverId?: string;
+  timestamp?: string;
+}
+
 // Extracted component to prevent React hooks issues
 const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
   const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
@@ -108,6 +116,13 @@ export default function ProcessingStatus() {
     gcTime: 0,
   });
 
+  // Fetch concurrency control statistics
+  const { data: concurrencyStats, isLoading: isConcurrencyLoading } = useQuery<ConcurrencyStats>({
+    queryKey: ["/api/processing/concurrency-stats"],
+    refetchInterval: 3000,
+    staleTime: 1000,
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -146,6 +161,31 @@ export default function ProcessingStatus() {
     onError: (error: Error) => {
       toast({
         title: "Failed to resume processing",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Manual processing trigger mutation
+  const triggerProcessingMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/process-uploads", {
+        fileIds: []  // Empty array triggers processing of queued files
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/file-processor/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/processing/concurrency-stats"] });
+      toast({
+        title: "Processing triggered",
+        description: data.message || "File processing has been triggered manually.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to trigger processing",
         description: error.message,
         variant: "destructive",
       });
@@ -196,11 +236,17 @@ export default function ProcessingStatus() {
       return <Badge variant="secondary">Loading...</Badge>;
     }
     
+    // Check if any server is currently processing files
+    const isGloballyProcessing = concurrencyStats && Object.keys(concurrencyStats.processingByServer).length > 0;
+    
     if (status.isPaused) {
       return <Badge variant="secondary" className="flex items-center gap-1"><Pause className="h-3 w-3" />Paused</Badge>;
     }
-    if (status.isRunning) {
+    if (isGloballyProcessing) {
       return <Badge variant="default" className="flex items-center gap-1 bg-green-600"><Activity className="h-3 w-3" />Processing</Badge>;
+    }
+    if (status.isRunning) {
+      return <Badge variant="default" className="flex items-center gap-1 bg-blue-600"><Activity className="h-3 w-3" />Active</Badge>;
     }
     return <Badge variant="outline" className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />Idle</Badge>;
   };
@@ -218,7 +264,7 @@ export default function ProcessingStatus() {
   };
 
   // EARLY RETURNS FOR LOADING STATES MUST COME AFTER ALL HOOKS
-  if (isLoading || isStatsLoading) {
+  if (isLoading || isStatsLoading || isConcurrencyLoading) {
     return (
       <Card>
         <CardHeader>
@@ -354,6 +400,38 @@ export default function ProcessingStatus() {
           </div>
         </div>
 
+        {/* Multi-Node Concurrency Status */}
+        {concurrencyStats && (
+          <div className="space-y-4">
+            <Separator />
+            <div className="text-sm font-medium">Multi-Node Concurrency Control</div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Active Servers:</span>
+                <div className="font-medium">
+                  {Object.keys(concurrencyStats.processingByServer).length > 0 
+                    ? `${Object.keys(concurrencyStats.processingByServer).length} processing`
+                    : "No active processing"}
+                </div>
+                {Object.entries(concurrencyStats.processingByServer).map(([serverId, fileCount]) => (
+                  <div key={serverId} className="text-xs text-muted-foreground mt-1">
+                    Server {serverId.split('-').slice(-1)[0]}: {fileCount} file{fileCount !== 1 ? 's' : ''}
+                  </div>
+                ))}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Stale Files:</span>
+                <div className="font-medium">
+                  {concurrencyStats.staleProcessingFiles || 0}
+                  {concurrencyStats.staleProcessingFiles > 0 && (
+                    <Badge variant="destructive" className="ml-2 text-xs">Needs Cleanup</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Control Buttons */}
         <div className="flex gap-2">
           {status.isPaused ? (
@@ -377,10 +455,21 @@ export default function ProcessingStatus() {
             </Button>
           )}
           
+          <Button 
+            onClick={() => triggerProcessingMutation.mutate()} 
+            disabled={triggerProcessingMutation.isPending}
+            variant="default"
+            className="flex items-center gap-2"
+          >
+            <Activity className="h-4 w-4" />
+            {triggerProcessingMutation.isPending ? "Triggering..." : "Process Now"}
+          </Button>
+          
           <Button
             onClick={() => {
               queryClient.invalidateQueries({ queryKey: ["/api/file-processor/status"] });
               queryClient.invalidateQueries({ queryKey: ["/api/processing/real-time-stats"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/processing/concurrency-stats"] });
             }}
             variant="outline"
             size="sm"
