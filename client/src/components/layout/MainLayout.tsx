@@ -16,7 +16,9 @@ import {
   DollarSign,
   LogOut,
   Loader2,
-  Info
+  Info,
+  ScrollText,
+  ArchiveRestore
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ interface NavItemProps {
   href: string;
   isActive: boolean;
   onClick?: () => void;
+  adminOnly?: boolean;
 }
 
 const navItems = [
@@ -81,6 +84,18 @@ const navItems = [
     icon: <Settings className="h-5 w-5 text-gray-300" />,
     label: "Settings",
     href: "/settings"
+  },
+  {
+    icon: <ScrollText className="h-5 w-5 text-gray-300" />,
+    label: "Logs",
+    href: "/logs",
+    adminOnly: true
+  },
+  {
+    icon: <ArchiveRestore className="h-5 w-5 text-gray-300" />,
+    label: "Backups", 
+    href: "/backups",
+    adminOnly: true
   }
 ];
 
@@ -108,6 +123,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [open, setOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
+  
+  // Check if user is admin
+  const isAdmin = user?.role === "admin";
+  
+  // Filter navigation items based on admin status
+  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
   
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -143,7 +164,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
             </div>
             <nav className="flex flex-col gap-1">
-              {navItems.map((item, index) => (
+              {filteredNavItems.map((item, index) => (
                 <NavItem
                   key={index}
                   icon={item.icon}
@@ -236,7 +257,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
         <ScrollArea className="flex-1">
           <nav className="flex flex-col gap-1 px-2">
-            {navItems.map((item, index) => (
+            {filteredNavItems.map((item, index) => (
               <NavItem
                 key={index}
                 icon={item.icon}

@@ -16,13 +16,13 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Management System implementation
-- User request: "before transaction on list" - Positioning Terminals navigation before Transactions in sidebar
-- Implementation focus: Master terminal edit/add screens that merchant sub-menu can utilize
-- Data relationship: Terminal (VAR Number) → Master MID → Merchant structure established
-- UI Structure: Global Terminals page positioned before Transactions, ready for merchant integration
-- Technical completion: Full terminal CRUD API, database foundation, and navigation infrastructure
-- Next phase: Terminal form screens and merchant detail integration (4th tab after Overview/Demographics/Transactions)
+- Current session: July 20, 2025 - Navigation Architecture Consolidation COMPLETED
+- User discovery: "exports page? also logs and backups are out of wack" - Found MainLayout vs Sidebar component confusion
+- Architecture issue resolved: All pages use MainLayout component, not master Sidebar component
+- Navigation fix applied: Added Terminals, Logs, Backups to MainLayout with proper admin role filtering
+- Admin security implemented: Logs and Backups only visible to users with role === "admin"
+- Complete navigation sync: MainLayout now matches master Sidebar functionality with proper filtering
+- Terminal positioning confirmed: Successfully placed between Merchants and Transactions as requested
 
 ### Technical Insights & Patterns
 - Project uses environment-specific table separation (dev_ prefix for development)
@@ -46,6 +46,15 @@ W2p1bHkgMjAsIDIwMjVdIC0gRmlyc3Qgc2Vzc2lvbiBhcyAiQWxleCIgLSBVc2VyIGV4cGxvcmluZyBB
 - Long-term project evolution tracking
 
 ## Recent Changes
+
+### Navigation Architecture Consolidation COMPLETED (July 20, 2025)
+- **✅ SIDEBAR ARCHITECTURE ISSUE RESOLVED**: Discovered all pages use MainLayout component instead of master Sidebar component
+- **✅ MAINLAYOUT NAVIGATION SYNCHRONIZED**: Added missing Terminals, Logs, and Backups navigation items to MainLayout
+- **✅ ADMIN ROLE FILTERING IMPLEMENTED**: Added proper admin role checking with filteredNavItems for security
+- **✅ NAVIGATION CONSISTENCY ACHIEVED**: Both mobile and desktop navigation use filtered items with proper admin restrictions
+- **✅ TERMINALS POSITIONING CONFIRMED**: Terminals successfully positioned between Merchants and Transactions in actual navigation
+- **✅ COMPLETE NAVIGATION SECURITY**: Logs and Backups only visible to admin users, maintaining proper access control
+- **✅ HOT MODULE RELOAD APPLIED**: All navigation fixes automatically applied through development server updates
 
 ### Terminal Management System Implementation COMPLETED (July 20, 2025)
 - **✅ TERMINAL NAVIGATION ADDED**: Successfully positioned "Terminals" navigation item before "Transactions" in sidebar as requested
