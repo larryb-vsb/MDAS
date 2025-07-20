@@ -53,6 +53,8 @@ const merchantSchema = z.object({
   zipCode: z.string().optional(),
   country: z.string().optional(),
   category: z.string().optional(),
+  association: z.string().optional(),
+  mcc: z.string().optional(),
   editDate: z.string().optional() // We'll handle date conversion in the form
 });
 
@@ -90,6 +92,8 @@ export default function NewMerchant() {
       zipCode: '',
       country: '',
       category: '',
+      association: '',
+      mcc: '',
       editDate: ''
     }
   });
@@ -474,6 +478,34 @@ export default function NewMerchant() {
                             <FormLabel>Edit Date</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="association"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Association</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter business association" {...field} value={field.value || ''} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="mcc"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>MCC (Merchant Category Code)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter MCC code" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

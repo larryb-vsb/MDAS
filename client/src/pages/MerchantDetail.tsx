@@ -88,6 +88,8 @@ const merchantSchema = z.object({
   country: z.string().optional(),
   category: z.string().optional(),
   asOfDate: z.string().optional(), // As of date from demographic import
+  association: z.string().optional(), // Business association field
+  mcc: z.string().optional(), // Merchant Category Code
   // Removed editDate and updatedBy - they are now display-only fields outside the form
 });
 
@@ -124,6 +126,8 @@ interface MerchantDetailsResponse {
     country: string | null;
     category: string;
     asOfDate: string | null; // As of date from demographic import
+    association: string | null; // Business association field
+    mcc: string | null; // Merchant Category Code
     editDate: string | null; // System-controlled last edit date
     updatedBy: string | null; // System-controlled updated by field
   };
@@ -375,7 +379,10 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || ''
+      category: data?.merchant.category || '',
+      asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
+      association: data?.merchant.association || '',
+      mcc: data?.merchant.mcc || ''
       // Removed editDate as it's now display-only
     },
     values: {
@@ -392,7 +399,10 @@ export default function MerchantDetail() {
       state: data?.merchant.state || '',
       zipCode: data?.merchant.zipCode || '',
       country: data?.merchant.country || '',
-      category: data?.merchant.category || ''
+      category: data?.merchant.category || '',
+      asOfDate: data?.merchant.asOfDate ? new Date(data.merchant.asOfDate).toISOString().split('T')[0] : '',
+      association: data?.merchant.association || '',
+      mcc: data?.merchant.mcc || ''
       // Removed editDate as it's now display-only
     },
   });
@@ -836,6 +846,34 @@ export default function MerchantDetail() {
                             <FormLabel>Client Since Date</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="association"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Association</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Enter business association" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="mcc"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>MCC (Merchant Category Code)</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ''} placeholder="Enter MCC code" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
