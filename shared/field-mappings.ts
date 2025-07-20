@@ -16,8 +16,8 @@ export const merchantFieldMappings = {
   clientMID: "ClientNumber", // Map to clientMID
   otherClientNumber1: null, // Not in current import
   otherClientNumber2: null, // Not in current import
-  status: null, // Default in code
-  merchantType: "Mtype", // New field for merchant type
+  status: "Status", // Merchant status field (defaults to Active if not provided)
+  merchantType: "Mtype", // Merchant Type field (numeric: 1=Online, 2=Retail, 3=Mixed, 4=B2B, 5=Wholesale)
   address: "ClientPAddress1", 
   city: "ClientPAddressCity",
   state: "ClientPAddressState",
@@ -76,7 +76,7 @@ export const alternateTransactionMappings = {
 
 // Customizable default values for fields not found in CSV
 export const defaultMerchantValues = {
-  status: "Active", // Changed from Pending to Active
+  status: "Active", // Default status is Active unless specified otherwise in CSV
   category: "Retail",
   country: "US",
   address: "123 Business St" // Default if not provided
@@ -109,6 +109,53 @@ export const relationshipMapping = {
   // How merchant ID is stored in the merchants table
   merchantIdInDatabase: "id",
 };
+
+// Valid merchant type mappings (numeric values as per demographics CSV)
+export const merchantTypeMapping = {
+  "1": "Online",
+  "2": "Retail", 
+  "3": "Mixed",
+  "4": "B2B", 
+  "5": "Wholesale",
+  "6": "Service",
+  "7": "Manufacturing",
+  "8": "Restaurant/Food",
+  "9": "Healthcare",
+  "10": "Professional Services"
+};
+
+// Validate and normalize merchant type to numeric value
+export function normalizeMerchantType(value: any): string | null {
+  if (!value) return null;
+  
+  const strValue = value.toString().trim();
+  
+  // If already numeric and valid
+  if (merchantTypeMapping[strValue as keyof typeof merchantTypeMapping]) {
+    return strValue;
+  }
+  
+  // Try to match text values to numeric codes
+  const textToNumeric: Record<string, string> = {
+    "online": "1",
+    "retail": "2", 
+    "mixed": "3",
+    "b2b": "4",
+    "wholesale": "5"
+  };
+  
+  const lowerValue = strValue.toLowerCase();
+  if (textToNumeric[lowerValue]) {
+    return textToNumeric[lowerValue];
+  }
+  
+  // Return original if numeric but unknown (will be handled as custom)
+  if (/^\d+$/.test(strValue)) {
+    return strValue;
+  }
+  
+  return null; // Invalid value
+}
 
 // Find a merchant ID in a CSV record, trying various possible column names
 export function findMerchantId(record: Record<string, any>, aliases: string[]): string | null {

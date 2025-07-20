@@ -2658,28 +2658,31 @@ export class DatabaseStorage implements IStorage {
                   merchantData[dbField as keyof InsertMerchant] = null as any;
                 }
               } 
-              // Special handling for MType
+              // Special handling for MType with validation
               else if (dbField === 'merchantType') {
-                const mTypeValue = row[csvField]?.toString()?.trim();
-                if (mTypeValue) {
-                  // Store value as-is
-                  merchantData[dbField as keyof InsertMerchant] = mTypeValue as any;
+                const rawMTypeValue = row[csvField];
+                const normalizedMType = normalizeMerchantType(rawMTypeValue);
+                
+                if (normalizedMType) {
+                  merchantData[dbField as keyof InsertMerchant] = normalizedMType as any;
+                  console.log(`MType normalized: "${rawMTypeValue}" -> "${normalizedMType}" (${merchantTypeMapping[normalizedMType as keyof typeof merchantTypeMapping] || 'Custom'})`);
                   
                   // Track mType stats
-                  if (mTypeValue === '0' || mTypeValue.toLowerCase() === 'none') {
-                    stats.mtypeStats.none++;
-                  } else if (mTypeValue === '1') {
+                  if (normalizedMType === '1') {
                     stats.mtypeStats['1']++;
-                  } else if (mTypeValue === '2') {
+                  } else if (normalizedMType === '2') {
                     stats.mtypeStats['2']++;
-                  } else if (mTypeValue === '3') {
+                  } else if (normalizedMType === '3') {
                     stats.mtypeStats['3']++;
+                  } else if (merchantTypeMapping[normalizedMType as keyof typeof merchantTypeMapping]) {
+                    stats.mtypeStats.custom++;
                   } else {
                     stats.mtypeStats.custom++;
-                    console.log(`Custom MType found: ${mTypeValue}`);
+                    console.log(`Custom MType found: ${normalizedMType}`);
                   }
                 } else {
                   stats.mtypeStats.none++;
+                  console.log(`Invalid MType value: "${rawMTypeValue}", skipping`);
                 }
               }
               else {
