@@ -4,6 +4,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { storage } from "../storage";
 import schedule from "node-schedule";
 import { getCachedServerId } from "../utils/server-id";
+import { getTableName } from "../table-config";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -77,12 +78,64 @@ class FileProcessorService {
   initialize(): void {
     console.log("Initializing file processor service...");
     
+    // Clear any phantom processing locks from previous server instances on startup
+    this.clearPhantomProcessingLocks();
+    
     // Schedule a job to run every minute
     this.processingJob = schedule.scheduleJob(this.jobName, '*/1 * * * *', async () => {
       await this.processUnprocessedFiles();
     });
     
     console.log(`File processor service initialized. Next run at ${this.processingJob?.nextInvocation()}`);
+  }
+
+  /**
+   * Clear phantom processing locks from previous server instances
+   * This prevents files from being stuck in processing after server restarts
+   */
+  private async clearPhantomProcessingLocks(): Promise<void> {
+    try {
+      const currentServerId = getCachedServerId();
+      console.log(`[STARTUP CLEANUP] Current server ID: ${currentServerId}`);
+      
+      // Use environment-specific table name
+      const tableName = getTableName('uploaded_files');
+      
+      // Find files stuck in processing from different server instances using raw SQL for environment support
+      const stuckFilesResult = await db.execute(sql`
+        SELECT * FROM ${sql.identifier(tableName)}
+        WHERE processing_status = 'processing' 
+        AND (processing_server_id != ${currentServerId} OR processing_server_id IS NULL)
+      `);
+      
+      const stuckFiles = stuckFilesResult.rows;
+
+      if (stuckFiles.length > 0) {
+        console.log(`[STARTUP CLEANUP] Found ${stuckFiles.length} stuck files from previous server instances`);
+        
+        // Reset stuck files to queued status using raw SQL for environment support
+        const result = await db.execute(sql`
+          UPDATE ${sql.identifier(tableName)}
+          SET processing_status = 'queued',
+              processing_started_at = NULL,
+              processing_completed_at = NULL,
+              processing_server_id = NULL
+          WHERE processing_status = 'processing' 
+          AND (processing_server_id != ${currentServerId} OR processing_server_id IS NULL)
+        `);
+
+        console.log(`[STARTUP CLEANUP] ✅ Cleared phantom processing locks for ${stuckFiles.length} files`);
+        
+        // Log the cleared files for debugging
+        stuckFiles.forEach((file: any) => {
+          console.log(`[STARTUP CLEANUP] Cleared: ${file.original_filename} (Server: ${file.processing_server_id || 'NULL'})`);
+        });
+      } else {
+        console.log(`[STARTUP CLEANUP] ✅ No phantom processing locks found`);
+      }
+    } catch (error) {
+      console.error('[STARTUP CLEANUP] Error clearing phantom processing locks:', error);
+    }
   }
   
   /**
