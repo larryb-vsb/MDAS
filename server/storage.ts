@@ -5139,6 +5139,7 @@ export class DatabaseStorage implements IStorage {
   // Enhanced file processing methods for real-time monitoring
   async getQueuedFiles(): Promise<any[]> {
     try {
+      const uploadsTableName = getTableName('uploaded_files');
       const result = await pool.query(`
         SELECT 
           id,
@@ -5147,7 +5148,7 @@ export class DatabaseStorage implements IStorage {
           uploaded_at,
           processing_status,
           processing_started_at
-        FROM uploaded_files 
+        FROM ${uploadsTableName}
         WHERE deleted = false 
           AND (processing_status = 'queued' OR processing_status IS NULL)
           AND processed = false
@@ -5170,6 +5171,7 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentlyProcessedFiles(limit: number): Promise<any[]> {
     try {
+      const uploadsTableName = getTableName('uploaded_files');
       const result = await pool.query(`
         SELECT 
           id,
@@ -5179,7 +5181,7 @@ export class DatabaseStorage implements IStorage {
           processed_at,
           processing_status,
           processing_completed_at
-        FROM uploaded_files 
+        FROM ${uploadsTableName}
         WHERE deleted = false 
           AND processed = true
           AND processing_completed_at IS NOT NULL

@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { uploadedFiles } from "@shared/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { storage } from "../storage";
 import schedule from "node-schedule";
 
@@ -184,54 +184,44 @@ class FileProcessorService {
     const currentEnvironment = process.env.NODE_ENV || 'production';
     
     try {
-      // Try to use environment filtering first
-      const unprocessedFiles = await db.select({
-        id: uploadedFiles.id,
-        originalFilename: uploadedFiles.originalFilename,
-        storagePath: uploadedFiles.storagePath,
-        fileType: uploadedFiles.fileType,
-        uploadedAt: uploadedFiles.uploadedAt,
-        processed: uploadedFiles.processed,
-        processingErrors: uploadedFiles.processingErrors,
-        deleted: uploadedFiles.deleted
-      })
-        .from(uploadedFiles)
-        .where(
-          and(
-            eq(uploadedFiles.processed, false),
-            eq(uploadedFiles.deleted, false),
-            eq(uploadedFiles.uploadEnvironment, currentEnvironment)
-          )
-        );
+      // Import table-config for environment-specific table names
+      const { getTableName } = await import("../table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      console.log(`[FILE PROCESSOR] Using table: ${uploadsTableName} for environment: ${currentEnvironment}`);
+      
+      // Use raw SQL with environment-specific table names
+      const result = await db.execute(sql`
+        SELECT 
+          id,
+          original_filename,
+          storage_path,
+          file_type,
+          uploaded_at,
+          processed,
+          processing_errors,
+          deleted
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE processed = false 
+          AND deleted = false
+      `);
+      
+      const unprocessedFiles = result.rows.map(row => ({
+        id: row.id,
+        originalFilename: row.original_filename,
+        storagePath: row.storage_path,
+        fileType: row.file_type,
+        uploadedAt: row.uploaded_at,
+        processed: row.processed,
+        processingErrors: row.processing_errors,
+        deleted: row.deleted
+      }));
       
       console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files for ${currentEnvironment} environment`);
       return unprocessedFiles;
     } catch (error: any) {
-      // Fallback for environments where upload_environment column doesn't exist yet
-      if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
-        console.log(`[FILE PROCESSOR] upload_environment column doesn't exist, using all unprocessed files`);
-        const unprocessedFiles = await db.select({
-          id: uploadedFiles.id,
-          originalFilename: uploadedFiles.originalFilename,
-          storagePath: uploadedFiles.storagePath,
-          fileType: uploadedFiles.fileType,
-          uploadedAt: uploadedFiles.uploadedAt,
-          processed: uploadedFiles.processed,
-          processingErrors: uploadedFiles.processingErrors,
-          deleted: uploadedFiles.deleted
-        })
-          .from(uploadedFiles)
-          .where(
-            and(
-              eq(uploadedFiles.processed, false),
-              eq(uploadedFiles.deleted, false)
-            )
-          );
-        
-        console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files (no environment filtering)`);
-        return unprocessedFiles;
-      }
-      throw error;
+      console.error('[FILE PROCESSOR] Error fetching unprocessed files:', error);
+      return [];
     }
   }
 
