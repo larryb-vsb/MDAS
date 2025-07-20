@@ -38,12 +38,12 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   const updateTerminalMutation = useMutation({
     mutationFn: async (data: Partial<Terminal>) => {
       const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
-      if (response.ok) {
-        return await response.json();
-      } else {
+      if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || `HTTP ${response.status}`);
       }
+      const result = await response.json();
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
@@ -461,14 +461,14 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <label className="text-sm font-medium text-muted-foreground">Last Activity</label>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <p>{formatTableDate(terminal.lastActivity)}</p>
+                  <p>{terminal.lastActivity ? formatTableDate(terminal.lastActivity.toString()) : "N/A"}</p>
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Last Update</label>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <p>{formatTableDate(terminal.lastUpdate)}</p>
+                  <p>{terminal.lastUpdate ? formatTableDate(terminal.lastUpdate.toString()) : "N/A"}</p>
                 </div>
               </div>
               <div>
