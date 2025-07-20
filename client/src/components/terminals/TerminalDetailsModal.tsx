@@ -533,15 +533,15 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
         )}
       </DialogContent>
       
-      {/* Bottom Save/Cancel buttons */}
+      {/* Bottom Save/Cancel buttons - always visible when editing */}
       {isEditing && (
-        <DialogFooter className="px-6 py-4 bg-muted/30">
-          <div className="flex gap-2 w-full sm:w-auto">
+        <DialogFooter className="px-6 py-4 bg-gradient-to-r from-muted/50 to-muted/30 border-t">
+          <div className="flex gap-3 w-full justify-end">
             <Button
               variant="outline"
               onClick={handleCancel}
               disabled={updateTerminalMutation.isPending}
-              className="flex-1 sm:flex-none"
+              className="min-w-[100px]"
             >
               <X className="h-4 w-4 mr-1" />
               Cancel
@@ -549,10 +549,10 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
             <Button
               onClick={handleSave}
               disabled={updateTerminalMutation.isPending}
-              className="flex-1 sm:flex-none"
+              className="min-w-[100px] bg-primary hover:bg-primary/90"
             >
               <Save className="h-4 w-4 mr-1" />
-              {updateTerminalMutation.isPending ? "Saving..." : "Save"}
+              {updateTerminalMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </DialogFooter>
