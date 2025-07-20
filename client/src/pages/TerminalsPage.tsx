@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import AddTerminalModal from "@/components/terminals/AddTerminalModal";
 import { TerminalDetailsModal } from "@/components/terminals/TerminalDetailsModal";
+import TerminalPagination from "@/components/terminals/TerminalPagination";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,25 +19,45 @@ export default function TerminalsPage() {
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
   });
 
-  // Filter terminals based on search and filters
-  const filteredTerminals = terminals.filter((terminal) => {
-    const matchesSearch = 
-      terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      terminal.masterMID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter and paginate terminals
+  const { paginatedTerminals, pagination } = useMemo(() => {
+    const filteredTerminals = terminals.filter((terminal) => {
+      const matchesSearch = 
+        terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.masterMID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
-    const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
+      const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
+      const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      return matchesSearch && matchesStatus && matchesType;
+    });
+
+    const totalItems = filteredTerminals.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedTerminals = filteredTerminals.slice(startIndex, endIndex);
+
+    return {
+      paginatedTerminals,
+      pagination: {
+        currentPage,
+        totalPages,
+        totalItems,
+        itemsPerPage
+      }
+    };
+  }, [terminals, searchQuery, statusFilter, terminalTypeFilter, currentPage, itemsPerPage]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -174,12 +195,18 @@ export default function TerminalsPage() {
                 <Input
                   placeholder="Search terminals by VAR number, DBA name, Master MID, or location..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="pl-8"
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => {
+              setStatusFilter(value);
+              setCurrentPage(1);
+            }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -191,7 +218,10 @@ export default function TerminalsPage() {
                 <SelectItem value="Deployed">Deployed</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={terminalTypeFilter} onValueChange={setTerminalTypeFilter}>
+            <Select value={terminalTypeFilter} onValueChange={(value) => {
+              setTerminalTypeFilter(value);
+              setCurrentPage(1);
+            }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
@@ -212,7 +242,7 @@ export default function TerminalsPage() {
         <CardHeader>
           <CardTitle>Terminal Directory</CardTitle>
           <CardDescription>
-            {filteredTerminals.length} terminal{filteredTerminals.length !== 1 ? 's' : ''} found
+            {pagination.totalItems} terminal{pagination.totalItems !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,7 +250,7 @@ export default function TerminalsPage() {
             <div className="text-center py-8">
               <p className="text-muted-foreground">Loading terminals...</p>
             </div>
-          ) : filteredTerminals.length === 0 ? (
+          ) : pagination.totalItems === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No terminals found matching your criteria.</p>
             </div>
@@ -240,7 +270,7 @@ export default function TerminalsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTerminals.map((terminal) => (
+                  {paginatedTerminals.map((terminal) => (
                     <TableRow key={terminal.id} className="cursor-pointer hover:bg-muted/50">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -285,6 +315,18 @@ export default function TerminalsPage() {
             </div>
           )}
         </CardContent>
+        
+        {/* Pagination */}
+        {pagination.totalItems > 0 && (
+          <TerminalPagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+          />
+        )}
       </Card>
       </div>
 
