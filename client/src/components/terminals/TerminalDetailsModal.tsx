@@ -157,9 +157,12 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {getTerminalTypeIcon(terminal.terminalType)}
-              Terminal Details - {terminal.vNumber}
+              <div>
+                <h2 className="text-xl font-semibold">Terminal Details</h2>
+                <p className="text-sm text-muted-foreground font-mono">{terminal.vNumber}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {isEditing ? (
@@ -167,18 +170,20 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                   <Button
                     onClick={handleSave}
                     disabled={updateTerminalMutation.isPending}
-                    className="h-8 px-3"
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90 shadow-sm"
                   >
-                    <Save className="h-4 w-4 mr-1" />
-                    Save
+                    <Save className="h-4 w-4 mr-2" />
+                    {updateTerminalMutation.isPending ? "Saving..." : "Save"}
                   </Button>
                   <Button
                     onClick={handleCancel}
                     variant="outline"
+                    size="sm"
                     disabled={updateTerminalMutation.isPending}
-                    className="h-8 px-3"
+                    className="shadow-sm"
                   >
-                    <X className="h-4 w-4 mr-1" />
+                    <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
                 </>
@@ -186,9 +191,10 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <Button
                   onClick={() => setIsEditing(true)}
                   variant="outline"
-                  className="h-8 px-3"
+                  size="sm"
+                  className="hover:bg-primary hover:text-primary-foreground shadow-sm"
                 >
-                  <Edit className="h-4 w-4 mr-1" />
+                  <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
               )}
@@ -545,30 +551,50 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
           </>
         )}
         
-        {/* Bottom Save/Cancel buttons - always visible when editing */}
-        {isEditing && (
-          <div className="mt-6 pt-4 border-t bg-gradient-to-r from-muted/20 to-muted/10 -mx-6 px-6 pb-2">
-            <div className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                disabled={updateTerminalMutation.isPending}
-                className="min-w-[100px]"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={updateTerminalMutation.isPending}
-                className="min-w-[100px] bg-primary hover:bg-primary/90"
-              >
-                <Save className="h-4 w-4 mr-1" />
-                {updateTerminalMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
+        {/* Bottom buttons - Edit for view mode, Save/Cancel for edit mode */}
+        <div className="mt-6 pt-4 border-t bg-gradient-to-r from-muted/20 to-muted/10 -mx-6 px-6 pb-2">
+          <div className="flex gap-3 justify-end">
+            {isEditing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={updateTerminalMutation.isPending}
+                  className="min-w-[100px]"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={updateTerminalMutation.isPending}
+                  className="min-w-[100px] bg-primary hover:bg-primary/90"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateTerminalMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={onClose}
+                  variant="outline"
+                  className="min-w-[100px]"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  className="min-w-[100px] bg-primary hover:bg-primary/90"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Terminal
+                </Button>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
