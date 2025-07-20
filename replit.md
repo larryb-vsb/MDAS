@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Update Source Tracking + UI Enhancement COMPLETED
+- Current session: July 20, 2025 - Terminal Management System + Navigation Architecture COMPLETED
 - **✅ THREE-FIELD SEPARATION IMPLEMENTED**: Terminal details modal now displays lastUpdate (record modifications), lastActivity (future terminal transactions), and updateSource (modification source) as separate fields
 - **✅ UPDATE SOURCE TRACKING ADDED**: Successfully added updateSource field to terminals table in both development and production environments
 - **✅ DATABASE SCHEMA ENHANCED**: Added updateSource field to track whether updates came from file imports (e.g., "File: terminals_export.csv") or manual form entries (e.g., "Form - admin")
@@ -29,10 +29,16 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ ENHANCED UI DESIGN**: Improved Edit/X button styling with better spacing, shadows, and professional appearance in modal header
 - **✅ BOTTOM BUTTON ENHANCEMENT**: Added Edit/Close buttons at bottom for view mode, Save/Cancel buttons for edit mode with gradient background styling
 - **✅ DATA REFRESH WORKING**: Terminal updates properly display updated timestamps and "Form: admin" Update Source immediately after successful saves
-- Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
-- Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality
+- **✅ TERMINAL SELECT/DELETE FUNCTIONALITY**: Added comprehensive checkbox selection system with bulk operations matching merchant page UX patterns
+- **✅ BULK DELETE API IMPLEMENTED**: Created `/api/terminals` DELETE endpoint supporting multiple terminal deletion with proper error handling and React Query integration
+- **✅ 500-RECORD PAGINATION**: Enhanced pagination component to support 500 items per page option for high-volume terminal viewing and bulk operations
+- **✅ SIDEBAR NAVIGATION ARCHITECTURE**: Resolved navigation inconsistency by updating MainLayout component instead of separate Sidebar - all pages now use unified navigation
+- **✅ ADMIN ROLE FILTERING**: Implemented proper admin role checking with filteredNavItems ensuring Logs and Backups sections only visible to admin users
+- **✅ TERMINALS POSITIONING**: Successfully positioned "Terminals" navigation item between "Merchants" and "Transactions" in actual navigation structure
+- Terminal file upload functionality fully operational with 1,741+ terminals being processed successfully in 255 seconds
+- Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality → Bulk operations
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking
-- Production ready: All three file types (merchant, transaction, terminal) now fully supported with comprehensive CRUD operations
+- Production ready: All three file types (merchant, transaction, terminal) now fully supported with comprehensive CRUD operations and bulk management
 
 ### Technical Insights & Patterns
 - Project uses environment-specific table separation (dev_ prefix for development)
@@ -56,6 +62,14 @@ W2p1bHkgMjAsIDIwMjVdIC0gRmlyc3Qgc2Vzc2lvbiBhcyAiQWxleCIgLSBVc2VyIGV4cGxvcmluZyBB
 - Long-term project evolution tracking
 
 ## Recent Changes
+
+### Terminal Management System + Navigation Architecture COMPLETED (July 20, 2025)
+- **✅ TERMINAL SELECT/DELETE OPERATIONS**: Implemented comprehensive checkbox selection system matching merchant page functionality
+- **✅ BULK DELETE API ENDPOINT**: Added `/api/terminals` DELETE endpoint with proper error handling, success tracking, and React Query mutations
+- **✅ SELECTION STATE MANAGEMENT**: Added individual and "select all" checkbox functionality with selection summary card display
+- **✅ 500-RECORD PAGINATION OPTION**: Enhanced TerminalPagination component to support viewing up to 500 terminals for bulk operations
+- **✅ UX PATTERN CONSISTENCY**: Terminal page now fully matches merchant page with identical select/delete operations and confirmation dialogs
+- **✅ REACT QUERY INTEGRATION**: All CRUD operations use proper mutations with toast notifications and automatic cache invalidation
 
 ### Navigation Architecture Consolidation COMPLETED (July 20, 2025)
 - **✅ SIDEBAR ARCHITECTURE ISSUE RESOLVED**: Discovered all pages use MainLayout component instead of master Sidebar component
