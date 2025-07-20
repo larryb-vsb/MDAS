@@ -1,9 +1,18 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Terminal } from "@shared/schema";
-import { Wifi, CreditCard, Shield, Calendar, MapPin, Building } from "lucide-react";
+import { Wifi, CreditCard, Shield, Calendar, MapPin, Building, Edit, Save, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface TerminalDetailsModalProps {
   terminal: Terminal | null;
@@ -12,6 +21,52 @@ interface TerminalDetailsModalProps {
 }
 
 export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetailsModalProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Partial<Terminal>>({});
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Initialize edit data when terminal changes
+  useEffect(() => {
+    if (terminal) {
+      setEditData(terminal);
+    }
+  }, [terminal]);
+
+  // Update terminal mutation
+  const updateTerminalMutation = useMutation({
+    mutationFn: async (data: Partial<Terminal>) => {
+      const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
+      setIsEditing(false);
+      toast({
+        title: "Success",
+        description: "Terminal updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update terminal",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    updateTerminalMutation.mutate(editData);
+  };
+
+  const handleCancel = () => {
+    if (terminal) {
+      setEditData(terminal);
+    }
+    setIsEditing(false);
+  };
+
   if (!terminal) return null;
 
   const getStatusBadge = (status: string) => {
@@ -42,10 +97,47 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {getTerminalTypeIcon(terminal.terminalType)}
-            Terminal Details - {terminal.vNumber}
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {getTerminalTypeIcon(terminal.terminalType)}
+              Terminal Details - {terminal.vNumber}
+            </div>
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    onClick={handleSave}
+                    disabled={updateTerminalMutation.isPending}
+                    className="h-8 px-3"
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button
+                    onClick={handleCancel}
+                    variant="outline"
+                    disabled={updateTerminalMutation.isPending}
+                    className="h-8 px-3"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  variant="outline"
+                  className="h-8 px-3"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Edit terminal information and click Save to update." : "View terminal configuration and details."}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,26 +151,75 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">V Number</label>
-                <p className="font-mono text-lg">{terminal.vNumber}</p>
+                <Label className="text-sm font-medium text-muted-foreground">V Number</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.vNumber || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, vNumber: e.target.value }))}
+                    className="font-mono text-lg mt-1"
+                  />
+                ) : (
+                  <p className="font-mono text-lg">{terminal.vNumber}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">DBA Name</label>
-                <p>{terminal.dbaName || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">DBA Name</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.dbaName || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, dbaName: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.dbaName || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Master MID</label>
-                <p className="font-mono">{terminal.masterMID || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Master MID</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.masterMID || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, masterMID: e.target.value }))}
+                    className="font-mono mt-1"
+                  />
+                ) : (
+                  <p className="font-mono">{terminal.masterMID || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">BIN</label>
-                <p className="font-mono">{terminal.bin || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">BIN</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.bin || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, bin: e.target.value }))}
+                    className="font-mono mt-1"
+                  />
+                ) : (
+                  <p className="font-mono">{terminal.bin || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <div className="mt-1">
-                  {getStatusBadge(terminal.status || "Unknown")}
-                </div>
+                <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                {isEditing ? (
+                  <Select
+                    value={editData.status || ""}
+                    onValueChange={(value) => setEditData(prev => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Deployed">Deployed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="mt-1">
+                    {getStatusBadge(terminal.status || "Unknown")}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -93,28 +234,64 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Terminal Type</label>
-                <p>{terminal.terminalType || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Terminal Type</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.terminalType || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, terminalType: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.terminalType || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">MCC</label>
-                <p>{terminal.mcc || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">MCC</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.mcc || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, mcc: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.mcc || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">BIN</label>
-                <p className="font-mono">{terminal.bin || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Agent</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.agent || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, agent: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.agent || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Agent</label>
-                <p>{terminal.agent || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Chain</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.chain || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, chain: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.chain || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Chain</label>
-                <p>{terminal.chain || "N/A"}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Store</label>
-                <p>{terminal.store || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Store</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.store || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, store: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.store || "N/A"}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -129,24 +306,64 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Location</label>
-                <p>{terminal.location || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Location</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.location || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.location || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">IP Address</label>
-                <p className="font-mono">{terminal.ipAddress || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">IP Address</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.ipAddress || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, ipAddress: e.target.value }))}
+                    className="font-mono mt-1"
+                  />
+                ) : (
+                  <p className="font-mono">{terminal.ipAddress || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Network Type</label>
-                <p>{terminal.networkType || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Network Type</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.networkType || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, networkType: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.networkType || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Hardware Model</label>
-                <p>{terminal.hardwareModel || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Hardware Model</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.hardwareModel || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, hardwareModel: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.hardwareModel || "N/A"}</p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Manufacturer</label>
-                <p>{terminal.manufacturer || "N/A"}</p>
+                <Label className="text-sm font-medium text-muted-foreground">Manufacturer</Label>
+                {isEditing ? (
+                  <Input
+                    value={editData.manufacturer || ""}
+                    onChange={(e) => setEditData(prev => ({ ...prev, manufacturer: e.target.value }))}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p>{terminal.manufacturer || "N/A"}</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -179,8 +396,8 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
           </Card>
         </div>
 
-        {/* Additional Information */}
-        {(terminal.notes || terminal.internalNotes || terminal.description) && (
+        {/* Additional Information - Always show in edit mode */}
+        {(terminal.notes || terminal.internalNotes || terminal.description || isEditing) && (
           <>
             <Separator />
             <Card>
@@ -188,18 +405,36 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <CardTitle className="text-lg">Additional Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {terminal.description && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Description</label>
-                    <p className="mt-1 text-sm bg-muted p-3 rounded-md">{terminal.description}</p>
-                  </div>
-                )}
-                {terminal.notes && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                    <p className="mt-1 text-sm bg-muted p-3 rounded-md">{terminal.notes}</p>
-                  </div>
-                )}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  {isEditing ? (
+                    <Textarea
+                      value={editData.description || ""}
+                      onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  ) : (
+                    terminal.description && (
+                      <p className="mt-1 text-sm bg-muted p-3 rounded-md">{terminal.description}</p>
+                    )
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Notes</Label>
+                  {isEditing ? (
+                    <Textarea
+                      value={editData.notes || ""}
+                      onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  ) : (
+                    terminal.notes && (
+                      <p className="mt-1 text-sm bg-muted p-3 rounded-md">{terminal.notes}</p>
+                    )
+                  )}
+                </div>
                 {terminal.internalNotes && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Internal Notes</label>
