@@ -16,14 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Database Column Rename & Large Import Processing COMPLETED
-- **✅ DATABASE COLUMN RENAME COMPLETED**: Successfully renamed master_mid to pos_merchant_number in both terminals and merchants tables
-- **✅ SCHEMA UPDATES APPLIED**: Updated shared/schema.ts, field mappings, storage methods, API endpoints, and all frontend components
-- **✅ V NUMBER MATCHING CONFIRMED**: Terminal processing uses V Number as unique identifier for update/create logic as requested
-- **✅ LARGE TERMINAL IMPORT COMPLETED**: Successfully processed 1,743 terminals (1 created, 1742 updated) with zero errors using V Number matching
-- **✅ STATUS MAPPING VERIFIED**: "Closed" terminals correctly mapped to "Inactive" status (8 closed terminals = 8 inactive status)
-- **✅ POS MERCHANT # TERMINOLOGY**: All UI labels now consistently display "POS Merchant #" matching TSYS import file structure
-- **✅ FIELD NAME CONSISTENCY**: Database uses pos_merchant_number, display shows "POS Merchant #", matching import files exactly
+- Current session: July 20, 2025 - Terminal Local Fields & Activity Tracking Enhancement COMPLETED
+- **✅ LOCAL DATABASE FIELDS ADDED**: Successfully added M_Type and M_Location fields to terminals schema as requested local-only database fields
+- **✅ ACTIVITY TRACKING ENHANCED**: Import process now properly updates lastActivity timestamp when terminals are modified during file processing  
+- **✅ MANUAL EDIT TRACKING**: Both API routes (create/update terminal) now set lastActivity and updatedBy fields for proper audit trail
+- **✅ TERMINAL FORMS UPDATED**: Both Terminal Details Modal and Add Terminal Modal now include M_Type and M_Location input fields
+- **✅ FIELD MAPPINGS UPDATED**: Added M_Type and M_Location to terminal field mappings as local database-only fields (not from external systems)
+- **✅ DATABASE SCHEMA DEPLOYED**: Manual SQL execution successfully created m_type, m_location, and last_activity columns in both dev_terminals and terminals tables
+- **✅ IMPORT PROCESS FIXED**: Terminal import now sets createdBy="System Import", updatedBy="System Import", and lastActivity=current timestamp for proper tracking
 - Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking
