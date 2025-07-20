@@ -3180,7 +3180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData = {
         ...terminalData,
         updatedAt: new Date(),
-        lastActivity: new Date(),
+        lastUpdate: new Date(),
         updatedBy: req.user?.username || "System"
       };
       

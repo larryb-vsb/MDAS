@@ -175,8 +175,8 @@ export default function TerminalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {terminals.filter(t => t.lastActivity && 
-                new Date(t.lastActivity) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+              {terminals.filter(t => t.lastUpdate && 
+                new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
               ).length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -295,7 +295,7 @@ export default function TerminalsPage() {
                       </TableCell>
                       <TableCell>{terminal.location || "-"}</TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastActivity)}
+                        {formatTableDate(terminal.lastUpdate)}
                       </TableCell>
                       <TableCell>
                         <Button 

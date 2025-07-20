@@ -16,15 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Local Fields & Activity Tracking Enhancement + Date Display Fix COMPLETED
-- **✅ LOCAL DATABASE FIELDS ADDED**: Successfully added M_Type and M_Location fields to terminals schema as requested local-only database fields
-- **✅ ACTIVITY TRACKING ENHANCED**: Import process now properly updates lastActivity timestamp when terminals are modified during file processing  
-- **✅ MANUAL EDIT TRACKING**: Both API routes (create/update terminal) now set lastActivity and updatedBy fields for proper audit trail
-- **✅ TERMINAL FORMS UPDATED**: Both Terminal Details Modal and Add Terminal Modal now include M_Type and M_Location input fields
-- **✅ FIELD MAPPINGS UPDATED**: Added M_Type and M_Location to terminal field mappings as local database-only fields (not from external systems)
-- **✅ DATABASE SCHEMA DEPLOYED**: Manual SQL execution successfully created m_type, m_location, and last_activity columns in both dev_terminals and terminals tables
-- **✅ IMPORT PROCESS FIXED**: Terminal import now sets createdBy="System Import", updatedBy="System Import", and lastActivity=current timestamp for proper tracking
-- **✅ DATE DISPLAY FIXED**: Terminals page Last Activity column now uses formatTableDate for proper CST timezone display instead of basic JavaScript date formatting
+- Current session: July 20, 2025 - Terminal Last Update Field Added + Activity Tracking Separation COMPLETED
+- **✅ NEW DATABASE FIELD ADDED**: Successfully added last_update timestamp field to terminals table in both development and production environments
+- **✅ ACTIVITY TRACKING SEPARATION**: Implemented distinction between last_update (record modifications) and lastActivity (future terminal transaction activity)
+- **✅ DATABASE SCHEMA ENHANCED**: All existing terminals now have proper last_update timestamps populated from their creation dates
+- **✅ SCHEMA FILE UPDATED**: Added lastUpdate field to shared/schema.ts terminals table definition with proper comments distinguishing purposes
+- **✅ API ENDPOINTS UPDATED**: Both terminal update API and import process now use lastUpdate field for record modification tracking
+- **✅ FRONTEND DISPLAY UPDATED**: Terminals page Last Activity column now displays lastUpdate field instead of lastActivity for record changes
+- **✅ FIELD PURPOSE CLARIFIED**: lastActivity reserved for future terminal transaction activity, lastUpdate tracks when terminal record was modified
+- **✅ COMPLETE IMPLEMENTATION**: Database schema, API routes, import process, and frontend all updated to use new field structure
 - Terminal file upload functionality fully operational with 1,743+ terminals being processed successfully
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking

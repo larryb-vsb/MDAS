@@ -4789,7 +4789,7 @@ export class DatabaseStorage implements IStorage {
                     // Keep original ID and creation date, but update timestamps and activity
                     id: existingTerminal.id,
                     updatedAt: new Date(),
-                    lastActivity: new Date(),
+                    lastUpdate: new Date(),
                     updatedBy: "System Import",
                   })
                   .where(eq(terminalsTable.vNumber, terminal.vNumber));
@@ -4804,7 +4804,7 @@ export class DatabaseStorage implements IStorage {
                     ...terminal,
                     createdAt: new Date(),
                     updatedAt: new Date(), 
-                    lastActivity: new Date(),
+                    lastUpdate: new Date(),
                     createdBy: "System Import",
                     updatedBy: "System Import",
                   });
