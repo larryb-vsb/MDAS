@@ -374,14 +374,7 @@ export default function Uploads() {
     }
   }
 
-  // Use the centralized date utilities  
-  function formatFileDate(dateString: string) {
-    return formatRelativeTime(dateString);
-  }
-
-  function formatFullDate(dateString: string) {
-    return formatUploadTime(dateString);
-  }
+  // Date formatting functions removed - using imported timezone-aware functions directly
 
   // Handle viewing file error
   function handleViewError(file: UploadedFile) {
