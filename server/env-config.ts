@@ -69,7 +69,7 @@ export const config = {
   app: {
     port: parseInt(process.env.PORT || '5000', 10),
     logLevel: isProd ? 'info' : 'debug',
-    sessionSecret: process.env.SESSION_SECRET || 'default-dev-session-secret'
+    sessionSecret: process.env.SESSION_SECRET || (isProd ? 'prod-fallback-secret' : 'default-dev-session-secret')
   }
 };
 
