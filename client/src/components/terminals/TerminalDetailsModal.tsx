@@ -58,7 +58,47 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   });
 
   const handleSave = () => {
-    updateTerminalMutation.mutate(editData);
+    // Only send fields that can be updated, exclude system fields
+    const updateFields = {
+      vNumber: editData.vNumber,
+      posMerchantNumber: editData.posMerchantNumber,
+      bin: editData.bin,
+      dbaName: editData.dbaName,
+      dailyAuth: editData.dailyAuth,
+      dialPay: editData.dialPay,
+      encryption: editData.encryption,
+      prr: editData.prr,
+      mcc: editData.mcc,
+      ssl: editData.ssl,
+      tokenization: editData.tokenization,
+      agent: editData.agent,
+      chain: editData.chain,
+      store: editData.store,
+      terminalInfo: editData.terminalInfo,
+      recordStatus: editData.recordStatus,
+      boardDate: editData.boardDate,
+      terminalVisa: editData.terminalVisa,
+      terminalType: editData.terminalType,
+      status: editData.status,
+      location: editData.location,
+      mType: editData.mType,
+      mLocation: editData.mLocation,
+      installationDate: editData.installationDate,
+      hardwareModel: editData.hardwareModel,
+      manufacturer: editData.manufacturer,
+      firmwareVersion: editData.firmwareVersion,
+      networkType: editData.networkType,
+      ipAddress: editData.ipAddress,
+      genericField1: editData.genericField1,
+      genericField2: editData.genericField2,
+      description: editData.description,
+      notes: editData.notes,
+      internalNotes: editData.internalNotes,
+      lastSyncDate: editData.lastSyncDate,
+      syncStatus: editData.syncStatus
+    };
+    
+    updateTerminalMutation.mutate(updateFields);
   };
 
   const handleCancel = () => {
@@ -487,6 +527,31 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
           </>
         )}
       </DialogContent>
+      
+      {/* Bottom Save/Cancel buttons */}
+      {isEditing && (
+        <DialogFooter className="px-6 py-4 bg-muted/30">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              disabled={updateTerminalMutation.isPending}
+              className="flex-1 sm:flex-none"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={updateTerminalMutation.isPending}
+              className="flex-1 sm:flex-none"
+            >
+              <Save className="h-4 w-4 mr-1" />
+              {updateTerminalMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </DialogFooter>
+      )}
     </Dialog>
   );
 }
