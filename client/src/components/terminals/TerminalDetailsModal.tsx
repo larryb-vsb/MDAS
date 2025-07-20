@@ -37,36 +37,28 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   // Update terminal mutation
   const updateTerminalMutation = useMutation({
     mutationFn: async (data: Partial<Terminal>) => {
-      console.log("Sending terminal update:", data);
-      try {
-        // Use direct fetch instead of apiRequest to avoid any issues
-        const response = await fetch(`/api/terminals/${terminal?.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-          credentials: 'include', // This ensures cookies (session) are sent
-        });
-        
-        console.log("API response status:", response.status);
-        console.log("API response ok:", response.ok);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response:", errorText);
-          throw new Error(errorText || `HTTP ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log("API success response:", result);
-        return result;
-      } catch (error) {
-        console.error("Terminal update error:", error);
-        throw error;
+      const response = await fetch(`/api/terminals/${terminal?.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
       }
+      
+      return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedTerminal) => {
+      // Update the local terminal data to show changes immediately
+      if (terminal && updatedTerminal) {
+        Object.assign(terminal, updatedTerminal);
+      }
+      // Invalidate the terminals query to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
       setIsEditing(false);
       toast({
