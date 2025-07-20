@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import AddTerminalModal from "@/components/terminals/AddTerminalModal";
+import { TerminalDetailsModal } from "@/components/terminals/TerminalDetailsModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export default function TerminalsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
@@ -268,7 +270,11 @@ export default function TerminalsPage() {
                         }
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedTerminal(terminal)}
+                        >
                           View Details
                         </Button>
                       </TableCell>
@@ -286,6 +292,13 @@ export default function TerminalsPage() {
       <AddTerminalModal 
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      {/* Terminal Details Modal */}
+      <TerminalDetailsModal 
+        terminal={selectedTerminal}
+        open={selectedTerminal !== null}
+        onClose={() => setSelectedTerminal(null)}
       />
     </MainLayout>
   );
