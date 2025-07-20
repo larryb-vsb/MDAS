@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw } from "lucide-react";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 
@@ -18,6 +18,8 @@ export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
+  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,20 +30,44 @@ export default function TerminalsPage() {
     queryKey: ["/api/terminals"],
   });
 
-  // Filter and paginate terminals
+  // Filter, sort and paginate terminals
   const { paginatedTerminals, pagination } = useMemo(() => {
-    const filteredTerminals = terminals.filter((terminal) => {
+    let filteredTerminals = terminals.filter((terminal) => {
       const matchesSearch = 
         terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.masterMID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
+        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
       const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     });
+
+    // Apply sorting
+    if (sortField) {
+      filteredTerminals.sort((a, b) => {
+        let aValue: Date | null = null;
+        let bValue: Date | null = null;
+
+        if (sortField === 'lastActivity') {
+          aValue = a.lastActivity ? new Date(a.lastActivity) : null;
+          bValue = b.lastActivity ? new Date(b.lastActivity) : null;
+        } else if (sortField === 'lastUpdate') {
+          aValue = a.lastUpdate ? new Date(a.lastUpdate) : null;
+          bValue = b.lastUpdate ? new Date(b.lastUpdate) : null;
+        }
+
+        // Handle null values - put them at the end
+        if (!aValue && !bValue) return 0;
+        if (!aValue) return 1;
+        if (!bValue) return -1;
+
+        const comparison = aValue.getTime() - bValue.getTime();
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
 
     const totalItems = filteredTerminals.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -58,7 +84,7 @@ export default function TerminalsPage() {
         itemsPerPage
       }
     };
-  }, [terminals, searchQuery, statusFilter, terminalTypeFilter, currentPage, itemsPerPage]);
+  }, [terminals, searchQuery, statusFilter, terminalTypeFilter, sortField, sortDirection, currentPage, itemsPerPage]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -77,6 +103,32 @@ export default function TerminalsPage() {
       case "virtual": return <Shield className="h-4 w-4" />;
       default: return <CreditCard className="h-4 w-4" />;
     }
+  };
+
+  const handleSort = (field: 'lastActivity' | 'lastUpdate') => {
+    if (sortField === field) {
+      // Toggle direction or clear sort
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortField(null);
+        setSortDirection('desc');
+      }
+    } else {
+      // Set new sort field
+      setSortField(field);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (field: 'lastActivity' | 'lastUpdate') => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
   if (error) {
@@ -263,10 +315,25 @@ export default function TerminalsPage() {
                     <TableHead>VAR Number</TableHead>
                     <TableHead>DBA Name</TableHead>
                     <TableHead>POS Merchant #</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Last Activity</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('lastActivity')}
+                    >
+                      <div className="flex items-center">
+                        Last Activity
+                        {getSortIcon('lastActivity')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('lastUpdate')}
+                    >
+                      <div className="flex items-center">
+                        Last Update
+                        {getSortIcon('lastUpdate')}
+                      </div>
+                    </TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -284,16 +351,11 @@ export default function TerminalsPage() {
                         {terminal.posMerchantNumber || "-"}
                       </TableCell>
                       <TableCell>
-                        {terminal.terminalType ? (
-                          <Badge variant="outline">
-                            {terminal.terminalType}
-                          </Badge>
-                        ) : "-"}
-                      </TableCell>
-                      <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
-                      <TableCell>{terminal.location || "-"}</TableCell>
+                      <TableCell>
+                        {formatTableDate(terminal.lastActivity)}
+                      </TableCell>
                       <TableCell>
                         {formatTableDate(terminal.lastUpdate)}
                       </TableCell>
