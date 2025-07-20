@@ -13,6 +13,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatTableDate } from "@/lib/date-utils";
 
 interface TerminalDetailsModalProps {
   terminal: Terminal | null;
@@ -412,10 +413,10 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <p>{terminal.boardDate ? new Date(terminal.boardDate).toLocaleDateString() : "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Last Activity</label>
+                <label className="text-sm font-medium text-muted-foreground">Last Update</label>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <p>{terminal.lastActivity ? new Date(terminal.lastActivity).toLocaleDateString() : "N/A"}</p>
+                  <p>{formatTableDate(terminal.lastUpdate)}</p>
                 </div>
               </div>
             </CardContent>
