@@ -2351,17 +2351,9 @@ export class DatabaseStorage implements IStorage {
           };
           console.log(`Processing file: ID=${file.id}, Type=${file.fileType}, Name=${file.originalFilename}`);
           
-          // Mark file as currently processing with detailed tracking using environment-specific table
-          const processingStartTime = new Date();
-          await db.execute(sql`
-            UPDATE ${sql.identifier(uploadedFilesTableName)}
-            SET processing_status = 'processing', 
-                processing_started_at = ${processingStartTime.toISOString()},
-                processing_server_id = 'main'
-            WHERE id = ${file.id}
-          `);
-          
-          console.log(`⏱️ PROCESSING STARTED: ${file.originalFilename} at ${processingStartTime.toISOString()}`);
+          // File should already be marked as processing by the file processor service
+          // Just log the start - the processing status was set by claimFileForProcessing
+          console.log(`⏱️ PROCESSING: ${file.originalFilename} (already claimed by file processor)`);
           
           // Process based on file type
           if (file.fileType === 'merchant') {

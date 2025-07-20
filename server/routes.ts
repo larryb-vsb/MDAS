@@ -3039,6 +3039,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-node concurrency management endpoints
+  app.get("/api/processing/concurrency-stats", async (req, res) => {
+    try {
+      const { ConcurrencyCleanupService } = await import("./services/concurrency-cleanup");
+      const stats = await ConcurrencyCleanupService.getProcessingStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching concurrency stats:", error);
+      res.status(500).json({ error: "Failed to fetch concurrency statistics" });
+    }
+  });
+
+  app.post("/api/processing/cleanup-stale-locks", async (req, res) => {
+    try {
+      const { ConcurrencyCleanupService } = await import("./services/concurrency-cleanup");
+      const cleanedCount = await ConcurrencyCleanupService.cleanupStaleProcessingLocks();
+      res.json({ 
+        success: true, 
+        cleanedFiles: cleanedCount,
+        message: cleanedCount > 0 
+          ? `Cleaned up ${cleanedCount} stale processing locks` 
+          : "No stale processing locks found"
+      });
+    } catch (error) {
+      console.error("Error cleaning up stale locks:", error);
+      res.status(500).json({ error: "Failed to cleanup stale processing locks" });
+    }
+  });
+
+  app.get("/api/processing/server-info", async (req, res) => {
+    try {
+      const { getCachedServerId, getShortServerId } = await import("./utils/server-id");
+      const os = await import("os");
+      
+      res.json({
+        serverId: getCachedServerId(),
+        shortServerId: getShortServerId(),
+        hostname: os.hostname(),
+        platform: os.platform(),
+        architecture: os.arch(),
+        nodeVersion: process.version,
+        processId: process.pid,
+        environment: process.env.NODE_ENV || 'production',
+        uptime: process.uptime(),
+        memoryUsage: process.memoryUsage()
+      });
+    } catch (error) {
+      console.error("Error fetching server info:", error);
+      res.status(500).json({ error: "Failed to fetch server information" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

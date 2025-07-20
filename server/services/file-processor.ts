@@ -3,6 +3,7 @@ import { uploadedFiles } from "@shared/schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { storage } from "../storage";
 import schedule from "node-schedule";
+import { getCachedServerId } from "../utils/server-id";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -179,18 +180,21 @@ class FileProcessorService {
   
   /**
    * Get all unprocessed files from the database for the current environment
+   * Uses database-level concurrency control to prevent multiple nodes from processing the same files
    */
   async fetchUnprocessedFiles(): Promise<any[]> {
     const currentEnvironment = process.env.NODE_ENV || 'production';
+    const serverId = getCachedServerId();
     
     try {
       // Import table-config for environment-specific table names
       const { getTableName } = await import("../table-config");
       const uploadsTableName = getTableName('uploaded_files');
       
-      console.log(`[FILE PROCESSOR] Using table: ${uploadsTableName} for environment: ${currentEnvironment}`);
+      console.log(`[FILE PROCESSOR] Using table: ${uploadsTableName} for environment: ${currentEnvironment}, server: ${serverId}`);
       
-      // Use raw SQL with environment-specific table names
+      // Database-level concurrency control: only fetch files that are NOT currently being processed
+      // This prevents multiple nodes from picking up the same files
       const result = await db.execute(sql`
         SELECT 
           id,
@@ -200,10 +204,16 @@ class FileProcessorService {
           uploaded_at,
           processed,
           processing_errors,
-          deleted
+          deleted,
+          processing_status,
+          processing_started_at,
+          processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
         WHERE processed = false 
           AND deleted = false
+          AND (processing_status IS NULL OR processing_status != 'processing')
+        ORDER BY uploaded_at ASC
+        LIMIT 10
       `);
       
       const unprocessedFiles = result.rows.map(row => ({
@@ -214,10 +224,13 @@ class FileProcessorService {
         uploadedAt: row.uploaded_at,
         processed: row.processed,
         processingErrors: row.processing_errors,
-        deleted: row.deleted
+        deleted: row.deleted,
+        processingStatus: row.processing_status,
+        processingStartedAt: row.processing_started_at,
+        processingServerId: row.processing_server_id
       }));
       
-      console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files for ${currentEnvironment} environment`);
+      console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files available for processing (server: ${serverId})`);
       return unprocessedFiles;
     } catch (error: any) {
       console.error('[FILE PROCESSOR] Error fetching unprocessed files:', error);
@@ -226,17 +239,19 @@ class FileProcessorService {
   }
 
   /**
-   * Process all unprocessed files in the database
+   * Process all unprocessed files in the database with database-level concurrency control
    */
   async processUnprocessedFiles(): Promise<void> {
-    // Skip if already processing files or paused
+    const serverId = getCachedServerId();
+    
+    // Skip if already processing files or paused (in-memory check)
     if (this.isRunning) {
-      console.log("File processor is already running, skipping this run");
+      console.log(`[${serverId}] File processor is already running locally, skipping this run`);
       return;
     }
     
     if (this.isPaused) {
-      console.log("File processor is paused, skipping this run");
+      console.log(`[${serverId}] File processor is paused, skipping this run`);
       return;
     }
     
@@ -244,21 +259,29 @@ class FileProcessorService {
       this.isRunning = true;
       this.lastRunTime = new Date();
       
-      // Find all unprocessed files
+      // Find all unprocessed files using database-level concurrency control
       const unprocessedFiles = await this.fetchUnprocessedFiles();
       
       if (unprocessedFiles.length === 0) {
         // No files to process
+        console.log(`[${serverId}] No files available for processing`);
         return;
       }
       
-      console.log(`Found ${unprocessedFiles.length} unprocessed files to process`);
+      console.log(`[${serverId}] Found ${unprocessedFiles.length} unprocessed files to process`);
       this.queuedFiles = [...unprocessedFiles];
       
-      // Process files one by one to track individual processing
+      // Process files one by one with atomic database locking
       for (const file of unprocessedFiles) {
         try {
-          console.log(`\n=== PROCESSING FILE: ${file.originalFilename} (ID: ${file.id}) ===`);
+          // Atomic database lock: try to claim this file for processing
+          const claimed = await this.claimFileForProcessing(file.id);
+          if (!claimed) {
+            console.log(`[${serverId}] File ${file.originalFilename} already claimed by another server, skipping`);
+            continue;
+          }
+          
+          console.log(`\n=== [${serverId}] PROCESSING FILE: ${file.originalFilename} (ID: ${file.id}) ===`);
           const startTime = new Date();
           
           // Update currently processing file info
@@ -279,26 +302,90 @@ class FileProcessorService {
           const processingTimeMs = endTime.getTime() - startTime.getTime();
           const processingTimeSec = (processingTimeMs / 1000).toFixed(2);
           
-          console.log(`✅ COMPLETED: ${file.originalFilename} in ${processingTimeSec} seconds`);
+          console.log(`✅ [${serverId}] COMPLETED: ${file.originalFilename} in ${processingTimeSec} seconds`);
           this.processedFileCount += 1;
           
           // Clear currently processing file
           this.currentlyProcessingFile = null;
           
         } catch (error) {
-          console.error(`❌ FAILED: ${file.originalFilename} - ${error.message}`);
+          console.error(`❌ [${serverId}] FAILED: ${file.originalFilename} - ${error.message}`);
           if (error instanceof Error) {
             this.processingErrors[file.id] = error.message;
           }
+          
+          // Mark file as failed in database
+          await this.markFileAsFailed(file.id, error instanceof Error ? error.message : 'Unknown error');
           this.currentlyProcessingFile = null;
         }
       }
       
     } catch (error) {
-      console.error("Error in file processor:", error);
+      console.error(`[${serverId}] Error in file processor:`, error);
     } finally {
       this.queuedFiles = [];
       this.isRunning = false;
+    }
+  }
+
+  /**
+   * Atomically claim a file for processing using database-level locking
+   * Returns true if successfully claimed, false if already claimed by another server
+   */
+  private async claimFileForProcessing(fileId: string): Promise<boolean> {
+    const serverId = getCachedServerId();
+    const currentTime = new Date();
+    
+    try {
+      const { getTableName } = await import("../table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Atomic update: only set processing status if it's not already processing
+      const result = await db.execute(sql`
+        UPDATE ${sql.identifier(uploadsTableName)}
+        SET 
+          processing_status = 'processing',
+          processing_started_at = ${currentTime.toISOString()},
+          processing_server_id = ${serverId}
+        WHERE id = ${fileId}
+          AND (processing_status IS NULL OR processing_status != 'processing')
+        RETURNING id
+      `);
+      
+      const claimed = result.rows.length > 0;
+      if (claimed) {
+        console.log(`[${serverId}] Successfully claimed file ${fileId} for processing`);
+      }
+      
+      return claimed;
+    } catch (error) {
+      console.error(`[${serverId}] Error claiming file ${fileId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark a file as failed in the database
+   */
+  private async markFileAsFailed(fileId: string, errorMessage: string): Promise<void> {
+    const serverId = getCachedServerId();
+    
+    try {
+      const { getTableName } = await import("../table-config");
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      await db.execute(sql`
+        UPDATE ${sql.identifier(uploadsTableName)}
+        SET 
+          processing_status = 'failed',
+          processing_completed_at = ${new Date().toISOString()},
+          processing_errors = ${errorMessage}
+        WHERE id = ${fileId}
+      `);
+      
+      console.log(`[${serverId}] Marked file ${fileId} as failed`);
+    } catch (error) {
+      console.error(`[${serverId}] Error marking file ${fileId} as failed:`, error);
     }
   }
   
