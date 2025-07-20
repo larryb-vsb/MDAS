@@ -262,9 +262,8 @@ class FileProcessorService {
           processing_started_at,
           processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
-        WHERE processed = false 
+        WHERE processing_status = 'queued'
           AND deleted = false
-          AND (processing_status IS NULL OR processing_status != 'processing')
         ORDER BY uploaded_at ASC
         LIMIT 10
       `);
