@@ -81,17 +81,10 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
 
   const createTerminalMutation = useMutation({
     mutationFn: async (terminalData: TerminalFormData) => {
-      const response = await fetch("/api/terminals", {
+      return apiRequest("/api/terminals", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(terminalData),
+        body: terminalData
       });
-      if (!response.ok) {
-        throw new Error("Failed to create terminal");
-      }
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });

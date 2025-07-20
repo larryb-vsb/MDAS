@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 20, 2025 - Terminal Management System + Navigation Architecture COMPLETED
+- Current session: July 20, 2025 - Production Deployment + Form API Fixes COMPLETED
 - **✅ THREE-FIELD SEPARATION IMPLEMENTED**: Terminal details modal now displays lastUpdate (record modifications), lastActivity (future terminal transactions), and updateSource (modification source) as separate fields
 - **✅ UPDATE SOURCE TRACKING ADDED**: Successfully added updateSource field to terminals table in both development and production environments
 - **✅ DATABASE SCHEMA ENHANCED**: Added updateSource field to track whether updates came from file imports (e.g., "File: terminals_export.csv") or manual form entries (e.g., "Form - admin")
@@ -35,6 +35,11 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ SIDEBAR NAVIGATION ARCHITECTURE**: Resolved navigation inconsistency by updating MainLayout component instead of separate Sidebar - all pages now use unified navigation
 - **✅ ADMIN ROLE FILTERING**: Implemented proper admin role checking with filteredNavItems ensuring Logs and Backups sections only visible to admin users
 - **✅ TERMINALS POSITIONING**: Successfully positioned "Terminals" navigation item between "Merchants" and "Transactions" in actual navigation structure
+- **✅ PRODUCTION DEPLOYMENT SUCCESSFUL**: MMS deployed and operational with proper authentication and environment separation
+- **✅ MERCHANT FORM API FIX**: Fixed NewMerchant.tsx apiRequest structure to use correct {method, body} parameters instead of incorrect signature
+- **✅ TERMINAL FORM STANDARDIZATION**: Updated AddTerminalModal.tsx to use apiRequest helper instead of direct fetch calls for consistency
+- **✅ FORM VALIDATION WORKING**: Merchant creation now functional - successfully created "Test Larry Billinghurst3" with auto-generated ID MMS1753055813369949
+- **✅ AUDIT LOGGING OPERATIONAL**: All merchant creation properly logged with user tracking ("admin") and complete audit trail
 - Terminal file upload functionality fully operational with 1,741+ terminals being processed successfully in 255 seconds
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality → Bulk operations
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking
