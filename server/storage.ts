@@ -2765,6 +2765,7 @@ export class DatabaseStorage implements IStorage {
           
           // Check if each merchant exists in the database
           for (const merchant of merchants) {
+            console.log(`Processing merchant update: ${merchant.id} - ${merchant.name}`);
             const existingMerchant = await db.select()
               .from(merchantsTable)
               .where(eq(merchantsTable.id, merchant.id));
