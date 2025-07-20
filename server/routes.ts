@@ -61,7 +61,6 @@ import {
   schemaVersions,
   backupSchedules as backupSchedulesTable,
   users as usersTable,
-  systemLogs as systemLogsTable,
   terminals as terminalsTable,
   insertTerminalSchema
 } from "@shared/schema";
