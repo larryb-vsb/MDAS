@@ -1320,9 +1320,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use environment-specific table for file uploads
       const uploadedFilesTableName = getTableName('uploaded_files');
-      console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}`);
+      const currentEnvironment = process.env.NODE_ENV || 'production';
+      console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}, environment: ${currentEnvironment}`);
       
-      // Direct SQL insertion using environment-specific table
+      // Direct SQL insertion using environment-specific table with environment tracking
       await pool.query(`
         INSERT INTO ${uploadedFilesTableName} (
           id, 
@@ -1332,8 +1333,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           uploaded_at, 
           processed, 
           deleted,
-          file_content
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          file_content,
+          upload_environment
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `, [
         fileId,
         req.file.originalname,
@@ -1342,7 +1344,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new Date(),
         false,
         false,
-        fileContentBase64
+        fileContentBase64,
+        currentEnvironment
       ]);
       
       console.log(`Successfully stored file record for ${fileId}`);

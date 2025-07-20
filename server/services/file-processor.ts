@@ -178,9 +178,11 @@ class FileProcessorService {
   }
   
   /**
-   * Get all unprocessed files from the database
+   * Get all unprocessed files from the database for the current environment
    */
   async fetchUnprocessedFiles(): Promise<any[]> {
+    const currentEnvironment = process.env.NODE_ENV || 'production';
+    
     // Use basic fields that definitely exist to avoid schema issues
     const unprocessedFiles = await db.select({
       id: uploadedFiles.id,
@@ -196,11 +198,12 @@ class FileProcessorService {
       .where(
         and(
           eq(uploadedFiles.processed, false),
-          eq(uploadedFiles.deleted, false)
+          eq(uploadedFiles.deleted, false),
+          eq(uploadedFiles.uploadEnvironment, currentEnvironment)
         )
       );
     
-    console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files in ${process.env.NODE_ENV} environment`);
+    console.log(`[FILE PROCESSOR] Found ${unprocessedFiles.length} unprocessed files for ${currentEnvironment} environment`);
     return unprocessedFiles;
   }
 

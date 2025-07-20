@@ -71,7 +71,8 @@ export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   recordsSkipped: integer("records_skipped").default(0),
   recordsWithErrors: integer("records_with_errors").default(0),
   processingTimeMs: integer("processing_time_ms"),
-  processingDetails: text("processing_details") // JSON string with detailed stats
+  processingDetails: text("processing_details"), // JSON string with detailed stats
+  uploadEnvironment: text("upload_environment").notNull().default("production") // Track which environment uploaded this file
 });
 
 // Backup history table

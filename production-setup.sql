@@ -20,5 +20,8 @@ INSERT INTO processing_metrics (transactions_per_second, peak_transactions_per_s
 VALUES (0.0, 0.0, 0)
 ON CONFLICT DO NOTHING;
 
+-- Add upload_environment column to uploaded_files table for environment tracking
+ALTER TABLE uploaded_files ADD COLUMN IF NOT EXISTS upload_environment text NOT NULL DEFAULT 'production';
+
 -- Verify table creation
 SELECT 'processing_metrics table created successfully' AS status;
