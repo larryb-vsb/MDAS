@@ -175,7 +175,7 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 )}
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Master MID</Label>
+                <Label className="text-sm font-medium text-muted-foreground">POS Merchant #</Label>
                 {isEditing ? (
                   <Input
                     value={editData.masterMID || ""}

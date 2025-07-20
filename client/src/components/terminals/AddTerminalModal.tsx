@@ -16,7 +16,6 @@ import { Loader2 } from "lucide-react";
 // Terminal form schema
 const terminalSchema = z.object({
   vNumber: z.string().min(1, "V Number is required"),
-  posMerchantNumber: z.string().optional(),
   bin: z.string().optional(),
   dbaName: z.string().min(1, "DBA Name is required"),
   dailyAuth: z.string().optional(),
@@ -53,7 +52,6 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
     resolver: zodResolver(terminalSchema),
     defaultValues: {
       vNumber: "",
-      posMerchantNumber: "",
       bin: "",
       dbaName: "",
       dailyAuth: "",
@@ -163,21 +161,6 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
                 )}
               />
 
-              {/* POS Merchant Number */}
-              <FormField
-                control={form.control}
-                name="posMerchantNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>POS Merchant #</FormLabel>
-                    <FormControl>
-                      <Input placeholder="12345678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* BIN */}
               <FormField
                 control={form.control}
@@ -193,15 +176,15 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
                 )}
               />
 
-              {/* Master MID */}
+              {/* POS Merchant # */}
               <FormField
                 control={form.control}
                 name="masterMID"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Master MID</FormLabel>
+                    <FormLabel>POS Merchant #</FormLabel>
                     <FormControl>
-                      <Input placeholder="Master Merchant ID" {...field} />
+                      <Input placeholder="POS Merchant Number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -193,7 +193,7 @@ export default function TerminalsPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search terminals by VAR number, DBA name, Master MID, or location..."
+                  placeholder="Search terminals by VAR number, DBA name, POS Merchant #, or location..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -261,7 +261,7 @@ export default function TerminalsPage() {
                   <TableRow>
                     <TableHead>VAR Number</TableHead>
                     <TableHead>DBA Name</TableHead>
-                    <TableHead>Master MID</TableHead>
+                    <TableHead>POS Merchant #</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Location</TableHead>
