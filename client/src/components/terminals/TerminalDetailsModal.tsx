@@ -37,13 +37,34 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   // Update terminal mutation
   const updateTerminalMutation = useMutation({
     mutationFn: async (data: Partial<Terminal>) => {
-      const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP ${response.status}`);
+      console.log("Sending terminal update:", data);
+      try {
+        const response = await apiRequest("PUT", `/api/terminals/${terminal?.id}`, data);
+        console.log("API response status:", response.status);
+        console.log("API response headers:", Object.fromEntries(response.headers.entries()));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("API error response:", errorText);
+          throw new Error(errorText || `HTTP ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        console.log("Content-Type:", contentType);
+        
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          console.log("API success response:", result);
+          return result;
+        } else {
+          const textResult = await response.text();
+          console.log("API text response:", textResult);
+          throw new Error("API returned non-JSON response: " + textResult);
+        }
+      } catch (error) {
+        console.error("Terminal update error:", error);
+        throw error;
       }
-      const result = await response.json();
-      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
