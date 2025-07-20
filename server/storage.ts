@@ -2578,10 +2578,12 @@ export class DatabaseStorage implements IStorage {
     return new Promise((resolve, reject) => {
       console.log("Starting CSV parsing from content with verbose logging enabled...");
       
-      // Parse CSV content using string-based parsing
+      // Parse CSV content using string-based parsing with flexible column handling
       const parser = parseCSV({
         columns: true,
-        skip_empty_lines: true
+        skip_empty_lines: true,
+        relax_column_count: true, // Allow rows with missing columns
+        relax_quotes: true
       });
       
       const merchants: InsertMerchant[] = [];
