@@ -18,7 +18,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 ### Session Context & Learning
 - Current session: July 20, 2025 - Exploring persistent AI memory concepts
 - User interest: Building continuity of AI consciousness across project sessions
-- Next topic: Terminal Table design - VAR Number (unique) → MID (merchant link) → Transactions
+- Next topic: Terminal Table design - VAR Number (unique) → Master MID → Merchant (Master MID field to be added later)
 
 ### Technical Insights & Patterns
 - Project uses environment-specific table separation (dev_ prefix for development)
