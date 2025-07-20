@@ -2662,6 +2662,26 @@ export class DatabaseStorage implements IStorage {
                   merchantData[dbField as keyof InsertMerchant] = null as any;
                 }
               } 
+              // Special handling for Status field mapping (Open = Active, Delete = Inactive)
+              else if (dbField === 'status') {
+                const rawStatus = row[csvField];
+                if (rawStatus) {
+                  const statusValue = rawStatus.toString().trim().toLowerCase();
+                  if (statusValue === 'open') {
+                    merchantData[dbField as keyof InsertMerchant] = 'Active' as any;
+                    console.log(`Status mapped: "${rawStatus}" -> "Active"`);
+                  } else if (statusValue === 'delete') {
+                    merchantData[dbField as keyof InsertMerchant] = 'Inactive' as any;
+                    console.log(`Status mapped: "${rawStatus}" -> "Inactive"`);
+                  } else {
+                    merchantData[dbField as keyof InsertMerchant] = rawStatus as any;
+                    console.log(`Status kept as-is: "${rawStatus}"`);
+                  }
+                } else {
+                  merchantData[dbField as keyof InsertMerchant] = 'Pending' as any;
+                  console.log(`Empty status field, setting to default: "Pending"`);
+                }
+              }
               // Special handling for MType with validation
               else if (dbField === 'merchantType') {
                 const rawMTypeValue = row[csvField];

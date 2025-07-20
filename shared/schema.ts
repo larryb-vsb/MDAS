@@ -20,6 +20,8 @@ export const merchants = pgTable(getTableName("merchants"), {
   status: text("status").notNull().default("Pending"),
   merchantType: text("merchant_type"), // Can be blank, "0", "1", "2", "3", or custom text
   salesChannel: text("sales_channel"),
+  association: text("association"), // Business association field
+  mcc: text("mcc"), // Merchant Category Code
   address: text("address"),
   city: text("city"),
   state: text("state"),

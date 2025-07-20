@@ -16,8 +16,10 @@ export const merchantFieldMappings = {
   clientMID: "ClientNumber", // Map to clientMID
   otherClientNumber1: null, // Not in current import
   otherClientNumber2: null, // Not in current import
-  status: "Status", // Merchant status field (defaults to Active if not provided)
+  status: "Status", // Merchant status field (Open = Active, Delete = Inactive)
   merchantType: "Mtype", // Merchant Type field (numeric: 1=Online, 2=Retail, 3=Mixed, 4=B2B, 5=Wholesale)
+  association: "Association", // Business association field
+  mcc: "MCC", // Merchant Category Code
   address: "ClientPAddress1", 
   city: "ClientPAddressCity",
   state: "ClientPAddressState",
