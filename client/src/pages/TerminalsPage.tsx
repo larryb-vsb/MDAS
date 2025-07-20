@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import MainLayout from "@/components/layout/MainLayout";
 import AddTerminalModal from "@/components/terminals/AddTerminalModal";
 import { TerminalDetailsModal } from "@/components/terminals/TerminalDetailsModal";
@@ -10,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 
@@ -20,6 +23,7 @@ export default function TerminalsPage() {
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
   const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedTerminals, setSelectedTerminals] = useState<number[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,7 +40,7 @@ export default function TerminalsPage() {
       const matchesSearch = 
         terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.masterMID?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.masterMerchantId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
@@ -131,6 +135,56 @@ export default function TerminalsPage() {
       : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
+  const handleSelectTerminal = (terminalId: number) => {
+    setSelectedTerminals(prev => 
+      prev.includes(terminalId) 
+        ? prev.filter(id => id !== terminalId)
+        : [...prev, terminalId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTerminals.length === paginatedTerminals.length) {
+      setSelectedTerminals([]);
+    } else {
+      setSelectedTerminals(paginatedTerminals.map(t => t.id));
+    }
+  };
+
+  const { toast } = useToast();
+
+  // Delete selected terminals mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (terminalIds: number[]) => {
+      const response = await apiRequest('/api/terminals', { 
+        method: 'DELETE', 
+        body: { terminalIds } 
+      });
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Terminals deleted",
+        description: `Successfully deleted ${selectedTerminals.length} terminal${selectedTerminals.length > 1 ? 's' : ''}`,
+      });
+      setSelectedTerminals([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
+    },
+    onError: (error) => {
+      console.error('Delete mutation error:', error);
+      toast({
+        title: "Error",
+        description: `Failed to delete terminals: ${error}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteSelected = () => {
+    if (selectedTerminals.length === 0) return;
+    deleteMutation.mutate(selectedTerminals);
+  };
+
   if (error) {
     return (
       <MainLayout>
@@ -160,6 +214,16 @@ export default function TerminalsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {selectedTerminals.length > 0 && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={handleDeleteSelected}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete ({selectedTerminals.length})
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -290,6 +354,39 @@ export default function TerminalsPage() {
         </CardContent>
       </Card>
 
+      {/* Selection Summary */}
+      {selectedTerminals.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-blue-700">
+                  {selectedTerminals.length} terminal{selectedTerminals.length > 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete Selected
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setSelectedTerminals([])}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Terminals Table */}
       <Card>
         <CardHeader>
@@ -312,6 +409,13 @@ export default function TerminalsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedTerminals.length === paginatedTerminals.length && paginatedTerminals.length > 0}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all terminals"
+                      />
+                    </TableHead>
                     <TableHead>VAR Number</TableHead>
                     <TableHead>DBA Name</TableHead>
                     <TableHead>POS Merchant #</TableHead>
@@ -339,7 +443,14 @@ export default function TerminalsPage() {
                 </TableHeader>
                 <TableBody>
                   {paginatedTerminals.map((terminal) => (
-                    <TableRow key={terminal.id} className="cursor-pointer hover:bg-muted/50">
+                    <TableRow key={terminal.id} className="hover:bg-muted/50">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedTerminals.includes(terminal.id)}
+                          onCheckedChange={() => handleSelectTerminal(terminal.id)}
+                          aria-label={`Select terminal ${terminal.vNumber}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {getTerminalTypeIcon(terminal.terminalType)}
@@ -354,10 +465,10 @@ export default function TerminalsPage() {
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastActivity)}
+                        {formatTableDate(terminal.lastActivity?.toString() || null)}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastUpdate)}
+                        {formatTableDate(terminal.lastUpdate?.toString() || null)}
                       </TableCell>
                       <TableCell>
                         <Button 

@@ -3210,6 +3210,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete terminals
+  app.delete("/api/terminals", isAuthenticated, async (req, res) => {
+    try {
+      const { terminalIds } = req.body;
+      
+      if (!Array.isArray(terminalIds) || terminalIds.length === 0) {
+        return res.status(400).json({ error: "terminalIds must be a non-empty array" });
+      }
+
+      console.log('[BACKEND DELETE] Attempting to delete terminals:', terminalIds);
+      
+      // Delete each terminal
+      const deletionResults = [];
+      for (const terminalId of terminalIds) {
+        try {
+          await storage.deleteTerminal(terminalId);
+          deletionResults.push({ terminalId, success: true });
+        } catch (error) {
+          console.error(`Error deleting terminal ${terminalId}:`, error);
+          deletionResults.push({ 
+            terminalId, 
+            success: false, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+      
+      const successfulDeletes = deletionResults.filter(r => r.success);
+      const failedDeletes = deletionResults.filter(r => !r.success);
+      
+      console.log('[BACKEND DELETE] Results:', { 
+        successful: successfulDeletes.length, 
+        failed: failedDeletes.length 
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${successfulDeletes.length} terminal${successfulDeletes.length !== 1 ? 's' : ''}`,
+        deletionResults,
+        successfulCount: successfulDeletes.length,
+        failedCount: failedDeletes.length
+      });
+    } catch (error) {
+      console.error('Error in bulk delete terminals:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete terminals" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
