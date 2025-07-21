@@ -195,38 +195,146 @@ export const insertMerchantSchema = merchantsSchema.omit({ id: true });
 export const transactionsSchema = createInsertSchema(transactions);
 export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 
-// TDDF (Transaction Daily Detail File) table - specialized table for detailed transaction processing
+// TDDF (Transaction Daily Detail File) table - comprehensive fields based on TDDF specification
 export const tddfRecords = pgTable(getTableName("tddf_records"), {
   id: serial("id").primaryKey(),
-  // Core TDDF fields
-  txnId: text("txn_id").notNull(), // Transaction unique identifier
-  merchantId: text("merchant_id").notNull(), // Merchant identifier
-  txnAmount: numeric("txn_amount", { precision: 10, scale: 2 }).notNull(), // Transaction amount
-  txnDate: timestamp("txn_date").notNull(), // Transaction date
-  txnType: text("txn_type").notNull(), // Transaction type (SALE, REFUND, VOID, etc.)
   
-  // Additional TDDF fields
-  txnDesc: text("txn_desc"), // Transaction description
-  merchantName: text("merchant_name"), // Merchant business name
-  batchId: text("batch_id"), // Batch identifier for grouping
-  authCode: text("auth_code"), // Authorization code
-  cardType: text("card_type"), // Card type (VISA, MC, AMEX, etc.)
-  entryMethod: text("entry_method"), // Entry method (CHIP, SWIPE, MANUAL, etc.)
-  responseCode: text("response_code"), // Transaction response code
-  cardholderAccountNumber: text("cardholder_account_number"), // Masked card number (e.g., ****1234)
+  // Core TDDF header fields (positions 1-23)
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "DT"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
   
-  // System fields
+  // Account and merchant fields (positions 24-61)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number
+  associationNumber1: text("association_number_1"), // Positions 40-45: Association number
+  groupNumber: text("group_number"), // Positions 46-51: Group number
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code
+  associationNumber2: text("association_number_2"), // Positions 56-61: Second association number
+  
+  // Core transaction fields (positions 62-142)
+  referenceNumber: text("reference_number"), // Positions 62-84: Reference number (23 chars)
+  transactionDate: timestamp("transaction_date"), // Positions 85-92: MMDDCCYY format
+  transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103: Transaction amount
+  batchJulianDate: text("batch_julian_date"), // Positions 104-108: DDDYY format
+  netDeposit: numeric("net_deposit", { precision: 17, scale: 2 }), // Positions 109-123: Deposited amount
+  cardholderAccountNumber: text("cardholder_account_number"), // Positions 124-142: Card account number
+  
+  // Transaction details (positions 143-187)
+  bestInterchangeEligible: text("best_interchange_eligible"), // Positions 143-144
+  transactionDataConditionCode: text("transaction_data_condition_code"), // Positions 145-146
+  downgradeReason1: text("downgrade_reason_1"), // Positions 147-150
+  downgradeReason2: text("downgrade_reason_2"), // Positions 151-154
+  downgradeReason3: text("downgrade_reason_3"), // Positions 155-164
+  onlineEntry: text("online_entry"), // Position 165
+  achFlag: text("ach_flag"), // Position 166: Y/N
+  authSource: text("auth_source"), // Position 167
+  cardholderIdMethod: text("cardholder_id_method"), // Position 168
+  catIndicator: text("cat_indicator"), // Position 169
+  reimbursementAttribute: text("reimbursement_attribute"), // Position 170
+  mailOrderTelephoneIndicator: text("mail_order_telephone_indicator"), // Position 171
+  authCharInd: text("auth_char_ind"), // Position 172
+  banknetReferenceNumber: text("banknet_reference_number"), // Positions 173-187
+  
+  // Additional transaction info (positions 188-242)
+  draftAFlag: text("draft_a_flag"), // Position 188: Y/N
+  authCurrencyCode: text("auth_currency_code"), // Positions 189-191
+  authAmount: numeric("auth_amount", { precision: 14, scale: 2 }), // Positions 192-203
+  validationCode: text("validation_code"), // Positions 204-207
+  authResponseCode: text("auth_response_code"), // Positions 208-209
+  networkIdentifierDebit: text("network_identifier_debit"), // Positions 210-212
+  switchSettledIndicator: text("switch_settled_indicator"), // Position 213
+  posEntryMode: text("pos_entry_mode"), // Positions 214-215
+  debitCreditIndicator: text("debit_credit_indicator"), // Position 216: D/C
+  reversalFlag: text("reversal_flag"), // Position 217
+  merchantName: text("merchant_name"), // Positions 218-242: DBA name (25 chars)
+  
+  // Authorization and card details (positions 243-268)
+  authorizationNumber: text("authorization_number"), // Positions 243-248
+  rejectReason: text("reject_reason"), // Positions 249-252
+  cardType: text("card_type"), // Positions 253-254
+  currencyCode: text("currency_code"), // Positions 255-257
+  originalTransactionAmount: numeric("original_transaction_amount", { precision: 13, scale: 2 }), // Positions 258-268
+  
+  // Additional flags and codes (positions 269-284)
+  foreignCardIndicator: text("foreign_card_indicator"), // Position 269
+  carryoverIndicator: text("carryover_indicator"), // Position 270
+  extensionRecordIndicator: text("extension_record_indicator"), // Positions 271-272
+  mccCode: text("mcc_code"), // Positions 273-276: Merchant Category Code
+  terminalId: text("terminal_id"), // Positions 277-284
+  
+  // Extended fields (positions 285-400+)
+  discoverPosEntryMode: text("discover_pos_entry_mode"), // Positions 285-287
+  purchaseId: text("purchase_id"), // Positions 288-312
+  cashBackAmount: numeric("cash_back_amount", { precision: 11, scale: 2 }), // Positions 313-321
+  cashBackAmountSign: text("cash_back_amount_sign"), // Position 322: +/-
+  posDataCode: text("pos_data_code"), // Positions 323-335
+  transactionTypeIdentifier: text("transaction_type_identifier"), // Positions 336-338
+  cardTypeExtended: text("card_type_extended"), // Positions 339-341
+  productId: text("product_id"), // Positions 342-343
+  submittedInterchange: text("submitted_interchange"), // Positions 344-348
+  systemTraceAuditNumber: text("system_trace_audit_number"), // Positions 349-354
+  discoverTransactionType: text("discover_transaction_type"), // Positions 355-356
+  localTransactionTime: text("local_transaction_time"), // Positions 357-362: HHMMSS
+  discoverProcessingCode: text("discover_processing_code"), // Positions 363-368
+  commercialCardServiceIndicator: text("commercial_card_service_indicator"), // Position 369
+  
+  // Fee and regulatory fields (positions 370-400+)
+  mastercardCrossBorderFee: numeric("mastercard_cross_border_fee", { precision: 11, scale: 2 }), // Positions 370-378
+  cardBrandFeeCode: text("card_brand_fee_code"), // Position 379
+  dccIndicator: text("dcc_indicator"), // Position 380: U/E
+  regulatedIndicator: text("regulated_indicator"), // Position 381
+  visaIntegrityFee: numeric("visa_integrity_fee", { precision: 11, scale: 2 }), // Positions 382-390
+  foreignExchangeFlag: text("foreign_exchange_flag"), // Position 391
+  visaFeeProgramIndicator: text("visa_fee_program_indicator"), // Positions 392-394
+  transactionFeeDebitCreditIndicator: text("transaction_fee_debit_credit_indicator"), // Positions 395-396
+  transactionFeeAmount: numeric("transaction_fee_amount", { precision: 17, scale: 2 }), // Positions 397-413
+  transactionFeeAmountCardholder: numeric("transaction_fee_amount_cardholder", { precision: 13, scale: 2 }), // Positions 414-424
+  
+  // IASF and additional fees (positions 425-500+)
+  iasfFeeType: text("iasf_fee_type"), // Positions 425-426
+  iasfFeeAmount: numeric("iasf_fee_amount", { precision: 13, scale: 2 }), // Positions 427-437
+  iasfFeeDebitCreditIndicator: text("iasf_fee_debit_credit_indicator"), // Position 438
+  merchantAssignedReferenceNumber: text("merchant_assigned_reference_number"), // Positions 439-450
+  netDepositAdjustmentAmount: numeric("net_deposit_adjustment_amount", { precision: 17, scale: 0 }), // Positions 451-465
+  netDepositAdjustmentDc: text("net_deposit_adjustment_dc"), // Position 466
+  mcCashBackFee: text("mc_cash_back_fee"), // Positions 467-481
+  mcCashBackFeeSign: text("mc_cash_back_fee_sign"), // Position 482
+  
+  // American Express fields (positions 483-628)
+  amexIndustrySeNumber: text("amex_industry_se_number"), // Positions 483-492
+  amexMerchantSellerId: text("amex_merchant_seller_id"), // Positions 493-512
+  amexMerchantSellerName: text("amex_merchant_seller_name"), // Positions 513-537
+  amexMerchantSellerAddress: text("amex_merchant_seller_address"), // Positions 538-562
+  amexMerchantSellerPhone: text("amex_merchant_seller_phone"), // Positions 563-578
+  amexMerchantSellerPostalCode: text("amex_merchant_seller_postal_code"), // Positions 579-588
+  amexMerchantSellerEmail: text("amex_merchant_seller_email"), // Positions 589-628
+  
+  // Advanced transaction classification (positions 629-650+)
+  mastercardTransactionIntegrityClass: text("mastercard_transaction_integrity_class"), // Positions 629-630
+  equipmentSourceIdentification: text("equipment_source_identification"), // Positions 631-633
+  operatorId: text("operator_id"), // Positions 634-636
+  requestedPaymentService: text("requested_payment_service"), // Position 637
+  totalAuthorizedAmount: numeric("total_authorized_amount", { precision: 14, scale: 0 }), // Positions 638-649
+  interchangeFeeAmount: numeric("interchange_fee_amount", { precision: 17, scale: 2 }), // Positions 650-666
+  mastercardWalletIdentifier: text("mastercard_wallet_identifier"), // Positions 667-669
+  visaSpecialConditionIndicator: text("visa_special_condition_indicator"), // Position 670
+  interchangePercentRate: numeric("interchange_percent_rate", { precision: 7, scale: 5 }), // Positions 671-676
+  interchangePerItemRate: numeric("interchange_per_item_rate", { precision: 7, scale: 2 }), // Positions 677-682
+  
+  // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
   sourceRowNumber: integer("source_row_number"),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
-  rawData: jsonb("raw_data"), // Store the complete CSV row for reference
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
-  txnIdIndex: index("tddf_txn_id_idx").on(table.txnId),
-  merchantIdIndex: index("tddf_merchant_id_idx").on(table.merchantId),
-  dateIndex: index("tddf_date_idx").on(table.txnDate),
-  batchIdIndex: index("tddf_batch_id_idx").on(table.batchId)
+  referenceNumberIndex: index("tddf_reference_number_idx").on(table.referenceNumber),
+  merchantAccountIndex: index("tddf_merchant_account_idx").on(table.merchantAccountNumber),
+  transactionDateIndex: index("tddf_transaction_date_idx").on(table.transactionDate),
+  merchantNameIndex: index("tddf_merchant_name_idx").on(table.merchantName)
 }));
 
 // Zod schemas for uploaded files
@@ -298,6 +406,8 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type TddfRecord = typeof tddfRecords.$inferSelect;
 export type InsertTddfRecord = typeof tddfRecords.$inferInsert;
+export type Terminal = typeof terminals.$inferSelect;
+export type InsertTerminal = typeof terminals.$inferInsert;
 
 // Audit log table with performance optimizations
 export const auditLogs = pgTable(getTableName("audit_logs"), {
