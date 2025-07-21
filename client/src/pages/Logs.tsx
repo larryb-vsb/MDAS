@@ -489,9 +489,22 @@ export default function Logs() {
                             </td>
                           )}
                           <td className="px-4 py-3 text-sm">
-                            <div className="max-w-md truncate">
-                              {log.notes || "No additional details"}
-                            </div>
+                            {(log as any).details && typeof (log as any).details === 'object' ? (
+                              <div className="space-y-1">
+                                <div className="font-medium">{log.notes || "Security Event"}</div>
+                                <div className="text-xs text-slate-600">
+                                  {(log as any).details.userRole && <div>Role: {(log as any).details.userRole}</div>}
+                                  {(log as any).details.sessionDuration && <div>Duration: {(log as any).details.sessionDuration}</div>}
+                                  {(log as any).details.previousLoginTime && <div>Previous: {new Date((log as any).details.previousLoginTime).toLocaleString()}</div>}
+                                  {(log as any).details.clientDetails?.acceptLanguage && <div>Language: {(log as any).details.clientDetails.acceptLanguage}</div>}
+                                  {(log as any).details.serverDetails?.environment && <div>Env: {(log as any).details.serverDetails.environment}</div>}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="max-w-md truncate">
+                                {log.notes || "No additional details"}
+                              </div>
+                            )}
                           </td>
                           {(activeTab === "security" || activeTab === "all") && (
                             <td className="px-4 py-3 whitespace-nowrap text-sm">

@@ -172,7 +172,25 @@ export function setupAuth(app: Express) {
             details: {
               loginMethod: 'password',
               timestamp: new Date().toISOString(),
-              sessionId: req.sessionID
+              sessionId: req.sessionID,
+              userRole: user.role,
+              loginDuration: 'N/A',
+              previousLoginTime: user.lastLogin ? new Date(user.lastLogin).toISOString() : 'First login',
+              accountStatus: 'Active',
+              authenticationSource: 'Local Database',
+              securityLevel: 'Standard',
+              clientDetails: {
+                ipAddress: clientIP,
+                userAgent: userAgent,
+                acceptLanguage: req.headers['accept-language'] || 'Unknown',
+                referer: req.headers['referer'] || 'Direct access',
+                origin: req.headers['origin'] || req.headers['host'] || 'Unknown'
+              },
+              serverDetails: {
+                serverId: process.env.REPLIT_DEPLOYMENT_ID || 'Development',
+                environment: process.env.NODE_ENV || 'development',
+                timestamp: new Date().toISOString()
+              }
             }
           });
         } catch (error) {
@@ -180,9 +198,11 @@ export function setupAuth(app: Express) {
           // Continue even if logging fails
         }
         
-        // Update last login time
+        // Update last login time and track session start
         try {
           await storage.updateUserLastLogin(user.id);
+          // Store login time in session for duration tracking
+          req.session.loginTime = new Date().toISOString();
         } catch (error) {
           console.error("Error updating last login time:", error);
           // Continue even if this fails
@@ -201,6 +221,9 @@ export function setupAuth(app: Express) {
     // Log logout event before actually logging out
     if (user) {
       try {
+        const sessionDuration = req.session?.loginTime ? 
+          Math.round((new Date().getTime() - new Date(req.session.loginTime).getTime()) / 1000) : 0;
+        
         await storage.createSecurityLog({
           eventType: 'logout',
           result: 'success',
@@ -211,7 +234,31 @@ export function setupAuth(app: Express) {
           details: {
             logoutMethod: 'manual',
             timestamp: new Date().toISOString(),
-            sessionId: req.sessionID
+            sessionId: req.sessionID,
+            userRole: user.role,
+            sessionDuration: sessionDuration > 0 ? 
+              `${Math.floor(sessionDuration / 60)} minutes ${sessionDuration % 60} seconds` : 'Unknown',
+            logoutReason: 'User initiated logout',
+            accountStatus: 'Active',
+            securityLevel: 'Standard',
+            sessionDetails: {
+              startTime: req.session?.loginTime || 'Unknown',
+              endTime: new Date().toISOString(),
+              totalDuration: sessionDuration,
+              activityLevel: 'Normal'
+            },
+            clientDetails: {
+              ipAddress: clientIP,
+              userAgent: userAgent,
+              acceptLanguage: req.headers['accept-language'] || 'Unknown',
+              referer: req.headers['referer'] || 'Direct access',
+              origin: req.headers['origin'] || req.headers['host'] || 'Unknown'
+            },
+            serverDetails: {
+              serverId: process.env.REPLIT_DEPLOYMENT_ID || 'Development',
+              environment: process.env.NODE_ENV || 'development',
+              timestamp: new Date().toISOString()
+            }
           }
         });
       } catch (error) {
