@@ -5,6 +5,7 @@ import { securityLogs, systemLogs } from "@shared/schema";
 import { desc } from "drizzle-orm";
 import { generateTestLogs } from "../test-logs";
 import { getTableName } from "../table-config";
+import { SystemLogger } from "../system-logger";
 
 const router = Router();
 
@@ -507,28 +508,28 @@ router.post("/api/logs/test-application", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const systemLogger = require('../system-logger');
+    const systemLogger = SystemLogger.getInstance();
     
     // Generate some test application events
-    systemLogger.logInfo('Test application startup event', 'Application', {
+    await systemLogger.info('Application', 'Test application startup event', {
       version: '1.0.0',
       environment: 'development',
       testEvent: true
     });
     
-    systemLogger.logInfo('Test file processing initialization', 'Application', {
+    await systemLogger.info('Application', 'Test file processing initialization', {
       processorType: 'CSV',
       maxConcurrency: 5,
       testEvent: true
     });
     
-    systemLogger.logInfo('Test database migration completed', 'Application', {
+    await systemLogger.info('Application', 'Test database migration completed', {
       migrationsRun: 3,
       tablesUpdated: ['merchants', 'transactions', 'terminals'],
       testEvent: true
     });
     
-    systemLogger.logWarn('Test application warning', 'Application', {
+    await systemLogger.warn('Application', 'Test application warning', {
       warningType: 'performance',
       message: 'High memory usage detected',
       testEvent: true
