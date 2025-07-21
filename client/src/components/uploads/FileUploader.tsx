@@ -17,6 +17,8 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
     onDrop,
     accept: {
       "text/csv": [".csv"],
+      "text/plain": [".txt", ".TSYSO", ".tsyso"],
+      "application/octet-stream": [".TSYSO", ".tsyso"],
     },
     maxSize: 10 * 1024 * 1024, // 10MB
   });
@@ -54,7 +56,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
             </label>
             <p className="pl-1">or drag and drop</p>
           </div>
-          <p className="text-xs text-gray-500">CSV files up to 10MB</p>
+          <p className="text-xs text-gray-500">CSV, TSYSO files up to 10MB</p>
         </div>
       </div>
     </div>
