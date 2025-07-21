@@ -83,7 +83,9 @@ export default function TddfPage() {
         ...(filters.merchantId && { merchantId: filters.merchantId }),
       });
 
-      const response = await fetch(`/api/tddf?${params}`);
+      const response = await fetch(`/api/tddf?${params}`, {
+        credentials: "include"
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch TDDF records");
       }
@@ -97,6 +99,7 @@ export default function TddfPage() {
       const response = await fetch("/api/tddf", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ recordIds })
       });
       return response.json();
