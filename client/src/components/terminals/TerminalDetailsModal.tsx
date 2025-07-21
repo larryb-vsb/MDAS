@@ -37,21 +37,13 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
   // Update terminal mutation
   const updateTerminalMutation = useMutation({
     mutationFn: async (data: Partial<Terminal>) => {
-      const response = await fetch(`/api/terminals/${terminal?.id}`, {
+      // Remove vNumber from update data to prevent modification
+      const { vNumber, ...updateData } = data;
+      
+      return apiRequest(`/api/terminals/${terminal?.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
+        body: updateData
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP ${response.status}`);
-      }
-      
-      return await response.json();
     },
     onSuccess: (updatedTerminal) => {
       // Update the local terminal data to show changes immediately
@@ -219,9 +211,10 @@ export function TerminalDetailsModal({ terminal, open, onClose }: TerminalDetail
                 <Label className="text-sm font-medium text-muted-foreground">V Number</Label>
                 {isEditing ? (
                   <Input
-                    value={editData.vNumber || ""}
-                    onChange={(e) => setEditData(prev => ({ ...prev, vNumber: e.target.value }))}
-                    className="font-mono text-lg mt-1"
+                    value={terminal.vNumber || ""}
+                    readOnly
+                    disabled
+                    className="font-mono text-lg mt-1 bg-muted cursor-not-allowed"
                   />
                 ) : (
                   <p className="font-mono text-lg">{terminal.vNumber}</p>
