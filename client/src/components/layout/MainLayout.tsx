@@ -66,6 +66,11 @@ const navItems = [
     href: "/transactions"
   },
   {
+    icon: <FileText className="h-5 w-5 text-gray-300" />,
+    label: "TDDF Records",
+    href: "/tddf"
+  },
+  {
     icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
     label: "Analytics",
     href: "/analytics"
