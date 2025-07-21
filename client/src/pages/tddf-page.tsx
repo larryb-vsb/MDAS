@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatTableDate } from "@/lib/date-utils";
+import MainLayout from "@/components/layout/MainLayout";
 import {
   Dialog,
   DialogContent,
@@ -175,7 +176,8 @@ export default function TddfPage() {
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
 
   return (
-    <div className="space-y-6">
+    <MainLayout>
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">TDDF Records</h1>
@@ -525,6 +527,7 @@ export default function TddfPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </MainLayout>
   );
 }
