@@ -20,7 +20,7 @@ import { format } from "date-fns";
 type LogType = "all" | "audit" | "system" | "security" | "application";
 
 interface LogEntry {
-  id: number;
+  id: string | number;
   timestamp: Date;
   username: string;
   entityType?: string;
@@ -29,6 +29,7 @@ interface LogEntry {
   notes?: string;
   ipAddress?: string;
   userAgent?: string;
+  logType?: string;
 }
 
 interface LogsPageParams {
@@ -389,11 +390,13 @@ export default function Logs() {
                       <SelectItem value="asc">Oldest</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
-                    placeholder="Search logs..."
-                    className="max-w-xs"
-                    prefix={<Search className="h-4 w-4 mr-2 opacity-50" />}
-                  />
+                  <div className="relative max-w-xs">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 opacity-50" />
+                    <Input
+                      placeholder="Search logs..."
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
               </div>
             </CardTitle>

@@ -538,7 +538,7 @@ router.post("/api/logs/test-application", async (req, res) => {
     res.json({ success: true, message: "Generated test application events" });
   } catch (error) {
     console.error("Error generating application test events:", error);
-    res.json({ success: false, error: error.message });
+    res.json({ success: false, error: error instanceof Error ? error.message : String(error) });
   }
 });
 
