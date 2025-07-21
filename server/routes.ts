@@ -3162,10 +3162,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const terminal = await storage.createTerminal(newTerminalData);
       res.status(201).json(terminal);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating terminal:', error);
+      
+      // Handle duplicate V Number error with user-friendly message
+      if (error.code === '23505' && error.constraint && error.constraint.includes('v_number_key')) {
+        return res.status(400).json({
+          error: `A terminal with V Number "${req.body.vNumber}" already exists. Please use a different V Number.`
+        });
+      }
+      
+      // Handle validation errors
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          error: "Please check that all required fields are filled out correctly."
+        });
+      }
+      
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to create terminal" 
+        error: "Failed to create terminal. Please try again."
       });
     }
   });
