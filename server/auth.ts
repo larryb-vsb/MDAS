@@ -7,6 +7,17 @@ import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 
+// Helper function to get real client IP address
+function getClientIP(req: any): string {
+  return req.ip || 
+         req.connection.remoteAddress || 
+         req.socket.remoteAddress ||
+         (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+         req.headers['x-forwarded-for']?.split(',')[0] ||
+         req.headers['x-real-ip'] ||
+         '127.0.0.1';
+}
+
 declare global {
   namespace Express {
     interface User extends SelectUser {}
@@ -136,7 +147,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) {
         return res.status(401).json({ error: info?.message || "Invalid username or password" });
@@ -144,6 +155,30 @@ export function setupAuth(app: Express) {
 
       req.login(user, async (err) => {
         if (err) return next(err);
+        
+        // Capture client IP and user agent
+        const clientIP = getClientIP(req);
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        // Log successful login to security logs
+        try {
+          await storage.createSecurityLog({
+            eventType: 'login',
+            result: 'success',
+            username: user.username,
+            userId: user.id,
+            ipAddress: clientIP,
+            userAgent: userAgent,
+            details: {
+              loginMethod: 'password',
+              timestamp: new Date().toISOString(),
+              sessionId: req.sessionID
+            }
+          });
+        } catch (error) {
+          console.error("Error logging security event:", error);
+          // Continue even if logging fails
+        }
         
         // Update last login time
         try {
@@ -158,7 +193,33 @@ export function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/logout", async (req, res, next) => {
+    const user = req.user as SelectUser;
+    const clientIP = getClientIP(req);
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    
+    // Log logout event before actually logging out
+    if (user) {
+      try {
+        await storage.createSecurityLog({
+          eventType: 'logout',
+          result: 'success',
+          username: user.username,
+          userId: user.id,
+          ipAddress: clientIP,
+          userAgent: userAgent,
+          details: {
+            logoutMethod: 'manual',
+            timestamp: new Date().toISOString(),
+            sessionId: req.sessionID
+          }
+        });
+      } catch (error) {
+        console.error("Error logging logout security event:", error);
+        // Continue even if logging fails
+      }
+    }
+    
     req.logout((err) => {
       if (err) return next(err);
       res.status(200).json({ success: true, message: "Logged out successfully" });

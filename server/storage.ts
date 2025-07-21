@@ -185,6 +185,9 @@ export interface IStorage {
   }>;
   getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]>;
   
+  // Security log operations
+  createSecurityLog(securityLogData: InsertSecurityLog): Promise<SecurityLog>;
+  
   // System error logging
   logSystemError(
     errorMessage: string, 
@@ -4947,6 +4950,46 @@ export class DatabaseStorage implements IStorage {
       console.error("[AUDIT LOG] Error creating audit log:", error);
       console.error("[AUDIT LOG] Failed audit log data:", auditLogData);
       throw new Error("Failed to create audit log entry");
+    }
+  }
+
+  // Create security log for authentication and access events
+  async createSecurityLog(securityLogData: InsertSecurityLog): Promise<SecurityLog> {
+    try {
+      console.log(`[SECURITY LOG] Creating security log:`, securityLogData);
+      
+      // Use environment-aware table name for security logs
+      const tableName = getTableName("security_logs");
+      
+      // Use raw SQL to insert into the correct environment table
+      // Include required fields: severity and message
+      const severity = securityLogData.eventType === 'login' ? 'info' : 'warning';
+      const message = `${securityLogData.result === 'success' ? 'Successful' : 'Failed'} ${securityLogData.eventType} attempt`;
+      
+      const result = await pool.query(`
+        INSERT INTO ${tableName} (
+          event_type, user_id, username, timestamp, ip_address, user_agent, details, severity, message
+        ) VALUES (
+          $1, $2, $3, NOW(), $4, $5, $6, $7, $8
+        ) RETURNING *
+      `, [
+        securityLogData.eventType,
+        securityLogData.userId,
+        securityLogData.username,
+        securityLogData.ipAddress,
+        securityLogData.userAgent,
+        JSON.stringify(securityLogData.details || {}),
+        severity,
+        message
+      ]);
+      
+      const securityLog = result.rows[0];
+      console.log(`[SECURITY LOG] Successfully created security log with ID: ${securityLog.id}`);
+      
+      return securityLog;
+    } catch (error) {
+      console.error(`[SECURITY LOG] Error creating security log:`, error);
+      throw new Error(`Failed to create security log: ${error}`);
     }
   }
   
