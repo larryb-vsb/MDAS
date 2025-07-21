@@ -5781,13 +5781,22 @@ export class DatabaseStorage implements IStorage {
         console.log(`[TDDF DEBUG] Row ${rowCount}: Processing DT transaction record`);
         
         try {
+          // Debug line length and key positions for merchant name extraction
+          console.log(`[TDDF DEBUG] Line ${rowCount} analysis:`);
+          console.log(`  Line length: ${line.length}`);
+          console.log(`  Merchant Name (218-242): "${line.length >= 242 ? line.substring(217, 242) : 'LINE TOO SHORT'}"`);
+          console.log(`  Merchant Account (24-39): "${line.substring(23, 39)}"`);
+          console.log(`  Association (40-45): "${line.substring(39, 45)}"`);
+          console.log(`  Group (46-51): "${line.substring(45, 51)}"`);
+          console.log(`  Cardholder Account (124-142): "${line.length >= 142 ? line.substring(123, 142) : 'LINE TOO SHORT'}"`);
+          
           // Parse fixed-width transaction record based on TDDF format specification
-          // Based on attached TDDF specification document
+          // Based on official TDDF specification document provided
           const tddfRecord: InsertTddfRecord = {
             // Reference Number (positions 62-84): Use as Transaction ID
             txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rowCount}`,
             
-            // Merchant Account Number (positions 24-39): Use as Merchant ID
+            // Merchant Account Number (positions 24-39): 16 digits
             merchantId: line.substring(23, 39).trim() || 'UNKNOWN',
             
             // Transaction Amount (positions 93-103): 11 digits, format 99999999999
@@ -5796,29 +5805,29 @@ export class DatabaseStorage implements IStorage {
             // Transaction Date (positions 85-92): MMDDCCYY format
             txnDate: this.parseTddfDate(line.substring(84, 92).trim()),
             
-            // Transaction Code (positions 52-55): Use as transaction type
+            // Transaction Code (positions 52-55): 4 digits
             txnType: line.substring(51, 55).trim() || 'SALE',
             
-            // Merchant Name (positions 218-242): DBA name, 25 characters
-            txnDesc: line.substring(217, 242).trim() || null,
+            // Transaction description: Association + Group numbers
+            txnDesc: `Assoc: ${line.substring(39, 45).trim()} - Group: ${line.substring(45, 51).trim()}`.trim() || null,
             
-            // Merchant Name (positions 218-242): DBA name
-            merchantName: line.substring(217, 242).trim() || null,
+            // Merchant Name (positions 218-242): DBA name, 25 characters alphanumeric
+            merchantName: line.length >= 242 ? line.substring(217, 242).trim() || null : null,
             
-            // Batch Julian Date (positions 104-108): Use as batch ID
+            // Batch Julian Date (positions 104-108): 5 digits, format DDDYY
             batchId: line.substring(103, 108).trim() || null,
             
-            // Authorization Number (positions 243-248): 6 characters
-            authCode: line.substring(242, 248).trim() || null,
+            // Authorization Code: Not in basic TDDF spec, keeping as null
+            authCode: null,
             
-            // Card Type (positions 253-254): 2 characters
-            cardType: line.substring(252, 254).trim() || null,
+            // Card Type: Not in basic TDDF spec, keeping as null
+            cardType: null,
             
-            // POS Entry Mode (positions 214-215): 2 characters
-            entryMethod: line.substring(213, 215).trim() || null,
+            // Online Entry (position 165): 1 character
+            entryMethod: line.length >= 165 ? line.substring(164, 165).trim() || null : null,
             
             // Auth Response Code (positions 208-209): 2 digits
-            responseCode: line.substring(207, 209).trim() || null,
+            responseCode: line.length >= 209 ? line.substring(207, 209).trim() || null : null,
             
             sourceFileId: sourceFileId,
             sourceRowNumber: rowCount,
@@ -5826,12 +5835,23 @@ export class DatabaseStorage implements IStorage {
               originalLine: line, 
               recordType: 'DT', 
               lineNumber: rowCount,
+              lineLength: line.length,
+              // Sequence Number Area (positions 1-7): 7 digits
               sequenceNumber: line.substring(0, 7).trim(),
+              // Entry Run Number (positions 8-13): 6 digits
+              entryRunNumber: line.substring(7, 13).trim(),
+              // Bank Number (positions 20-23): 4 alphanumeric
               bankNumber: line.substring(19, 23).trim(),
+              // Association Number (positions 40-45): 6 alphanumeric
               associationNumber: line.substring(39, 45).trim(),
+              // Group Number (positions 46-51): 6 alphanumeric
               groupNumber: line.substring(45, 51).trim(),
-              terminalId: line.substring(276, 284).trim(),
-              mccCode: line.substring(272, 276).trim()
+              // Cardholder Account Number (positions 124-142): 19 digits
+              cardholderAccount: line.length >= 142 ? line.substring(123, 142).trim() : null,
+              // Net Deposit (positions 109-123): 15 digits
+              netDeposit: line.length >= 123 ? line.substring(108, 123).trim() : null,
+              // Best Interchange Eligible (positions 143-144): 2 digits
+              bestInterchangeEligible: line.length >= 144 ? line.substring(142, 144).trim() : null
             }
           };
 
