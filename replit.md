@@ -49,6 +49,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ ENHANCED ERROR MESSAGING**: Improved terminal creation error messages with user-friendly duplicate V Number detection
 - **✅ SYSTEM EVENT LOGGING**: All terminal creation errors now logged to system events for monitoring and debugging
 - **✅ DIRECT SYSTEM LOG INSERTION**: Fixed logging to use direct SQL insertion into system_logs table instead of audit logs
+- **✅ ENVIRONMENT-AWARE LOG ROUTING**: All log tables (system, security, audit) now properly use environment-specific prefixes (dev_ for development)
 - Terminal file upload functionality fully operational with 1,741+ terminals being processed successfully in 255 seconds
 - Complete terminal workflow: File upload → Processing → Database storage → UI display → Edit functionality → Bulk operations
 - Terminal processing uses TSYS field mappings with V Number as unique identifier and POS Merchant # linking

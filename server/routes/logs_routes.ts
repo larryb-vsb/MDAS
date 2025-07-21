@@ -4,6 +4,7 @@ import { db, pool } from "../db";
 import { securityLogs, systemLogs } from "@shared/schema";
 import { desc } from "drizzle-orm";
 import { generateTestLogs } from "../test-logs";
+import { getTableName } from "../table-config";
 
 const router = Router();
 
@@ -54,8 +55,11 @@ router.get("/api/logs", async (req, res) => {
     switch (logType) {
       case "system":
         try {
+          // Get environment-specific table name
+          const systemLogsTableName = getTableName('system_logs');
+          
           // Get the total count for pagination
-          const countResult = await pool.query('SELECT COUNT(*) as count FROM system_logs');
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${systemLogsTableName}`);
           const totalCount = parseInt(countResult.rows[0].count);
           
           // Calculate pagination offset
@@ -65,7 +69,7 @@ router.get("/api/logs", async (req, res) => {
           
           // Use direct pool query which is more reliable, with pagination
           const queryResult = await pool.query(
-            'SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
+            `SELECT * FROM ${systemLogsTableName} ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
             [limitNum, offset]
           );
           
@@ -104,33 +108,38 @@ router.get("/api/logs", async (req, res) => {
         break;
       case "security":
         try {
-          // Use a direct approach for security logs similar to system logs
-          const securityLogsData = await db
-            .select()
-            .from(securityLogs)
-            .orderBy(desc(securityLogs.timestamp))
-            .limit(params.limit || 10)
-            .offset((params.page - 1) * (params.limit || 10));
+          // Get environment-specific table name and use direct query like system logs
+          const securityLogsTableName = getTableName('security_logs');
+          
+          // Calculate pagination offset
+          const pageNum = params.page || 1;
+          const limitNum = params.limit || 10;
+          const offset = (pageNum - 1) * limitNum;
+          
+          // Use direct pool query for consistency with system logs
+          const queryResult = await pool.query(
+            `SELECT * FROM ${securityLogsTableName} ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
+            [limitNum, offset]
+          );
           
           // Get total count for pagination
-          const [countResult] = await db
-            .select({ count: db.fn.count() })
-            .from(securityLogs);
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${securityLogsTableName}`);
           
-          const totalCount = Number(countResult?.count || 0);
+          const totalCount = parseInt(countResult.rows[0].count);
             
-          console.log(`Retrieved ${securityLogsData.length} security logs directly`);
+          console.log(`Retrieved ${queryResult.rowCount} security logs directly`);
           
           // Format the logs for client-side display
-          const formattedLogs = securityLogsData.map(log => ({
+          const formattedLogs = queryResult.rows.map((log: any) => ({
             id: log.id,
             timestamp: log.timestamp,
-            eventType: log.eventType,
+            eventType: log.event_type,
             username: log.username,
-            ipAddress: log.ipAddress,
-            userAgent: log.userAgent,
+            ipAddress: log.ip_address,
+            userAgent: log.user_agent,
             action: log.action,
             result: log.result,
+            notes: log.notes,
             // Add additional fields needed for UI consistency
             entityType: "security",
             entityId: `SEC-${log.id}`
@@ -139,10 +148,10 @@ router.get("/api/logs", async (req, res) => {
           responseData = {
             logs: formattedLogs,
             pagination: {
-              currentPage: params.page || 1,
-              totalPages: Math.ceil(totalCount / (params.limit || 10)),
+              currentPage: pageNum,
+              totalPages: Math.ceil(totalCount / limitNum),
               totalItems: totalCount,
-              itemsPerPage: params.limit || 10
+              itemsPerPage: limitNum
             }
           };
           

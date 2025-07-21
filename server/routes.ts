@@ -3170,8 +3170,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log duplicate V Number attempt to system logs
         try {
           const { pool } = await import('./db');
+          const { getTableName } = await import('./table-config');
+          const systemLogsTable = getTableName('system_logs');
           await pool.query(
-            'INSERT INTO system_logs (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)',
+            `INSERT INTO ${systemLogsTable} (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)`,
             [
               'warning',
               'Terminal Creation',
@@ -3199,8 +3201,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log validation error to system logs
         try {
           const { pool } = await import('./db');
+          const { getTableName } = await import('./table-config');
+          const systemLogsTable = getTableName('system_logs');
           await pool.query(
-            'INSERT INTO system_logs (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)',
+            `INSERT INTO ${systemLogsTable} (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)`,
             [
               'warning',
               'Terminal Creation',
@@ -3226,8 +3230,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log general terminal creation error
       try {
         const { pool } = await import('./db');
+        const { getTableName } = await import('./table-config');
+        const systemLogsTable = getTableName('system_logs');
         await pool.query(
-          'INSERT INTO system_logs (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)',
+          `INSERT INTO ${systemLogsTable} (level, source, message, details, timestamp) VALUES ($1, $2, $3, $4, $5)`,
           [
             'error',
             'Terminal Creation',
