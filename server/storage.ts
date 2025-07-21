@@ -5752,37 +5752,58 @@ export class DatabaseStorage implements IStorage {
     console.log(`[TDDF PROCESSING] Starting TDDF fixed-width processing for file ${sourceFileId} (${originalFilename})`);
     
     const lines = content.split('\n').filter(line => line.trim().length > 0);
-    let rowCount = 0;
+    let totalLinesRead = 0;
+    let dtRecordsProcessed = 0;
     let tddfRecordsCreated = 0;
     let errors = 0;
-    let transactionRecordsProcessed = 0;
-    let skippedNonTransactionRecords = 0;
+    let skippedLines = 0;
+    
+    // Statistics tracking for different record types
+    const recordTypeStats: { [key: string]: number } = {};
+    const skippedReasons: { [key: string]: number } = {
+      'too_short': 0,
+      'non_dt_record': 0,
+      'empty_line': 0
+    };
 
     try {
+      console.log(`[TDDF STATS] Starting processing of ${lines.length} non-empty lines`);
+      
       for (const line of lines) {
-        rowCount++;
+        totalLinesRead++;
         
-        // Check if this is a transaction record (DT identifier in positions 18-19)
+        // Check if line is long enough for record identifier
         if (line.length < 19) {
-          console.log(`[TDDF DEBUG] Row ${rowCount}: Line too short (${line.length} chars), skipping`);
-          skippedNonTransactionRecords++;
+          console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Too short (${line.length} chars), skipping`);
+          skippedLines++;
+          skippedReasons['too_short']++;
           continue;
         }
         
-        const recordIdentifier = line.substring(17, 19); // Positions 18-19 (0-indexed: 17-18)
+        // Extract record identifier at positions 18-19 (0-indexed: 17-18)
+        const recordIdentifier = line.substring(17, 19);
         
+        // Track all record types found
+        if (recordTypeStats[recordIdentifier]) {
+          recordTypeStats[recordIdentifier]++;
+        } else {
+          recordTypeStats[recordIdentifier] = 1;
+        }
+        
+        // Only process DT (Detail Transaction) records as specified
         if (recordIdentifier !== 'DT') {
-          console.log(`[TDDF DEBUG] Row ${rowCount}: Record identifier '${recordIdentifier}' is not 'DT', skipping transaction processing`);
-          skippedNonTransactionRecords++;
+          console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Found '${recordIdentifier}' record type, skipping (only processing DT records)`);
+          skippedLines++;
+          skippedReasons['non_dt_record']++;
           continue;
         }
         
-        transactionRecordsProcessed++;
-        console.log(`[TDDF DEBUG] Row ${rowCount}: Processing DT transaction record`);
+        dtRecordsProcessed++;
+        console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Processing DT transaction record`);
         
         try {
           // Debug line length and key positions for merchant name extraction
-          console.log(`[TDDF DEBUG] Line ${rowCount} analysis:`);
+          console.log(`[TDDF DEBUG] Line ${totalLinesRead} analysis:`);
           console.log(`  Line length: ${line.length}`);
           console.log(`  Merchant Name (218-242): "${line.length >= 242 ? line.substring(217, 242) : 'LINE TOO SHORT'}"`);
           console.log(`  Merchant Account (24-39): "${line.substring(23, 39)}"`);
@@ -5916,13 +5937,21 @@ export class DatabaseStorage implements IStorage {
             interchangePercentRate: line.length > 676 ? this.parseAmount(line.substring(670, 676).trim()) : null,
             interchangePerItemRate: line.length > 682 ? this.parseAmount(line.substring(676, 682).trim()) : null,
             
+            // Derived transaction fields for compatibility
+            txnId: line.substring(61, 84).trim() || null, // Use reference number as transaction ID
+            merchantId: line.substring(23, 39).trim() || null, // Use merchant account number
+            txnType: line.substring(51, 55).trim() || null, // Use transaction code as type
+            txnAmount: this.parseAmount(line.substring(92, 103).trim()),
+            txnDate: this.parseTddfDate(line.substring(84, 92).trim()),
+            batchId: line.substring(103, 108).trim() || null, // Use batch julian date as batch ID
+            
             // System and audit fields
             sourceFileId: sourceFileId,
-            sourceRowNumber: rowCount,
+            sourceRowNumber: totalLinesRead,
             rawData: {
               line: line,
               recordType: recordIdentifier,
-              lineNumber: rowCount,
+              lineNumber: totalLinesRead,
               filename: originalFilename,
               lineLength: line.length,
               processingTimestamp: new Date().toISOString()
@@ -5936,17 +5965,39 @@ export class DatabaseStorage implements IStorage {
           console.log(`[TDDF SUCCESS] Created TDDF record ${insertedRecord[0].id} for transaction ${tddfRecord.txnId}`);
 
         } catch (rowError) {
-          console.error(`[TDDF ERROR] Error processing transaction record at row ${rowCount}:`, rowError);
+          console.error(`[TDDF ERROR] Error processing DT record at line ${totalLinesRead}:`, rowError);
           errors++;
         }
       }
 
-      console.log(`[TDDF COMPLETED] Processed ${rowCount} total rows`);
-      console.log(`[TDDF STATS] Transaction records (DT): ${transactionRecordsProcessed}, Non-transaction records skipped: ${skippedNonTransactionRecords}`);
-      console.log(`[TDDF RESULTS] Created ${tddfRecordsCreated} TDDF records, ${errors} errors`);
+      // Enhanced statistics reporting
+      console.log(`\n=================== TDDF PROCESSING STATISTICS ===================`);
+      console.log(`📊 OVERVIEW:`);
+      console.log(`  Total lines read: ${totalLinesRead}`);
+      console.log(`  DT records processed: ${dtRecordsProcessed}`);
+      console.log(`  TDDF records created: ${tddfRecordsCreated}`);
+      console.log(`  Lines skipped: ${skippedLines}`);
+      console.log(`  Processing errors: ${errors}`);
+      
+      console.log(`\n📋 RECORD TYPE BREAKDOWN (positions 18-19):`);
+      Object.entries(recordTypeStats).forEach(([recordType, count]) => {
+        console.log(`  ${recordType}: ${count} record(s)`);
+      });
+      
+      console.log(`\n⚠️ SKIP REASONS:`);
+      Object.entries(skippedReasons).forEach(([reason, count]) => {
+        if (count > 0) {
+          console.log(`  ${reason.replace('_', ' ')}: ${count} line(s)`);
+        }
+      });
+      
+      console.log(`\n✅ PROCESSING EFFICIENCY:`);
+      console.log(`  Success rate: ${totalLinesRead > 0 ? ((dtRecordsProcessed / totalLinesRead) * 100).toFixed(1) : 0}%`);
+      console.log(`  Error rate: ${dtRecordsProcessed > 0 ? ((errors / dtRecordsProcessed) * 100).toFixed(1) : 0}%`);
+      console.log(`=================== TDDF PROCESSING COMPLETE ===================\n`);
       
       return {
-        rowsProcessed: transactionRecordsProcessed, // Only count transaction records
+        rowsProcessed: dtRecordsProcessed, // Only count DT records that were processed
         tddfRecordsCreated,
         errors
       };
