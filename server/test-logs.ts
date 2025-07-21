@@ -50,12 +50,12 @@ export async function generateTestLogs(logType: string = "all") {
           username: "admin",
           action: i % 2 === 0 ? "login" : "logout",
           notes: `Test security log ${i}`,
-          userId: 1,
+          userId: null, // Fix: Don't reference non-existent user_id
           ipAddress: "127.0.0.1",
           userAgent: "Test Agent",
           timestamp: now,
-          eventType: i % 2 === 0 ? "authentication" : "authorization", // Adding the required event_type field
-          result: i % 2 === 0 ? "success" : "failure" // Adding the required result field
+          eventType: i % 2 === 0 ? "authentication" : "authorization",
+          result: i % 2 === 0 ? "success" : "failure"
         });
       }
       console.log("Generated 5 security logs");

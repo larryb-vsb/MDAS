@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-type LogType = "all" | "audit" | "system" | "security";
+type LogType = "all" | "audit" | "system" | "security" | "application";
 
 interface LogEntry {
   id: number;
@@ -54,6 +54,8 @@ export default function Logs() {
     startDate: "",
     endDate: ""
   });
+  const [sortBy, setSortBy] = useState("timestamp");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Create query parameters
@@ -73,13 +75,15 @@ export default function Logs() {
 
   // Query for logs based on active tab
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['/api/logs', activeTab, currentPage, filters],
+    queryKey: ['/api/logs', activeTab, currentPage, filters, sortBy, sortOrder],
     queryFn: async () => {
       // Add a specific type parameter for system and security logs
       const params = new URLSearchParams({
         ...createQueryParams(activeTab),
         type: activeTab,
-        logType: activeTab
+        logType: activeTab,
+        sortBy: sortBy,
+        sortOrder: sortOrder
       } as any);
       
       console.log(`Fetching ${activeTab} logs with params:`, params.toString());
@@ -314,10 +318,11 @@ export default function Logs() {
         setActiveTab(value as LogType);
         setCurrentPage(1);
       }}>
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
           <TabsTrigger value="all">All Logs</TabsTrigger>
           <TabsTrigger value="audit">Audit Events</TabsTrigger>
           <TabsTrigger value="system">System Events</TabsTrigger>
+          <TabsTrigger value="application">Application Events</TabsTrigger>
           <TabsTrigger value="security">Security Events</TabsTrigger>
         </TabsList>
 
@@ -329,6 +334,7 @@ export default function Logs() {
                 {activeTab === "all" && "All System Activity"}
                 {activeTab === "audit" && "Business Data Changes"}
                 {activeTab === "system" && "System Operations & Errors"}
+                {activeTab === "application" && "Application Lifecycle Events"}
                 {activeTab === "security" && "Security & Authentication Events"}
               </span>
               <div className="flex items-center space-x-2">
@@ -360,18 +366,41 @@ export default function Logs() {
                 >
                   {activeTab === "audit" && "Generate Change Log"}
                   {activeTab === "system" && "Generate System Event Test"}
+                  {activeTab === "application" && "Generate App Event Test"}
                   {activeTab === "security" && "Generate Security Event Test"}
                 </Button>
-                <Input
-                  placeholder="Search logs..."
-                  className="max-w-xs"
-                  prefix={<Search className="h-4 w-4 mr-2 opacity-50" />}
-                />
+                <div className="flex items-center space-x-2">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="timestamp">Time</SelectItem>
+                      <SelectItem value="username">User</SelectItem>
+                      <SelectItem value="action">Action</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortOrder} onValueChange={setSortOrder}>
+                    <SelectTrigger className="w-28">
+                      <SelectValue placeholder="Order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desc">Newest</SelectItem>
+                      <SelectItem value="asc">Oldest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Search logs..."
+                    className="max-w-xs"
+                    prefix={<Search className="h-4 w-4 mr-2 opacity-50" />}
+                  />
+                </div>
               </div>
             </CardTitle>
             <CardDescription>
               {activeTab === "audit" && "Tracking all changes to business data including merchants, transactions, and user actions"}
               {activeTab === "system" && "System-level operations, background processes, and error events"}
+              {activeTab === "application" && "MMS application startup, database migration, file processing, and server lifecycle events"}
               {activeTab === "security" && "Authentication attempts, access control, and security-related events"}
             </CardDescription>
           </CardHeader>

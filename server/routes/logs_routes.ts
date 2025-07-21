@@ -20,6 +20,8 @@ router.get("/api/logs", async (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const logType = (req.query.logType as string) || "audit";
+    const sortBy = (req.query.sortBy as string) || "timestamp";
+    const sortOrder = (req.query.sortOrder as string) || "desc";
     
     // Optional filtering params
     const entityType = req.query.entityType as string;
@@ -74,7 +76,7 @@ router.get("/api/logs", async (req, res) => {
             UNION ALL
             SELECT 'audit' as log_type, id, timestamp, action as log_action, entity_type as source, notes, '{}' as details_json, username, entity_type, entity_id, ip_address
             FROM ${getTableName('audit_logs')}
-            ORDER BY timestamp DESC
+            ORDER BY ${sortBy === 'username' ? 'username' : 'timestamp'} ${sortOrder.toUpperCase()}
             LIMIT $1 OFFSET $2
           `, [limitNum, offset]);
           
@@ -122,8 +124,8 @@ router.get("/api/logs", async (req, res) => {
           // Get environment-specific table name
           const systemLogsTableName = getTableName('system_logs');
           
-          // Get the total count for pagination
-          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${systemLogsTableName}`);
+          // Get the total count for pagination (exclude Application events)
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${systemLogsTableName} WHERE source != 'Application' OR source IS NULL`);
           const totalCount = parseInt(countResult.rows[0].count);
           
           // Calculate pagination offset
@@ -131,9 +133,10 @@ router.get("/api/logs", async (req, res) => {
           const limitNum = params.limit || 10;
           const offset = (pageNum - 1) * limitNum;
           
-          // Use direct pool query which is more reliable, with pagination
+          // Use direct pool query which is more reliable, with pagination (exclude Application events for System tab)
+          const orderColumn = sortBy === 'username' ? 'source' : sortBy === 'action' ? 'level' : 'timestamp';
           const queryResult = await pool.query(
-            `SELECT * FROM ${systemLogsTableName} ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
+            `SELECT * FROM ${systemLogsTableName} WHERE source != 'Application' OR source IS NULL ORDER BY ${orderColumn} ${sortOrder.toUpperCase()} LIMIT $1 OFFSET $2`,
             [limitNum, offset]
           );
           
@@ -170,6 +173,59 @@ router.get("/api/logs", async (req, res) => {
           console.error("Error fetching system logs:", error);
         }
         break;
+      case "application":
+        try {
+          // Get application events from system logs table where source = 'Application'
+          const systemLogsTableName = getTableName('system_logs');
+          
+          // Calculate pagination offset
+          const pageNum = params.page || 1;
+          const limitNum = params.limit || 10;
+          const offset = (pageNum - 1) * limitNum;
+          
+          // Use direct pool query to get application events only
+          const orderColumn = sortBy === 'username' ? 'source' : sortBy === 'action' ? 'level' : 'timestamp';
+          const queryResult = await pool.query(
+            `SELECT * FROM ${systemLogsTableName} WHERE source = 'Application' ORDER BY ${orderColumn} ${sortOrder.toUpperCase()} LIMIT $1 OFFSET $2`,
+            [limitNum, offset]
+          );
+          
+          // Get total count for pagination
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${systemLogsTableName} WHERE source = 'Application'`);
+          
+          const totalCount = parseInt(countResult.rows[0].count);
+          
+          console.log(`Retrieved ${queryResult.rowCount} application logs directly`);
+          
+          // Format the logs for client-side display
+          const formattedLogs = queryResult.rows.map((log: any) => ({
+            id: log.id,
+            timestamp: log.timestamp,
+            level: log.level || 'info',
+            source: log.source || 'Application',
+            message: log.message || '',
+            details: log.details || {},
+            username: "System",
+            entityType: "application",
+            entityId: `APP-${log.id}`,
+            action: log.level || 'info'
+          }));
+          
+          responseData = {
+            logs: formattedLogs,
+            pagination: {
+              currentPage: pageNum,
+              totalPages: Math.ceil(totalCount / limitNum),
+              totalItems: totalCount,
+              itemsPerPage: limitNum
+            }
+          };
+          
+          console.log(`Application logs formatted: ${formattedLogs.length} logs`);
+        } catch (error) {
+          console.error("Error fetching application logs:", error);
+        }
+        break;
       case "security":
         try {
           // Get environment-specific table name and use direct query like system logs
@@ -181,8 +237,9 @@ router.get("/api/logs", async (req, res) => {
           const offset = (pageNum - 1) * limitNum;
           
           // Use direct pool query for consistency with system logs
+          const orderColumn = sortBy === 'username' ? 'username' : sortBy === 'action' ? 'event_type' : 'timestamp';
           const queryResult = await pool.query(
-            `SELECT * FROM ${securityLogsTableName} ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
+            `SELECT * FROM ${securityLogsTableName} ORDER BY ${orderColumn} ${sortOrder.toUpperCase()} LIMIT $1 OFFSET $2`,
             [limitNum, offset]
           );
           
@@ -227,7 +284,13 @@ router.get("/api/logs", async (req, res) => {
       case "audit":
       default:
         try {
-          const auditLogsResult = await storage.getAuditLogs(params);
+          // Add sorting parameters to audit logs params
+          const auditParams = {
+            ...params,
+            sortBy,
+            sortOrder
+          };
+          const auditLogsResult = await storage.getAuditLogs(auditParams);
           if (auditLogsResult && typeof auditLogsResult === 'object') {
             responseData = auditLogsResult;
           }
@@ -433,6 +496,48 @@ router.post("/api/logs/system-test", async (req, res) => {
     console.error("Error testing system logs:", err);
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     return res.status(500).json({ error: "Failed to test system logs", details: errorMessage });
+  }
+});
+
+// Test endpoint for generating application events specifically
+router.post("/api/logs/test-application", async (req, res) => {
+  try {
+    // Check if user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const systemLogger = require('../system-logger');
+    
+    // Generate some test application events
+    systemLogger.logInfo('Test application startup event', 'Application', {
+      version: '1.0.0',
+      environment: 'development',
+      testEvent: true
+    });
+    
+    systemLogger.logInfo('Test file processing initialization', 'Application', {
+      processorType: 'CSV',
+      maxConcurrency: 5,
+      testEvent: true
+    });
+    
+    systemLogger.logInfo('Test database migration completed', 'Application', {
+      migrationsRun: 3,
+      tablesUpdated: ['merchants', 'transactions', 'terminals'],
+      testEvent: true
+    });
+    
+    systemLogger.logWarn('Test application warning', 'Application', {
+      warningType: 'performance',
+      message: 'High memory usage detected',
+      testEvent: true
+    });
+
+    res.json({ success: true, message: "Generated test application events" });
+  } catch (error) {
+    console.error("Error generating application test events:", error);
+    res.json({ success: false, error: error.message });
   }
 });
 
