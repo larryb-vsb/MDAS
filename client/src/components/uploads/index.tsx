@@ -76,8 +76,8 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
 
     // Create FormData
     const formData = new FormData();
-    formData.append('file', selectedFiles[0]);
-    formData.append('type', fileType);
+    formData.append('files', selectedFiles[0]);
+    formData.append('fileType', fileType);
 
     try {
       // Simulate progress updates
@@ -88,9 +88,10 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
         });
       }, 300);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
+        credentials: "include",
       });
 
       clearInterval(progressInterval);
@@ -123,13 +124,16 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
         throw new Error("Invalid response from server");
       }
       
-      if (result.success) {
+      // Handle uploads API response format
+      const uploadResults = result.uploads || result;
+      const isSuccess = result.success !== false && (Array.isArray(uploadResults) ? uploadResults.length > 0 : true);
+      
+      if (isSuccess) {
         setUploadSuccess(true);
+        const firstUpload = Array.isArray(uploadResults) ? uploadResults[0] : uploadResults;
         toast({
           title: "Upload successful",
-          description: result.recordsProcessed 
-            ? `${result.recordsProcessed} records were processed.`
-            : "File was uploaded successfully.",
+          description: `File "${selectedFiles[0].name}" was uploaded successfully.`,
         });
         
         // Refresh related data

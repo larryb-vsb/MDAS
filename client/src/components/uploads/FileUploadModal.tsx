@@ -48,8 +48,8 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
 
   const uploadFile = async (fileData: UploadedFile & { file: File }) => {
     const formData = new FormData();
-    formData.append("file", fileData.file);
-    formData.append("type", fileData.type);
+    formData.append("files", fileData.file);
+    formData.append("fileType", fileData.type);
 
     try {
       // Simulate upload progress
@@ -65,7 +65,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       }, 100);
 
       // Upload file
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/uploads", {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -101,8 +101,11 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         throw new Error("Invalid response from server");
       }
 
-      // Get the file ID from the response
-      const fileId = responseData.fileId;
+      // Get the file ID from the response (uploads API returns array)
+      const uploadResults = responseData.uploads || responseData;
+      const firstUpload = Array.isArray(uploadResults) ? uploadResults[0] : uploadResults;
+      const fileId = firstUpload?.id || firstUpload?.fileId;
+      
       if (!fileId) {
         throw new Error("No file ID returned from server");
       }
