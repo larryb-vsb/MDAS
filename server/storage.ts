@@ -4932,24 +4932,42 @@ export class DatabaseStorage implements IStorage {
   // Create audit log entry
   async createAuditLog(auditLogData: InsertAuditLog): Promise<AuditLog> {
     try {
-      console.log('[AUDIT LOG] Attempting to insert audit log:', auditLogData);
+      console.log(`[AUDIT LOG] Creating audit log for ${auditLogData.username}:`, auditLogData.action);
       
-      // Insert the audit log and return the inserted record
-      const [newAuditLog] = await db.insert(auditLogs)
-        .values(auditLogData)
-        .returning();
+      // Use environment-aware table name for audit logs
+      const tableName = getTableName("audit_logs");
+      console.log(`[AUDIT LOG] Using table: ${tableName} in ${config.NODE_ENV} environment`);
       
-      console.log('[AUDIT LOG] Successfully inserted audit log with ID:', newAuditLog?.id);
+      // Use raw SQL to insert into the correct environment table
+      const result = await pool.query(`
+        INSERT INTO ${tableName} (
+          entity_type, entity_id, action, user_id, username, 
+          timestamp, old_values, new_values, changed_fields, 
+          ip_address, user_agent, notes
+        ) VALUES (
+          $1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11
+        ) RETURNING *
+      `, [
+        auditLogData.entityType,
+        auditLogData.entityId,
+        auditLogData.action,
+        auditLogData.userId,
+        auditLogData.username,
+        JSON.stringify(auditLogData.oldValues || {}),
+        JSON.stringify(auditLogData.newValues || {}),
+        auditLogData.changedFields || [],
+        auditLogData.ipAddress,
+        auditLogData.userAgent,
+        auditLogData.notes
+      ]);
       
-      // Test direct database query to verify the log was actually inserted
-      const verifyQuery = await db.select().from(auditLogs).where(eq(auditLogs.id, newAuditLog.id));
-      console.log('[AUDIT LOG] Verification query result:', verifyQuery.length > 0 ? 'FOUND' : 'NOT FOUND');
+      const auditLog = result.rows[0];
+      console.log(`[AUDIT LOG] Successfully created audit log with ID: ${auditLog.id} in table ${tableName}`);
       
-      return newAuditLog;
+      return auditLog;
     } catch (error) {
-      console.error("[AUDIT LOG] Error creating audit log:", error);
-      console.error("[AUDIT LOG] Failed audit log data:", auditLogData);
-      throw new Error("Failed to create audit log entry");
+      console.error(`[AUDIT LOG] Error creating audit log:`, error);
+      throw new Error(`Failed to create audit log: ${error}`);
     }
   }
 

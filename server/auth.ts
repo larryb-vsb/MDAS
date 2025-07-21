@@ -7,15 +7,49 @@ import { randomBytes } from "crypto";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 
-// Helper function to get real client IP address
-function getClientIP(req: any): string {
-  return req.ip || 
-         req.connection.remoteAddress || 
-         req.socket.remoteAddress ||
-         (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
-         req.headers['x-forwarded-for']?.split(',')[0] ||
-         req.headers['x-real-ip'] ||
-         '127.0.0.1';
+// Helper function to get real client IP address with enhanced production support
+function getRealClientIP(req: any): string {
+  // For Replit production, check Replit-specific headers first
+  if (req.headers['x-replit-user-ip']) {
+    return req.headers['x-replit-user-ip'];
+  }
+  
+  // Standard proxy headers (most reliable for production)
+  if (req.headers['x-forwarded-for']) {
+    const forwarded = req.headers['x-forwarded-for'].split(',')[0].trim();
+    if (forwarded && forwarded !== '127.0.0.1' && forwarded !== '::1') {
+      return forwarded;
+    }
+  }
+  
+  if (req.headers['x-real-ip']) {
+    const realIP = req.headers['x-real-ip'].trim();
+    if (realIP && realIP !== '127.0.0.1' && realIP !== '::1') {
+      return realIP;
+    }
+  }
+  
+  // Cloudflare and other CDN headers
+  if (req.headers['cf-connecting-ip']) {
+    return req.headers['cf-connecting-ip'];
+  }
+  
+  // Express trust proxy IP
+  if (req.ip && req.ip !== '127.0.0.1' && req.ip !== '::1') {
+    return req.ip;
+  }
+  
+  // Socket-level IP addresses
+  const socketIP = req.connection?.remoteAddress || 
+                   req.socket?.remoteAddress ||
+                   req.connection?.socket?.remoteAddress;
+  
+  if (socketIP && socketIP !== '127.0.0.1' && socketIP !== '::1') {
+    return socketIP;
+  }
+  
+  // Default fallback
+  return '127.0.0.1';
 }
 
 declare global {
@@ -156,8 +190,8 @@ export function setupAuth(app: Express) {
       req.login(user, async (err) => {
         if (err) return next(err);
         
-        // Capture client IP and user agent
-        const clientIP = getClientIP(req);
+        // Capture client IP and user agent with enhanced detection
+        const clientIP = getRealClientIP(req);
         const userAgent = req.headers['user-agent'] || 'Unknown';
         
         // Log successful login to security logs
@@ -215,7 +249,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/logout", async (req, res, next) => {
     const user = req.user as SelectUser;
-    const clientIP = getClientIP(req);
+    const clientIP = getRealClientIP(req);
     const userAgent = req.headers['user-agent'] || 'Unknown';
     
     // Log logout event before actually logging out

@@ -99,6 +99,16 @@ function setupProcessMonitoring() {
 }
 
 const app = express();
+
+// Enhanced proxy trust configuration for production IP detection
+if (NODE_ENV === 'production') {
+  app.set('trust proxy', true);
+  console.log('[EXPRESS] Trust proxy enabled for production environment');
+} else {
+  app.set('trust proxy', 'loopback');  
+  console.log('[EXPRESS] Trust proxy set to loopback for development');
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
