@@ -95,7 +95,7 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
       
       toast({
         title: "Terminal Created",
-        description: `Terminal ${newTerminal?.vNumber || 'N/A'} has been successfully added to the system.`,
+        description: `Terminal has been successfully added to the system.`,
       });
       onClose();
       form.reset();
