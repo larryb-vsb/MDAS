@@ -32,6 +32,9 @@ export default function TerminalsPage() {
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    staleTime: 0, // Always consider data stale to ensure fresh fetches
+    gcTime: 0, // Don't cache data in garbage collection
   });
 
   // Filter, sort and paginate terminals
@@ -40,7 +43,7 @@ export default function TerminalsPage() {
       const matchesSearch = 
         terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.masterMerchantId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;

@@ -86,11 +86,16 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
         body: terminalData
       });
     },
-    onSuccess: () => {
+    onSuccess: (newTerminal) => {
+      // Force complete cache refresh
+      queryClient.removeQueries({ queryKey: ["/api/terminals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
+      
+      console.log("Terminal created successfully:", newTerminal);
+      
       toast({
         title: "Terminal Created",
-        description: "The terminal has been successfully added to the system.",
+        description: `Terminal ${newTerminal?.vNumber || 'N/A'} has been successfully added to the system.`,
       });
       onClose();
       form.reset();
