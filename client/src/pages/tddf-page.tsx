@@ -38,6 +38,7 @@ interface TddfRecord {
   cardType?: string;
   entryMethod?: string;
   responseCode?: string;
+  cardholderAccountNumber?: string;
   sourceFileId?: string;
   sourceRowNumber?: number;
   recordedAt: string | Date;
@@ -316,6 +317,7 @@ export default function TddfPage() {
                 <div className="w-24">Date</div>
                 <div className="w-32">Transaction Type</div>
                 <div className="w-32">Merchant Name</div>
+                <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
               </div>
 
@@ -347,6 +349,9 @@ export default function TddfPage() {
                   </div>
                   <div className="w-32 text-xs">
                     {record.merchantName || 'N/A'}
+                  </div>
+                  <div className="w-32 font-mono text-xs">
+                    {record.cardholderAccountNumber || 'N/A'}
                   </div>
                   <div className="w-20">
                     <Button
@@ -435,6 +440,10 @@ export default function TddfPage() {
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Response Code</label>
                       <div className="font-mono text-sm">{detailsRecord.responseCode || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Cardholder Account Number</label>
+                      <div className="font-mono text-sm">{detailsRecord.cardholderAccountNumber || 'N/A'}</div>
                     </div>
                   </div>
                 </div>

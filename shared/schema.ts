@@ -213,6 +213,7 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   cardType: text("card_type"), // Card type (VISA, MC, AMEX, etc.)
   entryMethod: text("entry_method"), // Entry method (CHIP, SWIPE, MANUAL, etc.)
   responseCode: text("response_code"), // Transaction response code
+  cardholderAccountNumber: text("cardholder_account_number"), // Masked card number (e.g., ****1234)
   
   // System fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
