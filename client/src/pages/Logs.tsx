@@ -128,9 +128,32 @@ export default function Logs() {
           ipAddress: log.ipAddress || undefined
         };
       }
-      // Use audit logs as is
-      return log;
+      // Use audit logs as is - but ensure consistent format
+      return {
+        id: log.id,
+        timestamp: log.timestamp,
+        username: log.username || "unknown",
+        entityType: log.entityType,
+        entityId: log.entityId,
+        action: log.action,
+        notes: log.notes || "",
+        ipAddress: log.ipAddress,
+        logType: log.logType
+      };
     });
+  } else if (data && Array.isArray(data)) {
+    // Handle case where data is directly an array (audit logs API response)
+    logs = data.map((log: any) => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      username: log.username || "unknown",
+      entityType: log.entityType,
+      entityId: log.entityId,
+      action: log.action,
+      notes: log.notes || "",
+      ipAddress: log.ipAddress,
+      logType: log.logType || 'audit'
+    }));
   }
   
   const pagination = data?.pagination || { currentPage: 1, totalPages: 1, totalItems: 0, itemsPerPage: 10 };
