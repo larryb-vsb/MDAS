@@ -14,12 +14,15 @@ import {
   systemLogs,
   securityLogs,
   terminals as terminalsTable,
+  tddfRecords as tddfRecordsTable,
   Merchant,
   Transaction,
   Terminal,
+  TddfRecord,
   InsertMerchant,
   InsertTransaction,
   InsertTerminal,
+  InsertTddfRecord,
   InsertUploadedFile,
   User,
   InsertUser,
@@ -31,7 +34,7 @@ import {
   InsertSecurityLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull } from "drizzle-orm";
+import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray } from "drizzle-orm";
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -66,6 +69,13 @@ export interface IStorage {
   createTerminal(insertTerminal: InsertTerminal): Promise<Terminal>;
   updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal>;
   deleteTerminal(terminalId: number): Promise<void>;
+
+  // TDDF operations
+  processTddfFileFromContent(
+    content: string, 
+    sourceFileId: string, 
+    originalFilename: string
+  ): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }>;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
@@ -199,6 +209,26 @@ export interface IStorage {
   // Enhanced file processing methods for real-time monitoring
   getQueuedFiles(): Promise<any[]>;
   getRecentlyProcessedFiles(limit: number): Promise<any[]>;
+  
+  // TDDF record operations
+  getTddfRecords(options: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    merchantId?: string;
+  }): Promise<{
+    data: TddfRecord[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
+  getTddfRecordById(recordId: number): Promise<TddfRecord | undefined>;
+  createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord>;
+  deleteTddfRecords(recordIds: number[]): Promise<void>;
 }
 
 // Database storage implementation
@@ -2625,6 +2655,74 @@ export class DatabaseStorage implements IStorage {
                 WHERE id = ${file.id}
               `);
             }
+          } else if (file.fileType === 'tddf') {
+            try {
+              // Always use database content first (database-first approach)
+              console.log(`[TRACE] Processing TDDF file ${file.id} (${file.originalFilename})`);
+              let dbContent = null;
+              try {
+                console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                }
+              } catch (error) {
+                console.log(`[TRACE] Database content error for ${file.id}:`, error);
+              }
+              
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`[TRACE] Processing TDDF file from database content: ${file.id}`);
+                const processingStartTime = new Date();
+                const processingMetrics = await this.processTddfFileFromContent(dbContent, file.id, file.originalFilename);
+                
+                // Calculate processing time in milliseconds
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics and completion status using environment-specific table
+                await db.execute(sql`
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.tddfRecordsCreated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({ 
+                        tddfRecordsCreated: processingMetrics.tddfRecordsCreated,
+                        rowsProcessed: processingMetrics.rowsProcessed, 
+                        errors: processingMetrics.errors
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+                console.log(`📊 METRICS: ${processingMetrics.rowsProcessed} rows, ${processingMetrics.tddfRecordsCreated} TDDF records created, ${processingMetrics.errors} errors`);
+              } else {
+                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
+                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.error(`[TRACE] Storage path: ${file.storagePath}`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+              }
+                
+              console.log(`TDDF file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing TDDF file ${file.id}:`, error);
+              
+              // Mark with error
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true, 
+                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"}
+                WHERE id = ${file.id}
+              `);
+            }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
@@ -3272,14 +3370,24 @@ export class DatabaseStorage implements IStorage {
       
       // Function to detect file format based on headers
       const detectFileFormat = (row: any): string => {
-        // Check for the new format (Name, Account, Amount, Date, Code, Descr)
+        // Check for TDDF - Transaction Daily Detail File format
+        if (row.TXN_ID !== undefined && 
+            row.MERCHANT_ID !== undefined && 
+            row.TXN_AMOUNT !== undefined && 
+            row.TXN_DATE !== undefined && 
+            row.TXN_TYPE !== undefined) {
+          console.log("Detected TDDF (Transaction Daily Detail File) format");
+          return 'tddf';
+        }
+        
+        // Check for the format1 (Name, Account, Amount, Date, Code, Descr)
         if (row.Name !== undefined && 
             row.Account !== undefined && 
             row.Amount !== undefined && 
             row.Date !== undefined && 
             row.Code !== undefined && 
             row.Descr !== undefined) {
-          console.log("Detected new transaction format with Name/Account/Code/Descr");
+          console.log("Detected format1 transaction format with Name/Account/Code/Descr");
           return 'format1';
         }
         
@@ -4000,14 +4108,24 @@ export class DatabaseStorage implements IStorage {
       
       // Function to detect file format based on headers
       const detectFileFormat = (row: any): string => {
-        // Check for the new format (Name, Account, Amount, Date, Code, Descr)
+        // Check for TDDF - Transaction Daily Detail File format
+        if (row.TXN_ID !== undefined && 
+            row.MERCHANT_ID !== undefined && 
+            row.TXN_AMOUNT !== undefined && 
+            row.TXN_DATE !== undefined && 
+            row.TXN_TYPE !== undefined) {
+          console.log("Detected TDDF (Transaction Daily Detail File) format");
+          return 'tddf';
+        }
+        
+        // Check for the format1 (Name, Account, Amount, Date, Code, Descr)
         if (row.Name !== undefined && 
             row.Account !== undefined && 
             row.Amount !== undefined && 
             row.Date !== undefined && 
             row.Code !== undefined && 
             row.Descr !== undefined) {
-          console.log("Detected new transaction format with Name/Account/Code/Descr");
+          console.log("Detected format1 transaction format with Name/Account/Code/Descr");
           return 'format1';
         }
         
@@ -4049,20 +4167,28 @@ export class DatabaseStorage implements IStorage {
           
           // Store original merchant name if available
           let originalMerchantName = null;
-          console.log(`[FORMAT DEBUG] detectedFormat: ${detectedFormat}, row.Name: ${row.Name}, has Name property: ${row.hasOwnProperty('Name')}`);
+          console.log(`[FORMAT DEBUG] detectedFormat: ${detectedFormat}, row.Name: ${row.Name}, row.MERCHANT_NAME: ${row.MERCHANT_NAME}, has Name property: ${row.hasOwnProperty('Name')}`);
           if (detectedFormat === 'format1' && row.Name) {
             originalMerchantName = row.Name.trim();
-            console.log(`[PARSING DEBUG] Found merchant name in transaction: ${originalMerchantName} for merchant ID: ${merchantId}`);
+            console.log(`[PARSING DEBUG] Found merchant name in format1 transaction: ${originalMerchantName} for merchant ID: ${merchantId}`);
             // Store the merchant name in the transaction object for later use
             (transaction as any).originalMerchantName = originalMerchantName;
             console.log(`[PARSING DEBUG] Set originalMerchantName property: ${(transaction as any).originalMerchantName}`);
+          } else if (detectedFormat === 'tddf' && row.MERCHANT_NAME) {
+            originalMerchantName = row.MERCHANT_NAME.trim();
+            console.log(`[PARSING DEBUG] Found merchant name in TDDF transaction: ${originalMerchantName} for merchant ID: ${merchantId}`);
+            // Store the merchant name in the transaction object for later use
+            (transaction as any).originalMerchantName = originalMerchantName;
+            console.log(`[PARSING DEBUG] Set originalMerchantName property from TDDF: ${(transaction as any).originalMerchantName}`);
           } else {
-            console.log(`[FORMAT DEBUG] NOT setting originalMerchantName - format: ${detectedFormat}, Name value: "${row.Name}"`);
+            console.log(`[FORMAT DEBUG] NOT setting originalMerchantName - format: ${detectedFormat}, Name value: "${row.Name}", MERCHANT_NAME value: "${row.MERCHANT_NAME}"`);
           }
           
           // Select the appropriate field mapping based on detected format
           const fieldMappings = detectedFormat === 'format1' 
             ? alternateTransactionMappings.format1
+            : detectedFormat === 'tddf'
+            ? alternateTransactionMappings.tddf
             : transactionFieldMappings;
           
           // Apply field mappings from CSV based on detected format
@@ -5615,6 +5741,448 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTerminal(terminalId: number): Promise<void> {
     await db.delete(terminalsTable).where(eq(terminalsTable.id, terminalId));
+  }
+
+  // Process TDDF (Transaction Daily Detail File) files from content
+  async processTddfFileFromContent(
+    content: string, 
+    sourceFileId: string, 
+    originalFilename: string
+  ): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
+    console.log(`[TDDF PROCESSING] Starting TDDF fixed-width processing for file ${sourceFileId} (${originalFilename})`);
+    
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
+    let rowCount = 0;
+    let tddfRecordsCreated = 0;
+    let errors = 0;
+    let transactionRecordsProcessed = 0;
+    let skippedNonTransactionRecords = 0;
+
+    try {
+      for (const line of lines) {
+        rowCount++;
+        
+        // Check if this is a transaction record (DT identifier in positions 18-19)
+        if (line.length < 19) {
+          console.log(`[TDDF DEBUG] Row ${rowCount}: Line too short (${line.length} chars), skipping`);
+          skippedNonTransactionRecords++;
+          continue;
+        }
+        
+        const recordIdentifier = line.substring(17, 19); // Positions 18-19 (0-indexed: 17-18)
+        
+        if (recordIdentifier !== 'DT') {
+          console.log(`[TDDF DEBUG] Row ${rowCount}: Record identifier '${recordIdentifier}' is not 'DT', skipping transaction processing`);
+          skippedNonTransactionRecords++;
+          continue;
+        }
+        
+        transactionRecordsProcessed++;
+        console.log(`[TDDF DEBUG] Row ${rowCount}: Processing DT transaction record`);
+        
+        try {
+          // Parse fixed-width transaction record based on TDDF format specification
+          // Based on attached TDDF specification document
+          const tddfRecord: InsertTddfRecord = {
+            // Reference Number (positions 62-84): Use as Transaction ID
+            txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rowCount}`,
+            
+            // Merchant Account Number (positions 24-39): Use as Merchant ID
+            merchantId: line.substring(23, 39).trim() || 'UNKNOWN',
+            
+            // Transaction Amount (positions 93-103): 11 digits, format 99999999999
+            txnAmount: this.parseAmount(line.substring(92, 103).trim()),
+            
+            // Transaction Date (positions 85-92): MMDDCCYY format
+            txnDate: this.parseTddfDate(line.substring(84, 92).trim()),
+            
+            // Transaction Code (positions 52-55): Use as transaction type
+            txnType: line.substring(51, 55).trim() || 'SALE',
+            
+            // Merchant Name (positions 218-242): DBA name, 25 characters
+            txnDesc: line.substring(217, 242).trim() || null,
+            
+            // Merchant Name (positions 218-242): DBA name
+            merchantName: line.substring(217, 242).trim() || null,
+            
+            // Batch Julian Date (positions 104-108): Use as batch ID
+            batchId: line.substring(103, 108).trim() || null,
+            
+            // Authorization Number (positions 243-248): 6 characters
+            authCode: line.substring(242, 248).trim() || null,
+            
+            // Card Type (positions 253-254): 2 characters
+            cardType: line.substring(252, 254).trim() || null,
+            
+            // POS Entry Mode (positions 214-215): 2 characters
+            entryMethod: line.substring(213, 215).trim() || null,
+            
+            // Auth Response Code (positions 208-209): 2 digits
+            responseCode: line.substring(207, 209).trim() || null,
+            
+            sourceFileId: sourceFileId,
+            sourceRowNumber: rowCount,
+            rawData: { 
+              originalLine: line, 
+              recordType: 'DT', 
+              lineNumber: rowCount,
+              sequenceNumber: line.substring(0, 7).trim(),
+              bankNumber: line.substring(19, 23).trim(),
+              associationNumber: line.substring(39, 45).trim(),
+              groupNumber: line.substring(45, 51).trim(),
+              terminalId: line.substring(276, 284).trim(),
+              mccCode: line.substring(272, 276).trim()
+            }
+          };
+
+          // Insert TDDF record into database
+          const insertedRecord = await db.insert(tddfRecordsTable).values(tddfRecord).returning();
+          tddfRecordsCreated++;
+          
+          console.log(`[TDDF SUCCESS] Created TDDF record ${insertedRecord[0].id} for transaction ${tddfRecord.txnId}`);
+
+        } catch (rowError) {
+          console.error(`[TDDF ERROR] Error processing transaction record at row ${rowCount}:`, rowError);
+          errors++;
+        }
+      }
+
+      console.log(`[TDDF COMPLETED] Processed ${rowCount} total rows`);
+      console.log(`[TDDF STATS] Transaction records (DT): ${transactionRecordsProcessed}, Non-transaction records skipped: ${skippedNonTransactionRecords}`);
+      console.log(`[TDDF RESULTS] Created ${tddfRecordsCreated} TDDF records, ${errors} errors`);
+      
+      return {
+        rowsProcessed: transactionRecordsProcessed, // Only count transaction records
+        tddfRecordsCreated,
+        errors
+      };
+      
+    } catch (error) {
+      console.error(`[TDDF ERROR] Error during TDDF fixed-width processing:`, error);
+      throw error;
+    }
+  }
+
+  // Helper method to parse amount from fixed-width format
+  private parseAmount(amountStr: string): number {
+    if (!amountStr || amountStr.trim() === '') return 0;
+    
+    // Remove any non-numeric characters except decimal point and minus
+    const cleanAmount = amountStr.replace(/[^0-9.-]/g, '');
+    const amount = parseFloat(cleanAmount);
+    
+    return isNaN(amount) ? 0 : amount;
+  }
+
+  // Helper method to parse date from YYYYMMDD format
+  private parseDate(dateStr: string): Date {
+    if (!dateStr || dateStr.trim() === '' || dateStr.length !== 8) {
+      return new Date(); // Default to current date if invalid
+    }
+    
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6)) - 1; // Month is 0-indexed
+    const day = parseInt(dateStr.substring(6, 8));
+    
+    const date = new Date(year, month, day);
+    
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      return new Date(); // Default to current date if invalid
+    }
+    
+    return date;
+  }
+
+  // Helper method to parse TDDF date from MMDDCCYY format (positions 85-92)
+  private parseTddfDate(dateStr: string): Date {
+    if (!dateStr || dateStr.trim() === '' || dateStr.length !== 8) {
+      return new Date(); // Default to current date if invalid
+    }
+    
+    const month = parseInt(dateStr.substring(0, 2)) - 1; // Month is 0-indexed
+    const day = parseInt(dateStr.substring(2, 4));
+    const century = parseInt(dateStr.substring(4, 6)); // CC (century)
+    const year2digit = parseInt(dateStr.substring(6, 8)); // YY (year within century)
+    
+    // Convert century and 2-digit year to full year
+    const fullYear = (century * 100) + year2digit;
+    
+    const date = new Date(fullYear, month, day);
+    
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      return new Date(); // Default to current date if invalid
+    }
+    
+    return date;
+  }
+
+  // TDDF record operations
+  async getTddfRecords(options: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    merchantId?: string;
+  }): Promise<{
+    data: TddfRecord[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = options.limit || 20;
+      const offset = (page - 1) * limit;
+
+      // Build query conditions
+      const conditions = [];
+      
+      if (options.startDate) {
+        conditions.push(gte(tddfRecordsTable.txnDate, new Date(options.startDate)));
+      }
+      
+      if (options.endDate) {
+        conditions.push(lte(tddfRecordsTable.txnDate, new Date(options.endDate)));
+      }
+      
+      if (options.merchantId) {
+        conditions.push(eq(tddfRecordsTable.merchantId, options.merchantId));
+      }
+
+      // Get total count
+      let countQuery = db.select({ count: count() }).from(tddfRecordsTable);
+      if (conditions.length > 0) {
+        countQuery = countQuery.where(and(...conditions));
+      }
+      const countResult = await countQuery;
+      const totalItems = parseInt(countResult[0].count.toString(), 10);
+      const totalPages = Math.ceil(totalItems / limit);
+
+      // Get paginated data
+      let dataQuery = db.select().from(tddfRecordsTable);
+      if (conditions.length > 0) {
+        dataQuery = dataQuery.where(and(...conditions));
+      }
+      dataQuery = dataQuery
+        .orderBy(desc(tddfRecordsTable.txnDate))
+        .limit(limit)
+        .offset(offset);
+
+      const records = await dataQuery;
+
+      return {
+        data: records,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF records:', error);
+      throw error;
+    }
+  }
+
+  async getTddfRecordById(recordId: number): Promise<TddfRecord | undefined> {
+    try {
+      const records = await db
+        .select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.id, recordId))
+        .limit(1);
+      
+      return records[0] || undefined;
+    } catch (error) {
+      console.error('Error getting TDDF record by ID:', error);
+      throw error;
+    }
+  }
+
+  async createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
+    try {
+      const records = await db
+        .insert(tddfRecordsTable)
+        .values({
+          ...recordData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      return records[0];
+    } catch (error) {
+      console.error('Error creating TDDF record:', error);
+      throw error;
+    }
+  }
+
+  async deleteTddfRecords(recordIds: number[]): Promise<void> {
+    try {
+      await db
+        .delete(tddfRecordsTable)
+        .where(inArray(tddfRecordsTable.id, recordIds));
+    } catch (error) {
+      console.error('Error deleting TDDF records:', error);
+      throw error;
+    }
+  }
+
+  // Process TDDF (Transaction Daily Detail File) from database content
+  async processTddfFileFromContent(base64Content: string, fileId: string, filename: string): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
+    console.log(`=================== TDDF FILE PROCESSING (DATABASE) ===================`);
+    console.log(`Processing TDDF file from database content: ${filename}`);
+    
+    // Decode base64 content
+    const fileContent = Buffer.from(base64Content, 'base64').toString('utf8');
+    console.log(`File content length: ${fileContent.length} characters`);
+    
+    const records: InsertTddfRecord[] = [];
+    let rowCount = 0;
+    let errorCount = 0;
+    let createdCount = 0;
+
+    try {
+      // Split file into lines for fixed-width processing
+      const lines = fileContent.split('\n');
+      console.log(`Total lines in file: ${lines.length}`);
+
+      for (const line of lines) {
+        rowCount++;
+        
+        // Skip empty lines
+        if (!line.trim()) {
+          continue;
+        }
+
+        try {
+          // Check if this is a DT (Detail Transaction) record at positions 18-19
+          if (line.length < 20) {
+            console.log(`Line ${rowCount}: Too short (${line.length} chars), skipping`);
+            continue;
+          }
+
+          const recordType = line.substring(17, 19); // Positions 18-19 (0-based indexing)
+          
+          // Only process DT records as specified in requirements
+          if (recordType !== 'DT') {
+            console.log(`Line ${rowCount}: Record type '${recordType}', skipping (only processing DT records)`);
+            continue;
+          }
+
+          console.log(`Line ${rowCount}: Processing DT record`);
+
+          // Parse TDDF fixed-width format based on specification
+          // Note: Positions are 1-based in spec, converted to 0-based for substring
+          const record: InsertTddfRecord = {
+            txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rowCount}`, // Reference Number (62-84)
+            merchantId: line.substring(23, 39).trim() || 'UNKNOWN', // Merchant Account Number (24-39)
+            txnAmount: this.parseAmount(line.substring(92, 103)) || 0, // Transaction Amount (93-103)
+            txnDate: this.parseTddfDate(line.substring(84, 92)) || new Date(), // Transaction Date (85-92)
+            txnType: line.substring(51, 55).trim() || null, // Transaction Code (52-55)
+            txnDesc: `${line.substring(39, 45).trim()} - ${line.substring(45, 51).trim()}`.trim() || null, // Association + Group Numbers
+            merchantName: null, // Not provided in TDDF format
+            batchId: line.substring(103, 108).trim() || null, // Batch Julian Date (104-108)
+            authCode: null, // Not provided in this section of TDDF
+            cardType: null, // Not provided in this section of TDDF  
+            entryMethod: line.substring(164, 165).trim() || null, // Online Entry (165)
+            responseCode: null, // Not provided in this section of TDDF
+            sourceFileId: fileId,
+            sourceRowNumber: rowCount,
+            rawData: {
+              line: line,
+              recordType: recordType,
+              lineNumber: rowCount,
+              filename: filename,
+              sequenceNumber: line.substring(0, 7).trim(),
+              entryRunNumber: line.substring(7, 13).trim(),
+              bankNumber: line.substring(19, 23).trim(),
+              netDeposit: line.substring(108, 123).trim(),
+              cardholderAccount: line.substring(123, 142).trim()
+            }
+          };
+
+          records.push(record);
+          createdCount++;
+
+          console.log(`Line ${rowCount}: Created TDDF record - TxnID: ${record.txnId}, MerchantID: ${record.merchantId}, Amount: $${record.txnAmount}`);
+
+        } catch (lineError) {
+          errorCount++;
+          console.error(`Error processing line ${rowCount}:`, lineError);
+          console.error(`Line content: ${line.substring(0, 100)}...`);
+        }
+      }
+
+      // Batch insert records into database
+      if (records.length > 0) {
+        console.log(`Inserting ${records.length} TDDF records into database...`);
+        
+        const batchSize = 100;
+        for (let i = 0; i < records.length; i += batchSize) {
+          const batch = records.slice(i, i + batchSize);
+          await db.insert(tddfRecordsTable).values(batch);
+          console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(records.length / batchSize)} (${batch.length} records)`);
+        }
+      }
+
+      console.log(`\n=================== TDDF PROCESSING SUMMARY ===================`);
+      console.log(`Total lines processed: ${rowCount}`);
+      console.log(`TDDF records created: ${createdCount}`);
+      console.log(`Errors encountered: ${errorCount}`);
+      console.log(`=================== COMPLETE ===================`);
+
+      return {
+        rowsProcessed: rowCount,
+        tddfRecordsCreated: createdCount,
+        errors: errorCount
+      };
+
+    } catch (error) {
+      console.error("Error processing TDDF file:", error);
+      throw error;
+    }
+  }
+
+  // Parse TDDF date format (MMDDCCYY) to Date object
+  private parseTddfDate(dateStr: string): Date | null {
+    if (!dateStr || dateStr.trim().length !== 8) {
+      return null;
+    }
+
+    try {
+      const trimmed = dateStr.trim();
+      const month = parseInt(trimmed.substring(0, 2), 10);
+      const day = parseInt(trimmed.substring(2, 4), 10);
+      const century = parseInt(trimmed.substring(4, 6), 10);
+      const year = parseInt(trimmed.substring(6, 8), 10);
+
+      // Convert century and year to full year (e.g., 20 + 24 = 2024)
+      const fullYear = (century * 100) + year;
+
+      // Create date object (month is 0-based in JavaScript)
+      const date = new Date(fullYear, month - 1, day);
+
+      // Validate the date
+      if (isNaN(date.getTime()) || 
+          date.getFullYear() !== fullYear ||
+          date.getMonth() !== (month - 1) ||
+          date.getDate() !== day) {
+        console.warn(`Invalid TDDF date: ${dateStr}`);
+        return null;
+      }
+
+      return date;
+    } catch (error) {
+      console.error(`Error parsing TDDF date ${dateStr}:`, error);
+      return null;
+    }
   }
 }
 

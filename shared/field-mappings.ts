@@ -74,6 +74,22 @@ export const alternateTransactionMappings = {
     type: "Code", // Using Code as transaction type
     description: "Descr", // Additional field for description
     merchantName: "Name" // Name of merchant
+  },
+  
+  // TDDF (Transaction Daily Detail File) format - fixed-width banking format
+  tddf: {
+    txnId: "TXN_ID",
+    merchantId: "MERCHANT_ID", 
+    merchantName: "MERCHANT_NAME",
+    txnAmount: "TXN_AMOUNT",
+    txnDate: "TXN_DATE",
+    txnType: "TXN_TYPE",
+    txnDesc: "TXN_DESC",
+    batchId: "BATCH_ID",
+    authCode: "AUTH_CODE",
+    cardType: "CARD_TYPE",
+    entryMethod: "ENTRY_METHOD",
+    responseCode: "RESPONSE_CODE"
   }
 };
 

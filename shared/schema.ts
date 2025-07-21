@@ -115,7 +115,7 @@ export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   id: text("id").primaryKey(),
   originalFilename: text("original_filename").notNull(),
   storagePath: text("storage_path"),
-  fileType: text("file_type").notNull(),
+  fileType: text("file_type").notNull(), // 'merchant', 'transaction', 'terminal', or 'tddf'
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   processed: boolean("processed").default(false).notNull(),
   processingErrors: text("processing_errors"),
@@ -195,9 +195,46 @@ export const insertMerchantSchema = merchantsSchema.omit({ id: true });
 export const transactionsSchema = createInsertSchema(transactions);
 export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 
+// TDDF (Transaction Daily Detail File) table - specialized table for detailed transaction processing
+export const tddfRecords = pgTable(getTableName("tddf_records"), {
+  id: serial("id").primaryKey(),
+  // Core TDDF fields
+  txnId: text("txn_id").notNull(), // Transaction unique identifier
+  merchantId: text("merchant_id").notNull(), // Merchant identifier
+  txnAmount: numeric("txn_amount", { precision: 10, scale: 2 }).notNull(), // Transaction amount
+  txnDate: timestamp("txn_date").notNull(), // Transaction date
+  txnType: text("txn_type").notNull(), // Transaction type (SALE, REFUND, VOID, etc.)
+  
+  // Additional TDDF fields
+  txnDesc: text("txn_desc"), // Transaction description
+  merchantName: text("merchant_name"), // Merchant business name
+  batchId: text("batch_id"), // Batch identifier for grouping
+  authCode: text("auth_code"), // Authorization code
+  cardType: text("card_type"), // Card type (VISA, MC, AMEX, etc.)
+  entryMethod: text("entry_method"), // Entry method (CHIP, SWIPE, MANUAL, etc.)
+  responseCode: text("response_code"), // Transaction response code
+  
+  // System fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete CSV row for reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  txnIdIndex: index("tddf_txn_id_idx").on(table.txnId),
+  merchantIdIndex: index("tddf_merchant_id_idx").on(table.merchantId),
+  dateIndex: index("tddf_date_idx").on(table.txnDate),
+  batchIdIndex: index("tddf_batch_id_idx").on(table.batchId)
+}));
+
 // Zod schemas for uploaded files
 export const uploadedFilesSchema = createInsertSchema(uploadedFiles);
 export const insertUploadedFileSchema = uploadedFilesSchema.omit({ id: true });
+
+// Zod schemas for TDDF records
+export const tddfRecordsSchema = createInsertSchema(tddfRecords);
+export const insertTddfRecordSchema = tddfRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
 // Zod schemas for backup history
 export const backupHistorySchema = createInsertSchema(backupHistory);
@@ -258,6 +295,8 @@ export type BackupSchedule = typeof backupSchedules.$inferSelect;
 export type InsertBackupSchedule = typeof backupSchedules.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type TddfRecord = typeof tddfRecords.$inferSelect;
+export type InsertTddfRecord = typeof tddfRecords.$inferInsert;
 
 // Audit log table with performance optimizations
 export const auditLogs = pgTable(getTableName("audit_logs"), {

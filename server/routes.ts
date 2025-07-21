@@ -62,7 +62,11 @@ import {
   backupSchedules as backupSchedulesTable,
   users as usersTable,
   terminals as terminalsTable,
-  insertTerminalSchema
+  tddfRecords as tddfRecordsTable,
+  insertTerminalSchema,
+  tddfRecordsSchema,
+  TddfRecord,
+  InsertTddfRecord
 } from "@shared/schema";
 import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } from "./schema_version";
 
@@ -1412,7 +1416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const type = req.body.type;
-      if (!type || (type !== "merchant" && type !== "transaction" && type !== "terminal")) {
+      if (!type || (type !== "merchant" && type !== "transaction" && type !== "terminal" && type !== "tddf")) {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
@@ -1786,7 +1790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processorStatus,
         filters: {
           status: ['all', 'queued', 'processing', 'completed', 'error'],
-          fileType: ['all', 'merchant', 'transaction'],
+          fileType: ['all', 'merchant', 'transaction', 'terminal', 'tddf'],
           sortBy: ['uploadDate', 'processedDate', 'filename']
         }
       });
@@ -3448,6 +3452,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error in bulk delete terminals:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to delete terminals" 
+      });
+    }
+  });
+
+  // ==================== TDDF ROUTES ====================
+  
+  // Get all TDDF records with pagination
+  app.get("/api/tddf", isAuthenticated, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+      
+      // Get TDDF records with pagination
+      const tddfRecords = await db.select()
+        .from(tddfRecordsTable)
+        .orderBy(desc(tddfRecordsTable.createdAt))
+        .limit(limit)
+        .offset(offset);
+      
+      // Get total count for pagination
+      const countResult = await db.select({ count: count() }).from(tddfRecordsTable);
+      const totalItems = parseInt(countResult[0].count.toString());
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      res.json({
+        data: tddfRecords,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF records" 
+      });
+    }
+  });
+
+  // Get TDDF record by ID
+  app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
+    try {
+      const recordId = parseInt(req.params.id);
+      const record = await storage.getTddfRecordById(recordId);
+      
+      if (!record) {
+        return res.status(404).json({ error: "TDDF record not found" });
+      }
+      
+      res.json(record);
+    } catch (error) {
+      console.error('Error fetching TDDF record:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF record" 
+      });
+    }
+  });
+
+  // Delete TDDF records (bulk)
+  app.delete("/api/tddf", isAuthenticated, async (req, res) => {
+    try {
+      const { recordIds } = req.body;
+      
+      if (!Array.isArray(recordIds) || recordIds.length === 0) {
+        return res.status(400).json({ error: "recordIds must be a non-empty array" });
+      }
+
+      console.log('[BACKEND DELETE] Attempting to delete TDDF records:', recordIds);
+      
+      await storage.deleteTddfRecords(recordIds);
+      
+      console.log('[BACKEND DELETE] Successfully deleted TDDF records:', recordIds);
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${recordIds.length} TDDF record${recordIds.length !== 1 ? 's' : ''}`,
+        deletedCount: recordIds.length
+      });
+    } catch (error) {
+      console.error('Error in bulk delete TDDF records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete TDDF records" 
+      });
+    }
+  });
+
+  // Get TDDF record by ID
+  app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
+    try {
+      const recordId = parseInt(req.params.id);
+      const [record] = await db.select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.id, recordId));
+      
+      if (!record) {
+        return res.status(404).json({ error: "TDDF record not found" });
+      }
+      
+      res.json(record);
+    } catch (error) {
+      console.error('Error fetching TDDF record:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF record" 
+      });
+    }
+  });
+
+  // Get TDDF records by merchant ID
+  app.get("/api/tddf/merchant/:merchantId", isAuthenticated, async (req, res) => {
+    try {
+      const merchantId = req.params.merchantId;
+      const records = await db.select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.merchantId, merchantId))
+        .orderBy(desc(tddfRecordsTable.txnDate));
+      
+      res.json(records);
+    } catch (error) {
+      console.error('Error fetching TDDF records by merchant:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF records" 
+      });
+    }
+  });
+
+  // Get TDDF records by batch ID
+  app.get("/api/tddf/batch/:batchId", isAuthenticated, async (req, res) => {
+    try {
+      const batchId = req.params.batchId;
+      const records = await db.select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.batchId, batchId))
+        .orderBy(desc(tddfRecordsTable.txnDate));
+      
+      res.json(records);
+    } catch (error) {
+      console.error('Error fetching TDDF records by batch:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF records" 
+      });
+    }
+  });
+
+  // Delete TDDF record
+  app.delete("/api/tddf/:id", isAuthenticated, async (req, res) => {
+    try {
+      const recordId = parseInt(req.params.id);
+      
+      // Check if record exists
+      const [existingRecord] = await db.select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.id, recordId));
+      
+      if (!existingRecord) {
+        return res.status(404).json({ error: "TDDF record not found" });
+      }
+      
+      // Delete the record
+      await db.delete(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.id, recordId));
+      
+      res.json({ 
+        success: true, 
+        message: "TDDF record deleted successfully" 
+      });
+    } catch (error) {
+      console.error('Error deleting TDDF record:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete TDDF record" 
+      });
+    }
+  });
+
+  // Export TDDF records to CSV
+  app.get("/api/tddf/export", isAuthenticated, async (req, res) => {
+    try {
+      const startDate = req.query.startDate as string;
+      const endDate = req.query.endDate as string;
+      const batchId = req.query.batchId as string;
+      const merchantId = req.query.merchantId as string;
+      
+      let query = db.select().from(tddfRecordsTable);
+      
+      // Apply filters
+      const conditions = [];
+      if (startDate) {
+        conditions.push(gte(tddfRecordsTable.txnDate, new Date(startDate)));
+      }
+      if (endDate) {
+        conditions.push(lte(tddfRecordsTable.txnDate, new Date(endDate)));
+      }
+      if (batchId) {
+        conditions.push(eq(tddfRecordsTable.batchId, batchId));
+      }
+      if (merchantId) {
+        conditions.push(eq(tddfRecordsTable.merchantId, merchantId));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      const records = await query.orderBy(desc(tddfRecordsTable.txnDate));
+      
+      // Convert to CSV format
+      const csvData = records.map(record => ({
+        'Transaction ID': record.txnId,
+        'Merchant ID': record.merchantId,
+        'Merchant Name': record.merchantName || '',
+        'Amount': record.txnAmount,
+        'Date': record.txnDate?.toISOString().split('T')[0] || '',
+        'Type': record.txnType,
+        'Description': record.txnDesc || '',
+        'Batch ID': record.batchId || '',
+        'Auth Code': record.authCode || '',
+        'Card Type': record.cardType || '',
+        'Entry Method': record.entryMethod || '',
+        'Response Code': record.responseCode || '',
+        'Created At': record.createdAt?.toISOString() || ''
+      }));
+      
+      const csvContent = formatCSV(csvData);
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="tddf_export_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+      
+    } catch (error) {
+      console.error('Error exporting TDDF records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to export TDDF records" 
       });
     }
   });
