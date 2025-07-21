@@ -3167,6 +3167,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle duplicate V Number error with user-friendly message
       if (error.code === '23505' && error.constraint && error.constraint.includes('v_number_key')) {
+        // Log duplicate V Number attempt to system logs
+        await storage.createSystemLog({
+          level: 'warning',
+          source: 'Terminal Creation',
+          message: `Duplicate V Number attempt blocked`,
+          details: {
+            vNumber: req.body.vNumber,
+            username: req.user?.username || 'Unknown',
+            ipAddress: req.ip || 'unknown',
+            error: 'V Number already exists'
+          },
+          username: req.user?.username || 'System'
+        });
+        
         return res.status(400).json({
           error: `A terminal with V Number "${req.body.vNumber}" already exists. Please use a different V Number.`
         });
@@ -3174,10 +3188,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle validation errors
       if (error.name === 'ZodError') {
+        // Log validation error to system logs
+        await storage.createSystemLog({
+          level: 'warning',
+          source: 'Terminal Creation',
+          message: `Terminal creation validation failed`,
+          details: {
+            username: req.user?.username || 'Unknown',
+            ipAddress: req.ip || 'unknown',
+            error: 'Form validation errors',
+            validationIssues: error.issues || []
+          },
+          username: req.user?.username || 'System'
+        });
+        
         return res.status(400).json({
           error: "Please check that all required fields are filled out correctly."
         });
       }
+      
+      // Log general terminal creation error
+      await storage.createSystemLog({
+        level: 'error',
+        source: 'Terminal Creation',
+        message: `Terminal creation failed with unexpected error`,
+        details: {
+          username: req.user?.username || 'Unknown',
+          ipAddress: req.ip || 'unknown',
+          error: error.message || 'Unknown error',
+          errorCode: error.code || 'N/A'
+        },
+        username: req.user?.username || 'System'
+      });
       
       res.status(500).json({ 
         error: "Failed to create terminal. Please try again."
