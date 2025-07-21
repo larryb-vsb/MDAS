@@ -388,7 +388,7 @@ export const insertProcessingMetricsSchema = processingMetricsSchema.omit({ id: 
 export type ProcessingMetrics = typeof processingMetrics.$inferSelect;
 export type InsertProcessingMetrics = typeof processingMetrics.$inferInsert;
 
-// Terminal schema for validation and types
+// Terminal schema for validation and types - handles string dates from forms
 export const insertTerminalSchema = createInsertSchema(terminals).omit({
   id: true,
   createdAt: true,
@@ -397,6 +397,36 @@ export const insertTerminalSchema = createInsertSchema(terminals).omit({
   updateSource: true,
   createdBy: true,
   updatedBy: true
+}).extend({
+  // Override date fields to accept strings from forms
+  boardDate: z.union([z.date(), z.string()]).optional().transform((val) => {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      return val === '' ? undefined : new Date(val);
+    }
+    return val;
+  }),
+  installationDate: z.union([z.date(), z.string()]).optional().transform((val) => {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      return val === '' ? undefined : new Date(val);
+    }
+    return val;
+  }),
+  lastActivity: z.union([z.date(), z.string()]).optional().transform((val) => {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      return val === '' ? undefined : new Date(val);
+    }
+    return val;
+  }),
+  lastSyncDate: z.union([z.date(), z.string()]).optional().transform((val) => {
+    if (!val) return undefined;
+    if (typeof val === 'string') {
+      return val === '' ? undefined : new Date(val);
+    }
+    return val;
+  })
 });
 export type Terminal = typeof terminals.$inferSelect;
 export type InsertTerminal = z.infer<typeof insertTerminalSchema>;

@@ -3147,13 +3147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new terminal
   app.post("/api/terminals", isAuthenticated, async (req, res) => {
     try {
-      // Preprocess date fields before validation
-      const processedBody = { ...req.body };
-      if (processedBody.boardDate && typeof processedBody.boardDate === 'string') {
-        processedBody.boardDate = new Date(processedBody.boardDate);
-      }
-      
-      const terminalData = insertTerminalSchema.parse(processedBody);
+      const terminalData = insertTerminalSchema.parse(req.body);
       
       // Set created timestamp and user
       const newTerminalData = {
@@ -3180,14 +3174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/terminals/:id", isAuthenticated, async (req, res) => {
     try {
       const terminalId = parseInt(req.params.id);
-      
-      // Preprocess date fields before validation
-      const processedBody = { ...req.body };
-      if (processedBody.boardDate && typeof processedBody.boardDate === 'string') {
-        processedBody.boardDate = new Date(processedBody.boardDate);
-      }
-      
-      const terminalData = insertTerminalSchema.partial().parse(processedBody);
+      const terminalData = insertTerminalSchema.partial().parse(req.body);
       
       // Set updated timestamp and user
       const updateData = {
