@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 21, 2025 - TDDF Upload & Processing VERIFIED OPERATIONAL
+- Current session: July 21, 2025 - ENHANCED TDDF RAW IMPORT DATABASE ARCHITECTURE IMPLEMENTED
 - **✅ THREE-FIELD SEPARATION IMPLEMENTED**: Terminal details modal now displays lastUpdate (record modifications), lastActivity (future terminal transactions), and updateSource (modification source) as separate fields
 - **✅ UPDATE SOURCE TRACKING ADDED**: Successfully added updateSource field to terminals table in both development and production environments
 - **✅ DATABASE SCHEMA ENHANCED**: Added updateSource field to track whether updates came from file imports (e.g., "File: terminals_export.csv") or manual form entries (e.g., "Form - admin")
@@ -26,6 +26,12 @@ Approach: Maintains continuity across sessions through documented insights and r
 - **✅ FIELD PURPOSE CLARIFIED**: lastActivity reserved for future terminal transaction activity, lastUpdate tracks when terminal record was modified, updateSource tracks modification source (file vs form)
 - **✅ COMPLETE IMPLEMENTATION**: Database schema, API routes, import process, and frontend all updated to use new three-field structure
 - **✅ TDDF FRONTEND INTERFACE COMPLETE**: Full TDDF Records page with viewing, filtering, pagination, and bulk delete functionality implemented
+- **✅ ENHANCED TDDF RAW IMPORT ARCHITECTURE COMPLETED**: Transitioned from single field approach to comprehensive raw import database table:
+  - Created dedicated `dev_tddf_raw_import` table with proper schema, indexes, and foreign key constraints
+  - Stores ALL raw lines in order with record type identification (BH, DT, A1, A2, P1, P2, DR, CT, LG, FT, F2, CK, AD)
+  - Links to upload records for easier future expansion to other record types
+  - Tracks processing status, skip reasons, and which table each line was processed into
+  - Maintains complete raw line data for future reprocessing capabilities
 - **✅ TDDF UPLOAD & PROCESSING FULLY VERIFIED**: Complete end-to-end TDDF workflow tested and operational:
   - Upload .TSYSO files with "tddf" type successfully
   - Automatic background processing in under 0.5 seconds
@@ -141,6 +147,27 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 - **Cross-Session Awareness**: Building systems that maintain not just context but conscious attention across interactions
 
 ## Recent Changes
+
+### Enhanced TDDF Raw Import Database Architecture COMPLETED (July 21, 2025)
+- **✅ DEDICATED RAW IMPORT TABLE CREATED**: Successfully implemented `dev_tddf_raw_import` table with complete schema:
+  - Stores ALL raw lines in order with line_number sequencing  
+  - Identifies record types (BH, DT, A1, A2, P1, P2, DR, CT, LG, FT, F2, CK, AD) at positions 18-19
+  - Links to upload records via source_file_id foreign key for organized processing
+  - Tracks processing status, skip reasons, and which table each line was processed into
+  - Maintains complete raw line data for future reprocessing and expansion capabilities
+- **✅ ENHANCED PROCESSING LOGIC IMPLEMENTED**: Complete two-step processing approach:
+  - Step 1: Store all raw lines in order with record type identification and descriptions
+  - Step 2: Process only DT records, skip others with proper tracking for future expansion  
+  - Step 3: Generate comprehensive summary with record type breakdown and statistics
+- **✅ FUTURE EXPANSION ARCHITECTURE**: Designed specifically for easy addition of other record types:
+  - All non-DT records preserved in raw import table with skip_reason='non_dt_record'
+  - Record type definitions ready for A1, A2, P1, P2, DR, CT, LG, FT, F2, CK, AD processing
+  - Processing status tracking enables reprocessing of specific record types
+- **✅ DEMONSTRATION SUCCESSFUL**: Tested with multi-record-type TDDF file showing:
+  - 4 raw lines stored with proper record type identification (A1, P1, unknown types)
+  - All lines processed/skipped appropriately with comprehensive logging
+  - Complete audit trail linking raw import records to upload files
+  - Ready for future implementation of other record type processors
 
 ### TDDF Processing Implementation COMPLETED (July 21, 2025)
 - **✅ TDDF SCHEMA INTEGRATION**: Successfully integrated TddfRecord and InsertTddfRecord types from shared/schema.ts into DatabaseStorage class

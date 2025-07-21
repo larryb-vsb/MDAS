@@ -342,9 +342,35 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
 export const uploadedFilesSchema = createInsertSchema(uploadedFiles);
 export const insertUploadedFileSchema = uploadedFilesSchema.omit({ id: true });
 
+// TDDF Raw Import table - stores all raw lines in order for reprocessing and linking
+export const tddfRawImport = pgTable(getTableName("tddf_raw_import"), {
+  id: serial("id").primaryKey(),
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id).notNull(),
+  lineNumber: integer("line_number").notNull(), // Order of line in original file
+  rawLine: text("raw_line").notNull(), // Complete original line as received
+  recordType: text("record_type"), // BH, DT, A1, A2, P1, P2, DR, CT, LG, FT, F2, CK, AD
+  recordDescription: text("record_description"), // Human-readable description
+  lineLength: integer("line_length"), // Character count for validation
+  processed: boolean("processed").default(false), // Whether this line has been processed
+  processedAt: timestamp("processed_at"), // When it was processed
+  processedIntoTable: text("processed_into_table"), // Which table it was processed into (e.g., 'tddf_records')
+  processedRecordId: text("processed_record_id"), // ID of record created from this line
+  skipReason: text("skip_reason"), // Why line was skipped (e.g., 'non_dt_record', 'too_short')
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  sourceFileLineIndex: index("tddf_raw_import_file_line_idx").on(table.sourceFileId, table.lineNumber),
+  recordTypeIndex: index("tddf_raw_import_record_type_idx").on(table.recordType),
+  processedIndex: index("tddf_raw_import_processed_idx").on(table.processed)
+}));
+
 // Zod schemas for TDDF records
 export const tddfRecordsSchema = createInsertSchema(tddfRecords);
 export const insertTddfRecordSchema = tddfRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF raw import
+export const tddfRawImportSchema = createInsertSchema(tddfRawImport);
+export const insertTddfRawImportSchema = tddfRawImportSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
 // Zod schemas for backup history
 export const backupHistorySchema = createInsertSchema(backupHistory);
@@ -401,6 +427,8 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type TddfRecord = typeof tddfRecords.$inferSelect;
 export type InsertTddfRecord = typeof tddfRecords.$inferInsert;
+export type TddfRawImport = typeof tddfRawImport.$inferSelect;
+export type InsertTddfRawImport = typeof tddfRawImport.$inferInsert;
 export type Terminal = typeof terminals.$inferSelect;
 export type InsertTerminal = typeof terminals.$inferInsert;
 

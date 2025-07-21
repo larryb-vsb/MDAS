@@ -15,14 +15,17 @@ import {
   securityLogs,
   terminals as terminalsTable,
   tddfRecords as tddfRecordsTable,
+  tddfRawImport as tddfRawImportTable,
   Merchant,
   Transaction,
   Terminal,
   TddfRecord,
+  TddfRawImport,
   InsertMerchant,
   InsertTransaction,
   InsertTerminal,
   InsertTddfRecord,
+  InsertTddfRawImport,
   InsertUploadedFile,
   User,
   InsertUser,
@@ -229,6 +232,12 @@ export interface IStorage {
   getTddfRecordById(recordId: number): Promise<TddfRecord | undefined>;
   createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord>;
   deleteTddfRecords(recordIds: number[]): Promise<void>;
+  
+  // TDDF Raw Import operations
+  createTddfRawImportRecords(records: InsertTddfRawImport[]): Promise<TddfRawImport[]>;
+  getTddfRawImportByFileId(fileId: string): Promise<TddfRawImport[]>;
+  markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void>;
+  markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void>;
 }
 
 // Database storage implementation
@@ -6220,113 +6229,234 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Process TDDF (Transaction Daily Detail File) from database content
+  // TDDF Raw Import operations implementation
+  async createTddfRawImportRecords(records: InsertTddfRawImport[]): Promise<TddfRawImport[]> {
+    try {
+      const insertedRecords = await db
+        .insert(tddfRawImportTable)
+        .values(records.map(record => ({
+          ...record,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })))
+        .returning();
+      
+      return insertedRecords;
+    } catch (error) {
+      console.error('Error creating TDDF raw import records:', error);
+      throw error;
+    }
+  }
+
+  async getTddfRawImportByFileId(fileId: string): Promise<TddfRawImport[]> {
+    try {
+      const records = await db
+        .select()
+        .from(tddfRawImportTable)
+        .where(eq(tddfRawImportTable.sourceFileId, fileId))
+        .orderBy(tddfRawImportTable.lineNumber);
+      
+      return records;
+    } catch (error) {
+      console.error('Error getting TDDF raw import records:', error);
+      throw error;
+    }
+  }
+
+  async markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void> {
+    try {
+      await db
+        .update(tddfRawImportTable)
+        .set({
+          processed: true,
+          processedAt: new Date(),
+          processedIntoTable,
+          processedRecordId,
+          updatedAt: new Date()
+        })
+        .where(eq(tddfRawImportTable.id, lineId));
+    } catch (error) {
+      console.error('Error marking raw import line as processed:', error);
+      throw error;
+    }
+  }
+
+  async markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void> {
+    try {
+      await db
+        .update(tddfRawImportTable)
+        .set({
+          processed: true,
+          processedAt: new Date(),
+          skipReason,
+          updatedAt: new Date()
+        })
+        .where(eq(tddfRawImportTable.id, lineId));
+    } catch (error) {
+      console.error('Error marking raw import line as skipped:', error);
+      throw error;
+    }
+  }
+
+  // Process TDDF (Transaction Daily Detail File) from database content using Raw Import approach
   async processTddfFileFromContent(base64Content: string, fileId: string, filename: string): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
-    console.log(`=================== TDDF FILE PROCESSING (DATABASE) ===================`);
-    console.log(`Processing TDDF file from database content: ${filename}`);
+    console.log(`=================== ENHANCED TDDF FILE PROCESSING (RAW IMPORT) ===================`);
+    console.log(`Processing TDDF file with raw import approach: ${filename}`);
     
     // Decode base64 content
     const fileContent = Buffer.from(base64Content, 'base64').toString('utf8');
     console.log(`File content length: ${fileContent.length} characters`);
     
-    const records: InsertTddfRecord[] = [];
     let rowCount = 0;
     let errorCount = 0;
-    let createdCount = 0;
+    let tddfRecordsCreated = 0;
+    
+    // Comprehensive record type definitions
+    const recordTypeDefinitions: { [key: string]: string } = {
+      'BH': 'Batch Header',
+      'DT': 'Detail Transaction Record',
+      'A1': 'Airline/Passenger Transport 1 Extension Record',
+      'A2': 'Airline/Passenger Transport 2 Extension Record', 
+      'P1': 'Purchasing Card 1 Extension Record',
+      'P2': 'Purchasing Card 2 Extension Record',
+      'DR': 'Direct Marketing Extension Record',
+      'CT': 'Car Rental Extension Record',
+      'LG': 'Lodge Extension Record',
+      'FT': 'Fleet Extension Record',
+      'F2': 'Fleet 2 Extension Record',
+      'CK': 'Electronic Check Extension Record',
+      'AD': 'Merchant Adjustment Record'
+    };
+
+    // Statistics tracking for different record types
+    const recordTypeStats: { [key: string]: number } = {};
 
     try {
       // Split file into lines for fixed-width processing
-      const lines = fileContent.split('\n');
-      console.log(`Total lines in file: ${lines.length}`);
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      console.log(`Total non-empty lines in file: ${lines.length}`);
 
-      for (const line of lines) {
+      // STEP 1: Store all raw lines in order in the raw import table
+      console.log(`\n=== STEP 1: STORING ALL RAW LINES IN ORDER ===`);
+      const rawImportRecords: InsertTddfRawImport[] = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         rowCount++;
         
-        // Skip empty lines
-        if (!line.trim()) {
-          continue;
-        }
-
-        try {
-          // Check if this is a DT (Detail Transaction) record at positions 18-19
-          if (line.length < 20) {
-            console.log(`Line ${rowCount}: Too short (${line.length} chars), skipping`);
-            continue;
-          }
-
-          const recordType = line.substring(17, 19); // Positions 18-19 (0-based indexing)
-          
-          // Only process DT records as specified in requirements
-          if (recordType !== 'DT') {
-            console.log(`Line ${rowCount}: Record type '${recordType}', skipping (only processing DT records)`);
-            continue;
-          }
-
-          console.log(`Line ${rowCount}: Processing DT record`);
-
-          // Parse TDDF fixed-width format based on specification
-          // Note: Positions are 1-based in spec, converted to 0-based for substring
-          const record: InsertTddfRecord = {
-            txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rowCount}`, // Reference Number (62-84)
-            merchantId: line.substring(23, 39).trim() || 'UNKNOWN', // Merchant Account Number (24-39)
-            txnAmount: this.parseAmount(line.substring(92, 103)) || 0, // Transaction Amount (93-103)
-            txnDate: this.parseTddfDate(line.substring(84, 92)) || new Date(), // Transaction Date (85-92)
-            txnType: line.substring(51, 55).trim() || null, // Transaction Code (52-55)
-            txnDesc: `${line.substring(39, 45).trim()} - ${line.substring(45, 51).trim()}`.trim() || null, // Association + Group Numbers
-            merchantName: null, // Not provided in TDDF format
-            batchId: line.substring(103, 108).trim() || null, // Batch Julian Date (104-108)
-            authCode: null, // Not provided in this section of TDDF
-            cardType: null, // Not provided in this section of TDDF  
-            entryMethod: line.substring(164, 165).trim() || null, // Online Entry (165)
-            responseCode: null, // Not provided in this section of TDDF
-            sourceFileId: fileId,
-            sourceRowNumber: rowCount,
-            rawData: {
-              line: line,
-              recordType: recordType,
-              lineNumber: rowCount,
-              filename: filename,
-              sequenceNumber: line.substring(0, 7).trim(),
-              entryRunNumber: line.substring(7, 13).trim(),
-              bankNumber: line.substring(19, 23).trim(),
-              netDeposit: line.substring(108, 123).trim(),
-              cardholderAccount: line.substring(123, 142).trim()
-            }
-          };
-
-          records.push(record);
-          createdCount++;
-
-          console.log(`Line ${rowCount}: Created TDDF record - TxnID: ${record.txnId}, MerchantID: ${record.merchantId}, Amount: $${record.txnAmount}`);
-
-        } catch (lineError) {
-          errorCount++;
-          console.error(`Error processing line ${rowCount}:`, lineError);
-          console.error(`Line content: ${line.substring(0, 100)}...`);
-        }
-      }
-
-      // Batch insert records into database
-      if (records.length > 0) {
-        console.log(`Inserting ${records.length} TDDF records into database...`);
+        // Extract record identifier at positions 18-19 (0-indexed: 17-18)
+        const recordType = line.length >= 19 ? line.substring(17, 19) : 'XX';
+        const recordDescription = recordTypeDefinitions[recordType] || 'Unknown Record Type';
         
-        const batchSize = 100;
-        for (let i = 0; i < records.length; i += batchSize) {
-          const batch = records.slice(i, i + batchSize);
-          await db.insert(tddfRecordsTable).values(batch);
-          console.log(`Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(records.length / batchSize)} (${batch.length} records)`);
+        // Track all record types found
+        if (recordTypeStats[recordType]) {
+          recordTypeStats[recordType]++;
+        } else {
+          recordTypeStats[recordType] = 1;
+        }
+        
+        rawImportRecords.push({
+          sourceFileId: fileId,
+          lineNumber: i + 1,
+          rawLine: line,
+          recordType,
+          recordDescription,
+          lineLength: line.length,
+          processed: false
+        });
+        
+        console.log(`[RAW IMPORT] Line ${i + 1}: '${recordType}' - ${recordDescription} (${line.length} chars)`);
+      }
+      
+      // Insert all raw lines into the raw import table
+      const insertedRawLines = await this.createTddfRawImportRecords(rawImportRecords);
+      console.log(`✅ Stored ${insertedRawLines.length} raw lines in TDDF raw import table`);
+      
+      // STEP 2: Process only DT records from the raw import table
+      console.log(`\n=== STEP 2: PROCESSING DT RECORDS ONLY ===`);
+      
+      for (const rawLine of insertedRawLines) {
+        if (rawLine.recordType === 'DT') {
+          try {
+            console.log(`[DT PROCESSING] Processing line ${rawLine.lineNumber}: ${rawLine.recordDescription}`);
+            
+            // Parse the DT record using the existing parsing logic
+            const line = rawLine.rawLine;
+            
+            // Parse TDDF fixed-width format based on specification
+            const tddfRecord: InsertTddfRecord = {
+              txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rawLine.lineNumber}`,
+              merchantId: line.substring(23, 39).trim() || 'UNKNOWN',
+              transactionAmount: this.parseAmount(line.substring(92, 103)) || 0,
+              txnDate: this.parseTddfDate(line.substring(84, 92)) || new Date(),
+              txnType: line.substring(51, 55).trim() || null,
+              merchantName: line.length >= 242 ? line.substring(217, 242).trim() || null : null,
+              batchId: line.substring(103, 108).trim() || null,
+              sourceFileId: fileId,
+              sourceRowNumber: rawLine.lineNumber,
+              mmsRawLine: line, // Store complete raw line in the MMS-RAW-Line field
+              rawData: {
+                recordType: rawLine.recordType,
+                recordDescription: rawLine.recordDescription,
+                lineNumber: rawLine.lineNumber,
+                filename: filename,
+                sequenceNumber: line.substring(0, 7).trim(),
+                entryRunNumber: line.substring(7, 13).trim(),
+                bankNumber: line.substring(19, 23).trim(),
+                cardholderAccount: line.length >= 142 ? line.substring(123, 142).trim() : null
+              }
+            };
+
+            // Create the TDDF record in the database
+            const createdRecord = await this.createTddfRecord(tddfRecord);
+            tddfRecordsCreated++;
+
+            // Mark the raw line as processed
+            await this.markRawImportLineProcessed(
+              rawLine.id, 
+              'tddf_records', 
+              createdRecord.id.toString()
+            );
+
+            console.log(`✅ [DT PROCESSED] Line ${rawLine.lineNumber}: Created TDDF record ID ${createdRecord.id} - Amount: $${tddfRecord.transactionAmount}`);
+
+          } catch (lineError) {
+            errorCount++;
+            console.error(`❌ [DT ERROR] Line ${rawLine.lineNumber}:`, lineError);
+            
+            // Mark the raw line as processed with error
+            await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${lineError.message}`);
+          }
+        } else {
+          // Mark non-DT records as skipped
+          await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
+          console.log(`⏭️  [SKIPPED] Line ${rawLine.lineNumber}: ${rawLine.recordDescription} (non-DT record)`);
         }
       }
 
-      console.log(`\n=================== TDDF PROCESSING SUMMARY ===================`);
-      console.log(`Total lines processed: ${rowCount}`);
-      console.log(`TDDF records created: ${createdCount}`);
-      console.log(`Errors encountered: ${errorCount}`);
-      console.log(`=================== COMPLETE ===================`);
+      // STEP 3: Generate comprehensive summary
+      console.log(`\n=== STEP 3: COMPREHENSIVE PROCESSING SUMMARY ===`);
+      console.log(`📋 Record Type Breakdown:`);
+      for (const [recordType, count] of Object.entries(recordTypeStats)) {
+        const description = recordTypeDefinitions[recordType] || 'Unknown';
+        console.log(`   ${recordType}: ${count} lines - ${description}`);
+      }
+      
+      console.log(`\n📊 Processing Results:`);
+      console.log(`   Total lines processed: ${rowCount}`);
+      console.log(`   Raw lines stored: ${insertedRawLines.length}`);
+      console.log(`   DT records processed: ${tddfRecordsCreated}`);
+      console.log(`   Lines skipped: ${rowCount - tddfRecordsCreated}`);
+      console.log(`   Errors encountered: ${errorCount}`);
+      
+      console.log(`\n✅ All lines stored in TDDF raw import table for future reprocessing`);
+      console.log(`🔗 Linked to upload record: ${fileId}`);
+      console.log(`📁 Ready for future expansion to other record types`);
+      console.log(`=================== ENHANCED TDDF PROCESSING COMPLETE ===================`);
 
       return {
         rowsProcessed: rowCount,
-        tddfRecordsCreated: createdCount,
+        tddfRecordsCreated,
         errors: errorCount
       };
 
