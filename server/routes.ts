@@ -3568,8 +3568,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const merchantId = req.params.merchantId;
       const records = await db.select()
         .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.merchantId, merchantId))
-        .orderBy(desc(tddfRecordsTable.txnDate));
+        .where(eq(tddfRecordsTable.merchantAccountNumber, merchantId))
+        .orderBy(desc(tddfRecordsTable.transactionDate));
       
       res.json(records);
     } catch (error) {
@@ -3586,8 +3586,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const batchId = req.params.batchId;
       const records = await db.select()
         .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.batchId, batchId))
-        .orderBy(desc(tddfRecordsTable.txnDate));
+        .where(eq(tddfRecordsTable.batchJulianDate, batchId))
+        .orderBy(desc(tddfRecordsTable.transactionDate));
       
       res.json(records);
     } catch (error) {
@@ -3641,38 +3641,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Apply filters
       const conditions = [];
       if (startDate) {
-        conditions.push(gte(tddfRecordsTable.txnDate, new Date(startDate)));
+        conditions.push(gte(tddfRecordsTable.transactionDate, new Date(startDate)));
       }
       if (endDate) {
-        conditions.push(lte(tddfRecordsTable.txnDate, new Date(endDate)));
+        conditions.push(lte(tddfRecordsTable.transactionDate, new Date(endDate)));
       }
       if (batchId) {
-        conditions.push(eq(tddfRecordsTable.batchId, batchId));
+        conditions.push(eq(tddfRecordsTable.batchJulianDate, batchId));
       }
       if (merchantId) {
-        conditions.push(eq(tddfRecordsTable.merchantId, merchantId));
+        conditions.push(eq(tddfRecordsTable.merchantAccountNumber, merchantId));
       }
       
       if (conditions.length > 0) {
         query = query.where(and(...conditions));
       }
       
-      const records = await query.orderBy(desc(tddfRecordsTable.txnDate));
+      const records = await query.orderBy(desc(tddfRecordsTable.transactionDate));
       
       // Convert to CSV format
       const csvData = records.map(record => ({
-        'Transaction ID': record.txnId,
-        'Merchant ID': record.merchantId,
+        'Reference Number': record.referenceNumber || '',
+        'Merchant Account': record.merchantAccountNumber || '',
         'Merchant Name': record.merchantName || '',
-        'Amount': record.txnAmount,
-        'Date': record.txnDate?.toISOString().split('T')[0] || '',
-        'Type': record.txnType,
-        'Description': record.txnDesc || '',
-        'Batch ID': record.batchId || '',
-        'Auth Code': record.authCode || '',
+        'Amount': record.transactionAmount || 0,
+        'Date': record.transactionDate?.toISOString().split('T')[0] || '',
+        'Transaction Code': record.transactionCode || '',
+        'Auth Number': record.authorizationNumber || '',
         'Card Type': record.cardType || '',
-        'Entry Method': record.entryMethod || '',
-        'Response Code': record.responseCode || '',
+        'Terminal ID': record.terminalId || '',
+        'MCC Code': record.mccCode || '',
+        'Batch Date': record.batchJulianDate || '',
         'Created At': record.createdAt?.toISOString() || ''
       }));
       
