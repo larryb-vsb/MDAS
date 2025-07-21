@@ -186,6 +186,7 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
                   <SelectItem value="merchant">Merchant Demographics</SelectItem>
                   <SelectItem value="transaction">Transaction Data</SelectItem>
                   <SelectItem value="terminal">Payment Terminals</SelectItem>
+                  <SelectItem value="tddf">TDDF Files</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -285,6 +286,16 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
                 </p>
                 <pre className="bg-muted/50 p-2 rounded text-xs mt-1">
                   Transaction_ID, Merchant_ID, Amount, Date, Type
+                </pre>
+              </div>
+              
+              <div>
+                <h3 className="font-medium mb-1">TDDF Format:</h3>
+                <p className="text-muted-foreground">
+                  Fixed-width TDDF files containing DT records in positions 18-19:
+                </p>
+                <pre className="bg-muted/50 p-2 rounded text-xs mt-1">
+                  Fixed-width format with DT identifiers for transaction records
                 </pre>
               </div>
               
