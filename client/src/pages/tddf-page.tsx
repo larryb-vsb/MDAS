@@ -122,8 +122,8 @@ export default function TddfPage() {
   });
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked && data?.records) {
-      setSelectedRecords(new Set(data.records.map((record: TddfRecord) => record.id)));
+    if (checked && data?.data) {
+      setSelectedRecords(new Set(data.data.map((record: TddfRecord) => record.id)));
     } else {
       setSelectedRecords(new Set());
     }
@@ -169,8 +169,8 @@ export default function TddfPage() {
     }).format(amount);
   };
 
-  const records = data?.records || [];
-  const totalRecords = data?.total || 0;
+  const records = data?.data || [];
+  const totalRecords = data?.pagination?.totalItems || 0;
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
 
   return (
@@ -340,7 +340,7 @@ export default function TddfPage() {
                     {formatCurrency(record.txnAmount)}
                   </div>
                   <div className="w-24 text-xs">
-                    {formatTableDate(record.txnDate.toString())}
+                    {record.txnDate ? formatTableDate(record.txnDate.toString()) : '-'}
                   </div>
                   <div className="w-32 font-mono text-xs">
                     {record.txnType}
@@ -422,7 +422,7 @@ export default function TddfPage() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Date</label>
-                      <div>{formatTableDate(detailsRecord.txnDate.toString())}</div>
+                      <div>{detailsRecord.txnDate ? formatTableDate(detailsRecord.txnDate.toString()) : 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Description</label>
