@@ -315,6 +315,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: new Date()
       });
       
+      // Log user creation
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: `${user.id}`,
+        action: "create",
+        oldValues: {},
+        newValues: {
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role
+        },
+        username: req.user?.username || "System",
+        notes: `New user '${user.username}' created with role '${user.role}'`,
+        timestamp: new Date()
+      });
+      
       res.status(201).json(user);
     } catch (error) {
       console.error("Error creating user:", error);
@@ -331,10 +349,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userId = parseInt(req.params.id);
       
+      // Get original user data for audit logging
+      const originalUser = await storage.getUser(userId);
+      if (!originalUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
       // Don't allow password updates through this endpoint
       const { password, ...userData } = req.body;
       
       const updatedUser = await storage.updateUser(userId, userData);
+      
+      // Log user update
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: `${userId}`,
+        action: "update",
+        oldValues: {
+          username: originalUser.username,
+          email: originalUser.email,
+          firstName: originalUser.firstName,
+          lastName: originalUser.lastName,
+          role: originalUser.role
+        },
+        newValues: {
+          username: updatedUser.username,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          role: updatedUser.role
+        },
+        username: req.user?.username || "System",
+        notes: `User '${originalUser.username}' profile updated`,
+        timestamp: new Date()
+      });
+      
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user:", error);
@@ -355,7 +404,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const userId = parseInt(req.params.id);
+      
+      // Get user data before deletion for audit logging
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
       await storage.deleteUser(userId);
+      
+      // Log user deletion
+      await storage.createAuditLog({
+        entityType: "user",
+        entityId: `${userId}`,
+        action: "delete",
+        oldValues: {
+          username: userToDelete.username,
+          email: userToDelete.email,
+          firstName: userToDelete.firstName,
+          lastName: userToDelete.lastName,
+          role: userToDelete.role
+        },
+        newValues: {},
+        username: req.user?.username || "System",
+        notes: `User '${userToDelete.username}' (${userToDelete.role}) was deleted`,
+        timestamp: new Date()
+      });
+      
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -377,6 +452,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Forbidden: You can only change your own password" });
       }
       
+      // Get user data for audit logging
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
       // For regular users, require current password
       if (req.user?.role !== "admin" && req.user?.id === userId) {
         const { currentPassword, newPassword } = req.body;
@@ -385,12 +466,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Current password and new password are required" });
         }
         
-        const user = await storage.getUser(userId);
-        if (!user || !(await storage.verifyPassword(currentPassword, user.password))) {
+        if (!(await storage.verifyPassword(currentPassword, targetUser.password))) {
           return res.status(400).json({ error: "Current password is incorrect" });
         }
         
         await storage.updateUserPassword(userId, newPassword);
+        
+        // Log password change by user
+        await storage.createAuditLog({
+          entityType: "user",
+          entityId: `${userId}`,
+          action: "password_change",
+          oldValues: { passwordChanged: false },
+          newValues: { passwordChanged: true },
+          username: req.user?.username || "System",
+          notes: `User '${targetUser.username}' changed their own password`,
+          timestamp: new Date()
+        });
+        
         return res.json({ success: true });
       } else {
         // Admin can change password without knowing current password
@@ -400,6 +493,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         await storage.updateUserPassword(userId, newPassword);
+        
+        // Log admin password reset
+        await storage.createAuditLog({
+          entityType: "user",
+          entityId: `${userId}`,
+          action: "password_reset",
+          oldValues: { passwordChanged: false },
+          newValues: { passwordChanged: true },
+          username: req.user?.username || "System",
+          notes: `Admin '${req.user?.username}' reset password for user '${targetUser.username}'`,
+          timestamp: new Date()
+        });
+        
         return res.json({ success: true });
       }
     } catch (error) {
