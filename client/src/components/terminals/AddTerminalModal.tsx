@@ -68,7 +68,7 @@ export default function AddTerminalModal({ open, onClose }: AddTerminalModalProp
       store: "",
       terminal: "",
       status: "Active",
-      boardDate: "",
+      boardDate: new Date().toISOString().split('T')[0], // Auto-populate with current date
       terminalVisa: "Y",
       posMerchantNumber: "",
       terminalType: "countertop",
