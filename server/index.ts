@@ -9,6 +9,94 @@ import { config, NODE_ENV } from "./env-config";
 import { pool, db } from "./db";
 import { fileProcessorService } from "./services/file-processor";
 import { migrateDatabase } from "./database-migrate";
+import { systemLogger } from './system-logger';
+
+// Setup comprehensive process monitoring for Replit scaling events and infrastructure changes
+function setupProcessMonitoring() {
+  // Monitor memory usage changes (indicates scaling)
+  const memoryCheckInterval = setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const memUsageMB = {
+      rss: Math.round(memUsage.rss / 1024 / 1024),
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+      external: Math.round(memUsage.external / 1024 / 1024)
+    };
+    
+    // Log significant memory changes (indicating scaling events)
+    if (memUsageMB.rss > 512 || memUsageMB.heapTotal > 256) {
+      systemLogger.warn('Infrastructure', 'High memory usage detected - potential scaling event', {
+        memoryUsageMB,
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV
+      }).catch(console.error);
+    }
+  }, 30000); // Check every 30 seconds
+  
+  // Monitor process signals (Replit deployment/scaling signals)
+  process.on('SIGUSR1', () => {
+    systemLogger.info('Infrastructure', 'SIGUSR1 received - Replit deployment signal detected', {
+      uptime: process.uptime(),
+      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+    }).catch(console.error);
+  });
+  
+  process.on('SIGUSR2', () => {
+    systemLogger.info('Infrastructure', 'SIGUSR2 received - Replit scaling signal detected', {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage()
+    }).catch(console.error);
+  });
+  
+  // Monitor uncaught exceptions and promise rejections (system errors)
+  process.on('uncaughtException', (error) => {
+    systemLogger.error('System Error', 'Uncaught exception detected', {
+      error: error.message,
+      stack: error.stack,
+      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+    }).catch(console.error);
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    systemLogger.error('System Error', 'Unhandled promise rejection detected', {
+      reason: String(reason),
+      promiseString: promise.toString()
+    }).catch(console.error);
+  });
+  
+  // Monitor filesystem events (file processing activities)
+  const fs = require('fs');
+  try {
+    const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType, filename) => {
+      if (filename && eventType === 'rename') {
+        systemLogger.info('File System', 'File upload activity detected', {
+          filename,
+          eventType,
+          timestamp: new Date().toISOString()
+        }).catch(console.error);
+      }
+    });
+  } catch (error) {
+    // Directory might not exist yet, ignore
+  }
+  
+  // Log periodic system health status
+  const healthCheckInterval = setInterval(() => {
+    systemLogger.info('Application', 'Periodic health check', {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      cpuUsage: process.cpuUsage(),
+      environment: process.env.NODE_ENV,
+      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+    }).catch(console.error);
+  }, 300000); // Every 5 minutes
+  
+  // Cleanup intervals on shutdown
+  process.on('SIGTERM', () => {
+    clearInterval(memoryCheckInterval);
+    clearInterval(healthCheckInterval);
+  });
+}
 
 const app = express();
 app.use(express.json());
@@ -38,6 +126,11 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+      
+      // Log API requests to system logs (async, don't block response)
+      if (res.statusCode >= 400) {
+        systemLogger.logApiRequest(req.method, path, res.statusCode, duration).catch(console.error);
+      }
     }
   });
 
@@ -57,13 +150,28 @@ app.use((req, res, next) => {
   });
   
   try {
+    // Log application startup
+    await systemLogger.info('Application', 'MMS server startup initiated', {
+      environment: NODE_ENV,
+      nodeVersion: process.version,
+      platform: process.platform,
+      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+    });
+
     // Try to run database migrations to create tables if they don't exist
     let migrationSuccess = await migrateDatabase();
     let useFallbackStorage = false;
     
+    // Log database migration result
+    await systemLogger.info('Application', `Database migration ${migrationSuccess ? 'successful' : 'failed'}`, {
+      environment: NODE_ENV,
+      migrationSuccess
+    });
+
     // If migration fails, try to restore from the most recent backup
     if (!migrationSuccess) {
       console.log("Database migration failed. Attempting to restore from backup...");
+      await systemLogger.warn('Application', 'Migration failed - attempting backup restore');
       
       try {
         // Import the restore functionality
@@ -144,6 +252,12 @@ app.use((req, res, next) => {
       // Start the file processor service to process uploaded files
       fileProcessorService.initialize();
       
+      // Log file processor initialization
+      await systemLogger.info('Application', 'File processor service initialized', {
+        environment: NODE_ENV,
+        serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+      });
+      
       // Skip sample logs initialization during development database setup
       // const { initSampleLogs } = await import('./init-sample-logs');
       // await initSampleLogs().catch(err => {
@@ -175,6 +289,19 @@ app.use((req, res, next) => {
       reusePort: true,
     }, () => {
       log(`Server running on port ${port} in ${NODE_ENV} mode`);
+      
+      // Log server startup completion
+      systemLogger.info('Application', 'HTTP server started successfully', {
+        port: port,
+        environment: NODE_ENV,
+        uptime: process.uptime(),
+        serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`,
+        memoryUsage: process.memoryUsage(),
+        version: process.version
+      }).catch(console.error);
+      
+      // Set up process monitoring for Replit scaling events
+      setupProcessMonitoring();
     });
     
     // Setup graceful shutdown

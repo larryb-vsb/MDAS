@@ -53,6 +53,70 @@ router.get("/api/logs", async (req, res) => {
     
     // Get logs based on type
     switch (logType) {
+      case "all":
+        try {
+          // Get environment-specific table names
+          const systemLogsTableName = getTableName('system_logs');
+          const securityLogsTableName = getTableName('security_logs');
+          
+          // Calculate pagination offset
+          const pageNum = params.page || 1;
+          const limitNum = params.limit || 10;
+          const offset = (pageNum - 1) * limitNum;
+          
+          // Get all logs from all tables with UNION (using correct column names)
+          const queryResult = await pool.query(`
+            SELECT 'system' as log_type, id, timestamp, level as log_action, source, message as notes, details::text as details_json, 'System' as username, 'system' as entity_type, CONCAT('SYS-', id) as entity_id, ip_address
+            FROM ${systemLogsTableName}
+            UNION ALL
+            SELECT 'security' as log_type, id, timestamp, CONCAT(event_type, ':', severity) as log_action, 'Security' as source, message as notes, details::text as details_json, username, 'security' as entity_type, CONCAT('SEC-', id) as entity_id, ip_address
+            FROM ${securityLogsTableName}
+            UNION ALL
+            SELECT 'audit' as log_type, id, timestamp, action as log_action, entity_type as source, notes, '{}' as details_json, username, entity_type, entity_id, ip_address
+            FROM ${getTableName('audit_logs')}
+            ORDER BY timestamp DESC
+            LIMIT $1 OFFSET $2
+          `, [limitNum, offset]);
+          
+          // Get total count from all tables
+          const countResult = await pool.query(`
+            SELECT 
+              (SELECT COUNT(*) FROM ${systemLogsTableName}) + 
+              (SELECT COUNT(*) FROM ${securityLogsTableName}) + 
+              (SELECT COUNT(*) FROM ${getTableName('audit_logs')}) as total_count
+          `);
+          
+          const totalCount = parseInt(countResult.rows[0].total_count);
+          
+          // Format the combined logs
+          const formattedLogs = queryResult.rows.map((log: any) => ({
+            id: `${log.log_type}-${log.id}`,
+            timestamp: log.timestamp,
+            action: log.log_action,
+            source: log.source,
+            notes: log.notes || '',
+            username: log.username || 'System',
+            entityType: log.entity_type,
+            entityId: log.entity_id,
+            logType: log.log_type,
+            ipAddress: log.ip_address
+          }));
+          
+          responseData = {
+            logs: formattedLogs,
+            pagination: {
+              currentPage: pageNum,
+              totalPages: Math.ceil(totalCount / limitNum),
+              totalItems: totalCount,
+              itemsPerPage: limitNum
+            }
+          };
+          
+          console.log(`All logs formatted: ${formattedLogs.length} logs from all sources`);
+        } catch (error) {
+          console.error("Error fetching all logs:", error);
+        }
+        break;
       case "system":
         try {
           // Get environment-specific table name

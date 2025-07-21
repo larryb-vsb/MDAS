@@ -5,6 +5,7 @@ import { storage } from "../storage";
 import schedule from "node-schedule";
 import { getCachedServerId } from "../utils/server-id";
 import { getTableName } from "../table-config";
+import { systemLogger } from '../system-logger';
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -87,6 +88,13 @@ class FileProcessorService {
     });
     
     console.log(`File processor service initialized. Next run at ${this.processingJob?.nextInvocation()}`);
+    
+    // Log file processor initialization
+    systemLogger.info('Application', 'Background file processor initialized', {
+      schedule: '*/1 * * * *',
+      nextRun: this.processingJob?.nextInvocation()?.toISOString(),
+      serverId: getCachedServerId()
+    }).catch(console.error);
   }
 
   /**

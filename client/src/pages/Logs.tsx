@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-type LogType = "audit" | "system" | "security";
+type LogType = "all" | "audit" | "system" | "security";
 
 interface LogEntry {
   id: number;
@@ -44,7 +44,7 @@ interface LogsPageParams {
 }
 
 export default function Logs() {
-  const [activeTab, setActiveTab] = useState<LogType>("audit");
+  const [activeTab, setActiveTab] = useState<LogType>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     entityType: "",
@@ -310,12 +310,13 @@ export default function Logs() {
         </Card>
       )}
 
-      <Tabs defaultValue="audit" className="w-full" onValueChange={(value) => {
+      <Tabs defaultValue="all" className="w-full" onValueChange={(value) => {
         setActiveTab(value as LogType);
         setCurrentPage(1);
       }}>
-        <TabsList className="grid w-full grid-cols-3 mb-6">
-          <TabsTrigger value="audit">Change Logs</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="all">All Logs</TabsTrigger>
+          <TabsTrigger value="audit">Audit Events</TabsTrigger>
           <TabsTrigger value="system">System Events</TabsTrigger>
           <TabsTrigger value="security">Security Events</TabsTrigger>
         </TabsList>
@@ -325,6 +326,7 @@ export default function Logs() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between">
               <span>
+                {activeTab === "all" && "All System Activity"}
                 {activeTab === "audit" && "Business Data Changes"}
                 {activeTab === "system" && "System Operations & Errors"}
                 {activeTab === "security" && "Security & Authentication Events"}
@@ -407,14 +409,17 @@ export default function Logs() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Timestamp</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">User</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Action</th>
-                        {activeTab === "audit" && (
+                        {(activeTab === "audit" || activeTab === "all") && (
                           <>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity Type</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Entity ID</th>
                           </>
                         )}
+                        {activeTab === "all" && (
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Log Type</th>
+                        )}
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Details</th>
-                        {activeTab === "security" && (
+                        {(activeTab === "security" || activeTab === "all") && (
                           <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">IP Address</th>
                         )}
                       </tr>
@@ -437,7 +442,7 @@ export default function Logs() {
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             {getLogIcon(log)}
                           </td>
-                          {activeTab === "audit" && (
+                          {(activeTab === "audit" || activeTab === "all") && (
                             <>
                               <td className="px-4 py-3 whitespace-nowrap text-sm">
                                 {log.entityType || "-"}
@@ -447,12 +452,19 @@ export default function Logs() {
                               </td>
                             </>
                           )}
+                          {activeTab === "all" && (
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <Badge variant={log.logType === 'system' ? 'destructive' : log.logType === 'security' ? 'secondary' : 'default'}>
+                                {log.logType || 'audit'}
+                              </Badge>
+                            </td>
+                          )}
                           <td className="px-4 py-3 text-sm">
                             <div className="max-w-md truncate">
                               {log.notes || "No additional details"}
                             </div>
                           </td>
-                          {activeTab === "security" && (
+                          {(activeTab === "security" || activeTab === "all") && (
                             <td className="px-4 py-3 whitespace-nowrap text-sm">
                               {log.ipAddress || "-"}
                             </td>
