@@ -5758,6 +5758,23 @@ export class DatabaseStorage implements IStorage {
     let errors = 0;
     let skippedLines = 0;
     
+    // Comprehensive record type definitions
+    const recordTypeDefinitions: { [key: string]: string } = {
+      'BH': 'Batch Header',
+      'DT': 'Detail Transaction Record',
+      'A1': 'Airline/Passenger Transport 1 Extension Record',
+      'A2': 'Airline/Passenger Transport 2 Extension Record', 
+      'P1': 'Purchasing Card 1 Extension Record',
+      'P2': 'Purchasing Card 2 Extension Record',
+      'DR': 'Direct Marketing Extension Record',
+      'CT': 'Car Rental Extension Record',
+      'LG': 'Lodge Extension Record',
+      'FT': 'Fleet Extension Record',
+      'F2': 'Fleet 2 Extension Record',
+      'CK': 'Electronic Check Extension Record',
+      'AD': 'Merchant Adjustment Record'
+    };
+
     // Statistics tracking for different record types
     const recordTypeStats: { [key: string]: number } = {};
     const skippedReasons: { [key: string]: number } = {
@@ -5765,12 +5782,17 @@ export class DatabaseStorage implements IStorage {
       'non_dt_record': 0,
       'empty_line': 0
     };
+    const rawLinesProcessed: string[] = [];
 
     try {
       console.log(`[TDDF STATS] Starting processing of ${lines.length} non-empty lines`);
       
       for (const line of lines) {
         totalLinesRead++;
+        
+        // Store raw line for processing - this goes in MMS-RAW-Line field
+        rawLinesProcessed.push(line);
+        console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Stored in MMS-RAW-Line field (${line.length} chars)`);
         
         // Check if line is long enough for record identifier
         if (line.length < 19) {
@@ -5783,16 +5805,20 @@ export class DatabaseStorage implements IStorage {
         // Extract record identifier at positions 18-19 (0-indexed: 17-18)
         const recordIdentifier = line.substring(17, 19);
         
-        // Track all record types found
+        // Track all record types found with their descriptions
         if (recordTypeStats[recordIdentifier]) {
           recordTypeStats[recordIdentifier]++;
         } else {
           recordTypeStats[recordIdentifier] = 1;
         }
         
+        // Log what record type was found
+        const recordDescription = recordTypeDefinitions[recordIdentifier] || 'Unknown Record Type';
+        console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Found '${recordIdentifier}' - ${recordDescription}`);
+        
         // Only process DT (Detail Transaction) records as specified
         if (recordIdentifier !== 'DT') {
-          console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Found '${recordIdentifier}' record type, skipping (only processing DT records)`);
+          console.log(`[TDDF DEBUG] Line ${totalLinesRead}: Skipping ${recordDescription} (only processing DT records)`);
           skippedLines++;
           skippedReasons['non_dt_record']++;
           continue;
@@ -5948,13 +5974,16 @@ export class DatabaseStorage implements IStorage {
             // System and audit fields
             sourceFileId: sourceFileId,
             sourceRowNumber: totalLinesRead,
+            mmsRawLine: line, // Store original raw line in custom MMS-RAW-Line field
             rawData: {
-              line: line,
               recordType: recordIdentifier,
+              recordDescription: recordTypeDefinitions[recordIdentifier] || 'Unknown Record Type',
               lineNumber: totalLinesRead,
               filename: originalFilename,
               lineLength: line.length,
-              processingTimestamp: new Date().toISOString()
+              processingTimestamp: new Date().toISOString(),
+              allLinesInFile: rawLinesProcessed.length,
+              recordTypesFound: Object.keys(recordTypeStats)
             }
           };
 
@@ -5981,7 +6010,8 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`\n📋 RECORD TYPE BREAKDOWN (positions 18-19):`);
       Object.entries(recordTypeStats).forEach(([recordType, count]) => {
-        console.log(`  ${recordType}: ${count} record(s)`);
+        const description = recordTypeDefinitions[recordType] || 'Unknown Record Type';
+        console.log(`  ${recordType} (${description}): ${count} record(s)`);
       });
       
       console.log(`\n⚠️ SKIP REASONS:`);
@@ -5992,8 +6022,19 @@ export class DatabaseStorage implements IStorage {
       });
       
       console.log(`\n✅ PROCESSING EFFICIENCY:`);
-      console.log(`  Success rate: ${totalLinesRead > 0 ? ((dtRecordsProcessed / totalLinesRead) * 100).toFixed(1) : 0}%`);
-      console.log(`  Error rate: ${dtRecordsProcessed > 0 ? ((errors / dtRecordsProcessed) * 100).toFixed(1) : 0}%`);
+      console.log(`  DT Record Success Rate: ${totalLinesRead > 0 ? ((dtRecordsProcessed / totalLinesRead) * 100).toFixed(1) : 0}%`);
+      console.log(`  DT Processing Error Rate: ${dtRecordsProcessed > 0 ? ((errors / dtRecordsProcessed) * 100).toFixed(1) : 0}%`);
+      console.log(`  Overall File Coverage: ${totalLinesRead > 0 ? (((dtRecordsProcessed + skippedLines) / totalLinesRead) * 100).toFixed(1) : 0}%`);
+      
+      console.log(`\n🔍 DETAILED RECORD TYPE ANALYSIS:`);
+      const totalIdentifiedRecords = Object.values(recordTypeStats).reduce((sum, count) => sum + count, 0);
+      Object.entries(recordTypeStats).forEach(([recordType, count]) => {
+        const description = recordTypeDefinitions[recordType] || 'Unknown Record Type';
+        const percentage = totalIdentifiedRecords > 0 ? ((count / totalIdentifiedRecords) * 100).toFixed(1) : 0;
+        const processingStatus = recordType === 'DT' ? '✅ PROCESSED' : '⏭️ SKIPPED';
+        console.log(`  ${recordType}: ${count} (${percentage}%) - ${description} - ${processingStatus}`);
+      });
+      
       console.log(`=================== TDDF PROCESSING COMPLETE ===================\n`);
       
       return {

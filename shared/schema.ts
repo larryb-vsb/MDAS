@@ -328,6 +328,7 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   sourceRowNumber: integer("source_row_number"),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
   rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  mmsRawLine: text("mms_raw_line"), // Custom MMS-RAW-Line field to store original line before processing
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
