@@ -423,6 +423,72 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
   );
 }
 
+// Card Type Detection Function
+function getCardTypeBadges(record: TddfRecord) {
+  const badges = [];
+  
+  // Check for AMEX data
+  if (record.amexMerchantSellerPostalCode) {
+    badges.push({
+      label: 'AMEX',
+      className: 'bg-green-100 text-green-800 border-green-200'
+    });
+  }
+  
+  // Check for Visa indicators
+  if (record.visaIntegrityFee || record.visaFeeProgramIndicator || record.visaSpecialConditionIndicator) {
+    const isDebit = record.debitCreditIndicator === 'D';
+    badges.push({
+      label: isDebit ? 'VISA-D' : 'VISA',
+      className: 'bg-blue-100 text-blue-800 border-blue-200'
+    });
+  }
+  
+  // Check for Mastercard indicators
+  if (record.mastercardTransactionIntegrityClass || record.mastercardWalletIdentifier || record.mcCashBackFee) {
+    const isDebit = record.debitCreditIndicator === 'D';
+    badges.push({
+      label: isDebit ? 'MC-D' : 'MC',
+      className: 'bg-red-100 text-red-800 border-red-200'
+    });
+  }
+  
+  // Check for Discover indicators
+  if (record.discoverTransactionType || record.discoverProcessingCode) {
+    const isDebit = record.debitCreditIndicator === 'D';
+    badges.push({
+      label: isDebit ? 'DISC-D' : 'DISC',
+      className: 'bg-orange-100 text-orange-800 border-orange-200'
+    });
+  }
+  
+  // Fallback to transaction code analysis if no specific brand indicators
+  if (badges.length === 0) {
+    const isDebit = record.debitCreditIndicator === 'D';
+    const transactionCode = record.transactionCode;
+    
+    // Common Global Payments transaction codes
+    if (transactionCode === '0101') {
+      // Standard purchase transaction - could be any brand
+      badges.push({
+        label: isDebit ? 'DEBIT' : 'CREDIT',
+        className: 'bg-gray-100 text-gray-800 border-gray-200'
+      });
+    } else if (transactionCode === '0330') {
+      // Network-specific transaction with network identifier
+      const networkId = record.networkIdentifierDebit;
+      if (networkId === 'IL' || networkId === 'ME') {
+        badges.push({
+          label: 'DEBIT',
+          className: 'bg-purple-100 text-purple-800 border-purple-200'
+        });
+      }
+    }
+  }
+  
+  return badges;
+}
+
 export default function TddfPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -704,13 +770,18 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-40">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-wrap">
                       <TruncatedRefNumber refNumber={record.referenceNumber || null} />
-                      {record.amexMerchantSellerPostalCode && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                          AMEX
-                        </span>
-                      )}
+                      <div className="flex gap-1">
+                        {getCardTypeBadges(record).map((badge, index) => (
+                          <span 
+                            key={index}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="w-40 text-xs">
