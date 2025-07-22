@@ -295,19 +295,14 @@ export default function ProcessingFilters() {
                     const hours = Math.floor(totalSeconds / 3600);
                     const minutes = Math.floor((totalSeconds % 3600) / 60);
                     
-                    // Always show hours format for consistency
                     if (hours > 0) {
                       return `${hours}h ${minutes}m`;
                     } else if (minutes > 0) {
-                      // Convert minutes to decimal hours for better precision
-                      const decimalHours = (totalSeconds / 3600).toFixed(1);
-                      return `${decimalHours}h`;
+                      return `${minutes}m`;
                     } else if (totalSeconds > 0) {
-                      // Show very small times as decimal hours
-                      const decimalHours = (totalSeconds / 3600).toFixed(2);
-                      return `${decimalHours}h`;
+                      return '< 1m';
                     } else {
-                      return '0h';
+                      return '0m';
                     }
                   })()}
                 </span>
