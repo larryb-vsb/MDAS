@@ -40,6 +40,13 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatUploadTime, formatRelativeTime, formatDetailedDate } from "@/lib/date-utils";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
@@ -55,6 +62,7 @@ export default function Uploads() {
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [metadataFile, setMetadataFile] = useState<UploadedFile | null>(null);
   const [fileContent, setFileContent] = useState<{ headers: string[], rows: any[] } | null>(null);
+
   
   const { toast } = useToast();
 
@@ -288,6 +296,8 @@ export default function Uploads() {
           <TabsContent value="processing" className="mt-6">
             <ProcessingFilters />
           </TabsContent>
+          
+
           
           {/* Settings Tab Content */}
           <TabsContent value="settings" className="mt-6">

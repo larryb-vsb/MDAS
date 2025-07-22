@@ -2053,7 +2053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get upload file history with pagination and optimized performance
   app.get("/api/uploads/history", async (req, res) => {
     try {
-      const { limit = '50', page = '1' } = req.query;
+      const { limit = '50', page = '1', sortBy = 'uploadDate', sortOrder = 'desc' } = req.query;
       const limitNum = parseInt(limit as string) || 50;
       const pageNum = parseInt(page as string) || 1;
       const offset = (pageNum - 1) * limitNum;
@@ -2064,7 +2064,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // PERFORMANCE FIX: Exclude file_content field which can be massive (hundreds of KB)
       // Only fetch it when specifically needed for file viewing/download
-      const result = await db.execute(sql`
+      let baseQuery = sql`
         SELECT 
           id,
           original_filename,
@@ -2088,9 +2088,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_notes
         FROM ${sql.identifier(tableName)}
         WHERE deleted = false
-        ORDER BY uploaded_at DESC
-        LIMIT ${limitNum} OFFSET ${offset}
-      `);
+      `;
+
+      // Add dynamic sorting
+      let orderClause;
+      const direction = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+      
+      if (sortBy === 'uploadDate') {
+        orderClause = sql`ORDER BY uploaded_at ${direction}`;
+      } else if (sortBy === 'processedDate') {
+        orderClause = sql`ORDER BY 
+          CASE 
+            WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
+            ELSE processed_at 
+          END ${direction}`;
+      } else if (sortBy === 'filename') {
+        orderClause = sql`ORDER BY original_filename ${direction}`;
+      } else {
+        // Default fallback
+        orderClause = sql`ORDER BY uploaded_at ${direction}`;
+      }
+      
+      const finalQuery = sql`${baseQuery} ${orderClause} LIMIT ${limitNum} OFFSET ${offset}`;
+      const result = await db.execute(finalQuery);
       
       // Get total count for pagination
       const countResult = await db.execute(sql`
@@ -2148,7 +2168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get enhanced processing status with filters
   app.get("/api/uploads/processing-status", isAuthenticated, async (req, res) => {
     try {
-      const { status = 'all', fileType = 'all', limit = '20', page = '1' } = req.query;
+      const { status = 'all', fileType = 'all', sortBy = 'uploadDate', sortOrder = 'desc', limit = '20', page = '1' } = req.query;
       const limitNum = parseInt(limit as string) || 20;
       const pageNum = parseInt(page as string) || 1;
       const offset = (pageNum - 1) * limitNum;
@@ -2208,14 +2228,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalFiles = Number(countResult.rows[0]?.total || 0);
       const totalPages = Math.ceil(totalFiles / limitNum);
 
-      // Add pagination to main query
-      baseQuery = sql`${baseQuery} 
-        ORDER BY 
+      // Add dynamic sorting
+      let orderClause;
+      const direction = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+      
+      if (sortBy === 'uploadDate') {
+        orderClause = sql`ORDER BY uploaded_at ${direction}`;
+      } else if (sortBy === 'processedDate') {
+        orderClause = sql`ORDER BY 
           CASE 
             WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
-            ELSE uploaded_at 
-          END DESC
-        LIMIT ${limitNum} OFFSET ${offset}`;
+            ELSE processed_at 
+          END ${direction}`;
+      } else if (sortBy === 'filename') {
+        orderClause = sql`ORDER BY original_filename ${direction}`;
+      } else {
+        // Default fallback
+        orderClause = sql`ORDER BY uploaded_at ${direction}`;
+      }
+      
+      baseQuery = sql`${baseQuery} ${orderClause} LIMIT ${limitNum} OFFSET ${offset}`;
 
       const result = await db.execute(baseQuery);
       

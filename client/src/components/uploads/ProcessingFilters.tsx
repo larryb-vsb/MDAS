@@ -47,6 +47,7 @@ export default function ProcessingFilters() {
   const [activeStatusFilter, setActiveStatusFilter] = useState('all');
   const [activeFileTypeFilter, setActiveFileTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('uploadDate');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
@@ -56,11 +57,13 @@ export default function ProcessingFilters() {
 
   // Fetch processing status with filters
   const { data: processingData, isLoading, refetch } = useQuery<ProcessingStatusData>({
-    queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter, currentPage, itemsPerPage],
+    queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter, sortBy, sortOrder, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams({
         status: activeStatusFilter,
         fileType: activeFileTypeFilter,
+        sortBy,
+        sortOrder,
         limit: itemsPerPage.toString(),
         page: currentPage.toString()
       });
@@ -379,6 +382,16 @@ export default function ProcessingFilters() {
                   <SelectItem value="uploadDate">Upload Date</SelectItem>
                   <SelectItem value="processedDate">Processed Date</SelectItem>
                   <SelectItem value="filename">Filename</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortOrder} onValueChange={(value) => setSortOrder(value)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Newest First</SelectItem>
+                  <SelectItem value="asc">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
 
