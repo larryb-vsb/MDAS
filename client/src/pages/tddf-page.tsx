@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Search, RotateCcw, Eye } from "lucide-react";
+import { Trash2, Search, RotateCcw, Eye, CreditCard } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -820,8 +820,9 @@ export default function TddfPage() {
                       {getCardTypeBadges(record).map((badge, index) => (
                         <span 
                           key={index}
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
                         >
+                          <CreditCard className="h-3 w-3" />
                           {badge.label}
                         </span>
                       ))}
