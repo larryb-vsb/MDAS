@@ -1408,7 +1408,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload CSV files - pure SQL implementation
+  // Upload CSV files - pure SQL implementation (multiple files support)
+  app.post("/api/uploads", upload.array("files"), async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+
+      const type = req.body.type;
+      if (!type || (type !== "merchant" && type !== "transaction" && type !== "terminal" && type !== "tddf")) {
+        return res.status(400).json({ error: "Invalid file type" });
+      }
+
+      const uploads = [];
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const currentEnvironment = process.env.NODE_ENV || 'production';
+
+      for (const file of req.files as Express.Multer.File[]) {
+        // Create file record with basic information and file content
+        const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Read file content and encode as base64 for database storage
+        const fileContent = fs.readFileSync(file.path, 'utf8');
+        const fileContentBase64 = Buffer.from(fileContent).toString('base64');
+        
+        console.log(`Storing file content for ${fileId}: ${fileContent.length} characters, ${fileContentBase64.length} base64 chars`);
+        
+        console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}, environment: ${currentEnvironment}`);
+        
+        // Direct SQL insertion using environment-specific table with environment tracking
+        try {
+          await pool.query(`
+            INSERT INTO ${uploadedFilesTableName} (
+              id, 
+              original_filename, 
+              storage_path, 
+              file_type, 
+              uploaded_at, 
+              processed, 
+              deleted,
+              file_content,
+              upload_environment,
+              processing_status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [
+            fileId,
+            file.originalname,
+            file.path,
+            type,
+            new Date(),
+            false,
+            false,
+            fileContentBase64,
+            currentEnvironment,
+            'queued'
+          ]);
+        } catch (error: any) {
+          // Fallback for environments where upload_environment column doesn't exist yet
+          if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
+            console.log(`[UPLOAD] upload_environment column doesn't exist, inserting without environment tracking`);
+            await pool.query(`
+              INSERT INTO ${uploadedFilesTableName} (
+                id, 
+                original_filename, 
+                storage_path, 
+                file_type, 
+                uploaded_at, 
+                processed, 
+                deleted,
+                file_content,
+                processing_status
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            `, [
+              fileId,
+              file.originalname,
+              file.path,
+              type,
+              new Date(),
+              false,
+              false,
+              fileContentBase64,
+              'queued'
+            ]);
+          } else {
+            throw error;
+          }
+        }
+        
+        console.log(`Successfully stored file record for ${fileId}`);
+        uploads.push({
+          fileId,
+          originalName: file.originalname,
+          success: true
+        });
+        
+        // Clean up temporary file
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
+
+      res.json({ 
+        uploads,
+        success: true,
+        message: `${uploads.length} file(s) uploaded successfully`
+      });
+    } catch (error) {
+      // Clean up temporary files if error occurs
+      if (req.files) {
+        for (const file of req.files as Express.Multer.File[]) {
+          if (file?.path && fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        }
+      }
+      console.error("Upload error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to upload files" 
+      });
+    }
+  });
+
+  // Upload CSV files - pure SQL implementation (single file support for compatibility)
   app.post("/api/upload", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {

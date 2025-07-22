@@ -77,7 +77,7 @@ export function FileUploadModal({ onClose }: FileUploadModalProps) {
     // Create FormData
     const formData = new FormData();
     formData.append('files', selectedFiles[0]);
-    formData.append('fileType', fileType);
+    formData.append('type', fileType);
 
     try {
       // Simulate progress updates

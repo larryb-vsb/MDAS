@@ -49,7 +49,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const uploadFile = async (fileData: UploadedFile & { file: File }) => {
     const formData = new FormData();
     formData.append("files", fileData.file);
-    formData.append("fileType", fileData.type);
+    formData.append("type", fileData.type);
 
     try {
       // Simulate upload progress
