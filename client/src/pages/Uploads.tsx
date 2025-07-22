@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { UploadedFile } from "@shared/schema";
+import MainLayout from "@/components/layout/MainLayout";
 import { 
   Card,
   CardContent, 
@@ -203,7 +204,7 @@ export default function Uploads() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <MainLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -487,7 +488,7 @@ export default function Uploads() {
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">Upload Time:</span>
-                    <div>{formatDetailedDate(metadataFile.uploadedAt)}</div>
+                    <div>{formatDetailedDate(metadataFile.uploadedAt instanceof Date ? metadataFile.uploadedAt.toISOString() : metadataFile.uploadedAt)}</div>
                   </div>
                   <div>
                     <span className="font-medium text-muted-foreground">Status:</span>
@@ -529,6 +530,6 @@ export default function Uploads() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </MainLayout>
   );
 }
