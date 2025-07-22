@@ -389,39 +389,27 @@ export default function Uploads() {
 
   // Format processing time with duration, start time, and stop time
   function formatProcessingTime(file: UploadedFile) {
-    // Debug logging to see what data we have
-    console.log('Processing time data for file:', file.originalFilename, {
-      processed: file.processed,
-      processedAt: file.processedAt,
-      processingStartedAt: file.processingStartedAt,
-      processingCompletedAt: file.processingCompletedAt,
-      processingTimeMs: file.processingTimeMs,
-      uploadedAt: file.uploadedAt
-    });
-
-    if (!file.processed || !file.processedAt) {
+    // Only return null if the file isn't processed at all
+    if (!file.processed) {
       return null;
     }
 
-    // Use processing times if available, otherwise fall back to upload time and processed time
+    // Use the best available timestamps
     const startTime = file.processingStartedAt || file.uploadedAt;
     const stopTime = file.processingCompletedAt || file.processedAt;
     
     // Calculate duration in milliseconds
     let durationMs = 0;
     if (file.processingTimeMs && file.processingTimeMs > 0) {
-      // Use stored processing time if available
+      // Use stored processing time if available (most accurate)
       durationMs = file.processingTimeMs;
-      console.log('Using stored processingTimeMs:', durationMs);
     } else if (startTime && stopTime) {
       // Calculate from timestamps
       durationMs = new Date(stopTime).getTime() - new Date(startTime).getTime();
       durationMs = Math.max(100, durationMs); // Minimum 0.1 seconds
-      console.log('Calculated duration from timestamps:', durationMs);
     } else {
       // Default to 1 second if no timing data available
       durationMs = 1000;
-      console.log('Using default duration:', durationMs);
     }
     
     // Format duration
@@ -435,18 +423,15 @@ export default function Uploads() {
       durationText = `${minutes} min`;
     }
     
-    // Format times in CST
+    // Format times in CST - use the most accurate timestamps available
     const startFormatted = formatUploadTime(startTime);
     const stopFormatted = formatUploadTime(stopTime);
     
-    const result = {
+    return {
       duration: durationText,
       startTime: startFormatted,
       stopTime: stopFormatted
     };
-    
-    console.log('Formatted processing time result:', result);
-    return result;
   }
 
   // Date formatting functions removed - using imported timezone-aware functions directly
