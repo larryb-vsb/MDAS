@@ -135,16 +135,23 @@ export const SCHEMA_VERSION_HISTORY = [
   },
   {
     version: '1.3.0',
-    description: 'Changed merchant_type field from INTEGER to TEXT for better flexibility',
+    description: 'Enhanced schema with complete TDDF processing, field position mappings, and version history tracking',
     changes: {
-      tables: ['merchants'],
+      tables: ['tddf_records', 'tddf_raw_import', 'schema_versions'],
+      added: [
+        'Complete TDDF field processing with 100+ fields',
+        'Field position mappings for technical transparency',
+        'Enhanced version history tracking system',
+        'Schema file version documentation header',
+        'Color-coded change categorization in UI'
+      ],
       modified: [
-        'Changed merchant_type column from INTEGER to TEXT type',
-        'Updated default values to use "none" instead of 0',
-        'Added backward compatibility with legacy numeric values'
+        'merchant_type field changed from INTEGER to TEXT',
+        'Enhanced SchemaVersionInfo widget with diff capabilities',
+        'Version comparison functionality added'
       ]
     },
-    appliedBy: 'system',
+    appliedBy: 'Alex-ReplitAgent',
   }
 ];
 

@@ -550,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         version: latestVersionInfo.version,
         description: latestVersionInfo.description,
         changes: latestVersionInfo.changes,
-        appliedBy: req.user ? req.user.username : 'system',
+        appliedBy: req.user ? req.user.username : 'Alex-ReplitAgent',
       });
       
       res.json({
