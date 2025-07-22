@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Info, AlertTriangle, RefreshCw, History, Eye, GitCompare, ChevronDown, ChevronUp, Download, FileText } from "lucide-react";
+import { Check, Info, AlertTriangle, RefreshCw, History, Eye, GitCompare, ChevronDown, ChevronUp, Download, FileText, Lock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type VersionData = {
   versions: Array<{
@@ -273,25 +274,41 @@ export default function SchemaVersionInfo() {
                     <Info className="mr-1 h-3 w-3" />
                     Update needed
                   </Badge>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-1"
-                    onClick={() => updateMutation.mutate()}
-                    disabled={updateMutation.isPending}
-                  >
-                    {updateMutation.isPending ? (
-                      <>
-                        <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-1 h-3 w-3" />
-                        Update to {data.expectedVersion}
-                      </>
-                    )}
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`mt-1 ${import.meta.env.MODE === "production" ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={() => updateMutation.mutate()}
+                          disabled={updateMutation.isPending || import.meta.env.MODE === "production"}
+                        >
+                          {updateMutation.isPending ? (
+                            <>
+                              <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                              Updating...
+                            </>
+                          ) : import.meta.env.MODE === "production" ? (
+                            <>
+                              <Lock className="mr-1 h-3 w-3" />
+                              Update to {data.expectedVersion}
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="mr-1 h-3 w-3" />
+                              Update to {data.expectedVersion}
+                            </>
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      {import.meta.env.MODE === "production" && (
+                        <TooltipContent>
+                          <p>Schema updates are disabled in production for safety</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
             </div>
