@@ -744,7 +744,7 @@ export default function TddfPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Transaction ID, Reference Number..."
+                  placeholder="Merchant Name, MCC, Reference Number..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange("search", e.target.value)}
                   className="pl-10"

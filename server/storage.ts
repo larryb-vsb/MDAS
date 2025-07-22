@@ -224,6 +224,8 @@ export interface IStorage {
     startDate?: string;
     endDate?: string;
     merchantId?: string;
+    search?: string;
+    cardType?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -5925,6 +5927,7 @@ export class DatabaseStorage implements IStorage {
     endDate?: string;
     merchantId?: string;
     cardType?: string;
+    search?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -5990,6 +5993,18 @@ export class DatabaseStorage implements IStorage {
             conditions.push(eq(tddfRecordsTable.debitCreditIndicator, 'C'));
             break;
         }
+      }
+
+      if (options.search && options.search.trim() !== '') {
+        const searchTerm = `%${options.search.trim().toLowerCase()}%`;
+        // Search across Merchant Name, MCC, and Reference Number
+        conditions.push(
+          or(
+            ilike(tddfRecordsTable.merchantName, searchTerm),
+            ilike(tddfRecordsTable.mccCode, searchTerm),
+            ilike(tddfRecordsTable.referenceNumber, searchTerm)
+          )
+        );
       }
 
       // Get total count
