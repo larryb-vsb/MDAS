@@ -6212,6 +6212,41 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async upsertTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
+    try {
+      // Check if record with same reference number exists
+      if (recordData.referenceNumber) {
+        const existingRecords = await db
+          .select()
+          .from(tddfRecordsTable)
+          .where(eq(tddfRecordsTable.referenceNumber, recordData.referenceNumber))
+          .limit(1);
+
+        if (existingRecords.length > 0) {
+          // Overwrite existing record
+          console.log(`🔄 [OVERWRITE] Reference ${recordData.referenceNumber}: Updating existing TDDF record ID ${existingRecords[0].id}`);
+          
+          const updatedRecords = await db
+            .update(tddfRecordsTable)
+            .set({
+              ...recordData,
+              updatedAt: new Date()
+            })
+            .where(eq(tddfRecordsTable.referenceNumber, recordData.referenceNumber))
+            .returning();
+          
+          return updatedRecords[0];
+        }
+      }
+
+      // Create new record if no match found
+      return await this.createTddfRecord(recordData);
+    } catch (error) {
+      console.error('Error upserting TDDF record:', error);
+      throw error;
+    }
+  }
+
   async deleteTddfRecords(recordIds: number[]): Promise<void> {
     try {
       await db
@@ -6519,8 +6554,8 @@ export class DatabaseStorage implements IStorage {
               }
             };
 
-            // Create the TDDF record in the database
-            const createdRecord = await this.createTddfRecord(tddfRecord);
+            // Create or update the TDDF record in the database (overwrite on matching reference number)
+            const createdRecord = await this.upsertTddfRecord(tddfRecord);
             tddfRecordsCreated++;
 
             // Mark the raw line as processed
