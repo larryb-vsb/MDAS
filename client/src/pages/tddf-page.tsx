@@ -769,18 +769,16 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-40">
-                    <div className="flex items-center gap-1 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <TruncatedRefNumber refNumber={record.referenceNumber || null} />
-                      <div className="flex gap-1">
-                        {getCardTypeBadges(record).map((badge, index) => (
-                          <span 
-                            key={index}
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
-                          >
-                            {badge.label}
-                          </span>
-                        ))}
-                      </div>
+                      {getCardTypeBadges(record).map((badge, index) => (
+                        <span 
+                          key={index}
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <div className="w-40 text-xs">
