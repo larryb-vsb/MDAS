@@ -6341,12 +6341,27 @@ export class DatabaseStorage implements IStorage {
         console.log(`   ${recordType}: ${count} lines - ${description}`);
       }
       
+      // Calculate Transaction Type Identifier statistics
+      const f64Count = await pool.query(`
+        SELECT COUNT(*) as count FROM ${getTableName('tddf_records')} 
+        WHERE source_file_id = $1 AND transaction_type_identifier = 'F64'
+      `, [fileId]);
+      
+      const totalWithIdentifier = await pool.query(`
+        SELECT COUNT(*) as count FROM ${getTableName('tddf_records')} 
+        WHERE source_file_id = $1 AND transaction_type_identifier IS NOT NULL AND transaction_type_identifier != ''
+      `, [fileId]);
+      
       console.log(`\n📊 Processing Results:`);
       console.log(`   Total lines processed: ${rowCount}`);
       console.log(`   Raw lines stored: ${insertedRawLines.length}`);
       console.log(`   DT records processed: ${tddfRecordsCreated}`);
       console.log(`   Lines skipped: ${rowCount - tddfRecordsCreated}`);
       console.log(`   Errors encountered: ${errorCount}`);
+      console.log(`\n🏷️  Transaction Type Identifier Summary:`);
+      console.log(`   F64 identifiers: ${f64Count.rows[0].count} (MCC 6540 VerifyVend)`);
+      console.log(`   Total with identifiers: ${totalWithIdentifier.rows[0].count}`);
+      console.log(`   Blank identifiers: ${tddfRecordsCreated - parseInt(totalWithIdentifier.rows[0].count)} (Other MCC codes)`);
       
       console.log(`\n✅ All lines stored in TDDF raw import table for future reprocessing`);
       console.log(`🔗 Linked to upload record: ${fileId}`);
