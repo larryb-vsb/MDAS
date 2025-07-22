@@ -150,6 +150,8 @@ export interface IStorage {
     };
   }>;
   addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }, username?: string): Promise<any>;
+  
+  getTransactionsByMerchantId(merchantId: string): Promise<Transaction[]>;
   deleteTransactions(transactionIds: string[], username?: string): Promise<void>;
   exportTransactionsToCSV(
     merchantId?: string, 
@@ -1502,6 +1504,22 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error exporting transactions to CSV:', error);
       throw new Error('Failed to export transactions to CSV');
+    }
+  }
+
+  // Get all transactions for a specific merchant by merchant ID
+  async getTransactionsByMerchantId(merchantId: string): Promise<Transaction[]> {
+    try {
+      const transactions = await db
+        .select()
+        .from(transactionsTable)
+        .where(eq(transactionsTable.merchantId, merchantId))
+        .orderBy(desc(transactionsTable.date));
+      
+      return transactions;
+    } catch (error) {
+      console.error('Error getting transactions by merchant ID:', error);
+      throw error;
     }
   }
 

@@ -16,6 +16,7 @@ import Merchants from "@/pages/Merchants";
 import Uploads from "@/pages/Uploads";
 import Transactions from "@/pages/Transactions";
 import TerminalsPage from "@/pages/TerminalsPage";
+import TerminalViewPage from "@/pages/TerminalViewPage";
 import TddfPage from "@/pages/tddf-page";
 import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
@@ -29,6 +30,7 @@ function Router() {
       <ProtectedRoute path="/merchants/new" component={NewMerchant} />
       <ProtectedRoute path="/merchants/:id" component={MerchantDetail} />
       <ProtectedRoute path="/terminals" component={TerminalsPage} />
+      <ProtectedRoute path="/terminals/:id" component={TerminalViewPage} />
       <ProtectedRoute path="/transactions" component={Transactions} />
       <ProtectedRoute path="/tddf" component={TddfPage} />
       <ProtectedRoute path="/settings" component={Settings} />

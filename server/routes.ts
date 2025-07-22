@@ -3263,6 +3263,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get transactions with pagination and filtering
+  // Get transactions for a specific merchant by merchant ID
+  app.get("/api/transactions/by-merchant/:merchantId", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const transactions = await storage.getTransactionsByMerchantId(merchantId);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions by merchant:", error);
+      res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+  });
+
   app.get("/api/transactions", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string || '1');

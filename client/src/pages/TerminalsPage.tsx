@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye } from "lucide-react";
+import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 
@@ -474,13 +475,21 @@ export default function TerminalsPage() {
                         {formatTableDate(terminal.lastUpdate?.toString() || null)}
                       </TableCell>
                       <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedTerminal(terminal)}
-                        >
-                          View Details
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/terminals/${terminal.id}`}>
+                            <Button variant="outline" size="sm">
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setSelectedTerminal(terminal)}
+                          >
+                            Edit
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
