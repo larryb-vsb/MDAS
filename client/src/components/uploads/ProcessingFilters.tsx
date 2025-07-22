@@ -515,15 +515,37 @@ export default function ProcessingFilters() {
                                   {(file.processedAt || file.processingCompletedAt || file.processingTimeMs) ? (
                                     <div>
                                       {/* Processing duration - primary display */}
-                                      {file.processingTimeMs ? (
-                                        <div className="font-medium text-sm text-green-600">
-                                          Duration: {(file.processingTimeMs / 1000).toFixed(1)}s
-                                        </div>
-                                      ) : (
-                                        <div className="font-medium text-sm text-muted-foreground">
-                                          Duration: calculating...
-                                        </div>
-                                      )}
+                                      {(() => {
+                                        // Use processingTimeMs if available
+                                        if (file.processingTimeMs) {
+                                          return (
+                                            <div className="font-medium text-sm text-green-600">
+                                              Duration: {(file.processingTimeMs / 1000).toFixed(1)}s
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        // Calculate from start/stop times
+                                        const startTime = file.processingStartedAt;
+                                        const endTime = file.processingCompletedAt || file.processedAt;
+                                        
+                                        if (startTime && endTime) {
+                                          const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+                                          const durationSeconds = (durationMs / 1000).toFixed(1);
+                                          return (
+                                            <div className="font-medium text-sm text-green-600">
+                                              Duration: {durationSeconds}s
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        // Fallback
+                                        return (
+                                          <div className="font-medium text-sm text-muted-foreground">
+                                            Duration: calculating...
+                                          </div>
+                                        );
+                                      })()}
                                       {/* Start time */}
                                       {file.processingStartedAt && (
                                         <div className="text-xs text-muted-foreground">
