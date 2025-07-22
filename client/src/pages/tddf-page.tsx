@@ -323,7 +323,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Submitted Interchange (344-348)', value: record.submittedInterchange, mono: true },
     { label: 'System Trace Audit Number (349-354)', value: record.systemTraceAuditNumber, mono: true },
     { label: 'Discover Transaction Type (355-356)', value: record.discoverTransactionType, mono: true },
-    { label: 'Local Transaction Time (357-362)', value: record.localTransactionTime || 'N/A', mono: true, highlight: !!record.localTransactionTime },
+
     { label: 'Discover Processing Code (363-368)', value: record.discoverProcessingCode, mono: true },
     { label: 'Commercial Card Service Indicator (369-369)', value: record.commercialCardServiceIndicator, mono: true },
     
