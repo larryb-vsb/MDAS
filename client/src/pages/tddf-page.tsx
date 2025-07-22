@@ -170,6 +170,42 @@ interface TddfFilters {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
 
+// Truncated Reference Number Component
+function TruncatedRefNumber({ refNumber }: { refNumber: string | null }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (!refNumber) return <span className="text-muted-foreground">-</span>;
+  
+  if (refNumber.length <= 12) {
+    return <span className="font-mono text-xs">{refNumber}</span>;
+  }
+  
+  const start = refNumber.substring(0, 4);
+  const end = refNumber.substring(refNumber.length - 5);
+  const truncated = `${start}.....${end}`;
+  
+  return (
+    <div className="flex items-center gap-1">
+      <span 
+        className="font-mono text-xs cursor-pointer hover:text-blue-600" 
+        onClick={() => setIsExpanded(!isExpanded)}
+        title={isExpanded ? "Click to truncate" : "Click to expand full number"}
+      >
+        {isExpanded ? refNumber : truncated}
+      </span>
+      {refNumber.length > 12 && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-blue-500 hover:text-blue-700 text-xs"
+          title={isExpanded ? "Truncate" : "Expand"}
+        >
+          {isExpanded ? '−' : '+'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Comprehensive TDDF Record Details Component
 function TddfRecordDetails({ record, formatCurrency, formatTableDate }: { 
   record: TddfRecord; 
@@ -641,11 +677,10 @@ export default function TddfPage() {
                   onCheckedChange={handleSelectAll}
                   className="ml-4"
                 />
+                <div className="w-40">Reference Number</div>
                 <div className="w-32">Transaction Code</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-28">Amount</div>
-                <div className="w-24">Date</div>
-                <div className="w-32">Reference Number</div>
                 <div className="w-32">Merchant Name</div>
                 <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
@@ -662,6 +697,9 @@ export default function TddfPage() {
                     onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
                     className="ml-4"
                   />
+                  <div className="w-40">
+                    <TruncatedRefNumber refNumber={record.referenceNumber} />
+                  </div>
                   <div className="w-32 font-mono text-xs">
                     {record.transactionCode || '-'}
                   </div>
@@ -670,12 +708,6 @@ export default function TddfPage() {
                   </div>
                   <div className="w-28 font-medium">
                     {formatCurrency(record.transactionAmount)}
-                  </div>
-                  <div className="w-24 text-xs">
-                    {record.transactionDate ? formatTableDate(record.transactionDate.toString()) : '-'}
-                  </div>
-                  <div className="w-32 font-mono text-xs">
-                    {record.referenceNumber || '-'}
                   </div>
                   <div className="w-32 text-xs">
                     {record.merchantName || 'N/A'}
