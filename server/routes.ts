@@ -519,6 +519,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Get database statistics and info for settings page
   // Get schema version information
+  // Raw schema file endpoint
+  app.get("/api/schema/raw", async (req, res) => {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const schemaPath = path.join(__dirname, '..', 'shared', 'schema.ts');
+      const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(schemaContent);
+    } catch (error) {
+      console.error('Error reading schema file:', error);
+      res.status(500).json({ error: 'Unable to read schema file' });
+    }
+  });
+
   app.get("/api/schema/versions", async (req, res) => {
     try {
       const versions = await SchemaVersionManager.getAllVersions();

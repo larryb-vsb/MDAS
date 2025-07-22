@@ -185,16 +185,27 @@ export default function SchemaVersionInfo() {
               </Badge>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center"
-          >
-            <History className="mr-1 h-3 w-3" />
-            {showHistory ? 'Hide' : 'View'} History
-            {showHistory ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open('/api/schema/raw', '_blank')}
+              className="flex items-center"
+            >
+              <Eye className="mr-1 h-3 w-3" />
+              View
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center"
+            >
+              <History className="mr-1 h-3 w-3" />
+              {showHistory ? 'Hide' : 'View'} History
+              {showHistory ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />}
+            </Button>
+          </div>
         </CardTitle>
         <CardDescription>
           Details about the database schema and version history
