@@ -356,7 +356,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
     { label: 'AMEX Merchant Seller Address (538-562)', value: record.amexMerchantSellerAddress || 'N/A', highlight: !!record.amexMerchantSellerAddress },
     { label: 'AMEX Merchant Seller Phone (563-578)', value: record.amexMerchantSellerPhone, mono: true },
     { label: 'AMEX Merchant Seller Postal Code (579-588)', value: record.amexMerchantSellerPostalCode || 'N/A', mono: true, highlight: !!record.amexMerchantSellerPostalCode },
-    { label: 'AMEX Merchant Seller Email (589-628)', value: record.amexMerchantSellerEmail },
+    { label: 'AMEX Merchant Seller Email (589-628)', value: record.amexMerchantSellerEmail || 'N/A', highlight: !!record.amexMerchantSellerEmail },
     
     // Advanced transaction classification (positions 629-682)
     { label: 'Mastercard Transaction Integrity Class (629-630)', value: record.mastercardTransactionIntegrityClass, mono: true },
