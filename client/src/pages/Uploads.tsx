@@ -382,6 +382,10 @@ export default function Uploads() {
         return "Merchant Demographics";
       case "transaction":
         return "Transaction Data";
+      case "terminal":
+        return "Terminal Data";
+      case "tddf":
+        return "TDDF";
       default:
         return type.charAt(0).toUpperCase() + type.slice(1);
     }
@@ -1018,14 +1022,22 @@ export default function Uploads() {
                   <CardDescription>Overview of your file uploads and processing history</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">Total Files</div>
                       <div className="text-2xl font-bold">{files?.length || 0}</div>
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">Unprocessed</div>
-                      <div className="text-2xl font-bold">{files?.filter(f => !f.processed).length || 0}</div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Processing</div>
+                      <div className="text-2xl font-bold text-blue-600">{files?.filter(f => !f.processed && !f.processingErrors).length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Processed</div>
+                      <div className="text-2xl font-bold text-green-600">{files?.filter(f => f.processed && !f.processingErrors).length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">With Errors</div>
+                      <div className="text-2xl font-bold text-red-600">{files?.filter(f => f.processingErrors).length || 0}</div>
                     </div>
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">Merchant Files</div>
@@ -1040,8 +1052,8 @@ export default function Uploads() {
                       <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'terminal').length || 0}</div>
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">With Errors</div>
-                      <div className="text-2xl font-bold">{files?.filter(f => f.processingErrors).length || 0}</div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">TDDF Files</div>
+                      <div className="text-2xl font-bold text-purple-600">{files?.filter(f => f.fileType === 'tddf').length || 0}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -1073,11 +1085,17 @@ export default function Uploads() {
                   <TabsTrigger value="terminal">
                     Terminal Files ({files?.filter(file => file.fileType === 'terminal').length || 0})
                   </TabsTrigger>
-                  <TabsTrigger value="queued">
-                    Queued ({files?.filter(file => !file.processed && !file.processingErrors).length || 0})
+                  <TabsTrigger value="tddf">
+                    TDDF Files ({files?.filter(file => file.fileType === 'tddf').length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="processed">
+                    Processed ({files?.filter(file => file.processed && !file.processingErrors).length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="processing">
+                    Processing ({files?.filter(file => !file.processed && !file.processingErrors).length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="errors">
-                    Files with Errors ({files?.filter(file => file.processingErrors).length || 0})
+                    With Errors ({files?.filter(file => file.processingErrors).length || 0})
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="all" className="mt-4">
@@ -1092,7 +1110,13 @@ export default function Uploads() {
                 <TabsContent value="terminal" className="mt-4">
                   {renderFileTable(files?.filter(file => file.fileType === 'terminal'))}
                 </TabsContent>
-                <TabsContent value="queued" className="mt-4">
+                <TabsContent value="tddf" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.fileType === 'tddf'))}
+                </TabsContent>
+                <TabsContent value="processed" className="mt-4">
+                  {renderFileTable(files?.filter(file => file.processed && !file.processingErrors))}
+                </TabsContent>
+                <TabsContent value="processing" className="mt-4">
                   {renderFileTable(files?.filter(file => !file.processed && !file.processingErrors))}
                 </TabsContent>
                 <TabsContent value="errors" className="mt-4">
