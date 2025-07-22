@@ -6288,20 +6288,20 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(`
         SELECT 
           COUNT(*) as total,
-          SUM(CASE WHEN processing_status = 'processed' THEN 1 ELSE 0 END) as processed,
-          SUM(CASE WHEN processing_status = 'pending' THEN 1 ELSE 0 END) as pending,
-          SUM(CASE WHEN processing_status = 'skipped' THEN 1 ELSE 0 END) as skipped,
-          SUM(CASE WHEN processing_status = 'error' THEN 1 ELSE 0 END) as errors
+          COALESCE(SUM(CASE WHEN processing_status = 'processed' THEN 1 ELSE 0 END), 0) as processed,
+          COALESCE(SUM(CASE WHEN processing_status = 'pending' THEN 1 ELSE 0 END), 0) as pending,
+          COALESCE(SUM(CASE WHEN processing_status = 'skipped' THEN 1 ELSE 0 END), 0) as skipped,
+          COALESCE(SUM(CASE WHEN processing_status = 'error' THEN 1 ELSE 0 END), 0) as errors
         FROM ${tableName}
       `);
 
       const row = result.rows[0];
       return {
-        total: parseInt(row.total) || 0,
-        processed: parseInt(row.processed) || 0,
-        pending: parseInt(row.pending) || 0,
-        skipped: parseInt(row.skipped) || 0,
-        errors: parseInt(row.errors) || 0
+        total: Number(row.total) || 0,
+        processed: Number(row.processed) || 0,
+        pending: Number(row.pending) || 0,
+        skipped: Number(row.skipped) || 0,
+        errors: Number(row.errors) || 0
       };
     } catch (error) {
       console.error('Error getting TDDF raw processing status:', error);
