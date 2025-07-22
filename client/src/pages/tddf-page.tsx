@@ -704,7 +704,14 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-40">
-                    <TruncatedRefNumber refNumber={record.referenceNumber || null} />
+                    <div className="flex items-center gap-2">
+                      <TruncatedRefNumber refNumber={record.referenceNumber || null} />
+                      {record.amexMerchantSellerPostalCode && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                          AMEX
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="w-40 text-xs">
                     {record.merchantName || 'N/A'}
