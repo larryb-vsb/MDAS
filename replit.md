@@ -48,6 +48,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Complete version mismatch workflow tested: database (2.1.0) → file (2.1.2) → successful update via Settings page
   - Production safety controls remain active (update button grays out in production environment)
   - Schema version 2.1.2 established as current version with advanced versioning workflow testing capabilities
+- **✅ ENHANCED FILE DELETION WITH RAW DATA CLEANUP**: File deletion functionality now includes comprehensive database cleanup:
+  - Fixed delete endpoint to handle "file not found" errors gracefully by properly removing database records
+  - Enhanced TDDF file deletion to automatically clean up associated raw import records from dev_tddf_raw_import table
+  - Prevents orphaned raw data accumulation by removing all TDDF processing artifacts when files are deleted
+  - Complete database integrity maintained with proper cascading deletion for TDDF files and their raw data
+  - Tested and verified: 5 orphaned raw import records successfully cleaned up, zero orphaned records remaining
 - **✅ PRODUCTION SCHEMA UPDATE SAFETY COMPLETED**: Update button now has built-in production protection
   - Button works normally in development environment with refresh icon
   - Automatically grays out and disables in production environment

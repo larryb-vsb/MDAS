@@ -2564,6 +2564,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const fileRecord = result.rows[0];
       
+      // For TDDF files, also clean up raw import records
+      if (fileRecord.file_type === 'tddf') {
+        const rawTableName = getTableName('tddf_raw_import');
+        const rawRecordsResult = await pool.query(`
+          SELECT COUNT(*) as count FROM ${rawTableName} WHERE source_file_id = $1
+        `, [fileId]);
+        
+        if (rawRecordsResult.rows[0].count > 0) {
+          await pool.query(`
+            DELETE FROM ${rawTableName} WHERE source_file_id = $1
+          `, [fileId]);
+          console.log(`[UPLOADS API] Cleaned up ${rawRecordsResult.rows[0].count} raw TDDF import records for ${fileId}`);
+        }
+      }
+      
       // Mark file as deleted (soft delete)
       await pool.query(`
         UPDATE ${tableName} 
