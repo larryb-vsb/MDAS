@@ -221,22 +221,27 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
   };
 
   const summaryFields = [
-    { label: 'Transaction Code', value: record.transactionCode, mono: true },
     { label: 'Reference Number', value: record.referenceNumber, mono: true },
-    { label: 'Transaction Amount', value: formatCurrency(record.transactionAmount), highlight: true },
     { label: 'Transaction Date', value: record.transactionDate ? formatTableDate(record.transactionDate.toString()) : 'N/A' },
+    { label: 'Terminal ID', value: record.terminalId, mono: true },
+    { label: 'MCC Code', value: record.mccCode, mono: true },
+    { label: 'Transaction Type Identifier', value: record.transactionTypeIdentifier, mono: true },
     { label: 'Merchant Account Number', value: record.merchantAccountNumber, mono: true },
     { label: 'Merchant Name', value: record.merchantName },
     { label: 'Batch Julian Date', value: record.batchJulianDate, mono: true },
     { label: 'Cardholder Account Number', value: record.cardholderAccountNumber, mono: true },
-    { label: 'Auth Response Code', value: record.authResponseCode, mono: true },
-    { label: 'Validation Code', value: record.validationCode, mono: true },
-    { label: 'Online Entry', value: record.onlineEntry, mono: true },
+    { label: 'Transaction Amount', value: formatCurrency(record.transactionAmount), highlight: true },
     { label: 'Auth Source', value: record.authSource, mono: true },
-    { label: 'Source File ID', value: record.sourceFileId, mono: true },
+    { label: 'Auth Amount', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A' },
+    { label: 'Authorization Number', value: record.authorizationNumber, mono: true },
+    { label: 'Card Type', value: record.cardType, mono: true },
+    { label: 'Reject Reason', value: record.rejectReason, mono: true },
+    { label: 'Cash Back Amount', value: record.cashBackAmount ? formatCurrency(record.cashBackAmount) : 'N/A' },
     { label: 'Source Row Number', value: record.sourceRowNumber },
+    { label: 'Recorded At', value: record.recordedAt ? formatTableDate(record.recordedAt.toString()) : 'N/A' },
     { label: 'Created At', value: record.createdAt ? formatTableDate(record.createdAt.toString()) : 'N/A' },
     { label: 'Updated At', value: record.updatedAt ? formatTableDate(record.updatedAt.toString()) : 'N/A' },
+    { label: 'Raw Data Available', value: record.mmsRawLine ? 'Yes' : 'No' },
   ];
 
   const allFields = [
