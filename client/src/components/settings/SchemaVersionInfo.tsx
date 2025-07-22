@@ -73,25 +73,7 @@ export default function SchemaVersionInfo() {
     }
   });
 
-  const importSchemaMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('/api/schema/import', { method: 'POST' });
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: "Schema Import Completed",
-        description: data.message || "Schema content has been imported into database successfully.",
-      });
-      refetch();
-    },
-    onError: (error) => {
-      toast({
-        title: "Import Failed", 
-        description: error instanceof Error ? error.message : "Failed to import schema content",
-        variant: "destructive",
-      });
-    }
-  });
+
 
   if (isLoading) {
     return (
@@ -245,20 +227,7 @@ export default function SchemaVersionInfo() {
                 View
               </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => importSchemaMutation.mutate()}
-              disabled={importSchemaMutation.isPending}
-              className="flex items-center"
-            >
-              {importSchemaMutation.isPending ? (
-                <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
-              ) : (
-                <Download className="mr-1 h-3 w-3" />
-              )}
-              Import Schema
-            </Button>
+
             <Button
               variant="outline"
               size="sm"
