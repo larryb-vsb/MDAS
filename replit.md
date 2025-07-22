@@ -16,7 +16,12 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 22, 2025 - TDDF PROCESSING PIPELINE FULLY RESTORED
+- Current session: July 22, 2025 - TDDF PROCESSING PIPELINE FULLY RESTORED AND PAUSED BY USER REQUEST
+- **✅ TDDF NON-DT RECORD SKIPPING COMPLETED**: Successfully resolved critical gap where 10,443 non-DT records (BH, DR, E1, G2, P1) were properly marked as "skipped" instead of remaining pending
+  - Enhanced Processing Pipeline: Added `skipNonDTRecordsForFile()` method to storage.ts for complete record lifecycle management
+  - API Enhancement: Updated `/api/tddf/process-pending-dt` endpoint to automatically handle both DT processing and non-DT skipping in sequence
+  - Database Update: Successfully marked 10,443 non-DT records as "skipped" with reason "non_dt_record" achieving 65.90% skipped, 8.13% processed, 25.96% pending
+  - System Restart: TDDF processing stopped and system reloaded per user request while preserving all TDDF code infrastructure
 - **✅ MANUAL TDDF DT PROCESSING FEATURE COMPLETED**: Successfully implemented comprehensive manual processing system for pending TDDF DT records
   - Critical SQL Syntax Fix: Resolved all Drizzle ORM query errors by implementing raw SQL queries with proper field name mapping (camelCase vs snake_case)
   - Processing Success: Manual API endpoint processed 58 pending DT records from 9 completed files with zero errors
