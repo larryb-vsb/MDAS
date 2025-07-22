@@ -66,19 +66,17 @@ interface ConcurrencyStats {
   timestamp?: string;
 }
 
-// Duration formatting function (consistent with other pages)
-const formatDuration = (durationMs: number) => {
-  const seconds = Math.floor(durationMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
+// Duration formatting function (consistent with ProcessingFilters.tsx)
+const formatQueueEstimate = (totalSeconds: number) => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   
   if (hours > 0) {
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
+    return `${hours}h ${minutes}m`;
   } else if (minutes > 0) {
     return `${minutes}m`;
   } else {
-    return `< 1m`;
+    return '< 1m';
   }
 };
 
@@ -529,7 +527,7 @@ export default function ProcessingStatus() {
                             const backlog = realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped);
                             if (realTimeStats.tddfRecordsPerSecond <= 0 || backlog <= 0) return '< 1m';
                             const estimatedSeconds = backlog / realTimeStats.tddfRecordsPerSecond;
-                            return formatDuration(estimatedSeconds * 1000);
+                            return formatQueueEstimate(estimatedSeconds);
                           })()}
                         </div>
                         <div className="text-blue-600">Est. Time</div>
