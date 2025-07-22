@@ -1683,6 +1683,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.log(`Successfully stored file record for ${fileId}`);
+        
+        // For TDDF files, immediately process raw lines after upload
+        if (type === "tddf") {
+          try {
+            console.log(`[TDDF UPLOAD] Processing raw lines for ${fileId}`);
+            const processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, file.originalname);
+            console.log(`[TDDF UPLOAD] Raw line processing completed: ${processingResult.rowsProcessed} rows, ${processingResult.tddfRecordsCreated} records, ${processingResult.errors} errors`);
+            
+            // Update the upload record with raw processing stats
+            await pool.query(`
+              UPDATE ${uploadedFilesTableName} 
+              SET raw_lines_count = $1, 
+                  processing_notes = $2
+              WHERE id = $3
+            `, [
+              processingResult.rowsProcessed,
+              `Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`,
+              fileId
+            ]);
+            
+            console.log(`[TDDF UPLOAD] Updated upload record with raw line count: ${processingResult.rowsProcessed}`);
+          } catch (tddfError) {
+            console.error(`[TDDF UPLOAD] Error processing raw lines for ${fileId}:`, tddfError);
+            // Update upload record with error info
+            await pool.query(`
+              UPDATE ${uploadedFilesTableName} 
+              SET raw_lines_count = 0, 
+                  processing_notes = $1
+              WHERE id = $2
+            `, [
+              `Raw import error: ${tddfError.message}`,
+              fileId
+            ]);
+          }
+        }
+        
         uploads.push({
           fileId,
           originalName: file.originalname,
@@ -1982,7 +2018,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           records_skipped,
           records_with_errors,
           processing_time_ms,
-          processing_details
+          processing_details,
+          raw_lines_count,
+          processing_notes
         FROM ${sql.identifier(tableName)}
         WHERE deleted = false
         ORDER BY uploaded_at DESC
@@ -2018,7 +2056,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordsSkipped: row.records_skipped,
         recordsWithErrors: row.records_with_errors,
         processingTimeMs: row.processing_time_ms,
-        processingDetails: row.processing_details
+        processingDetails: row.processing_details,
+        rawLinesCount: row.raw_lines_count,
+        processingNotes: row.processing_notes
       }));
       
       res.json({
