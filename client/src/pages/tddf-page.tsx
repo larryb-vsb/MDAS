@@ -678,10 +678,10 @@ export default function TddfPage() {
                   className="ml-4"
                 />
                 <div className="w-40">Reference Number</div>
-                <div className="w-32">Transaction Code</div>
+                <div className="w-40">Merchant Name</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-28">Amount</div>
-                <div className="w-32">Merchant Name</div>
+                <div className="w-32">Association Number</div>
                 <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
               </div>
@@ -698,10 +698,10 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-40">
-                    <TruncatedRefNumber refNumber={record.referenceNumber} />
+                    <TruncatedRefNumber refNumber={record.referenceNumber || null} />
                   </div>
-                  <div className="w-32 font-mono text-xs">
-                    {record.transactionCode || '-'}
+                  <div className="w-40 text-xs">
+                    {record.merchantName || 'N/A'}
                   </div>
                   <div className="w-24 font-mono text-xs">
                     {record.merchantAccountNumber || '-'}
@@ -709,8 +709,8 @@ export default function TddfPage() {
                   <div className="w-28 font-medium">
                     {formatCurrency(record.transactionAmount)}
                   </div>
-                  <div className="w-32 text-xs">
-                    {record.merchantName || 'N/A'}
+                  <div className="w-32 font-mono text-xs">
+                    {record.associationNumber1 || 'N/A'}
                   </div>
                   <div className="w-32 font-mono text-xs">
                     {record.cardholderAccountNumber || 'N/A'}
