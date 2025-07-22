@@ -544,8 +544,11 @@ export default function ProcessingFilters() {
                                           } else if (minutes > 0) {
                                             const remainingSeconds = seconds % 60;
                                             return `${minutes}m ${remainingSeconds}s`;
-                                          } else {
+                                          } else if (seconds > 0) {
                                             return `${seconds}s`;
+                                          } else {
+                                            // Handle sub-second times
+                                            return `${durationMs}ms`;
                                           }
                                         };
                                         
