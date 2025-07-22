@@ -1684,39 +1684,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Successfully stored file record for ${fileId}`);
         
-        // For TDDF files, immediately process raw lines after upload
-        if (type === "tddf") {
-          try {
-            console.log(`[TDDF UPLOAD] Processing raw lines for ${fileId}`);
-            const processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, file.originalname);
+        // Process raw data for all file types during upload
+        try {
+          console.log(`[RAW DATA] Processing raw data for ${type} file: ${fileId}`);
+          
+          // Count lines and get basic file info for all file types
+          const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+          const lineCount = lines.length;
+          let processingNotes = '';
+          let processingResult = null;
+          
+          if (type === "tddf") {
+            // TDDF files get full raw import processing
+            processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, file.originalname);
+            processingNotes = `Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`;
             console.log(`[TDDF UPLOAD] Raw line processing completed: ${processingResult.rowsProcessed} rows, ${processingResult.tddfRecordsCreated} records, ${processingResult.errors} errors`);
-            
-            // Update the upload record with raw processing stats
-            await pool.query(`
-              UPDATE ${uploadedFilesTableName} 
-              SET raw_lines_count = $1, 
-                  processing_notes = $2
-              WHERE id = $3
-            `, [
-              processingResult.rowsProcessed,
-              `Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`,
-              fileId
-            ]);
-            
-            console.log(`[TDDF UPLOAD] Updated upload record with raw line count: ${processingResult.rowsProcessed}`);
-          } catch (tddfError) {
-            console.error(`[TDDF UPLOAD] Error processing raw lines for ${fileId}:`, tddfError);
-            // Update upload record with error info
-            await pool.query(`
-              UPDATE ${uploadedFilesTableName} 
-              SET raw_lines_count = 0, 
-                  processing_notes = $1
-              WHERE id = $2
-            `, [
-              `Raw import error: ${tddfError.message}`,
-              fileId
-            ]);
+          } else {
+            // Other file types get line count and basic info
+            const hasHeader = lines.length > 0 && (lines[0].includes(',') || lines[0].includes('\t'));
+            const sampleFields = hasHeader ? lines[0].split(/[,\t]/).length : 0;
+            processingNotes = `Raw data: ${lineCount} lines, ${hasHeader ? 'has header row, ' : ''}${sampleFields} fields detected`;
+            console.log(`[RAW DATA] ${type.toUpperCase()} file analyzed: ${lineCount} lines, ${hasHeader ? 'header detected, ' : ''}${sampleFields} fields`);
           }
+          
+          // Update the upload record with raw processing stats for all file types
+          await pool.query(`
+            UPDATE ${uploadedFilesTableName} 
+            SET raw_lines_count = $1, 
+                processing_notes = $2
+            WHERE id = $3
+          `, [
+            processingResult ? processingResult.rowsProcessed : lineCount,
+            processingNotes,
+            fileId
+          ]);
+          
+          console.log(`[RAW DATA] Updated upload record with raw data count: ${processingResult ? processingResult.rowsProcessed : lineCount}`);
+        } catch (rawDataError) {
+          console.error(`[RAW DATA] Error processing raw data for ${fileId}:`, rawDataError);
+          // Update upload record with error info
+          await pool.query(`
+            UPDATE ${uploadedFilesTableName} 
+            SET raw_lines_count = 0, 
+                processing_notes = $1
+            WHERE id = $2
+          `, [
+            `Raw data error: ${rawDataError.message}`,
+            fileId
+          ]);
         }
         
         uploads.push({
@@ -1834,6 +1849,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Successfully stored file record for ${fileId}`);
+      
+      // Process raw data for all file types during upload
+      try {
+        console.log(`[RAW DATA] Processing raw data for ${type} file: ${fileId}`);
+        
+        // Count lines and get basic file info for all file types
+        const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+        const lineCount = lines.length;
+        let processingNotes = '';
+        let processingResult = null;
+        
+        if (type === "tddf") {
+          // TDDF files get full raw import processing
+          processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, req.file.originalname);
+          processingNotes = `Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`;
+          console.log(`[TDDF UPLOAD] Raw line processing completed: ${processingResult.rowsProcessed} rows, ${processingResult.tddfRecordsCreated} records, ${processingResult.errors} errors`);
+        } else {
+          // Other file types get line count and basic info
+          const hasHeader = lines.length > 0 && (lines[0].includes(',') || lines[0].includes('\t'));
+          const sampleFields = hasHeader ? lines[0].split(/[,\t]/).length : 0;
+          processingNotes = `Raw data: ${lineCount} lines, ${hasHeader ? 'has header row, ' : ''}${sampleFields} fields detected`;
+          console.log(`[RAW DATA] ${type.toUpperCase()} file analyzed: ${lineCount} lines, ${hasHeader ? 'header detected, ' : ''}${sampleFields} fields`);
+        }
+        
+        // Update the upload record with raw processing stats for all file types
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName} 
+          SET raw_lines_count = $1, 
+              processing_notes = $2
+          WHERE id = $3
+        `, [
+          processingResult ? processingResult.rowsProcessed : lineCount,
+          processingNotes,
+          fileId
+        ]);
+        
+        console.log(`[RAW DATA] Updated upload record with raw data count: ${processingResult ? processingResult.rowsProcessed : lineCount}`);
+      } catch (rawDataError) {
+        console.error(`[RAW DATA] Error processing raw data for ${fileId}:`, rawDataError);
+        // Update upload record with error info
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName} 
+          SET raw_lines_count = 0, 
+              processing_notes = $1
+          WHERE id = $2
+        `, [
+          `Raw data error: ${rawDataError.message}`,
+          fileId
+        ]);
+      }
 
       res.json({ 
         fileId,
