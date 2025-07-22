@@ -157,6 +157,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - processing_time_ms for actual duration calculation
   - processing_status set to 'failed' for proper error state tracking
 - **✅ FRONTEND DISPLAY ENHANCED**: "Processed Time" column now shows user-friendly format: "Duration: X min, Start time: timestamp, Stop time: timestamp"
+- **🔧 DEBUGGING ACTIVE**: Added console logging to identify why some processed files show "-" instead of duration data
 - **✅ PRODUCTION ERROR MONITORING**: Complete processing time tracking enables monitoring of file processing performance regardless of success/failure
 - **✅ DURATION CALCULATIONS**: All error handlers calculate actual processing time from start to error occurrence for accurate performance metrics
 
