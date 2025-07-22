@@ -230,6 +230,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 - **✅ DURATION CALCULATION FALLBACK IMPLEMENTED**: Processing Monitor now calculates duration from start/stop timestamps when processingTimeMs field is missing, eliminating "Duration: calculating..." display issues
 - **✅ SMART DURATION FORMATTING COMPLETE**: Enhanced duration display with automatic unit conversion - shows seconds (45s), minutes and seconds (2m 15s), or hours/minutes/seconds (1h 30m 45s) as appropriate
 - **✅ FILE STATISTICS OVERVIEW FIXED**: Resolved all-zeros display issue by updating Uploads page to handle correct API response structure ({uploads: [], pagination: {}})
+- **✅ FILE STATISTICS ACCURACY RESTORED**: Fixed statistics calculation to use full database totals (978 files) instead of paginated view (50 files) by creating separate stats query
 
 ### TDDF Amount Consistency Issue COMPLETELY RESOLVED (July 22, 2025)
 - **✅ ROOT CAUSE IDENTIFIED**: Both Auth Amount (positions 192-203) and Transaction Amount (positions 93-103) are stored in cents format in TDDF files requiring /100 conversion
