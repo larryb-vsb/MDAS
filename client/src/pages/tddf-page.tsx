@@ -686,6 +686,7 @@ export default function TddfPage() {
                 <div className="w-40">Merchant Name</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-28">Amount</div>
+                <div className="w-36">Transaction Date/Time</div>
                 <div className="w-32">Association Number</div>
                 <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
@@ -713,6 +714,9 @@ export default function TddfPage() {
                   </div>
                   <div className="w-28 font-medium">
                     {formatCurrency(record.transactionAmount)}
+                  </div>
+                  <div className="w-36 text-xs">
+                    {record.transactionDate ? formatTableDate(record.transactionDate.toString()) : 'N/A'}
                   </div>
                   <div className="w-32 font-mono text-xs">
                     {record.associationNumber1 || 'N/A'}
