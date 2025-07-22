@@ -89,9 +89,9 @@ async function runTest() {
           continue;
         }
         
-        const status = uploadedFile.processing_status || uploadedFile.status;
-        const rawLinesCount = uploadedFile.raw_lines_count;
-        const processingNotes = uploadedFile.processing_notes;
+        const status = uploadedFile.processingStatus || uploadedFile.status;
+        const rawLinesCount = uploadedFile.rawLinesCount;
+        const processingNotes = uploadedFile.processingNotes;
         
         console.log(`   Attempt ${attempts}: Status="${status}", Raw Lines=${rawLinesCount}, Notes="${processingNotes}"`);
         
@@ -100,8 +100,8 @@ async function runTest() {
             status,
             rawLinesCount,
             processingNotes,
-            recordsProcessed: uploadedFile.records_processed,
-            processingDetails: uploadedFile.processing_details
+            recordsProcessed: uploadedFile.recordsProcessed,
+            processingDetails: uploadedFile.processingDetails
           };
           break;
         }

@@ -1,11 +1,11 @@
-const axios = require('axios');
-const fs = require('fs');
+import axios from 'axios';
+import fs from 'fs';
 
 async function testApiResponse() {
     try {
         console.log('Testing uploads history API response structure...\n');
         
-        const response = await axios.get('http://localhost:3000/api/uploads/history?limit=3');
+        const response = await axios.get('http://localhost:5000/api/uploads/history?limit=3');
         
         console.log('✅ API Response received');
         console.log('📊 Response Structure:', JSON.stringify(Object.keys(response.data), null, 2));
