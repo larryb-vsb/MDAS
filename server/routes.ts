@@ -565,14 +565,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Real-time database processing statistics endpoint
+  // Real-time database processing statistics endpoint with TDDF operations
   app.get("/api/processing/real-time-stats", async (req, res) => {
     try {
       // Use environment-specific table names
       const uploadedFilesTableName = getTableName('uploaded_files');
       const transactionsTableName = getTableName('transactions');
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfRawImportTableName = getTableName('tddf_raw_import');
       
-      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}`);
+      console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}, ${tddfRecordsTableName}`);
       
       // Get real-time file processing statistics using new processing_status field
       const result = await pool.query(`
@@ -582,7 +584,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN processing_status = 'completed' AND deleted = false THEN 1 END) as processed_files,
           COUNT(CASE WHEN processing_status = 'processing' AND deleted = false THEN 1 END) as currently_processing,
           COUNT(CASE WHEN processing_status = 'failed' AND deleted = false THEN 1 END) as files_with_errors,
-          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files
+          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND deleted = false THEN 1 END) as tddf_files_processed,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND deleted = false THEN 1 END) as tddf_files_queued
         FROM ${uploadedFilesTableName}
       `);
 
@@ -595,10 +599,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE recorded_at >= $1
       `, [tenMinutesAgo]);
 
+      // Calculate TDDF records per second from recent TDDF processing (last 10 minutes)
+      const tddfSpeedResult = await pool.query(`
+        SELECT COUNT(*) as recent_tddf_records
+        FROM ${tddfRecordsTableName}
+        WHERE recorded_at >= $1
+      `, [tenMinutesAgo]);
+      
+      // Get TDDF-specific statistics
+      const tddfStatsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_tddf_records,
+          COALESCE(SUM(txn_amount::numeric), 0) as total_tddf_amount,
+          COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '24 hours' THEN 1 END) as tddf_records_today,
+          COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as tddf_records_last_hour
+        FROM ${tddfRecordsTableName}
+      `);
+      
+      // Get TDDF raw import statistics for comprehensive processing overview
+      const tddfRawStatsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_raw_lines,
+          COUNT(CASE WHEN processed_into = 'tddf_records' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
+          COUNT(CASE WHEN skip_reason IS NOT NULL AND skip_reason != 'non_dt_record' THEN 1 END) as other_skipped
+        FROM ${tddfRawImportTableName}
+      `);
+
       const stats = result.rows[0];
       const recentTransactions = parseInt(transactionSpeedResult.rows[0]?.recent_transactions || '0');
-      // Calculate actual transaction processing speed (10 minutes = 600 seconds)
+      const recentTddfRecords = parseInt(tddfSpeedResult.rows[0]?.recent_tddf_records || '0');
+      
+      // Calculate actual processing speeds (10 minutes = 600 seconds)
       const transactionsPerSecond = recentTransactions > 0 ? recentTransactions / 600 : 0;
+      const tddfRecordsPerSecond = recentTddfRecords > 0 ? recentTddfRecords / 600 : 0;
+      
+      const tddfStats = tddfStatsResult.rows[0];
+      const tddfRawStats = tddfRawStatsResult.rows[0];
       
       // Store metrics in database for persistent tracking
       const metricsTableName = getTableName('processing_metrics');
@@ -609,7 +646,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentlyProcessing: parseInt(stats.currently_processing),
         filesWithErrors: parseInt(stats.files_with_errors),
         recentFiles: parseInt(stats.recent_files),
-        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1))
+        tddfFilesProcessed: parseInt(stats.tddf_files_processed),
+        tddfFilesQueued: parseInt(stats.tddf_files_queued),
+        transactionsPerSecond: parseFloat(transactionsPerSecond.toFixed(1)),
+        tddfRecordsPerSecond: parseFloat(tddfRecordsPerSecond.toFixed(1)),
+        tddfOperations: {
+          totalTddfRecords: parseInt(tddfStats.total_tddf_records) || 0,
+          totalTddfAmount: parseFloat(tddfStats.total_tddf_amount) || 0,
+          tddfRecordsToday: parseInt(tddfStats.tddf_records_today) || 0,
+          tddfRecordsLastHour: parseInt(tddfStats.tddf_records_last_hour) || 0,
+          totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
+          dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
+          nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
+          otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
+        }
       };
 
       // Get current peak from latest database record

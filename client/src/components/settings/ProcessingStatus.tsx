@@ -38,8 +38,21 @@ interface RealTimeStats {
   processedFiles: number;
   filesWithErrors: number;
   recentFiles: number;
+  tddfFilesProcessed: number;
+  tddfFilesQueued: number;
   transactionsPerSecond: number;
+  tddfRecordsPerSecond: number;
   timestamp: string;
+  tddfOperations: {
+    totalTddfRecords: number;
+    totalTddfAmount: number;
+    tddfRecordsToday: number;
+    tddfRecordsLastHour: number;
+    totalRawLines: number;
+    dtRecordsProcessed: number;
+    nonDtRecordsSkipped: number;
+    otherSkipped: number;
+  };
 }
 
 interface ConcurrencyStats {
@@ -378,17 +391,18 @@ export default function ProcessingStatus() {
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
+              <div className="text-center space-y-2">
+                <div className="text-lg font-semibold text-indigo-600">
+                  {realTimeStats.tddfRecordsPerSecond?.toFixed(1) || '0.0'}
+                </div>
+                <div className="text-muted-foreground">TDDF/sec</div>
+                <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
+              </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
                   {realTimeStats.processedFiles?.toLocaleString() || '0'}
                 </div>
                 <div className="text-muted-foreground">Processed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold text-orange-600">
-                  {realTimeStats.filesWithErrors || '0'}
-                </div>
-                <div className="text-muted-foreground">Errors</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-green-600">
@@ -397,6 +411,61 @@ export default function ProcessingStatus() {
                 <div className="text-muted-foreground">Resolution Rate</div>
               </div>
             </div>
+            
+            {/* TDDF Operations Section */}
+            {realTimeStats.tddfOperations && (realTimeStats.tddfOperations.totalTddfRecords > 0 || realTimeStats.tddfFilesProcessed > 0) && (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-muted-foreground border-t pt-3">TDDF File Operations</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-emerald-600">
+                      {realTimeStats.tddfFilesProcessed?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-muted-foreground">TDDF Files</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-cyan-600">
+                      {realTimeStats.tddfOperations.totalTddfRecords?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-muted-foreground">DT Records</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-slate-600">
+                      {realTimeStats.tddfOperations.totalRawLines?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-muted-foreground">Raw Lines</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-semibold text-amber-600">
+                      ${(realTimeStats.tddfOperations.totalTddfAmount / 100)?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                    </div>
+                    <div className="text-muted-foreground">Total Value</div>
+                  </div>
+                </div>
+                
+                {/* TDDF Processing Breakdown */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                  <div className="text-center p-2 bg-green-50 rounded border">
+                    <div className="font-semibold text-green-700">
+                      {realTimeStats.tddfOperations.dtRecordsProcessed?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-green-600">DT Processed</div>
+                  </div>
+                  <div className="text-center p-2 bg-blue-50 rounded border">
+                    <div className="font-semibold text-blue-700">
+                      {realTimeStats.tddfOperations.nonDtRecordsSkipped?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-blue-600">Non-DT Skipped</div>
+                  </div>
+                  <div className="text-center p-2 bg-orange-50 rounded border">
+                    <div className="font-semibold text-orange-700">
+                      {realTimeStats.tddfOperations.tddfRecordsToday?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-orange-600">Today</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
