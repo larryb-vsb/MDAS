@@ -230,35 +230,35 @@ export default function Uploads() {
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Total Files</div>
-                  <div className="text-2xl font-bold">{files?.length || 0}</div>
+                  <div className="text-2xl font-bold">{Array.isArray(files) ? files.length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Processing</div>
-                  <div className="text-2xl font-bold text-blue-600">{files?.filter(f => !f.processed && !f.processingErrors).length || 0}</div>
+                  <div className="text-2xl font-bold text-blue-600">{Array.isArray(files) ? files.filter(f => !f.processed && !f.processingErrors).length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Processed</div>
-                  <div className="text-2xl font-bold text-green-600">{files?.filter(f => f.processed && !f.processingErrors).length || 0}</div>
+                  <div className="text-2xl font-bold text-green-600">{Array.isArray(files) ? files.filter(f => f.processed && !f.processingErrors).length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">With Errors</div>
-                  <div className="text-2xl font-bold text-red-600">{files?.filter(f => f.processingErrors).length || 0}</div>
+                  <div className="text-2xl font-bold text-red-600">{Array.isArray(files) ? files.filter(f => f.processingErrors).length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Merchant Files</div>
-                  <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'merchant').length || 0}</div>
+                  <div className="text-2xl font-bold">{Array.isArray(files) ? files.filter(f => f.fileType === 'merchant').length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Transaction Files</div>
-                  <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'transaction').length || 0}</div>
+                  <div className="text-2xl font-bold">{Array.isArray(files) ? files.filter(f => f.fileType === 'transaction').length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Terminal Files</div>
-                  <div className="text-2xl font-bold">{files?.filter(f => f.fileType === 'terminal').length || 0}</div>
+                  <div className="text-2xl font-bold">{Array.isArray(files) ? files.filter(f => f.fileType === 'terminal').length : 0}</div>
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">TDDF Files</div>
-                  <div className="text-2xl font-bold text-purple-600">{files?.filter(f => f.fileType === 'tddf').length || 0}</div>
+                  <div className="text-2xl font-bold text-purple-600">{Array.isArray(files) ? files.filter(f => f.fileType === 'tddf').length : 0}</div>
                 </div>
               </div>
             )}
