@@ -197,6 +197,10 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
     { label: 'Validation Code', value: record.validationCode, mono: true },
     { label: 'Online Entry', value: record.onlineEntry, mono: true },
     { label: 'Auth Source', value: record.authSource, mono: true },
+    { label: 'Source File ID', value: record.sourceFileId, mono: true },
+    { label: 'Source Row Number', value: record.sourceRowNumber },
+    { label: 'Created At', value: record.createdAt ? formatTableDate(record.createdAt.toString()) : 'N/A' },
+    { label: 'Updated At', value: record.updatedAt ? formatTableDate(record.updatedAt.toString()) : 'N/A' },
   ];
 
   const allFields = [
@@ -345,7 +349,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
           variant="outline"
           size="sm"
         >
-          {showDetailView ? 'Show Summary' : 'Show All Fields'}
+          {showDetailView ? 'Show Summary' : 'Expand All Fields'}
         </Button>
       </div>
 
@@ -365,7 +369,8 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
         ))}
       </div>
 
-      {showDetailView && record.mmsRawLine && (
+      {/* Always show raw data in summary, and also in detail view */}
+      {record.mmsRawLine && (
         <div className="mt-6 space-y-2">
           <label className="text-sm font-medium text-muted-foreground">Raw Line Data</label>
           <div className="font-mono text-xs bg-gray-100 p-3 rounded max-h-24 overflow-y-auto break-all">
