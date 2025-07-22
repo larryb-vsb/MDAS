@@ -5817,6 +5817,21 @@ export class DatabaseStorage implements IStorage {
     return isNaN(amount) ? 0 : amount;
   }
 
+  // Helper method to parse Auth Amount field (12-digit format representing cents)
+  private parseAuthAmount(amountStr: string): number {
+    if (!amountStr || amountStr.trim() === '') return 0;
+    
+    // Remove any non-numeric characters and convert to number
+    const cleanAmount = amountStr.replace(/[^0-9]/g, '');
+    if (cleanAmount === '') return 0;
+    
+    // Convert cents to dollars (divide by 100) and ensure 2 decimal places
+    const amountInCents = parseInt(cleanAmount, 10);
+    const amountInDollars = amountInCents / 100;
+    
+    return isNaN(amountInDollars) ? 0 : Math.round(amountInDollars * 100) / 100;
+  }
+
   // Helper method to parse date from YYYYMMDD format
   private parseDate(dateStr: string): Date {
     if (!dateStr || dateStr.trim() === '' || dateStr.length !== 8) {
@@ -6209,7 +6224,7 @@ export class DatabaseStorage implements IStorage {
               // Additional transaction info (positions 188-242)
               draftAFlag: line.substring(187, 188).trim() || null,
               authCurrencyCode: line.substring(188, 191).trim() || null,
-              authAmount: this.parseAmount(line.substring(191, 203).trim()),
+              authAmount: this.parseAuthAmount(line.substring(191, 203).trim()),
               validationCode: line.substring(203, 207).trim() || null,
               authResponseCode: line.substring(207, 209).trim() || null,
               networkIdentifierDebit: line.substring(209, 212).trim() || null,

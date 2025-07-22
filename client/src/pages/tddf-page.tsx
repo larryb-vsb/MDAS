@@ -232,7 +232,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Cardholder Account Number (109-142)', value: record.cardholderAccountNumber, mono: true },
     { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transactionAmount), highlight: true },
     { label: 'Auth Source (176-176)', value: record.authSource, mono: true },
-    { label: 'Auth Amount (200-210)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A' },
+    { label: 'Auth Amount (192-203)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A', highlight: true },
     { label: 'Authorization Number (243-250)', value: record.authorizationNumber, mono: true },
     { label: 'Card Type (251-256)', value: record.cardType, mono: true },
     { label: 'Reject Reason (251-254)', value: record.rejectReason, mono: true },
@@ -287,8 +287,8 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     // Additional transaction info (positions 188-242)
     { label: 'Draft A Flag (188-188)', value: record.draftAFlag, mono: true },
     { label: 'Auth Currency Code (189-191)', value: record.authCurrencyCode, mono: true },
-    { label: 'Auth Amount (200-210)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A' },
-    { label: 'Validation Code (211-214)', value: record.validationCode, mono: true },
+    { label: 'Auth Amount (192-203)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A', highlight: true },
+    { label: 'Validation Code (204-207)', value: record.validationCode, mono: true },
     { label: 'Auth Response Code (215-216)', value: record.authResponseCode, mono: true },
     { label: 'Network Identifier Debit (217-217)', value: record.networkIdentifierDebit, mono: true },
     { label: 'Switch Settled Indicator (217-217)', value: record.switchSettledIndicator, mono: true },
@@ -754,6 +754,7 @@ export default function TddfPage() {
                 <div className="w-36">Transaction Date</div>
                 <div className="w-32">Association Number</div>
                 <div className="w-32">Card Number</div>
+                <div className="w-28">Auth Amount</div>
                 <div className="w-28">Amount</div>
                 <div className="w-20">Actions</div>
               </div>
@@ -807,6 +808,9 @@ export default function TddfPage() {
                   </div>
                   <div className="w-32 font-mono text-xs">
                     {record.cardholderAccountNumber || 'N/A'}
+                  </div>
+                  <div className="w-28 font-medium text-blue-600">
+                    {record.authAmount ? formatCurrency(record.authAmount) : 'N/A'}
                   </div>
                   <div className="w-28 font-medium text-green-600">
                     {formatCurrency(record.transactionAmount)}
