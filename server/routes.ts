@@ -2522,26 +2522,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/uploads/:id", async (req, res) => {
     try {
       const fileId = req.params.id;
+      const tableName = getTableName('uploaded_files');
       
-      // Use raw SQL to avoid schema issues
-      const result = await db.execute(sql`
-        SELECT id, original_filename, file_type 
-        FROM uploaded_files 
-        WHERE id = ${fileId} AND deleted = false
-      `);
+      // Check if file exists and is not already deleted
+      const result = await pool.query(`
+        SELECT id, original_filename, file_type, processing_errors
+        FROM ${tableName} 
+        WHERE id = $1 AND deleted = false
+      `, [fileId]);
       
       if (result.rows.length === 0) {
-        return res.status(404).json({ error: "File not found" });
+        // File not found - log the deletion attempt and mark record as deleted if it exists at all
+        console.log(`[DELETE API] File not found for deletion: ${fileId}`);
+        
+        const anyRecordResult = await pool.query(`
+          SELECT id, original_filename, processing_errors 
+          FROM ${tableName} 
+          WHERE id = $1
+        `, [fileId]);
+        
+        if (anyRecordResult.rows.length > 0) {
+          // Record exists but may have errors - mark as deleted and note the error
+          const fileRecord = anyRecordResult.rows[0];
+          await pool.query(`
+            UPDATE ${tableName} 
+            SET deleted = true, 
+                processing_errors = COALESCE(processing_errors, '') || '; File removal - record cleanup due to missing file'
+            WHERE id = $1
+          `, [fileId]);
+          
+          console.log(`[UPLOADS API] File record cleaned up: ${fileRecord.original_filename}`);
+          return res.json({ 
+            success: true, 
+            message: "File record cleaned up - file was not accessible",
+            fileWasNotAccessible: true 
+          });
+        } else {
+          return res.status(404).json({ error: "File not found in database" });
+        }
       }
       
-      // Mark file as deleted (soft delete)
-      await db.execute(sql`
-        UPDATE uploaded_files 
-        SET deleted = true 
-        WHERE id = ${fileId}
-      `);
+      const fileRecord = result.rows[0];
       
-      res.json({ success: true });
+      // Mark file as deleted (soft delete)
+      await pool.query(`
+        UPDATE ${tableName} 
+        SET deleted = true 
+        WHERE id = $1
+      `, [fileId]);
+      
+      console.log(`[UPLOADS API] File deleted successfully: ${fileRecord.original_filename} (${fileId})`);
+      res.json({ success: true, fileName: fileRecord.original_filename });
     } catch (error) {
       console.error("Error deleting file:", error);
       res.status(500).json({
