@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.0.3 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Version: 2.1.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
  * Last Updated: July 22, 2025
  * 
- * PATCH VERSION: Fixed API serving outdated schema content from database
- * Bug Fix: Schema content API now correctly serves current version header instead of cached 1.3.0
+ * MINOR VERSION: Enhanced schema update testing and production safety demonstration
+ * New Feature: Complete schema versioning workflow with automatic production safety controls
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
