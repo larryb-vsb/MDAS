@@ -658,6 +658,50 @@ export default function TddfPage() {
     setCurrentPage(1);
   };
 
+  // Date filter helpers
+  const getDateString = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const setDateFilter = (type: 'today' | 'yesterday' | 'thisWeek' | 'thisMonth') => {
+    const now = new Date();
+    let fromDate: Date, toDate: Date;
+
+    switch (type) {
+      case 'today':
+        fromDate = new Date(now);
+        toDate = new Date(now);
+        break;
+      
+      case 'yesterday':
+        fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      
+      case 'thisWeek':
+        // Start of current week (Monday)
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+        startOfWeek.setDate(diff);
+        fromDate = startOfWeek;
+        toDate = new Date(now);
+        break;
+      
+      case 'thisMonth':
+        fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        toDate = new Date(now);
+        break;
+    }
+
+    setFilters(prev => ({
+      ...prev,
+      txnDateFrom: getDateString(fromDate),
+      txnDateTo: getDateString(toDate)
+    }));
+    setCurrentPage(1);
+  };
+
   const formatCurrency = (amount?: string | number) => {
     if (amount === undefined || amount === null) return 'N/A';
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -750,6 +794,44 @@ export default function TddfPage() {
               />
             </div>
           </div>
+          
+          {/* Date Filter Buttons */}
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+            <span className="text-sm font-medium text-muted-foreground mr-2 self-center">Quick Date Filters:</span>
+            <Button 
+              onClick={() => setDateFilter('today')} 
+              variant="outline" 
+              size="sm"
+              className="h-8 px-3"
+            >
+              Today
+            </Button>
+            <Button 
+              onClick={() => setDateFilter('yesterday')} 
+              variant="outline" 
+              size="sm"
+              className="h-8 px-3"
+            >
+              Yesterday
+            </Button>
+            <Button 
+              onClick={() => setDateFilter('thisWeek')} 
+              variant="outline" 
+              size="sm"
+              className="h-8 px-3"
+            >
+              This Week
+            </Button>
+            <Button 
+              onClick={() => setDateFilter('thisMonth')} 
+              variant="outline" 
+              size="sm"
+              className="h-8 px-3"
+            >
+              This Month
+            </Button>
+          </div>
+
           <div className="flex justify-end mt-4">
             <Button onClick={clearFilters} variant="outline" size="sm">
               Clear Filters
