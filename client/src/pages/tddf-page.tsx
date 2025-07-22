@@ -747,7 +747,7 @@ export default function TddfPage() {
                   onCheckedChange={handleSelectAll}
                   className="ml-4"
                 />
-                <div className="w-40">Reference Number</div>
+                <div className="w-56">Reference Number</div>
                 <div className="w-40">Merchant Name</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-20">D/C Indicator</div>
