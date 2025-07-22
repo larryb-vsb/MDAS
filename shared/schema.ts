@@ -320,8 +320,8 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   interchangeFeeAmount: numeric("interchange_fee_amount", { precision: 17, scale: 2 }), // Positions 650-666
   mastercardWalletIdentifier: text("mastercard_wallet_identifier"), // Positions 667-669
   visaSpecialConditionIndicator: text("visa_special_condition_indicator"), // Position 670
-  interchangePercentRate: numeric("interchange_percent_rate", { precision: 7, scale: 5 }), // Positions 671-676
-  interchangePerItemRate: numeric("interchange_per_item_rate", { precision: 7, scale: 2 }), // Positions 677-682
+  interchangePercentRate: numeric("interchange_percent_rate", { precision: 12, scale: 5 }), // Positions 671-676
+  interchangePerItemRate: numeric("interchange_per_item_rate", { precision: 12, scale: 2 }), // Positions 677-682
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
