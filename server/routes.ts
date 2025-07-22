@@ -610,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfStatsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_tddf_records,
-          COALESCE(SUM(txn_amount::numeric), 0) as total_tddf_amount,
+          COALESCE(SUM(transaction_amount::numeric), 0) as total_tddf_amount,
           COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '24 hours' THEN 1 END) as tddf_records_today,
           COUNT(CASE WHEN recorded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as tddf_records_last_hour
         FROM ${tddfRecordsTableName}
@@ -620,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfRawStatsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_raw_lines,
-          COUNT(CASE WHEN processed_into = 'tddf_records' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN processed_into_table = 'tddf_records' THEN 1 END) as dt_records_processed,
           COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
           COUNT(CASE WHEN skip_reason IS NOT NULL AND skip_reason != 'non_dt_record' THEN 1 END) as other_skipped
         FROM ${tddfRawImportTableName}
