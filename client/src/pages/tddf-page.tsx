@@ -323,7 +323,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Submitted Interchange (344-348)', value: record.submittedInterchange, mono: true },
     { label: 'System Trace Audit Number (349-354)', value: record.systemTraceAuditNumber, mono: true },
     { label: 'Discover Transaction Type (355-356)', value: record.discoverTransactionType, mono: true },
-
+    // Note: Local Transaction Time (357-362) field exists in TDDF spec (HHMMSS format) but is always blank in actual data
     { label: 'Discover Processing Code (363-368)', value: record.discoverProcessingCode, mono: true },
     { label: 'Commercial Card Service Indicator (369-369)', value: record.commercialCardServiceIndicator, mono: true },
     
