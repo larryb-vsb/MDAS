@@ -6377,15 +6377,133 @@ export class DatabaseStorage implements IStorage {
             // Parse the DT record using the existing parsing logic
             const line = rawLine.rawLine;
             
-            // Parse TDDF fixed-width format based on specification using correct schema field names
+            // Parse comprehensive TDDF fixed-width format based on full specification
             const tddfRecord: InsertTddfRecord = {
-              referenceNumber: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rawLine.lineNumber}`,
-              merchantAccountNumber: line.substring(23, 39).trim() || 'UNKNOWN',
-              transactionAmount: this.parseAmount(line.substring(92, 103)) || 0,
-              transactionDate: this.parseTddfDate(line.substring(84, 92)) || new Date(),
+              // Core TDDF header fields (positions 1-23)
+              sequenceNumber: line.substring(0, 7).trim() || null,
+              entryRunNumber: line.substring(7, 13).trim() || null,
+              sequenceWithinRun: line.substring(13, 17).trim() || null,
+              recordIdentifier: line.substring(17, 19).trim() || null,
+              bankNumber: line.substring(19, 23).trim() || null,
+              
+              // Account and merchant fields (positions 24-61)
+              merchantAccountNumber: line.substring(23, 39).trim() || null,
+              associationNumber1: line.substring(39, 45).trim() || null,
+              groupNumber: line.substring(45, 51).trim() || null,
               transactionCode: line.substring(51, 55).trim() || null,
-              merchantName: line.length >= 242 ? line.substring(217, 242).trim() || null : null,
+              associationNumber2: line.substring(55, 61).trim() || null,
+              
+              // Core transaction fields (positions 62-142)
+              referenceNumber: line.substring(61, 84).trim() || null,
+              transactionDate: this.parseTddfDate(line.substring(84, 92).trim()),
+              transactionAmount: this.parseAmount(line.substring(92, 103).trim()),
               batchJulianDate: line.substring(103, 108).trim() || null,
+              netDeposit: this.parseAmount(line.substring(108, 123).trim()),
+              cardholderAccountNumber: line.substring(123, 142).trim() || null,
+              
+              // Transaction details (positions 143-187)
+              bestInterchangeEligible: line.substring(142, 144).trim() || null,
+              transactionDataConditionCode: line.substring(144, 146).trim() || null,
+              downgradeReason1: line.substring(146, 150).trim() || null,
+              downgradeReason2: line.substring(150, 154).trim() || null,
+              downgradeReason3: line.substring(154, 164).trim() || null,
+              onlineEntry: line.substring(164, 165).trim() || null,
+              achFlag: line.substring(165, 166).trim() || null,
+              authSource: line.substring(166, 167).trim() || null,
+              cardholderIdMethod: line.substring(167, 168).trim() || null,
+              catIndicator: line.substring(168, 169).trim() || null,
+              reimbursementAttribute: line.substring(169, 170).trim() || null,
+              mailOrderTelephoneIndicator: line.substring(170, 171).trim() || null,
+              authCharInd: line.substring(171, 172).trim() || null,
+              banknetReferenceNumber: line.substring(172, 187).trim() || null,
+              
+              // Additional transaction info (positions 188-242)
+              draftAFlag: line.substring(187, 188).trim() || null,
+              authCurrencyCode: line.substring(188, 191).trim() || null,
+              authAmount: this.parseAmount(line.substring(191, 203).trim()),
+              validationCode: line.substring(203, 207).trim() || null,
+              authResponseCode: line.substring(207, 209).trim() || null,
+              networkIdentifierDebit: line.substring(209, 212).trim() || null,
+              switchSettledIndicator: line.substring(212, 213).trim() || null,
+              posEntryMode: line.substring(213, 215).trim() || null,
+              debitCreditIndicator: line.substring(215, 216).trim() || null,
+              reversalFlag: line.substring(216, 217).trim() || null,
+              merchantName: line.substring(217, 242).trim() || null,
+              
+              // Authorization and card details (positions 243-268)
+              authorizationNumber: line.substring(242, 248).trim() || null,
+              rejectReason: line.substring(248, 252).trim() || null,
+              cardType: line.substring(252, 254).trim() || null,
+              currencyCode: line.substring(254, 257).trim() || null,
+              originalTransactionAmount: this.parseAmount(line.substring(257, 268).trim()),
+              
+              // Additional flags and codes (positions 269-284)
+              foreignCardIndicator: line.substring(268, 269).trim() || null,
+              carryoverIndicator: line.substring(269, 270).trim() || null,
+              extensionRecordIndicator: line.substring(270, 272).trim() || null,
+              mccCode: line.substring(272, 276).trim() || null,
+              terminalId: line.substring(276, 284).trim() || null,
+              
+              // Extended fields (positions 285+) - Add more based on line length
+              discoverPosEntryMode: line.length > 287 ? line.substring(284, 287).trim() || null : null,
+              purchaseId: line.length > 312 ? line.substring(287, 312).trim() || null : null,
+              cashBackAmount: line.length > 321 ? this.parseAmount(line.substring(312, 321).trim()) : null,
+              cashBackAmountSign: line.length > 322 ? line.substring(321, 322).trim() || null : null,
+              posDataCode: line.length > 335 ? line.substring(322, 335).trim() || null : null,
+              transactionTypeIdentifier: line.length > 338 ? line.substring(335, 338).trim() || null : null,
+              cardTypeExtended: line.length > 341 ? line.substring(338, 341).trim() || null : null,
+              productId: line.length > 343 ? line.substring(341, 343).trim() || null : null,
+              submittedInterchange: line.length > 348 ? line.substring(343, 348).trim() || null : null,
+              systemTraceAuditNumber: line.length > 354 ? line.substring(348, 354).trim() || null : null,
+              discoverTransactionType: line.length > 356 ? line.substring(354, 356).trim() || null : null,
+              localTransactionTime: line.length > 362 ? line.substring(356, 362).trim() || null : null,
+              discoverProcessingCode: line.length > 368 ? line.substring(362, 368).trim() || null : null,
+              commercialCardServiceIndicator: line.length > 369 ? line.substring(368, 369).trim() || null : null,
+              
+              // Fee and regulatory fields (positions 370+)
+              mastercardCrossBorderFee: line.length > 378 ? this.parseAmount(line.substring(369, 378).trim()) : null,
+              cardBrandFeeCode: line.length > 379 ? line.substring(378, 379).trim() || null : null,
+              dccIndicator: line.length > 380 ? line.substring(379, 380).trim() || null : null,
+              regulatedIndicator: line.length > 381 ? line.substring(380, 381).trim() || null : null,
+              visaIntegrityFee: line.length > 390 ? this.parseAmount(line.substring(381, 390).trim()) : null,
+              foreignExchangeFlag: line.length > 391 ? line.substring(390, 391).trim() || null : null,
+              visaFeeProgramIndicator: line.length > 394 ? line.substring(391, 394).trim() || null : null,
+              transactionFeeDebitCreditIndicator: line.length > 396 ? line.substring(394, 396).trim() || null : null,
+              transactionFeeAmount: line.length > 413 ? this.parseAmount(line.substring(396, 413).trim()) : null,
+              transactionFeeAmountCardholder: line.length > 424 ? this.parseAmount(line.substring(413, 424).trim()) : null,
+              
+              // IASF and additional fees (positions 425+)
+              iasfFeeType: line.length > 426 ? line.substring(424, 426).trim() || null : null,
+              iasfFeeAmount: line.length > 437 ? this.parseAmount(line.substring(426, 437).trim()) : null,
+              iasfFeeDebitCreditIndicator: line.length > 438 ? line.substring(437, 438).trim() || null : null,
+              merchantAssignedReferenceNumber: line.length > 450 ? line.substring(438, 450).trim() || null : null,
+              netDepositAdjustmentAmount: line.length > 465 ? this.parseAmount(line.substring(450, 465).trim()) : null,
+              netDepositAdjustmentDc: line.length > 466 ? line.substring(465, 466).trim() || null : null,
+              mcCashBackFee: line.length > 481 ? line.substring(466, 481).trim() || null : null,
+              mcCashBackFeeSign: line.length > 482 ? line.substring(481, 482).trim() || null : null,
+              
+              // American Express fields (positions 483-628) - Add based on line length
+              amexIndustrySeNumber: line.length > 492 ? line.substring(482, 492).trim() || null : null,
+              amexMerchantSellerId: line.length > 512 ? line.substring(492, 512).trim() || null : null,
+              amexMerchantSellerName: line.length > 537 ? line.substring(512, 537).trim() || null : null,
+              amexMerchantSellerAddress: line.length > 562 ? line.substring(537, 562).trim() || null : null,
+              amexMerchantSellerPhone: line.length > 578 ? line.substring(562, 578).trim() || null : null,
+              amexMerchantSellerPostalCode: line.length > 588 ? line.substring(578, 588).trim() || null : null,
+              amexMerchantSellerEmail: line.length > 628 ? line.substring(588, 628).trim() || null : null,
+              
+              // Advanced transaction classification (positions 629-650+)
+              mastercardTransactionIntegrityClass: line.length > 630 ? line.substring(628, 630).trim() || null : null,
+              equipmentSourceIdentification: line.length > 633 ? line.substring(630, 633).trim() || null : null,
+              operatorId: line.length > 636 ? line.substring(633, 636).trim() || null : null,
+              requestedPaymentService: line.length > 637 ? line.substring(636, 637).trim() || null : null,
+              totalAuthorizedAmount: line.length > 649 ? this.parseAmount(line.substring(637, 649).trim()) : null,
+              interchangeFeeAmount: line.length > 666 ? this.parseAmount(line.substring(649, 666).trim()) : null,
+              mastercardWalletIdentifier: line.length > 669 ? line.substring(666, 669).trim() || null : null,
+              visaSpecialConditionIndicator: line.length > 670 ? line.substring(669, 670).trim() || null : null,
+              interchangePercentRate: line.length > 676 ? this.parseAmount(line.substring(670, 676).trim()) : null,
+              interchangePerItemRate: line.length > 682 ? this.parseAmount(line.substring(676, 682).trim()) : null,
+              
+              // System and audit fields
               sourceFileId: fileId,
               sourceRowNumber: rawLine.lineNumber,
               mmsRawLine: line, // Store complete raw line in the MMS-RAW-Line field
@@ -6394,10 +6512,10 @@ export class DatabaseStorage implements IStorage {
                 recordDescription: rawLine.recordDescription,
                 lineNumber: rawLine.lineNumber,
                 filename: filename,
-                sequenceNumber: line.substring(0, 7).trim(),
-                entryRunNumber: line.substring(7, 13).trim(),
-                bankNumber: line.substring(19, 23).trim(),
-                cardholderAccount: line.length >= 142 ? line.substring(123, 142).trim() : null
+                lineLength: line.length,
+                processingTimestamp: new Date().toISOString(),
+                allLinesInFile: insertedRawLines.length,
+                recordTypesFound: Object.keys(recordTypeStats)
               }
             };
 
