@@ -4218,6 +4218,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process pending raw TDDF lines (manual processing endpoint)
+  app.post("/api/tddf/process-backlog", isAuthenticated, async (req, res) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 100;
+      const result = await storage.processPendingRawTddfLines(batchSize);
+      
+      res.json({
+        success: true,
+        message: `Processed ${result.processed} pending raw TDDF lines`,
+        details: result
+      });
+    } catch (error) {
+      console.error('Error processing TDDF backlog:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process TDDF backlog" 
+      });
+    }
+  });
+
+  // Skip all pending non-DT records (P1, BH, etc.)
+  app.post("/api/tddf/skip-non-dt-backlog", isAuthenticated, async (req, res) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 500;
+      const result = await storage.processNonDtPendingLines(batchSize);
+      
+      res.json({
+        success: true,
+        message: `Skipped ${result.skipped} pending non-DT raw TDDF lines`,
+        details: result
+      });
+    } catch (error) {
+      console.error('Error skipping non-DT TDDF backlog:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to skip non-DT TDDF backlog" 
+      });
+    }
+  });
+
+  // Get raw TDDF processing status
+  app.get("/api/tddf/raw-status", isAuthenticated, async (req, res) => {
+    try {
+      const status = await storage.getTddfRawProcessingStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error fetching TDDF raw status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF raw status" 
+      });
+    }
+  });
+
+  // Processing Watcher endpoints
+  app.get("/api/processing-watcher/status", isAuthenticated, async (req, res) => {
+    try {
+      const { processingWatcher } = await import("../services/processing-watcher");
+      const status = processingWatcher.getStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting processing watcher status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get processing watcher status" 
+      });
+    }
+  });
+
+  app.get("/api/processing-watcher/alerts", isAuthenticated, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const { processingWatcher } = await import("../services/processing-watcher");
+      const alerts = processingWatcher.getRecentAlerts(limit);
+      res.json({ alerts });
+    } catch (error) {
+      console.error('Error getting processing watcher alerts:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get processing watcher alerts" 
+      });
+    }
+  });
+
+  app.post("/api/processing-watcher/force-check", isAuthenticated, async (req, res) => {
+    try {
+      const { processingWatcher } = await import("../services/processing-watcher");
+      const alerts = await processingWatcher.forceHealthCheck();
+      res.json({ success: true, alertsGenerated: alerts.length, alerts });
+    } catch (error) {
+      console.error('Error forcing processing watcher health check:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to force health check" 
+      });
+    }
+  });
+
   // Delete TDDF record
   app.delete("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {

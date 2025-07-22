@@ -267,6 +267,24 @@ app.use((req, res, next) => {
         environment: NODE_ENV,
         serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
       });
+
+      // Start processing watcher service
+      try {
+        console.log('Initializing processing watcher service...');
+        const { processingWatcher } = await import('./services/processing-watcher');
+        processingWatcher.start();
+        console.log('[PROCESSING WATCHER] Service started successfully');
+        
+        await systemLogger.info('Application', 'Processing watcher service initialized', {
+          environment: NODE_ENV,
+          serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+        });
+      } catch (error) {
+        console.error('[PROCESSING WATCHER] Failed to start service:', error);
+        await systemLogger.error('Application', 'Failed to start processing watcher service', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
       
       // Skip sample logs initialization during development database setup
       // const { initSampleLogs } = await import('./init-sample-logs');

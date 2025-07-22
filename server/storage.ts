@@ -242,6 +242,8 @@ export interface IStorage {
   getTddfRawImportByFileId(fileId: string): Promise<TddfRawImport[]>;
   markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void>;
   markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void>;
+  processPendingRawTddfLines(batchSize?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  getTddfRawProcessingStatus(): Promise<{ total: number; processed: number; pending: number; skipped: number; errors: number }>;
   
   // File operations
   getFileById(fileId: string): Promise<any>;
@@ -6155,6 +6157,184 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error(`Error marking raw import line ${lineId} as skipped:`, error);
       throw error;
+    }
+  }
+
+  async processPendingRawTddfLines(batchSize: number = 100): Promise<{ processed: number; skipped: number; errors: number }> {
+    try {
+      console.log(`[TDDF BACKLOG] Processing up to ${batchSize} pending raw TDDF lines...`);
+      
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending DT records to process
+      const result = await pool.query(`
+        SELECT id, source_file_id, line_number, raw_line, record_type, record_description
+        FROM ${tableName}
+        WHERE processing_status = 'pending' 
+        AND record_type = 'DT'
+        ORDER BY source_file_id, line_number
+        LIMIT $1
+      `, [batchSize]);
+
+      const pendingLines = result.rows;
+      let processed = 0;
+      let skipped = 0;
+      let errors = 0;
+
+      for (const line of pendingLines) {
+        try {
+          // Process the DT record
+          const tddfRecord = this.processTddfLineFromRawData(line.raw_line, line.source_file_id);
+          
+          if (tddfRecord) {
+            // Create TDDF record
+            const createdRecord = await this.createTddfRecord(tddfRecord);
+            
+            // Mark raw line as processed
+            await this.markRawImportLineProcessed(line.id, getTableName('tddf_records'), createdRecord.id.toString());
+            processed++;
+            
+            if (processed % 10 === 0) {
+              console.log(`[TDDF BACKLOG] Processed ${processed} lines so far...`);
+            }
+          } else {
+            // Skip invalid DT record
+            await this.markRawImportLineSkipped(line.id, 'invalid_dt_format');
+            skipped++;
+          }
+          
+        } catch (error) {
+          console.error(`[TDDF BACKLOG] Error processing line ${line.id}:`, error);
+          await this.markRawImportLineSkipped(line.id, `processing_error: ${error instanceof Error ? error.message : 'unknown'}`);
+          errors++;
+        }
+      }
+
+      console.log(`[TDDF BACKLOG] Batch complete - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+      return { processed, skipped, errors };
+      
+    } catch (error) {
+      console.error('Error processing pending raw TDDF lines:', error);
+      throw error;
+    }
+  }
+
+  // Process all pending non-DT records and mark them as skipped to clear the backlog
+  async processNonDtPendingLines(batchSize: number = 500): Promise<{ skipped: number; errors: number }> {
+    try {
+      console.log(`[NON-DT BACKLOG] Processing up to ${batchSize} pending non-DT raw TDDF lines...`);
+      
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending non-DT records to skip
+      const result = await pool.query(`
+        SELECT id, record_type, record_description
+        FROM ${tableName}
+        WHERE processing_status = 'pending' 
+        AND record_type != 'DT'
+        ORDER BY record_type, id
+        LIMIT $1
+      `, [batchSize]);
+
+      const pendingNonDtLines = result.rows;
+      let skipped = 0;
+      let errors = 0;
+
+      console.log(`[NON-DT BACKLOG] Found ${pendingNonDtLines.length} pending non-DT records to skip`);
+
+      for (const line of pendingNonDtLines) {
+        try {
+          // Skip non-DT record with appropriate reason
+          const skipReason = `non_dt_record_${line.record_type.toLowerCase()}`;
+          await this.markRawImportLineSkipped(line.id, skipReason);
+          skipped++;
+          
+          if (skipped % 100 === 0) {
+            console.log(`[NON-DT BACKLOG] Skipped ${skipped} non-DT lines so far...`);
+          }
+          
+        } catch (error) {
+          console.error(`[NON-DT BACKLOG] Error skipping line ${line.id}:`, error);
+          errors++;
+        }
+      }
+
+      console.log(`[NON-DT BACKLOG] Batch complete - Skipped: ${skipped}, Errors: ${errors}`);
+      return { skipped, errors };
+      
+    } catch (error) {
+      console.error('Error processing pending non-DT lines:', error);
+      throw error;
+    }
+  }
+
+  async getTddfRawProcessingStatus(): Promise<{ total: number; processed: number; pending: number; skipped: number; errors: number }> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      
+      const result = await pool.query(`
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN processing_status = 'processed' THEN 1 ELSE 0 END) as processed,
+          SUM(CASE WHEN processing_status = 'pending' THEN 1 ELSE 0 END) as pending,
+          SUM(CASE WHEN processing_status = 'skipped' THEN 1 ELSE 0 END) as skipped,
+          SUM(CASE WHEN processing_status = 'error' THEN 1 ELSE 0 END) as errors
+        FROM ${tableName}
+      `);
+
+      const row = result.rows[0];
+      return {
+        total: parseInt(row.total) || 0,
+        processed: parseInt(row.processed) || 0,
+        pending: parseInt(row.pending) || 0,
+        skipped: parseInt(row.skipped) || 0,
+        errors: parseInt(row.errors) || 0
+      };
+    } catch (error) {
+      console.error('Error getting TDDF raw processing status:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to process a single TDDF line from raw data
+  private processTddfLineFromRawData(rawLine: string, sourceFileId: string): InsertTddfRecord | null {
+    try {
+      if (!rawLine || rawLine.length < 400) {
+        return null;
+      }
+
+      // Extract key fields from fixed-width positions
+      const sequenceNumber = rawLine.substring(0, 17).trim();
+      const recordType = rawLine.substring(17, 19);
+      const merchantAccountNumber = rawLine.substring(23, 39).trim();
+      const referenceNumber = rawLine.substring(61, 84).trim();
+      const transactionDateStr = rawLine.substring(84, 92);
+      const transactionAmountStr = rawLine.substring(92, 103).trim();
+      const authAmountStr = rawLine.substring(191, 203).trim();
+      const cardType = rawLine.substring(250, 256).trim();
+      const debitCreditIndicator = rawLine.substring(256, 257);
+
+      // Validate this is a DT record
+      if (recordType !== 'DT') {
+        return null;
+      }
+
+      return {
+        sequenceNumber,
+        recordType,
+        merchantAccountNumber,
+        referenceNumber,
+        transactionDate: this.parseTddfDate(transactionDateStr),
+        transactionAmount: this.parseAuthAmount(transactionAmountStr),
+        authAmount: this.parseAuthAmount(authAmountStr),
+        cardType: cardType || null,
+        debitCreditIndicator: debitCreditIndicator || null,
+        sourceFileId
+      };
+
+    } catch (error) {
+      console.error('Error processing TDDF line from raw data:', error);
+      return null;
     }
   }
 
