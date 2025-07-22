@@ -134,7 +134,7 @@ export function formatFullDateTime(utcTimestamp: string | null): string {
  * @returns Compact formatted date in user's timezone
  */
 export function formatTableDate(utcTimestamp: string | null): string {
-  return formatLocalTime(utcTimestamp, "MMM d, h:mm a", "-");
+  return formatLocalTime(utcTimestamp, "MMM d, yyyy h:mm a", "-");
 }
 
 /**
