@@ -138,6 +138,15 @@ export function formatTableDate(utcTimestamp: string | null): string {
 }
 
 /**
+ * Formats date for TDDF records (date only, no time since TDDF contains only date data)
+ * @param utcTimestamp - UTC timestamp from database
+ * @returns Date-only format in user's timezone
+ */
+export function formatTddfDate(utcTimestamp: string | null): string {
+  return formatLocalTime(utcTimestamp, "MMM d, yyyy", "-");
+}
+
+/**
  * Formats date for tooltips and detailed views in user's timezone
  * @param utcTimestamp - UTC timestamp from database
  * @returns Detailed formatted date in user's timezone

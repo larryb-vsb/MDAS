@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { formatTableDate } from "@/lib/date-utils";
+import { formatTableDate, formatTddfDate } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
 import {
   Dialog,
@@ -207,10 +207,10 @@ function TruncatedRefNumber({ refNumber }: { refNumber: string | null }) {
 }
 
 // Comprehensive TDDF Record Details Component
-function TddfRecordDetails({ record, formatCurrency, formatTableDate }: { 
+function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: { 
   record: TddfRecord; 
   formatCurrency: (amount?: string | number) => string;
-  formatTableDate: (date: string) => string;
+  formatTddfDate: (date: string) => string;
 }) {
   const [showDetailView, setShowDetailView] = useState(false);
 
@@ -222,7 +222,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
 
   const summaryFields = [
     { label: 'Reference Number (62-84)', value: record.referenceNumber, mono: true },
-    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTableDate(record.transactionDate.toString()) : 'N/A' },
+    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
     { label: 'Terminal ID (279-284)', value: record.terminalId, mono: true },
     { label: 'MCC Code (275-278)', value: record.mccCode, mono: true },
     { label: 'Transaction Type Identifier (335-338)', value: record.transactionTypeIdentifier, mono: true },
@@ -262,7 +262,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
     
     // Core transaction fields (positions 62-142)
     { label: 'Reference Number (62-84)', value: record.referenceNumber, mono: true },
-    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTableDate(record.transactionDate.toString()) : 'N/A' },
+    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
     { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transactionAmount), highlight: true },
     { label: 'Batch Julian Date (104-108)', value: record.batchJulianDate, mono: true },
     { label: 'Net Deposit (109-109)', value: record.netDeposit ? formatCurrency(record.netDeposit) : 'N/A' },
@@ -751,7 +751,7 @@ export default function TddfPage() {
                 <div className="w-40">Merchant Name</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-28">Amount</div>
-                <div className="w-36">Transaction Date/Time</div>
+                <div className="w-36">Transaction Date</div>
                 <div className="w-32">Association Number</div>
                 <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
@@ -791,7 +791,7 @@ export default function TddfPage() {
                     {formatCurrency(record.transactionAmount)}
                   </div>
                   <div className="w-36 text-xs">
-                    {record.transactionDate ? formatTableDate(record.transactionDate.toString()) : 'N/A'}
+                    {record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A'}
                   </div>
                   <div className="w-32 font-mono text-xs">
                     {record.associationNumber1 || 'N/A'}
@@ -852,7 +852,7 @@ export default function TddfPage() {
           <DialogHeader>
             <DialogTitle>TDDF Record Details</DialogTitle>
           </DialogHeader>
-          {detailsRecord && <TddfRecordDetails record={detailsRecord} formatCurrency={formatCurrency} formatTableDate={formatTableDate} />}
+          {detailsRecord && <TddfRecordDetails record={detailsRecord} formatCurrency={formatCurrency} formatTddfDate={formatTddfDate} />}
         </DialogContent>
       </Dialog>
       </div>
