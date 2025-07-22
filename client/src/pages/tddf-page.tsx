@@ -462,7 +462,7 @@ function getCardTypeBadges(record: TddfRecord) {
     
     // Discover identification (DS, DC, etc.)
     if (cardType === 'DS' || cardType.startsWith('DC')) {
-      return [{ label: 'DISC', className: 'bg-orange-100 text-orange-800 border-orange-200' }];
+      return [{ label: 'DISC', className: 'bg-purple-100 text-purple-800 border-purple-200' }];
     }
     
     // Other specific card types
@@ -499,7 +499,7 @@ function getCardTypeBadges(record: TddfRecord) {
   if (record.discoverTransactionType || record.discoverProcessingCode) {
     return [{
       label: 'DISC',
-      className: 'bg-orange-100 text-orange-800 border-orange-200'
+      className: 'bg-purple-100 text-purple-800 border-purple-200'
     }];
   }
   
