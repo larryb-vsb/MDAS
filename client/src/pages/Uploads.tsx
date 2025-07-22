@@ -387,6 +387,33 @@ export default function Uploads() {
     }
   }
 
+  // Format processing time with duration, start time, and stop time
+  function formatProcessingTime(file: UploadedFile) {
+    if (!file.processedAt) {
+      return null;
+    }
+
+    const startTime = file.processingStartedAt || file.uploadedAt;
+    const stopTime = file.processedAt;
+    
+    // Calculate duration in minutes
+    const durationMs = file.processingTimeMs || 
+      (new Date(stopTime).getTime() - new Date(startTime).getTime());
+    const durationMinutes = Math.max(0.1, Math.round((durationMs / (1000 * 60)) * 10) / 10);
+    
+    // Format times in CST
+    const startFormatted = formatUploadTime(startTime);
+    const stopFormatted = formatUploadTime(stopTime);
+    
+    return {
+      duration: durationMinutes < 1 
+        ? `${Math.round(durationMs / 1000)} sec`
+        : `${durationMinutes} min`,
+      startTime: startFormatted,
+      stopTime: stopFormatted
+    };
+  }
+
   // Date formatting functions removed - using imported timezone-aware functions directly
 
   // Handle viewing file error
@@ -753,18 +780,25 @@ export default function Uploads() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {file.processedAt ? (
-                        <div>
-                          <div className="font-medium">
-                            {formatRelativeTime(file.processedAt)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatUploadTime(file.processedAt)}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      {(() => {
+                        const processedTime = formatProcessingTime(file);
+                        if (processedTime) {
+                          return (
+                            <div>
+                              <div className="font-medium text-sm">
+                                Duration: {processedTime.duration}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Start: {processedTime.startTime}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Stop: {processedTime.stopTime}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return <span className="text-muted-foreground">-</span>;
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
