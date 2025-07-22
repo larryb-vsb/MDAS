@@ -66,17 +66,24 @@ interface ConcurrencyStats {
   timestamp?: string;
 }
 
-// Duration formatting function (consistent with ProcessingFilters.tsx)
+// Duration formatting function (always show hours for backlog estimates)
 const formatQueueEstimate = (totalSeconds: number) => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   
+  // Always show hours and minutes format for backlog processing
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   } else if (minutes > 0) {
-    return `${minutes}m`;
+    // Convert minutes to decimal hours for better precision
+    const decimalHours = (totalSeconds / 3600).toFixed(1);
+    return `${decimalHours}h`;
+  } else if (totalSeconds > 0) {
+    // Show very small times as decimal hours
+    const decimalHours = (totalSeconds / 3600).toFixed(2);
+    return `${decimalHours}h`;
   } else {
-    return '< 1m';
+    return '0h';
   }
 };
 
