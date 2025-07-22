@@ -499,11 +499,11 @@ export default function ProcessingStatus() {
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-muted-foreground">Processing Progress</span>
                         <span className="font-medium">
-                          {((realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped) / realTimeStats.tddfOperations.totalRawLines * 100).toFixed(1)}% Complete
+                          {((realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0)) / realTimeStats.tddfOperations.totalRawLines * 100).toFixed(1)}% Complete
                         </span>
                       </div>
                       <Progress 
-                        value={(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped) / realTimeStats.tddfOperations.totalRawLines * 100} 
+                        value={(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0)) / realTimeStats.tddfOperations.totalRawLines * 100} 
                         className="h-2"
                       />
                     </div>
@@ -518,20 +518,20 @@ export default function ProcessingStatus() {
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded border">
                         <div className="font-semibold text-green-700">
-                          {(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped)?.toLocaleString() || '0'}
+                          {(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0))?.toLocaleString() || '0'}
                         </div>
                         <div className="text-green-600">Completed</div>
                       </div>
                       <div className="text-center p-2 bg-amber-50 rounded border">
                         <div className="font-semibold text-amber-700">
-                          {(realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped))?.toLocaleString() || '0'}
+                          {(realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0)))?.toLocaleString() || '0'}
                         </div>
                         <div className="text-amber-600">Backlog</div>
                       </div>
                       <div className="text-center p-2 bg-blue-50 rounded border">
                         <div className="font-semibold text-blue-700">
                           {(() => {
-                            const backlog = realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped);
+                            const backlog = realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0));
                             if (realTimeStats.tddfRecordsPerSecond <= 0 || backlog <= 0) return '< 1m';
                             const estimatedSeconds = backlog / realTimeStats.tddfRecordsPerSecond;
                             return formatQueueEstimate(estimatedSeconds);
