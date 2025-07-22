@@ -56,6 +56,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Formal versioning policy implementation with comprehensive historical tracking
   - Production-ready MMS with 15 tables, environment separation, and TDDF processing capabilities
   - New baseline for future schema evolution with documented standards and processes
+- **✅ SCHEMA VERSION 2.2.0 MINOR RELEASE PUBLISHED**: Universal raw data processing enhancement with comprehensive file diagnostics
+  - New Fields: Added rawLinesCount and processingNotes to uploaded_files table
+  - Universal Processing: Raw data processing now works for all file types (merchant, transaction, terminal, TDDF)
+  - Enhanced Diagnostics: Complete field detection and analysis for every uploaded file
+  - Database Integration: Schema version 2.2.0 properly recorded in schema_versions and schema_content tables
+  - Production Ready: Complete file upload transparency and diagnostic capabilities operational
 - **✅ SCHEMA VERSION 2.0.1 PATCH APPLIED**: Fixed API serving outdated schema content from database
   - PATCH version increment following established versioning policy for bug fixes
   - Schema content API now correctly serves current version header instead of cached 1.3.0

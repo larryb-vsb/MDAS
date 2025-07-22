@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.1.2 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Version: 2.2.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
  * Last Updated: July 22, 2025
  * 
- * MINOR VERSION: Advanced schema versioning workflow testing
- * New Feature: Complete version mismatch detection and update workflow validation with dynamic file-based version reading
+ * MINOR VERSION: Universal Raw Data Processing Enhancement
+ * New Feature: Raw line counting and processing notes for all file types (merchant, transaction, terminal, TDDF)
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -15,6 +15,7 @@
  * - 2.0.1: PATCH FIX - Corrected schema API to serve current version content, established automatic database sync
  * - 2.1.0: MINOR FEATURE - Enhanced schema update testing and production safety demonstration with dynamic version detection
  * - 2.1.2: MINOR FEATURE - Advanced schema versioning workflow testing and complete version mismatch detection validation
+ * - 2.2.0: MINOR FEATURE - Universal raw data processing with raw_lines_count and processing_notes fields for comprehensive file diagnostics
  */
 import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -153,7 +154,9 @@ export const uploadedFiles = pgTable(getTableName("uploaded_files"), {
   recordsWithErrors: integer("records_with_errors").default(0),
   processingTimeMs: integer("processing_time_ms"),
   processingDetails: text("processing_details"), // JSON string with detailed stats
-  uploadEnvironment: text("upload_environment").notNull().default("production") // Track which environment uploaded this file
+  uploadEnvironment: text("upload_environment").notNull().default("production"), // Track which environment uploaded this file
+  rawLinesCount: integer("raw_lines_count"), // Number of raw lines processed for diagnostics
+  processingNotes: text("processing_notes") // Processing notes with field detection and analysis results
 });
 
 // Backup history table
