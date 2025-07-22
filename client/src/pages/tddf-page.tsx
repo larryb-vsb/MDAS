@@ -768,13 +768,13 @@ export default function TddfPage() {
                     onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
                     className="ml-4"
                   />
-                  <div className="w-40">
+                  <div className="w-56">
                     <div className="flex items-center gap-2">
                       <TruncatedRefNumber refNumber={record.referenceNumber || null} />
                       {getCardTypeBadges(record).map((badge, index) => (
                         <span 
                           key={index}
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
                         >
                           {badge.label}
                         </span>
