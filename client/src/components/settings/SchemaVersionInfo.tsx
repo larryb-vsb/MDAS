@@ -223,14 +223,14 @@ export default function SchemaVersionInfo() {
           <div className="flex gap-2">
             <div className="flex items-center gap-2">
               <Select value={selectedSchemaVersion} onValueChange={handleVersionChange}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-48">
                   <SelectValue placeholder="Version" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="current">Current</SelectItem>
-                  {schemaVersionsList?.versions?.map((version) => (
-                    <SelectItem key={version.version} value={version.version}>
-                      v{version.version}
+                  {schemaVersionsList?.versions?.map((version, index) => (
+                    <SelectItem key={`${version.version}-${version.storedAt}-${index}`} value={version.version}>
+                      v{version.version} - {new Date(version.storedAt).toLocaleString()}
                     </SelectItem>
                   ))}
                 </SelectContent>
