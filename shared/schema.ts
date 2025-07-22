@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.2.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Version: 2.3.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
  * Last Updated: July 22, 2025
  * 
- * MINOR VERSION: Universal Raw Data Processing Enhancement
- * New Feature: Raw line counting and processing notes for all file types (merchant, transaction, terminal, TDDF)
+ * MINOR VERSION: Processing Performance Enhancement
+ * New Feature: Hidden millisecond sort values for precise file processing time sorting while maintaining user-friendly display
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -16,6 +16,7 @@
  * - 2.1.0: MINOR FEATURE - Enhanced schema update testing and production safety demonstration with dynamic version detection
  * - 2.1.2: MINOR FEATURE - Advanced schema versioning workflow testing and complete version mismatch detection validation
  * - 2.2.0: MINOR FEATURE - Universal raw data processing with raw_lines_count and processing_notes fields for comprehensive file diagnostics
+ * - 2.3.0: MINOR FEATURE - Hidden millisecond sort values implementation for performance-optimized precise sorting with preserved user-friendly display
  */
 import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
