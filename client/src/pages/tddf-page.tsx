@@ -423,11 +423,55 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   );
 }
 
-// Card Type Detection Function - Returns single badge per transaction
+// Card Type Detection Function - Returns single badge per transaction using Card Type field (251-256)
 function getCardTypeBadges(record: TddfRecord) {
   const isDebit = record.debitCreditIndicator === 'D';
+  const cardType = record.cardType?.trim();
   
-  // Priority 1: Check for AMEX data (highest priority)
+  // Priority 1: Check cardType field (positions 251-256) - most accurate identification
+  if (cardType) {
+    // Mastercard identification (MC, MD, MB)
+    if (cardType === 'MC') {
+      return [{ label: 'MC', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    if (cardType === 'MD') {
+      return [{ label: 'MC-D', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    if (cardType === 'MB') {
+      return [{ label: 'MC-B', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    
+    // Visa identification (VS, VD, VB, etc.)
+    if (cardType === 'VS') {
+      return [{ label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType === 'VD') {
+      return [{ label: 'VISA-D', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType === 'VB') {
+      return [{ label: 'VISA-BIZ', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType.startsWith('V')) {
+      return [{ label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    
+    // American Express identification (AM, AX, etc.)
+    if (cardType === 'AM' || cardType.startsWith('AX')) {
+      return [{ label: 'AMEX', className: 'bg-green-100 text-green-800 border-green-200' }];
+    }
+    
+    // Discover identification (DS, DC, etc.)
+    if (cardType === 'DS' || cardType.startsWith('DC')) {
+      return [{ label: 'DISC', className: 'bg-orange-100 text-orange-800 border-orange-200' }];
+    }
+    
+    // Other specific card types
+    if (cardType.startsWith('MC') || cardType.startsWith('M')) {
+      return [{ label: 'MC', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+  }
+  
+  // Priority 2: Check for AMEX data fields (fallback)
   if (record.amexMerchantSellerPostalCode) {
     return [{
       label: 'AMEX',
@@ -435,7 +479,7 @@ function getCardTypeBadges(record: TddfRecord) {
     }];
   }
   
-  // Priority 2: Check for Visa indicators
+  // Priority 3: Check for Visa-specific fields
   if (record.visaIntegrityFee || record.visaFeeProgramIndicator || record.visaSpecialConditionIndicator) {
     return [{
       label: isDebit ? 'VISA-D' : 'VISA',
@@ -443,7 +487,7 @@ function getCardTypeBadges(record: TddfRecord) {
     }];
   }
   
-  // Priority 3: Check for Mastercard indicators
+  // Priority 4: Check for Mastercard-specific fields
   if (record.mastercardTransactionIntegrityClass || record.mastercardWalletIdentifier || record.mcCashBackFee) {
     return [{
       label: isDebit ? 'MC-D' : 'MC',
@@ -451,15 +495,15 @@ function getCardTypeBadges(record: TddfRecord) {
     }];
   }
   
-  // Priority 4: Check for Discover indicators
+  // Priority 5: Check for Discover-specific fields
   if (record.discoverTransactionType || record.discoverProcessingCode) {
     return [{
-      label: isDebit ? 'DISC-D' : 'DISC',
+      label: 'DISC',
       className: 'bg-orange-100 text-orange-800 border-orange-200'
     }];
   }
   
-  // Priority 5: Fallback to transaction code analysis
+  // Priority 6: Fallback to transaction code analysis
   const transactionCode = record.transactionCode;
   
   if (transactionCode === '0330') {
@@ -473,7 +517,7 @@ function getCardTypeBadges(record: TddfRecord) {
     }
   }
   
-  // Priority 6: Generic fallback for standard transactions
+  // Priority 7: Generic fallback for standard transactions
   if (transactionCode === '0101') {
     return [{
       label: isDebit ? 'DEBIT' : 'CREDIT',
