@@ -4017,7 +4017,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit,
         startDate: req.query.txnDateFrom as string,
         endDate: req.query.txnDateTo as string,
-        merchantId: req.query.merchantId as string
+        merchantId: req.query.merchantId as string,
+        cardType: req.query.cardType as string
       });
       
       res.json(result);

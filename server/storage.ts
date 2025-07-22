@@ -5908,6 +5908,7 @@ export class DatabaseStorage implements IStorage {
     startDate?: string;
     endDate?: string;
     merchantId?: string;
+    cardType?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -5935,6 +5936,44 @@ export class DatabaseStorage implements IStorage {
       
       if (options.merchantId) {
         conditions.push(eq(tddfRecordsTable.merchantAccountNumber, options.merchantId));
+      }
+      
+      if (options.cardType) {
+        // Map card type filters to TDDF field conditions
+        switch (options.cardType) {
+          case 'MC':
+            conditions.push(eq(tddfRecordsTable.cardType, 'MC'));
+            break;
+          case 'MC-D':
+            conditions.push(eq(tddfRecordsTable.cardType, 'MD'));
+            break;
+          case 'MC-B':
+            conditions.push(eq(tddfRecordsTable.cardType, 'MB'));
+            break;
+          case 'VISA':
+            conditions.push(eq(tddfRecordsTable.cardType, 'VS'));
+            break;
+          case 'VISA-D':
+            conditions.push(eq(tddfRecordsTable.cardType, 'VD'));
+            break;
+          case 'VISA-B':
+            conditions.push(eq(tddfRecordsTable.cardType, 'VB'));
+            break;
+          case 'AMEX':
+            conditions.push(eq(tddfRecordsTable.cardType, 'AM'));
+            break;
+          case 'DISC':
+            conditions.push(eq(tddfRecordsTable.cardType, 'DS'));
+            break;
+          case 'DEBIT':
+            // For generic debit, look for debit indicator
+            conditions.push(eq(tddfRecordsTable.debitCreditIndicator, 'D'));
+            break;
+          case 'CREDIT':
+            // For generic credit, look for credit indicator
+            conditions.push(eq(tddfRecordsTable.debitCreditIndicator, 'C'));
+            break;
+        }
       }
 
       // Get total count

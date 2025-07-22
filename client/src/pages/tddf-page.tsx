@@ -166,9 +166,25 @@ interface TddfFilters {
   txnDateFrom: string;
   txnDateTo: string;
   merchantId: string;
+  cardType: string;
 }
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
+
+// Card type filter options
+const CARD_TYPE_OPTIONS = [
+  { value: "all", label: "All Card Types" },
+  { value: "MC", label: "Mastercard Credit" },
+  { value: "MC-D", label: "Mastercard Debit" },
+  { value: "MC-B", label: "Mastercard Business" },
+  { value: "VISA", label: "Visa Credit" },
+  { value: "VISA-D", label: "Visa Debit" },
+  { value: "VISA-B", label: "Visa Business" },
+  { value: "AMEX", label: "American Express" },
+  { value: "DISC", label: "Discover" },
+  { value: "DEBIT", label: "Generic Debit" },
+  { value: "CREDIT", label: "Generic Credit" }
+];
 
 // Truncated Reference Number Component
 function TruncatedRefNumber({ refNumber }: { refNumber: string | null }) {
@@ -542,6 +558,7 @@ export default function TddfPage() {
     txnDateFrom: "",
     txnDateTo: "",
     merchantId: "",
+    cardType: "all",
   });
 
   const { toast } = useToast();
@@ -558,6 +575,7 @@ export default function TddfPage() {
         ...(filters.txnDateFrom && { txnDateFrom: filters.txnDateFrom }),
         ...(filters.txnDateTo && { txnDateTo: filters.txnDateTo }),
         ...(filters.merchantId && { merchantId: filters.merchantId }),
+        ...(filters.cardType && filters.cardType !== "all" && { cardType: filters.cardType }),
       });
 
       const response = await fetch(`/api/tddf?${params}`, {
@@ -635,6 +653,7 @@ export default function TddfPage() {
       txnDateFrom: "",
       txnDateTo: "",
       merchantId: "",
+      cardType: "all",
     });
     setCurrentPage(1);
   };
@@ -675,7 +694,7 @@ export default function TddfPage() {
           <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Search</label>
               <div className="relative">
@@ -687,6 +706,24 @@ export default function TddfPage() {
                   className="pl-10"
                 />
               </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Card Type</label>
+              <Select
+                value={filters.cardType}
+                onValueChange={(value) => handleFilterChange("cardType", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Card Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CARD_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">From Date</label>
