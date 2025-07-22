@@ -88,7 +88,7 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '2.0.0';
+export const CURRENT_SCHEMA_VERSION = '2.0.1';
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
@@ -172,6 +172,23 @@ export const SCHEMA_VERSION_HISTORY = [
         'Version tracking system completely restructured',
         'Schema header updated with complete version history',
         'Production-ready architecture with environment separation'
+      ]
+    },
+    appliedBy: 'Alex-ReplitAgent',
+  },
+  {
+    version: '2.0.1',
+    description: 'PATCH VERSION - Fixed schema content API to serve correct version 2.0.1, established automatic database sync',
+    changes: {
+      tables: ['schema_content'],
+      added: [
+        'Automatic schema content synchronization to database',
+        'Version 2.0.1 header with patch fix documentation'
+      ],
+      modified: [
+        'Schema API now properly serves current file content',
+        'Database-stored schema content matches current schema.ts file',
+        'Established workflow for automatic schema content updates'
       ]
     },
     appliedBy: 'Alex-ReplitAgent',
