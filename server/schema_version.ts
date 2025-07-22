@@ -88,7 +88,7 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '1.3.0';
+export const CURRENT_SCHEMA_VERSION = '2.0.0';
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
@@ -149,6 +149,29 @@ export const SCHEMA_VERSION_HISTORY = [
         'merchant_type field changed from INTEGER to TEXT',
         'Enhanced SchemaVersionInfo widget with diff capabilities',
         'Version comparison functionality added'
+      ]
+    },
+    appliedBy: 'Alex-ReplitAgent',
+  },
+  {
+    version: '2.0.0',
+    description: 'MAJOR VERSION - New baseline with database-based schema management system and formal versioning policy',
+    changes: {
+      tables: ['schema_content', 'all_existing_tables'],
+      added: [
+        'Database-based schema version storage in schema_content table',
+        'Formal Semantic Versioning policy (SCHEMA_VERSIONING_POLICY.md)',
+        'Complete historical version reconstruction from backup data',
+        'Production-ready MMS with comprehensive TDDF processing capabilities',
+        'Attribution system for version tracking (Alex-ReplitAgent vs Alex-ReplitAgent-Historical)',
+        'Schema version selector with complete history display',
+        'New baseline for future schema evolution'
+      ],
+      modified: [
+        'Schema management from file-based to database-based storage',
+        'Version tracking system completely restructured',
+        'Schema header updated with complete version history',
+        'Production-ready architecture with environment separation'
       ]
     },
     appliedBy: 'Alex-ReplitAgent',
