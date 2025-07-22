@@ -270,18 +270,18 @@ app.use((req, res, next) => {
 
       // Start processing watcher service
       try {
-        console.log('Initializing processing watcher service...');
-        const { processingWatcher } = await import('./services/processing-watcher');
-        processingWatcher.start();
-        console.log('[PROCESSING WATCHER] Service started successfully');
+        console.log('Initializing Scanly-Watcher service...');
+        const { scanlyWatcher } = await import('./services/processing-watcher');
+        scanlyWatcher.start();
+        console.log('[SCANLY-WATCHER] Service started successfully');
         
-        await systemLogger.info('Application', 'Processing watcher service initialized', {
+        await systemLogger.info('Application', 'Scanly-Watcher service initialized', {
           environment: NODE_ENV,
           serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
         });
       } catch (error) {
-        console.error('[PROCESSING WATCHER] Failed to start service:', error);
-        await systemLogger.error('Application', 'Failed to start processing watcher service', {
+        console.error('[SCANLY-WATCHER] Failed to start service:', error);
+        await systemLogger.error('Application', 'Failed to start Scanly-Watcher service', {
           error: error instanceof Error ? error.message : String(error)
         });
       }

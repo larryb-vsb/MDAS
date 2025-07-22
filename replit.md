@@ -16,7 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 22, 2025 - TDDF NON-DT RECORD SKIPPING COMPLETELY RESOLVED
+- Current session: July 22, 2025 - SCANLY-WATCHER SERVICE DEPLOYMENT COMPLETED
+- **✅ SCANLY-WATCHER SERVICE DEPLOYMENT COMPLETED**: Successfully renamed and deployed processing watcher service to "Scanly-Watcher" with comprehensive monitoring capabilities
+  - Service Class Rename: ProcessingWatcher → ScanlyWatcher with complete branding update throughout system
+  - API Endpoints Updated: /api/processing-watcher/* → /api/scanly-watcher/* for status, alerts, and health checks
+  - Console Logging: All log messages updated to "[SCANLY-WATCHER]" prefix for clear identification
+  - System Integration: Updated server/index.ts initialization and error handling for new service name
+  - Diagnostic Tools Created: Added `/api/tddf/analyze-stuck` and `/api/tddf/requeue-stuck` endpoints for backlog management
+  - IStorage Interface Enhanced: Added diagnostic method signatures (analyzeStuckTddfLines, requeueStuckTddfLines, processNonDtPendingLines)
+  - Service Operational: Scanly-Watcher successfully starting with health check monitoring and alert generation capabilities
 - **✅ TDDF NON-DT RECORD SKIPPING COMPLETELY RESOLVED**: Fixed critical missing `ne` import from drizzle-orm that was preventing STEP 2.5 non-DT record skipping functionality
   - Root Cause Fix: Added missing `import { ne } from "drizzle-orm";` in server/storage.ts line resolving "ne is not defined" errors
   - Server Restart Applied: System restarted to apply import fix, enabling complete TDDF processing pipeline

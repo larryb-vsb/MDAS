@@ -26,7 +26,7 @@ interface WatcherAlert {
   timestamp: Date;
 }
 
-export class ProcessingWatcher {
+export class ScanlyWatcher {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
   private alertHistory: WatcherAlert[] = [];
@@ -45,12 +45,12 @@ export class ProcessingWatcher {
 
   start(): void {
     if (this.isRunning) {
-      console.log('[PROCESSING WATCHER] Already running');
+      console.log('[SCANLY-WATCHER] Already running');
       return;
     }
 
     this.isRunning = true;
-    console.log('[PROCESSING WATCHER] Starting monitoring...');
+    console.log('[SCANLY-WATCHER] Starting monitoring...');
     
     // Run initial check
     this.performHealthCheck();
@@ -67,12 +67,12 @@ export class ProcessingWatcher {
       this.intervalId = null;
     }
     this.isRunning = false;
-    console.log('[PROCESSING WATCHER] Stopped monitoring');
+    console.log('[SCANLY-WATCHER] Stopped monitoring');
   }
 
   private async performHealthCheck(): Promise<void> {
     try {
-      console.log('[PROCESSING WATCHER] Performing health check...');
+      console.log('[SCANLY-WATCHER] Performing health check...');
       
       const metrics = await this.collectMetrics();
       const alerts = await this.analyzeMetrics(metrics);
@@ -352,5 +352,5 @@ export class ProcessingWatcher {
   }
 }
 
-// Export singleton instance
-export const processingWatcher = new ProcessingWatcher();
+// Export singleton instance of Scanly-Watcher
+export const scanlyWatcher = new ScanlyWatcher();

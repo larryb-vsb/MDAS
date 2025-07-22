@@ -4256,6 +4256,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analyze stuck TDDF records (diagnostic tool)
+  app.get("/api/tddf/analyze-stuck", isAuthenticated, async (req, res) => {
+    try {
+      const analysis = await storage.analyzeStuckTddfLines();
+      res.json({
+        success: true,
+        analysis
+      });
+    } catch (error) {
+      console.error('Error analyzing stuck TDDF records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to analyze stuck TDDF records" 
+      });
+    }
+  });
+
+  // Requeue stuck TDDF records
+  app.post("/api/tddf/requeue-stuck", isAuthenticated, async (req, res) => {
+    try {
+      const criteria = {
+        recordTypes: req.body.recordTypes || [],
+        sourceFileIds: req.body.sourceFileIds || [],
+        olderThanHours: req.body.olderThanHours || 24,
+        batchSize: req.body.batchSize || 1000
+      };
+      
+      const result = await storage.requeueStuckTddfLines(criteria);
+      
+      res.json({
+        success: true,
+        message: `Requeued ${result.requeued} stuck TDDF records`,
+        details: result,
+        criteria
+      });
+    } catch (error) {
+      console.error('Error requeuing stuck TDDF records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to requeue stuck TDDF records" 
+      });
+    }
+  });
+
   // Get raw TDDF processing status
   app.get("/api/tddf/raw-status", isAuthenticated, async (req, res) => {
     try {
@@ -4269,43 +4311,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Processing Watcher endpoints
-  app.get("/api/processing-watcher/status", isAuthenticated, async (req, res) => {
+  // Scanly-Watcher endpoints
+  app.get("/api/scanly-watcher/status", isAuthenticated, async (req, res) => {
     try {
-      const { processingWatcher } = await import("../services/processing-watcher");
-      const status = processingWatcher.getStatus();
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const status = scanlyWatcher.getStatus();
       res.json(status);
     } catch (error) {
-      console.error('Error getting processing watcher status:', error);
+      console.error('Error getting Scanly-Watcher status:', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to get processing watcher status" 
+        error: error instanceof Error ? error.message : "Failed to get Scanly-Watcher status" 
       });
     }
   });
 
-  app.get("/api/processing-watcher/alerts", isAuthenticated, async (req, res) => {
+  app.get("/api/scanly-watcher/alerts", isAuthenticated, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
-      const { processingWatcher } = await import("../services/processing-watcher");
-      const alerts = processingWatcher.getRecentAlerts(limit);
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const alerts = scanlyWatcher.getRecentAlerts(limit);
       res.json({ alerts });
     } catch (error) {
-      console.error('Error getting processing watcher alerts:', error);
+      console.error('Error getting Scanly-Watcher alerts:', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to get processing watcher alerts" 
+        error: error instanceof Error ? error.message : "Failed to get Scanly-Watcher alerts" 
       });
     }
   });
 
-  app.post("/api/processing-watcher/force-check", isAuthenticated, async (req, res) => {
+  app.post("/api/scanly-watcher/force-check", isAuthenticated, async (req, res) => {
     try {
-      const { processingWatcher } = await import("../services/processing-watcher");
-      const alerts = await processingWatcher.forceHealthCheck();
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const alerts = await scanlyWatcher.forceHealthCheck();
       res.json({ success: true, alertsGenerated: alerts.length, alerts });
     } catch (error) {
-      console.error('Error forcing processing watcher health check:', error);
+      console.error('Error forcing Scanly-Watcher health check:', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to force health check" 
+        error: error instanceof Error ? error.message : "Failed to force Scanly-Watcher health check" 
       });
     }
   });

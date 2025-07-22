@@ -245,6 +245,19 @@ export interface IStorage {
   processPendingRawTddfLines(batchSize?: number): Promise<{ processed: number; skipped: number; errors: number }>;
   getTddfRawProcessingStatus(): Promise<{ total: number; processed: number; pending: number; skipped: number; errors: number }>;
   
+  // TDDF diagnostic methods
+  analyzeStuckTddfLines(): Promise<any>;
+  requeueStuckTddfLines(criteria: {
+    recordTypes?: string[];
+    sourceFileIds?: string[];
+    olderThanHours?: number;
+    batchSize?: number;
+  }): Promise<any>;
+  processNonDtPendingLines(batchSize: number): Promise<any>;
+  getCompletedFilesWithPendingDTRecords(): Promise<any>;
+  processPendingDTRecordsForFile(fileId: string): Promise<any>;
+  skipNonDTRecordsForFile(fileId: string): Promise<any>;
+  
   // File operations
   getFileById(fileId: string): Promise<any>;
 }
