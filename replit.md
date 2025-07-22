@@ -34,6 +34,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Dynamic sort order labels: When "Processing Time" is selected, dropdown shows "Longest First" and "Shortest First" instead of generic date labels
   - Context-aware sorting: Upload Date shows "Newest/Oldest First", Filename shows "A to Z/Z to A", Processing Time shows "Shortest/Longest First"
   - Complete integration: Frontend dropdown, backend sorting logic, and API validation all updated for Processing Time sorting functionality
+- **✅ HIDDEN MILLISECOND SORT VALUES IMPLEMENTED**: Added performance optimization for precise sorting while maintaining user-friendly display
+  - Hidden data attributes: Each table row contains `data-processing-time-ms` and `data-upload-date-ms` for exact sort values
+  - Display format preserved: Users continue to see "Duration: 4m 14s" format without any interface changes
+  - Database precision: Backend sorts by exact millisecond values from processing_time_ms field for accurate ordering
+  - Performance optimization: No text-based sorting on formatted duration strings, uses raw millisecond values instead
+  - Future-ready: Hidden sort values available for client-side sorting implementations if needed
 - **✅ UNIVERSAL RAW DATA PROCESSING COMPLETED**: Successfully implemented raw data processing for ALL file types (merchant, transaction, terminal, TDDF)
   - Critical Gap Fixed: Previous implementation only processed raw data for TDDF files (983 files) while merchant/transaction/terminal files had zero raw data coverage
   - Complete API Integration: Both batch upload endpoint (/api/batch-upload) and single file upload endpoint (/api/uploads) now process raw data for every file type
