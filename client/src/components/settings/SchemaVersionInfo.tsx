@@ -190,7 +190,7 @@ export default function SchemaVersionInfo() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <span className="mr-2">Database Schema Version</span>
             {versionMatch ? (
               <Badge className="bg-green-500">
@@ -201,6 +201,12 @@ export default function SchemaVersionInfo() {
                 <AlertTriangle className="mr-1 h-3 w-3" /> Outdated
               </Badge>
             )}
+            <Badge 
+              variant="outline" 
+              className={import.meta.env.MODE === "production" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-blue-50 text-blue-700 border-blue-200"}
+            >
+              {import.meta.env.MODE === "production" ? "Production" : "Development"}
+            </Badge>
           </div>
           <div className="flex gap-2">
             <div className="flex items-center gap-2">
