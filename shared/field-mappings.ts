@@ -146,11 +146,11 @@ export const defaultMerchantValues = {
 
 // CSV header variations that might occur in different files
 export const merchantIdAliases = [
+  "ClientNumber", // Primary merchant ID for demographics files
   "ClientMID", 
   "MerchantID", 
   "Merchant_ID", 
-  "ClientID",
-  "ClientNumber" // Add this as another possible merchant ID field
+  "ClientID"
 ];
 
 export const transactionMerchantIdAliases = [

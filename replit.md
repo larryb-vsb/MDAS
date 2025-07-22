@@ -57,6 +57,7 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Production-ready MMS with 15 tables, environment separation, and TDDF processing capabilities
   - New baseline for future schema evolution with documented standards and processes
 - **✅ MERCHANT CREATION FUNCTIONAL**: Merchant creation working despite audit log error - record successfully added to database
+- **✅ REFRESH BUTTON ADDED**: Added refresh button to Merchants page for manual data reloading and improved user experience
 - **✅ SCHEMA VERSION 2.2.0 MINOR RELEASE PUBLISHED**: Universal raw data processing enhancement with comprehensive file diagnostics
   - New Fields: Added rawLinesCount and processingNotes to uploaded_files table
   - Universal Processing: Raw data processing now works for all file types (merchant, transaction, terminal, TDDF)

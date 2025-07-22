@@ -2821,7 +2821,7 @@ export class DatabaseStorage implements IStorage {
     const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
     
     // Import field mappings and utility functions
-    const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases, findMerchantId, normalizeMerchantId } = await import("@shared/field-mappings");
+    const { merchantFieldMappings, defaultMerchantValues, merchantIdAliases, findMerchantId, normalizeMerchantId, normalizeMerchantType, merchantTypeMapping } = await import("@shared/field-mappings");
     
     return new Promise((resolve, reject) => {
       console.log("Starting CSV parsing from content with verbose logging enabled...");

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { RefreshCw } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -139,6 +140,15 @@ export default function Merchants() {
       deleteMutation.mutate(selectedMerchants);
     }
   };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/merchants'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+    toast({
+      title: "Refreshing",
+      description: "Reloading merchant data...",
+    });
+  };
   
   return (
     <MainLayout>
@@ -146,6 +156,15 @@ export default function Merchants() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">Merchants</h1>
           <div className="flex space-x-2">
+            <Button 
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="hover:bg-blue-50"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button 
               onClick={() => setLocation('/merchants/new')}
               className="bg-gradient-to-r from-blue-500 to-blue-700"
