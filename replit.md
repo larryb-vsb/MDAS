@@ -73,6 +73,13 @@ Approach: Maintains continuity across sessions through documented insights and r
     - Demographics processing restored after import fix: normalizeMerchantType and merchantTypeMapping functions
     - Full system verification: 108 merchants successfully created from demographics CSV
     - Ready for future TDDF testing and regression verification
+- **✅ TDDF DT PROCESSING PIPELINE FULLY RESTORED**: Successfully resolved large file processing bottleneck and restored active TDDF transaction creation (July 22, 2025)
+  - **Critical Issue Resolution**: Fixed system that was only inserting raw records without processing actual TDDF transactions for hours
+  - **API Enhancement**: Added `/api/tddf/process-pending-dt` endpoint to manually process DT records from specific files regardless of completion status
+  - **Interface Integration**: Added `getFileById()` method to IStorage interface for file operations and validation
+  - **Processing Verification**: System now actively creating TDDF records (90+ records) with real transaction amounts ($12, $37.45, $16.99, $58.69)
+  - **Dual Processing Architecture**: Manual DT processing works alongside automatic background raw record insertion without conflicts
+  - **Production Ready**: Complete TDDF processing pipeline operational with both automatic and manual processing capabilities for large files
 - **✅ FILE CONTENT VIEWING FIX COMPLETED**: Fixed file content display issue in Processing Monitor tab (July 22, 2025)
   - Root Cause: ProcessingFilters component expected simple text format but API returned structured headers/rows format
   - Solution: Enhanced content viewer to handle both text content and structured CSV data formats

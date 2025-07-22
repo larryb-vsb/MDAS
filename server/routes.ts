@@ -4129,6 +4129,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/tddf/process-pending-dt - Process pending DT records for a specific file (even if still processing)
+  app.post("/api/tddf/process-pending-dt", isAuthenticated, async (req, res) => {
+    try {
+      const { fileId } = req.body;
+      
+      if (!fileId) {
+        return res.status(400).json({ error: "fileId is required" });
+      }
+      
+      console.log(`\n=== PROCESSING PENDING DT RECORDS FOR SPECIFIC FILE ===`);
+      console.log(`File ID: ${fileId}`);
+      
+      // Check if file exists
+      const file = await storage.getFileById(fileId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      // First skip all non-DT records
+      const skippedCount = await storage.skipNonDTRecordsForFile(fileId);
+      
+      // Then process pending DT records for this specific file
+      const result = await storage.processPendingDTRecordsForFile(fileId);
+      
+      console.log(`\n=== SPECIFIC FILE PROCESSING COMPLETE ===`);
+      console.log(`Non-DT records skipped: ${skippedCount}`);
+      console.log(`DT records processed: ${result.processed}`);
+      console.log(`Errors: ${result.errors}`);
+      
+      res.json({ 
+        success: true, 
+        fileId,
+        filename: file.originalFilename,
+        recordsSkipped: skippedCount,
+        recordsProcessed: result.processed,
+        errors: result.errors
+      });
+    } catch (error: any) {
+      console.error("Error processing pending DT records for file:", error);
+      res.status(500).json({ error: `Failed to process pending DT records: ${error.message}` });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {

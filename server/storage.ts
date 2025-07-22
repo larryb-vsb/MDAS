@@ -242,6 +242,9 @@ export interface IStorage {
   getTddfRawImportByFileId(fileId: string): Promise<TddfRawImport[]>;
   markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void>;
   markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void>;
+  
+  // File operations
+  getFileById(fileId: string): Promise<any>;
 }
 
 // Database storage implementation
@@ -6513,6 +6516,20 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Helper method to get file by ID
+  async getFileById(fileId: string): Promise<any> {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM ${getTableName('uploaded_files')} 
+        WHERE id = $1
+      `, [fileId]);
+      return result.rows[0] || null;
+    } catch (error: any) {
+      console.error(`Error getting file by ID ${fileId}:`, error);
+      throw error;
+    }
+  }
+
   // Helper method to get completed files with pending DT records
   async getCompletedFilesWithPendingDTRecords() {
     try {
@@ -6530,6 +6547,49 @@ export class DatabaseStorage implements IStorage {
       return result.rows;
     } catch (error: any) {
       console.error('Error getting completed files with pending DT records:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to skip non-DT records for a specific file
+  async skipNonDTRecordsForFile(fileId: string) {
+    try {
+      console.log(`\n=== SKIPPING NON-DT RECORDS FOR FILE: ${fileId} ===`);
+      
+      // Get all non-DT records from the database for this file
+      const result = await pool.query(`
+        SELECT * FROM ${getTableName('tddf_raw_import')} 
+        WHERE source_file_id = $1 
+          AND record_type != 'DT' 
+          AND processing_status = 'pending'
+        ORDER BY line_number
+      `, [fileId]);
+      
+      const nonDtRecords = result.rows;
+      
+      console.log(`Found ${nonDtRecords.length} non-DT records to skip for file ${fileId}`);
+      
+      let skippedCount = 0;
+      
+      for (const rawLine of nonDtRecords) {
+        try {
+          console.log(`[NON-DT SKIP] Line ${rawLine.line_number}: ${rawLine.record_description} - Skipping`);
+          
+          // Mark the raw line as skipped
+          await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
+          skippedCount++;
+          
+        } catch (skipError: any) {
+          console.error(`❌ [SKIP ERROR] Line ${rawLine.line_number}:`, skipError);
+        }
+      }
+      
+      console.log(`\n=== NON-DT SKIPPING COMPLETE FOR ${fileId} ===`);
+      console.log(`Non-DT records skipped: ${skippedCount}`);
+      
+      return skippedCount;
+    } catch (error: any) {
+      console.error(`Error skipping non-DT records for file ${fileId}:`, error);
       throw error;
     }
   }
