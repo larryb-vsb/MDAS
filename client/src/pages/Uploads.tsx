@@ -58,10 +58,12 @@ export default function Uploads() {
   const { toast } = useToast();
 
   // API queries
-  const { data: files, isLoading, refetch } = useQuery<UploadedFile[]>({
+  const { data: apiResponse, isLoading, refetch } = useQuery<{uploads: UploadedFile[], pagination: any}>({
     queryKey: ["/api/uploads/history"],
     refetchInterval: 5000,
   });
+  
+  const files = apiResponse?.uploads || [];
 
   // File content fetching
   const fetchFileContent = useMutation({
