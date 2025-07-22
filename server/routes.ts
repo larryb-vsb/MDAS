@@ -4010,29 +4010,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
-      const offset = (page - 1) * limit;
       
-      // Get TDDF records with pagination
-      const tddfRecords = await db.select()
-        .from(tddfRecordsTable)
-        .orderBy(desc(tddfRecordsTable.createdAt))
-        .limit(limit)
-        .offset(offset);
-      
-      // Get total count for pagination
-      const countResult = await db.select({ count: count() }).from(tddfRecordsTable);
-      const totalItems = parseInt(countResult[0].count.toString());
-      const totalPages = Math.ceil(totalItems / limit);
-      
-      res.json({
-        data: tddfRecords,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems,
-          itemsPerPage: limit
-        }
+      // Use storage layer to get properly formatted TDDF records
+      const result = await storage.getTddfRecords({
+        page,
+        limit,
+        startDate: req.query.txnDateFrom as string,
+        endDate: req.query.txnDateTo as string,
+        merchantId: req.query.merchantId as string
       });
+      
+      res.json(result);
     } catch (error) {
       console.error('Error fetching TDDF records:', error);
       res.status(500).json({ 
