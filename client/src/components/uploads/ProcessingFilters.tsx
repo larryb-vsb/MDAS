@@ -519,8 +519,25 @@ export default function ProcessingFilters() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {displayedFiles.map((file) => (
-                              <TableRow key={file.id}>
+                            {displayedFiles.map((file) => {
+                              // Calculate hidden sort value for processing time (in milliseconds)
+                              let processingTimeSortValue = 0;
+                              if (file.processingTimeMs) {
+                                processingTimeSortValue = file.processingTimeMs;
+                              } else {
+                                const startTime = file.processingStartedAt;
+                                const endTime = file.processingCompletedAt || file.processedAt;
+                                if (startTime && endTime) {
+                                  processingTimeSortValue = new Date(endTime).getTime() - new Date(startTime).getTime();
+                                }
+                              }
+
+                              return (
+                                <TableRow 
+                                  key={file.id} 
+                                  data-processing-time-ms={processingTimeSortValue}
+                                  data-upload-date-ms={new Date(file.uploadedAt).getTime()}
+                                >
                                 {selectMode && (
                                   <TableCell className="w-12">
                                     <Checkbox
@@ -663,7 +680,8 @@ export default function ProcessingFilters() {
                                   </DropdownMenu>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </CardContent>
