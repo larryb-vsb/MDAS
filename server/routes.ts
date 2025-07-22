@@ -82,7 +82,7 @@ if (!fs.existsSync(uploadDir)) {
 // Set up multer for file uploads with persistent storage
 const upload = multer({ 
   dest: uploadDir,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for large TDDF files
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {

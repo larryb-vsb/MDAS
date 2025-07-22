@@ -20,7 +20,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
       "text/plain": [".txt", ".TSYSO", ".tsyso"],
       "application/octet-stream": [".TSYSO", ".tsyso"],
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 100 * 1024 * 1024, // 100MB for large TDDF files
   });
 
   return (
@@ -56,7 +56,7 @@ export default function FileUploader({ onFilesSelected }: FileUploaderProps) {
             </label>
             <p className="pl-1">or drag and drop</p>
           </div>
-          <p className="text-xs text-gray-500">CSV, TSYSO files up to 10MB</p>
+          <p className="text-xs text-gray-500">CSV, TSYSO files up to 100MB</p>
         </div>
       </div>
     </div>
