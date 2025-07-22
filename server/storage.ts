@@ -5128,7 +5128,7 @@ export class DatabaseStorage implements IStorage {
       
       // Use environment-aware table name for audit logs
       const tableName = getTableName("audit_logs");
-      console.log(`[AUDIT LOG] Using table: ${tableName} in ${config.NODE_ENV} environment`);
+      console.log(`[AUDIT LOG] Using table: ${tableName} in ${process.env.NODE_ENV || 'production'} environment`);
       
       // Use raw SQL to insert into the correct environment table
       const result = await pool.query(`
