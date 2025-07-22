@@ -516,11 +516,28 @@ export default function ProcessingFilters() {
                                     <div>
                                       {/* Processing duration - primary display */}
                                       {(() => {
+                                        const formatDuration = (durationMs: number) => {
+                                          const seconds = Math.floor(durationMs / 1000);
+                                          const minutes = Math.floor(seconds / 60);
+                                          const hours = Math.floor(minutes / 60);
+                                          
+                                          if (hours > 0) {
+                                            const remainingMinutes = minutes % 60;
+                                            const remainingSeconds = seconds % 60;
+                                            return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
+                                          } else if (minutes > 0) {
+                                            const remainingSeconds = seconds % 60;
+                                            return `${minutes}m ${remainingSeconds}s`;
+                                          } else {
+                                            return `${seconds}s`;
+                                          }
+                                        };
+                                        
                                         // Use processingTimeMs if available
                                         if (file.processingTimeMs) {
                                           return (
                                             <div className="font-medium text-sm text-green-600">
-                                              Duration: {(file.processingTimeMs / 1000).toFixed(1)}s
+                                              Duration: {formatDuration(file.processingTimeMs)}
                                             </div>
                                           );
                                         }
@@ -531,10 +548,9 @@ export default function ProcessingFilters() {
                                         
                                         if (startTime && endTime) {
                                           const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-                                          const durationSeconds = (durationMs / 1000).toFixed(1);
                                           return (
                                             <div className="font-medium text-sm text-green-600">
-                                              Duration: {durationSeconds}s
+                                              Duration: {formatDuration(durationMs)}
                                             </div>
                                           );
                                         }
