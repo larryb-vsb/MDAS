@@ -791,7 +791,7 @@ export default function TddfPage() {
                   <div className="w-16">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                       record.debitCreditIndicator === 'D' 
-                        ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                        ? 'bg-red-100 text-red-800 border-red-200' 
                         : record.debitCreditIndicator === 'C'
                         ? 'bg-green-100 text-green-800 border-green-200'
                         : 'bg-gray-100 text-gray-800 border-gray-200'
