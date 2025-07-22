@@ -1,6 +1,6 @@
 /**
  * MMS Database Schema
- * Version: 2.0.1 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Version: 2.0.2 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
  * Last Updated: July 22, 2025
  * 
  * PATCH VERSION: Fixed API serving outdated schema content from database
