@@ -5972,13 +5972,7 @@ export class DatabaseStorage implements IStorage {
             interchangePercentRate: line.length > 676 ? this.parseAmount(line.substring(670, 676).trim()) : null,
             interchangePerItemRate: line.length > 682 ? this.parseAmount(line.substring(676, 682).trim()) : null,
             
-            // Derived transaction fields for compatibility
-            txnId: line.substring(61, 84).trim() || null, // Use reference number as transaction ID
-            merchantId: line.substring(23, 39).trim() || null, // Use merchant account number
-            txnType: line.substring(51, 55).trim() || null, // Use transaction code as type
-            txnAmount: this.parseAmount(line.substring(92, 103).trim()),
-            txnDate: this.parseTddfDate(line.substring(84, 92).trim()),
-            batchId: line.substring(103, 108).trim() || null, // Use batch julian date as batch ID
+            // Note: Using new schema field names instead of legacy compatibility fields
             
             // System and audit fields
             sourceFileId: sourceFileId,
@@ -6000,7 +5994,7 @@ export class DatabaseStorage implements IStorage {
           const insertedRecord = await db.insert(tddfRecordsTable).values(tddfRecord).returning();
           tddfRecordsCreated++;
           
-          console.log(`[TDDF SUCCESS] Created TDDF record ${insertedRecord[0].id} for transaction ${tddfRecord.txnId}`);
+          console.log(`[TDDF SUCCESS] Created TDDF record ${insertedRecord[0].id} for transaction ${tddfRecord.referenceNumber}`);
 
         } catch (rowError) {
           console.error(`[TDDF ERROR] Error processing DT record at line ${totalLinesRead}:`, rowError);
@@ -6138,15 +6132,15 @@ export class DatabaseStorage implements IStorage {
       const conditions = [];
       
       if (options.startDate) {
-        conditions.push(gte(tddfRecordsTable.txnDate, new Date(options.startDate)));
+        conditions.push(gte(tddfRecordsTable.transactionDate, new Date(options.startDate)));
       }
       
       if (options.endDate) {
-        conditions.push(lte(tddfRecordsTable.txnDate, new Date(options.endDate)));
+        conditions.push(lte(tddfRecordsTable.transactionDate, new Date(options.endDate)));
       }
       
       if (options.merchantId) {
-        conditions.push(eq(tddfRecordsTable.merchantId, options.merchantId));
+        conditions.push(eq(tddfRecordsTable.merchantAccountNumber, options.merchantId));
       }
 
       // Get total count
@@ -6164,7 +6158,7 @@ export class DatabaseStorage implements IStorage {
         dataQuery = dataQuery.where(and(...conditions));
       }
       dataQuery = dataQuery
-        .orderBy(desc(tddfRecordsTable.txnDate))
+        .orderBy(desc(tddfRecordsTable.transactionDate))
         .limit(limit)
         .offset(offset);
 
@@ -6383,15 +6377,15 @@ export class DatabaseStorage implements IStorage {
             // Parse the DT record using the existing parsing logic
             const line = rawLine.rawLine;
             
-            // Parse TDDF fixed-width format based on specification
+            // Parse TDDF fixed-width format based on specification using correct schema field names
             const tddfRecord: InsertTddfRecord = {
-              txnId: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rawLine.lineNumber}`,
-              merchantId: line.substring(23, 39).trim() || 'UNKNOWN',
+              referenceNumber: line.substring(61, 84).trim() || `TDDF_${Date.now()}_${rawLine.lineNumber}`,
+              merchantAccountNumber: line.substring(23, 39).trim() || 'UNKNOWN',
               transactionAmount: this.parseAmount(line.substring(92, 103)) || 0,
-              txnDate: this.parseTddfDate(line.substring(84, 92)) || new Date(),
-              txnType: line.substring(51, 55).trim() || null,
+              transactionDate: this.parseTddfDate(line.substring(84, 92)) || new Date(),
+              transactionCode: line.substring(51, 55).trim() || null,
               merchantName: line.length >= 242 ? line.substring(217, 242).trim() || null : null,
-              batchId: line.substring(103, 108).trim() || null,
+              batchJulianDate: line.substring(103, 108).trim() || null,
               sourceFileId: fileId,
               sourceRowNumber: rawLine.lineNumber,
               mmsRawLine: line, // Store complete raw line in the MMS-RAW-Line field
