@@ -225,6 +225,8 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 - **✅ CODE CLEANUP COMPLETED**: Removed redundant file table rendering code from Uploads.tsx after successful functionality migration to ProcessingFilters component
 - **✅ STREAMLINED USER EXPERIENCE**: Eliminated user confusion between File History and Processing Monitor tabs through complete interface consolidation
 - **✅ PRODUCTION-READY INTERFACE**: Clean, unified file management system with enhanced Processing Monitor serving as single source for all file operations
+- **✅ PROCESSING TIME DISPLAY ENHANCED**: Fixed missing processing duration and times in "Processed Time" column - now shows actual duration, start time, and stop time instead of relative timestamps or empty dashes
+- **✅ PERFORMANCE METRICS PRIORITIZED**: Duration-focused display provides clear processing performance visibility with green highlighting for completion times
 
 ### TDDF Amount Consistency Issue COMPLETELY RESOLVED (July 22, 2025)
 - **✅ ROOT CAUSE IDENTIFIED**: Both Auth Amount (positions 192-203) and Transaction Amount (positions 93-103) are stored in cents format in TDDF files requiring /100 conversion

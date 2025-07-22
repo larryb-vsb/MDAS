@@ -512,17 +512,33 @@ export default function ProcessingFilters() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  {file.processedAt ? (
+                                  {(file.processedAt || file.processingCompletedAt || file.processingTimeMs) ? (
                                     <div>
-                                      <div className="font-medium text-sm">
-                                        {formatRelativeTime(file.processedAt)}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {formatTableDate(file.processedAt)}
-                                      </div>
+                                      {/* Processing duration - primary display */}
+                                      {file.processingTimeMs ? (
+                                        <div className="font-medium text-sm text-green-600">
+                                          Duration: {(file.processingTimeMs / 1000).toFixed(1)}s
+                                        </div>
+                                      ) : (
+                                        <div className="font-medium text-sm text-muted-foreground">
+                                          Duration: calculating...
+                                        </div>
+                                      )}
+                                      {/* Start time */}
+                                      {file.processingStartedAt && (
+                                        <div className="text-xs text-muted-foreground">
+                                          Start: {formatTableDate(file.processingStartedAt)}
+                                        </div>
+                                      )}
+                                      {/* Completion time */}
+                                      {(file.processedAt || file.processingCompletedAt) && (
+                                        <div className="text-xs text-muted-foreground">
+                                          Stop: {formatTableDate(file.processedAt || file.processingCompletedAt)}
+                                        </div>
+                                      )}
                                     </div>
                                   ) : (
-                                    <span className="text-muted-foreground">-</span>
+                                    <span className="text-muted-foreground">Queued</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="text-right">
