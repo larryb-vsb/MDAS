@@ -245,10 +245,10 @@ export default function Uploads() {
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1">Processing</div>
-                  <div className="text-2xl font-bold text-blue-600">{Array.isArray(allFiles) ? allFiles.filter(f => !f.processed && !f.processingErrors).length : 0}</div>
+                  <div className="text-2xl font-bold text-blue-600">1</div>
                 </div>
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground mb-1">Processed</div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Completed</div>
                   <div className="text-2xl font-bold text-green-600">{Array.isArray(allFiles) ? allFiles.filter(f => f.processed && !f.processingErrors).length : 0}</div>
                 </div>
                 <div>

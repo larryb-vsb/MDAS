@@ -289,7 +289,21 @@ export default function ProcessingFilters() {
               </div>
               <div className="flex justify-between">
                 <span className="text-xs text-muted-foreground">Est. Wait:</span>
-                <span className="text-xs">{Math.round((queueData?.estimatedWaitTime || 0) / 60)}m</span>
+                <span className="text-xs">
+                  {(() => {
+                    const totalSeconds = queueData?.estimatedWaitTime || 0;
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    
+                    if (hours > 0) {
+                      return `${hours}h ${minutes}m`;
+                    } else if (minutes > 0) {
+                      return `${minutes}m`;
+                    } else {
+                      return '< 1m';
+                    }
+                  })()}
+                </span>
               </div>
             </div>
           </CardContent>
