@@ -393,22 +393,41 @@ export default function Uploads() {
       return null;
     }
 
-    const startTime = file.processingStartedAt || file.uploadedAt;
-    const stopTime = file.processedAt;
+    // Use processing times if available, otherwise fall back to upload time and processed time
+    const startTime = file.processingStartedAt || file.processingCompletedAt || file.uploadedAt;
+    const stopTime = file.processingCompletedAt || file.processedAt;
     
-    // Calculate duration in minutes
-    const durationMs = file.processingTimeMs || 
-      (new Date(stopTime).getTime() - new Date(startTime).getTime());
-    const durationMinutes = Math.max(0.1, Math.round((durationMs / (1000 * 60)) * 10) / 10);
+    // Calculate duration in milliseconds
+    let durationMs = 0;
+    if (file.processingTimeMs && file.processingTimeMs > 0) {
+      // Use stored processing time if available
+      durationMs = file.processingTimeMs;
+    } else if (startTime && stopTime) {
+      // Calculate from timestamps
+      durationMs = new Date(stopTime).getTime() - new Date(startTime).getTime();
+      durationMs = Math.max(100, durationMs); // Minimum 0.1 seconds
+    } else {
+      // Default to 1 second if no timing data available
+      durationMs = 1000;
+    }
+    
+    // Format duration
+    let durationText = "";
+    if (durationMs < 1000) {
+      durationText = `${Math.round(durationMs)} ms`;
+    } else if (durationMs < 60000) {
+      durationText = `${Math.round(durationMs / 1000)} sec`;
+    } else {
+      const minutes = Math.round((durationMs / (1000 * 60)) * 10) / 10;
+      durationText = `${minutes} min`;
+    }
     
     // Format times in CST
     const startFormatted = formatUploadTime(startTime);
     const stopFormatted = formatUploadTime(stopTime);
     
     return {
-      duration: durationMinutes < 1 
-        ? `${Math.round(durationMs / 1000)} sec`
-        : `${durationMinutes} min`,
+      duration: durationText,
       startTime: startFormatted,
       stopTime: stopFormatted
     };
