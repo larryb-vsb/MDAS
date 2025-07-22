@@ -323,7 +323,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
     { label: 'Submitted Interchange (344-348)', value: record.submittedInterchange, mono: true },
     { label: 'System Trace Audit Number (349-354)', value: record.systemTraceAuditNumber, mono: true },
     { label: 'Discover Transaction Type (355-356)', value: record.discoverTransactionType, mono: true },
-    { label: 'Local Transaction Time (357-362)', value: record.localTransactionTime, mono: true },
+    { label: 'Local Transaction Time (357-362)', value: record.localTransactionTime || 'N/A', mono: true, highlight: !!record.localTransactionTime },
     { label: 'Discover Processing Code (363-368)', value: record.discoverProcessingCode, mono: true },
     { label: 'Commercial Card Service Indicator (369-369)', value: record.commercialCardServiceIndicator, mono: true },
     
@@ -353,9 +353,9 @@ function TddfRecordDetails({ record, formatCurrency, formatTableDate }: {
     { label: 'AMEX Industry SE Number (483-492)', value: record.amexIndustrySeNumber, mono: true },
     { label: 'AMEX Merchant Seller ID (493-512)', value: record.amexMerchantSellerId, mono: true },
     { label: 'AMEX Merchant Seller Name (513-537)', value: record.amexMerchantSellerName },
-    { label: 'AMEX Merchant Seller Address (538-562)', value: record.amexMerchantSellerAddress },
+    { label: 'AMEX Merchant Seller Address (538-562)', value: record.amexMerchantSellerAddress || 'N/A', highlight: !!record.amexMerchantSellerAddress },
     { label: 'AMEX Merchant Seller Phone (563-578)', value: record.amexMerchantSellerPhone, mono: true },
-    { label: 'AMEX Merchant Seller Postal Code (579-588)', value: record.amexMerchantSellerPostalCode, mono: true },
+    { label: 'AMEX Merchant Seller Postal Code (579-588)', value: record.amexMerchantSellerPostalCode || 'N/A', mono: true, highlight: !!record.amexMerchantSellerPostalCode },
     { label: 'AMEX Merchant Seller Email (589-628)', value: record.amexMerchantSellerEmail },
     
     // Advanced transaction classification (positions 629-682)
