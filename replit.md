@@ -35,6 +35,11 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Schema content API now correctly serves current version header instead of cached 1.3.0
   - Established automatic workflow for schema content synchronization to database
   - Database-stored content now matches current schema.ts file with proper version headers
+- **✅ ENVIRONMENT TAGS ADDED TO SCHEMA WIDGET**: Schema Version widget now displays environment indicators
+  - Blue "Development" badge in development environment for clear identification
+  - Orange "Production" badge in production environment (will display after deployment)
+  - Consistent styling with Processing Status and System Information widgets
+  - Resolves environment confusion between production and development schema displays
 - **✅ DATABASE-BASED SCHEMA MANAGEMENT COMPLETED**: Fully operational schema management system with database storage replacing file system access:
   - Created `schema_content` table for version-controlled schema storage with content, timestamps, and attribution
   - Built complete API endpoints: `/api/schema/import`, `/api/schema/raw`, `/api/schema/versions-list` with ES module compatibility
