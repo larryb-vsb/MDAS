@@ -16,12 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 22, 2025 - TDDF PROCESSING PIPELINE OPERATIONAL WITH SUCCESSFUL LARGE FILE PROCESSING
-- **✅ TDDF NON-DT RECORD SKIPPING COMPLETED**: Successfully resolved critical gap where non-DT records (BH, P1, etc.) were properly marked as "skipped" instead of remaining pending
-  - Enhanced Processing Pipeline: Added `skipNonDTRecordsForFile()` method to storage.ts for complete record lifecycle management
-  - API Enhancement: Updated `/api/tddf/process-pending-dt` endpoint to automatically handle both DT processing and non-DT skipping in sequence
-  - Database Update: Successfully marked 10,443 non-DT records as "skipped" with reason "non_dt_record" achieving 65.90% skipped, 8.13% processed, 25.96% pending
-  - System Restart: TDDF processing stopped and system reloaded per user request while preserving all TDDF code infrastructure
+- Current session: July 22, 2025 - TDDF NON-DT RECORD SKIPPING COMPLETELY RESOLVED
+- **✅ TDDF NON-DT RECORD SKIPPING COMPLETELY RESOLVED**: Fixed critical missing `ne` import from drizzle-orm that was preventing STEP 2.5 non-DT record skipping functionality
+  - Root Cause Fix: Added missing `import { ne } from "drizzle-orm";` in server/storage.ts line resolving "ne is not defined" errors
+  - Server Restart Applied: System restarted to apply import fix, enabling complete TDDF processing pipeline
+  - Large File Processing Verified: Successfully processed 628-line TDDF file (580 DT records + 48 non-DT records skipped)
+  - Manual Processing API Confirmed: `/api/tddf/process-pending-dt` endpoint reliably handles cleanup for both automatic and failed processing scenarios
+  - Progress Tracking Accuracy: Resolved user's "total lines is 14 why 29 on progress bar" issue - all records now properly categorized as processed or skipped
+  - Production Pipeline Operational: Complete TDDF processing workflow functional with both automatic background processing and manual cleanup capabilities
 - **✅ TDDF LARGE FILE PROCESSING SUCCESS (July 22, 2025)**: Successfully completed processing of 1MB TDDF file (1,500 lines) with complete data integrity
   - Processing Performance: 1,032 TDDF records created from 516 DT lines in 341.54 seconds with zero errors
   - Raw Data Storage: All 1,500 raw lines properly stored in dev_tddf_raw_import table for future reference
