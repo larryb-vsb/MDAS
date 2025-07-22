@@ -6733,6 +6733,37 @@ export class DatabaseStorage implements IStorage {
       console.log(`\n✅ All lines stored in TDDF raw import table for future reprocessing`);
       console.log(`🔗 Linked to upload record: ${fileId}`);
       console.log(`📁 Ready for future expansion to other record types`);
+      
+      // STEP 2.5: AUTOMATIC NON-DT RECORD CLEANUP (Critical Fix)
+      console.log(`\n=== STEP 2.5: AUTOMATIC NON-DT RECORD CLEANUP ===`);
+      try {
+        const tableName = getTableName('tddf_raw_import');
+        
+        // Skip all pending non-DT records for this file
+        const skipResult = await pool.query(`
+          UPDATE ${tableName} 
+          SET processing_status = 'skipped', 
+              skip_reason = 'non_dt_record',
+              processed_at = NOW()
+          WHERE source_file_id = $1 
+            AND processing_status = 'pending' 
+            AND record_type != 'DT'
+        `, [fileId]);
+        
+        const skippedCount = skipResult.rowCount || 0;
+        console.log(`✅ [STEP 2.5] Automatically skipped ${skippedCount} non-DT records (BH, P1, P2, A1, A2, etc.)`);
+        
+        if (skippedCount > 0) {
+          console.log(`🚀 [STEP 2.5] Non-DT record cleanup complete - backlog prevented!`);
+        } else {
+          console.log(`ℹ️  [STEP 2.5] No pending non-DT records found to skip`);
+        }
+        
+      } catch (cleanupError) {
+        console.error(`❌ [STEP 2.5] Error during automatic non-DT cleanup:`, cleanupError);
+        // Don't throw - cleanup failure shouldn't break main processing
+      }
+      
       console.log(`=================== ENHANCED TDDF PROCESSING COMPLETE ===================`);
 
       return {
