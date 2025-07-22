@@ -676,22 +676,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update schema version to the latest version
   app.post("/api/schema/update", isAuthenticated, async (req, res) => {
     try {
-      const latestVersionInfo = SCHEMA_VERSION_HISTORY.find((v: any) => v.version === CURRENT_SCHEMA_VERSION);
+      const currentFileVersion = getCurrentFileVersion();
       
-      if (!latestVersionInfo) {
-        return res.status(404).json({ error: "Latest version information not found" });
+      if (!currentFileVersion) {
+        return res.status(404).json({ error: "Current file version could not be determined" });
       }
       
       const newVersion = await SchemaVersionManager.addVersion({
-        version: latestVersionInfo.version,
-        description: latestVersionInfo.description,
-        changes: latestVersionInfo.changes,
+        version: currentFileVersion,
+        description: `Updated to schema version ${currentFileVersion}`,
+        changes: [`Updated database schema to match file version ${currentFileVersion}`],
         appliedBy: req.user ? req.user.username : 'Alex-ReplitAgent',
       });
       
       res.json({
         success: true,
-        version: newVersion
+        version: newVersion,
+        updatedTo: currentFileVersion
       });
     } catch (error) {
       console.error("Error updating schema version:", error);
