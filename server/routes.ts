@@ -68,7 +68,7 @@ import {
   TddfRecord,
   InsertTddfRecord
 } from "@shared/schema";
-import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY } from "./schema_version";
+import { SchemaVersionManager, CURRENT_SCHEMA_VERSION, SCHEMA_VERSION_HISTORY, getCurrentFileVersion } from "./schema_version";
 
 const execPromise = promisify(exec);
 
@@ -641,7 +641,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: row.notes
       }));
       
-      res.json({ versions });
+      // Get current file version dynamically
+      const currentFileVersion = getCurrentFileVersion();
+      
+      res.json({ 
+        versions,
+        currentFileVersion: currentFileVersion
+      });
       
     } catch (error: any) {
       console.error('Schema versions list error:', error);

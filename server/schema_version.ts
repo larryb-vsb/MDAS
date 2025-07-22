@@ -88,7 +88,37 @@ export class SchemaVersionManager {
 /**
  * Schema version information
  */
-export const CURRENT_SCHEMA_VERSION = '2.0.1';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+/**
+ * Read the current schema version from the schema.ts file
+ */
+export function getCurrentFileVersion(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
+    const schemaPath = path.join(__dirname, '..', 'shared', 'schema.ts');
+    const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+    
+    // Extract version from the header comment
+    const versionMatch = schemaContent.match(/Version:\s*(\d+\.\d+\.\d+)/);
+    
+    if (versionMatch) {
+      return versionMatch[1];
+    }
+    
+    // Fallback to hardcoded version if not found
+    return '2.1.0';
+  } catch (error) {
+    console.error('Error reading schema file version:', error);
+    return '2.1.0'; // Fallback version
+  }
+}
+
+export const CURRENT_SCHEMA_VERSION = getCurrentFileVersion();
 export const SCHEMA_VERSION_HISTORY = [
   {
     version: '1.0.0',
