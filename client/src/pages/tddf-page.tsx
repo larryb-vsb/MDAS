@@ -750,7 +750,7 @@ export default function TddfPage() {
                 <div className="w-40">Reference Number</div>
                 <div className="w-40">Merchant Name</div>
                 <div className="w-24">Merchant ID</div>
-                <div className="w-16">D/C</div>
+                <div className="w-20">D/C Indicator</div>
                 <div className="w-36">Transaction Date</div>
                 <div className="w-32">Association Number</div>
                 <div className="w-32">Card Number</div>
@@ -788,7 +788,7 @@ export default function TddfPage() {
                   <div className="w-24 font-mono text-xs">
                     {record.merchantAccountNumber || '-'}
                   </div>
-                  <div className="w-16">
+                  <div className="w-20">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                       record.debitCreditIndicator === 'D' 
                         ? 'bg-red-100 text-red-800 border-red-200' 
@@ -796,7 +796,7 @@ export default function TddfPage() {
                         ? 'bg-green-100 text-green-800 border-green-200'
                         : 'bg-gray-100 text-gray-800 border-gray-200'
                     } border`}>
-                      {record.debitCreditIndicator || '-'}
+                      {record.debitCreditIndicator === 'D' ? 'Debit' : record.debitCreditIndicator === 'C' ? 'Credit' : '-'}
                     </span>
                   </div>
                   <div className="w-36 text-xs">
