@@ -707,10 +707,39 @@ export default function ProcessingFilters() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 max-h-[60vh] overflow-auto">
-            {fileContent?.content && (
-              <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                {fileContent.content}
-              </pre>
+            {fileContent && (
+              <>
+                {fileContent.content ? (
+                  <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono">
+                    {fileContent.content}
+                  </pre>
+                ) : fileContent.headers && fileContent.rows ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {fileContent.headers.map((header, index) => (
+                          <TableHead key={index}>{header}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fileContent.rows.map((row, rowIndex) => (
+                        <TableRow key={rowIndex}>
+                          {fileContent.headers.map((header, cellIndex) => (
+                            <TableCell key={cellIndex}>
+                              {row[header] != null ? String(row[header]) : ""}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No content available for this file
+                  </div>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
