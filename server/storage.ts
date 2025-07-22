@@ -2410,6 +2410,7 @@ export class DatabaseStorage implements IStorage {
           console.log(`⏱️ PROCESSING: ${file.originalFilename} (already claimed by file processor)`);
           
           // Process based on file type
+          const fileProcessingStartTime = new Date(); // Track overall file processing start time
           if (file.fileType === 'merchant') {
             try {
               // Always use database content first (database-first approach)
@@ -2485,13 +2486,23 @@ export class DatabaseStorage implements IStorage {
             } catch (error) {
               console.error(`Error processing merchant file ${file.id}:`, error);
               
-              // Mark with error
-              await db.update(uploadedFilesTable)
-                .set({ 
-                  processed: true, 
-                  processingErrors: error instanceof Error ? error.message : "Unknown error during processing"
-                })
-                .where(eq(uploadedFilesTable.id, file.id));
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
             }
           } else if (file.fileType === 'transaction') {
             try {
@@ -2587,13 +2598,23 @@ export class DatabaseStorage implements IStorage {
                              `Error Code: ${error.code}`;
               }
               
-              // Mark with error
-              await db.update(uploadedFilesTable)
-                .set({ 
-                  processed: true, 
-                  processingErrors: errorMessage
-                })
-                .where(eq(uploadedFilesTable.id, file.id));
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_errors = ${errorMessage},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
             }
           } else if (file.fileType === 'terminal') {
             try {
@@ -2656,13 +2677,23 @@ export class DatabaseStorage implements IStorage {
             } catch (error) {
               console.error(`Error processing terminal file ${file.id}:`, error);
               
-              // Mark with error
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
               await db.execute(sql`
                 UPDATE ${sql.identifier(uploadedFilesTableName)}
                 SET processed = true, 
-                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"}
+                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
                 WHERE id = ${file.id}
               `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
             }
           } else if (file.fileType === 'tddf') {
             try {
@@ -2724,24 +2755,44 @@ export class DatabaseStorage implements IStorage {
             } catch (error) {
               console.error(`Error processing TDDF file ${file.id}:`, error);
               
-              // Mark with error
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
               await db.execute(sql`
                 UPDATE ${sql.identifier(uploadedFilesTableName)}
                 SET processed = true, 
-                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"}
+                    processing_errors = ${error instanceof Error ? error.message : "Unknown error during processing"},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${processingTimeMs}
                 WHERE id = ${file.id}
               `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
             }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
-            // Mark with error for unknown type
-            await db.update(uploadedFilesTable)
-                .set({ 
-                  processed: true, 
-                  processingErrors: `Unknown file type: ${file.fileType}`
-                })
-                .where(eq(uploadedFilesTable.id, file.id));
+            // Always record processing completion time and duration, even for unknown types
+            const processingCompletedTime = new Date();
+            const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+            
+            // Mark with error for unknown type but include processing timing
+            await db.execute(sql`
+              UPDATE ${sql.identifier(uploadedFilesTableName)}
+              SET processed = true, 
+                  processing_errors = ${`Unknown file type: ${file.fileType}`},
+                  processing_status = 'failed',
+                  processing_completed_at = ${processingCompletedTime.toISOString()},
+                  processed_at = ${processingCompletedTime.toISOString()},
+                  processing_time_ms = ${processingTimeMs}
+              WHERE id = ${file.id}
+            `);
+            
+            console.log(`⏱️ FAILED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds (unknown file type)`);
           }
         } catch (fileError) {
           console.error(`Error processing file ID ${fileId}:`, fileError);

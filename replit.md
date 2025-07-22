@@ -148,6 +148,18 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### Processing Time Recording Fixed for All File States COMPLETED (July 22, 2025)
+- **✅ ERROR PROCESSING TIMING FIXED**: All file processing error handlers now record completion times and durations even when files fail to process
+- **✅ CONSISTENT DURATION TRACKING**: Processing duration calculated from file processing start time to completion time for both successful and failed files  
+- **✅ COMPREHENSIVE ERROR TIMING**: Fixed merchant, transaction, terminal, TDDF, and unknown file type error handlers to include:
+  - processing_completed_at timestamp when error occurred
+  - processed_at timestamp for UI display
+  - processing_time_ms for actual duration calculation
+  - processing_status set to 'failed' for proper error state tracking
+- **✅ UPLOAD WIDGET DISPLAY READY**: "Processed Time" column will now show durations for both successful processing and error cases
+- **✅ PRODUCTION ERROR MONITORING**: Complete processing time tracking enables monitoring of file processing performance regardless of success/failure
+- **✅ DURATION CALCULATIONS**: All error handlers calculate actual processing time from start to error occurrence for accurate performance metrics
+
 ### Enhanced TDDF Raw Import Database Architecture COMPLETED (July 21, 2025)
 - **✅ DEDICATED RAW IMPORT TABLE CREATED**: Successfully implemented `dev_tddf_raw_import` table with complete schema:
   - Stores ALL raw lines in order with line_number sequencing  
