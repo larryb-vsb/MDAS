@@ -6200,7 +6200,7 @@ export class DatabaseStorage implements IStorage {
               // Core transaction fields (positions 62-142)
               referenceNumber: line.substring(61, 84).trim() || null,
               transactionDate: this.parseTddfDate(line.substring(84, 92).trim()),
-              transactionAmount: this.parseAmount(line.substring(92, 103).trim()),
+              transactionAmount: this.parseAuthAmount(line.substring(92, 103).trim()),
               batchJulianDate: line.substring(103, 108).trim() || null,
               netDeposit: this.parseAmount(line.substring(108, 123).trim()),
               cardholderAccountNumber: line.substring(123, 142).trim() || null,
