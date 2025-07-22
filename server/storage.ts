@@ -6575,7 +6575,7 @@ export class DatabaseStorage implements IStorage {
               // Authorization and card details (positions 243-268)
               authorizationNumber: line.substring(242, 248).trim() || null,
               rejectReason: line.substring(248, 252).trim() || null,
-              cardType: line.substring(252, 254).trim() || null,
+              cardType: line.substring(250, 256).trim() || null, // Updated to match PowerShell spec: positions 251-256 (6 chars)
               currencyCode: line.substring(254, 257).trim() || null,
               originalTransactionAmount: this.parseAmount(line.substring(257, 268).trim()),
               
@@ -6583,8 +6583,9 @@ export class DatabaseStorage implements IStorage {
               foreignCardIndicator: line.substring(268, 269).trim() || null,
               carryoverIndicator: line.substring(269, 270).trim() || null,
               extensionRecordIndicator: line.substring(270, 272).trim() || null,
-              mccCode: line.substring(272, 276).trim() || null,
-              terminalId: line.substring(276, 284).trim() || null,
+              mccCode: line.substring(272, 276).trim() || null, // Positions 273-276: MCC (4 chars)
+              vNumber: line.substring(276, 284).trim() || null, // Positions 277-284: V Number (8 chars) - matches PowerShell spec
+              terminalId: line.substring(276, 284).trim() || null, // Legacy field - same as vNumber for backward compatibility
               
               // Extended fields (positions 285+) - Add more based on line length
               discoverPosEntryMode: line.length > 287 ? line.substring(284, 287).trim() || null : null,

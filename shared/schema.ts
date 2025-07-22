@@ -287,7 +287,7 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   // Authorization and card details (positions 243-268)
   authorizationNumber: text("authorization_number"), // Positions 243-248
   rejectReason: text("reject_reason"), // Positions 249-252
-  cardType: text("card_type"), // Positions 253-254
+  cardType: text("card_type"), // Positions 251-256: Updated to match PowerShell spec (2 chars to 6 chars)
   currencyCode: text("currency_code"), // Positions 255-257
   originalTransactionAmount: numeric("original_transaction_amount", { precision: 13, scale: 2 }), // Positions 258-268
   
@@ -295,8 +295,11 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   foreignCardIndicator: text("foreign_card_indicator"), // Position 269
   carryoverIndicator: text("carryover_indicator"), // Position 270
   extensionRecordIndicator: text("extension_record_indicator"), // Positions 271-272
-  mccCode: text("mcc_code"), // Positions 273-276: Merchant Category Code
-  terminalId: text("terminal_id"), // Positions 277-284
+  mccCode: text("mcc_code"), // Positions 273-276: Merchant Category Code (4 chars)
+  vNumber: text("v_number"), // Positions 277-284: V Number (8 chars) - matches PowerShell spec
+  
+  // Legacy terminalId field (keeping for backward compatibility)
+  terminalId: text("terminal_id"), // Legacy field - use vNumber instead
   
   // Extended fields (positions 285-400+)
   discoverPosEntryMode: text("discover_pos_entry_mode"), // Positions 285-287
