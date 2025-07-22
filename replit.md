@@ -41,6 +41,12 @@ Approach: Maintains continuity across sessions through documented insights and r
     - Demographics processing restored after import fix: normalizeMerchantType and merchantTypeMapping functions
     - Full system verification: 108 merchants successfully created from demographics CSV
     - Ready for future TDDF testing and regression verification
+- **✅ FILE CONTENT VIEWING FIX COMPLETED**: Fixed file content display issue in Processing Monitor tab (July 22, 2025)
+  - Root Cause: ProcessingFilters component expected simple text format but API returned structured headers/rows format
+  - Solution: Enhanced content viewer to handle both text content and structured CSV data formats
+  - API Integration: Successfully processes both `content` (raw text) and `headers`/`rows` (table data) responses
+  - Fallback Handling: Added proper "No content available" message for files without displayable content
+  - Production Ready: File content viewing now works consistently across all file types in Processing Monitor
 - **✅ TDDF DATE DISPLAY ACCURACY COMPLETED**: Fixed misleading "7:00 PM" time display on all TDDF transaction records
   - Root cause: TDDF specification only contains dates (MMDDCCYY format) without specific transaction times
   - Database stores parsed dates as midnight UTC (2022-10-26 00:00:00) which converts to 6-7 PM CST previous day
