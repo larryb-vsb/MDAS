@@ -39,7 +39,7 @@ import {
   insertSchemaContentSchema
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray } from "drizzle-orm";
+import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
