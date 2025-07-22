@@ -4088,6 +4088,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/tddf/process-pending - Process pending DT records for completed files
+  app.post("/api/tddf/process-pending", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`\n=== MANUAL DT PROCESSING TRIGGERED ===`);
+      
+      // Get all completed files with pending DT records
+      const pendingFiles = await storage.getCompletedFilesWithPendingDTRecords();
+      console.log(`Found ${pendingFiles.length} completed files with pending DT records`);
+      
+      let totalProcessed = 0;
+      let totalErrors = 0;
+      
+      for (const file of pendingFiles) {
+        try {
+          console.log(`\nProcessing file: ${file.originalFilename} (${file.id})`);
+          const result = await storage.processPendingDTRecordsForFile(file.id);
+          totalProcessed += result.processed;
+          totalErrors += result.errors;
+          console.log(`  ✅ Processed: ${result.processed} records, Errors: ${result.errors}`);
+        } catch (fileError: any) {
+          console.error(`  ❌ Error processing file ${file.id}:`, fileError.message);
+          totalErrors++;
+        }
+      }
+      
+      console.log(`\n=== MANUAL PROCESSING COMPLETE ===`);
+      console.log(`Total records processed: ${totalProcessed}`);
+      console.log(`Total errors: ${totalErrors}`);
+      
+      res.json({ 
+        success: true, 
+        filesProcessed: pendingFiles.length,
+        recordsProcessed: totalProcessed,
+        errors: totalErrors
+      });
+    } catch (error: any) {
+      console.error("Error in manual DT processing:", error);
+      res.status(500).json({ error: `Failed to process pending DT records: ${error.message}` });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {

@@ -6085,35 +6085,33 @@ export class DatabaseStorage implements IStorage {
 
   async markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void> {
     try {
-      await db
-        .update(tddfRawImportTable)
-        .set({
-          processed: true,
-          processedAt: new Date(),
-          processedIntoTable,
-          processedRecordId,
-          updatedAt: new Date()
-        })
-        .where(eq(tddfRawImportTable.id, lineId));
-    } catch (error) {
-      console.error('Error marking raw import line as processed:', error);
+      await pool.query(`
+        UPDATE ${getTableName('tddf_raw_import')} 
+        SET processing_status = 'processed',
+            processed_into_table = $2,
+            processed_record_id = $3,
+            processed_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1
+      `, [lineId, processedIntoTable, processedRecordId]);
+    } catch (error: any) {
+      console.error(`Error marking raw import line ${lineId} as processed:`, error);
       throw error;
     }
   }
 
   async markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void> {
     try {
-      await db
-        .update(tddfRawImportTable)
-        .set({
-          processed: true,
-          processedAt: new Date(),
-          skipReason,
-          updatedAt: new Date()
-        })
-        .where(eq(tddfRawImportTable.id, lineId));
-    } catch (error) {
-      console.error('Error marking raw import line as skipped:', error);
+      await pool.query(`
+        UPDATE ${getTableName('tddf_raw_import')} 
+        SET processing_status = 'skipped',
+            skip_reason = $2,
+            processed_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $1
+      `, [lineId, skipReason]);
+    } catch (error: any) {
+      console.error(`Error marking raw import line ${lineId} as skipped:`, error);
       throw error;
     }
   }
@@ -6244,10 +6242,23 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`✅ Stored ${successfulInserts} raw lines in TDDF raw import table (${errorCount} failed)`);
       
-      // STEP 2: Process only DT records from the raw import table
-      console.log(`\n=== STEP 2: PROCESSING DT RECORDS ONLY ===`);
+      // STEP 2: Process only DT records from the database (not just from insertedRawLines array)
+      console.log(`\n=== STEP 2: PROCESSING DT RECORDS FROM DATABASE ===`);
       
-      for (const rawLine of insertedRawLines) {
+      // Get all DT records from the database for this file
+      const dtRecords = await db.select()
+        .from(tddfRawImportTable)
+        .where(
+          and(
+            eq(tddfRawImportTable.sourceFileId, fileId),
+            eq(tddfRawImportTable.recordType, 'DT')
+          )
+        )
+        .orderBy(tddfRawImportTable.lineNumber);
+      
+      console.log(`Found ${dtRecords.length} DT records to process from database`);
+      
+      for (const rawLine of dtRecords) {
         if (rawLine.recordType === 'DT') {
           try {
             console.log(`[DT PROCESSING] Processing line ${rawLine.lineNumber}: ${rawLine.recordDescription}`);
@@ -6410,17 +6421,13 @@ export class DatabaseStorage implements IStorage {
 
             console.log(`✅ [DT PROCESSED] Line ${rawLine.lineNumber}: Created TDDF record ID ${createdRecord.id} - Amount: $${tddfRecord.transactionAmount}`);
 
-          } catch (lineError) {
+          } catch (lineError: any) {
             errorCount++;
             console.error(`❌ [DT ERROR] Line ${rawLine.lineNumber}:`, lineError);
             
             // Mark the raw line as processed with error
             await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${lineError.message}`);
           }
-        } else {
-          // Mark non-DT records as skipped
-          await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
-          console.log(`⏭️  [SKIPPED] Line ${rawLine.lineNumber}: ${rawLine.recordDescription} (non-DT record)`);
         }
       }
 
@@ -6503,6 +6510,158 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error parsing TDDF date ${dateStr}:`, error);
       return null;
+    }
+  }
+
+  // Helper method to get completed files with pending DT records
+  async getCompletedFilesWithPendingDTRecords() {
+    try {
+      const result = await pool.query(`
+        SELECT DISTINCT uf.id, uf.original_filename
+        FROM ${getTableName('uploaded_files')} uf
+        INNER JOIN ${getTableName('tddf_raw_import')} tri ON uf.id = tri.source_file_id
+        WHERE uf.processing_status = 'completed'
+        AND uf.file_type = 'tddf'
+        AND tri.record_type = 'DT'
+        AND tri.processing_status = 'pending'
+        ORDER BY uf.original_filename
+      `);
+      
+      return result.rows;
+    } catch (error: any) {
+      console.error('Error getting completed files with pending DT records:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to process pending DT records for a specific file
+  async processPendingDTRecordsForFile(fileId: string) {
+    try {
+      console.log(`\n=== PROCESSING DT RECORDS FOR FILE: ${fileId} ===`);
+      
+      // Get all DT records from the database for this file
+      const result = await pool.query(`
+        SELECT * FROM ${getTableName('tddf_raw_import')} 
+        WHERE source_file_id = $1 
+          AND record_type = 'DT' 
+          AND processing_status = 'pending'
+        ORDER BY line_number
+      `, [fileId]);
+      
+      const dtRecords = result.rows;
+      
+      console.log(`Found ${dtRecords.length} pending DT records to process for file ${fileId}`);
+      
+      let tddfRecordsCreated = 0;
+      let errorCount = 0;
+      
+      for (const rawLine of dtRecords) {
+        try {
+          console.log(`[DT PROCESSING] Processing line ${rawLine.line_number}: ${rawLine.record_description}`);
+          
+          // Parse the DT record using the existing parsing logic
+          const line = rawLine.raw_line;
+          
+          // Parse comprehensive TDDF fixed-width format based on full specification
+          const tddfRecord: InsertTddfRecord = {
+            // Core TDDF header fields (positions 1-23)
+            sequenceNumber: line.substring(0, 7).trim() || null,
+            entryRunNumber: line.substring(7, 13).trim() || null,
+            sequenceWithinRun: line.substring(13, 17).trim() || null,
+            recordIdentifier: line.substring(17, 19).trim() || null,
+            bankNumber: line.substring(19, 23).trim() || null,
+            
+            // Account and merchant fields (positions 24-61)
+            merchantAccountNumber: line.substring(23, 39).trim() || null,
+            associationNumber1: line.substring(39, 45).trim() || null,
+            groupNumber: line.substring(45, 51).trim() || null,
+            transactionCode: line.substring(51, 55).trim() || null,
+            associationNumber2: line.substring(55, 61).trim() || null,
+            
+            // Core transaction fields (positions 62-142)
+            referenceNumber: line.substring(61, 84).trim() || null,
+            transactionDate: this.parseTddfDate(line.substring(84, 92).trim()),
+            transactionAmount: this.parseAuthAmount(line.substring(92, 103).trim()),
+            batchJulianDate: line.substring(103, 108).trim() || null,
+            netDeposit: this.parseAmount(line.substring(108, 123).trim()),
+            cardholderAccountNumber: line.substring(123, 142).trim() || null,
+            
+            // Transaction details (positions 143-187)
+            bestInterchangeEligible: line.substring(142, 144).trim() || null,
+            transactionDataConditionCode: line.substring(144, 146).trim() || null,
+            downgradeReason1: line.substring(146, 150).trim() || null,
+            downgradeReason2: line.substring(150, 154).trim() || null,
+            downgradeReason3: line.substring(154, 164).trim() || null,
+            onlineEntry: line.substring(164, 165).trim() || null,
+            authorizationAmount: this.parseAuthAmount(line.substring(191, 203).trim()),
+            
+            // Additional transaction fields (positions 204-334)
+            posEntryMethod: line.substring(203, 205).trim() || null,
+            authorizationCode: line.substring(205, 211).trim() || null,
+            processingCode: line.substring(211, 217).trim() || null,
+            authorizationResponseCode: line.substring(217, 219).trim() || null,
+            acquirerReferenceNumber: line.substring(219, 242).trim() || null,
+            authorizationDate: this.parseTddfDate(line.substring(242, 250).trim()),
+            authorizationTime: line.substring(250, 256).trim() || null,
+            localTransactionTime: line.substring(256, 262).trim() || null,
+            cardTypeCode: line.substring(262, 264).trim() || null,
+            cardApplicationId: line.substring(264, 280).trim() || null,
+            terminalCapability: line.substring(280, 282).trim() || null,
+            
+            // Transaction type and routing (positions 334-372)
+            transactionTypeIdentifier: line.substring(334, 338).trim() || null,
+            debitCreditIndicator: line.substring(338, 339).trim() || null,
+            transactionOrigination: line.substring(339, 340).trim() || null,
+            
+            // Additional processing fields
+            sourceFileId: fileId,
+            recordedAt: new Date(),
+            
+            // Store raw data for reference
+            rawData: {
+              recordType: rawLine.record_type,
+              recordDescription: rawLine.record_description,
+              lineNumber: rawLine.line_number,
+              filename: fileId,
+              lineLength: line.length,
+              processingTimestamp: new Date().toISOString(),
+              recordTypesFound: ['DT']
+            }
+          };
+
+          // Create or update the TDDF record in the database (overwrite on matching reference number)
+          const createdRecord = await this.upsertTddfRecord(tddfRecord);
+          tddfRecordsCreated++;
+
+          // Mark the raw line as processed
+          await this.markRawImportLineProcessed(
+            rawLine.id, 
+            'tddf_records', 
+            createdRecord.id.toString()
+          );
+
+          console.log(`✅ [DT PROCESSED] Line ${rawLine.line_number}: Created TDDF record ID ${createdRecord.id} - Amount: $${tddfRecord.transactionAmount}`);
+
+        } catch (lineError: any) {
+          errorCount++;
+          console.error(`❌ [DT ERROR] Line ${rawLine.line_number}:`, lineError);
+          
+          // Mark the raw line as processed with error
+          await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${lineError.message}`);
+        }
+      }
+      
+      console.log(`\n=== FILE PROCESSING COMPLETE FOR ${fileId} ===`);
+      console.log(`TDDF records created: ${tddfRecordsCreated}`);
+      console.log(`Errors encountered: ${errorCount}`);
+      
+      return {
+        processed: tddfRecordsCreated,
+        errors: errorCount
+      };
+    } catch (error: any) {
+      console.error(`Error processing pending DT records for file ${fileId}:`, error);
+      throw error;
     }
   }
 }

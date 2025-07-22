@@ -17,12 +17,13 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 22, 2025 - TDDF PROCESSING PIPELINE FULLY RESTORED
-- **✅ TDDF PROCESSING PIPELINE FULLY RESTORED**: Fixed TDDF processing that was broken by CSV processing improvements
-  - Root Cause: CSV processing fixes inadvertently broke TDDF database schema causing column mismatch errors
-  - Complete Resolution: Added missing columns (processed_record_id, updated_at, created_at) to dev_tddf_raw_import table
-  - Processing Success: All 9 TDDF files processed successfully creating 54 TDDF records with complete raw import data
-  - Dual Functionality Verified: Both CSV processing (merchant/transaction/terminal) and TDDF processing (.TSYSO files) now working correctly
-  - Complete System Health: Raw data preservation, field detection, and processing transparency operational for all file types
+- **✅ MANUAL TDDF DT PROCESSING FEATURE COMPLETED**: Successfully implemented comprehensive manual processing system for pending TDDF DT records
+  - Critical SQL Syntax Fix: Resolved all Drizzle ORM query errors by implementing raw SQL queries with proper field name mapping (camelCase vs snake_case)
+  - Processing Success: Manual API endpoint processed 58 pending DT records from 9 completed files with zero errors
+  - Complete Implementation: Added `/api/tddf/process-pending` endpoint with `getCompletedFilesWithPendingDTRecords()` and `processPendingDTRecordsForFile()` helper methods
+  - Dual Processing System: Manual processing works alongside automatic background processing without conflicts
+  - Database Integration: Fixed `markRawImportLineProcessed` and `markRawImportLineSkipped` methods with proper PostgreSQL field mapping
+  - Production Ready: Complete manual DT processing capability for handling completed files with pending records while maintaining data integrity
 - **✅ TERMINAL VIEW PAGE WITH ANALYTICS COMPLETED**: Comprehensive terminal analytics dashboard with transaction viewer and activity heat maps
   - Created TerminalViewPage.tsx with detailed terminal overview, activity metrics, and tabbed interface (Overview, Transactions, Details)
   - Implemented TerminalActivityHeatMap.tsx showing GitHub-style contribution chart for daily transaction activity over time
