@@ -2062,7 +2062,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processed,
           processing_errors,
           deleted,
-          file_content,
           processed_at,
           processing_status,
           processing_started_at,
@@ -2083,16 +2082,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baseQuery = sql`${baseQuery} AND processing_errors IS NOT NULL`;
       }
 
-      baseQuery = sql`${baseQuery} ORDER BY 
-        CASE 
-          WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
-          ELSE uploaded_at 
-        END DESC
-        LIMIT ${limitNum}`;
+      // Add file type filter to query if needed
+      if (fileType !== 'all') {
+        baseQuery = sql`${baseQuery} AND file_type = ${fileType}`;
+      }
+
+      // Get total count first for pagination
+      const countQuery = sql`
+        SELECT COUNT(*) as total 
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE deleted = false
+        ${status === 'completed' ? sql`AND (processing_status = 'completed' OR (processed = true AND processing_errors IS NULL))` : sql``}
+        ${status === 'processing' ? sql`AND processing_status = 'processing'` : sql``}
+        ${status === 'queued' ? sql`AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))` : sql``}
+        ${status === 'error' ? sql`AND processing_errors IS NOT NULL` : sql``}
+        ${fileType !== 'all' ? sql`AND file_type = ${fileType}` : sql``}
+      `;
+      
+      const countResult = await db.execute(countQuery);
+      const totalFiles = Number(countResult.rows[0]?.total || 0);
+      const totalPages = Math.ceil(totalFiles / limitNum);
+
+      // Add pagination to main query
+      baseQuery = sql`${baseQuery} 
+        ORDER BY 
+          CASE 
+            WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
+            ELSE uploaded_at 
+          END DESC
+        LIMIT ${limitNum} OFFSET ${offset}`;
 
       const result = await db.execute(baseQuery);
       
-      let uploads = result.rows.map(row => ({
+      const uploads = result.rows.map(row => ({
         id: row.id,
         originalFilename: row.original_filename,
         storagePath: row.storage_path,
@@ -2101,7 +2123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processed: row.processed,
         processingErrors: row.processing_errors,
         deleted: row.deleted,
-        file_content: row.file_content,
+        // file_content excluded for performance - fetch separately when needed
         processedAt: row.processed_at,
         processingStatus: row.processing_status || (row.processed ? 'completed' : 'queued'),
         processingStartedAt: row.processing_started_at,
@@ -2109,27 +2131,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingServerId: row.processing_server_id
       }));
 
-      // Apply file type filter only (status filtering is now done in query)
-      if (fileType !== 'all') {
-        uploads = uploads.filter(f => f.fileType === fileType);
-      }
-
       const processorStatus = {
         isRunning: true,
         currentlyProcessingFile: uploads.find(f => f.processingStatus === 'processing'),
         queuedFiles: uploads.filter(f => f.processingStatus === 'queued')
       };
-
-      // Apply pagination
-      const paginatedUploads = uploads.slice(offset, offset + limitNum);
       
       res.json({
-        uploads: paginatedUploads,
+        uploads: uploads,
         pagination: {
           currentPage: pageNum,
-          totalItems: uploads.length,
+          totalItems: totalFiles,
           itemsPerPage: limitNum,
-          totalPages: Math.ceil(uploads.length / limitNum)
+          totalPages: totalPages,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1
         },
         processorStatus,
         filters: {
