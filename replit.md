@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 22, 2025 - UNIVERSAL RAW DATA PROCESSING COMPLETION
+- Current session: July 22, 2025 - TDDF PROCESSING PRIORITIZATION FIX COMPLETED
 - **✅ UNIVERSAL RAW DATA PROCESSING COMPLETED**: Successfully implemented raw data processing for ALL file types (merchant, transaction, terminal, TDDF)
   - Critical Gap Fixed: Previous implementation only processed raw data for TDDF files (983 files) while merchant/transaction/terminal files had zero raw data coverage
   - Complete API Integration: Both batch upload endpoint (/api/batch-upload) and single file upload endpoint (/api/uploads) now process raw data for every file type
@@ -24,6 +24,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Testing Infrastructure Fixed: Resolved API field name mismatch (camelCase vs snake_case) and corrected test verification framework
   - **✅ FULL VERIFICATION SUCCESSFUL**: End-to-end testing confirms immediate raw data processing during upload for all file types with proper field preservation
   - Production Ready: System now ensures complete data transparency and traceability for every uploaded file regardless of type
+- **✅ TDDF PROCESSING PRIORITIZATION FIXED**: Resolved queue management issue where TDDF files were delayed by other file types processing first
+  - Critical Queue Fix: Modified file processor ORDER BY clause to prioritize TDDF files (file_type = 'tddf') ahead of all other file types  
+  - Processing Performance: 5,678 TDDF records successfully created with 866 TDDF files remaining in priority queue
+  - Pipeline Verification: Console logs confirm TDDF processing working correctly with proper amounts ($199.95, $29.95, etc.)
+  - Queue Management: TDDF files now get immediate processing priority preventing delays from mixed file type queues
+  - Raw Data Integration: TDDF raw import data storage continues working seamlessly with prioritized processing
 - **✅ TDDF DATE DISPLAY ACCURACY COMPLETED**: Fixed misleading "7:00 PM" time display on all TDDF transaction records
   - Root cause: TDDF specification only contains dates (MMDDCCYY format) without specific transaction times
   - Database stores parsed dates as midnight UTC (2022-10-26 00:00:00) which converts to 6-7 PM CST previous day

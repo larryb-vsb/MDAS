@@ -272,7 +272,12 @@ class FileProcessorService {
         FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'queued'
           AND deleted = false
-        ORDER BY uploaded_at ASC
+        ORDER BY 
+          CASE 
+            WHEN file_type = 'tddf' THEN 1 
+            ELSE 2 
+          END,
+          uploaded_at ASC
         LIMIT 10
       `);
       
