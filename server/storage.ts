@@ -16,6 +16,7 @@ import {
   terminals as terminalsTable,
   tddfRecords as tddfRecordsTable,
   tddfRawImport as tddfRawImportTable,
+  schemaContent as schemaContentTable,
   Merchant,
   Transaction,
   Terminal,
@@ -34,7 +35,8 @@ import {
   SystemLog,
   InsertSystemLog,
   SecurityLog,
-  InsertSecurityLog
+  InsertSecurityLog,
+  insertSchemaContentSchema
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray } from "drizzle-orm";

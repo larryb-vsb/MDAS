@@ -8,13 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Info, AlertTriangle, RefreshCw, History, Eye, GitCompare, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Info, AlertTriangle, RefreshCw, History, Eye, GitCompare, ChevronDown, ChevronUp, Download, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type VersionData = {
   versions: Array<{
@@ -42,9 +43,14 @@ export default function SchemaVersionInfo() {
   const { toast } = useToast();
   const [showHistory, setShowHistory] = useState(false);
   const [selectedVersions, setSelectedVersions] = useState<[number, number] | null>(null);
+  const [selectedSchemaVersion, setSelectedSchemaVersion] = useState<string>("current");
   
   const { data, isLoading, error, refetch } = useQuery<VersionData>({
     queryKey: ['/api/schema/versions'],
+  });
+  
+  const { data: schemaVersionsList } = useQuery<{versions: Array<{version: string, storedAt: string, storedBy: string, contentSize: number, notes: string}>}>({
+    queryKey: ['/api/schema/versions-list'],
   });
   
   const updateMutation = useMutation({
@@ -62,6 +68,26 @@ export default function SchemaVersionInfo() {
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update schema version",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const importSchemaMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/schema/import', { method: 'POST' });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Schema Import Completed",
+        description: data.message || "Schema content has been imported into database successfully.",
+      });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Import Failed", 
+        description: error instanceof Error ? error.message : "Failed to import schema content",
         variant: "destructive",
       });
     }
@@ -107,6 +133,15 @@ export default function SchemaVersionInfo() {
   }
 
   const versionMatch = data?.currentVersion?.version === data?.expectedVersion;
+  
+  const handleVersionChange = (version: string) => {
+    setSelectedSchemaVersion(version);
+  };
+  
+  const handleViewSchema = () => {
+    const versionParam = selectedSchemaVersion === 'current' ? '' : `?version=${selectedSchemaVersion}`;
+    window.open(`/api/schema/raw${versionParam}`, '_blank');
+  };
 
   const formatChanges = (changes: Record<string, any>) => {
     if (!changes) return null;
@@ -186,14 +221,43 @@ export default function SchemaVersionInfo() {
             )}
           </div>
           <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <Select value={selectedSchemaVersion} onValueChange={handleVersionChange}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Version" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Current</SelectItem>
+                  {schemaVersionsList?.versions?.map((version) => (
+                    <SelectItem key={version.version} value={version.version}>
+                      v{version.version}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewSchema}
+                className="flex items-center"
+              >
+                <Eye className="mr-1 h-3 w-3" />
+                View
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open('/api/schema/raw', '_blank')}
+              onClick={() => importSchemaMutation.mutate()}
+              disabled={importSchemaMutation.isPending}
               className="flex items-center"
             >
-              <Eye className="mr-1 h-3 w-3" />
-              View
+              {importSchemaMutation.isPending ? (
+                <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="mr-1 h-3 w-3" />
+              )}
+              Import Schema
             </Button>
             <Button
               variant="outline"

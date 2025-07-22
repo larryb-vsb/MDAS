@@ -195,6 +195,18 @@ export const schemaVersions = pgTable("schema_versions", {
   script: text("script") // Optional script used for the migration
 });
 
+// Schema content storage table - stores schema file content for viewing without file system access
+export const schemaContent = pgTable("schema_content", {
+  id: serial("id").primaryKey(),
+  version: text("version").notNull(), // Schema version this content represents
+  content: text("content").notNull(), // Complete schema file content
+  fileName: text("file_name").notNull().default("schema.ts"),
+  storedAt: timestamp("stored_at").defaultNow().notNull(),
+  storedBy: text("stored_by").default("Alex-ReplitAgent"),
+  contentHash: text("content_hash"), // SHA256 hash for change detection
+  notes: text("notes") // Optional notes about changes
+});
+
 // Zod schemas for merchants
 export const merchantsSchema = createInsertSchema(merchants);
 export const insertMerchantSchema = merchantsSchema.omit({ id: true });
@@ -391,6 +403,10 @@ export const insertBackupScheduleSchema = backupSchedulesSchema;
 // Zod schemas for schema versions
 export const schemaVersionsSchema = createInsertSchema(schemaVersions);
 export const insertSchemaVersionSchema = schemaVersionsSchema.omit({ id: true });
+
+// Zod schemas for schema content
+export const schemaContentSchema = createInsertSchema(schemaContent);
+export const insertSchemaContentSchema = schemaContentSchema.omit({ id: true });
 
 // Users table
 export const users = pgTable(getTableName("users"), {
