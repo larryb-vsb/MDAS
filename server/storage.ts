@@ -6577,7 +6577,7 @@ export class DatabaseStorage implements IStorage {
               cashBackAmount: line.length > 321 ? this.parseAmount(line.substring(312, 321).trim()) : null,
               cashBackAmountSign: line.length > 322 ? line.substring(321, 322).trim() || null : null,
               posDataCode: line.length > 335 ? line.substring(322, 335).trim() || null : null,
-              transactionTypeIdentifier: line.length > 338 ? line.substring(335, 338).trim() || null : null,
+              transactionTypeIdentifier: line.length > 338 ? line.substring(334, 338).trim() || null : null,
               cardTypeExtended: line.length > 341 ? line.substring(338, 341).trim() || null : null,
               productId: line.length > 343 ? line.substring(341, 343).trim() || null : null,
               submittedInterchange: line.length > 348 ? line.substring(343, 348).trim() || null : null,
