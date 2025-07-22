@@ -6188,9 +6188,61 @@ export class DatabaseStorage implements IStorage {
         console.log(`[RAW IMPORT] Line ${i + 1}: '${recordType}' - ${recordDescription} (${line.length} chars)`);
       }
       
-      // Insert all raw lines into the raw import table
-      const insertedRawLines = await this.createTddfRawImportRecords(rawImportRecords);
-      console.log(`✅ Stored ${insertedRawLines.length} raw lines in TDDF raw import table`);
+      // Insert raw lines in very small batches to avoid ORM stack overflow issues
+      console.log(`Inserting ${rawImportRecords.length} raw lines in small batches...`);
+      const insertedRawLines: TddfRawImport[] = [];
+      const BATCH_SIZE = 10; // Much smaller batch size to avoid Drizzle ORM stack overflow
+      let successfulInserts = 0;
+      
+      for (let i = 0; i < rawImportRecords.length; i += BATCH_SIZE) {
+        const batch = rawImportRecords.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(rawImportRecords.length / BATCH_SIZE);
+        
+        console.log(`Processing batch ${batchNum}/${totalBatches}: ${batch.length} records`);
+        
+        try {
+          // For very large files, do individual inserts to prevent stack overflow
+          if (rawImportRecords.length > 1000) {
+            for (const record of batch) {
+              try {
+                const individualResult = await this.createTddfRawImportRecords([record]);
+                insertedRawLines.push(...individualResult);
+                successfulInserts++;
+              } catch (individualError: any) {
+                console.error(`Failed individual raw import insert: ${individualError.message}`);
+                errorCount++;
+              }
+            }
+          } else {
+            const batchResult = await this.createTddfRawImportRecords(batch);
+            insertedRawLines.push(...batchResult);
+            successfulInserts += batchResult.length;
+          }
+        } catch (error: any) {
+          console.error(`Error with batch ${batchNum}: ${error.message}`);
+          
+          // Fallback to individual inserts for this batch
+          for (const record of batch) {
+            try {
+              const individualResult = await this.createTddfRawImportRecords([record]);
+              insertedRawLines.push(...individualResult);
+              successfulInserts++;
+            } catch (individualError: any) {
+              console.error(`Failed fallback individual insert: ${individualError.message}`);
+              errorCount++;
+            }
+          }
+        }
+        
+        // Progress update for large files
+        if (batchNum % 10 === 0 || batchNum === totalBatches) {
+          const progress = ((i + batch.length) / rawImportRecords.length * 100).toFixed(1);
+          console.log(`Progress: ${progress}% (${successfulInserts}/${rawImportRecords.length} inserted, ${errorCount} errors)`);
+        }
+      }
+      
+      console.log(`✅ Stored ${successfulInserts} raw lines in TDDF raw import table (${errorCount} failed)`);
       
       // STEP 2: Process only DT records from the raw import table
       console.log(`\n=== STEP 2: PROCESSING DT RECORDS ONLY ===`);
