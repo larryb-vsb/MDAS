@@ -6434,6 +6434,40 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // STEP 2.5: Skip all non-DT records in the same file
+      console.log(`\n=== STEP 2.5: SKIPPING NON-DT RECORDS ===`);
+      
+      // Get all non-DT records from the database for this file
+      const nonDtRecords = await db.select()
+        .from(tddfRawImportTable)
+        .where(
+          and(
+            eq(tddfRawImportTable.sourceFileId, fileId),
+            ne(tddfRawImportTable.recordType, 'DT'),
+            eq(tddfRawImportTable.processingStatus, 'pending')
+          )
+        )
+        .orderBy(tddfRawImportTable.lineNumber);
+      
+      console.log(`Found ${nonDtRecords.length} non-DT records to skip`);
+      
+      let skippedCount = 0;
+      for (const rawLine of nonDtRecords) {
+        try {
+          console.log(`[SKIPPING] Line ${rawLine.lineNumber}: ${rawLine.recordType} - ${rawLine.recordDescription}`);
+          
+          // Mark the raw line as skipped
+          await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
+          skippedCount++;
+          
+        } catch (skipError: any) {
+          console.error(`❌ [SKIP ERROR] Line ${rawLine.lineNumber}:`, skipError);
+          errorCount++;
+        }
+      }
+      
+      console.log(`✅ Skipped ${skippedCount} non-DT records`);
+
       // STEP 3: Generate comprehensive summary
       console.log(`\n=== STEP 3: COMPREHENSIVE PROCESSING SUMMARY ===`);
       console.log(`📋 Record Type Breakdown:`);

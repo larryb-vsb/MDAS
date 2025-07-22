@@ -17,7 +17,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 22, 2025 - TDDF PROCESSING PIPELINE OPERATIONAL WITH SUCCESSFUL LARGE FILE PROCESSING
-- **✅ TDDF NON-DT RECORD SKIPPING COMPLETED**: Successfully resolved critical gap where 10,443 non-DT records (BH, DR, E1, G2, P1) were properly marked as "skipped" instead of remaining pending
+- **✅ TDDF NON-DT RECORD SKIPPING COMPLETED**: Successfully resolved critical gap where non-DT records (BH, P1, etc.) were properly marked as "skipped" instead of remaining pending
   - Enhanced Processing Pipeline: Added `skipNonDTRecordsForFile()` method to storage.ts for complete record lifecycle management
   - API Enhancement: Updated `/api/tddf/process-pending-dt` endpoint to automatically handle both DT processing and non-DT skipping in sequence
   - Database Update: Successfully marked 10,443 non-DT records as "skipped" with reason "non_dt_record" achieving 65.90% skipped, 8.13% processed, 25.96% pending
