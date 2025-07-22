@@ -1812,14 +1812,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get upload file history
+  // Get upload file history with pagination and optimized performance
   app.get("/api/uploads/history", async (req, res) => {
     try {
+      const { limit = '50', page = '1' } = req.query;
+      const limitNum = parseInt(limit as string) || 50;
+      const pageNum = parseInt(page as string) || 1;
+      const offset = (pageNum - 1) * limitNum;
+      
       // Use environment-specific table for uploads
       const tableName = getTableName('uploaded_files');
       console.log(`[UPLOADS API] Using table: ${tableName} for environment: ${process.env.NODE_ENV}`);
       
-      // Use raw SQL to avoid schema issues - only select columns that exist
+      // PERFORMANCE FIX: Exclude file_content field which can be massive (hundreds of KB)
+      // Only fetch it when specifically needed for file viewing/download
       const result = await db.execute(sql`
         SELECT 
           id,
@@ -1830,16 +1836,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processed,
           processing_errors,
           deleted,
-          file_content,
           processed_at,
           processing_status,
           processing_started_at,
           processing_completed_at,
-          processing_server_id
+          processing_server_id,
+          records_processed,
+          records_skipped,
+          records_with_errors,
+          processing_time_ms,
+          processing_details
         FROM ${sql.identifier(tableName)}
         WHERE deleted = false
         ORDER BY uploaded_at DESC
+        LIMIT ${limitNum} OFFSET ${offset}
       `);
+      
+      // Get total count for pagination
+      const countResult = await db.execute(sql`
+        SELECT COUNT(*) as total
+        FROM ${sql.identifier(tableName)}
+        WHERE deleted = false
+      `);
+      
+      const total = Number(countResult.rows[0]?.total || 0);
+      const totalPages = Math.ceil(total / limitNum);
       
       const uploadedFiles = result.rows.map(row => ({
         id: row.id,
@@ -1850,15 +1871,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processed: row.processed,
         processingErrors: row.processing_errors,
         deleted: row.deleted,
-        file_content: row.file_content, // Include file content for database-first processing
+        // PERFORMANCE: file_content excluded - fetch separately when needed
         processedAt: row.processed_at,
         processingStatus: row.processing_status || (row.processed ? 'completed' : 'queued'),
         processingStartedAt: row.processing_started_at,
         processingCompletedAt: row.processing_completed_at,
-        processingServerId: row.processing_server_id
+        processingServerId: row.processing_server_id,
+        recordsProcessed: row.records_processed,
+        recordsSkipped: row.records_skipped,
+        recordsWithErrors: row.records_with_errors,
+        processingTimeMs: row.processing_time_ms,
+        processingDetails: row.processing_details
       }));
       
-      res.json(uploadedFiles);
+      res.json({
+        uploads: uploadedFiles,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limitNum,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1
+        }
+      });
     } catch (error) {
       console.error("Error retrieving upload history:", error);
       res.status(500).json({ 

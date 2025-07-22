@@ -192,15 +192,28 @@ export default function Uploads() {
     processMutation.mutate();
   };
 
-  // Fetch uploaded files
+  // Fetch uploaded files with pagination support
   const { 
-    data: files, 
+    data: uploadData, 
     isLoading,
     refetch
-  } = useQuery<UploadedFile[]>({
-    queryKey: ["/api/uploads/history"],
-    refetchInterval: false,
+  } = useQuery<{uploads: UploadedFile[], pagination: any}>({
+    queryKey: ["/api/uploads/history", { page: pagination.currentPage, limit: pagination.itemsPerPage }],
+    refetchInterval: 5000, // Refresh every 5 seconds to show latest files
   });
+  
+  // Extract files from paginated response
+  const files = uploadData?.uploads || [];
+
+  // Update pagination when API data changes
+  useEffect(() => {
+    if (uploadData?.pagination) {
+      setPagination(prev => ({
+        ...prev,
+        totalPages: uploadData.pagination.totalPages
+      }));
+    }
+  }, [uploadData?.pagination]);
 
   // Fetch file content
   const fetchFileContent = useMutation({
