@@ -36,6 +36,11 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Table Recreation: Restored empty TDDF database tables (dev_tddf_records, dev_tddf_raw_import) for future use
   - System Integrity: Terminal and other file processing continues normally without interruption
   - Ready State: TDDF processing infrastructure ready for new file uploads when needed
+  - **🔖 REGRESSION MARKER**: Schema 2.2.0 stable build with complete TDDF processing infrastructure (July 22, 2025)
+    - All TDDF code functional: file upload, raw data processing, DT record parsing, frontend display
+    - Demographics processing restored after import fix: normalizeMerchantType and merchantTypeMapping functions
+    - Full system verification: 108 merchants successfully created from demographics CSV
+    - Ready for future TDDF testing and regression verification
 - **✅ TDDF DATE DISPLAY ACCURACY COMPLETED**: Fixed misleading "7:00 PM" time display on all TDDF transaction records
   - Root cause: TDDF specification only contains dates (MMDDCCYY format) without specific transaction times
   - Database stores parsed dates as midnight UTC (2022-10-26 00:00:00) which converts to 6-7 PM CST previous day
