@@ -52,6 +52,9 @@ interface RealTimeStats {
     dtRecordsProcessed: number;
     nonDtRecordsSkipped: number;
     otherSkipped: number;
+    pendingRawLines: number;
+    rawLineBacklog: number;
+    rawProcessingProgress: number;
   };
 }
 
@@ -464,6 +467,55 @@ export default function ProcessingStatus() {
                     <div className="text-orange-600">Today</div>
                   </div>
                 </div>
+
+                {/* Raw Line Processing Backlog Section */}
+                {realTimeStats.tddfOperations.totalRawLines > 0 && (
+                  <div className="space-y-3 border-t pt-3">
+                    <div className="text-sm font-medium text-muted-foreground">Raw Line Processing Backlog</div>
+                    
+                    {/* Backlog Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Processing Progress</span>
+                        <span className="font-medium">
+                          {((realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped) / realTimeStats.tddfOperations.totalRawLines * 100).toFixed(1)}% Complete
+                        </span>
+                      </div>
+                      <Progress 
+                        value={(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped) / realTimeStats.tddfOperations.totalRawLines * 100} 
+                        className="h-2"
+                      />
+                    </div>
+                    
+                    {/* Raw Line Metrics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="text-center p-2 bg-slate-50 rounded border">
+                        <div className="font-semibold text-slate-700">
+                          {realTimeStats.tddfOperations.totalRawLines?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-slate-600">Total Lines</div>
+                      </div>
+                      <div className="text-center p-2 bg-green-50 rounded border">
+                        <div className="font-semibold text-green-700">
+                          {(realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped)?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-green-600">Completed</div>
+                      </div>
+                      <div className="text-center p-2 bg-amber-50 rounded border">
+                        <div className="font-semibold text-amber-700">
+                          {(realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped))?.toLocaleString() || '0'}
+                        </div>
+                        <div className="text-amber-600">Backlog</div>
+                      </div>
+                      <div className="text-center p-2 bg-blue-50 rounded border">
+                        <div className="font-semibold text-blue-700">
+                          {Math.round((realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped)) / (realTimeStats.tddfRecordsPerSecond > 0 ? realTimeStats.tddfRecordsPerSecond * 60 : 1)) || '∞'}m
+                        </div>
+                        <div className="text-blue-600">Est. Time</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
