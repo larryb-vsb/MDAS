@@ -2442,6 +2442,7 @@ export class DatabaseStorage implements IStorage {
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
                 // Update database with processing metrics and completion status using environment-specific table
+                // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
@@ -2535,6 +2536,7 @@ export class DatabaseStorage implements IStorage {
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
                 // Update database with processing metrics and completion status using environment-specific table
+                // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
@@ -2647,6 +2649,7 @@ export class DatabaseStorage implements IStorage {
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
                 // Update database with processing metrics and completion status using environment-specific table
+                // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
@@ -2726,6 +2729,7 @@ export class DatabaseStorage implements IStorage {
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
                 // Update database with processing metrics and completion status using environment-specific table
+                // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
                   SET records_processed = ${processingMetrics.rowsProcessed},
