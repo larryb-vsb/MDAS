@@ -66,6 +66,22 @@ interface ConcurrencyStats {
   timestamp?: string;
 }
 
+// Duration formatting function (consistent with other pages)
+const formatDuration = (durationMs: number) => {
+  const seconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `< 1m`;
+  }
+};
+
 // Extracted component to prevent React hooks issues
 const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
   const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
@@ -509,7 +525,12 @@ export default function ProcessingStatus() {
                       </div>
                       <div className="text-center p-2 bg-blue-50 rounded border">
                         <div className="font-semibold text-blue-700">
-                          {Math.round((realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped)) / (realTimeStats.tddfRecordsPerSecond > 0 ? realTimeStats.tddfRecordsPerSecond * 60 : 1)) || '∞'}m
+                          {(() => {
+                            const backlog = realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped);
+                            if (realTimeStats.tddfRecordsPerSecond <= 0 || backlog <= 0) return '< 1m';
+                            const estimatedSeconds = backlog / realTimeStats.tddfRecordsPerSecond;
+                            return formatDuration(estimatedSeconds * 1000);
+                          })()}
                         </div>
                         <div className="text-blue-600">Est. Time</div>
                       </div>
