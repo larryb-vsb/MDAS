@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { formatUploadTime, formatRelativeTime, formatTableDate } from "@/lib/date-utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProcessingStatusData {
   uploads: any[];
@@ -38,11 +43,16 @@ interface QueueStatusData {
 }
 
 export default function ProcessingFilters() {
+  const { toast } = useToast();
   const [activeStatusFilter, setActiveStatusFilter] = useState('all');
   const [activeFileTypeFilter, setActiveFileTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('uploadDate');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [fileContent, setFileContent] = useState<any>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Fetch processing status with filters
   const { data: processingData, isLoading, refetch } = useQuery<ProcessingStatusData>({
@@ -112,6 +122,123 @@ export default function ProcessingFilters() {
   const totalFiles = pagination?.totalItems || 0;
   const totalPages = pagination?.totalPages || 1;
   const displayedFiles = processingData?.uploads || [];
+
+  // File operations
+  const toggleSelectMode = () => {
+    setSelectMode(prev => !prev);
+    if (selectMode) {
+      setSelectedFiles([]);
+    }
+  };
+
+  const toggleFileSelection = (file: any) => {
+    setSelectedFiles(prev => {
+      const exists = prev.some(f => f.id === file.id);
+      if (exists) {
+        return prev.filter(f => f.id !== file.id);
+      } else {
+        return [...prev, file];
+      }
+    });
+  };
+
+  const toggleSelectAll = (files: any[]) => {
+    const allSelected = files.every(file => selectedFiles.some(f => f.id === file.id));
+    if (allSelected) {
+      setSelectedFiles(prev => prev.filter(f => !files.some(file => file.id === f.id)));
+    } else {
+      setSelectedFiles(prev => {
+        const newFiles = files.filter(file => !prev.some(f => f.id === file.id));
+        return [...prev, ...newFiles];
+      });
+    }
+  };
+
+  // Fetch file content
+  const fetchFileContent = useMutation({
+    mutationFn: async (fileId: string) => {
+      const response = await fetch(`/api/uploads/${fileId}/content`, {
+        method: "GET",
+        headers: { 'Accept': 'application/json' },
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch file content");
+      }
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      setFileContent(data);
+      setIsViewDialogOpen(true);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to fetch file content",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete file mutation
+  const deleteFile = useMutation({
+    mutationFn: async (fileId: string) => {
+      const response = await fetch(`/api/uploads/${fileId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete file");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "File has been deleted" });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to delete file",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Reprocess file mutation
+  const reprocessFile = useMutation({
+    mutationFn: async (fileId: string) => {
+      const response = await fetch(`/api/uploads/${fileId}/reprocess`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to reprocess file");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "File Queued", description: "File has been queued for reprocessing" });
+      refetch();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to reprocess file", 
+        variant: "destructive",
+      });
+    }
+  });
+
+  const formatFileType = (type: string) => {
+    switch (type) {
+      case "merchant": return "Merchant Demographics";
+      case "transaction": return "Transaction Data";
+      case "terminal": return "Terminal Data";
+      case "tddf": return "TDDF";
+      default: return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -224,6 +351,7 @@ export default function ProcessingFilters() {
                   <SelectItem value="merchant">Merchant Files</SelectItem>
                   <SelectItem value="transaction">Transaction Files</SelectItem>
                   <SelectItem value="terminal">Terminal Files</SelectItem>
+                  <SelectItem value="tddf">TDDF Files</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -261,44 +389,186 @@ export default function ProcessingFilters() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="space-y-3">
-                    {(!processingData?.uploads || processingData.uploads.length === 0) ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No files found matching the current filters</p>
-                      </div>
-                    ) : (
-                      displayedFiles.map((file) => (
-                        <Card key={file.id} className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-medium truncate">{file.originalFilename}</h3>
-                                <Badge variant="outline" className="text-xs">
-                                  {file.fileType}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                <span>Uploaded: {formatRelativeTime(file.uploadedAt)}</span>
-                                {file.processedAt && (
-                                  <span>Processed: {formatRelativeTime(file.processedAt)}</span>
+                  {/* Bulk Operations Bar */}
+                  {displayedFiles.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleSelectMode}
+                        className="text-xs"
+                      >
+                        {selectMode ? (
+                          <>
+                            <X className="h-3.5 w-3.5 mr-1.5" />
+                            Cancel Selection
+                          </>
+                        ) : (
+                          <>
+                            <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                            Select Files
+                          </>
+                        )}
+                      </Button>
+                      
+                      {selectMode && selectedFiles.length > 0 && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              selectedFiles.forEach(file => reprocessFile.mutate(file.id));
+                              setSelectedFiles([]);
+                            }}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                            Reprocess {selectedFiles.length} Selected
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              selectedFiles.forEach(file => deleteFile.mutate(file.id));
+                              setSelectedFiles([]);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Delete {selectedFiles.length} Selected
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(!processingData?.uploads || processingData.uploads.length === 0) ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No files found matching the current filters</p>
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {selectMode && (
+                                <TableHead className="w-12">
+                                  <Checkbox 
+                                    checked={
+                                      displayedFiles.length > 0 && 
+                                      displayedFiles.every(file => 
+                                        selectedFiles.some(f => f.id === file.id)
+                                      )
+                                    }
+                                    onCheckedChange={() => toggleSelectAll(displayedFiles)}
+                                    aria-label="Select all files"
+                                  />
+                                </TableHead>
+                              )}
+                              <TableHead>File Name</TableHead>
+                              <TableHead>File Type</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Upload Date</TableHead>
+                              <TableHead>Processed Time</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {displayedFiles.map((file) => (
+                              <TableRow key={file.id}>
+                                {selectMode && (
+                                  <TableCell className="w-12">
+                                    <Checkbox
+                                      checked={selectedFiles.some(f => f.id === file.id)}
+                                      onCheckedChange={() => toggleFileSelection(file)}
+                                    />
+                                  </TableCell>
                                 )}
-                                {file.processingStartedAt && !file.processedAt && (
-                                  <span>Started: {formatRelativeTime(file.processingStartedAt)}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge className={`${getStatusColor(file.processingStatus)} flex items-center gap-1`}>
-                                {getStatusIcon(file.processingStatus)}
-                                {file.processingStatus || 'queued'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </Card>
-                      ))
-                    )}
-                  </div>
+                                <TableCell>
+                                  <div className="font-medium">{file.originalFilename}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    ID: {file.id}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {formatFileType(file.fileType)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`${getStatusColor(file.processingStatus)} flex items-center gap-1`}>
+                                    {getStatusIcon(file.processingStatus)}
+                                    {file.processingStatus || 'queued'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium">
+                                    {formatRelativeTime(file.uploadedAt)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatUploadTime(file.uploadedAt)}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {file.processedAt ? (
+                                    <div>
+                                      <div className="font-medium text-sm">
+                                        {formatRelativeTime(file.processedAt)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {formatTableDate(file.processedAt)}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Open menu</span>
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={() => fetchFileContent.mutate(file.id)}
+                                      >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        View Content
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => window.location.href = `/api/uploads/${file.id}/download`}
+                                      >
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => reprocessFile.mutate(file.id)}
+                                      >
+                                        <RotateCcw className="mr-2 h-4 w-4" />
+                                        Reprocess
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => deleteFile.mutate(file.id)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Pagination Controls */}
                   {totalFiles > 0 && (
@@ -351,6 +621,25 @@ export default function ProcessingFilters() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* View Content Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>File Content</DialogTitle>
+            <DialogDescription>
+              {fileContent?.filename && `Viewing contents of ${fileContent.filename}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 max-h-[60vh] overflow-auto">
+            {fileContent?.content && (
+              <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono">
+                {fileContent.content}
+              </pre>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
