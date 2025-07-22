@@ -16,6 +16,8 @@ interface ProcessingMetrics {
   avgProcessingTime: number;
   slowFiles: number;
   recentThroughput: number;
+  tddfBacklog: number;
+  tddfBacklogProgress: number;
 }
 
 interface WatcherAlert {
@@ -40,8 +42,12 @@ export class ScanlyWatcher {
     QUEUE_BACKLOG_CRITICAL: 100,     // Critical if >100 files queued
     ERROR_RATE_WARNING: 0.1,         // Warn if >10% error rate
     ERROR_RATE_CRITICAL: 0.2,        // Critical if >20% error rate
-    THROUGHPUT_DROP_THRESHOLD: 0.5   // Alert if throughput drops >50%
+    THROUGHPUT_DROP_THRESHOLD: 0.5,  // Alert if throughput drops >50%
+    TDDF_BACKLOG_STALLED_MINUTES: 2, // Alert if TDDF backlog hasn't moved for >2 minutes
+    BACKLOG_CHECK_INTERVAL: 30000    // Check backlog every 30 seconds
   };
+
+  private tddfBacklogHistory: Array<{ count: number; timestamp: Date }> = [];
 
   start(): void {
     if (this.isRunning) {
@@ -51,6 +57,9 @@ export class ScanlyWatcher {
 
     this.isRunning = true;
     console.log('[SCANLY-WATCHER] Starting monitoring...');
+    
+    // Start TDDF backlog monitoring (every 30 seconds)
+    this.startTddfBacklogMonitoring();
     
     // Run initial check
     this.performHealthCheck();
@@ -67,7 +76,88 @@ export class ScanlyWatcher {
       this.intervalId = null;
     }
     this.isRunning = false;
+    this.tddfBacklogHistory = []; // Clear backlog history
     console.log('[SCANLY-WATCHER] Stopped monitoring');
+  }
+
+  private startTddfBacklogMonitoring(): void {
+    console.log('[SCANLY-WATCHER] Starting TDDF backlog monitoring (every 30 seconds)');
+    
+    // Check backlog immediately
+    this.checkTddfBacklog();
+    
+    // Set up 30-second monitoring
+    const backlogInterval = setInterval(async () => {
+      if (!this.isRunning) {
+        clearInterval(backlogInterval);
+        return;
+      }
+      await this.checkTddfBacklog();
+    }, this.THRESHOLDS.BACKLOG_CHECK_INTERVAL);
+  }
+
+  private async checkTddfBacklog(): Promise<void> {
+    try {
+      const tddfRawImportTable = getTableName('tddf_raw_import');
+      
+      // Get total backlog count
+      const backlogResult = await db.execute(sql`
+        SELECT COUNT(*) as backlog_count
+        FROM ${sql.identifier(tddfRawImportTable)}
+        WHERE processing_status = 'pending'
+      `);
+      
+      const currentBacklog = parseInt(backlogResult[0]?.backlog_count as string) || 0;
+      const now = new Date();
+      
+      // Add to history
+      this.tddfBacklogHistory.push({ count: currentBacklog, timestamp: now });
+      
+      // Keep only last 10 minutes of history (20 entries at 30-second intervals)
+      if (this.tddfBacklogHistory.length > 20) {
+        this.tddfBacklogHistory = this.tddfBacklogHistory.slice(-20);
+      }
+      
+      console.log(`[SCANLY-WATCHER] TDDF Backlog Check: ${currentBacklog} pending records`);
+      
+      // Check if backlog is stalled (not moving for 2+ minutes)
+      if (this.tddfBacklogHistory.length >= 4) { // At least 4 entries (2 minutes of history)
+        const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+        const recentEntries = this.tddfBacklogHistory.filter(entry => entry.timestamp >= twoMinutesAgo);
+        
+        if (recentEntries.length >= 4) {
+          const allSameCount = recentEntries.every(entry => entry.count === currentBacklog);
+          
+          if (allSameCount && currentBacklog > 0) {
+            await this.logAlert({
+              level: 'warning',
+              type: 'tddf_backlog_stalled',
+              message: `TDDF backlog stalled at ${currentBacklog} records for 2+ minutes`,
+              details: { 
+                currentBacklog,
+                stalledSince: recentEntries[0].timestamp,
+                checkHistory: recentEntries 
+              },
+              timestamp: now
+            });
+          } else if (currentBacklog === 0) {
+            console.log('[SCANLY-WATCHER] ✅ TDDF backlog reached zero - processing complete!');
+          } else {
+            console.log(`[SCANLY-WATCHER] ✅ TDDF backlog progressing: ${currentBacklog} records remaining`);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error checking TDDF backlog:', error);
+      await this.logAlert({
+        level: 'error',
+        type: 'tddf_backlog_check_error',
+        message: 'Failed to check TDDF backlog',
+        details: { error: error instanceof Error ? error.message : String(error) },
+        timestamp: new Date()
+      });
+    }
   }
 
   private async performHealthCheck(): Promise<void> {
@@ -106,34 +196,34 @@ export class ScanlyWatcher {
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
 
     // Get file counts by status
-    const [totalResult] = await db.execute(sql`
+    const totalResult = await db.execute(sql`
       SELECT COUNT(*) as total_files FROM ${sql.identifier(tableName)}
     `);
     
-    const [queuedResult] = await db.execute(sql`
+    const queuedResult = await db.execute(sql`
       SELECT COUNT(*) as queued_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'queued'
     `);
     
-    const [processingResult] = await db.execute(sql`
+    const processingResult = await db.execute(sql`
       SELECT COUNT(*) as processing_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'processing'
     `);
     
-    const [errorResult] = await db.execute(sql`
+    const errorResult = await db.execute(sql`
       SELECT COUNT(*) as error_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'failed'
     `);
 
     // Find stuck files (processing for >30 minutes)
-    const [stuckResult] = await db.execute(sql`
+    const stuckResult = await db.execute(sql`
       SELECT COUNT(*) as stuck_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'processing' 
       AND processing_started_at < ${thirtyMinutesAgo.toISOString()}
     `);
 
     // Find slow files (completed but took >10 minutes)
-    const [slowResult] = await db.execute(sql`
+    const slowResult = await db.execute(sql`
       SELECT COUNT(*) as slow_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
       AND processing_time_ms > ${10 * 60 * 1000}
@@ -141,7 +231,7 @@ export class ScanlyWatcher {
     `);
 
     // Calculate average processing time for completed files in last 24 hours
-    const [avgTimeResult] = await db.execute(sql`
+    const avgTimeResult = await db.execute(sql`
       SELECT AVG(processing_time_ms) as avg_processing_time FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
       AND processing_completed_at > ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}
@@ -149,21 +239,38 @@ export class ScanlyWatcher {
     `);
 
     // Calculate recent throughput (files completed in last 10 minutes)
-    const [throughputResult] = await db.execute(sql`
+    const throughputResult = await db.execute(sql`
       SELECT COUNT(*) as recent_completed FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
       AND processing_completed_at > ${tenMinutesAgo.toISOString()}
     `);
 
+    // Get TDDF backlog information
+    const tddfRawImportTable = getTableName('tddf_raw_import');
+    const tddfBacklogResult = await db.execute(sql`
+      SELECT COUNT(*) as backlog_count FROM ${sql.identifier(tddfRawImportTable)}
+      WHERE processing_status = 'pending'
+    `);
+
+    // Calculate backlog progress (if we have history)
+    let backlogProgress = 0;
+    if (this.tddfBacklogHistory.length > 1) {
+      const current = parseInt(tddfBacklogResult[0]?.backlog_count as string) || 0;
+      const previous = this.tddfBacklogHistory[this.tddfBacklogHistory.length - 1]?.count || current;
+      backlogProgress = previous - current; // Positive = progress, negative = increase
+    }
+
     return {
-      totalFiles: parseInt(totalResult.total_files as string) || 0,
-      queuedFiles: parseInt(queuedResult.queued_files as string) || 0,
-      processingFiles: parseInt(processingResult.processing_files as string) || 0,
-      errorFiles: parseInt(errorResult.error_files as string) || 0,
-      stuckFiles: parseInt(stuckResult.stuck_files as string) || 0,
-      slowFiles: parseInt(slowResult.slow_files as string) || 0,
-      avgProcessingTime: parseFloat(avgTimeResult.avg_processing_time as string) || 0,
-      recentThroughput: parseInt(throughputResult.recent_completed as string) || 0
+      totalFiles: parseInt(totalResult[0]?.total_files as string) || 0,
+      queuedFiles: parseInt(queuedResult[0]?.queued_files as string) || 0,
+      processingFiles: parseInt(processingResult[0]?.processing_files as string) || 0,
+      errorFiles: parseInt(errorResult[0]?.error_files as string) || 0,
+      stuckFiles: parseInt(stuckResult[0]?.stuck_files as string) || 0,
+      slowFiles: parseInt(slowResult[0]?.slow_files as string) || 0,
+      avgProcessingTime: parseFloat(avgTimeResult[0]?.avg_processing_time as string) || 0,
+      recentThroughput: parseInt(throughputResult[0]?.recent_completed as string) || 0,
+      tddfBacklog: parseInt(tddfBacklogResult[0]?.backlog_count as string) || 0,
+      tddfBacklogProgress: backlogProgress
     };
   }
 
