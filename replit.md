@@ -28,6 +28,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Default behavior: Files sorted by newest upload date first (DESC order) for optimal user experience
   - Complete integration: Upload date sorting works seamlessly with pagination and filtering options
   - User confirmation: "that works" - dropdown controls and sorting functionality verified as working correctly
+- **✅ PROCESSING TIME SORTING ENHANCEMENT COMPLETED**: Updated dropdown controls for improved clarity and context-aware labeling
+  - Changed "Processed Date" to "Processing Time" to better match column data and user expectations  
+  - Backend API updated: Both endpoints now support sortBy='processingTime' parameter sorting by processing_time_ms field
+  - Dynamic sort order labels: When "Processing Time" is selected, dropdown shows "Longest First" and "Shortest First" instead of generic date labels
+  - Context-aware sorting: Upload Date shows "Newest/Oldest First", Filename shows "A to Z/Z to A", Processing Time shows "Shortest/Longest First"
+  - Complete integration: Frontend dropdown, backend sorting logic, and API validation all updated for Processing Time sorting functionality
 - **✅ UNIVERSAL RAW DATA PROCESSING COMPLETED**: Successfully implemented raw data processing for ALL file types (merchant, transaction, terminal, TDDF)
   - Critical Gap Fixed: Previous implementation only processed raw data for TDDF files (983 files) while merchant/transaction/terminal files had zero raw data coverage
   - Complete API Integration: Both batch upload endpoint (/api/batch-upload) and single file upload endpoint (/api/uploads) now process raw data for every file type

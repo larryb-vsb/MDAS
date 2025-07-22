@@ -380,7 +380,7 @@ export default function ProcessingFilters() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="uploadDate">Upload Date</SelectItem>
-                  <SelectItem value="processedDate">Processed Date</SelectItem>
+                  <SelectItem value="processingTime">Processing Time</SelectItem>
                   <SelectItem value="filename">Filename</SelectItem>
                 </SelectContent>
               </Select>
@@ -390,8 +390,22 @@ export default function ProcessingFilters() {
                   <SelectValue placeholder="Order" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desc">Newest First</SelectItem>
-                  <SelectItem value="asc">Oldest First</SelectItem>
+                  {sortBy === 'processingTime' ? (
+                    <>
+                      <SelectItem value="desc">Longest First</SelectItem>
+                      <SelectItem value="asc">Shortest First</SelectItem>
+                    </>
+                  ) : sortBy === 'uploadDate' ? (
+                    <>
+                      <SelectItem value="desc">Newest First</SelectItem>
+                      <SelectItem value="asc">Oldest First</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="desc">Z to A</SelectItem>
+                      <SelectItem value="asc">A to Z</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
 

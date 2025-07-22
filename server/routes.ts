@@ -2096,12 +2096,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (sortBy === 'uploadDate') {
         orderClause = sql`ORDER BY uploaded_at ${direction}`;
-      } else if (sortBy === 'processedDate') {
-        orderClause = sql`ORDER BY 
-          CASE 
-            WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
-            ELSE processed_at 
-          END ${direction}`;
+      } else if (sortBy === 'processingTime') {
+        orderClause = sql`ORDER BY processing_time_ms ${direction}`;
       } else if (sortBy === 'filename') {
         orderClause = sql`ORDER BY original_filename ${direction}`;
       } else {
@@ -2234,12 +2230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (sortBy === 'uploadDate') {
         orderClause = sql`ORDER BY uploaded_at ${direction}`;
-      } else if (sortBy === 'processedDate') {
-        orderClause = sql`ORDER BY 
-          CASE 
-            WHEN processing_completed_at IS NOT NULL THEN processing_completed_at 
-            ELSE processed_at 
-          END ${direction}`;
+      } else if (sortBy === 'processingTime') {
+        orderClause = sql`ORDER BY processing_time_ms ${direction}`;
       } else if (sortBy === 'filename') {
         orderClause = sql`ORDER BY original_filename ${direction}`;
       } else {
@@ -2288,7 +2280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filters: {
           status: ['all', 'queued', 'processing', 'completed', 'error'],
           fileType: ['all', 'merchant', 'transaction', 'terminal', 'tddf'],
-          sortBy: ['uploadDate', 'processedDate', 'filename']
+          sortBy: ['uploadDate', 'processingTime', 'filename']
         }
       });
     } catch (error) {
