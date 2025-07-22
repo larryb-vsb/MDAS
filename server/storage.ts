@@ -2768,7 +2768,7 @@ export class DatabaseStorage implements IStorage {
                 // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
-                  SET records_processed = ${processingMetrics.rowsProcessed},
+                  SET records_processed = ${processingMetrics.tddfRecordsCreated},
                       records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.tddfRecordsCreated},
                       records_with_errors = ${processingMetrics.errors},
                       processing_time_ms = ${processingTimeMs},
@@ -2779,8 +2779,9 @@ export class DatabaseStorage implements IStorage {
                       })},
                       processing_status = 'completed',
                       processing_completed_at = ${processingCompletedTime.toISOString()},
-                      processed = true,
-                      processing_errors = null
+                      processed_at = ${processingCompletedTime.toISOString()},
+                      processed = ${true},
+                      processing_errors = ${null}
                   WHERE id = ${file.id}
                 `);
                 
@@ -6142,8 +6143,9 @@ export class DatabaseStorage implements IStorage {
 
   async markRawImportLineProcessed(lineId: number, processedIntoTable: string, processedRecordId: string): Promise<void> {
     try {
+      const tableName = getTableName('tddf_raw_import');
       await pool.query(`
-        UPDATE ${getTableName('tddf_raw_import')} 
+        UPDATE "${tableName}" 
         SET processing_status = 'processed',
             processed_into_table = $2,
             processed_record_id = $3,
@@ -6159,8 +6161,9 @@ export class DatabaseStorage implements IStorage {
 
   async markRawImportLineSkipped(lineId: number, skipReason: string): Promise<void> {
     try {
+      const tableName = getTableName('tddf_raw_import');
       await pool.query(`
-        UPDATE ${getTableName('tddf_raw_import')} 
+        UPDATE "${tableName}" 
         SET processing_status = 'skipped',
             skip_reason = $2,
             processed_at = NOW(),
@@ -6669,17 +6672,16 @@ export class DatabaseStorage implements IStorage {
       // STEP 2.5: Skip all non-DT records in the same file
       console.log(`\n=== STEP 2.5: SKIPPING NON-DT RECORDS ===`);
       
-      // Get all non-DT records from the database for this file
-      const nonDtRecords = await db.select()
-        .from(tddfRawImportTable)
-        .where(
-          and(
-            eq(tddfRawImportTable.sourceFileId, fileId),
-            ne(tddfRawImportTable.recordType, 'DT'),
-            eq(tddfRawImportTable.processingStatus, 'pending')
-          )
-        )
-        .orderBy(tddfRawImportTable.lineNumber);
+      // Get all non-DT records from the database for this file using direct SQL
+      const tableName = getTableName('tddf_raw_import');
+      const nonDtRecordsQuery = await pool.query(`
+        SELECT * FROM "${tableName}" 
+        WHERE source_file_id = $1 
+        AND record_type != 'DT' 
+        AND processing_status = 'pending'
+        ORDER BY line_number
+      `, [fileId]);
+      const nonDtRecords = nonDtRecordsQuery.rows;
       
       console.log(`Found ${nonDtRecords.length} non-DT records to skip`);
       
@@ -6804,6 +6806,8 @@ export class DatabaseStorage implements IStorage {
         console.error(`❌ [STEP 2.5 ERROR-PATH] Error during error-path non-DT cleanup:`, cleanupError);
         // Don't throw - cleanup failure shouldn't break error reporting
       }
+      
+      console.log(`=================== ENHANCED TDDF PROCESSING COMPLETED WITH ERROR ===================`);
       
       throw error;
     }
