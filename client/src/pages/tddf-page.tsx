@@ -27,25 +27,27 @@ import {
 
 interface TddfRecord {
   id: number;
-  txnId: string;
-  merchantId: string;
-  txnAmount: number;
-  txnDate: string | Date;
-  txnType: string;
-  txnDesc?: string;
-  merchantName?: string;
-  batchId?: string;
-  authCode?: string;
-  cardType?: string;
-  entryMethod?: string;
-  responseCode?: string;
-  cardholderAccountNumber?: string;
-  sourceFileId?: string;
-  sourceRowNumber?: number;
-  recordedAt: string | Date;
-  rawData?: any;
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  // Core transaction fields matching actual database schema
+  transaction_code?: string;
+  merchant_account_number?: string;
+  transaction_amount?: number;
+  transaction_date?: string | Date;
+  reference_number?: string;
+  merchant_name?: string;
+  cardholder_account_number?: string;
+  batch_julian_date?: string;
+  auth_response_code?: string;
+  validation_code?: string;
+  online_entry?: string;
+  auth_source?: string;
+  // File tracking
+  source_file_id?: string;
+  source_row_number?: number;
+  recorded_at?: string | Date;
+  raw_data?: any;
+  mms_raw_line?: string;
+  created_at?: string | Date;
+  updated_at?: string | Date;
 }
 
 interface TddfFilters {
@@ -313,11 +315,11 @@ export default function TddfPage() {
                   onCheckedChange={handleSelectAll}
                   className="ml-4"
                 />
-                <div className="w-32">Transaction ID</div>
+                <div className="w-32">Transaction Code</div>
                 <div className="w-24">Merchant ID</div>
                 <div className="w-28">Amount</div>
                 <div className="w-24">Date</div>
-                <div className="w-32">Transaction Type</div>
+                <div className="w-32">Reference Number</div>
                 <div className="w-32">Merchant Name</div>
                 <div className="w-32">Card Number</div>
                 <div className="w-20">Actions</div>
@@ -335,25 +337,25 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-32 font-mono text-xs">
-                    {record.txnId}
+                    {record.transaction_code || '-'}
                   </div>
                   <div className="w-24 font-mono text-xs">
-                    {record.merchantId}
+                    {record.merchant_account_number || '-'}
                   </div>
                   <div className="w-28 font-medium">
-                    {formatCurrency(record.txnAmount)}
+                    {formatCurrency(record.transaction_amount)}
                   </div>
                   <div className="w-24 text-xs">
-                    {record.txnDate ? formatTableDate(record.txnDate.toString()) : '-'}
+                    {record.transaction_date ? formatTableDate(record.transaction_date.toString()) : '-'}
                   </div>
                   <div className="w-32 font-mono text-xs">
-                    {record.txnType}
+                    {record.reference_number || '-'}
                   </div>
                   <div className="w-32 text-xs">
-                    {record.merchantName || 'N/A'}
+                    {record.merchant_name || 'N/A'}
                   </div>
                   <div className="w-32 font-mono text-xs">
-                    {record.cardholderAccountNumber || 'N/A'}
+                    {record.cardholder_account_number || 'N/A'}
                   </div>
                   <div className="w-20">
                     <Button
@@ -416,36 +418,36 @@ export default function TddfPage() {
                   <h3 className="text-lg font-semibold border-b pb-2">Transaction Information</h3>
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Transaction ID</label>
-                      <div className="font-mono text-sm">{detailsRecord.txnId}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Transaction Code</label>
+                      <div className="font-mono text-sm">{detailsRecord.transaction_code || 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Transaction Type</label>
-                      <div className="font-mono text-sm">{detailsRecord.txnType}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Reference Number</label>
+                      <div className="font-mono text-sm">{detailsRecord.reference_number || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Amount</label>
-                      <div className="font-semibold text-lg">{formatCurrency(detailsRecord.txnAmount)}</div>
+                      <div className="font-semibold text-lg">{formatCurrency(detailsRecord.transaction_amount)}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Date</label>
-                      <div>{detailsRecord.txnDate ? formatTableDate(detailsRecord.txnDate.toString()) : 'N/A'}</div>
+                      <div>{detailsRecord.transaction_date ? formatTableDate(detailsRecord.transaction_date.toString()) : 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Transaction Description</label>
-                      <div className="font-mono text-sm">{detailsRecord.txnDesc || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Online Entry</label>
+                      <div className="font-mono text-sm">{detailsRecord.online_entry || 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Authorization Code</label>
-                      <div className="font-mono text-sm">{detailsRecord.authCode || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Auth Source</label>
+                      <div className="font-mono text-sm">{detailsRecord.auth_source || 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Response Code</label>
-                      <div className="font-mono text-sm">{detailsRecord.responseCode || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Auth Response Code</label>
+                      <div className="font-mono text-sm">{detailsRecord.auth_response_code || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Cardholder Account Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.cardholderAccountNumber || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.cardholder_account_number || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -455,20 +457,20 @@ export default function TddfPage() {
                   <h3 className="text-lg font-semibold border-b pb-2">Merchant Information</h3>
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Merchant ID</label>
-                      <div className="font-mono text-sm">{detailsRecord.merchantId}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Merchant Account Number</label>
+                      <div className="font-mono text-sm">{detailsRecord.merchant_account_number || 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Batch ID</label>
-                      <div className="font-mono text-sm">{detailsRecord.batchId || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Batch Julian Date</label>
+                      <div className="font-mono text-sm">{detailsRecord.batch_julian_date || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Merchant Name</label>
-                      <div>{detailsRecord.merchantName || 'N/A'}</div>
+                      <div>{detailsRecord.merchant_name || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Source File ID</label>
-                      <div className="font-mono text-sm">{detailsRecord.sourceFileId || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.source_file_id || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -480,16 +482,16 @@ export default function TddfPage() {
                   <h3 className="text-lg font-semibold border-b pb-2">Card Information</h3>
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Card Type</label>
-                      <div className="font-mono text-sm">{detailsRecord.cardType || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Validation Code</label>
+                      <div className="font-mono text-sm">{detailsRecord.validation_code || 'N/A'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Entry Method</label>
-                      <div className="font-mono text-sm">{detailsRecord.entryMethod || 'N/A'}</div>
+                      <label className="text-sm font-medium text-muted-foreground">Online Entry</label>
+                      <div className="font-mono text-sm">{detailsRecord.online_entry || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Source Row Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.sourceRowNumber || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.source_row_number || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -500,7 +502,13 @@ export default function TddfPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Created At</label>
-                      <div>{formatTableDate(detailsRecord.createdAt.toString())}</div>
+                      <div>{detailsRecord.created_at ? formatTableDate(detailsRecord.created_at.toString()) : 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Raw Line Data</label>
+                      <div className="font-mono text-xs bg-gray-100 p-2 rounded max-h-20 overflow-y-auto">
+                        {detailsRecord.mms_raw_line || 'N/A'}
+                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Updated At</label>
