@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.1.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Version: 2.1.1 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
  * Last Updated: July 22, 2025
  * 
- * MINOR VERSION: Enhanced schema update testing and production safety demonstration
- * New Feature: Complete schema versioning workflow with automatic production safety controls
+ * MINOR VERSION: Dynamic schema version detection enhancement
+ * New Feature: Real-time file-based version reading with ES module compatibility, replacing hardcoded version constants
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -13,6 +13,8 @@
  * - 1.3.0: Comprehensive TDDF processing with terminals, raw import tables
  * - 2.0.0: NEW BASELINE - Database-based schema management, formal versioning policy, production-ready system
  * - 2.0.1: PATCH FIX - Corrected schema API to serve current version content, established automatic database sync
+ * - 2.1.0: MINOR FEATURE - Enhanced schema update testing and production safety demonstration
+ * - 2.1.1: MINOR FEATURE - Dynamic schema version detection with file-based reading and ES module compatibility
  */
 import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";

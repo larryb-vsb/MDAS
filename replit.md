@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning
-- Current session: July 22, 2025 - DATABASE-BASED SCHEMA MANAGEMENT SYSTEM COMPLETION
+- Current session: July 22, 2025 - DYNAMIC SCHEMA VERSION DETECTION SYSTEM COMPLETION
 - **✅ SCHEMA VERSIONING POLICY ESTABLISHED**: Created comprehensive schema numbering policy using Semantic Versioning (SemVer)
   - MAJOR.MINOR.PATCH format with clear rules for each version type
   - MAJOR: Breaking changes requiring application updates (removing tables/columns, data type changes)
@@ -40,6 +40,13 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Orange "Production" badge in production environment (will display after deployment)
   - Consistent styling with Processing Status and System Information widgets
   - Resolves environment confusion between production and development schema displays
+- **✅ DYNAMIC SCHEMA VERSION DETECTION COMPLETED**: System now reads schema version directly from shared/schema.ts file instead of hardcoded constants:
+  - Created getCurrentFileVersion() function with ES module compatibility using fileURLToPath and __dirname resolution
+  - Fixed import/export structure to work with Node.js ES modules and TypeScript compilation
+  - API endpoint /api/schema/versions-list now returns currentFileVersion: "2.1.1" dynamically from file content
+  - Version detection accurately reads from schema file header comment with regex parsing (Version:\s*(\d+\.\d+\.\d+))
+  - Corrected schema version from 2.1.0 to 2.1.1 following established versioning policy (MINOR increment for new functionality)
+  - Complete version mismatch detection ready for testing (database: 2.1.0, file: 2.1.1)
 - **✅ PRODUCTION SCHEMA UPDATE SAFETY COMPLETED**: Update button now has built-in production protection
   - Button works normally in development environment with refresh icon
   - Automatically grays out and disables in production environment
