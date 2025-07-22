@@ -1,3 +1,11 @@
+/**
+ * MMS Database Schema
+ * Version: 1.3.0
+ * Last Updated: July 22, 2025
+ * 
+ * Comprehensive database schema for Merchant Management System (MMS)
+ * Features: 15 tables, 100+ TDDF fields with position mappings, environment separation
+ */
 import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
