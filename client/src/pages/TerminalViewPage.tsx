@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield } from "lucide-react";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
-import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
-import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
+// import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
+// import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
 
 export default function TerminalViewPage() {
   const params = useParams();
@@ -263,19 +263,40 @@ export default function TerminalViewPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <TerminalActivityHeatMap 
-                  transactions={transactions}
-                  timeRange={timeRange}
-                />
+                <div className="h-32 bg-muted rounded-lg flex items-center justify-center">
+                  <p className="text-muted-foreground">Activity heat map visualization (coming soon)</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
-            <TerminalTransactionsViewer 
-              transactions={transactions}
-              isLoading={transactionsLoading}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>Recent transactions for this terminal</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {transactionsLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading transactions...</p>
+                  </div>
+                ) : transactions.length > 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Found {transactions.length} transactions for this terminal
+                    </p>
+                    <div className="h-64 bg-muted rounded-lg flex items-center justify-center">
+                      <p className="text-muted-foreground">Transaction viewer (coming soon)</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No transactions found for this terminal</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4">
@@ -320,7 +341,7 @@ export default function TerminalViewPage() {
                     <span>{terminal.boardDate ? formatTableDate(terminal.boardDate.toString()) : "Not specified"}</span>
                     
                     <span className="font-medium">Created:</span>
-                    <span>{formatTableDate(terminal.createdAt.toString())}</span>
+                    <span>{terminal.createdAt ? formatTableDate(terminal.createdAt.toString()) : "Not available"}</span>
                     
                     <span className="font-medium">Last Update:</span>
                     <span>{terminal.lastUpdate ? formatTableDate(terminal.lastUpdate.toString()) : "Never"}</span>
