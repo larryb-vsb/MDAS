@@ -1119,7 +1119,7 @@ export class DatabaseStorage implements IStorage {
 
       try {
         console.log('[MERGE LOGGING] Creating system log entry:', systemLogData);
-        const [systemLogResult] = await tx.insert(systemLogsTable).values(systemLogData).returning();
+        const [systemLogResult] = await tx.insert(systemLogs).values(systemLogData).returning();
         console.log('[MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
       } catch (error) {
         console.error('[MERGE LOGGING] Failed to create system log:', error);
