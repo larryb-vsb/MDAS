@@ -27,27 +27,27 @@ import {
 
 interface TddfRecord {
   id: number;
-  // Core transaction fields matching actual database schema
-  transaction_code?: string;
-  merchant_account_number?: string;
-  transaction_amount?: number;
-  transaction_date?: string | Date;
-  reference_number?: string;
-  merchant_name?: string;
-  cardholder_account_number?: string;
-  batch_julian_date?: string;
-  auth_response_code?: string;
-  validation_code?: string;
-  online_entry?: string;
-  auth_source?: string;
+  // Core transaction fields matching actual API response format
+  transactionCode?: string;
+  merchantAccountNumber?: string;
+  transactionAmount?: string | number;
+  transactionDate?: string | Date;
+  referenceNumber?: string;
+  merchantName?: string;
+  cardholderAccountNumber?: string;
+  batchJulianDate?: string;
+  authResponseCode?: string;
+  validationCode?: string;
+  onlineEntry?: string;
+  authSource?: string;
   // File tracking
-  source_file_id?: string;
-  source_row_number?: number;
-  recorded_at?: string | Date;
-  raw_data?: any;
-  mms_raw_line?: string;
-  created_at?: string | Date;
-  updated_at?: string | Date;
+  sourceFileId?: string;
+  sourceRowNumber?: number;
+  recordedAt?: string | Date;
+  rawData?: any;
+  mmsRawLine?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 interface TddfFilters {
@@ -166,11 +166,14 @@ export default function TddfPage() {
     setCurrentPage(1);
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount?: string | number) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const records = data?.data || [];
@@ -337,25 +340,25 @@ export default function TddfPage() {
                     className="ml-4"
                   />
                   <div className="w-32 font-mono text-xs">
-                    {record.transaction_code || '-'}
+                    {record.transactionCode || '-'}
                   </div>
                   <div className="w-24 font-mono text-xs">
-                    {record.merchant_account_number || '-'}
+                    {record.merchantAccountNumber || '-'}
                   </div>
                   <div className="w-28 font-medium">
-                    {formatCurrency(record.transaction_amount)}
+                    {formatCurrency(record.transactionAmount)}
                   </div>
                   <div className="w-24 text-xs">
-                    {record.transaction_date ? formatTableDate(record.transaction_date.toString()) : '-'}
+                    {record.transactionDate ? formatTableDate(record.transactionDate.toString()) : '-'}
                   </div>
                   <div className="w-32 font-mono text-xs">
-                    {record.reference_number || '-'}
+                    {record.referenceNumber || '-'}
                   </div>
                   <div className="w-32 text-xs">
-                    {record.merchant_name || 'N/A'}
+                    {record.merchantName || 'N/A'}
                   </div>
                   <div className="w-32 font-mono text-xs">
-                    {record.cardholder_account_number || 'N/A'}
+                    {record.cardholderAccountNumber || 'N/A'}
                   </div>
                   <div className="w-20">
                     <Button
@@ -419,35 +422,35 @@ export default function TddfPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Code</label>
-                      <div className="font-mono text-sm">{detailsRecord.transaction_code || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.transactionCode || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Reference Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.reference_number || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.referenceNumber || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Amount</label>
-                      <div className="font-semibold text-lg">{formatCurrency(detailsRecord.transaction_amount)}</div>
+                      <div className="font-semibold text-lg">{formatCurrency(detailsRecord.transactionAmount)}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Transaction Date</label>
-                      <div>{detailsRecord.transaction_date ? formatTableDate(detailsRecord.transaction_date.toString()) : 'N/A'}</div>
+                      <div>{detailsRecord.transactionDate ? formatTableDate(detailsRecord.transactionDate.toString()) : 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Online Entry</label>
-                      <div className="font-mono text-sm">{detailsRecord.online_entry || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.onlineEntry || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Auth Source</label>
-                      <div className="font-mono text-sm">{detailsRecord.auth_source || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.authSource || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Auth Response Code</label>
-                      <div className="font-mono text-sm">{detailsRecord.auth_response_code || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.authResponseCode || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Cardholder Account Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.cardholder_account_number || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.cardholderAccountNumber || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -458,15 +461,15 @@ export default function TddfPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Merchant Account Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.merchant_account_number || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.merchantAccountNumber || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Batch Julian Date</label>
-                      <div className="font-mono text-sm">{detailsRecord.batch_julian_date || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.batchJulianDate || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Merchant Name</label>
-                      <div>{detailsRecord.merchant_name || 'N/A'}</div>
+                      <div>{detailsRecord.merchantName || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Source File ID</label>
@@ -483,15 +486,15 @@ export default function TddfPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Validation Code</label>
-                      <div className="font-mono text-sm">{detailsRecord.validation_code || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.validationCode || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Online Entry</label>
-                      <div className="font-mono text-sm">{detailsRecord.online_entry || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.onlineEntry || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Source Row Number</label>
-                      <div className="font-mono text-sm">{detailsRecord.source_row_number || 'N/A'}</div>
+                      <div className="font-mono text-sm">{detailsRecord.sourceRowNumber || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -502,17 +505,17 @@ export default function TddfPage() {
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Created At</label>
-                      <div>{detailsRecord.created_at ? formatTableDate(detailsRecord.created_at.toString()) : 'N/A'}</div>
+                      <div>{detailsRecord.createdAt ? formatTableDate(detailsRecord.createdAt.toString()) : 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Raw Line Data</label>
                       <div className="font-mono text-xs bg-gray-100 p-2 rounded max-h-20 overflow-y-auto">
-                        {detailsRecord.mms_raw_line || 'N/A'}
+                        {detailsRecord.mmsRawLine || 'N/A'}
                       </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Updated At</label>
-                      <div>{formatTableDate(detailsRecord.updatedAt.toString())}</div>
+                      <div>{detailsRecord.updatedAt ? formatTableDate(detailsRecord.updatedAt.toString()) : 'N/A'}</div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Raw Data Available</label>
@@ -527,7 +530,7 @@ export default function TddfPage() {
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Recorded At</label>
-                    <div>{formatTableDate(detailsRecord.recordedAt.toString())}</div>
+                    <div>{detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt.toString()) : 'N/A'}</div>
                   </div>
                 </div>
               </div>
