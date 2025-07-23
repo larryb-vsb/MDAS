@@ -48,7 +48,10 @@ export function ApiUserManagement() {
 
   const createApiUserMutation = useMutation({
     mutationFn: async (data: CreateApiUserData) => {
-      return await apiRequest("POST", "/api/api-users", data);
+      return await apiRequest("/api/api-users", {
+        method: "POST",
+        body: data
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/api-users"] });
@@ -69,7 +72,10 @@ export function ApiUserManagement() {
 
   const toggleActiveStatusMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      return await apiRequest("PUT", `/api/api-users/${id}`, { isActive });
+      return await apiRequest(`/api/api-users/${id}`, {
+        method: "PUT",
+        body: { isActive }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/api-users"] });
@@ -89,7 +95,9 @@ export function ApiUserManagement() {
 
   const deleteApiUserMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest("DELETE", `/api/api-users/${id}`);
+      return await apiRequest(`/api/api-users/${id}`, {
+        method: "DELETE"
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/api-users"] });
