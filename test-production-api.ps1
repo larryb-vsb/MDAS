@@ -9,7 +9,7 @@ param(
 )
 
 # Production URL - update this after deployment
-$BaseUrl = "https://your-production-url.replit.app"
+$BaseUrl = "https://merchant-management-system--vermont-state-bank.replit.app"
 
 Write-Host "🚀 Production TDDF API Test" -ForegroundColor Green
 Write-Host "File: $FilePath"
