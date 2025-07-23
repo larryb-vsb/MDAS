@@ -126,29 +126,29 @@ const MultiColorGauge = ({
             {/* DT Records - Blue */}
             {dtPercentage > 0 && (
               <div 
-                className="absolute left-0 top-0 h-full bg-blue-500 transition-all duration-300 ease-out"
-                style={{ width: `${dtPercentage}%` }}
+                className="absolute left-0 top-0 h-full transition-all duration-300 ease-out"
+                style={{ width: `${dtPercentage}%`, backgroundColor: '#3b82f6' }}
               />
             )}
             {/* BH Records - Green */}
             {bhPercentage > 0 && (
               <div 
-                className="absolute top-0 h-full bg-emerald-500 transition-all duration-300 ease-out"
-                style={{ left: `${dtPercentage}%`, width: `${bhPercentage}%` }}
+                className="absolute top-0 h-full transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage}%`, width: `${bhPercentage}%`, backgroundColor: '#10b981' }}
               />
             )}
             {/* P1 Records - Amber */}
             {p1Percentage > 0 && (
               <div 
-                className="absolute top-0 h-full bg-amber-500 transition-all duration-300 ease-out"
-                style={{ left: `${dtPercentage + bhPercentage}%`, width: `${p1Percentage}%` }}
+                className="absolute top-0 h-full transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage + bhPercentage}%`, width: `${p1Percentage}%`, backgroundColor: '#f59e0b' }}
               />
             )}
             {/* Other Records - Red */}
             {otherPercentage > 0 && (
               <div 
-                className="absolute top-0 h-full bg-red-500 rounded-r-full transition-all duration-300 ease-out"
-                style={{ left: `${dtPercentage + bhPercentage + p1Percentage}%`, width: `${otherPercentage}%` }}
+                className="absolute top-0 h-full rounded-r-full transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage + bhPercentage + p1Percentage}%`, width: `${otherPercentage}%`, backgroundColor: '#ef4444' }}
               />
             )}
           </>
@@ -539,19 +539,19 @@ export default function ProcessingStatus() {
                 {/* Record Type Legend for TDDF */}
                 <div className="flex items-center justify-center gap-2 text-xs mt-1">
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
                     DT
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#10b981' }} />
                     BH
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
                     P1
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ef4444' }} />
                     Other
                   </span>
                 </div>
