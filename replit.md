@@ -341,6 +341,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - Group 2: Extension Records (P1/P2 purchasing extensions linked to parent DT records)
   - Group 3: Other Record Types (G2 merchant general + CT/LG/FT/F2/CK/HD/TR catch-all)
 - **✅ PERFORMANCE BENEFITS IDENTIFIED**: Reduced schema complexity (4 tables vs 8+ individual), shared indexes on common fields, optimized query efficiency for batch→transaction relationships
+- **✅ LOCAL AGENT MULTI-STREAM ARCHITECTURE**: System designed as PowerShell-based local agent with multi-stream upload capabilities, not web-based processing
 - **✅ POWERSHELL INTEGRATION PATHWAY**: Clear processing flow defined - POST BH first, then DT with batch references, then P1/P2 with transaction references, then others to catch-all
 - **✅ PRODUCTION READINESS**: Architecture leverages existing working system while providing scalability for comprehensive multi-record-type TDDF processing
 
