@@ -3903,6 +3903,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hour: '2-digit',
             minute: '2-digit',
             timeZone: 'America/Chicago'
+          }),
+          formattedDateTime: timestamp.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZone: 'America/Chicago'
           })
         };
       });

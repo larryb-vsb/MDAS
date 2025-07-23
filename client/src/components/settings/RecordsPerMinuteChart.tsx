@@ -15,6 +15,7 @@ interface RecordsPerMinuteData {
   otherRecords: number;
   status: string;
   formattedTime: string;
+  formattedDateTime: string;
 }
 
 interface RecordsPerMinuteHistoryResponse {
@@ -316,16 +317,17 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
                   top: 10,
                   right: 10,
                   left: 35,
-                  bottom: 20,
+                  bottom: 50,
                 }}
               >
                 <CartesianGrid strokeDasharray="2 2" stroke="#f0f0f0" />
                 <XAxis 
-                  dataKey="formattedTime"
-                  tick={{ fontSize: 9 }}
+                  dataKey="formattedDateTime"
+                  tick={{ fontSize: 8, angle: -45, textAnchor: 'end' }}
                   interval="preserveStartEnd"
                   axisLine={{ stroke: '#e0e0e0' }}
                   tickLine={{ stroke: '#e0e0e0' }}
+                  height={60}
                 />
                 <YAxis 
                   domain={[0, 125]}
