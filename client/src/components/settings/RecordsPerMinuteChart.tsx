@@ -126,6 +126,43 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     setTimeOffset(prev => Math.max(0, prev - Math.floor(timeRange / 4)));
   };
 
+  // Format time for X-axis (short format with AM/PM)
+  const formatTimeOnly = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  // Get the current date for bottom display
+  const getCurrentDate = () => {
+    if (!historyData?.data.length) return '';
+    const latestData = historyData.data[historyData.data.length - 1];
+    const date = new Date(latestData.timestamp);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short',
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Add short time format to data
+  const getDataWithShortTime = () => {
+    if (!historyData?.data.length) return [];
+    const data = historyData.data;
+    const totalPoints = data.length;
+    const pointsToShow = Math.max(Math.floor(totalPoints / zoomLevel), 2);
+    const startIndex = Math.max(0, totalPoints - pointsToShow);
+    
+    return data.slice(startIndex).map(item => ({
+      ...item,
+      shortTime: formatTimeOnly(item.timestamp)
+    }));
+  };
+
   const formatTooltip = (value: number, name: string) => {
     if (name === 'DT Records') {
       return [`${value.toLocaleString()} records/min`, 'DT'];
@@ -194,9 +231,10 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     );
   }
 
-  const zoomedData = getZoomedData();
+  const zoomedData = getDataWithShortTime();
   const maxValue = Math.max(...historyData.data.map(d => d.recordsPerMinute));
   const avgValue = historyData.data.reduce((sum, d) => sum + d.recordsPerMinute, 0) / historyData.data.length;
+  const currentDate = getCurrentDate();
   const zoomLevels = getZoomLevels();
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
   const canZoomOut = zoomLevel > Math.min(...zoomLevels);
@@ -322,12 +360,12 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
               >
                 <CartesianGrid strokeDasharray="2 2" stroke="#f0f0f0" />
                 <XAxis 
-                  dataKey="formattedDateTime"
-                  tick={{ fontSize: 8, angle: -45, textAnchor: 'end' }}
+                  dataKey="shortTime"
+                  tick={{ fontSize: 9, angle: 0, textAnchor: 'middle' }}
                   interval="preserveStartEnd"
                   axisLine={{ stroke: '#e0e0e0' }}
                   tickLine={{ stroke: '#e0e0e0' }}
-                  height={60}
+                  height={25}
                 />
                 <YAxis 
                   domain={[0, 125]}
@@ -385,6 +423,11 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          
+          {/* Date display centered */}
+          <div className="text-center text-sm font-medium text-muted-foreground py-1">
+            {currentDate}
           </div>
           
           {/* Status indicator with record type legend */}
