@@ -177,20 +177,53 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     }));
   };
 
-  const formatTooltip = (value: number, name: string) => {
-    if (name === 'DT Records') {
-      return [`${value.toLocaleString()} records/min`, 'DT'];
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const totalTddf = data.dtRecords + data.bhRecords + data.p1Records + data.otherRecords;
+      
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
+          <p className="font-semibold mb-2">{label}</p>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-4">
+              <span className="font-medium text-purple-600">Total TDDF:</span>
+              <span className="font-semibold">{totalTddf.toLocaleString()} records/min</span>
+            </div>
+            <div className="h-px bg-gray-200 my-2"></div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                DT:
+              </span>
+              <span>{data.dtRecords.toLocaleString()} records/min</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
+                BH:
+              </span>
+              <span>{data.bhRecords.toLocaleString()} records/min</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-amber-500 rounded-sm"></div>
+                P1:
+              </span>
+              <span>{data.p1Records.toLocaleString()} records/min</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                Other:
+              </span>
+              <span>{data.otherRecords.toLocaleString()} records/min</span>
+            </div>
+          </div>
+        </div>
+      );
     }
-    if (name === 'BH Records') {
-      return [`${value.toLocaleString()} records/min`, 'BH'];
-    }
-    if (name === 'P1 Records') {
-      return [`${value.toLocaleString()} records/min`, 'P1'];
-    }
-    if (name === 'Other Records') {
-      return [`${value.toLocaleString()} records/min`, 'Other'];
-    }
-    return [value, name];
+    return null;
   };
 
   if (isLoading) {
@@ -381,7 +414,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 <CartesianGrid strokeDasharray="2 2" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="shortTime"
-                  tick={{ fontSize: 9, angle: 0, textAnchor: 'middle' }}
+                  tick={{ fontSize: 9, textAnchor: 'middle' }}
                   interval="preserveStartEnd"
                   axisLine={{ stroke: '#e0e0e0' }}
                   tickLine={{ stroke: '#e0e0e0' }}
@@ -402,17 +435,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                     style: { textAnchor: 'middle', fontSize: '10px', fill: '#666' }
                   }}
                 />
-                <Tooltip 
-                  formatter={formatTooltip}
-                  labelStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                  contentStyle={{ 
-                    fontSize: '11px', 
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Bar 
                   dataKey="dtRecords" 
                   stackId="records"
