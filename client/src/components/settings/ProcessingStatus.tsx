@@ -163,7 +163,9 @@ export default function ProcessingStatus() {
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/file-processor/pause");
+      const res = await apiRequest("/api/file-processor/pause", {
+        method: "POST"
+      });
       return await res.json();
     },
     onSuccess: () => {
@@ -185,7 +187,9 @@ export default function ProcessingStatus() {
   // Resume processing mutation
   const resumeMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/file-processor/resume");
+      const res = await apiRequest("/api/file-processor/resume", {
+        method: "POST"
+      });
       return await res.json();
     },
     onSuccess: () => {
@@ -207,8 +211,11 @@ export default function ProcessingStatus() {
   // Manual processing trigger mutation
   const triggerProcessingMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/process-uploads", {
-        fileIds: []  // Empty array triggers processing of queued files
+      const res = await apiRequest("/api/process-uploads", {
+        method: "POST",
+        body: {
+          fileIds: []  // Empty array triggers processing of queued files
+        }
       });
       return await res.json();
     },
