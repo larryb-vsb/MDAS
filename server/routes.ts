@@ -3839,12 +3839,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endTime = timeOffset > 0 ? `NOW() - INTERVAL '${timeOffset} hours'` : 'NOW()';
       const startTime = `${endTime} - INTERVAL '${hours} hours'`;
       
-      // Get historical records per minute data
+      // Get historical records per minute data with breakdown by record type
       const result = await pool.query(`
         SELECT 
           records_per_minute,
           timestamp,
-          system_status
+          system_status,
+          transactions_per_second,
+          COALESCE(
+            CASE 
+              WHEN metric_type = 'combined' THEN 
+                records_per_minute - (transactions_per_second * 60)
+              ELSE 0 
+            END, 0
+          ) as tddf_records_per_minute,
+          COALESCE(transactions_per_second * 60, 0) as transaction_records_per_minute
         FROM ${metricsTableName} 
         WHERE timestamp >= ${startTime}
           AND timestamp <= ${endTime}
@@ -3852,12 +3861,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY timestamp ASC
       `);
       
-      // Format data for chart with enhanced time formatting
+      // Format data for chart with enhanced time formatting and record type breakdown
       const chartData = result.rows.map(row => {
         const timestamp = new Date(row.timestamp);
+        const totalRecords = parseFloat(row.records_per_minute) || 0;
+        const transactionRecords = parseFloat(row.transaction_records_per_minute) || 0;
+        const tddfRecords = parseFloat(row.tddf_records_per_minute) || 0;
+        
+        // If we don't have breakdown data, assume all records are transactions for now
+        const actualTransactionRecords = transactionRecords > 0 ? transactionRecords : totalRecords;
+        const actualTddfRecords = tddfRecords > 0 ? tddfRecords : 0;
+        
         return {
           timestamp: row.timestamp,
-          recordsPerMinute: parseFloat(row.records_per_minute),
+          recordsPerMinute: totalRecords,
+          transactionRecords: actualTransactionRecords,
+          tddfRecords: actualTddfRecords,
           status: row.system_status,
           formattedTime: timestamp.toLocaleTimeString('en-US', {
             hour: '2-digit',

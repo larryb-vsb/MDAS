@@ -9,6 +9,8 @@ import { useState } from 'react';
 interface RecordsPerMinuteData {
   timestamp: string;
   recordsPerMinute: number;
+  transactionRecords: number;
+  tddfRecords: number;
   status: string;
   formattedTime: string;
 }
@@ -122,8 +124,11 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
   };
 
   const formatTooltip = (value: number, name: string) => {
-    if (name === 'recordsPerMinute') {
-      return [`${value.toLocaleString()} records/min`, 'Processing Rate'];
+    if (name === 'Transaction Records') {
+      return [`${value.toLocaleString()} records/min`, 'Transactions'];
+    }
+    if (name === 'TDDF Records') {
+      return [`${value.toLocaleString()} records/min`, 'TDDF'];
     }
     return [value, name];
   };
@@ -330,26 +335,40 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
                   }}
                 />
                 <Bar 
-                  dataKey="recordsPerMinute" 
+                  dataKey="transactionRecords" 
+                  stackId="records"
+                  fill="#3b82f6"
+                  radius={[0, 0, 0, 0]}
+                  name="Transaction Records"
+                />
+                <Bar 
+                  dataKey="tddfRecords" 
+                  stackId="records"
                   fill="#ff7c00"
                   radius={[2, 2, 0, 0]}
-                  opacity={0.8}
+                  name="TDDF Records"
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
           
-          {/* Status indicator */}
+          {/* Status indicator with record type legend */}
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <span>
               {timeRange <= 6 ? 'Real-time' : 'Historical'} • 
               {zoomLevel > 1 ? ` ${zoomLevel}x zoom` : ' Overview'} • 
               Last updated: {historyData.lastUpdated}
             </span>
-            <span className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-orange-500 rounded-full" />
-              Processing Rate
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                Transactions
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                TDDF Records
+              </span>
+            </div>
           </div>
         </div>
       </CardContent>

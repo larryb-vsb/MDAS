@@ -379,17 +379,20 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - Processing Architecture: Batch-first processing enables proper transaction grouping, record type routing reduces complexity, optimized storage reduces field duplication
   - Production Ready Infrastructure: Complete foundation for local PowerShell agent multi-stream uploads with hierarchical data submission
 
-### ENHANCED CHART VISUALIZATION WITH INTERACTIVE CONTROLS COMPLETED (July 23, 2025)
-- **✅ CHART TYPE CONVERSION**: Successfully converted processing chart from line chart to bar chart for better discrete data visualization
-- **✅ INTERACTIVE TIME CONTROLS**: Added comprehensive time range selector (1h, 3h, 6h, 12h, 24h, 3d) with dropdown interface
-- **✅ NAVIGATION FUNCTIONALITY**: Implemented time navigation controls (back/forward arrows) for historical data exploration
-- **✅ ZOOM CAPABILITIES**: Added zoom in/out functionality with dynamic zoom level calculation based on data density
-- **✅ ENHANCED STATISTICS DISPLAY**: Updated to 4-column stats layout showing Peak, Average, Data Points (with zoom indicator), and Time offset
-- **✅ Y-AXIS SCALE IMPROVEMENTS**: Added smart Y-axis tick generation with proper scale formatting (0, 25, 50, 100k, etc.)
-- **✅ PROFESSIONAL STYLING**: Enhanced chart layout with larger height (40 vs 32), better margins, improved tooltip styling, and rounded bar tops
-- **✅ BACKEND API ENHANCEMENT**: Updated records-per-minute-history endpoint to support timeOffset parameter for historical navigation
-- **✅ REAL-TIME REFRESH**: Maintained 30-second automatic refresh intervals while preserving user navigation state
-- **✅ RESPONSIVE CONTROLS**: All interactive elements (time selector, navigation buttons, zoom controls) properly disabled/enabled based on data availability
+### STACKED BAR CHART WITH RECORD TYPE VISUALIZATION COMPLETED (July 23, 2025)
+- **✅ STACKED BAR CHART IMPLEMENTATION**: Successfully converted chart to stacked bar format showing different record types with distinct colors
+- **✅ RECORD TYPE BREAKDOWN**: Blue bars for Transaction Records and orange bars for TDDF Records with proper visual separation
+- **✅ BACKEND DATA ENHANCEMENT**: Updated API endpoint to provide separate counts for transaction_records_per_minute and tddf_records_per_minute
+- **✅ VISUAL LEGEND SYSTEM**: Added color-coded legend with blue dots for Transactions and orange dots for TDDF Records
+- **✅ ENHANCED TOOLTIPS**: Tooltips now display record type-specific labels ("Transactions" and "TDDF") with proper formatting
+- **✅ PROFESSIONAL STACKING**: Both record types stack properly with shared stackId="records" and rounded tops on upper bars
+- **✅ INTERACTIVE TIME CONTROLS**: Maintained comprehensive time range selector (1h, 3h, 6h, 12h, 24h, 3d) with dropdown interface
+- **✅ NAVIGATION FUNCTIONALITY**: Time navigation controls (back/forward arrows) for historical data exploration remain functional
+- **✅ ZOOM CAPABILITIES**: Zoom in/out functionality with dynamic zoom level calculation preserved across record types
+- **✅ ENHANCED STATISTICS DISPLAY**: 4-column stats layout showing Peak, Average, Data Points, and Time status continues working
+- **✅ Y-AXIS SCALE IMPROVEMENTS**: Smart Y-axis tick generation with proper scale formatting maintained for combined record totals
+- **✅ BACKEND API SUPPORT**: Updated records-per-minute-history endpoint supports timeOffset parameter and record type breakdown
+- **✅ REAL-TIME REFRESH**: 30-second automatic refresh intervals maintained while preserving user navigation state and record type visibility
 
 ### TDDF VARIABLE-LENGTH RECORD STORAGE ARCHITECTURE ANALYSIS COMPLETED (July 23, 2025)
 - **✅ COMPREHENSIVE RECORD TYPE ANALYSIS**: Analyzed PowerShell-based TDDF processing script with complete field specifications for all major record types
