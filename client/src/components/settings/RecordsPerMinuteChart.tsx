@@ -110,29 +110,29 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const handleZoomIn = () => {
     const levels = getZoomLevels();
     const currentIndex = levels.indexOf(zoomLevel);
-    if (currentIndex < levels.length - 1) {
-      setZoomLevel(levels[currentIndex + 1]);
+    if (currentIndex > 0) {
+      setZoomLevel(levels[currentIndex - 1]);
     }
   };
 
   const handleZoomOut = () => {
     const levels = getZoomLevels();
     const currentIndex = levels.indexOf(zoomLevel);
-    if (currentIndex > 0) {
-      setZoomLevel(levels[currentIndex - 1]);
+    if (currentIndex < levels.length - 1) {
+      setZoomLevel(levels[currentIndex + 1]);
     }
   };
 
   const handleTimeLeft = () => {
-    // Left arrow = go back in time (increase timeOffset to go further back)
+    // Left arrow = go forward toward live data (decrease timeOffset)
     const step = Math.max(1, Math.floor(timeRange / 4));
-    setTimeOffset(prev => prev + step);
+    setTimeOffset(prev => Math.max(0, prev - step));
   };
 
   const handleTimeRight = () => {
-    // Right arrow = go forward in time toward live data (decrease timeOffset)
+    // Right arrow = go back in time (increase timeOffset to go further back)
     const step = Math.max(1, Math.floor(timeRange / 4));
-    setTimeOffset(prev => Math.max(0, prev - step));
+    setTimeOffset(prev => prev + step);
   };
 
   // Format time for X-axis (short format with AM/PM)
@@ -251,8 +251,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const zoomLevels = getZoomLevels();
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
   const canZoomOut = zoomLevel > Math.min(...zoomLevels);
-  const canGoLeft = timeOffset < 168; // Left arrow: can go back in time (max 1 week back)
-  const canGoRight = timeOffset > 0; // Right arrow: can go forward toward live data (timeOffset = 0)
+  const canGoLeft = timeOffset > 0; // Left arrow: can go forward toward live data (timeOffset = 0)
+  const canGoRight = timeOffset < 168; // Right arrow: can go back in time (max 1 week back)
 
   return (
     <Card className={className}>
@@ -285,7 +285,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 className="h-6 w-6 p-0"
                 onClick={handleTimeLeft}
                 disabled={!canGoLeft}
-                title={`Go back ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} in time`}
+                title={`Go forward ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} toward live data`}
               >
                 <ChevronLeft className="h-3 w-3" />
               </Button>
@@ -295,7 +295,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 className="h-6 w-6 p-0"
                 onClick={handleTimeRight}
                 disabled={!canGoRight}
-                title={`Go forward ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} toward live data`}
+                title={`Go back ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} in time`}
               >
                 <ChevronRight className="h-3 w-3" />
               </Button>
