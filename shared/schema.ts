@@ -611,6 +611,8 @@ export const processingMetrics = pgTable(getTableName("processing_metrics"), {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   transactionsPerSecond: numeric("transactions_per_second", { precision: 8, scale: 2 }).notNull(),
   peakTransactionsPerSecond: numeric("peak_transactions_per_second", { precision: 8, scale: 2 }).notNull(),
+  recordsPerMinute: numeric("records_per_minute", { precision: 8, scale: 2 }).notNull().default('0'),
+  peakRecordsPerMinute: numeric("peak_records_per_minute", { precision: 8, scale: 2 }).notNull().default('0'),
   totalFiles: integer("total_files").notNull(),
   queuedFiles: integer("queued_files").notNull(),
   processedFiles: integer("processed_files").notNull(),

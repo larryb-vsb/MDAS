@@ -8,6 +8,7 @@ import { Pause, Play, Activity, Clock, FileText, AlertTriangle, CheckCircle } fr
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
+import RecordsPerMinuteChart from "./RecordsPerMinuteChart";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -456,6 +457,11 @@ export default function ProcessingStatus() {
                 </div>
                 <div className="text-muted-foreground">Resolution Rate</div>
               </div>
+            </div>
+            
+            {/* Records Per Minute Historical Chart */}
+            <div className="mt-6">
+              <RecordsPerMinuteChart hours={6} />
             </div>
             
             {/* TDDF Operations Section */}

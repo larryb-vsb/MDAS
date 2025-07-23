@@ -911,16 +911,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
-      // Get current peak from latest database record
+      // Get current peaks from latest database record
       const latestPeakResult = await pool.query(`
-        SELECT peak_transactions_per_second 
+        SELECT peak_transactions_per_second, peak_records_per_minute 
         FROM ${metricsTableName} 
         ORDER BY timestamp DESC 
         LIMIT 1
       `);
       
-      const currentPeak = latestPeakResult.rows[0]?.peak_transactions_per_second || 0;
-      const newPeak = Math.max(parseFloat(currentPeak), currentStats.transactionsPerSecond);
+      const currentTxnPeak = latestPeakResult.rows[0]?.peak_transactions_per_second || 0;
+      const currentRecordsPeak = latestPeakResult.rows[0]?.peak_records_per_minute || 0;
+      const newTxnPeak = Math.max(parseFloat(currentTxnPeak), currentStats.transactionsPerSecond);
+      const recordsPerMinute = currentStats.transactionsPerSecond * 60;
+      const newRecordsPeak = Math.max(parseFloat(currentRecordsPeak), recordsPerMinute);
       
       // Save metrics snapshot to database
       try {
@@ -928,6 +931,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           INSERT INTO ${metricsTableName} (
             transactions_per_second, 
             peak_transactions_per_second,
+            records_per_minute,
+            peak_records_per_minute,
             total_files,
             queued_files, 
             processed_files,
@@ -935,10 +940,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currently_processing,
             system_status,
             metric_type
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         `, [
           currentStats.transactionsPerSecond,
-          newPeak,
+          newTxnPeak,
+          recordsPerMinute,
+          newRecordsPeak,
           currentStats.totalFiles,
           currentStats.queuedFiles,
           currentStats.processedFiles,
@@ -954,7 +961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         ...currentStats,
-        peakTransactionsPerSecond: newPeak,
+        peakTransactionsPerSecond: newTxnPeak,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -975,6 +982,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           transactions_per_second,
           peak_transactions_per_second,
+          records_per_minute,
+          peak_records_per_minute,
           timestamp,
           system_status
         FROM ${metricsTableName} 
@@ -986,6 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           currentSpeed: 0.0,
           peakSpeed: 0.0,
+          currentRecordsPerMinute: 0.0,
+          peakRecordsPerMinute: 0.0,
           systemStatus: 'idle',
           lastUpdated: new Date().toISOString()
         });
@@ -995,6 +1006,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         currentSpeed: parseFloat(metrics.transactions_per_second),
         peakSpeed: parseFloat(metrics.peak_transactions_per_second),
+        currentRecordsPerMinute: parseFloat(metrics.records_per_minute || 0),
+        peakRecordsPerMinute: parseFloat(metrics.peak_records_per_minute || 0),
         systemStatus: metrics.system_status,
         lastUpdated: metrics.timestamp
       });
@@ -3809,6 +3822,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Import failed:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Import failed"
+      });
+    }
+  });
+
+  // Get historical records per minute data for chart visualization
+  app.get("/api/processing/records-per-minute-history", async (req, res) => {
+    try {
+      const metricsTableName = getTableName('processing_metrics');
+      const hours = parseInt(req.query.hours as string) || 24; // Default to 24 hours
+      
+      // Get historical records per minute data
+      const result = await pool.query(`
+        SELECT 
+          records_per_minute,
+          timestamp,
+          system_status
+        FROM ${metricsTableName} 
+        WHERE timestamp >= NOW() - INTERVAL '${hours} hours'
+          AND records_per_minute > 0
+        ORDER BY timestamp ASC
+      `);
+      
+      // Format data for chart
+      const chartData = result.rows.map(row => ({
+        timestamp: row.timestamp,
+        recordsPerMinute: parseFloat(row.records_per_minute),
+        status: row.system_status,
+        formattedTime: new Date(row.timestamp).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Chicago'
+        })
+      }));
+      
+      res.json({
+        data: chartData,
+        totalPoints: chartData.length,
+        timeRange: `${hours} hours`,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error getting records per minute history:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get historical data" 
       });
     }
   });
