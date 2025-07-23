@@ -4162,6 +4162,244 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-stream JSON TDDF upload endpoint (for PowerShell agent)
+  app.post("/api/tddf/upload-json", isApiKeyAuthenticated, async (req, res) => {
+    try {
+      const { streamId, batchId, recordCount, records } = req.body;
+      
+      if (!records || !Array.isArray(records) || records.length === 0) {
+        return res.status(400).json({ error: "No records provided" });
+      }
+      
+      console.log(`[JSON UPLOAD] Stream ${streamId}, Batch ${batchId}: Processing ${recordCount} records`);
+      
+      let processedCount = 0;
+      let dtRecordsCreated = 0;
+      let errors = 0;
+      
+      // Use connection pool for optimal performance
+      const { pool } = await import('./db');
+      
+      // Generate unique file ID for this batch
+      const fileId = `json_stream_${streamId}_batch_${batchId}_${Date.now()}`;
+      const currentEnvironment = process.env.NODE_ENV || 'production';
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      // Create file record for tracking
+      await pool.query(`
+        INSERT INTO ${uploadedFilesTableName} (
+          id, original_filename, storage_path, file_type, uploaded_at, 
+          processed, deleted, file_content, upload_environment, 
+          raw_lines_count, processing_notes, processing_status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        fileId,
+        `stream_${streamId}_batch_${batchId}.json`,
+        'json_stream',
+        'tddf',
+        new Date(),
+        false,
+        false,
+        Buffer.from(JSON.stringify(records)).toString('base64'),
+        currentEnvironment,
+        recordCount,
+        `JSON stream upload: ${recordCount} records from stream ${streamId}`,
+        'processing'
+      ]);
+      
+      // Process each record
+      for (const record of records) {
+        try {
+          processedCount++;
+          
+          // Only process DT (Detail Transaction) records
+          if (record.recordType === 'DT' && record.transactionFields) {
+            const txnFields = record.transactionFields;
+            
+            // Parse amount (convert from cents to dollars)
+            const txnAmount = parseFloat(txnFields.transactionAmount) / 100;
+            const authAmount = parseFloat(txnFields.authorizationAmount) / 100;
+            
+            // Parse date (MMDDCCYY format)
+            const dateStr = txnFields.transactionDate;
+            let txnDate = null;
+            if (dateStr && dateStr.length === 8) {
+              const month = dateStr.substring(0, 2);
+              const day = dateStr.substring(2, 4);
+              const year = dateStr.substring(4, 8);
+              txnDate = new Date(`${year}-${month}-${day}`);
+            }
+            
+            // Create TDDF record using connection pool with comprehensive schema
+            const tddfRecordsTableName = getTableName('tddf_records');
+            
+            // Extract all available fields from comprehensive schema
+            const comprehensiveFields = {
+              // Core identification
+              id: `STREAM_${streamId}_${batchId}_${record.lineNumber}`,
+              reference_number: txnFields.referenceNumber || '',
+              merchant_account_number: txnFields.merchantAccountNumber || '',
+              
+              // Transaction amounts (convert from cents)
+              transaction_amount: txnAmount,
+              authorization_amount: authAmount,
+              fee_amount: parseFloat(txnFields.feeAmount || '0') / 100,
+              cashback_amount: parseFloat(txnFields.cashbackAmount || '0') / 100,
+              tip_amount: parseFloat(txnFields.tipAmount || '0') / 100,
+              tax_amount: parseFloat(txnFields.taxAmount || '0') / 100,
+              
+              // Transaction dates and times
+              transaction_date: txnDate,
+              local_transaction_date: txnFields.localTransactionDate || '',
+              transaction_time: txnFields.transactionTime || '',
+              local_transaction_time: txnFields.localTransactionTime || '',
+              
+              // Card information
+              card_number: txnFields.cardNumber || '',
+              expiration_date: txnFields.cardExpirationDate || txnFields.expirationDate || '',
+              card_type: txnFields.cardType || '',
+              card_product_type: txnFields.cardProductType || '',
+              card_level: txnFields.cardLevel || '',
+              debit_credit_indicator: txnFields.debitCreditIndicator || '',
+              
+              // Merchant information
+              merchant_name: txnFields.merchantName || '',
+              merchant_city: txnFields.merchantCity || '',
+              merchant_state: txnFields.merchantState || '',
+              merchant_zip: txnFields.merchantZip || '',
+              merchant_dba_name: txnFields.merchantDbaName || '',
+              merchant_phone_number: txnFields.merchantPhoneNumber || '',
+              merchant_url: txnFields.merchantUrl || '',
+              
+              // MCC and merchant categorization
+              mcc_code: txnFields.mccCode || '',
+              merchant_type: txnFields.merchantType || '',
+              merchant_category_code_mcc: txnFields.merchantCategoryCodeMcc || '',
+              
+              // Authorization information
+              authorization_code: txnFields.authorizationCode || '',
+              authorization_response_code: txnFields.authorizationResponseCode || '',
+              response_code: txnFields.responseCode || '',
+              
+              // Transaction processing
+              transaction_type: txnFields.transactionTypeIndicator || txnFields.transactionType || '',
+              processing_code: txnFields.processingCode || '',
+              function_code: txnFields.functionCode || '',
+              
+              // Terminal information
+              terminal_id: txnFields.terminalId || '',
+              v_number: txnFields.vNumber || '',
+              terminal_capability: txnFields.terminalCapability || '',
+              
+              // POS environment
+              pos_entry_mode: txnFields.posEntryMode || '',
+              pos_condition_code: txnFields.posConditionCode || '',
+              pos_card_presence: txnFields.posCardPresence || '',
+              pos_cardholder_presence: txnFields.posCardholderPresence || '',
+              
+              // Network and trace
+              network_transaction_id: txnFields.networkTransactionId || '',
+              system_trace_audit_number: txnFields.systemTraceAuditNumber || '',
+              retrieval_reference_number: txnFields.retrievalReferenceNumber || '',
+              
+              // Batch and sequence
+              batch_id: txnFields.batchId || '',
+              batch_sequence_number: txnFields.batchSequenceNumber || '',
+              transaction_sequence_number: txnFields.transactionSequenceNumber || '',
+              
+              // Additional reference numbers
+              invoice_number: txnFields.invoiceNumber || '',
+              order_number: txnFields.orderNumber || '',
+              customer_reference_number: txnFields.customerReferenceNumber || '',
+              
+              // AMEX specific fields
+              amex_merchant_address: txnFields.amexMerchantAddress || '',
+              amex_merchant_postal_code: txnFields.amexMerchantPostalCode || '',
+              amex_phone_number: txnFields.amexPhoneNumber || '',
+              amex_email_address: txnFields.amexEmailAddress || '',
+              
+              // Currency and conversion
+              currency_code: txnFields.currencyCode || '',
+              transaction_currency_code: txnFields.transactionCurrencyCode || '',
+              settlement_currency_code: txnFields.settlementCurrencyCode || '',
+              conversion_rate: txnFields.conversionRate || '',
+              
+              // Security verification
+              address_verification_result: txnFields.addressVerificationResult || '',
+              card_verification_result: txnFields.cardVerificationResult || '',
+              three_d_secure_result: txnFields.threeDSecureResult || '',
+              
+              // E-commerce indicators
+              ecommerce_indicator: txnFields.ecommerceIndicator || '',
+              mail_phone_order_indicator: txnFields.mailPhoneOrderIndicator || '',
+              recurring_transaction_indicator: txnFields.recurringTransactionIndicator || '',
+              
+              // Processing flags
+              partial_approval_indicator: txnFields.partialApprovalIndicator || '',
+              duplicate_transaction_indicator: txnFields.duplicateTransactionIndicator || '',
+              reversal_indicator: txnFields.reversalIndicator || '',
+              
+              // Card brand specific
+              visa_product_id: txnFields.visaProductId || '',
+              mastercard_product_id: txnFields.mastercardProductId || '',
+              discover_product_id: txnFields.discoverProductId || '',
+              
+              // Metadata
+              recorded_at: new Date(),
+              source_file_id: fileId,
+              raw_line_number: record.lineNumber
+            };
+            
+            // Build dynamic INSERT query based on available fields
+            const fieldNames = Object.keys(comprehensiveFields);
+            const placeholders = fieldNames.map((_, index) => `$${index + 1}`).join(', ');
+            const values = fieldNames.map(field => comprehensiveFields[field]);
+            
+            await pool.query(`
+              INSERT INTO ${tddfRecordsTableName} (${fieldNames.join(', ')})
+              VALUES (${placeholders})
+            `, values);
+            
+            dtRecordsCreated++;
+          }
+        } catch (recordError) {
+          console.error(`[JSON UPLOAD] Error processing record ${record.lineNumber}:`, recordError);
+          errors++;
+        }
+      }
+      
+      // Update file status to completed
+      await pool.query(`
+        UPDATE ${uploadedFilesTableName} 
+        SET processed = true, 
+            processing_status = 'completed',
+            processing_notes = $1
+        WHERE id = $2
+      `, [
+        `Processed ${processedCount} records, created ${dtRecordsCreated} DT records, ${errors} errors`,
+        fileId
+      ]);
+      
+      console.log(`[JSON UPLOAD] Stream ${streamId} Batch ${batchId} completed: ${dtRecordsCreated} DT records created`);
+      
+      res.json({
+        success: true,
+        streamId,
+        batchId,
+        recordsProcessed: processedCount,
+        dtRecordsCreated,
+        errors,
+        fileId
+      });
+      
+    } catch (error) {
+      console.error("[JSON UPLOAD] Error:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process JSON upload" 
+      });
+    }
+  });
+
   // Upload TDDF file via API key authentication (for PowerShell agent)
   app.post("/api/tddf/upload", upload.single('file'), isApiKeyAuthenticated, async (req, res) => {
     try {
