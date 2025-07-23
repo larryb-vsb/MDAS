@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -286,7 +286,7 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
           {/* Enhanced Chart with better scaling */}
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <BarChart
                 data={zoomedData}
                 margin={{
                   top: 10,
@@ -329,21 +329,13 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
                 />
-                <Line 
-                  type="monotone" 
+                <Bar 
                   dataKey="recordsPerMinute" 
-                  stroke="#ff7c00" 
-                  strokeWidth={2.5}
-                  dot={{ fill: '#ff7c00', strokeWidth: 2, r: 3 }}
-                  activeDot={{ 
-                    r: 5, 
-                    stroke: '#ff7c00', 
-                    strokeWidth: 2, 
-                    fill: '#fff',
-                    boxShadow: '0 0 8px rgba(255, 124, 0, 0.4)'
-                  }}
+                  fill="#ff7c00"
+                  radius={[2, 2, 0, 0]}
+                  opacity={0.8}
                 />
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
           </div>
           
