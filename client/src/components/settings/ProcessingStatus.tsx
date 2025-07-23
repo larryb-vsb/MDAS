@@ -406,7 +406,7 @@ export default function ProcessingStatus() {
             <div className="text-sm font-medium">Processing Performance KPIs</div>
             
             {/* Processing Speed & Efficiency */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-blue-600">
                   {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
@@ -428,6 +428,21 @@ export default function ProcessingStatus() {
                 </div>
                 <div className="text-muted-foreground">TDDF/sec</div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
+              </div>
+              <div className="text-center space-y-2">
+                <div className="text-lg font-semibold text-orange-600">
+                  {((realTimeStats.transactionsPerSecond || 0) * 60).toFixed(0)}
+                </div>
+                <div className="text-muted-foreground">Records/min</div>
+                {/* Records per Minute Gauge */}
+                <div className="mt-2 px-2">
+                  <TransactionSpeedGauge 
+                    currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
+                    peakSpeed={peakTxnSpeed * 60}
+                    maxScale={Math.max(peakTxnSpeed * 60 * 1.2, 600)}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">(last min)</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
