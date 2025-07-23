@@ -1,0 +1,147 @@
+
+param (
+    [Parameter(Mandatory = $true)]
+    [string]$InputPath,
+
+    [string]$AssociationFilter,
+
+    [string]$OutputFile,
+
+    [ValidateSet("CSV", "JSON")]
+    [string]$Format = "CSV"
+)
+
+function Get-Field {
+    param ($line, $start, $length)
+    if ($line.Length -ge ($start + $length - 1)) {
+        return $line.Substring($start - 1, $length).Trim()
+    } else {
+        return ""
+    }
+}
+
+function Ensure-Folder {
+    param ($path)
+    if (-not (Test-Path $path)) {
+        New-Item -ItemType Directory -Path $path | Out-Null
+    }
+}
+
+function Parse-TddfAmount {
+    param ([string]$rawAmount)
+    if ($rawAmount -match '^\d+$') {
+        return [decimal]::Parse($rawAmount) / 100
+    }
+    return 0
+}
+
+$global:AllRecordsByMonth = @{}
+$global:TotalLinesScanned = 0
+$global:TotalRecordsMatched = 0
+
+function Process-File {
+    param (
+        [string]$InputFile,
+        [string]$AssociationFilter
+    )
+
+    $lineNumber = 0
+    $matchCount = 0
+
+    Write-Host "🔍 Processing: $InputFile"
+
+    $lines = Get-Content $InputFile
+    $totalLines = $lines.Count
+
+    for ($i = 0; $i -lt $totalLines; $i++) {
+        $line = $lines[$i]
+        $lineNumber++
+        $global:TotalLinesScanned++
+
+        Write-Progress -Activity "Processing Lines" -Status "Line $lineNumber of $totalLines" -PercentComplete (($i / $totalLines) * 100)
+
+        if ($line.Length -ge 19 -and $line.Substring(17, 2) -eq "DT") {
+            $assocNumber = Get-Field $line 40 6
+
+            if ([string]::IsNullOrWhiteSpace($AssociationFilter) -or $assocNumber -eq $AssociationFilter) {
+                $txnDateRaw = Get-Field $line 85 8
+
+                try {
+                    $txnDate = [datetime]::ParseExact($txnDateRaw, "MMddyyyy", $null)
+                    $monthKey = $txnDate.ToString("yyyy-MM")
+                } catch {
+                    continue
+                }
+
+                $record = [PSCustomObject]@{
+                    RecordLine        = $line
+                    RecordType        = "DT"
+                    LineNumber        = $lineNumber
+                    ProcessedAt       = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                    AssociationNumber = $assocNumber
+                    TxnDate           = $txnDate.ToString("yyyy-MM-dd")
+                    TxnAmount         = Parse-TddfAmount (Get-Field $line 93 11)
+                    MerchantId        = Get-Field $line 40 16
+                }
+
+                if (-not $global:AllRecordsByMonth.ContainsKey($monthKey)) {
+                    $global:AllRecordsByMonth[$monthKey] = @()
+                }
+
+                $global:AllRecordsByMonth[$monthKey] += $record
+                $matchCount++
+                $global:TotalRecordsMatched++
+            }
+        }
+    }
+
+    Write-Progress -Activity "Processing Lines" -Completed
+    Write-Host "📄 Lines: $lineNumber | Matches: $matchCount"
+}
+
+# 🚀 MAIN CONTROL
+
+if (-not (Test-Path $InputPath)) {
+    Write-Host "❌ Input path not found: $InputPath" -ForegroundColor Red
+    exit
+}
+
+$ExportFolder = Join-Path (Split-Path $InputPath -Parent) "Exports"
+Ensure-Folder $ExportFolder
+
+if ((Get-Item $InputPath).PSIsContainer) {
+    Get-ChildItem -Path $InputPath -File | ForEach-Object {
+        Process-File -InputFile $_.FullName -AssociationFilter $AssociationFilter
+    }
+} else {
+    Process-File -InputFile $InputPath -AssociationFilter $AssociationFilter
+}
+
+if ($OutputFile) {
+    $allRecords = @()
+    foreach ($records in $global:AllRecordsByMonth.Values) {
+        $allRecords += $records
+    }
+
+    if ($Format -eq "CSV") {
+        $allRecords | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding utf8
+    } elseif ($Format -eq "JSON") {
+        $allRecords | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputFile -Encoding utf8
+    }
+
+    Write-Host "✅ Exported all records to $OutputFile ($Format)"
+} else {
+    Write-Host "`n📦 Exporting grouped monthly transactions..."
+    foreach ($monthKey in $global:AllRecordsByMonth.Keys) {
+        $records = $global:AllRecordsByMonth[$monthKey]
+        $outputFile = Join-Path $ExportFolder "TDDF-Export-$monthKey.csv"
+
+        $records | Export-Csv -Path $outputFile -NoTypeInformation -Encoding utf8
+        Write-Host "✅ Exported $($records.Count) → $outputFile"
+    }
+}
+
+Write-Host "`n📊 Summary:"
+Write-Host "🔢 Total lines scanned: $global:TotalLinesScanned"
+Write-Host "✅ Total DT records matched: $global:TotalRecordsMatched"
+Write-Host "`n✅ DONE: All grouped files exported to: $ExportFolder"
