@@ -307,6 +307,84 @@ function ConvertTo-TddfJson {
         $record.merchantName = $record.merchantAccountNumber
         $record.transactionAmount = $record.adjustmentAmount
     }
+    elseif ($recordType -eq "DR") {
+        # Direct Marketing Extension Record - Parse according to DR specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.purchaseIdDirectMarketingOrderNumber = Get-Field $line 56 25
+        $record.addressVerificationServiceResponse = Get-Field $line 81 1
+        $record.totalAuthorizedAmount = Parse-TddfAmount (Get-Field $line 82 12)
+        $record.merchantCustomerServicePhoneNumber = Get-Field $line 94 13
+        $record.mailPhoneInstallmentSequenceNumber = Get-Field $line 107 2
+        $record.mailPhoneInstallmentCount = Get-Field $line 109 2
+        $record.extensionRecordIndicator = Get-Field $line 111 2
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.referenceNumber = $record.purchaseIdDirectMarketingOrderNumber
+        $record.transactionAmount = $record.totalAuthorizedAmount
+    }
+    elseif ($recordType -eq "G2") {
+        # Merchant General Data 2 Record - Parse according to G2 specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.merchantDbaCity = Get-Field $line 56 25
+        $record.merchantDbaState = Get-Field $line 81 13
+        $record.terminalCapability = Get-Field $line 94 1
+        $record.authDataIndicator = Get-Field $line 95 1
+        $record.visaAcctFundingSource = Get-Field $line 96 1
+        $record.visaMessageIdentifier = Get-Field $line 97 15
+        $record.mcElectronicCommerceSecurityLevel = Get-Field $line 112 1
+        $record.cardholderAuthentication = Get-Field $line 113 1
+        $record.ucafCollId = Get-Field $line 114 1
+        $record.mvrReturnCity = Get-Field $line 115 18
+        $record.cardAcceptanceTaxId = Get-Field $line 133 20
+        $record.catMerchantTypePrv = Get-Field $line 153 1
+        $record.catOwnerTypePrv = Get-Field $line 154 1
+        $record.catCertTypePrv = Get-Field $line 155 1
+        $record.catEthnicTypePrv = Get-Field $line 156 1
+        $record.multipleClearingSequenceNumber = Get-Field $line 157 2
+        $record.visaSpendQualifiedIndicator = Get-Field $line 159 1
+        $record.visaProductExtensionFlag = Get-Field $line 160 2
+        $record.multipleClearingSequenceCount = Get-Field $line 162 2
+        $record.tokenAssuranceLevel = Get-Field $line 164 2
+        $record.fuelType = Get-Field $line 166 2
+        $record.mastercardElectronicCommerceSecurityLevel = Get-Field $line 168 3
+        $record.independentSalesOrganizationId = Get-Field $line 171 12
+        $record.paymentFacilitatorId = Get-Field $line 183 12
+        $record.mastercardBusinessServiceArrangementTypeCode = Get-Field $line 195 1
+        $record.mastercardBusinessServiceIdCode = Get-Field $line 196 6
+        $record.deviceType = Get-Field $line 202 2
+        $record.transitProgram = Get-Field $line 204 4
+        $record.tokenRequestorId = Get-Field $line 208 11
+        $record.mastercardMappingServiceIndicator = Get-Field $line 219 1
+        $record.discoverAcquirerId = Get-Field $line 220 11
+        $record.discoverMerchantAccountNumber = Get-Field $line 231 16
+        $record.subMerchantId = Get-Field $line 247 15
+        $record.originalTerminalId = Get-Field $line 262 8
+        $record.convenienceFeeAmount = Parse-TddfAmount (Get-Field $line 270 17)
+        $record.splitFundingAmount1 = Parse-TddfAmount (Get-Field $line 287 17)
+        $record.splitFundingAmount2 = Parse-TddfAmount (Get-Field $line 304 17)
+        $record.splitFundingAmount3 = Parse-TddfAmount (Get-Field $line 321 17)
+        $record.splitFundingAmount4 = Parse-TddfAmount (Get-Field $line 338 17)
+        $record.esid = Get-Field $line 684 3
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.referenceNumber = $record.merchantDbaCity
+    }
     elseif ($recordType -eq "A1" -or $recordType -eq "A2") {
         # Addendum Records
         $record.merchantName = Get-Field $line 40 25

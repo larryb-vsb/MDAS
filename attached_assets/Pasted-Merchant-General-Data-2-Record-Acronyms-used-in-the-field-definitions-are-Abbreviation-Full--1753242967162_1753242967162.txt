@@ -1,0 +1,668 @@
+Merchant General Data 2 Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The record contains information about the merchant general data 2 record.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+The value identifies the type of record.
+
+Constant value is "G2"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+A Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-80
+
+Merchant DBA City
+
+25
+
+CH
+
+ 
+
+ 
+
+81-93
+
+Merchant DBA State
+
+13
+
+CH
+
+ 
+
+ 
+
+94-94
+
+Terminal Capability
+
+1
+
+CH
+
+ 
+
+ 
+
+95-95
+
+Auth data Indicator
+
+1
+
+CH
+
+ 
+
+ 
+
+96-96
+
+Visa Acct Funding Source
+
+1
+
+CH
+
+ 
+
+ 
+
+97-111
+
+Visa Message Identifier
+
+15
+
+CH
+
+ 
+
+ 
+
+112-112
+
+MC Electronic Commerce Security Level
+
+1
+
+CH
+
+ 
+
+ 
+
+113-113
+
+Cardholder Authentication
+
+1
+
+CH
+
+ 
+
+ 
+
+114-114
+
+UCAF Coll ID
+
+1
+
+CH
+
+ 
+
+ 
+
+115-132
+
+MVR Return City
+
+18
+
+CH
+
+ 
+
+ 
+
+133-152
+
+Card Acceptance Tax ID
+
+20
+
+CH
+
+ 
+
+ 
+
+153-153
+
+CAT Merchant type PRV
+
+1
+
+CH
+
+ 
+
+ 
+
+154-154
+
+Cat Owner Type PRV
+
+1
+
+CH
+
+ 
+
+ 
+
+155-155
+
+CAT Cert Type PRV
+
+1
+
+CH
+
+ 
+
+ 
+
+156-156
+
+Cat Ethnic Type PRV
+
+1
+
+CH
+
+ 
+
+ 
+
+157-158
+
+Multiple Clearing Sequence Number
+
+2
+
+AN
+
+ 
+
+ 
+
+159-159
+
+VISA Spend Qualified Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+160-161
+
+VISA Product Extension Flag / VISA Account Level Processing Flag
+
+2
+
+AN
+
+ 
+
+ 
+
+162-163
+
+Multiple Clearing Sequence Count
+
+2
+
+AN
+
+ 
+
+ 
+
+164-165
+
+Token Assurance Level
+
+2
+
+AN
+
+ 
+
+ 
+
+166-167
+
+Fuel Type
+
+2
+
+AN
+
+ 
+
+ 
+
+168-170
+
+Mastercard Electronic Commerce Security Level
+
+3
+
+AN
+
+ 
+
+ 
+
+171-182
+
+Independent Sales Organization ID
+
+12
+
+AN
+
+ 
+
+ 
+
+183-194
+
+Payment Facilitator ID
+
+12
+
+AN
+
+ 
+
+ 
+
+195-195
+
+Mastercard Business Service Arrangement Type Code
+
+1
+
+AN
+
+ 
+
+ 
+
+196-201
+
+Mastercard Business Service ID Code
+
+6
+
+AN
+
+ 
+
+ 
+
+202-203
+
+Device Type
+
+2
+
+AN
+
+ 
+
+ 
+
+204-207
+
+Transit Program
+
+4
+
+AN
+
+ 
+
+ 
+
+208-218
+
+Token Requestor ID
+
+11
+
+AN
+
+ 
+
+ 
+
+219-219
+
+Mastercard Mapping Service Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+220-230
+
+Discover Acquirer ID
+
+11
+
+AN
+
+ 
+
+ 
+
+231-246
+
+Discover Merchant Account Number
+
+16
+
+AN
+
+ 
+
+ 
+
+247-261
+
+Sub-merchant ID
+
+15
+
+AN
+
+ 
+
+ 
+
+262-269
+
+Original Terminal ID
+
+8
+
+AN
+
+Original Terminal ID
+
+ 
+
+270-286
+
+Convenience Fee Amount
+
+17
+
+N
+
+Convenience Fee Amount calculated based on the Per Item Amount in Express
+
+Format:
+-9999999999999.99
+
+287-303
+
+Split Funding Amount 1
+
+17
+
+N
+
+Split Funding Amount calculated for the first Split Funding Account
+
+Format:
+-9999999999999.99
+
+304-320
+
+Split Funding Amount 2
+
+17
+
+N
+
+Split Funding Amount calculated for the second Split Funding Account
+
+Format:
+-9999999999999.99
+
+321--337
+
+Split Funding Amount 3
+
+17
+
+N
+
+Split Funding Amount calculated for the third Split Funding Account
+
+Format:
+-9999999999999.99
+
+338-354
+
+Split Funding Amount 4
+
+17
+
+N
+
+Split Funding Amount calculated for the fourth Split Funding Account
+
+Format:
+-9999999999999.99
+
+355-683
+
+Reserved for future use
+
+329
+
+AN
+
+Filler
+
+ 
+
+684-686
+
+ESID
+
+3
+
+AN
+
+ 
+
+ 
+
+687-700
+
+Reserved for future use
+
+14
+
+AN
+
+Filler
+
+ 
+

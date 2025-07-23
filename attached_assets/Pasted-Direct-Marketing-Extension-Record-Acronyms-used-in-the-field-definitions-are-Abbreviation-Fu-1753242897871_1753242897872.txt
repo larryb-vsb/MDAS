@@ -1,0 +1,260 @@
+Direct Marketing Extension Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The record contains information about the direct marketing transactions (phone orders).
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+A value that identifies the type of record.
+
+Constant value is "DR"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-80
+
+Purchase ID/Direct Marketing ORD Number
+
+25
+
+N
+
+The record is built when the purchase identifier format code is 1. The purchase identifier contains the direct marketing order number.
+
+ 
+
+81-81
+
+Address Verification Service Response
+
+1
+
+CH
+
+The response code from the Visa Address Verification System.
+
+ 
+
+82-93
+
+Total Authorized Amount
+
+12
+
+N
+
+The total amount authorized for the transaction.
+
+Format:
+999999999.99
+
+94-106
+
+Merchant Customer Service Phone Number
+
+13
+
+N
+
+The customer service telephone number used to resolve disputes or answer questions.
+
+If you enter a telephone number in this field, the number will replace the Merchant City field and the customer service telephone number will be printed on the Proof and Verification report instead of the merchant's city name.
+
+ 
+
+107-108
+
+Mail/Phone Installment Sequence Number
+
+2
+
+N
+
+If a merchant is billing a cardholder in Installments, this field indicates the number of the current installment.
+
+ 
+
+109-110
+
+Mail/Phone Installment Count
+
+2
+
+N
+
+If a merchant is billing a cardholder in installments, this field indicates the total number of installments.
+
+If you enter values in fields 8 and 9, the values will display at the end of the Merchant DBA Name field on the cardholder statement. For example, "2 of 5" would print, indicating that the current charge is the second installment out of a total of five installments.
+
+ 
+
+111-112
+
+Extension Record Indicator (P1)
+
+2
+
+CH
+
+The code indicates if another extension record follows this record.
+
+ 
+
+113-700
+
+Reserved for future use
+
+588
+
+CH
+
+ 
+
+ 
+
