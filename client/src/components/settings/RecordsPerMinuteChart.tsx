@@ -247,6 +247,17 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
               >
                 <ChevronRight className="h-3 w-3" />
               </Button>
+              {timeOffset > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setTimeOffset(0)}
+                  title="Jump to live data"
+                >
+                  Live
+                </Button>
+              )}
               <div className="w-px h-4 bg-border mx-1" />
               <Button
                 variant="ghost"
