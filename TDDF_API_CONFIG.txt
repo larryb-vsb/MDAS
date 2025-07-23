@@ -40,6 +40,13 @@ From PowerShell test results:
 3. Consider deploying to external hosting for production API access
 4. Use VPN or network routing that allows direct access to Replit deployments
 
+## Simplified Local Testing Script
+For guaranteed local testing, use: test-local-tddf-simple.ps1
+- PowerShell: .\test-local-tddf-simple.ps1 -PingOnly
+- PowerShell: .\test-local-tddf-simple.ps1 (full upload test)
+- Automatically creates test file if missing
+- Designed specifically for local development environment
+
 ## Test Scripts Available
 1. PowerShell: test-tddf-api.ps1
    - Production upload: .\test-tddf-api.ps1

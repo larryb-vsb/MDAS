@@ -41,7 +41,7 @@ import {
   InsertSecurityLog,
   insertSchemaContentSchema
 } from "@shared/schema";
-import { db, batchDb, sessionPool } from "./db";
+import { db, batchDb, sessionPool, pool } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
 import { getTableName } from "./table-config";
 import session from "express-session";
