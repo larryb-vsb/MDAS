@@ -6206,8 +6206,8 @@ export class DatabaseStorage implements IStorage {
         const insertQuery = `
           INSERT INTO "${tableName}" (
             source_file_id, line_number, raw_line, record_type, 
-            record_description, line_length, processed, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            record_description, line_length, processed
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING *
         `;
         
