@@ -33,12 +33,12 @@ try {
     exit 1
 }
 
-# Test API endpoint with proper Bearer authentication
+# Test API endpoint with proper X-API-Key authentication
 $apiTestTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Write-Host "🔑 [$apiTestTimestamp] Testing API endpoint availability..." -ForegroundColor Yellow
 try {
     $headers = @{
-        "Authorization" = "Bearer $ApiKey"
+        "X-API-Key" = $ApiKey
         "Content-Type" = "application/json"
     }
     $endpoint = "$BaseUrl/api/tddf/upload"

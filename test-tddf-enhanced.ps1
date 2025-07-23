@@ -47,12 +47,12 @@ try {
     exit 1
 }
 
-# Test API key validation with Bearer authentication
+# Test API key validation with X-API-Key authentication
 $apiTestTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Write-Host "🔑 [$apiTestTimestamp] Testing API key validation..." -ForegroundColor Yellow
 try {
     $headers = @{
-        "Authorization" = "Bearer $ApiKey"
+        "X-API-Key" = $ApiKey
         "Content-Type" = "application/json"
     }
     $response = Invoke-RestMethod -Uri "$BaseUrl/api/tddf/upload" -Method POST -Headers $headers -Body '{}' -TimeoutSec 10
@@ -108,7 +108,7 @@ try {
     $body = $bodyLines -join "`r`n"
     
     $headers = @{
-        "Authorization" = "Bearer $ApiKey"
+        "X-API-Key" = $ApiKey
         "Content-Type" = "multipart/form-data; boundary=$boundary"
     }
     
