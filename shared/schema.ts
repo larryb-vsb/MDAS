@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.3.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
- * Last Updated: July 22, 2025
+ * Version: 2.4.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Last Updated: July 23, 2025
  * 
- * MINOR VERSION: Processing Performance Enhancement
- * New Feature: Hidden millisecond sort values for precise file processing time sorting while maintaining user-friendly display
+ * MINOR VERSION: Hierarchical TDDF Record Architecture
+ * New Feature: Separate tables for each TDDF record type (BH, DT, P1/P2, AD/DR/G2/etc.) with hierarchical relationships while preserving all raw line processing data
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -229,7 +229,189 @@ export const insertMerchantSchema = merchantsSchema.omit({ id: true });
 export const transactionsSchema = createInsertSchema(transactions);
 export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 
-// TDDF (Transaction Daily Detail File) table - comprehensive fields based on TDDF specification
+// TDDF Batch Headers (BH) - Contains batch-level information that groups DT records
+export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
+  id: serial("id").primaryKey(),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "BH"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Batch-specific fields (positions 24+)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number
+  batchDate: timestamp("batch_date"), // Batch processing date
+  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Net deposit amount
+  merchantReferenceNumber: text("merchant_reference_number"), // Merchant batch reference
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  merchantAccountIndex: index("tddf_bh_merchant_account_idx").on(table.merchantAccountNumber),
+  batchDateIndex: index("tddf_bh_batch_date_idx").on(table.batchDate)
+}));
+
+// TDDF Transaction Records (DT) - Main transaction records linked to batch headers
+export const tddfTransactionRecords = pgTable(getTableName("tddf_transaction_records"), {
+  id: serial("id").primaryKey(),
+  
+  // Link to batch header
+  batchHeaderId: integer("batch_header_id").references(() => tddfBatchHeaders.id),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "DT"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Account and merchant fields (positions 24-61)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number
+  associationNumber1: text("association_number_1"), // Positions 40-45: Association number
+  groupNumber: text("group_number"), // Positions 46-51: Group number
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code
+  associationNumber2: text("association_number_2"), // Positions 56-61: Second association number
+  
+  // Core transaction fields (positions 62-142)
+  referenceNumber: text("reference_number"), // Positions 62-84: Reference number (23 chars)
+  transactionDate: timestamp("transaction_date"), // Positions 85-92: MMDDCCYY format
+  transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103: Transaction amount
+  batchJulianDate: text("batch_julian_date"), // Positions 104-108: Batch Julian date
+  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 109-119: Net deposit amount
+  cardholderAccountNumber: text("cardholder_account_number"), // Positions 120-135: Cardholder account
+  
+  // Transaction details (positions 143-187)
+  bestInterchangeEligible: text("best_interchange_eligible"), // Positions 143-145: Best interchange eligible
+  transactionDataConditionCode: text("transaction_data_condition_code"), // Positions 146-148: Transaction data condition
+  downgradeReason1: text("downgrade_reason_1"), // Positions 149-151: First downgrade reason
+  downgradeReason2: text("downgrade_reason_2"), // Positions 152-154: Second downgrade reason
+  downgradeReason3: text("downgrade_reason_3"), // Positions 155-157: Third downgrade reason
+  onlineEntry: text("online_entry"), // Positions 158-160: Online entry indicator
+  achFlag: text("ach_flag"), // Positions 161-163: ACH flag
+  authSource: text("auth_source"), // Positions 164-166: Authorization source
+  cardholderIdMethod: text("cardholder_id_method"), // Positions 167-169: Cardholder ID method
+  catIndicator: text("cat_indicator"), // Positions 170-172: CAT indicator
+  reimbursementAttribute: text("reimbursement_attribute"), // Positions 173-175: Reimbursement attribute
+  mailOrderTelephoneIndicator: text("mail_order_telephone_indicator"), // Positions 176-178: Mail order telephone indicator
+  authCharInd: text("auth_char_ind"), // Positions 179-181: Authorization character indicator
+  banknetReferenceNumber: text("banknet_reference_number"), // Positions 182-187: Banknet reference number
+  
+  // Additional transaction info (positions 188-242)
+  draftAFlag: text("draft_a_flag"), // Positions 188-190: Draft A flag
+  authCurrencyCode: text("auth_currency_code"), // Positions 191-193: Authorization currency code
+  authAmount: numeric("auth_amount", { precision: 15, scale: 2 }), // Positions 192-203: Authorization amount
+  validationCode: text("validation_code"), // Positions 204-207: Validation code
+  authResponseCode: text("auth_response_code"), // Positions 208-209: Authorization response code
+  networkIdentifierDebit: text("network_identifier_debit"), // Positions 210-211: Network identifier debit
+  switchSettledIndicator: text("switch_settled_indicator"), // Positions 212-214: Switch settled indicator
+  posEntryMode: text("pos_entry_mode"), // Positions 215-216: POS entry mode
+  debitCreditIndicator: text("debit_credit_indicator"), // Positions 217-219: Debit/credit indicator
+  reversalFlag: text("reversal_flag"), // Positions 220-222: Reversal flag
+  merchantName: text("merchant_name"), // Positions 223-242: Merchant name (20 chars)
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  mmsRawLine: text("mms_raw_line"), // Custom MMS-RAW-Line field to store original line before processing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  referenceNumberIndex: index("tddf_dt_reference_number_idx").on(table.referenceNumber),
+  merchantAccountIndex: index("tddf_dt_merchant_account_idx").on(table.merchantAccountNumber),
+  transactionDateIndex: index("tddf_dt_transaction_date_idx").on(table.transactionDate),
+  merchantNameIndex: index("tddf_dt_merchant_name_idx").on(table.merchantName),
+  batchHeaderIndex: index("tddf_dt_batch_header_idx").on(table.batchHeaderId)
+}));
+
+// TDDF Purchasing Extensions (P1, P2) - Extended purchasing card data linked to transactions
+export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_extensions"), {
+  id: serial("id").primaryKey(),
+  
+  // Link to parent transaction
+  transactionRecordId: integer("transaction_record_id").references(() => tddfTransactionRecords.id),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: "P1" or "P2"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Purchasing card specific fields
+  vatTaxAmount: numeric("vat_tax_amount", { precision: 15, scale: 2 }), // VAT tax amount
+  productIdentifier: text("product_identifier"), // Product identifier
+  productDescription: text("product_description"), // Product description
+  unitCost: numeric("unit_cost", { precision: 15, scale: 2 }), // Unit cost
+  quantity: numeric("quantity", { precision: 12, scale: 3 }), // Quantity
+  unitOfMeasure: text("unit_of_measure"), // Unit of measure
+  extendedItemAmount: numeric("extended_item_amount", { precision: 15, scale: 2 }), // Extended item amount
+  discountAmount: numeric("discount_amount", { precision: 15, scale: 2 }), // Discount amount
+  freightAmount: numeric("freight_amount", { precision: 15, scale: 2 }), // Freight amount
+  dutyAmount: numeric("duty_amount", { precision: 15, scale: 2 }), // Duty amount
+  destinationPostalCode: text("destination_postal_code"), // Destination postal code
+  shipFromPostalCode: text("ship_from_postal_code"), // Ship from postal code
+  destinationCountryCode: text("destination_country_code"), // Destination country code
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  transactionRecordIndex: index("tddf_pe_transaction_record_idx").on(table.transactionRecordId)
+}));
+
+// TDDF Other Records (AD, DR, G2, CT, LG, FT, F2, CK, HD, TR) - Catch-all table for other record types
+export const tddfOtherRecords = pgTable(getTableName("tddf_other_records"), {
+  id: serial("id").primaryKey(),
+  
+  // Optional link to transaction (for AD, DR records that relate to specific transactions)
+  transactionRecordId: integer("transaction_record_id").references(() => tddfTransactionRecords.id),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: "AD", "DR", "G2", etc.
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Record type specific information
+  recordType: text("record_type").notNull(), // AD, DR, G2, CT, LG, FT, F2, CK, HD, TR
+  recordDescription: text("record_description"), // Human-readable description of record type
+  
+  // Flexible data storage for different record types
+  recordData: jsonb("record_data"), // Structured data specific to each record type
+  
+  // Common fields that might appear across multiple record types
+  merchantAccountNumber: text("merchant_account_number"), // Account number when applicable
+  referenceNumber: text("reference_number"), // Reference number when applicable
+  amount: numeric("amount", { precision: 15, scale: 2 }), // Amount when applicable
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  recordTypeIndex: index("tddf_or_record_type_idx").on(table.recordType),
+  merchantAccountIndex: index("tddf_or_merchant_account_idx").on(table.merchantAccountNumber),
+  transactionRecordIndex: index("tddf_or_transaction_record_idx").on(table.transactionRecordId)
+}));
+
+// Legacy TDDF Records table - keeping for backward compatibility and migration
 export const tddfRecords = pgTable(getTableName("tddf_records"), {
   id: serial("id").primaryKey(),
   
@@ -401,7 +583,23 @@ export const tddfRawImport = pgTable(getTableName("tddf_raw_import"), {
   processedIndex: index("tddf_raw_import_processed_idx").on(table.processed)
 }));
 
-// Zod schemas for TDDF records
+// Zod schemas for TDDF Batch Headers
+export const tddfBatchHeadersSchema = createInsertSchema(tddfBatchHeaders);
+export const insertTddfBatchHeaderSchema = tddfBatchHeadersSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF Transaction Records
+export const tddfTransactionRecordsSchema = createInsertSchema(tddfTransactionRecords);
+export const insertTddfTransactionRecordSchema = tddfTransactionRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF Purchasing Extensions
+export const tddfPurchasingExtensionsSchema = createInsertSchema(tddfPurchasingExtensions);
+export const insertTddfPurchasingExtensionSchema = tddfPurchasingExtensionsSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF Other Records
+export const tddfOtherRecordsSchema = createInsertSchema(tddfOtherRecords);
+export const insertTddfOtherRecordSchema = tddfOtherRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF records (legacy)
 export const tddfRecordsSchema = createInsertSchema(tddfRecords);
 export const insertTddfRecordSchema = tddfRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
@@ -501,6 +699,18 @@ export type BackupSchedule = typeof backupSchedules.$inferSelect;
 export type InsertBackupSchedule = typeof backupSchedules.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// TDDF Table Types
+export type TddfBatchHeader = typeof tddfBatchHeaders.$inferSelect;
+export type InsertTddfBatchHeader = typeof tddfBatchHeaders.$inferInsert;
+export type TddfTransactionRecord = typeof tddfTransactionRecords.$inferSelect;
+export type InsertTddfTransactionRecord = typeof tddfTransactionRecords.$inferInsert;
+export type TddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferSelect;
+export type InsertTddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferInsert;
+export type TddfOtherRecord = typeof tddfOtherRecords.$inferSelect;
+export type InsertTddfOtherRecord = typeof tddfOtherRecords.$inferInsert;
+
+// Legacy TDDF types (for backward compatibility)
 export type TddfRecord = typeof tddfRecords.$inferSelect;
 export type InsertTddfRecord = typeof tddfRecords.$inferInsert;
 export type TddfRawImport = typeof tddfRawImport.$inferSelect;
