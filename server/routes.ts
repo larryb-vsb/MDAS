@@ -3841,14 +3841,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate complete time series with zero values for missing time slots
       // Use 1-minute intervals for 1-hour view, 5-minute intervals for longer views
-      const intervalMinutes = hours <= 1 ? '1 minute' : '5 minutes';
+      const intervalMinutes = hours <= 1 ? 1 : 5; // Use raw numbers for generate_series
+      const maxIntervals = hours <= 1 ? 60 : Math.ceil((hours * 60) / 5); // 60 for 1-hour view
+      
       const result = await pool.query(`
-        WITH RECURSIVE time_series AS (
-          SELECT ${startTime} as time_slot
-          UNION ALL
-          SELECT time_slot + INTERVAL '${intervalMinutes}'
-          FROM time_series
-          WHERE time_slot < ${endTime}
+        WITH time_series AS (
+          SELECT 
+            (DATE_TRUNC('minute', ${startTime}) + (i * INTERVAL '${intervalMinutes} minute')) as time_slot
+          FROM generate_series(0, ${maxIntervals - 1}) i
         )
         SELECT 
           ts.time_slot as timestamp,
@@ -3864,9 +3864,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ) as tddf_records_per_minute,
           COALESCE(pm.transactions_per_second * 60, 0) as transaction_records_per_minute
         FROM time_series ts
-        LEFT JOIN ${metricsTableName} pm ON DATE_TRUNC('minute', pm.timestamp) = DATE_TRUNC('minute', ts.time_slot)
-          AND pm.timestamp >= ${startTime}
-          AND pm.timestamp <= ${endTime}
+        LEFT JOIN (
+          SELECT 
+            DATE_TRUNC('minute', timestamp) as minute_slot,
+            AVG(records_per_minute) as records_per_minute,
+            AVG(transactions_per_second) as transactions_per_second,
+            MODE() WITHIN GROUP (ORDER BY system_status) as system_status,
+            MODE() WITHIN GROUP (ORDER BY metric_type) as metric_type
+          FROM ${metricsTableName}
+          WHERE timestamp >= DATE_TRUNC('minute', ${startTime})
+            AND timestamp <= DATE_TRUNC('minute', ${endTime})
+          GROUP BY DATE_TRUNC('minute', timestamp)
+        ) pm ON pm.minute_slot = ts.time_slot
         ORDER BY ts.time_slot ASC
       `);
       

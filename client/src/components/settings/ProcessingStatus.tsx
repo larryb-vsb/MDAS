@@ -607,7 +607,7 @@ export default function ProcessingStatus() {
             
             {/* Records Per Minute Historical Chart */}
             <div className="mt-6">
-              <RecordsPerMinuteChart className="w-full" />
+              <RecordsPerMinuteChart hours={1} className="w-full" />
             </div>
             
             {/* TDDF Operations Section */}
