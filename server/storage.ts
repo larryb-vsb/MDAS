@@ -6131,12 +6131,14 @@ export class DatabaseStorage implements IStorage {
 
   async createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
     try {
+      const currentTime = new Date();
       const records = await batchDb
         .insert(tddfRecordsTable)
         .values({
           ...recordData,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          recordedAt: currentTime, // Explicitly set recorded_at to current time for metrics
+          createdAt: currentTime,
+          updatedAt: currentTime
         })
         .returning();
       
@@ -6161,11 +6163,13 @@ export class DatabaseStorage implements IStorage {
           // Overwrite existing record
           console.log(`🔄 [OVERWRITE] Reference ${recordData.referenceNumber}: Updating existing TDDF record ID ${existingRecords[0].id}`);
           
+          const currentTime = new Date();
           const updatedRecords = await db
             .update(tddfRecordsTable)
             .set({
               ...recordData,
-              updatedAt: new Date()
+              recordedAt: currentTime, // Update recorded_at to current time for metrics
+              updatedAt: currentTime
             })
             .where(eq(tddfRecordsTable.referenceNumber, recordData.referenceNumber))
             .returning();
