@@ -99,6 +99,7 @@ function Parse-TddfFilename {
             originalFileName = $fileName
             bankCode = $bankCode
             systemCode = $systemCode
+            fileTimeSlot = $systemCode
             fileDate = if ($fileDate) { $fileDate.ToString("yyyy-MM-dd") } else { $dateString }
             fileTime = if ($fileTime) { $fileTime.ToString("hh\:mm\:ss") } else { $timeString }
             fileDateRaw = $dateString
@@ -109,6 +110,7 @@ function Parse-TddfFilename {
             originalFileName = $fileName
             bankCode = ""
             systemCode = ""
+            fileTimeSlot = ""
             fileDate = ""
             fileTime = ""
             fileDateRaw = ""
@@ -135,6 +137,7 @@ function ConvertTo-TddfJson {
         fileName = $fileInfo.originalFileName
         bankCode = $fileInfo.bankCode
         systemCode = $fileInfo.systemCode
+        fileTimeSlot = $fileInfo.fileTimeSlot
         fileDate = $fileInfo.fileDate
         fileTime = $fileInfo.fileTime
         fileDateRaw = $fileInfo.fileDateRaw
