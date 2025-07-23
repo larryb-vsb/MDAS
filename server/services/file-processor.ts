@@ -6,6 +6,7 @@ import schedule from "node-schedule";
 import { getCachedServerId } from "../utils/server-id";
 import { getTableName } from "../table-config";
 import { systemLogger } from '../system-logger';
+import { NODE_ENV } from '../env-config';
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -244,7 +245,7 @@ class FileProcessorService {
    * Uses database-level concurrency control to prevent multiple nodes from processing the same files
    */
   async fetchUnprocessedFiles(): Promise<any[]> {
-    const currentEnvironment = process.env.NODE_ENV || 'production';
+    const currentEnvironment = NODE_ENV;
     const serverId = getCachedServerId();
     
     try {
