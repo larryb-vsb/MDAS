@@ -1,0 +1,332 @@
+Merchant Adjustment Extension Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The Adjustment records (AD) are the only records that exist without a batch header.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+The value identifies the type of record.
+
+Constant value is "AD"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+A Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-66
+
+Reference Number
+
+11
+
+N
+
+A unique reference number assigned by Global Payments for each transaction.
+
+ 
+
+67-77
+
+Adjustment Amount
+
+11
+
+N
+
+ 
+
+Format:
+99999999999
+
+78-85
+
+Transaction Date
+
+8
+
+N
+
+The date on which the transaction is performed.
+
+Allowed format is MMDDCCYY
+
+86-86
+
+Carryover Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+87-87
+
+Online Entry
+
+1
+
+AN
+
+ 
+
+ 
+
+88-88
+
+ACH Flag
+
+1
+
+AN
+
+The ACH flag determines if the merchant will be funded on a daily basis.
+
+Allowed values are:
+
+Y
+N
+89-93
+
+Batch Julian Date
+
+5
+
+N
+
+ 
+
+ 
+
+94-94
+
+Reversal Flag
+
+1
+
+AN
+
+ 
+
+ 
+
+95-95
+
+Debit/Credit Indicator
+
+1
+
+AN
+
+Indicates if the transaction is a debit or credit.
+
+Allowed values are:
+
+D - Debit
+C - Credit
+96-99
+
+Bank Number
+
+4
+
+N
+
+The Global Payments Bank number.
+
+ 
+
+100-105
+
+Association Number
+
+6
+
+N
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+106-113
+
+Posting Date
+
+8
+
+N
+
+ 
+
+ 
+
+114-126
+
+Chargeback Case Number
+
+13
+
+AN
+
+ 
+
+ 
+
+127-700
+
+Reserved for future use
+
+574
+
+AN
+
+ 
+
+ 
+

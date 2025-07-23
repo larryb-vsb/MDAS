@@ -279,6 +279,34 @@ function ConvertTo-TddfJson {
         $record.merchantName = $record.merchantAccountNumber
         $record.referenceNumber = $record.itemDescription
     }
+    elseif ($recordType -eq "AD") {
+        # Merchant Adjustment Extension Record - Parse according to AD specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.referenceNumber = Get-Field $line 56 11
+        $record.adjustmentAmount = Parse-TddfAmount (Get-Field $line 67 11)
+        $record.transactionDate = Get-Field $line 78 8
+        $record.carryoverIndicator = Get-Field $line 86 1
+        $record.onlineEntry = Get-Field $line 87 1
+        $record.achFlag = Get-Field $line 88 1
+        $record.batchJulianDate = Get-Field $line 89 5
+        $record.reversalFlag = Get-Field $line 94 1
+        $record.debitCreditIndicator = Get-Field $line 95 1
+        $record.bankNumberSecondary = Get-Field $line 96 4
+        $record.associationNumberSecondary = Get-Field $line 100 6
+        $record.postingDate = Get-Field $line 106 8
+        $record.chargebackCaseNumber = Get-Field $line 114 13
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.transactionAmount = $record.adjustmentAmount
+    }
     elseif ($recordType -eq "A1" -or $recordType -eq "A2") {
         # Addendum Records
         $record.merchantName = Get-Field $line 40 25
