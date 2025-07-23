@@ -3828,11 +3828,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get historical records per minute data for chart visualization
+  // Get historical records per minute data for chart visualization with time navigation
   app.get("/api/processing/records-per-minute-history", async (req, res) => {
     try {
       const metricsTableName = getTableName('processing_metrics');
       const hours = parseInt(req.query.hours as string) || 24; // Default to 24 hours
+      const timeOffset = parseInt(req.query.timeOffset as string) || 0; // Hours to offset from current time
+      
+      // Calculate time range with offset
+      const endTime = timeOffset > 0 ? `NOW() - INTERVAL '${timeOffset} hours'` : 'NOW()';
+      const startTime = `${endTime} - INTERVAL '${hours} hours'`;
       
       // Get historical records per minute data
       const result = await pool.query(`
@@ -3841,28 +3846,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp,
           system_status
         FROM ${metricsTableName} 
-        WHERE timestamp >= NOW() - INTERVAL '${hours} hours'
+        WHERE timestamp >= ${startTime}
+          AND timestamp <= ${endTime}
           AND records_per_minute > 0
         ORDER BY timestamp ASC
       `);
       
-      // Format data for chart
-      const chartData = result.rows.map(row => ({
-        timestamp: row.timestamp,
-        recordsPerMinute: parseFloat(row.records_per_minute),
-        status: row.system_status,
-        formattedTime: new Date(row.timestamp).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZone: 'America/Chicago'
-        })
-      }));
+      // Format data for chart with enhanced time formatting
+      const chartData = result.rows.map(row => {
+        const timestamp = new Date(row.timestamp);
+        return {
+          timestamp: row.timestamp,
+          recordsPerMinute: parseFloat(row.records_per_minute),
+          status: row.system_status,
+          formattedTime: timestamp.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'America/Chicago'
+          })
+        };
+      });
+      
+      // Determine time range label
+      const timeRangeLabel = timeOffset > 0 
+        ? `${hours}h (${timeOffset}h ago)` 
+        : `${hours}h (live)`;
       
       res.json({
         data: chartData,
         totalPoints: chartData.length,
-        timeRange: `${hours} hours`,
-        lastUpdated: new Date().toISOString()
+        timeRange: timeRangeLabel,
+        timeOffset: timeOffset,
+        lastUpdated: new Date().toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZone: 'America/Chicago'
+        })
       });
     } catch (error) {
       console.error("Error getting records per minute history:", error);
