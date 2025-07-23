@@ -9,6 +9,7 @@ import {
   transactions as transactionsTable,
   uploadedFiles as uploadedFilesTable,
   users as usersTable,
+  apiUsers as apiUsersTable,
   auditLogs,
   auditLogs as auditLogsTable,
   systemLogs,
@@ -30,6 +31,8 @@ import {
   InsertUploadedFile,
   User,
   InsertUser,
+  ApiUser,
+  InsertApiUser,
   AuditLog,
   InsertAuditLog,
   SystemLog,
@@ -58,6 +61,15 @@ export interface IStorage {
   deleteUser(userId: number): Promise<void>;
   hashPassword(password: string): Promise<string>;
   verifyPassword(supplied: string, stored: string): Promise<boolean>;
+
+  // API User operations
+  getApiUsers(): Promise<any[]>;
+  getApiUserById(id: number): Promise<any | undefined>;
+  getApiUserByKey(apiKey: string): Promise<any | undefined>;
+  createApiUser(insertApiUser: any): Promise<any>;
+  updateApiUser(id: number, userData: Partial<any>): Promise<any>;
+  deleteApiUser(id: number): Promise<void>;
+  updateApiUserUsage(apiKey: string): Promise<void>;
   
   // Log operations
   getSystemLogs(params: any): Promise<any>;
@@ -363,6 +375,66 @@ export class DatabaseStorage implements IStorage {
   async verifyPassword(supplied: string, stored: string): Promise<boolean> {
     const bcrypt = await import('bcrypt');
     return await bcrypt.compare(supplied, stored);
+  }
+
+  // API User operations
+  async getApiUsers(): Promise<ApiUser[]> {
+    return await db.select().from(apiUsersTable).orderBy(desc(apiUsersTable.createdAt));
+  }
+
+  async getApiUserById(id: number): Promise<ApiUser | undefined> {
+    const [apiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.id, id));
+    return apiUser || undefined;
+  }
+
+  async getApiUserByKey(apiKey: string): Promise<ApiUser | undefined> {
+    const [apiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.apiKey, apiKey));
+    return apiUser || undefined;
+  }
+
+  async createApiUser(insertApiUser: InsertApiUser): Promise<ApiUser> {
+    // Generate a unique API key
+    const apiKey = `mms_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    
+    const apiUserData = {
+      ...insertApiUser,
+      apiKey,
+    };
+
+    const [apiUser] = await db
+      .insert(apiUsersTable)
+      .values(apiUserData)
+      .returning();
+    
+    return apiUser;
+  }
+
+  async updateApiUser(id: number, userData: Partial<InsertApiUser>): Promise<ApiUser> {
+    await db.update(apiUsersTable)
+      .set({
+        ...userData,
+        lastUsed: userData.isActive === false ? new Date() : undefined, // Mark as used when deactivated
+      })
+      .where(eq(apiUsersTable.id, id));
+    
+    const [updatedApiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.id, id));
+    if (!updatedApiUser) {
+      throw new Error(`API user with ID ${id} not found after update`);
+    }
+    return updatedApiUser;
+  }
+
+  async deleteApiUser(id: number): Promise<void> {
+    await db.delete(apiUsersTable).where(eq(apiUsersTable.id, id));
+  }
+
+  async updateApiUserUsage(apiKey: string): Promise<void> {
+    await db.update(apiUsersTable)
+      .set({
+        lastUsed: new Date(),
+        requestCount: sql`${apiUsersTable.requestCount} + 1`,
+      })
+      .where(eq(apiUsersTable.apiKey, apiKey));
   }
   
   // Helper function to generate search index

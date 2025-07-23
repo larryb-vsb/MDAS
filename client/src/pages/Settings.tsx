@@ -20,6 +20,7 @@ import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
 import UserManagement from "@/components/settings/UserManagement";
+import ApiUserManagement from "@/components/settings/ApiUserManagement";
 import DatabaseConnectionSettings from "@/components/settings/DatabaseConnectionSettings";
 import S3BackupSettings from "@/components/settings/S3BackupSettings";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
@@ -501,6 +502,7 @@ export default function Settings() {
           
           <div className="grid grid-cols-1 gap-6">
             <UserManagement />
+            <ApiUserManagement />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -438,6 +438,27 @@ export const users = pgTable(getTableName("users"), {
   lastLogin: timestamp("last_login")
 });
 
+// API Users table for TDDF uploader client keys
+export const apiUsers = pgTable(getTableName("api_users"), {
+  id: serial("id").primaryKey(),
+  clientName: text("client_name").notNull(), // Friendly name for the client
+  apiKey: text("api_key").notNull().unique(), // Generated API key
+  description: text("description"), // Description of what this key is for
+  permissions: text("permissions").array().notNull().default(['tddf:upload']), // Array of permissions
+  isActive: boolean("is_active").notNull().default(true),
+  lastUsed: timestamp("last_used"), // Track when key was last used
+  requestCount: integer("request_count").notNull().default(0), // Track API usage
+  createdBy: text("created_by").notNull(), // Which admin user created this key
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"), // Optional expiration date
+  ipWhitelist: text("ip_whitelist").array(), // Optional IP restrictions
+}, (table) => {
+  return {
+    apiKeyIdx: index("api_users_api_key_idx").on(table.apiKey),
+    activeIdx: index("api_users_active_idx").on(table.isActive),
+  };
+});
+
 // Zod schemas for users
 export const usersSchema = createInsertSchema(users);
 export const insertUserSchema = usersSchema.omit({ id: true, createdAt: true, lastLogin: true });
@@ -450,6 +471,20 @@ export const userValidationSchema = insertUserSchema.extend({
   message: "Passwords don't match",
   path: ["confirmPassword"]
 });
+
+// Zod schemas for API users
+export const apiUsersSchema = createInsertSchema(apiUsers);
+export const insertApiUserSchema = apiUsersSchema.omit({ 
+  id: true, 
+  apiKey: true, 
+  createdAt: true, 
+  lastUsed: true, 
+  requestCount: true 
+});
+
+// Types for API users
+export type ApiUser = typeof apiUsers.$inferSelect;
+export type InsertApiUser = z.infer<typeof insertApiUserSchema>;
 
 // Export types
 export type Merchant = typeof merchants.$inferSelect;
