@@ -6196,14 +6196,35 @@ export class DatabaseStorage implements IStorage {
   // TDDF Raw Import operations implementation
   async createTddfRawImportRecords(records: InsertTddfRawImport[]): Promise<TddfRawImport[]> {
     try {
-      const insertedRecords = await db
-        .insert(tddfRawImportTable)
-        .values(records.map(record => ({
-          ...record,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })))
-        .returning();
+      // Use environment-specific table name for raw SQL approach
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Use raw SQL to avoid Drizzle ORM environment issues
+      const insertedRecords: TddfRawImport[] = [];
+      
+      for (const record of records) {
+        const insertQuery = `
+          INSERT INTO "${tableName}" (
+            source_file_id, line_number, raw_line, record_type, 
+            record_description, line_length, processed, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+          RETURNING *
+        `;
+        
+        const result = await pool.query(insertQuery, [
+          record.sourceFileId,
+          record.lineNumber,
+          record.rawLine,
+          record.recordType,
+          record.recordDescription,
+          record.lineLength,
+          record.processed || false
+        ]);
+        
+        if (result.rows.length > 0) {
+          insertedRecords.push(result.rows[0]);
+        }
+      }
       
       return insertedRecords;
     } catch (error) {
@@ -6214,13 +6235,16 @@ export class DatabaseStorage implements IStorage {
 
   async getTddfRawImportByFileId(fileId: string): Promise<TddfRawImport[]> {
     try {
-      const records = await db
-        .select()
-        .from(tddfRawImportTable)
-        .where(eq(tddfRawImportTable.sourceFileId, fileId))
-        .orderBy(tddfRawImportTable.lineNumber);
+      // Use environment-specific table name for raw SQL approach
+      const tableName = getTableName('tddf_raw_import');
       
-      return records;
+      const result = await pool.query(`
+        SELECT * FROM "${tableName}"
+        WHERE source_file_id = $1
+        ORDER BY line_number
+      `, [fileId]);
+      
+      return result.rows;
     } catch (error) {
       console.error('Error getting TDDF raw import records:', error);
       throw error;
