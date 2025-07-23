@@ -11,7 +11,7 @@ import multer from "multer";
 import os from "os";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { count, desc, eq, isNotNull, and, gte, between, sql, isNull } from "drizzle-orm";
+import { count, desc, eq, isNotNull, and, gte, between, sql, isNull, lte } from "drizzle-orm";
 import { setupAuth } from "./auth";
 import { loadDatabaseConfig, saveDatabaseConfig, testDatabaseConnection } from "./config";
 import { registerS3Routes } from "./routes/s3_routes";
@@ -4116,6 +4116,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== TDDF ROUTES ====================
+  
+  // TDDF API ping endpoint for connectivity testing
+  app.get("/api/tddf/ping", isApiKeyAuthenticated, async (req, res) => {
+    try {
+      const apiUser = (req as any).apiUser;
+      console.log(`[TDDF API PING] Ping request from API user: ${apiUser.clientName}`);
+      
+      res.json({ 
+        success: true, 
+        message: "TDDF API is operational", 
+        timestamp: new Date().toISOString(),
+        apiUser: apiUser.clientName,
+        environment: process.env.NODE_ENV || 'development'
+      });
+    } catch (error) {
+      console.error('[TDDF API PING] Error:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Ping failed" 
+      });
+    }
+  });
   
   // Get all TDDF records with pagination
   app.get("/api/tddf", isAuthenticated, async (req, res) => {
