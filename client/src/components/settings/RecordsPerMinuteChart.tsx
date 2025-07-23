@@ -154,15 +154,19 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     });
   };
 
-  // Add short time format to data
+  // Add short time format to data - keep latest time slots on left when zooming
   const getDataWithShortTime = () => {
     if (!historyData?.data.length) return [];
     const data = historyData.data;
     const totalPoints = data.length;
     const pointsToShow = Math.max(Math.floor(totalPoints / zoomLevel), 2);
-    const startIndex = Math.max(0, totalPoints - pointsToShow);
     
-    return data.slice(startIndex).map(item => ({
+    // Take the most recent data points and reverse them to show latest time on left
+    const startIndex = Math.max(0, totalPoints - pointsToShow);
+    const recentData = data.slice(startIndex);
+    
+    // Reverse the data so latest time appears on the left side of chart
+    return recentData.reverse().map(item => ({
       ...item,
       shortTime: formatTimeOnly(item.timestamp)
     }));
