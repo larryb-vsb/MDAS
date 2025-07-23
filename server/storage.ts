@@ -41,12 +41,11 @@ import {
   InsertSecurityLog,
   insertSchemaContentSchema
 } from "@shared/schema";
-import { db } from "./db";
+import { db, batchDb, sessionPool } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
 
 // Interface for storage operations
 export interface IStorage {
@@ -286,7 +285,7 @@ export class DatabaseStorage implements IStorage {
     // Initialize PostgreSQL session store
     const PostgresStore = connectPgSimple(session);
     this.sessionStore = new PostgresStore({
-      pool,
+      pool: sessionPool,
       createTableIfMissing: true
     });
     
@@ -6132,7 +6131,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
     try {
-      const records = await db
+      const records = await batchDb
         .insert(tddfRecordsTable)
         .values({
           ...recordData,

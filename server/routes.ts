@@ -19,6 +19,7 @@ import { registerBackupScheduleRoutes } from "./routes/backup_schedule_routes";
 import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
+import poolRoutes from "./routes/pool_routes";
 import { getTableName } from "./table-config";
 
 // Authentication middleware
@@ -95,6 +96,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register logs routes
   app.use(logsRoutes);
   app.use(logTestRoutes);
+  
+  // Register pool monitoring routes
+  app.use("/api/pools", isAuthenticated, poolRoutes);
   
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');

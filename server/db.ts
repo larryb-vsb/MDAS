@@ -1,4 +1,4 @@
-// This file creates and exports the database connection
+// This file creates and exports optimized database connections with separate pools
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
@@ -27,6 +27,112 @@ try {
   console.error('Could not parse database URL', error);
 }
 
-// Create and export the pool and db
-export const pool = new Pool({ connectionString: databaseUrl });
-export const db = drizzle({ client: pool, schema });
+// Environment-specific pool configurations
+const getPoolConfig = (poolType: 'app' | 'batch' | 'session') => {
+  const isDev = NODE_ENV === 'development';
+  
+  const configs = {
+    app: {
+      max: isDev ? 8 : 15,              // Regular app operations
+      min: isDev ? 2 : 4,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+      acquireTimeoutMillis: 30000,
+    },
+    batch: {
+      max: isDev ? 5 : 12,              // Heavy TDDF batch processing
+      min: isDev ? 1 : 3,
+      idleTimeoutMillis: 60000,         // Longer idle time for batch jobs
+      connectionTimeoutMillis: 15000,
+      acquireTimeoutMillis: 60000,      // Longer wait for batch operations
+    },
+    session: {
+      max: isDev ? 3 : 6,               // Session storage
+      min: isDev ? 1 : 2,
+      idleTimeoutMillis: 120000,        // Sessions can be idle longer
+      connectionTimeoutMillis: 8000,
+      acquireTimeoutMillis: 20000,
+    }
+  };
+  
+  return {
+    connectionString: databaseUrl,
+    ...configs[poolType]
+  };
+};
+
+// Create separate pools for different workloads
+export const appPool = new Pool(getPoolConfig('app'));
+export const batchPool = new Pool(getPoolConfig('batch'));
+export const sessionPool = new Pool(getPoolConfig('session'));
+
+// Default pool for backward compatibility (uses app pool)
+export const pool = appPool;
+
+// Create Drizzle instances
+export const db = drizzle({ client: appPool, schema });
+export const batchDb = drizzle({ client: batchPool, schema });
+
+// Connection pool monitoring
+export interface PoolStats {
+  name: string;
+  totalConnections: number;
+  idleConnections: number;
+  waitingCount: number;
+}
+
+export async function getPoolStats(): Promise<PoolStats[]> {
+  const pools = [
+    { name: 'Application Pool', pool: appPool },
+    { name: 'Batch Processing Pool', pool: batchPool },
+    { name: 'Session Pool', pool: sessionPool }
+  ];
+  
+  return pools.map(({ name, pool }) => ({
+    name,
+    totalConnections: pool.totalCount,
+    idleConnections: pool.idleCount,
+    waitingCount: pool.waitingCount
+  }));
+}
+
+// Pool health monitoring
+export async function checkPoolHealth(): Promise<{ healthy: boolean; issues: string[] }> {
+  const issues: string[] = [];
+  
+  try {
+    const stats = await getPoolStats();
+    
+    for (const stat of stats) {
+      // Check for potential connection exhaustion
+      if (stat.waitingCount > 5) {
+        issues.push(`${stat.name}: High waiting count (${stat.waitingCount})`);
+      }
+      
+      // Check for too many idle connections
+      if (stat.idleConnections > stat.totalConnections * 0.8) {
+        issues.push(`${stat.name}: Too many idle connections (${stat.idleConnections}/${stat.totalConnections})`);
+      }
+      
+      // Check for connection starvation
+      if (stat.totalConnections === 0) {
+        issues.push(`${stat.name}: No active connections`);
+      }
+    }
+    
+    return {
+      healthy: issues.length === 0,
+      issues
+    };
+  } catch (error) {
+    return {
+      healthy: false,
+      issues: [`Pool health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
+    };
+  }
+}
+
+console.log(`[CONNECTION POOLS] Initialized for ${NODE_ENV}:`);
+console.log(`  App Pool: max=${getPoolConfig('app').max}, min=${getPoolConfig('app').min}`);
+console.log(`  Batch Pool: max=${getPoolConfig('batch').max}, min=${getPoolConfig('batch').min}`);
+console.log(`  Session Pool: max=${getPoolConfig('session').max}, min=${getPoolConfig('session').min}`);
