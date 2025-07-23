@@ -214,7 +214,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
                 Other:
               </span>
               <span>{data.otherRecords.toLocaleString()} records/min</span>
@@ -460,7 +460,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 <Bar 
                   dataKey="otherRecords" 
                   stackId="records"
-                  fill="#ef4444"
+                  fill="#3b82f6"
                   radius={[2, 2, 0, 0]}
                   name="Other Records"
                 />
@@ -494,7 +494,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 P1
               </span>
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
                 Other
               </span>
             </div>

@@ -3895,7 +3895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hierarchicalDtRecords = parseFloat(row.records_per_minute) || 0;
         
         // Distinguish between standard transaction processing and hierarchical migration
-        const isHierarchicalMigration = row.metric_type === 'hierarchical_dt_migration';
+        const isHierarchicalMigration = row.metric_type === 'hierarchical_dt_migration' || row.metric_type === 'tddf_raw_import';
         
         const dtRecords = isHierarchicalMigration ? hierarchicalDtRecords : transactionRecords;
         const bhRecords = 0; // BH records processed separately in hierarchical structure
