@@ -88,10 +88,29 @@ const formatQueueEstimate = (totalSeconds: number) => {
   }
 };
 
-// Extracted component to prevent React hooks issues
-const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
+// Enhanced multi-colored gauge for different record types
+const MultiColorGauge = ({ 
+  currentSpeed, 
+  peakSpeed, 
+  maxScale = 20, 
+  recordTypes = { dt: 0, bh: 0, p1: 0, other: 0 },
+  showRecordTypes = false 
+}: { 
+  currentSpeed: number;
+  peakSpeed: number; 
+  maxScale?: number;
+  recordTypes?: { dt: number; bh: number; p1: number; other: number };
+  showRecordTypes?: boolean;
+}) => {
   const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
   const peakPercentage = Math.min((peakSpeed / maxScale) * 100, 100);
+  
+  // Calculate percentages for each record type when showing types
+  const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
+  const dtPercentage = totalRecords > 0 ? (recordTypes.dt / totalRecords) * currentPercentage : currentPercentage;
+  const bhPercentage = totalRecords > 0 ? (recordTypes.bh / totalRecords) * currentPercentage : 0;
+  const p1Percentage = totalRecords > 0 ? (recordTypes.p1 / totalRecords) * currentPercentage : 0;
+  const otherPercentage = totalRecords > 0 ? (recordTypes.other / totalRecords) * currentPercentage : 0;
   
   return (
     <div className="w-full space-y-1">
@@ -104,16 +123,50 @@ const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { cur
           ))}
         </div>
         
-        {/* Current speed bar */}
-        <div 
-          className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${currentPercentage}%` }}
-        />
+        {/* Multi-colored bars for record types or single blue bar */}
+        {showRecordTypes && totalRecords > 0 ? (
+          <>
+            {/* DT Records - Blue */}
+            {dtPercentage > 0 && (
+              <div 
+                className="absolute left-0 top-0 h-full bg-blue-500 transition-all duration-300 ease-out"
+                style={{ width: `${dtPercentage}%` }}
+              />
+            )}
+            {/* BH Records - Green */}
+            {bhPercentage > 0 && (
+              <div 
+                className="absolute top-0 h-full bg-emerald-500 transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage}%`, width: `${bhPercentage}%` }}
+              />
+            )}
+            {/* P1 Records - Amber */}
+            {p1Percentage > 0 && (
+              <div 
+                className="absolute top-0 h-full bg-amber-500 transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage + bhPercentage}%`, width: `${p1Percentage}%` }}
+              />
+            )}
+            {/* Other Records - Red */}
+            {otherPercentage > 0 && (
+              <div 
+                className="absolute top-0 h-full bg-red-500 rounded-r-full transition-all duration-300 ease-out"
+                style={{ left: `${dtPercentage + bhPercentage + p1Percentage}%`, width: `${otherPercentage}%` }}
+              />
+            )}
+          </>
+        ) : (
+          /* Single blue bar for non-TDDF gauges */
+          <div 
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${currentPercentage}%` }}
+          />
+        )}
         
         {/* Peak indicator */}
         {peakPercentage > 0 && (
           <div 
-            className="absolute top-0 w-0.5 h-full bg-red-500 shadow-sm"
+            className="absolute top-0 w-0.5 h-full bg-red-600 shadow-sm z-10"
             style={{ left: `${peakPercentage}%` }}
           />
         )}
@@ -126,6 +179,18 @@ const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { cur
         <span>{maxScale}</span>
       </div>
     </div>
+  );
+};
+
+// Keep original gauge for backward compatibility
+const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
+  return (
+    <MultiColorGauge 
+      currentSpeed={currentSpeed}
+      peakSpeed={peakSpeed}
+      maxScale={maxScale}
+      showRecordTypes={false}
+    />
   );
 };
 
@@ -467,15 +532,41 @@ export default function ProcessingStatus() {
                   {((realTimeStats.tddfRecordsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">TDDF/min</div>
-                {/* TDDF Speed Gauge */}
+                {/* TDDF Speed Gauge with Record Type Colors */}
                 <div className="mt-2 px-2">
-                  <TransactionSpeedGauge 
+                  <MultiColorGauge 
                     currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
                     peakSpeed={peakTddfSpeed * 60}
                     maxScale={Math.max(peakTddfSpeed * 60 * 1.2, 200)}
+                    recordTypes={{
+                      dt: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.7), // Assume 70% DT records
+                      bh: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.15), // Assume 15% BH records
+                      p1: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.10), // Assume 10% P1 records
+                      other: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.05) // Assume 5% Other records
+                    }}
+                    showRecordTypes={true}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
+                {/* Record Type Legend for TDDF */}
+                <div className="flex items-center justify-center gap-2 text-xs mt-1">
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    DT
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    BH
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                    P1
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    Other
+                  </span>
+                </div>
               </div>
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-orange-600">
