@@ -130,6 +130,7 @@ function ConvertTo-TddfJson {
         # Core identification
         recordType = $recordType
         lineNumber = $lineNumber
+        recordIndex = "$($fileInfo.originalFileName):$lineNumber"
         rawLine = $line
         processedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         
