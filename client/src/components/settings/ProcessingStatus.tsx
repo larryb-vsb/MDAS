@@ -449,30 +449,30 @@ export default function ProcessingStatus() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-blue-600">
-                  {realTimeStats.transactionsPerSecond?.toFixed(1) || '0.0'}
+                  {((realTimeStats.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
-                <div className="text-muted-foreground">Txns/sec</div>
+                <div className="text-muted-foreground">Txns/min</div>
                 {/* Transaction Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={realTimeStats.transactionsPerSecond || 0}
-                    peakSpeed={peakTxnSpeed}
-                    maxScale={Math.max(peakTxnSpeed * 1.2, 10)}
+                    currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
+                    peakSpeed={peakTxnSpeed * 60}
+                    maxScale={Math.max(peakTxnSpeed * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-indigo-600">
-                  {realTimeStats.tddfRecordsPerSecond?.toFixed(1) || '0.0'}
+                  {((realTimeStats.tddfRecordsPerSecond || 0) * 60).toFixed(0)}
                 </div>
-                <div className="text-muted-foreground">TDDF/sec</div>
+                <div className="text-muted-foreground">TDDF/min</div>
                 {/* TDDF Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={realTimeStats.tddfRecordsPerSecond || 0}
-                    peakSpeed={peakTddfSpeed}
-                    maxScale={Math.max(peakTddfSpeed * 1.2, 5)}
+                    currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
+                    peakSpeed={peakTddfSpeed * 60}
+                    maxScale={Math.max(peakTddfSpeed * 60 * 1.2, 300)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
