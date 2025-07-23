@@ -107,7 +107,7 @@ export class ScanlyWatcher {
         WHERE processing_status = 'pending'
       `);
       
-      const currentBacklog = parseInt(backlogResult[0]?.backlog_count as string) || 0;
+      const currentBacklog = parseInt((backlogResult as any)[0]?.backlog_count as string) || 0;
       const now = new Date();
       
       // Add to history
@@ -255,21 +255,21 @@ export class ScanlyWatcher {
     // Calculate backlog progress (if we have history)
     let backlogProgress = 0;
     if (this.tddfBacklogHistory.length > 1) {
-      const current = parseInt(tddfBacklogResult[0]?.backlog_count as string) || 0;
+      const current = parseInt((tddfBacklogResult as any)[0]?.backlog_count as string) || 0;
       const previous = this.tddfBacklogHistory[this.tddfBacklogHistory.length - 1]?.count || current;
       backlogProgress = previous - current; // Positive = progress, negative = increase
     }
 
     return {
-      totalFiles: parseInt(totalResult[0]?.total_files as string) || 0,
-      queuedFiles: parseInt(queuedResult[0]?.queued_files as string) || 0,
-      processingFiles: parseInt(processingResult[0]?.processing_files as string) || 0,
-      errorFiles: parseInt(errorResult[0]?.error_files as string) || 0,
-      stuckFiles: parseInt(stuckResult[0]?.stuck_files as string) || 0,
-      slowFiles: parseInt(slowResult[0]?.slow_files as string) || 0,
-      avgProcessingTime: parseFloat(avgTimeResult[0]?.avg_processing_time as string) || 0,
-      recentThroughput: parseInt(throughputResult[0]?.recent_completed as string) || 0,
-      tddfBacklog: parseInt(tddfBacklogResult[0]?.backlog_count as string) || 0,
+      totalFiles: parseInt((totalResult as any)[0]?.total_files as string) || 0,
+      queuedFiles: parseInt((queuedResult as any)[0]?.queued_files as string) || 0,
+      processingFiles: parseInt((processingResult as any)[0]?.processing_files as string) || 0,
+      errorFiles: parseInt((errorResult as any)[0]?.error_files as string) || 0,
+      stuckFiles: parseInt((stuckResult as any)[0]?.stuck_files as string) || 0,
+      slowFiles: parseInt((slowResult as any)[0]?.slow_files as string) || 0,
+      avgProcessingTime: parseFloat((avgTimeResult as any)[0]?.avg_processing_time as string) || 0,
+      recentThroughput: parseInt((throughputResult as any)[0]?.recent_completed as string) || 0,
+      tddfBacklog: parseInt((tddfBacklogResult as any)[0]?.backlog_count as string) || 0,
       tddfBacklogProgress: backlogProgress
     };
   }
@@ -413,7 +413,7 @@ export class ScanlyWatcher {
         source: 'ProcessingWatcher',
         message: `${alert.type}: ${alert.message}`,
         details: JSON.stringify(alert.details),
-        timestamp: alert.timestamp
+        timestamp: alert.timestamp || new Date()
       };
 
       const systemLogsTableName = getTableName('system_logs');
