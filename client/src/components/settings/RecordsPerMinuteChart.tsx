@@ -37,6 +37,11 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
     queryKey: ['/api/processing/records-per-minute-history', timeRange, timeOffset],
+    queryFn: async () => {
+      const response = await fetch(`/api/processing/records-per-minute-history?hours=${timeRange}&timeOffset=${timeOffset}`);
+      if (!response.ok) throw new Error('Failed to fetch data');
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 15000,
   });

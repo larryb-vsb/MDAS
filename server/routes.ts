@@ -3840,11 +3840,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startTime = `${endTime} - INTERVAL '${hours} hours'`;
       
       // Generate complete time series with zero values for missing time slots
+      // Use 1-minute intervals for 1-hour view, 5-minute intervals for longer views
+      const intervalMinutes = hours <= 1 ? '1 minute' : '5 minutes';
       const result = await pool.query(`
         WITH RECURSIVE time_series AS (
           SELECT ${startTime} as time_slot
           UNION ALL
-          SELECT time_slot + INTERVAL '5 minutes'
+          SELECT time_slot + INTERVAL '${intervalMinutes}'
           FROM time_series
           WHERE time_slot < ${endTime}
         )
