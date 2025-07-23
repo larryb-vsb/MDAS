@@ -219,6 +219,13 @@ export default function ProcessingStatus() {
     staleTime: 1000,
   });
 
+  // Fetch recent chart data for TDDF gauge (same data source as chart)
+  const { data: chartData } = useQuery({
+    queryKey: ['/api/processing/records-per-minute-history', 1, 0], // Last 1 hour, no offset
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15000,
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -517,25 +524,39 @@ export default function ProcessingStatus() {
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center space-y-2">
-                <div className="text-lg font-semibold text-indigo-600">
-                  {((realTimeStats.tddfRecordsPerSecond || 0) * 60).toFixed(0)}
-                </div>
-                <div className="text-muted-foreground">TDDF/min</div>
-                {/* TDDF Speed Gauge with Record Type Colors */}
-                <div className="mt-2 px-2">
-                  <MultiColorGauge 
-                    currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
-                    maxScale={125}
-                    recordTypes={{
-                      dt: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.7), // Assume 70% DT records
-                      bh: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.15), // Assume 15% BH records
-                      p1: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.10), // Assume 10% P1 records
-                      other: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.05) // Assume 5% Other records
-                    }}
-                    showRecordTypes={true}
-                  />
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
+                {(() => {
+                  // Calculate current TDDF rate from chart data (same as chart)
+                  const recentChartData = chartData?.data || [];
+                  const latestDataPoint = recentChartData[recentChartData.length - 1];
+                  const currentTddfRate = latestDataPoint ? 
+                    (latestDataPoint.bhRecords + latestDataPoint.p1Records + latestDataPoint.otherRecords) : 0;
+                  const currentDtRate = latestDataPoint ? latestDataPoint.dtRecords : 0;
+                  const totalTddfRate = currentTddfRate + currentDtRate;
+
+                  return (
+                    <>
+                      <div className="text-lg font-semibold text-indigo-600">
+                        {totalTddfRate.toFixed(0)}
+                      </div>
+                      <div className="text-muted-foreground">TDDF/min</div>
+                      {/* TDDF Speed Gauge with Record Type Colors */}
+                      <div className="mt-2 px-2">
+                        <MultiColorGauge 
+                          currentSpeed={totalTddfRate}
+                          maxScale={125}
+                          recordTypes={{
+                            dt: currentDtRate,
+                            bh: latestDataPoint?.bhRecords || 0,
+                            p1: latestDataPoint?.p1Records || 0,
+                            other: latestDataPoint?.otherRecords || 0
+                          }}
+                          showRecordTypes={true}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">(last hour)</div>
+                    </>
+                  );
+                })()}
                 {/* Record Type Legend for TDDF */}
                 <div className="flex items-center justify-center gap-2 text-xs mt-1">
                   <span className="flex items-center gap-1">
