@@ -317,8 +317,8 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
                   tickLine={{ stroke: '#e0e0e0' }}
                 />
                 <YAxis 
-                  domain={['dataMin - 5', 'dataMax + 10']}
-                  ticks={getYAxisTicks()}
+                  domain={[0, 100]}
+                  ticks={[0, 20, 40, 60, 80, 100]}
                   tickFormatter={formatYAxis}
                   tick={{ fontSize: 9 }}
                   axisLine={{ stroke: '#e0e0e0' }}

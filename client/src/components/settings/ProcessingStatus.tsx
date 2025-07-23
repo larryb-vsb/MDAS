@@ -525,7 +525,7 @@ export default function ProcessingStatus() {
                 <div className="mt-2 px-2">
                   <MultiColorGauge 
                     currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
-                    maxScale={Math.max((realTimeStats.tddfRecordsPerSecond || 0) * 60 * 1.2, 200)}
+                    maxScale={100}
                     recordTypes={{
                       dt: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.7), // Assume 70% DT records
                       bh: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.15), // Assume 15% BH records
