@@ -3890,51 +3890,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       // Format data for chart with enhanced time formatting and record type breakdown
-      const chartData = result.rows.map(row => {
+      const chartData = await Promise.all(result.rows.map(async (row) => {
         const timestamp = new Date(row.timestamp);
         const totalRecords = parseFloat(row.records_per_minute) || 0;
         const transactionRecords = parseFloat(row.transaction_records_per_minute) || 0;
         const tddfRecords = parseFloat(row.tddf_records_per_minute) || 0;
         
-        // Enhanced hierarchical migration record tracking
-        // Check for hierarchical migration activity in the processing metrics
-        const hierarchicalDtRecords = parseFloat(row.records_per_minute) || 0;
-        
-        // Distinguish between standard transaction processing and hierarchical migration
+        // Enhanced hierarchical migration record tracking with proper record type breakdown
         const isHierarchicalMigration = row.metric_type === 'hierarchical_dt_migration' || row.metric_type === 'tddf_raw_import';
         
-        // Debug logging for troubleshooting (remove after fix confirmed)
-        // if (hierarchicalDtRecords > 0) {
-        //   console.log(`[CHART DEBUG] metric_type='${row.metric_type}', records=${hierarchicalDtRecords}, isHierarchical=${isHierarchicalMigration}, dtRecords=${dtRecords}`);
-        // }
-        
-        const dtRecords = isHierarchicalMigration ? hierarchicalDtRecords : transactionRecords;
-        const bhRecords = 0; // BH records processed separately in hierarchical structure
-        const p1Records = 0; // P1 records processed after DT migration  
-        const otherRecords = isHierarchicalMigration ? 0 : tddfRecords; // Other TDDF types
-        
-        return {
-          timestamp: row.timestamp,
-          recordsPerMinute: totalRecords,
-          dtRecords: dtRecords,
-          bhRecords: bhRecords,
-          p1Records: p1Records,
-          otherRecords: otherRecords,
-          status: row.system_status || 'idle', // Default to 'idle' when no processing activity
-          formattedTime: timestamp.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'America/Chicago'
-          }),
-          formattedDateTime: timestamp.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZone: 'America/Chicago'
-          })
-        };
-      });
+        if (isHierarchicalMigration) {
+          // For hierarchical migration, get actual record type breakdown from raw import data
+          const timeSlot = new Date(row.timestamp);
+          const minuteStart = new Date(timeSlot.getFullYear(), timeSlot.getMonth(), timeSlot.getDate(), timeSlot.getHours(), timeSlot.getMinutes(), 0);
+          const minuteEnd = new Date(minuteStart.getTime() + 60000); // Add 1 minute
+          
+          // Get hierarchical record type counts for this minute slot
+          const hierarchicalBreakdown = await storage.getHierarchicalRecordBreakdown(minuteStart, minuteEnd);
+          
+          const dtRecords = hierarchicalBreakdown.dtCount || 0;
+          const bhRecords = hierarchicalBreakdown.bhCount || 0; 
+          const p1Records = hierarchicalBreakdown.p1Count || 0;
+          const otherRecords = hierarchicalBreakdown.otherCount || 0;
+          
+          return {
+            timestamp: row.timestamp,
+            recordsPerMinute: dtRecords + bhRecords + p1Records + otherRecords,
+            dtRecords: dtRecords,
+            bhRecords: bhRecords,
+            p1Records: p1Records,
+            otherRecords: otherRecords,
+            status: row.system_status || 'processing',
+            formattedTime: timestamp.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Chicago'
+            }),
+            formattedDateTime: timestamp.toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: 'America/Chicago'
+            })
+          };
+        } else {
+          // Standard transaction processing
+          const dtRecords = transactionRecords;
+          const bhRecords = 0;
+          const p1Records = 0; 
+          const otherRecords = tddfRecords;
+          
+          return {
+            timestamp: row.timestamp,
+            recordsPerMinute: totalRecords,
+            dtRecords: dtRecords,
+            bhRecords: bhRecords,
+            p1Records: p1Records,
+            otherRecords: otherRecords,
+            status: row.system_status || 'idle',
+            formattedTime: timestamp.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Chicago'
+            }),
+            formattedDateTime: timestamp.toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: 'America/Chicago'
+            })
+          };
+        }
+      }));
       
       // Determine time range label
       const timeRangeLabel = timeOffset > 0 

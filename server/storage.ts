@@ -273,6 +273,12 @@ export interface IStorage {
   
   // Hierarchical TDDF migration methods
   getPendingDtCount(): Promise<number>;
+  getHierarchicalRecordBreakdown(startTime: Date, endTime: Date): Promise<{
+    dtCount: number;
+    bhCount: number;
+    p1Count: number;
+    otherCount: number;
+  }>;
   getHierarchicalTddfCount(): Promise<number>;
   getLegacyTddfCount(): Promise<number>;
   processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }>;
@@ -7241,6 +7247,62 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('Error getting pending DT count:', error);
       return 0;
+    }
+  }
+
+  async getHierarchicalRecordBreakdown(startTime: Date, endTime: Date): Promise<{
+    dtCount: number;
+    bhCount: number;
+    p1Count: number;
+    otherCount: number;
+  }> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      const result = await pool.query(`
+        SELECT 
+          record_type,
+          COUNT(*) as count
+        FROM "${tableName}" 
+        WHERE created_at >= $1 AND created_at < $2
+        GROUP BY record_type
+      `, [startTime, endTime]);
+      
+      const breakdown = {
+        dtCount: 0,
+        bhCount: 0,
+        p1Count: 0,
+        otherCount: 0
+      };
+      
+      for (const row of result.rows) {
+        const count = parseInt(row.count);
+        switch (row.record_type) {
+          case 'DT':
+            breakdown.dtCount = count;
+            break;
+          case 'BH':
+            breakdown.bhCount = count;
+            break;
+          case 'P1':
+          case 'P2':
+            breakdown.p1Count += count;
+            break;
+          default:
+            // G2, E1, DR, and other record types
+            breakdown.otherCount += count;
+            break;
+        }
+      }
+      
+      return breakdown;
+    } catch (error: any) {
+      console.error('Error getting hierarchical record breakdown:', error);
+      return {
+        dtCount: 0,
+        bhCount: 0,
+        p1Count: 0,
+        otherCount: 0
+      };
     }
   }
 
