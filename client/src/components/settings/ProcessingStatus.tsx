@@ -472,7 +472,7 @@ export default function ProcessingStatus() {
                   <TransactionSpeedGauge 
                     currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
                     peakSpeed={peakTddfSpeed * 60}
-                    maxScale={Math.max(peakTddfSpeed * 60 * 1.2, 300)}
+                    maxScale={Math.max(peakTddfSpeed * 60 * 1.2, 200)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
