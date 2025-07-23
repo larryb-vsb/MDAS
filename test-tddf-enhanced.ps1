@@ -5,7 +5,7 @@
 param(
     [string]$FilePath = "test_tddf_sample.TSYSO",
     [string]$ApiKey = "mms_1753247424700_l7d6n1wa2qm",
-    [string]$BaseUrl = "https://replit.com/t/vermont-state-bank/repls/MMS",
+    [string]$BaseUrl = "https://mms-vsb.replit.app",
     [switch]$PingOnly,
     [switch]$Local
 )

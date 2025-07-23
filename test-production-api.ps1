@@ -9,7 +9,7 @@ param(
 )
 
 # Production URL - update this after deployment
-$BaseUrl = "https://merchant-management-system--vermont-state-bank.replit.app"
+$BaseUrl = "https://mms-vsb.replit.app"
 
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Write-Host "🚀 Production TDDF API Test - $timestamp" -ForegroundColor Green
