@@ -4,7 +4,7 @@
  */
 
 // Determine the current environment from process.env
-export const NODE_ENV = 'production';
+export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
