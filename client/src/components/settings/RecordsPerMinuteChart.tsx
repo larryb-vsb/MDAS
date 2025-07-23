@@ -329,6 +329,12 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2">
+          {/* Zoom Level Indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <span>Zoom: {zoomLevel}x</span>  
+            {timeOffset > 0 && <span>• {timeOffset}h ago</span>}
+            <span>• {zoomedData.length} samples</span>
+          </div>
           {/* Enhanced Summary Stats */}
           <div className="grid grid-cols-4 gap-3 text-xs">
             <div className="text-center">
