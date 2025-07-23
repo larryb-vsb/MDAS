@@ -9,8 +9,10 @@ import { useState } from 'react';
 interface RecordsPerMinuteData {
   timestamp: string;
   recordsPerMinute: number;
-  transactionRecords: number;
-  tddfRecords: number;
+  dtRecords: number;
+  bhRecords: number;
+  p1Records: number;
+  otherRecords: number;
   status: string;
   formattedTime: string;
 }
@@ -124,11 +126,17 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
   };
 
   const formatTooltip = (value: number, name: string) => {
-    if (name === 'Transaction Records') {
-      return [`${value.toLocaleString()} records/min`, 'Transactions'];
+    if (name === 'DT Records') {
+      return [`${value.toLocaleString()} records/min`, 'DT'];
     }
-    if (name === 'TDDF Records') {
-      return [`${value.toLocaleString()} records/min`, 'TDDF'];
+    if (name === 'BH Records') {
+      return [`${value.toLocaleString()} records/min`, 'BH'];
+    }
+    if (name === 'P1 Records') {
+      return [`${value.toLocaleString()} records/min`, 'P1'];
+    }
+    if (name === 'Other Records') {
+      return [`${value.toLocaleString()} records/min`, 'Other'];
     }
     return [value, name];
   };
@@ -335,18 +343,32 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
                   }}
                 />
                 <Bar 
-                  dataKey="transactionRecords" 
+                  dataKey="dtRecords" 
                   stackId="records"
                   fill="#3b82f6"
                   radius={[0, 0, 0, 0]}
-                  name="Transaction Records"
+                  name="DT Records"
                 />
                 <Bar 
-                  dataKey="tddfRecords" 
+                  dataKey="bhRecords" 
                   stackId="records"
-                  fill="#ff7c00"
+                  fill="#10b981"
+                  radius={[0, 0, 0, 0]}
+                  name="BH Records"
+                />
+                <Bar 
+                  dataKey="p1Records" 
+                  stackId="records"
+                  fill="#f59e0b"
+                  radius={[0, 0, 0, 0]}
+                  name="P1 Records"
+                />
+                <Bar 
+                  dataKey="otherRecords" 
+                  stackId="records"
+                  fill="#ef4444"
                   radius={[2, 2, 0, 0]}
-                  name="TDDF Records"
+                  name="Other Records"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -359,14 +381,22 @@ export default function RecordsPerMinuteChart({ hours = 6, className = "" }: Rec
               {zoomLevel > 1 ? ` ${zoomLevel}x zoom` : ' Overview'} • 
               Last updated: {historyData.lastUpdated}
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                Transactions
+                DT
               </span>
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                TDDF Records
+                <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                BH
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                P1
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                Other
               </span>
             </div>
           </div>
