@@ -124,11 +124,15 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   };
 
   const handleTimeBack = () => {
-    setTimeOffset(prev => prev + Math.floor(timeRange / 4));
+    // Use smaller steps for better navigation - 25% of time range or minimum 1 hour
+    const step = Math.max(1, Math.floor(timeRange / 4));
+    setTimeOffset(prev => prev + step);
   };
 
   const handleTimeForward = () => {
-    setTimeOffset(prev => Math.max(0, prev - Math.floor(timeRange / 4)));
+    // Use smaller steps for better navigation - 25% of time range or minimum 1 hour
+    const step = Math.max(1, Math.floor(timeRange / 4));
+    setTimeOffset(prev => Math.max(0, prev - step));
   };
 
   // Format time for X-axis (short format with AM/PM)
@@ -248,7 +252,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
   const canZoomOut = zoomLevel > Math.min(...zoomLevels);
   const canGoBack = timeOffset < 168; // Max 1 week back
-  const canGoForward = timeOffset > 0;
+  const canGoForward = timeOffset > 0; // Can go forward until reaching live data (timeOffset = 0)
 
   return (
     <Card className={className}>
@@ -281,7 +285,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 className="h-6 w-6 p-0"
                 onClick={handleTimeBack}
                 disabled={!canGoBack}
-                title="Go back in time"
+                title={`Go back ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} in time`}
               >
                 <ChevronLeft className="h-3 w-3" />
               </Button>
@@ -291,7 +295,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 className="h-6 w-6 p-0"
                 onClick={handleTimeForward}
                 disabled={!canGoForward}
-                title="Go forward in time"
+                title={`Go forward ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} toward live data`}
               >
                 <ChevronRight className="h-3 w-3" />
               </Button>
