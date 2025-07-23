@@ -40,12 +40,20 @@ From PowerShell test results:
 3. Consider deploying to external hosting for production API access
 4. Use VPN or network routing that allows direct access to Replit deployments
 
-## Simplified Local Testing Script
-For guaranteed local testing, use: test-local-tddf-simple.ps1
-- PowerShell: .\test-local-tddf-simple.ps1 -PingOnly
-- PowerShell: .\test-local-tddf-simple.ps1 (full upload test)
-- Automatically creates test file if missing
-- Designed specifically for local development environment
+## Simplified Local Testing Scripts
+For guaranteed local testing:
+
+1. test-local-tddf-simple.ps1 (auto-creates test file)
+   - PowerShell: .\test-local-tddf-simple.ps1 -PingOnly
+   - PowerShell: .\test-local-tddf-simple.ps1 (full upload test)
+
+2. test-tddf-local-only.ps1 (production-ready for real files)
+   - PowerShell: .\test-tddf-local-only.ps1 -PingOnly  
+   - PowerShell: .\test-tddf-local-only.ps1 YOUR_FILE.TSYSO
+   - Comprehensive error handling and result display
+   - Designed for actual TDDF file testing
+
+Both scripts target localhost:5000 exclusively for reliable local development testing.
 
 ## Test Scripts Available
 1. PowerShell: test-tddf-api.ps1
