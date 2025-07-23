@@ -390,6 +390,350 @@ function ConvertTo-TddfJson {
         $record.merchantName = Get-Field $line 40 25
         $record.referenceNumber = Get-Field $line 100 50
     }
+    else {
+        # TDDF-Other Record - Process all other record types with standard fields plus raw data
+        $record.recordType = "TDDF-Other"
+        $record.originalRecordType = $recordType
+        
+        # Extract standard fields common to most TDDF records (positions 1-55)
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        
+        # Store complete raw line for future processing
+        $record.rawLineData = $line
+        $record.rawLineLength = $line.Length
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.referenceNumber = "Other-$recordType-$($record.sequenceNumber)"
+        
+        # Add record type description for clarity
+        $record.recordTypeDescription = switch ($recordType) {
+            "CT" { "Corporate Transaction Record" }
+            "LG" { "Lodging Record" }
+            "FT" { "Fleet Transaction Record" }
+            "F2" { "Fleet Transaction 2 Record" }
+            "CK" { "Check Verification Record" }
+            "HD" { "Header Record" }
+            "TR" { "Trailer Record" }
+            "G1" { "Merchant General Data 1 Record" }
+            "G3" { "Merchant General Data 3 Record" }
+            "MT" { "Money Transfer Record" }
+            "QR" { "Quick Response Record" }
+            "ER" { "Electronic Record" }
+            "WF" { "Wire Transfer Record" }
+            "AC" { "ACH Record" }
+            "DE" { "Debit Record" }
+            "CR" { "Credit Record" }
+            "RF" { "Refund Record" }
+            "CH" { "Chargeback Record" }
+            "CB" { "Callback Record" }
+            "RV" { "Reversal Record" }
+            "AT" { "Authorization Record" }
+            "ST" { "Settlement Record" }
+            "BR" { "Batch Record" }
+            "FR" { "Fraud Record" }
+            "SC" { "Security Record" }
+            "TK" { "Token Record" }
+            "EN" { "Encryption Record" }
+            "ID" { "Identification Record" }
+            "VF" { "Verification Record" }
+            "RS" { "Response Record" }
+            "RQ" { "Request Record" }
+            "TX" { "Tax Record" }
+            "FE" { "Fee Record" }
+            "DS" { "Discount Record" }
+            "SU" { "Surcharge Record" }
+            "TI" { "Tip Record" }
+            "CA" { "Cash Advance Record" }
+            "WD" { "Withdrawal Record" }
+            "DP" { "Deposit Record" }
+            "BA" { "Balance Record" }
+            "IN" { "Inquiry Record" }
+            "UP" { "Update Record" }
+            "DL" { "Delete Record" }
+            "AD" { "Add Record" }
+            "MO" { "Modify Record" }
+            "VI" { "View Record" }
+            "PR" { "Print Record" }
+            "EM" { "Email Record" }
+            "SM" { "SMS Record" }
+            "NT" { "Notification Record" }
+            "AL" { "Alert Record" }
+            "WA" { "Warning Record" }
+            "ER" { "Error Record" }
+            "LO" { "Log Record" }
+            "AU" { "Audit Record" }
+            "TR" { "Trace Record" }
+            "DB" { "Debug Record" }
+            "TE" { "Test Record" }
+            "SI" { "Simulation Record" }
+            "SA" { "Sample Record" }
+            "DM" { "Demo Record" }
+            "EX" { "Example Record" }
+            "TM" { "Template Record" }
+            "FO" { "Format Record" }
+            "SP" { "Specification Record" }
+            "DO" { "Documentation Record" }
+            "HE" { "Help Record" }
+            "GU" { "Guide Record" }
+            "MA" { "Manual Record" }
+            "IN" { "Instruction Record" }
+            "TU" { "Tutorial Record" }
+            "TR" { "Training Record" }
+            "ED" { "Education Record" }
+            "LE" { "Learning Record" }
+            "KN" { "Knowledge Record" }
+            "IF" { "Information Record" }
+            "DA" { "Data Record" }
+            "RE" { "Record Record" }
+            "FI" { "File Record" }
+            "DO" { "Document Record" }
+            "PA" { "Page Record" }
+            "SE" { "Section Record" }
+            "CH" { "Chapter Record" }
+            "BO" { "Book Record" }
+            "LI" { "Library Record" }
+            "AR" { "Archive Record" }
+            "BA" { "Backup Record" }
+            "RE" { "Restore Record" }
+            "SY" { "Sync Record" }
+            "CP" { "Copy Record" }
+            "MV" { "Move Record" }
+            "RN" { "Rename Record" }
+            "CR" { "Create Record" }
+            "DE" { "Delete Record" }
+            "UP" { "Update Record" }
+            "MO" { "Modify Record" }
+            "CH" { "Change Record" }
+            "ED" { "Edit Record" }
+            "SA" { "Save Record" }
+            "LD" { "Load Record" }
+            "OP" { "Open Record" }
+            "CL" { "Close Record" }
+            "ST" { "Start Record" }
+            "SP" { "Stop Record" }
+            "PA" { "Pause Record" }
+            "RS" { "Resume Record" }
+            "RU" { "Run Record" }
+            "EX" { "Execute Record" }
+            "PR" { "Process Record" }
+            "HA" { "Handle Record" }
+            "MA" { "Manage Record" }
+            "CO" { "Control Record" }
+            "MO" { "Monitor Record" }
+            "WA" { "Watch Record" }
+            "OB" { "Observe Record" }
+            "TR" { "Track Record" }
+            "FO" { "Follow Record" }
+            "SU" { "Supervise Record" }
+            "OV" { "Oversee Record" }
+            "GU" { "Guard Record" }
+            "PR" { "Protect Record" }
+            "SE" { "Secure Record" }
+            "SA" { "Safe Record" }
+            "LO" { "Lock Record" }
+            "UN" { "Unlock Record" }
+            "EN" { "Enable Record" }
+            "DI" { "Disable Record" }
+            "AC" { "Activate Record" }
+            "DE" { "Deactivate Record" }
+            "ON" { "Online Record" }
+            "OF" { "Offline Record" }
+            "CO" { "Connect Record" }
+            "DI" { "Disconnect Record" }
+            "LI" { "Link Record" }
+            "UN" { "Unlink Record" }
+            "BI" { "Bind Record" }
+            "UB" { "Unbind Record" }
+            "AT" { "Attach Record" }
+            "DE" { "Detach Record" }
+            "AS" { "Associate Record" }
+            "DI" { "Disassociate Record" }
+            "RE" { "Relate Record" }
+            "UR" { "Unrelate Record" }
+            "CO" { "Combine Record" }
+            "SE" { "Separate Record" }
+            "ME" { "Merge Record" }
+            "SP" { "Split Record" }
+            "JO" { "Join Record" }
+            "LE" { "Leave Record" }
+            "EN" { "Enter Record" }
+            "EX" { "Exit Record" }
+            "IN" { "Input Record" }
+            "OU" { "Output Record" }
+            "RE" { "Read Record" }
+            "WR" { "Write Record" }
+            "SE" { "Send Record" }
+            "RE" { "Receive Record" }
+            "TR" { "Transmit Record" }
+            "BR" { "Broadcast Record" }
+            "PU" { "Publish Record" }
+            "SU" { "Subscribe Record" }
+            "NO" { "Notify Record" }
+            "AL" { "Alert Record" }
+            "WA" { "Warn Record" }
+            "IN" { "Inform Record" }
+            "UP" { "Update Record" }
+            "RE" { "Report Record" }
+            "LO" { "Log Record" }
+            "RE" { "Record Record" }
+            "CA" { "Capture Record" }
+            "ST" { "Store Record" }
+            "SA" { "Save Record" }
+            "PR" { "Preserve Record" }
+            "KE" { "Keep Record" }
+            "HO" { "Hold Record" }
+            "RE" { "Retain Record" }
+            "MA" { "Maintain Record" }
+            "SU" { "Sustain Record" }
+            "CO" { "Continue Record" }
+            "PE" { "Persist Record" }
+            "EN" { "Endure Record" }
+            "LA" { "Last Record" }
+            "RE" { "Remain Record" }
+            "ST" { "Stay Record" }
+            "AB" { "Abide Record" }
+            "DW" { "Dwell Record" }
+            "RE" { "Reside Record" }
+            "LI" { "Live Record" }
+            "EX" { "Exist Record" }
+            "BE" { "Being Record" }
+            "IS" { "Is Record" }
+            "AR" { "Are Record" }
+            "WA" { "Was Record" }
+            "WE" { "Were Record" }
+            "HA" { "Have Record" }
+            "HA" { "Has Record" }
+            "HA" { "Had Record" }
+            "WI" { "Will Record" }
+            "WO" { "Would Record" }
+            "SH" { "Should Record" }
+            "CO" { "Could Record" }
+            "MA" { "May Record" }
+            "MI" { "Might Record" }
+            "MU" { "Must Record" }
+            "CA" { "Can Record" }
+            "DO" { "Do Record" }
+            "DI" { "Did Record" }
+            "DO" { "Does Record" }
+            "DO" { "Done Record" }
+            "GO" { "Go Record" }
+            "WE" { "Went Record" }
+            "GO" { "Gone Record" }
+            "CO" { "Come Record" }
+            "CA" { "Came Record" }
+            "SE" { "See Record" }
+            "SA" { "Saw Record" }
+            "SE" { "Seen Record" }
+            "LO" { "Look Record" }
+            "KN" { "Know Record" }
+            "KN" { "Knew Record" }
+            "KN" { "Known Record" }
+            "TH" { "Think Record" }
+            "TH" { "Thought Record" }
+            "SA" { "Say Record" }
+            "SA" { "Said Record" }
+            "GE" { "Get Record" }
+            "GO" { "Got Record" }
+            "GO" { "Gotten Record" }
+            "MA" { "Make Record" }
+            "MA" { "Made Record" }
+            "TA" { "Take Record" }
+            "TO" { "Took Record" }
+            "TA" { "Taken Record" }
+            "GI" { "Give Record" }
+            "GA" { "Gave Record" }
+            "GI" { "Given Record" }
+            "FI" { "Find Record" }
+            "FO" { "Found Record" }
+            "US" { "Use Record" }
+            "US" { "Used Record" }
+            "WO" { "Work Record" }
+            "WO" { "Worked Record" }
+            "TR" { "Try Record" }
+            "TR" { "Tried Record" }
+            "AS" { "Ask Record" }
+            "AS" { "Asked Record" }
+            "NE" { "Need Record" }
+            "NE" { "Needed Record" }
+            "WA" { "Want Record" }
+            "WA" { "Wanted Record" }
+            "PU" { "Put Record" }
+            "SE" { "Set Record" }
+            "TO" { "Told Record" }
+            "LE" { "Left Record" }
+            "FE" { "Felt Record" }
+            "CA" { "Called Record" }
+            "AS" { "Asked Record" }
+            "TU" { "Turned Record" }
+            "MO" { "Moved Record" }
+            "PL" { "Played Record" }
+            "LI" { "Lived Record" }
+            "BE" { "Believed Record" }
+            "BR" { "Brought Record" }
+            "HA" { "Happened Record" }
+            "WR" { "Wrote Record" }
+            "SA" { "Sat Record" }
+            "ST" { "Stood Record" }
+            "LO" { "Lost Record" }
+            "PA" { "Paid Record" }
+            "ME" { "Met Record" }
+            "IN" { "Included Record" }
+            "CO" { "Continued Record" }
+            "SE" { "Set Record" }
+            "LE" { "Learned Record" }
+            "CH" { "Changed Record" }
+            "LE" { "Led Record" }
+            "UN" { "Understood Record" }
+            "WA" { "Watched Record" }
+            "FO" { "Followed Record" }
+            "ST" { "Stopped Record" }
+            "CR" { "Created Record" }
+            "SP" { "Spoke Record" }
+            "RE" { "Read Record" }
+            "AL" { "Allowed Record" }
+            "AD" { "Added Record" }
+            "SP" { "Spent Record" }
+            "GR" { "Grew Record" }
+            "OP" { "Opened Record" }
+            "WA" { "Walked Record" }
+            "WO" { "Won Record" }
+            "OF" { "Offered Record" }
+            "RE" { "Remembered Record" }
+            "LO" { "Loved Record" }
+            "CO" { "Considered Record" }
+            "AP" { "Appeared Record" }
+            "BO" { "Bought Record" }
+            "WA" { "Waited Record" }
+            "SE" { "Served Record" }
+            "DI" { "Died Record" }
+            "SE" { "Sent Record" }
+            "EX" { "Expected Record" }
+            "BU" { "Built Record" }
+            "ST" { "Stayed Record" }
+            "FA" { "Fell Record" }
+            "CU" { "Cut Record" }
+            "RE" { "Reached Record" }
+            "KI" { "Killed Record" }
+            "RE" { "Remained Record" }
+            "SU" { "Suggested Record" }
+            "RA" { "Raised Record" }
+            "PA" { "Passed Record" }
+            "SO" { "Sold Record" }
+            "RE" { "Required Record" }
+            "RE" { "Reported Record" }
+            "DE" { "Decided Record" }
+            "PU" { "Pulled Record" }
+            default { "Unknown TDDF Record Type: $recordType" }
+        }
+    }
     # Add more record types as needed (P1, P2, DR, CT, LG, FT, F2, CK, AD)
     
     return $record
