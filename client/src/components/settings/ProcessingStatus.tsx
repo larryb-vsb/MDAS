@@ -91,19 +91,16 @@ const formatQueueEstimate = (totalSeconds: number) => {
 // Enhanced multi-colored gauge for different record types
 const MultiColorGauge = ({ 
   currentSpeed, 
-  peakSpeed, 
   maxScale = 20, 
   recordTypes = { dt: 0, bh: 0, p1: 0, other: 0 },
   showRecordTypes = false 
 }: { 
   currentSpeed: number;
-  peakSpeed: number; 
   maxScale?: number;
   recordTypes?: { dt: number; bh: number; p1: number; other: number };
   showRecordTypes?: boolean;
 }) => {
   const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
-  const peakPercentage = Math.min((peakSpeed / maxScale) * 100, 100);
   
   // Calculate percentages for each record type when showing types
   const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
@@ -163,13 +160,7 @@ const MultiColorGauge = ({
           />
         )}
         
-        {/* Peak indicator */}
-        {peakPercentage > 0 && (
-          <div 
-            className="absolute top-0 w-0.5 h-full bg-red-600 shadow-sm z-10"
-            style={{ left: `${peakPercentage}%` }}
-          />
-        )}
+
       </div>
       
       {/* Scale labels */}
@@ -183,11 +174,10 @@ const MultiColorGauge = ({
 };
 
 // Keep original gauge for backward compatibility
-const TransactionSpeedGauge = ({ currentSpeed, peakSpeed, maxScale = 20 }: { currentSpeed: number, peakSpeed: number, maxScale?: number }) => {
+const TransactionSpeedGauge = ({ currentSpeed, maxScale = 20 }: { currentSpeed: number, maxScale?: number }) => {
   return (
     <MultiColorGauge 
       currentSpeed={currentSpeed}
-      peakSpeed={peakSpeed}
       maxScale={maxScale}
       showRecordTypes={false}
     />
@@ -521,8 +511,7 @@ export default function ProcessingStatus() {
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
                     currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
-                    peakSpeed={peakTxnSpeed * 60}
-                    maxScale={Math.max(peakTxnSpeed * 60 * 1.2, 600)}
+                    maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
@@ -536,8 +525,7 @@ export default function ProcessingStatus() {
                 <div className="mt-2 px-2">
                   <MultiColorGauge 
                     currentSpeed={(realTimeStats.tddfRecordsPerSecond || 0) * 60}
-                    peakSpeed={peakTddfSpeed * 60}
-                    maxScale={Math.max(peakTddfSpeed * 60 * 1.2, 200)}
+                    maxScale={Math.max((realTimeStats.tddfRecordsPerSecond || 0) * 60 * 1.2, 200)}
                     recordTypes={{
                       dt: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.7), // Assume 70% DT records
                       bh: Math.round(((realTimeStats.tddfRecordsPerSecond || 0) * 60) * 0.15), // Assume 15% BH records
@@ -577,8 +565,7 @@ export default function ProcessingStatus() {
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
                     currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
-                    peakSpeed={peakTxnSpeed * 60}
-                    maxScale={Math.max(peakTxnSpeed * 60 * 1.2, 600)}
+                    maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
