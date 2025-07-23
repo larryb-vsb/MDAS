@@ -208,6 +208,44 @@ function ConvertTo-TddfJson {
         # Set merchant name from account number for consistency
         $record.merchantName = $record.merchantAccountNumber
     }
+    elseif ($recordType -eq "P1") {
+        # Purchasing Card 1 Extension Record - Parse according to P1 specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.vatTaxAmountFreight = Parse-TddfAmount (Get-Field $line 56 12)
+        $record.vatTaxRateFreight = Get-Field $line 68 4
+        $record.productIdentifier = Get-Field $line 76 25
+        $record.localTax = Get-Field $line 101 1
+        $record.localTaxAmount = Parse-TddfAmount (Get-Field $line 102 12)
+        $record.freightAmount = Parse-TddfAmount (Get-Field $line 114 12)
+        $record.destinationZip = Get-Field $line 126 10
+        $record.merchantType = Get-Field $line 136 4
+        $record.dutyAmount = Parse-TddfAmount (Get-Field $line 140 12)
+        $record.merchantTaxId = Get-Field $line 152 10
+        $record.shipFromZipCode = Get-Field $line 162 10
+        $record.nationalTaxIncluded = Get-Field $line 172 1
+        $record.nationalAltTaxAmount = Parse-TddfAmount (Get-Field $line 173 12)
+        $record.otherTax = Parse-TddfAmount (Get-Field $line 185 12)
+        $record.destinationCountryCode = Get-Field $line 197 3
+        $record.merchantReferenceNumber = Get-Field $line 200 17
+        $record.discountAmount = Parse-TddfAmount (Get-Field $line 217 12)
+        $record.merchantVatRegistration = Get-Field $line 229 20
+        $record.customerVatRegistration = Get-Field $line 249 13
+        $record.summaryCommodityCode = Get-Field $line 262 4
+        $record.vatInvoiceReferenceNumber = Get-Field $line 266 15
+        $record.orderDate = Get-Field $line 281 6
+        $record.detailRecordToFollow = Get-Field $line 287 1
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.referenceNumber = $record.merchantReferenceNumber
+    }
     elseif ($recordType -eq "A1" -or $recordType -eq "A2") {
         # Addendum Records
         $record.merchantName = Get-Field $line 40 25
