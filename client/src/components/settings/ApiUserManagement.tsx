@@ -15,21 +15,23 @@ import { formatTableDate } from "@/lib/date-utils";
 
 interface ApiUser {
   id: number;
-  name: string;
+  clientName: string;
   description: string | null;
-  endpointUrl: string;
   apiKey: string;
+  permissions: string[];
   isActive: boolean;
   requestCount: number;
   lastUsed: string | null;
   createdBy: string;
   createdAt: string;
+  expiresAt: string | null;
+  ipWhitelist: string[] | null;
 }
 
 interface CreateApiUserData {
-  name: string;
+  clientName: string;
   description?: string;
-  endpointUrl?: string;
+  permissions?: string[];
 }
 
 export function ApiUserManagement() {
@@ -176,18 +178,18 @@ export function ApiUserManagement() {
                   e.preventDefault();
                   const formData = new FormData(e.currentTarget);
                   createApiUserMutation.mutate({
-                    name: formData.get("name") as string,
+                    clientName: formData.get("clientName") as string,
                     description: formData.get("description") as string || undefined,
-                    endpointUrl: formData.get("endpointUrl") as string || undefined,
+                    permissions: ["tddf:upload"],
                   });
                 }}
               >
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Name *</Label>
+                    <Label htmlFor="clientName">Client Name *</Label>
                     <Input
-                      id="name"
-                      name="name"
+                      id="clientName"
+                      name="clientName"
                       placeholder="Local TDDF Agent"
                       required
                     />
@@ -202,13 +204,17 @@ export function ApiUserManagement() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="endpointUrl">Endpoint URL</Label>
+                    <Label htmlFor="permissions">Permissions</Label>
                     <Input
-                      id="endpointUrl"
-                      name="endpointUrl"
-                      placeholder="https://your-app.replit.app/api/tddf/upload"
-                      defaultValue="https://your-app.replit.app/api/tddf/upload"
+                      id="permissions"
+                      name="permissions"
+                      placeholder="tddf:upload"
+                      defaultValue="tddf:upload"
+                      readOnly
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Default permissions for TDDF file upload integration
+                    </p>
                   </div>
                 </div>
                 <DialogFooter className="mt-6">
@@ -239,7 +245,7 @@ export function ApiUserManagement() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">{apiUser.name}</h3>
+                        <h3 className="font-semibold">{apiUser.clientName}</h3>
                         <Badge variant={apiUser.isActive ? "default" : "secondary"}>
                           {apiUser.isActive ? "Active" : "Inactive"}
                         </Badge>
@@ -253,12 +259,12 @@ export function ApiUserManagement() {
                           <Label className="text-xs font-medium text-muted-foreground">ENDPOINT URL</Label>
                           <div className="flex items-center gap-2">
                             <code className="bg-muted px-2 py-1 rounded text-xs flex-1">
-                              {apiUser.endpointUrl}
+                              https://your-app.replit.app/api/tddf/upload
                             </code>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => copyToClipboard(apiUser.endpointUrl)}
+                              onClick={() => copyToClipboard("https://your-app.replit.app/api/tddf/upload")}
                             >
                               Copy
                             </Button>
