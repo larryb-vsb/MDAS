@@ -3839,26 +3839,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endTime = timeOffset > 0 ? `NOW() - INTERVAL '${timeOffset} hours'` : 'NOW()';
       const startTime = `${endTime} - INTERVAL '${hours} hours'`;
       
-      // Get historical records per minute data with breakdown by record type
+      // Generate complete time series with zero values for missing time slots
       const result = await pool.query(`
+        WITH RECURSIVE time_series AS (
+          SELECT ${startTime} as time_slot
+          UNION ALL
+          SELECT time_slot + INTERVAL '5 minutes'
+          FROM time_series
+          WHERE time_slot < ${endTime}
+        )
         SELECT 
-          records_per_minute,
-          timestamp,
-          system_status,
-          transactions_per_second,
+          ts.time_slot as timestamp,
+          COALESCE(pm.records_per_minute, 0) as records_per_minute,
+          COALESCE(pm.system_status, 'idle') as system_status,
+          COALESCE(pm.transactions_per_second, 0) as transactions_per_second,
           COALESCE(
             CASE 
-              WHEN metric_type = 'combined' THEN 
-                records_per_minute - (transactions_per_second * 60)
+              WHEN pm.metric_type = 'combined' THEN 
+                pm.records_per_minute - (pm.transactions_per_second * 60)
               ELSE 0 
             END, 0
           ) as tddf_records_per_minute,
-          COALESCE(transactions_per_second * 60, 0) as transaction_records_per_minute
-        FROM ${metricsTableName} 
-        WHERE timestamp >= ${startTime}
-          AND timestamp <= ${endTime}
-          AND records_per_minute > 0
-        ORDER BY timestamp ASC
+          COALESCE(pm.transactions_per_second * 60, 0) as transaction_records_per_minute
+        FROM time_series ts
+        LEFT JOIN ${metricsTableName} pm ON DATE_TRUNC('minute', pm.timestamp) = DATE_TRUNC('minute', ts.time_slot)
+          AND pm.timestamp >= ${startTime}
+          AND pm.timestamp <= ${endTime}
+        ORDER BY ts.time_slot ASC
       `);
       
       // Format data for chart with enhanced time formatting and record type breakdown
