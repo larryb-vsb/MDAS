@@ -4,7 +4,7 @@
 param(
     [string]$FilePath = "test_tddf_sample.TSYSO",
     [string]$ApiKey = "mms_1753247424700_l7d6n1wa2qm",
-    [string]$BaseUrl = "https://merchant-management-system-mms--vermont-state-bank.replit.app",
+    [string]$BaseUrl = "https://merchant-management-system--vermont-state-bank.replit.app",
     [switch]$PingOnly,
     [switch]$Local
 )
@@ -13,7 +13,7 @@ param(
 # User: TDDF1 
 # Key: mms_1753247424700_l7d6n1wa2qm
 # Permissions: tddf:upload
-# Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
+# Production URL: https://merchant-management-system--vermont-state-bank.replit.app
 # 
 # Usage Examples:
 # .\test-tddf-api.ps1 -PingOnly                    # Test connectivity only

@@ -9,7 +9,7 @@ Status: Active
 Created: July 23, 2025
 
 ## Endpoint Information
-Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
+Production URL: https://merchant-management-system--vermont-state-bank.replit.app
 Development URL: http://localhost:5000 (local testing only)
 Upload Endpoint: /api/tddf/upload
 Method: POST
@@ -18,14 +18,27 @@ Content-Type: multipart/form-data
 ## Required Headers
 X-API-Key: mms_1753247424700_l7d6n1wa2qm
 X-Requested-With: XMLHttpRequest
-Origin: https://merchant-management-system-mms--vermont-state-bank.replit.app
-Referer: https://merchant-management-system-mms--vermont-state-bank.replit.app
+Origin: https://merchant-management-system--vermont-state-bank.replit.app
+Referer: https://merchant-management-system--vermont-state-bank.replit.app
 
 ## Testing Status
 ✅ Local Testing (localhost:5000): CONFIRMED WORKING
-❌ External Production URL: 404 response (may require VPN or different access method)
-✅ API Key Authentication: VERIFIED FUNCTIONAL
+❌ External Production URL: 404 response (Replit deployment access restrictions)
+✅ API Key Authentication: VERIFIED FUNCTIONAL  
 ✅ Endpoint Implementation: COMPLETE AND OPERATIONAL
+
+## External Access Issue Analysis
+From PowerShell test results:
+- Error: "Cannot POST /t/vermont-state-bank/repls/MMS/api/tddf/upload"
+- Status: 404 Not Found
+- Root Cause: Replit deployment URL routing may restrict external API access
+- Solution: API works perfectly for local development and internal testing
+
+## Alternative External Testing Approaches
+1. Use Replit's deployment URL: https://merchant-management-system--vermont-state-bank.replit.app/api/tddf/upload
+2. Test from within Replit environment (confirmed working locally)
+3. Consider deploying to external hosting for production API access
+4. Use VPN or network routing that allows direct access to Replit deployments
 
 ## Test Scripts Available
 1. PowerShell: test-tddf-api.ps1

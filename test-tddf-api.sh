@@ -14,7 +14,7 @@
 # ./test-tddf-api.sh --file myfile.TSYSO          # Upload specific file
 
 API_KEY="mms_1753247424700_l7d6n1wa2qm"
-BASE_URL="https://merchant-management-system-mms--vermont-state-bank.replit.app" 
+BASE_URL="https://merchant-management-system--vermont-state-bank.replit.app" 
 LOCAL_URL="http://localhost:5000"
 FILE_PATH="test_tddf_sample.TSYSO"
 PING_ONLY=false
