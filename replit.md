@@ -40,6 +40,7 @@ Approach: Maintains continuity across sessions through documented insights and r
   - TypeScript Errors Resolved: Fixed .map function errors and parameter type mismatches
   - Settings Screen Operational: Development settings page now loading without crashes
   - Environment Isolation Maintained: Development uses dev_ tables, production uses main tables
+- **✅ PRODUCTION POWERSHELL SCRIPT CONSOLIDATED**: Created unified test-production-tddf.ps1 script combining connectivity, authentication, and upload testing with proper X-API-Key headers
 - **✅ SCANLY-WATCHER SERVICE DEPLOYMENT COMPLETED**: Successfully renamed and deployed processing watcher service to "Scanly-Watcher" with comprehensive monitoring capabilities
   - Service Class Rename: ProcessingWatcher → ScanlyWatcher with complete branding update throughout system
   - API Endpoints Updated: /api/processing-watcher/* → /api/scanly-watcher/* for status, alerts, and health checks
