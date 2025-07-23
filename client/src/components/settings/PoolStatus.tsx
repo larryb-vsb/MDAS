@@ -15,11 +15,7 @@ interface PoolInfo {
 }
 
 interface PoolStats {
-  pools: {
-    application: PoolInfo;
-    batch: PoolInfo;
-    session: PoolInfo;
-  };
+  pools: PoolInfo[];
 }
 
 interface PoolHealth {
@@ -84,6 +80,7 @@ export function PoolStatus() {
   };
 
   const getUtilizationColor = (active: number, max: number) => {
+    if (!max || max === 0) return "text-gray-600";
     const percentage = (active / max) * 100;
     if (percentage >= 90) return "text-red-600";
     if (percentage >= 75) return "text-yellow-600";
@@ -189,21 +186,23 @@ export function PoolStatus() {
 
         {/* Pool Details */}
         <div className="grid gap-4">
-          {Object.entries(poolData.pools).map(([poolName, pool]) => {
-            const utilizationPercentage = Math.round((pool.activeConnections / pool.maxConnections) * 100);
+          {poolData.pools.map((pool, index) => {
+            const utilizationPercentage = pool.maxConnections > 0 
+              ? Math.round((pool.activeConnections / pool.maxConnections) * 100)
+              : 0;
             const utilizationColor = getUtilizationColor(pool.activeConnections, pool.maxConnections);
             
             return (
-              <div key={poolName} className="border rounded-lg p-4">
+              <div key={pool.name || index} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium capitalize">
-                    {poolName} Pool
+                    {pool.name}
                     <Badge variant="outline" className="ml-2 text-xs">
-                      {pool.name}
+                      Pool
                     </Badge>
                   </h4>
                   <div className={cn("text-sm font-medium", utilizationColor)}>
-                    {utilizationPercentage}% utilized
+                    {isNaN(utilizationPercentage) ? "0" : utilizationPercentage}% utilized
                   </div>
                 </div>
                 
