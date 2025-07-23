@@ -246,6 +246,39 @@ function ConvertTo-TddfJson {
         $record.merchantName = $record.merchantAccountNumber
         $record.referenceNumber = $record.merchantReferenceNumber
     }
+    elseif ($recordType -eq "P2") {
+        # Purchasing Card 2 Extension Record - Parse according to P2 specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.discountAmountIndicator = Get-Field $line 75 1
+        $record.discountAmount = Parse-TddfAmount (Get-Field $line 76 9)
+        $record.alternateTaxIdentifier = Get-Field $line 85 15
+        $record.productCode = Get-Field $line 100 12
+        $record.itemDescription = Get-Field $line 115 35
+        $record.itemQuantity = Get-Field $line 150 12
+        $record.itemUnitOfMeasure = Get-Field $line 162 12
+        $record.unitCost = Parse-TddfAmount (Get-Field $line 174 12)
+        $record.netGrossIndicator = Get-Field $line 186 1
+        $record.vatRateApplied = Get-Field $line 187 5
+        $record.vatTypeApplied = Get-Field $line 192 4
+        $record.vatAmount = Parse-TddfAmount (Get-Field $line 196 12)
+        $record.debitCreditIndicator = Get-Field $line 208 1
+        $record.typeOfSupply = Get-Field $line 209 2
+        $record.extensionRecordIndicator = Get-Field $line 211 1
+        $record.itemCommodityCode = Get-Field $line 212 12
+        $record.lineItemTotal = Parse-TddfAmount (Get-Field $line 224 12)
+        $record.itemDescriptor = Get-Field $line 236 26
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
+        $record.referenceNumber = $record.itemDescription
+    }
     elseif ($recordType -eq "A1" -or $recordType -eq "A2") {
         # Addendum Records
         $record.merchantName = Get-Field $line 40 25
