@@ -31,7 +31,7 @@ interface RecordsPerMinuteChartProps {
 }
 
 export default function RecordsPerMinuteChart({ hours = 1, className = "" }: RecordsPerMinuteChartProps) {
-  const [timeRange, setTimeRange] = useState(1); // Default to 1 hour
+  const [timeRange, setTimeRange] = useState(0.167); // Default to 10 minutes (10/60 = 0.167 hours)
   const [zoomLevel, setZoomLevel] = useState(4); // Default to 4x zoom
   const [timeOffset, setTimeOffset] = useState(0); // Hours to offset from current time
   
@@ -48,6 +48,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
 
   // Time range options
   const timeRangeOptions = [
+    { value: 0.167, label: '10 Minutes', shortLabel: '10m' },
     { value: 1, label: '1 Hour', shortLabel: '1h' },
     { value: 3, label: '3 Hours', shortLabel: '3h' },
     { value: 6, label: '6 Hours', shortLabel: '6h' },
