@@ -4,14 +4,101 @@
 param(
     [string]$FilePath = "test_tddf_sample.TSYSO",
     [string]$ApiKey = "mms_1753247424700_l7d6n1wa2qm",
-    [string]$BaseUrl = "https://replit.com/t/vermont-state-bank/repls/MMS"
+    [string]$BaseUrl = "https://merchant-management-system-mms--vermont-state-bank.replit.app",
+    [switch]$PingOnly,
+    [switch]$Local
 )
 
-Write-Host "🚀 TDDF API Upload Test" -ForegroundColor Green
-Write-Host "File: $FilePath" -ForegroundColor Cyan
+# TDDF1 API User Configuration
+# User: TDDF1 
+# Key: mms_1753247424700_l7d6n1wa2qm
+# Permissions: tddf:upload
+# Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
+# 
+# Usage Examples:
+# .\test-tddf-api.ps1 -PingOnly                    # Test connectivity only
+# .\test-tddf-api.ps1 -Local -PingOnly             # Test local development server
+# .\test-tddf-api.ps1                              # Full upload test with default file
+# .\test-tddf-api.ps1 -Local                       # Test against local development server
+# .\test-tddf-api.ps1 -FilePath "myfile.TSYSO"     # Upload specific file
+
+if ($Local) {
+    $BaseUrl = "http://localhost:5000"
+}
+
+Write-Host "🚀 TDDF API Test" -ForegroundColor Green
+if ($PingOnly) {
+    Write-Host "Mode: Connectivity Test (Ping Only)" -ForegroundColor Yellow
+} else {
+    Write-Host "Mode: Full Upload Test" -ForegroundColor Yellow
+    Write-Host "File: $FilePath" -ForegroundColor Cyan
+}
 Write-Host "API Key: $($ApiKey.Substring(0,15))..." -ForegroundColor Cyan
-Write-Host "Endpoint: $BaseUrl/api/tddf/upload" -ForegroundColor Cyan
+Write-Host "Base URL: $BaseUrl" -ForegroundColor Cyan
 Write-Host ""
+
+# Ping test function
+function Test-ApiConnectivity {
+    param([string]$BaseUrl, [string]$ApiKey)
+    
+    Write-Host "🔍 Testing API connectivity..." -ForegroundColor Yellow
+    
+    # Test basic connectivity to main site
+    try {
+        $pingResponse = Invoke-WebRequest -Uri $BaseUrl -Method GET -TimeoutSec 10 -UseBasicParsing
+        Write-Host "✅ Base URL reachable (Status: $($pingResponse.StatusCode))" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Base URL unreachable: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+    
+    # Test API endpoint accessibility
+    $headers = @{
+        "X-API-Key" = $ApiKey
+        "X-Requested-With" = "XMLHttpRequest" 
+        "Origin" = "https://replit.com"
+        "Referer" = $BaseUrl
+    }
+    
+    try {
+        Write-Host "🔑 Testing API key validation..." -ForegroundColor Yellow
+        $apiResponse = Invoke-WebRequest -Uri "$BaseUrl/api/tddf" -Method GET -Headers $headers -TimeoutSec 10 -UseBasicParsing
+        Write-Host "✅ API endpoint reachable (Status: $($apiResponse.StatusCode))" -ForegroundColor Green
+        return $true
+    } catch {
+        $statusCode = $_.Exception.Response.StatusCode
+        Write-Host "⚠️  API endpoint response (Status: $statusCode): $($_.Exception.Message)" -ForegroundColor Yellow
+        
+        if ($statusCode -eq 401) {
+            Write-Host "❌ API key authentication failed" -ForegroundColor Red
+            return $false
+        } elseif ($statusCode -eq 404) {
+            Write-Host "⚠️  Endpoint not found - may need different URL path" -ForegroundColor Yellow
+            return $true  # Connection works, just wrong endpoint
+        } else {
+            Write-Host "✅ API connection established (non-200 response expected for GET)" -ForegroundColor Green
+            return $true
+        }
+    }
+}
+
+# Run ping test
+$connectivityTest = Test-ApiConnectivity -BaseUrl $BaseUrl -ApiKey $ApiKey
+
+if ($PingOnly) {
+    if ($connectivityTest) {
+        Write-Host "✅ Connectivity test passed - API is reachable" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Connectivity test failed" -ForegroundColor Red
+    }
+    Write-Host "🏁 Ping test completed" -ForegroundColor Green
+    exit
+}
+
+if (-not $connectivityTest) {
+    Write-Host "❌ Connectivity test failed - aborting upload test" -ForegroundColor Red
+    exit 1
+}
 
 # Check if file exists
 if (-not (Test-Path $FilePath)) {

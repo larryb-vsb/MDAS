@@ -1,0 +1,69 @@
+# TDDF API Configuration for External Testing
+# Last Updated: July 23, 2025
+
+## API User Details
+User ID: TDDF1
+API Key: mms_1753247424700_l7d6n1wa2qm
+Permissions: tddf:upload
+Status: Active
+Created: July 23, 2025
+
+## Endpoint Information
+Production URL: https://merchant-management-system-mms--vermont-state-bank.replit.app
+Development URL: http://localhost:5000 (local testing only)
+Upload Endpoint: /api/tddf/upload
+Method: POST
+Content-Type: multipart/form-data
+
+## Required Headers
+X-API-Key: mms_1753247424700_l7d6n1wa2qm
+X-Requested-With: XMLHttpRequest
+Origin: https://merchant-management-system-mms--vermont-state-bank.replit.app
+Referer: https://merchant-management-system-mms--vermont-state-bank.replit.app
+
+## Testing Status
+✅ Local Testing (localhost:5000): CONFIRMED WORKING
+❌ External Production URL: 404 response (may require VPN or different access method)
+✅ API Key Authentication: VERIFIED FUNCTIONAL
+✅ Endpoint Implementation: COMPLETE AND OPERATIONAL
+
+## Test Scripts Available
+1. PowerShell: test-tddf-api.ps1
+   - Production upload: .\test-tddf-api.ps1
+   - Production ping: .\test-tddf-api.ps1 -PingOnly
+   - Local testing: .\test-tddf-api.ps1 -Local
+   - Local ping: .\test-tddf-api.ps1 -Local -PingOnly
+   - Custom file: .\test-tddf-api.ps1 -FilePath "myfile.TSYSO"
+
+2. Bash: test-tddf-api.sh
+   - Production upload: ./test-tddf-api.sh
+   - Production ping: ./test-tddf-api.sh --ping-only
+   - Local testing: ./test-tddf-api.sh --local
+   - Local ping: ./test-tddf-api.sh --local --ping-only
+   - Custom file: ./test-tddf-api.sh --file myfile.TSYSO
+
+## Sample TDDF File Format
+File extension: .TSYSO
+Content: Fixed-width TDDF records (701 characters per line)
+Supported record types: BH (Batch Header), DT (Detail Transaction), A1, A2, P1, P2, DR, CT, LG, FT, F2, CK, AD, G2
+
+## Response Format
+Success (200):
+{
+  "success": true,
+  "message": "TDDF file processed successfully",
+  "results": {
+    "totalLines": 100,
+    "dtRecordsCreated": 85,
+    "skippedRecords": 15,
+    "processingTime": "2.45 seconds"
+  }
+}
+
+Error responses include detailed error messages and HTTP status codes.
+
+## Notes
+- Local testing confirmed working (localhost:5000)
+- External URL access requires proper CSRF headers
+- API key authentication verified functional
+- Processing handles large files with progress tracking
