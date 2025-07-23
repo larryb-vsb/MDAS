@@ -86,11 +86,6 @@ const navItems = [
     href: "/exports"
   },
   {
-    icon: <Settings className="h-5 w-5 text-gray-300" />,
-    label: "Settings",
-    href: "/settings"
-  },
-  {
     icon: <ScrollText className="h-5 w-5 text-gray-300" />,
     label: "Logs",
     href: "/logs",
@@ -101,6 +96,11 @@ const navItems = [
     label: "Backups", 
     href: "/backups",
     adminOnly: true
+  },
+  {
+    icon: <Settings className="h-5 w-5 text-gray-300" />,
+    label: "Settings",
+    href: "/settings"
   }
 ];
 

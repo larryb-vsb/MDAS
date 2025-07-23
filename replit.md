@@ -58,6 +58,7 @@ Approach: Maintains continuity across sessions through documented insights and r
   - Diagnostic Tools Created: Added `/api/tddf/analyze-stuck` and `/api/tddf/requeue-stuck` endpoints for backlog management
   - IStorage Interface Enhanced: Added diagnostic method signatures (analyzeStuckTddfLines, requeueStuckTddfLines, processNonDtPendingLines)
   - Service Operational: Scanly-Watcher successfully starting with health check monitoring and alert generation capabilities
+- **✅ SETTINGS NAVIGATION MOVED TO BOTTOM**: Relocated Settings menu item to bottom of sidebar navigation as requested (July 23, 2025)
 - **✅ ENHANCED SCANLY-WATCHER WITH TDDF BACKLOG MONITORING COMPLETED**: Implemented comprehensive 30-second interval monitoring system ensuring processing always moves toward zero
   - Backlog Flexibility: System allows backlog count to increase when new files are uploaded but ensures continuous downward progress
   - Smart Stall Detection: Alerts generated if backlog remains unchanged for 2+ minutes indicating processing issues
