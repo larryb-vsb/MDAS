@@ -459,12 +459,9 @@ export default function ProcessingStatus() {
               </div>
             </div>
             
-            {/* Records Per Minute Historical Charts */}
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <RecordsPerMinuteChart hours={1} className="w-full" />
-                <RecordsPerMinuteChart hours={6} className="w-full" />
-              </div>
+            {/* Records Per Minute Historical Chart */}
+            <div className="mt-6">
+              <RecordsPerMinuteChart className="w-full" />
             </div>
             
             {/* TDDF Operations Section */}
