@@ -11,45 +11,51 @@ param(
 # Production URL - update this after deployment
 $BaseUrl = "https://merchant-management-system--vermont-state-bank.replit.app"
 
-Write-Host "🚀 Production TDDF API Test" -ForegroundColor Green
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🚀 Production TDDF API Test - $timestamp" -ForegroundColor Green
 Write-Host "File: $FilePath"
 Write-Host "API Key: $($ApiKey.Substring(0,15))..."
 Write-Host "Production URL: $BaseUrl"
 Write-Host ""
 
 # Test connectivity
-Write-Host "🔍 Testing production API connectivity..." -ForegroundColor Yellow
+$connectTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🔍 [$connectTimestamp] Testing production API connectivity..." -ForegroundColor Yellow
 try {
     $response = Invoke-WebRequest -Uri "$BaseUrl/" -Method GET -UseBasicParsing -TimeoutSec 15
-    Write-Host "✅ Production server reachable (Status: $($response.StatusCode))" -ForegroundColor Green
+    $successTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "✅ [$successTimestamp] Production server reachable (Status: $($response.StatusCode))" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Production server unreachable" -ForegroundColor Red
+    $errorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "❌ [$errorTimestamp] Production server unreachable" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "💡 Verify the production URL is correct" -ForegroundColor Yellow
     exit 1
 }
 
-# Test API endpoint
-Write-Host "🔑 Testing API endpoint availability..." -ForegroundColor Yellow
+# Test API endpoint with proper Bearer authentication
+$apiTestTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🔑 [$apiTestTimestamp] Testing API endpoint availability..." -ForegroundColor Yellow
 try {
     $headers = @{
-        "X-API-Key" = $ApiKey
-        "X-Requested-With" = "XMLHttpRequest"
+        "Authorization" = "Bearer $ApiKey"
+        "Content-Type" = "application/json"
     }
     $endpoint = "$BaseUrl/api/tddf/upload"
-    $response = Invoke-WebRequest -Uri $endpoint -Method GET -Headers $headers -UseBasicParsing -TimeoutSec 15
-    Write-Host "✅ API endpoint accessible (Status: $($response.StatusCode))" -ForegroundColor Green
+    $response = Invoke-RestMethod -Uri $endpoint -Method POST -Headers $headers -Body '{}' -TimeoutSec 15
+    $apiSuccessTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "✅ [$apiSuccessTimestamp] API endpoint accessible and authenticated" -ForegroundColor Green
+    Write-Host "📋 Response: $response" -ForegroundColor Cyan
 } catch {
+    $apiErrorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $statusCode = $_.Exception.Response.StatusCode
-    if ($statusCode -eq "MethodNotAllowed") {
-        Write-Host "✅ API endpoint exists (Method not allowed for GET expected)" -ForegroundColor Green
-    } else {
-        Write-Host "⚠️  API endpoint response: $statusCode" -ForegroundColor Yellow
-    }
+    Write-Host "⚠️  [$apiErrorTimestamp] API endpoint response: $statusCode" -ForegroundColor Yellow
+    Write-Host "Error details: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 if ($PingOnly) {
-    Write-Host "🏁 Production ping test completed" -ForegroundColor Green
+    $completionTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "🏁 [$completionTimestamp] Production ping test completed" -ForegroundColor Green
     exit 0
 }
 
@@ -64,7 +70,8 @@ $fileInfo = Get-Item $FilePath
 Write-Host "📁 File size: $([math]::Round($fileInfo.Length / 1KB, 2)) KB" -ForegroundColor Cyan
 
 # Test file upload to production
-Write-Host "📤 Uploading TDDF file to production API..." -ForegroundColor Yellow
+$uploadStartTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "📤 [$uploadStartTimestamp] Uploading TDDF file to production API..." -ForegroundColor Yellow
 try {
     # Prepare the multipart form data
     $boundary = [System.Guid]::NewGuid().ToString()
@@ -83,14 +90,14 @@ try {
     $body = $bodyLines -join "`r`n"
     
     $headers = @{
-        "X-API-Key" = $ApiKey
-        "X-Requested-With" = "XMLHttpRequest"
+        "Authorization" = "Bearer $ApiKey"
         "Content-Type" = "multipart/form-data; boundary=$boundary"
     }
     
     $response = Invoke-WebRequest -Uri "$BaseUrl/api/tddf/upload" -Method POST -Headers $headers -Body $body -UseBasicParsing -TimeoutSec 180
     
-    Write-Host "✅ Production upload successful!" -ForegroundColor Green
+    $uploadSuccessTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "✅ [$uploadSuccessTimestamp] Production upload successful!" -ForegroundColor Green
     Write-Host "Status: $($response.StatusCode)" -ForegroundColor Green
     Write-Host ""
     
@@ -127,7 +134,8 @@ try {
         } catch {}
     }
     
-    Write-Host "❌ Production upload failed!" -ForegroundColor Red
+    $uploadErrorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "❌ [$uploadErrorTimestamp] Production upload failed!" -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "Status Code: $statusCode" -ForegroundColor Red
     if ($responseBody) {
@@ -136,4 +144,5 @@ try {
 }
 
 Write-Host ""
-Write-Host "🏁 Production TDDF API test completed" -ForegroundColor Green
+$finalTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🏁 [$finalTimestamp] Production TDDF API test completed" -ForegroundColor Green
