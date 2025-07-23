@@ -922,7 +922,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentTxnPeak = latestPeakResult.rows[0]?.peak_transactions_per_second || 0;
       const currentRecordsPeak = latestPeakResult.rows[0]?.peak_records_per_minute || 0;
       const newTxnPeak = Math.max(parseFloat(currentTxnPeak), currentStats.transactionsPerSecond);
-      const recordsPerMinute = currentStats.transactionsPerSecond * 60;
+      // Calculate records per minute using both transaction and TDDF records
+      const totalRecordsPerSecond = currentStats.transactionsPerSecond + currentStats.tddfRecordsPerSecond;
+      const recordsPerMinute = totalRecordsPerSecond * 60;
       const newRecordsPeak = Math.max(parseFloat(currentRecordsPeak), recordsPerMinute);
       
       // Save metrics snapshot to database
