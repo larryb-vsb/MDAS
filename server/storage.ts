@@ -6186,6 +6186,53 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Helper method to record TDDF processing metrics for live chart updates
+  async recordTddfProcessingMetrics(recordsProcessed: number, totalRecords: number): Promise<void> {
+    try {
+      const metricsTableName = getTableName('processing_metrics');
+      
+      // Calculate records per minute based on current processing rate
+      const recordsPerMinute = Math.max(recordsProcessed, 0); // Ensure non-negative
+      
+      // Insert metrics record for chart data
+      await pool.query(`
+        INSERT INTO ${metricsTableName} (
+          timestamp,
+          transactions_per_second,
+          peak_transactions_per_second,
+          records_per_minute,
+          peak_records_per_minute,
+          total_files,
+          queued_files,
+          processed_files,
+          files_with_errors,
+          currently_processing,
+          system_status,
+          metric_type,
+          notes
+        ) VALUES (
+          NOW(),
+          0,
+          0,
+          $1,
+          $1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          'processing',
+          'tddf_raw_import',
+          'TDDF raw import processing: ' || $2 || '/' || $3 || ' records'
+        )
+      `, [recordsPerMinute, recordsProcessed, totalRecords]);
+      
+    } catch (error) {
+      console.error('Error recording TDDF processing metrics:', error);
+      // Don't throw - metrics recording failure shouldn't break main processing
+    }
+  }
+
   async deleteTddfRecords(recordIds: number[]): Promise<void> {
     try {
       await db
@@ -6589,6 +6636,9 @@ export class DatabaseStorage implements IStorage {
         if (batchNum % 10 === 0 || batchNum === totalBatches) {
           const progress = ((i + batch.length) / rawImportRecords.length * 100).toFixed(1);
           console.log(`Progress: ${progress}% (${successfulInserts}/${rawImportRecords.length} inserted, ${errorCount} errors)`);
+          
+          // Record processing metrics for live chart updates
+          await this.recordTddfProcessingMetrics(successfulInserts, totalBatches);
         }
       }
       
