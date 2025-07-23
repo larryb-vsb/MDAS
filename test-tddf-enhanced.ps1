@@ -19,17 +19,20 @@ if ($Local) {
 }
 
 Write-Host ""
-Write-Host "🚀 Enhanced TDDF API Test" -ForegroundColor Green
+$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🚀 Enhanced TDDF API Test - $timestamp" -ForegroundColor Green
 Write-Host "File: $FilePath"
 Write-Host "API Key: $($ApiKey.Substring(0,15))..."
 Write-Host "Base URL: $BaseUrl"
 Write-Host ""
 
 # Test connectivity
-Write-Host "🔍 Testing API connectivity..." -ForegroundColor Yellow
+$connectTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🔍 [$connectTimestamp] Testing API connectivity..." -ForegroundColor Yellow
 try {
     $response = Invoke-WebRequest -Uri "$BaseUrl/" -Method GET -UseBasicParsing -TimeoutSec 10
-    Write-Host "✅ Server reachable (Status: $($response.StatusCode))" -ForegroundColor Green
+    $successTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "✅ [$successTimestamp] Base URL reachable (Status: $($response.StatusCode))" -ForegroundColor Green
 } catch {
     if ($Local) {
         Write-Host "❌ Local development server unreachable" -ForegroundColor Red
@@ -44,21 +47,34 @@ try {
     exit 1
 }
 
-# Test API key validation
-Write-Host "🔑 Testing API key validation..." -ForegroundColor Yellow
+# Test API key validation with Bearer authentication
+$apiTestTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Write-Host "🔑 [$apiTestTimestamp] Testing API key validation..." -ForegroundColor Yellow
 try {
     $headers = @{
-        "X-API-Key" = $ApiKey
-        "X-Requested-With" = "XMLHttpRequest"
+        "Authorization" = "Bearer $ApiKey"
+        "Content-Type" = "application/json"
     }
-    $response = Invoke-WebRequest -Uri "$BaseUrl/api/tddf/upload" -Method GET -Headers $headers -UseBasicParsing -TimeoutSec 10
-    Write-Host "⚠️  API endpoint response (Status: $($response.StatusCode)): $($response.Content.Substring(0, [Math]::Min(50, $response.Content.Length)))..." -ForegroundColor Yellow
+    $response = Invoke-RestMethod -Uri "$BaseUrl/api/tddf/upload" -Method POST -Headers $headers -Body '{}' -TimeoutSec 10
+    $apiSuccessTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "✅ [$apiSuccessTimestamp] API key authentication successful" -ForegroundColor Green
+    Write-Host "📋 Response: $response" -ForegroundColor Cyan
 } catch {
-    Write-Host "✅ API connection established (non-200 response expected for GET)" -ForegroundColor Green
+    $apiErrorTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $statusCode = $_.Exception.Response.StatusCode
+    if ($statusCode -eq "Unauthorized") {
+        Write-Host "⚠️  [$apiErrorTimestamp] API endpoint response (Status: $statusCode): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "❌ API key authentication failed" -ForegroundColor Red
+        Write-Host "❌ Connectivity test failed" -ForegroundColor Red
+    } else {
+        Write-Host "⚠️  [$apiErrorTimestamp] API endpoint response: $statusCode" -ForegroundColor Yellow
+        Write-Host "Error details: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
 if ($PingOnly) {
-    Write-Host "🏁 Ping test completed - server is operational" -ForegroundColor Green
+    $completionTimestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Write-Host "🏁 [$completionTimestamp] Ping test completed" -ForegroundColor Green
     exit 0
 }
 
@@ -92,8 +108,7 @@ try {
     $body = $bodyLines -join "`r`n"
     
     $headers = @{
-        "X-API-Key" = $ApiKey
-        "X-Requested-With" = "XMLHttpRequest"
+        "Authorization" = "Bearer $ApiKey"
         "Content-Type" = "multipart/form-data; boundary=$boundary"
     }
     
