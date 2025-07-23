@@ -3890,13 +3890,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactionRecords = parseFloat(row.transaction_records_per_minute) || 0;
         const tddfRecords = parseFloat(row.tddf_records_per_minute) || 0;
         
-        // Use only actual transaction records from processing metrics
-        // Since we don't have hierarchical TDDF record type breakdowns in processing_metrics yet,
-        // we'll show only DT records (which are the actual transaction records being processed)
-        const dtRecords = transactionRecords;
-        const bhRecords = 0; // No BH records are being processed per minute currently
-        const p1Records = 0; // No P1 records are being processed per minute currently  
-        const otherRecords = 0; // No other records are being processed per minute currently
+        // Enhanced hierarchical migration record tracking
+        // Check for hierarchical migration activity in the processing metrics
+        const hierarchicalDtRecords = parseFloat(row.records_per_minute) || 0;
+        
+        // Distinguish between standard transaction processing and hierarchical migration
+        const isHierarchicalMigration = row.metric_type === 'hierarchical_dt_migration';
+        
+        const dtRecords = isHierarchicalMigration ? hierarchicalDtRecords : transactionRecords;
+        const bhRecords = 0; // BH records processed separately in hierarchical structure
+        const p1Records = 0; // P1 records processed after DT migration  
+        const otherRecords = isHierarchicalMigration ? 0 : tddfRecords; // Other TDDF types
         
         return {
           timestamp: row.timestamp,

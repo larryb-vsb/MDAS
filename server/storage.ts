@@ -7413,6 +7413,11 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`✅ [HIERARCHICAL] Migrated DT record ${rawLine.line_number}: Amount $${transactionRecord.transaction_amount}, Merchant: ${transactionRecord.merchant_name}`);
           
+          // Record processing metrics for hierarchical migration every 10 records
+          if (processed % 10 === 0) {
+            await this.recordProcessingMetrics(10, 'hierarchical_dt_migration', 'processing');
+          }
+          
         } catch (lineError: any) {
           errors++;
           console.error(`❌ [HIERARCHICAL ERROR] Line ${rawLine.line_number}:`, lineError);
