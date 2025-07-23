@@ -30,7 +30,7 @@ interface RecordsPerMinuteChartProps {
   className?: string;
 }
 
-export default function RecordsPerMinuteChart({ hours = 6, className = "" }: RecordsPerMinuteChartProps) {
+export default function RecordsPerMinuteChart({ hours = 1, className = "" }: RecordsPerMinuteChartProps) {
   const [timeRange, setTimeRange] = useState(hours);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [timeOffset, setTimeOffset] = useState(0); // Hours to offset from current time
