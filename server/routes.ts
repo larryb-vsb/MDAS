@@ -3854,15 +3854,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ts.time_slot as timestamp,
           COALESCE(pm.records_per_minute, 0) as records_per_minute,
           COALESCE(pm.system_status, 'idle') as system_status,
-          COALESCE(pm.transactions_per_second, 0) as transactions_per_second,
+          COALESCE(pm.transactions_per_second, 0.0) as transactions_per_second,
           COALESCE(
             CASE 
-              WHEN pm.metric_type = 'combined' THEN 
+              WHEN pm.metric_type = 'combined' AND pm.records_per_minute IS NOT NULL THEN 
                 pm.records_per_minute - (pm.transactions_per_second * 60)
-              ELSE 0 
-            END, 0
+              ELSE 0.0 
+            END, 0.0
           ) as tddf_records_per_minute,
-          COALESCE(pm.transactions_per_second * 60, 0) as transaction_records_per_minute
+          COALESCE(pm.transactions_per_second * 60, 0.0) as transaction_records_per_minute
         FROM time_series ts
         LEFT JOIN (
           SELECT 
@@ -3901,7 +3901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bhRecords: bhRecords,
           p1Records: p1Records,
           otherRecords: otherRecords,
-          status: row.system_status,
+          status: row.system_status || 'idle', // Default to 'idle' when no processing activity
           formattedTime: timestamp.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
