@@ -109,8 +109,9 @@ if (NODE_ENV === 'production') {
   console.log('[EXPRESS] Trust proxy set to loopback for development');
 }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Increase body size limits to support large TDDF file uploads
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: false, limit: '100mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
