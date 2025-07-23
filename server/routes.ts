@@ -3866,7 +3866,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ELSE 0.0 
             END, 0.0
           ) as tddf_records_per_minute,
-          COALESCE(pm.transactions_per_second * 60, 0.0) as transaction_records_per_minute
+          COALESCE(pm.transactions_per_second * 60, 0.0) as transaction_records_per_minute,
+          COALESCE(pm.metric_type, 'idle') as metric_type
         FROM time_series ts
         LEFT JOIN (
           SELECT 
@@ -3874,10 +3875,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             AVG(records_per_minute) as records_per_minute,
             AVG(transactions_per_second) as transactions_per_second,
             MODE() WITHIN GROUP (ORDER BY system_status) as system_status,
-            MODE() WITHIN GROUP (ORDER BY metric_type) as metric_type
+            CASE 
+              WHEN COUNT(CASE WHEN metric_type = 'tddf_raw_import' THEN 1 END) > 0 THEN 'tddf_raw_import'
+              WHEN COUNT(CASE WHEN metric_type = 'hierarchical_dt_migration' THEN 1 END) > 0 THEN 'hierarchical_dt_migration'
+              ELSE MODE() WITHIN GROUP (ORDER BY metric_type)
+            END as metric_type
           FROM ${metricsTableName}
-          WHERE timestamp >= DATE_TRUNC('minute', ${startTime})
-            AND timestamp <= DATE_TRUNC('minute', ${endTime})
+          WHERE timestamp >= ${startTime}
+            AND timestamp <= ${endTime}
+            AND (metric_type IN ('combined', 'snapshot', 'tddf_raw_import', 'hierarchical_dt_migration'))
           GROUP BY DATE_TRUNC('minute', timestamp)
         ) pm ON pm.minute_slot = ts.time_slot
         ORDER BY ts.time_slot ASC
@@ -3896,6 +3902,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Distinguish between standard transaction processing and hierarchical migration
         const isHierarchicalMigration = row.metric_type === 'hierarchical_dt_migration' || row.metric_type === 'tddf_raw_import';
+        
+        // Debug logging for troubleshooting (remove after fix confirmed)
+        // if (hierarchicalDtRecords > 0) {
+        //   console.log(`[CHART DEBUG] metric_type='${row.metric_type}', records=${hierarchicalDtRecords}, isHierarchical=${isHierarchicalMigration}, dtRecords=${dtRecords}`);
+        // }
         
         const dtRecords = isHierarchicalMigration ? hierarchicalDtRecords : transactionRecords;
         const bhRecords = 0; // BH records processed separately in hierarchical structure
