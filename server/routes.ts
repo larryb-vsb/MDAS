@@ -3886,21 +3886,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const transactionRecords = parseFloat(row.transaction_records_per_minute) || 0;
         const tddfRecords = parseFloat(row.tddf_records_per_minute) || 0;
         
-        // Provide realistic TDDF record type breakdown for demonstration
-        let dtRecords, bhRecords, p1Records, otherRecords;
-        if (transactionRecords > 0 && tddfRecords > 0) {
-          // Use actual data if available
-          dtRecords = transactionRecords;
-          bhRecords = Math.round(tddfRecords * 0.1); // 10% batch headers
-          p1Records = Math.round(tddfRecords * 0.3); // 30% purchasing card
-          otherRecords = tddfRecords - bhRecords - p1Records; // remaining
-        } else {
-          // Create realistic breakdown: 60% DT, 15% BH, 15% P1, 10% Other
-          dtRecords = Math.round(totalRecords * 0.6);
-          bhRecords = Math.round(totalRecords * 0.15);
-          p1Records = Math.round(totalRecords * 0.15);
-          otherRecords = totalRecords - dtRecords - bhRecords - p1Records;
-        }
+        // Use only actual transaction records from processing metrics
+        // Since we don't have hierarchical TDDF record type breakdowns in processing_metrics yet,
+        // we'll show only DT records (which are the actual transaction records being processed)
+        const dtRecords = transactionRecords;
+        const bhRecords = 0; // No BH records are being processed per minute currently
+        const p1Records = 0; // No P1 records are being processed per minute currently  
+        const otherRecords = 0; // No other records are being processed per minute currently
         
         return {
           timestamp: row.timestamp,
