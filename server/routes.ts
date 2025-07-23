@@ -20,6 +20,7 @@ import { fileProcessorService } from "./services/file-processor";
 import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
 import poolRoutes from "./routes/pool_routes";
+import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { getTableName } from "./table-config";
 
 // Authentication middleware
@@ -137,6 +138,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register pool monitoring routes
   app.use("/api/pools", isAuthenticated, poolRoutes);
+  
+  // Hierarchical TDDF migration routes
+  app.use("/api/hierarchical-tddf", hierarchicalTddfMigrationRoutes);
   
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');

@@ -271,6 +271,12 @@ export interface IStorage {
   processPendingDTRecordsForFile(fileId: string): Promise<any>;
   skipNonDTRecordsForFile(fileId: string): Promise<any>;
   
+  // Hierarchical TDDF migration methods
+  getPendingDtCount(): Promise<number>;
+  getHierarchicalTddfCount(): Promise<number>;
+  getLegacyTddfCount(): Promise<number>;
+  processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }>;
+  
   // File operations
   getFileById(fileId: string): Promise<any>;
 }
@@ -7218,6 +7224,206 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error: any) {
       console.error(`Error processing pending DT records for file ${fileId}:`, error);
+      throw error;
+    }
+  }
+
+  // Hierarchical TDDF migration methods implementation
+  async getPendingDtCount(): Promise<number> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      const result = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM "${tableName}" 
+        WHERE processing_status = 'pending' AND record_type = 'DT'
+      `);
+      return parseInt(result.rows[0].count);
+    } catch (error: any) {
+      console.error('Error getting pending DT count:', error);
+      return 0;
+    }
+  }
+
+  async getHierarchicalTddfCount(): Promise<number> {
+    try {
+      const tableName = getTableName('tddf_transaction_records');
+      const result = await pool.query(`SELECT COUNT(*) as count FROM "${tableName}"`);
+      return parseInt(result.rows[0].count);
+    } catch (error: any) {
+      console.error('Error getting hierarchical TDDF count:', error);
+      return 0;
+    }
+  }
+
+  async getLegacyTddfCount(): Promise<number> {
+    try {
+      const tableName = getTableName('tddf_records');
+      const result = await pool.query(`SELECT COUNT(*) as count FROM "${tableName}"`);
+      return parseInt(result.rows[0].count);
+    } catch (error: any) {
+      console.error('Error getting legacy TDDF count:', error);
+      return 0;
+    }
+  }
+
+  async processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending DT records
+      const result = await pool.query(`
+        SELECT * FROM "${tableName}" 
+        WHERE processing_status = 'pending' AND record_type = 'DT'
+        ORDER BY line_number
+        LIMIT $1
+      `, [batchSize]);
+      
+      const pendingRecords = result.rows;
+      console.log(`[HIERARCHICAL MIGRATION] Processing ${pendingRecords.length} pending DT records`);
+      
+      let processed = 0;
+      let errors = 0;
+      let sampleRecord = null;
+      
+      const transactionTableName = getTableName('tddf_transaction_records');
+      
+      for (const rawLine of pendingRecords) {
+        try {
+          const line = rawLine.raw_line;
+          
+          // Parse DT record into hierarchical transaction record format
+          const transactionRecord = {
+            sequence_number: line.substring(0, 17).trim() || null,
+            entry_run_number: line.substring(2, 9).trim() || null,
+            sequence_within_run: line.substring(9, 17).trim() || null,
+            record_identifier: line.substring(17, 23).trim() || null,
+            bank_number: line.substring(23, 24).trim() || null,
+            merchant_account_number: line.substring(23, 39).trim() || null,
+            association_number_1: line.substring(39, 45).trim() || null,
+            group_number: line.substring(45, 50).trim() || null,
+            transaction_code: line.substring(50, 54).trim() || null,
+            association_number_2: line.substring(54, 61).trim() || null,
+            reference_number: line.substring(61, 84).trim() || null,
+            transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
+            transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
+            batch_julian_date: line.substring(103, 106).trim() || null,
+            net_deposit: this.parseAuthAmount(line.substring(106, 117).trim()) || null,
+            cardholder_account_number: line.substring(117, 135).trim() || null,
+            best_interchange_eligible: line.substring(135, 136).trim() || null,
+            transaction_data_condition_code: line.substring(136, 137).trim() || null,
+            downgrade_reason_1: line.substring(137, 139).trim() || null,
+            downgrade_reason_2: line.substring(139, 141).trim() || null,
+            downgrade_reason_3: line.substring(141, 143).trim() || null,
+            online_entry: line.substring(143, 144).trim() || null,
+            ach_flag: line.substring(144, 145).trim() || null,
+            auth_source: line.substring(145, 146).trim() || null,
+            cardholder_id_method: line.substring(146, 148).trim() || null,
+            cat_indicator: line.substring(148, 149).trim() || null,
+            reimbursement_attribute: line.substring(149, 150).trim() || null,
+            mail_order_telephone_indicator: line.substring(150, 151).trim() || null,
+            auth_char_ind: line.substring(151, 152).trim() || null,
+            banknet_reference_number: line.substring(152, 175).trim() || null,
+            draft_a_flag: line.substring(175, 176).trim() || null,
+            auth_currency_code: line.substring(176, 179).trim() || null,
+            auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || null,
+            validation_code: line.substring(203, 207).trim() || null,
+            auth_response_code: line.substring(207, 209).trim() || null,
+            network_identifier_debit: line.substring(209, 213).trim() || null,
+            switch_settled_indicator: line.substring(213, 214).trim() || null,
+            pos_entry_mode: line.substring(214, 217).trim() || null,
+            debit_credit_indicator: line.substring(217, 218).trim() || null,
+            reversal_flag: line.substring(218, 219).trim() || null,
+            merchant_name: line.length > 241 ? line.substring(219, 241).trim() || null : null,
+            source_file_id: rawLine.source_file_id,
+            source_row_number: rawLine.line_number,
+            recorded_at: new Date(),
+            raw_data: {
+              recordType: rawLine.record_type,
+              recordDescription: rawLine.record_description,
+              lineNumber: rawLine.line_number,
+              filename: rawLine.source_file_id,
+              lineLength: line.length,
+              processingTimestamp: new Date().toISOString()
+            },
+            mms_raw_line: line,
+            created_at: new Date(),
+            updated_at: new Date()
+          };
+          
+          // Insert into hierarchical transaction records table
+          const insertResult = await pool.query(`
+            INSERT INTO "${transactionTableName}" (
+              sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+              merchant_account_number, association_number_1, group_number, transaction_code, 
+              association_number_2, reference_number, transaction_date, transaction_amount,
+              batch_julian_date, net_deposit, cardholder_account_number, best_interchange_eligible,
+              transaction_data_condition_code, downgrade_reason_1, downgrade_reason_2, downgrade_reason_3,
+              online_entry, ach_flag, auth_source, cardholder_id_method, cat_indicator,
+              reimbursement_attribute, mail_order_telephone_indicator, auth_char_ind, banknet_reference_number,
+              draft_a_flag, auth_currency_code, auth_amount, validation_code, auth_response_code,
+              network_identifier_debit, switch_settled_indicator, pos_entry_mode, debit_credit_indicator,
+              reversal_flag, merchant_name, source_file_id, source_row_number, recorded_at, raw_data,
+              mms_raw_line, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+              $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38,
+              $39, $40, $41, $42, $43, $44, $45, $46, $47, $48
+            ) RETURNING id
+          `, [
+            transactionRecord.sequence_number, transactionRecord.entry_run_number, 
+            transactionRecord.sequence_within_run, transactionRecord.record_identifier,
+            transactionRecord.bank_number, transactionRecord.merchant_account_number,
+            transactionRecord.association_number_1, transactionRecord.group_number,
+            transactionRecord.transaction_code, transactionRecord.association_number_2,
+            transactionRecord.reference_number, transactionRecord.transaction_date,
+            transactionRecord.transaction_amount, transactionRecord.batch_julian_date,
+            transactionRecord.net_deposit, transactionRecord.cardholder_account_number,
+            transactionRecord.best_interchange_eligible, transactionRecord.transaction_data_condition_code,
+            transactionRecord.downgrade_reason_1, transactionRecord.downgrade_reason_2,
+            transactionRecord.downgrade_reason_3, transactionRecord.online_entry,
+            transactionRecord.ach_flag, transactionRecord.auth_source,
+            transactionRecord.cardholder_id_method, transactionRecord.cat_indicator,
+            transactionRecord.reimbursement_attribute, transactionRecord.mail_order_telephone_indicator,
+            transactionRecord.auth_char_ind, transactionRecord.banknet_reference_number,
+            transactionRecord.draft_a_flag, transactionRecord.auth_currency_code,
+            transactionRecord.auth_amount, transactionRecord.validation_code,
+            transactionRecord.auth_response_code, transactionRecord.network_identifier_debit,
+            transactionRecord.switch_settled_indicator, transactionRecord.pos_entry_mode,
+            transactionRecord.debit_credit_indicator, transactionRecord.reversal_flag,
+            transactionRecord.merchant_name, transactionRecord.source_file_id,
+            transactionRecord.source_row_number, transactionRecord.recorded_at,
+            JSON.stringify(transactionRecord.raw_data), transactionRecord.mms_raw_line,
+            transactionRecord.created_at, transactionRecord.updated_at
+          ]);
+          
+          const newRecordId = insertResult.rows[0].id;
+          
+          // Mark raw line as processed
+          await this.markRawImportLineProcessed(rawLine.id, 'tddf_transaction_records', newRecordId.toString());
+          
+          processed++;
+          if (!sampleRecord) {
+            sampleRecord = {
+              id: newRecordId,
+              reference_number: transactionRecord.reference_number,
+              transaction_amount: transactionRecord.transaction_amount,
+              merchant_name: transactionRecord.merchant_name
+            };
+          }
+          
+          console.log(`✅ [HIERARCHICAL] Migrated DT record ${rawLine.line_number}: Amount $${transactionRecord.transaction_amount}, Merchant: ${transactionRecord.merchant_name}`);
+          
+        } catch (lineError: any) {
+          errors++;
+          console.error(`❌ [HIERARCHICAL ERROR] Line ${rawLine.line_number}:`, lineError);
+          await this.markRawImportLineSkipped(rawLine.id, `hierarchical_migration_error: ${lineError.message}`);
+        }
+      }
+      
+      return { processed, errors, sampleRecord };
+      
+    } catch (error: any) {
+      console.error('Error processing hierarchical TDDF migration:', error);
       throw error;
     }
   }

@@ -26,6 +26,7 @@ import DatabaseConnectionSettings from "@/components/settings/DatabaseConnection
 import S3BackupSettings from "@/components/settings/S3BackupSettings";
 import BackupScheduleManager from "@/components/settings/BackupScheduleManager";
 import BackupUploadRestore from "@/components/settings/BackupUploadRestore";
+import HierarchicalTddfMigration from "@/components/migration/HierarchicalTddfMigration";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface DatabaseStats {
@@ -509,6 +510,10 @@ export default function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SchemaVersionInfo />
             <FileProcessingHistory />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <HierarchicalTddfMigration />
           </div>
           
           <div className="grid grid-cols-1 gap-6">
