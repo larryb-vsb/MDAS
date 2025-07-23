@@ -3832,8 +3832,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/processing/records-per-minute-history", async (req, res) => {
     try {
       const metricsTableName = getTableName('processing_metrics');
-      const hours = parseInt(req.query.hours as string) || 24; // Default to 24 hours
-      const timeOffset = parseInt(req.query.timeOffset as string) || 0; // Hours to offset from current time
+      const hours = parseFloat(req.query.hours as string) || 24; // Default to 24 hours (support decimal values)
+      const timeOffset = parseFloat(req.query.timeOffset as string) || 0; // Hours to offset from current time
       
       // Calculate time range with offset
       const endTime = timeOffset > 0 ? `NOW() - INTERVAL '${timeOffset} hours'` : 'NOW()';
@@ -3842,7 +3842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate complete time series with zero values for missing time slots
       // Use 1-minute intervals for 1-hour view, 5-minute intervals for longer views
       const intervalMinutes = hours <= 1 ? 1 : 5; // Use raw numbers for generate_series
-      const maxIntervals = hours <= 1 ? 60 : Math.ceil((hours * 60) / 5); // 60 for 1-hour view
+      const maxIntervals = hours <= 1 ? Math.ceil(hours * 60) : Math.ceil((hours * 60) / 5); // Calculate intervals based on actual hours
       
       const result = await pool.query(`
         WITH time_series AS (

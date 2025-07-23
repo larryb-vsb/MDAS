@@ -38,9 +38,12 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
     queryKey: ['/api/processing/records-per-minute-history', timeRange, timeOffset],
     queryFn: async () => {
+      console.log(`DEBUG: Requesting chart data with hours=${timeRange}, timeOffset=${timeOffset}, 10/60=${10/60}`);
       const response = await fetch(`/api/processing/records-per-minute-history?hours=${timeRange}&timeOffset=${timeOffset}`);
       if (!response.ok) throw new Error('Failed to fetch data');
-      return response.json();
+      const data = await response.json();
+      console.log(`DEBUG: Received ${data.data?.length} data points for timeRange=${timeRange}`);
+      return data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 15000,
