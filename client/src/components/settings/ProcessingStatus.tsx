@@ -136,8 +136,11 @@ export default function ProcessingStatus() {
   
   // Peak meter state management
   const [peakTxnSpeed, setPeakTxnSpeed] = useState(0);
+  const [peakTddfSpeed, setPeakTddfSpeed] = useState(0);
   const [speedHistory, setSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
+  const [tddfSpeedHistory, setTddfSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
   const [lastPeakTime, setLastPeakTime] = useState<Date | null>(null);
+  const [lastTddfPeakTime, setLastTddfPeakTime] = useState<Date | null>(null);
 
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
@@ -265,7 +268,6 @@ export default function ProcessingStatus() {
         }
         
         // Only reset peak if no readings exist in the last 10 minutes (complete inactivity)
-        // This preserves the peak value even when processing batches finish
         if (newHistory.length === 0 && lastPeakTime && (currentTime - lastPeakTime.getTime()) > (10 * 60 * 1000)) {
           setPeakTxnSpeed(0);
         }
@@ -274,6 +276,43 @@ export default function ProcessingStatus() {
       });
     }
   }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed]);
+
+  // Update TDDF peak tracking when real-time stats change
+  useEffect(() => {
+    if (realTimeStats?.tddfRecordsPerSecond !== undefined) {
+      const currentTime = Date.now();
+      const tenMinutesAgo = currentTime - (10 * 60 * 1000);
+      
+      // Store current TDDF reading with timestamp
+      const currentTddfReading = {
+        value: realTimeStats.tddfRecordsPerSecond,
+        timestamp: currentTime
+      };
+      
+      // Update TDDF speed history - keep readings from last 10 minutes only
+      setTddfSpeedHistory(prev => {
+        const newHistory = [...prev, currentTddfReading]
+          .filter(reading => reading.timestamp > tenMinutesAgo)
+          .slice(-100); // Keep max 100 readings for performance
+        
+        // Calculate peak from the last 10 minutes of data
+        const peakValue = Math.max(...newHistory.map(r => r.value), 0);
+        
+        // Update peak if we found a higher value
+        if (peakValue > peakTddfSpeed) {
+          setPeakTddfSpeed(peakValue);
+          setLastTddfPeakTime(new Date());
+        }
+        
+        // Only reset peak if no readings exist in the last 10 minutes (complete inactivity)
+        if (newHistory.length === 0 && lastTddfPeakTime && (currentTime - lastTddfPeakTime.getTime()) > (10 * 60 * 1000)) {
+          setPeakTddfSpeed(0);
+        }
+        
+        return newHistory;
+      });
+    }
+  }, [realTimeStats?.tddfRecordsPerSecond, peakTddfSpeed]);
 
   // Helper functions
   const getStatusBadge = () => {
@@ -428,6 +467,14 @@ export default function ProcessingStatus() {
                   {realTimeStats.tddfRecordsPerSecond?.toFixed(1) || '0.0'}
                 </div>
                 <div className="text-muted-foreground">TDDF/sec</div>
+                {/* TDDF Speed Gauge */}
+                <div className="mt-2 px-2">
+                  <TransactionSpeedGauge 
+                    currentSpeed={realTimeStats.tddfRecordsPerSecond || 0}
+                    peakSpeed={peakTddfSpeed}
+                    maxScale={Math.max(peakTddfSpeed * 1.2, 5)}
+                  />
+                </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center space-y-2">
@@ -443,7 +490,7 @@ export default function ProcessingStatus() {
                     maxScale={Math.max(peakTxnSpeed * 60 * 1.2, 600)}
                   />
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">(last min)</div>
+                <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
