@@ -1,0 +1,330 @@
+Header Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission. A Batch Header must contain a sequence number.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+The value that identifies the type of record.
+
+Constant value is "BH"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code.
+
+ 
+
+56-63
+
+Batch Date
+
+8
+
+N
+
+ 
+
+Allowed format is MMDDCCYY
+
+64-68
+
+Batch Julian Date
+
+5
+
+N
+
+Batch Julian Date.
+
+Allowed format is DDDYY
+
+69-83
+
+Net Deposit
+
+15
+
+N
+
+The deposited amount.
+
+Format:
+9999999999999999
+
+84-87
+
+Reject Reason
+
+4
+
+AN
+
+Global Payments Reject Reason Code.
+
+ 
+
+88-103
+
+Merchant Reference Number
+
+16
+
+N
+
+A number with 5 leading zeros followed by 11 digit reference number.
+
+The merchant reference number is similar to the beginning reference number in the Merchant Header record of the Draft 256 file.
+
+ 
+
+104-104
+
+Batch Header Carry Indicator
+
+1
+
+AN
+
+ 
+
+ 
+
+105-110
+
+Association Number
+
+6
+
+N
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+111-114
+
+Merchant Bank Number
+
+4
+
+AN
+
+The Global Payments bank number of the merchant.
+
+ 
+
+115-115
+
+Debit/Credit Indicator
+
+1
+
+AN
+
+Indicates if the transaction is a debit or credit.
+
+Allowed values are:
+
+D - Debit
+C - Credit
+116-123
+
+ACH Posting Date
+
+8
+
+N
+
+ 
+
+Allowed format is MMDDCCYY
+
+124-126
+
+Batch ID
+
+3
+
+AN
+
+Batch ID
+
+ 
+
+127-683
+
+Reserved for future use
+
+577
+
+AN
+
+Filler
+
+ 
+
+684-686
+
+ESID
+
+3
+
+AN
+
+ 
+
+ 
+
+687-700
+
+Reserved for future use
+
+14
+
+AN
+
+Filler
+
+ 
+

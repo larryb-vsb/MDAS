@@ -183,9 +183,30 @@ function ConvertTo-TddfJson {
         $record.referenceNumber = Get-Field $line 737 50
     }
     elseif ($recordType -eq "BH") {
-        # Batch Header Record
-        $record.merchantName = Get-Field $line 40 25
-        $record.batchId = Get-Field $line 24 16
+        # Batch Header Record - Parse according to BH specification
+        $record.sequenceNumber = Get-Field $line 1 7
+        $record.entryRunNumber = Get-Field $line 8 6
+        $record.sequenceNumberWithinRun = Get-Field $line 14 4
+        $record.bankNumber = Get-Field $line 20 4
+        $record.merchantAccountNumber = Get-Field $line 24 16
+        $record.associationNumber = Get-Field $line 40 6
+        $record.groupNumber = Get-Field $line 46 6
+        $record.transactionCode = Get-Field $line 52 4
+        $record.batchDate = Get-Field $line 56 8
+        $record.batchJulianDate = Get-Field $line 64 5
+        $record.netDeposit = Parse-TddfAmount (Get-Field $line 69 15)
+        $record.rejectReason = Get-Field $line 84 4
+        $record.merchantReferenceNumber = Get-Field $line 88 16
+        $record.batchHeaderCarryIndicator = Get-Field $line 104 1
+        $record.associationNumberSecondary = Get-Field $line 105 6
+        $record.merchantBankNumber = Get-Field $line 111 4
+        $record.debitCreditIndicator = Get-Field $line 115 1
+        $record.achPostingDate = Get-Field $line 116 8
+        $record.batchId = Get-Field $line 124 3
+        $record.esid = Get-Field $line 684 3
+        
+        # Set merchant name from account number for consistency
+        $record.merchantName = $record.merchantAccountNumber
     }
     elseif ($recordType -eq "A1" -or $recordType -eq "A2") {
         # Addendum Records
