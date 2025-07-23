@@ -30,6 +30,44 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   res.status(401).json({ error: "Not authenticated" });
 }
 
+// API key authentication middleware
+export async function isApiKeyAuthenticated(req: Request, res: Response, next: NextFunction) {
+  try {
+    const apiKey = req.headers['x-api-key'] as string;
+    
+    if (!apiKey) {
+      return res.status(401).json({ error: "API key required in X-API-Key header" });
+    }
+    
+    // Verify API key with storage
+    const apiUser = await storage.getApiUserByKey(apiKey);
+    
+    if (!apiUser) {
+      return res.status(401).json({ error: "Invalid API key" });
+    }
+    
+    if (!apiUser.isActive) {
+      return res.status(403).json({ error: "API key is inactive" });
+    }
+    
+    // Check permissions for TDDF upload
+    if (!apiUser.permissions.includes('tddf:upload')) {
+      return res.status(403).json({ error: "Insufficient permissions for TDDF upload" });
+    }
+    
+    // Update last used timestamp and request count
+    await storage.updateApiUserUsage(apiUser.id);
+    
+    // Add API user to request for logging
+    (req as any).apiUser = apiUser;
+    
+    next();
+  } catch (error) {
+    console.error('API key authentication error:', error);
+    res.status(500).json({ error: "Authentication error" });
+  }
+}
+
 // Helper function to format CSV without external dependency
 function formatCSV(data: any[]) {
   if (!data || data.length === 0) return '';
@@ -4120,6 +4158,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching TDDF record:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch TDDF record" 
+      });
+    }
+  });
+
+  // Upload TDDF file via API key authentication (for PowerShell agent)
+  app.post("/api/tddf/upload", upload.single('file'), isApiKeyAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF API UPLOAD] Request received from PowerShell agent');
+      
+      if (!req.file) {
+        console.error('[TDDF API UPLOAD] No file provided in request');
+        return res.status(400).json({ error: "No file provided" });
+      }
+      
+      const apiUser = (req as any).apiUser;
+      console.log(`[TDDF API UPLOAD] Processing file from API user: ${apiUser.clientName}`);
+      
+      // Generate unique file ID
+      const fileId = `TDDF_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Read file content
+      const fileContent = fs.readFileSync(req.file.path, 'utf8');
+      const fileContentBase64 = Buffer.from(fileContent).toString('base64');
+      
+      // Store in database with environment-specific table
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const currentEnvironment = process.env.NODE_ENV || 'development';
+      
+      console.log(`[TDDF API UPLOAD] Storing in table: ${uploadedFilesTableName}, environment: ${currentEnvironment}`);
+      
+      await pool.query(`
+        INSERT INTO ${uploadedFilesTableName} (
+          id, 
+          original_filename, 
+          storage_path, 
+          file_type, 
+          uploaded_at, 
+          processed, 
+          deleted,
+          file_content,
+          upload_environment,
+          processing_status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [
+        fileId,
+        req.file.originalname,
+        req.file.path,
+        'tddf',
+        new Date(),
+        false,
+        false,
+        fileContentBase64,
+        currentEnvironment,
+        'queued'
+      ]);
+      
+      // Process TDDF raw data immediately
+      try {
+        console.log(`[TDDF API UPLOAD] Processing raw TDDF data for file: ${fileId}`);
+        const processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, req.file.originalname);
+        
+        // Update upload record with processing results
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName} 
+          SET raw_lines_count = $1, 
+              processing_notes = $2
+          WHERE id = $3
+        `, [
+          processingResult.rowsProcessed,
+          `API Upload - Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`,
+          fileId
+        ]);
+        
+        console.log(`[TDDF API UPLOAD] Successfully processed: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} records, ${processingResult.errors} errors`);
+        
+        // Clean up temporary file
+        fs.unlinkSync(req.file.path);
+        
+        res.json({
+          success: true,
+          message: "TDDF file uploaded and processed successfully",
+          fileId: fileId,
+          fileName: req.file.originalname,
+          processingResults: {
+            rawLinesProcessed: processingResult.rowsProcessed,
+            tddfRecordsCreated: processingResult.tddfRecordsCreated,
+            errors: processingResult.errors,
+            processingTime: processingResult.processingTime || "< 1s"
+          },
+          uploadedBy: apiUser.clientName,
+          uploadedAt: new Date().toISOString()
+        });
+        
+      } catch (processingError) {
+        console.error('[TDDF API UPLOAD] Error processing TDDF content:', processingError);
+        
+        // Still return success for upload, but indicate processing issue
+        res.json({
+          success: true,
+          message: "TDDF file uploaded but processing encountered issues",
+          fileId: fileId,
+          fileName: req.file.originalname,
+          processingError: processingError instanceof Error ? processingError.message : "Processing failed",
+          uploadedBy: apiUser.clientName,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      console.error('[TDDF API UPLOAD] Upload error:', error);
+      
+      // Clean up temporary file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to upload TDDF file",
+        details: "Check server logs for more information"
       });
     }
   });
