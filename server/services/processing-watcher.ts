@@ -99,6 +99,7 @@ export class ScanlyWatcher {
   private async checkTddfBacklog(): Promise<void> {
     try {
       const tddfRawImportTable = getTableName('tddf_raw_import');
+
       
       // Get total backlog count
       const backlogResult = await db.execute(sql`
@@ -107,7 +108,8 @@ export class ScanlyWatcher {
         WHERE processing_status = 'pending'
       `);
       
-      const currentBacklog = parseInt((backlogResult as any)[0]?.backlog_count as string) || 0;
+      // Fix: Access the result from the correct structure (backlogResult.rows[0])
+      const currentBacklog = parseInt(String((backlogResult as any).rows[0]?.backlog_count)) || 0;
       const now = new Date();
       
       // Add to history
@@ -247,6 +249,8 @@ export class ScanlyWatcher {
 
     // Get TDDF backlog information
     const tddfRawImportTable = getTableName('tddf_raw_import');
+
+    
     const tddfBacklogResult = await db.execute(sql`
       SELECT COUNT(*) as backlog_count FROM ${sql.identifier(tddfRawImportTable)}
       WHERE processing_status = 'pending'
@@ -255,7 +259,7 @@ export class ScanlyWatcher {
     // Calculate backlog progress (if we have history)
     let backlogProgress = 0;
     if (this.tddfBacklogHistory.length > 1) {
-      const current = parseInt((tddfBacklogResult as any)[0]?.backlog_count as string) || 0;
+      const current = parseInt(String((tddfBacklogResult as any).rows[0]?.backlog_count)) || 0;
       const previous = this.tddfBacklogHistory[this.tddfBacklogHistory.length - 1]?.count || current;
       backlogProgress = previous - current; // Positive = progress, negative = increase
     }
@@ -269,7 +273,7 @@ export class ScanlyWatcher {
       slowFiles: parseInt((slowResult as any)[0]?.slow_files as string) || 0,
       avgProcessingTime: parseFloat((avgTimeResult as any)[0]?.avg_processing_time as string) || 0,
       recentThroughput: parseInt((throughputResult as any)[0]?.recent_completed as string) || 0,
-      tddfBacklog: parseInt((tddfBacklogResult as any)[0]?.backlog_count as string) || 0,
+      tddfBacklog: parseInt(String((tddfBacklogResult as any).rows[0]?.backlog_count)) || 0,
       tddfBacklogProgress: backlogProgress
     };
   }
