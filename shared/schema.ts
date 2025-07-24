@@ -233,18 +233,18 @@ export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   id: serial("id").primaryKey(),
   
-  // Core TDDF header fields (positions 1-23) - shared with all record types
-  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
-  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
-  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  // Core TDDF header fields (positions 18-23)
   recordIdentifier: text("record_identifier"), // Positions 18-19: Always "BH"
-  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
   
-  // Batch-specific fields (positions 24+)
-  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number
-  batchDate: timestamp("batch_date"), // Batch processing date
-  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Net deposit amount
-  merchantReferenceNumber: text("merchant_reference_number"), // Merchant batch reference
+  // Updated BH-specific fields based on TDDF specification
+  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 52-55: Net Deposit amount (15 chars)
+  transactionCode: text("transaction_code"), // Positions 56-63: Global Payments Transaction code (4 chars)
+  batchDate: text("batch_date"), // Positions 64-68: Batch Date MMDDCCYY format (8 chars)
+  batchJulianDate: text("batch_julian_date"), // Positions 69-73: Batch Julian Date DDDYY format (5 chars)
+  rejectReason: text("reject_reason"), // Positions 84-87: Global Payments Reject Reason Code (4 chars AN)
+  
+  // Merchant identification (keeping for existing data compatibility)
+  merchantAccountNumber: text("merchant_account_number"), // GP account number for reference
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
@@ -255,7 +255,8 @@ export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
   merchantAccountIndex: index("tddf_bh_merchant_account_idx").on(table.merchantAccountNumber),
-  batchDateIndex: index("tddf_bh_batch_date_idx").on(table.batchDate)
+  batchDateIndex: index("tddf_bh_batch_date_idx").on(table.batchDate),
+  transactionCodeIndex: index("tddf_bh_transaction_code_idx").on(table.transactionCode)
 }));
 
 // TDDF Transaction Records (DT) - Main transaction records linked to batch headers
