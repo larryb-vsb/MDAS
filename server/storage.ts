@@ -7329,6 +7329,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }> {
+    console.log(`[TDDF TRANSACTIONAL] Starting hierarchical migration with transactional integrity`);
+    
     try {
       const tableName = getTableName('tddf_raw_import');
       
@@ -7341,7 +7343,7 @@ export class DatabaseStorage implements IStorage {
       `, [batchSize]);
       
       const pendingRecords = result.rows;
-      console.log(`[HIERARCHICAL MIGRATION] Processing ${pendingRecords.length} pending DT records`);
+      console.log(`[HIERARCHICAL MIGRATION] Processing ${pendingRecords.length} pending DT records with transactional integrity`);
       
       let processed = 0;
       let errors = 0;
@@ -7349,8 +7351,14 @@ export class DatabaseStorage implements IStorage {
       
       const transactionTableName = getTableName('tddf_transaction_records');
       
+      // Process each record within its own transaction for atomic integrity
       for (const rawLine of pendingRecords) {
+        // Begin transaction for this TDDF record
+        const client = await pool.connect();
         try {
+          await client.query('BEGIN');
+          console.log(`[TDDF TRANSACTION] Starting transaction for line ${rawLine.line_number}`);
+          
           const line = rawLine.raw_line;
           
           // Parse DT record into hierarchical transaction record format
@@ -7412,8 +7420,8 @@ export class DatabaseStorage implements IStorage {
             updated_at: new Date()
           };
           
-          // Insert into hierarchical transaction records table
-          const insertResult = await pool.query(`
+          // Insert into hierarchical transaction records table within transaction
+          const insertResult = await client.query(`
             INSERT INTO "${transactionTableName}" (
               sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
               merchant_account_number, association_number_1, group_number, transaction_code, 
@@ -7459,9 +7467,23 @@ export class DatabaseStorage implements IStorage {
           ]);
           
           const newRecordId = insertResult.rows[0].id;
+          console.log(`[TDDF TRANSACTION] Successfully inserted TDDF record ID ${newRecordId} for line ${rawLine.line_number}`);
           
-          // Mark raw line as processed
-          await this.markRawImportLineProcessed(rawLine.id, 'tddf_transaction_records', newRecordId.toString());
+          // Mark raw line as processed within the same transaction
+          await client.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'processed',
+                processed_table = $1,
+                processed_record_id = $2,
+                processed_at = NOW()
+            WHERE id = $3
+          `, ['tddf_transaction_records', newRecordId.toString(), rawLine.id]);
+          
+          console.log(`[TDDF TRANSACTION] Marked raw line ${rawLine.id} as processed`);
+          
+          // Commit transaction - ensures atomic operation
+          await client.query('COMMIT');
+          console.log(`[TDDF TRANSACTION] Transaction committed successfully for line ${rawLine.line_number}`);
           
           processed++;
           if (!sampleRecord) {
@@ -7481,9 +7503,26 @@ export class DatabaseStorage implements IStorage {
           }
           
         } catch (lineError: any) {
+          // Rollback transaction on any error
+          await client.query('ROLLBACK');
+          console.error(`❌ [TDDF TRANSACTION] Transaction rolled back for line ${rawLine.line_number}:`, lineError);
+          
           errors++;
           console.error(`❌ [HIERARCHICAL ERROR] Line ${rawLine.line_number}:`, lineError);
-          await this.markRawImportLineSkipped(rawLine.id, `hierarchical_migration_error: ${lineError.message}`);
+          
+          // Mark as failed using pool connection (outside transaction)
+          await pool.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'skipped',
+                skip_reason = $1,
+                processed_at = NOW()
+            WHERE id = $2
+          `, [`hierarchical_migration_error: ${lineError.message}`, rawLine.id]);
+          
+        } finally {
+          // Always release the connection back to the pool
+          client.release();
+          console.log(`[TDDF TRANSACTION] Connection released for line ${rawLine.line_number}`);
         }
       }
       
