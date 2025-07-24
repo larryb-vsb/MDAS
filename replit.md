@@ -373,14 +373,19 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 ## Recent Changes
 
 ### PROCESSING CHART VISUALIZATION ENHANCEMENT COMPLETED (July 24, 2025)
-- **✅ CHART COLOR SCHEME UPDATED**: Changed Records per minute chart colors to gray (#6B7280) for processed records and red (#EF4444) for skipped records
+- **✅ FINAL CHART COLOR SCHEME IMPLEMENTED**: Complete color standardization across all TDDF record types
+  - DT Records: Blue (#3B82F6) - primary processing records at top of stack
+  - BH Records: Green (#10B981) - batch headers  
+  - P1 Records: Orange (#F59E0B) - purchasing extensions
+  - Other Records: Grey (#6B7280) - other record types
+- **✅ STACK ORDERING OPTIMIZED**: Reordered chart bars with DT records on top for maximum visibility of primary processing activity
 - **✅ HIERARCHICAL BREAKDOWN LABEL UPDATED**: Changed "DT Processed" to "Total Processed" in ProcessingStatus widget for better clarity
 - **✅ RAW LINE DATA TRACKING IMPLEMENTED**: Added comprehensive raw line processing data to minute-by-minute performance database
   - Added raw_lines_processed, raw_lines_skipped, and raw_lines_total columns to processing_metrics schema
   - Enhanced real-time stats API to record raw line processing metrics with every database snapshot
   - Database migration applied to development environment processing_metrics table
   - Complete raw line tracking now operational alongside existing TDDF processing metrics
-- **✅ VISUAL CLARITY ENHANCEMENT**: Updated chart tooltips and legends to clearly distinguish between processed DT records (gray) and skipped records (red)
+- **✅ VISUAL CLARITY ENHANCEMENT**: Updated chart tooltips and legends with distinct colors for each record type
 - **✅ PROCESSING STATUS WIDGET ENHANCED**: 6-column hierarchical breakdown now includes Total Processed column for comprehensive TDDF operation visibility
 
 ### HIERARCHICAL TDDF ARCHITECTURE IMPLEMENTATION COMPLETED (July 23, 2025)

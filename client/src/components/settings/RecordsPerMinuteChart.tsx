@@ -437,18 +437,11 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar 
-                  dataKey="dtRecords" 
+                  dataKey="otherRecords" 
                   stackId="records"
-                  fill="#3b82f6"
+                  fill="#6b7280"
                   radius={[0, 0, 0, 0]}
-                  name="DT Records"
-                />
-                <Bar 
-                  dataKey="bhRecords" 
-                  stackId="records"
-                  fill="#10b981"
-                  radius={[0, 0, 0, 0]}
-                  name="BH Records"
+                  name="Other Records"
                 />
                 <Bar 
                   dataKey="p1Records" 
@@ -458,11 +451,18 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                   name="P1 Records"
                 />
                 <Bar 
-                  dataKey="otherRecords" 
+                  dataKey="bhRecords" 
                   stackId="records"
-                  fill="#6b7280"
+                  fill="#10b981"
+                  radius={[0, 0, 0, 0]}
+                  name="BH Records"
+                />
+                <Bar 
+                  dataKey="dtRecords" 
+                  stackId="records"
+                  fill="#3b82f6"
                   radius={[2, 2, 0, 0]}
-                  name="Other Records"
+                  name="DT Records"
                 />
               </BarChart>
             </ResponsiveContainer>
