@@ -7168,7 +7168,7 @@ export class DatabaseStorage implements IStorage {
       transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
       transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
       auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
-      merchant_name: line.substring(23, 39).trim() || null,
+      merchant_name: line.substring(217, 242).trim() || null,
       source_file_id: rawRecord.source_file_id,
       source_row_number: rawRecord.line_number,
       mms_raw_line: line

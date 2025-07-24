@@ -17,6 +17,12 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 24, 2025 - COMPLETE 4-STEP TDDF PROCESSING PIPELINE OPERATIONAL
+- **✅ TDDF MERCHANT NAME SCHEMA POSITION FIX COMPLETED (July 24, 2025)**: Corrected hierarchical TDDF schema merchant name field positions to match TDDF specification
+  - **Root Issue**: Hierarchical `tddfTransactionRecords` table had incorrect merchant name positions (223-242) vs correct TDDF spec (218-242)
+  - **Schema Corrected**: Updated hierarchical table merchant name field comment to show correct positions 218-242 (25 chars)
+  - **Processing Logic Fixed**: Corrected server extraction method to use `line.substring(217, 242)` instead of incorrect merchant account position
+  - **Schema Consistency**: Both legacy and hierarchical tables now use correct TDDF specification positions 218-242
+  - **Production Ready**: Merchant name extraction now accurate across all TDDF processing methods
 - **✅ PROCESSING PERFORMANCE KPI DISPLAY FIX COMPLETELY RESOLVED (July 24, 2025)**: Fixed real-time stats API to properly display TDDF processing breakdown in dashboard Performance KPIs section
   - **Root Cause Fixed**: API query was using hardcoded table names ('tddf_records') instead of environment-specific names ('dev_tddf_records')
   - **Environment Detection Enhanced**: Updated SQL queries to use proper `${tddfRecordsTableName}` and `getTableName()` function calls for table detection

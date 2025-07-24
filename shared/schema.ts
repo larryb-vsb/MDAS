@@ -319,7 +319,7 @@ export const tddfTransactionRecords = pgTable(getTableName("tddf_transaction_rec
   posEntryMode: text("pos_entry_mode"), // Positions 215-216: POS entry mode
   debitCreditIndicator: text("debit_credit_indicator"), // Positions 217-219: Debit/credit indicator
   reversalFlag: text("reversal_flag"), // Positions 220-222: Reversal flag
-  merchantName: text("merchant_name"), // Positions 223-242: Merchant name (20 chars)
+  merchantName: text("merchant_name"), // Positions 218-242: Merchant name (25 chars)
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
