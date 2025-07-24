@@ -99,6 +99,11 @@ export interface IStorage {
   
   // TDDF raw storage operations  
   storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }>;
+  
+  // TDDF processing operations
+  processPendingTddfDtRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  processPendingTddfRecordsUnified(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  processPendingRawTddfLines(batchSize?: number): Promise<{ processed: number; skipped: number; errors: number }>;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
