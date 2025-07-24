@@ -260,22 +260,20 @@ function BHRecordsTable() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Table Header - matching DT format exactly */}
+            {/* Table Header - BH specific columns */}
             <div className="flex items-center space-x-4 text-sm font-medium text-muted-foreground border-b pb-2">
               <Checkbox
                 checked={selectedRecords.size === bhData.data.length && bhData.data.length > 0}
                 onCheckedChange={handleSelectAll}
                 className="ml-4"
               />
-              <div className="w-56">Reference Number</div>
-              <div className="w-40">Merchant Name</div>
-              <div className="w-24">Merchant ID</div>
-              <div className="w-20">D/C Indicator</div>
-              <div className="w-36">Transaction Date</div>
-              <div className="w-32">Association Number</div>
-              <div className="w-32">Card Number</div>
-              <div className="w-28">Auth Amount</div>
-              <div className="w-28">Amount</div>
+              <div className="w-32">Sequence Number (1-7)</div>
+              <div className="w-32">Entry Run Number (8-13)</div>
+              <div className="w-32">Sequence Within Run (14-17)</div>
+              <div className="w-24">Record ID (18-19)</div>
+              <div className="w-36">Batch Date</div>
+              <div className="w-32">Debit/Credit Indicator</div>
+              <div className="w-32">Net Deposit</div>
               <div className="w-20">Actions</div>
             </div>
 
@@ -290,27 +288,19 @@ function BHRecordsTable() {
                   onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
                   className="ml-4"
                 />
-                <div className="w-56">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs">BH-{record.sequenceNumber || record.id}</span>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200 flex-shrink-0">
-                      BH
-                    </span>
-                  </div>
-                </div>
-                <div className="w-40 text-xs">
-                  {record.merchantReferenceNumber || 'Batch Header'}
-                </div>
-                <div className="w-24 font-mono text-xs">
-                  {record.merchantAccountNumber || '-'}
-                </div>
-                <div className="w-20">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200 border">
-                    Batch
-                  </span>
+                <div className="w-32 font-mono text-xs">
+                  {record.sequenceNumber || 'N/A'}
                 </div>
                 <div className="w-32 font-mono text-xs">
-                  {record.sequenceNumber || `BH-${record.id}`}
+                  {record.entryRunNumber || 'N/A'}
+                </div>
+                <div className="w-32 font-mono text-xs">
+                  {record.sequenceWithinRun || 'N/A'}
+                </div>
+                <div className="w-24">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border-green-200 border">
+                    {record.recordIdentifier || 'BH'}
+                  </span>
                 </div>
                 <div className="w-36 text-xs">
                   {record.batchDate ? formatTableDate(record.batchDate) : 'N/A'}
