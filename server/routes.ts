@@ -4353,6 +4353,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get raw TDDF processing status
+  app.get("/api/tddf/raw-status", isAuthenticated, async (req, res) => {
+    try {
+      const status = await storage.getTddfRawProcessingStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error fetching TDDF raw status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF raw status" 
+      });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
@@ -5084,19 +5097,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error requeuing stuck TDDF records:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to requeue stuck TDDF records" 
-      });
-    }
-  });
-
-  // Get raw TDDF processing status
-  app.get("/api/tddf/raw-status", isAuthenticated, async (req, res) => {
-    try {
-      const status = await storage.getTddfRawProcessingStatus();
-      res.json(status);
-    } catch (error) {
-      console.error('Error fetching TDDF raw status:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to fetch TDDF raw status" 
       });
     }
   });

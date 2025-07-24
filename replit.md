@@ -387,14 +387,19 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
-### CRITICAL BASE64 PROCESSING BUG COMPLETELY RESOLVED (July 24, 2025)
+### CRITICAL BASE64 PROCESSING AND ROUTING BUGS COMPLETELY RESOLVED (July 24, 2025)
 - **✅ ROOT CAUSE DISCOVERED**: TDDF content was being stored as Base64 in database but record type detection was running on encoded content instead of decoded TDDF
 - **✅ PROCESSING LOGIC FIXED**: Updated both `storeTddfFileAsRawImport` and `processTddfFileFromContent` methods to decode Base64 content before processing
 - **✅ DATABASE CORRUPTION REPAIRED**: Created and executed repair script fixing 69 existing corrupted raw import records
   - Fixed record type detection: jA→BH (13), zA→BH (18), DA→BH (12), TA→BH (24), zc→AD (2) 
   - Converted Base64 content to authentic TDDF format (e.g., `MDE4OTk0OTA1OTg0NjAwMDJCSDY3NTkwNjc1OTAwMDAwMDAwMT` → `01899490598460002BH675906759000000001`)
 - **✅ VALIDATION CONFIRMED**: All raw import records now show correct "Fixed TDDF" format with proper record types extracted from positions 18-19
-- **✅ PRODUCTION READY SOLUTION**: Complete TDDF processing pipeline restored with proper Base64 handling for all future uploads
+- **✅ FRONTEND DISPLAY FIXED**: Updated ProcessingFilters.tsx to automatically detect and decode Base64-encoded TDDF content for proper UI display
+- **✅ ROUTING CONFLICT RESOLVED**: Fixed `/api/tddf/raw-status` endpoint 400 errors by reordering route definitions
+  - Moved specific `/api/tddf/raw-status` route before parameterized `/api/tddf/:id` route to prevent matching conflicts
+  - Removed duplicate route definition to eliminate routing conflicts
+  - System now responds with proper authentication requirements instead of "Invalid record ID" errors
+- **✅ PRODUCTION READY SOLUTION**: Complete TDDF processing pipeline restored with proper Base64 handling and API routing for all future uploads
 - **✅ TECHNICAL SOLUTION**: Added Base64 detection and decoding logic with fallback to plain text processing for backward compatibility
 
 ### CRITICAL TDDF RECORD TYPE DETECTION COMPLETELY SIMPLIFIED (July 24, 2025)

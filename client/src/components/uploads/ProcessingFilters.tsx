@@ -769,7 +769,35 @@ export default function ProcessingFilters() {
               <>
                 {fileContent.content ? (
                   <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                    {fileContent.content}
+                    {(() => {
+                      // Check if this is Base64-encoded TDDF content that needs decoding
+                      const content = fileContent.content;
+                      
+                      // Check if this looks like Base64-encoded TDDF content
+                      const isBase64 = content.length > 100 && 
+                                      /^[A-Za-z0-9+/=\s]*$/.test(content) &&
+                                      !content.includes('BH') && 
+                                      !content.includes('DT') && 
+                                      !content.includes('P1');
+                      
+                      if (isBase64) {
+                        try {
+                          // Attempt to decode Base64 content
+                          const decoded = atob(content.replace(/\s/g, ''));
+                          
+                          // Verify the decoded content looks like TDDF
+                          if (decoded.includes('BH') || decoded.includes('DT') || decoded.includes('P1') || /^\d{6,}/.test(decoded)) {
+                            return decoded;
+                          }
+                        } catch (error) {
+                          // If decoding fails, show original content
+                          console.log('Base64 decode failed, showing original content');
+                        }
+                      }
+                      
+                      // Return original content if not Base64 or decoding failed
+                      return content;
+                    })()}
                   </pre>
                 ) : fileContent.headers && fileContent.rows ? (
                   <Table>
