@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TddfRecord {
   id: number;
@@ -549,6 +550,7 @@ function getCardTypeBadges(record: TddfRecord) {
 }
 
 export default function TddfPage() {
+  const [activeTab, setActiveTab] = useState("dt");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
@@ -862,13 +864,34 @@ export default function TddfPage() {
         </Card>
       )}
 
-      {/* Records Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>
-              TDDF Records ({totalRecords})
-            </CardTitle>
+      {/* Records Table with Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="dt" className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+            DT Records
+          </TabsTrigger>
+          <TabsTrigger value="bh" className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+            BH Records
+          </TabsTrigger>
+          <TabsTrigger value="p1" className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+            P1 Records
+          </TabsTrigger>
+          <TabsTrigger value="other" className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-red-500"></span>
+            Other Records
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dt" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>
+                  DT Records ({totalRecords})
+                </CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show:</span>
               <Select
@@ -1024,7 +1047,51 @@ export default function TddfPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bh" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>BH Records (Coming Soon)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Batch Header records will be displayed here once the hierarchical table architecture is fully implemented.</p>
+                <p className="text-sm mt-2">Currently showing BH records processed into the hierarchical database structure.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="p1" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>P1 Records (Coming Soon)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Purchasing Card Extension records will be displayed here once the hierarchical table architecture is fully implemented.</p>
+                <p className="text-sm mt-2">Currently showing P1 records processed into the hierarchical database structure.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="other" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Other Records (Coming Soon)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Other TDDF record types (AD, DR, G2, etc.) will be displayed here once the hierarchical table architecture is fully implemented.</p>
+                <p className="text-sm mt-2">Currently showing Other records processed into the hierarchical database structure.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Details Modal */}
       <Dialog open={!!detailsRecord} onOpenChange={() => setDetailsRecord(null)}>
