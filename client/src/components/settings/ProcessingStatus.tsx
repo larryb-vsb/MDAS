@@ -235,9 +235,6 @@ export default function ProcessingStatus() {
     refetchInterval: 5000, // Refresh every 5 seconds for real-time monitoring  
     staleTime: 2000,
     retry: 1, // Retry only once on failure
-    onError: (error) => {
-      console.log('TDDF raw status query failed:', error);
-    }
   });
 
   // Pause processing mutation
@@ -540,11 +537,11 @@ export default function ProcessingStatus() {
               <div className="text-center space-y-2">
                 {(() => {
                   // Calculate current TDDF rate from chart data (same as chart)
-                  const recentChartData = chartData?.data || [];
+                  const recentChartData = (chartData as any)?.data || [];
                   const latestDataPoint = recentChartData[recentChartData.length - 1];
                   const currentTddfRate = latestDataPoint ? 
-                    (latestDataPoint.bhRecords + latestDataPoint.p1Records + latestDataPoint.otherRecords) : 0;
-                  const currentDtRate = latestDataPoint ? latestDataPoint.dtRecords : 0;
+                    ((latestDataPoint.bhRecords || 0) + (latestDataPoint.p1Records || 0) + (latestDataPoint.otherRecords || 0)) : 0;
+                  const currentDtRate = latestDataPoint ? (latestDataPoint.dtRecords || 0) : 0;
                   const totalTddfRate = currentTddfRate + currentDtRate;
 
                   return (
@@ -672,7 +669,7 @@ export default function ProcessingStatus() {
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
                         
                         // Use raw status if available, otherwise calculate from hierarchical totals
-                        return (tddfRawStatus?.processed || totalProcessed).toLocaleString();
+                        return ((tddfRawStatus as any)?.processed || totalProcessed).toLocaleString();
                       })()}
                     </div>
                     <div className="text-gray-600">Total Processed</div>
@@ -747,14 +744,14 @@ export default function ProcessingStatus() {
                       </div>
                       <div className="text-center p-2 bg-amber-50 rounded border">
                         <div className="font-semibold text-amber-700">
-                          {tddfRawStatus?.pending?.toLocaleString() || '0'}
+                          {(tddfRawStatus as any)?.pending?.toLocaleString() || '0'}
                         </div>
                         <div className="text-amber-600">Pending</div>
                       </div>
                       <div className="text-center p-2 bg-blue-50 rounded border">
                         <div className="font-semibold text-blue-700">
                           {(() => {
-                            const pending = tddfRawStatus?.pending || 0;
+                            const pending = (tddfRawStatus as any)?.pending || 0;
                             if (realTimeStats.tddfRecordsPerSecond <= 0 || pending <= 0) return '0s';
                             const estimatedSeconds = pending / realTimeStats.tddfRecordsPerSecond;
                             return formatQueueEstimate(estimatedSeconds);
