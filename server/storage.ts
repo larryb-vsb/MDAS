@@ -7347,6 +7347,33 @@ export class DatabaseStorage implements IStorage {
     let skipped = 0;
     let errors = 0;
     
+    // Initialize tracking variables for comprehensive summary
+    const recordTypeStats: Record<string, number> = {};
+    const recordTypeDefinitions: Record<string, string> = {
+      'DT': 'Detail Transaction',
+      'BH': 'Batch Header',
+      'P1': 'Purchasing Card Extension',
+      'P2': 'Purchasing Card Extension 2',
+      'A1': 'Additional Record Type 1',
+      'A2': 'Additional Record Type 2',
+      'DR': 'Direct Marketing',
+      'CT': 'Corporate Travel',
+      'LG': 'Large Ticket',
+      'FT': 'Fleet',
+      'F2': 'Fleet Extension',
+      'CK': 'Check',
+      'AD': 'Adjustment',
+      'TA': 'Transaction Aggregation',
+      'DA': 'Data Aggregation',
+      'HD': 'Header',
+      'TR': 'Trailer'
+    };
+    
+    let rowCount = 0;
+    let insertedRawLines: any[] = [];
+    let tddfRecordsCreated = processed;
+    let errorCount = errors;
+    
     try {
       // Use raw SQL to avoid Drizzle ORM column name issues
       const tableName = getTableName('tddf_raw_import');
@@ -7581,12 +7608,42 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`✅ Skipped ${skippedCount} non-DT records`);
 
+      // Update statistics
+      tddfRecordsCreated = processed;
+      errorCount = errors;
+      
+      // Get record type statistics from database for this file
+      if (fileId) {
+        const recordTypeQuery = await pool.query(`
+          SELECT record_type, COUNT(*) as count 
+          FROM "${tableName}" 
+          WHERE source_file_id = $1 
+          GROUP BY record_type
+          ORDER BY record_type
+        `, [fileId]);
+        
+        for (const row of recordTypeQuery.rows) {
+          recordTypeStats[row.record_type] = parseInt(row.count);
+        }
+        
+        // Get total raw lines count
+        const totalLinesQuery = await pool.query(`
+          SELECT COUNT(*) as count FROM "${tableName}" WHERE source_file_id = $1
+        `, [fileId]);
+        rowCount = parseInt(totalLinesQuery.rows[0]?.count || '0');
+        insertedRawLines = Array(rowCount); // Create array with proper length
+      }
+
       // STEP 3: Generate comprehensive summary
       console.log(`\n=== STEP 3: COMPREHENSIVE PROCESSING SUMMARY ===`);
       console.log(`📋 Record Type Breakdown:`);
-      for (const [recordType, count] of Object.entries(recordTypeStats)) {
-        const description = recordTypeDefinitions[recordType] || 'Unknown';
-        console.log(`   ${recordType}: ${count} lines - ${description}`);
+      if (Object.keys(recordTypeStats).length > 0) {
+        for (const [recordType, count] of Object.entries(recordTypeStats)) {
+          const description = recordTypeDefinitions[recordType] || 'Unknown';
+          console.log(`   ${recordType}: ${count} lines - ${description}`);
+        }
+      } else {
+        console.log(`   No record types found for this file`);
       }
       
       // Calculate Transaction Type Identifier statistics
