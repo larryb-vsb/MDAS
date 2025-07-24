@@ -7368,16 +7368,19 @@ export class DatabaseStorage implements IStorage {
       // FIXED: Detect if content is Base64 encoded or raw TDDF content
       let processedContent: string;
       
-      // Check if content looks like TDDF (has record types, sequence numbers, etc.)
-      const hasTddfPatterns = content.length > 50 && (
+      // IMPROVED: More reliable Base64 detection 
+      // First check if content is clearly Base64 format
+      const isBase64 = content.length >= 50 && 
+                      /^[A-Za-z0-9+/=\s]*$/.test(content) &&
+                      !content.includes('\n') && // TDDF has newlines, Base64 is usually one line
+                      content.length % 4 === 0; // Base64 length is divisible by 4
+      
+      // Only check TDDF patterns if it's NOT Base64
+      const hasTddfPatterns = !isBase64 && content.length > 50 && (
         content.includes('BH') || content.includes('DT') || content.includes('P1') || // Record types
         /^\d{6,}/.test(content) || // Starts with 6+ digits (sequence numbers)
         content.startsWith('01') // Some TDDF files start with '01'
       );
-      
-      const isBase64 = content.length > 100 && 
-                      !hasTddfPatterns && 
-                      /^[A-Za-z0-9+/=\s]*$/.test(content);
       
       if (isBase64) {
         // Content is Base64 encoded - decode it
