@@ -34,11 +34,16 @@ interface TddfBatchHeader {
   recordIdentifier?: string;
   bankNumber?: string;
   merchantAccountNumber?: string;
+  bhRecordNumber?: string;
+  transactionCode?: string;
   batchDate?: string;
+  batchJulianDate?: string;
   netDeposit?: number;
+  rejectReason?: string;
   merchantReferenceNumber?: string;
   sourceFileId?: string;
   sourceRowNumber?: number;
+  rawData?: string;
   recordedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -194,6 +199,8 @@ const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
 function BHRecordsTable() {
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<TddfBatchHeader | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: bhData, isLoading: bhLoading, error } = useQuery<{
     data: TddfBatchHeader[];
@@ -215,6 +222,38 @@ function BHRecordsTable() {
       return response.json();
     }
   });
+
+  const deleteBhMutation = useMutation({
+    mutationFn: async (recordIds: number[]) => {
+      const response = await apiRequest("DELETE", "/api/tddf/batch-headers", {
+        recordIds
+      });
+      return response;
+    },
+    onSuccess: (data, recordIds) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf/batch-headers'] });
+      setSelectedRecords(new Set());
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${recordIds.length} BH record${recordIds.length !== 1 ? 's' : ''}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedRecords.size === 0) return;
+    
+    if (confirm(`Are you sure you want to delete ${selectedRecords.size} BH record${selectedRecords.size !== 1 ? 's' : ''}?`)) {
+      deleteBhMutation.mutate(Array.from(selectedRecords));
+    }
+  };
 
   const handleSelectRecord = (id: number, checked: boolean) => {
     const newSelected = new Set(selectedRecords);
@@ -239,10 +278,23 @@ function BHRecordsTable() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>BH Records ({bhData?.pagination?.totalItems || 0})</CardTitle>
-          <Button variant="outline" size="sm">
-            <Eye className="h-4 w-4 mr-2" />
-            View Fields
-          </Button>
+          <div className="space-x-2">
+            {selectedRecords.size > 0 && (
+              <Button 
+                onClick={handleBulkDelete}
+                disabled={deleteBhMutation.isPending}
+                variant="destructive" 
+                size="sm"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete ({selectedRecords.size})
+              </Button>
+            )}
+            <Button variant="outline" size="sm">
+              <Eye className="h-4 w-4 mr-2" />
+              View Fields
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

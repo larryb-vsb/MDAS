@@ -7057,6 +7057,21 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Delete TDDF batch headers (bulk)
+  async deleteTddfBatchHeaders(recordIds: number[]): Promise<void> {
+    try {
+      console.log(`[BH DELETE] Deleting ${recordIds.length} BH records:`, recordIds);
+      
+      await db.delete(tddfBatchHeaders)
+        .where(inArray(tddfBatchHeaders.id, recordIds));
+      
+      console.log(`[BH DELETE] Successfully deleted ${recordIds.length} BH records`);
+    } catch (error) {
+      console.error('Error deleting TDDF batch headers:', error);
+      throw error;
+    }
+  }
+
   // Helper method to process a single TDDF line from raw data
   private processTddfLineFromRawData(rawLine: string, sourceFileId: string): InsertTddfRecord | null {
     try {

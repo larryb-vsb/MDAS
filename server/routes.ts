@@ -4399,6 +4399,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete TDDF batch headers (bulk)
+  app.delete("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
+    try {
+      const { recordIds } = req.body;
+      
+      if (!Array.isArray(recordIds) || recordIds.length === 0) {
+        return res.status(400).json({ error: "recordIds must be a non-empty array" });
+      }
+
+      console.log('[BH DELETE] Attempting to delete BH records:', recordIds);
+      
+      await storage.deleteTddfBatchHeaders(recordIds);
+      
+      console.log('[BH DELETE] Successfully deleted BH records:', recordIds);
+      
+      res.json({ 
+        success: true, 
+        message: `Successfully deleted ${recordIds.length} BH record${recordIds.length !== 1 ? 's' : ''}`,
+        deletedCount: recordIds.length
+      });
+    } catch (error) {
+      console.error('Error in bulk delete BH records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete BH records" 
+      });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
