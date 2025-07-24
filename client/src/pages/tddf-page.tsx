@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -202,7 +202,8 @@ function BHRecordsTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: bhData, isLoading: bhLoading, error } = useQuery<{
+  // Completely isolated BH data state (not React Query)
+  const [bhData, setBhData] = useState<{
     data: TddfBatchHeader[];
     pagination: {
       currentPage: number;
@@ -210,22 +211,36 @@ function BHRecordsTable() {
       totalItems: number;
       itemsPerPage: number;
     };
-  }>({
-    queryKey: ['bh-records-isolated'], // Completely isolated key
-    queryFn: async () => {
+  } | null>(null);
+  const [bhLoading, setBhLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Manual fetch function for BH data (completely isolated from React Query)
+  const fetchBhData = async () => {
+    try {
+      setBhLoading(true);
       const response = await fetch('/api/tddf/batch-headers', {
         credentials: 'include'
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      return response.json();
-    },
-    staleTime: 10 * 60 * 1000, // Keep data fresh for 10 minutes  
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    refetchOnMount: false, // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window gains focus
-  });
+      const data = await response.json();
+      setBhData(data);
+      setError(null);
+      console.log('[BH ISOLATED] Data loaded successfully:', data.data?.length, 'records');
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error'));
+      console.error('[BH ISOLATED] Error loading data:', err);
+    } finally {
+      setBhLoading(false);
+    }
+  };
+
+  // Load BH data only once on component mount
+  useEffect(() => {
+    fetchBhData();
+  }, []);
 
   // Debug logging for BH data
   console.log('[BH DEBUG] bhData:', bhData);
@@ -234,8 +249,8 @@ function BHRecordsTable() {
   
   // Manual refresh function for BH data
   const refreshBhData = () => {
-    queryClient.invalidateQueries({ queryKey: ['bh-records-isolated'] });
-    console.log('[BH REFRESH] Manual refresh triggered for isolated BH cache');
+    fetchBhData();
+    console.log('[BH REFRESH] Manual refresh triggered for isolated BH state');
   };
 
 
@@ -249,7 +264,7 @@ function BHRecordsTable() {
       return response;
     },
     onSuccess: (data, recordIds) => {
-      queryClient.invalidateQueries({ queryKey: ['bh-records-isolated'] }); // Match new key
+      fetchBhData(); // Refresh using isolated state system
       setSelectedRecords(new Set());
       toast({
         title: "Success",
