@@ -7555,7 +7555,7 @@ export class DatabaseStorage implements IStorage {
                 recordType: rawLine.record_type,
                 recordDescription: rawLine.record_description,
                 lineNumber: rawLine.line_number,
-                filename: filename,
+                filename: rawLine.source_file_id,
                 lineLength: line.length,
                 processingTimestamp: new Date().toISOString(),
                 allLinesInFile: insertedRawLines.length,
