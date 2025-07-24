@@ -288,7 +288,14 @@ function BHRecordsTable() {
                   className="ml-4"
                 />
                 <div className="w-48 font-mono text-xs">
-                  {record.bhRecordNumber ? `BH_....${record.bhRecordNumber.slice(-4)}` : 'N/A'}
+                  {record.bhRecordNumber ? (
+                    <span 
+                      title={record.bhRecordNumber}
+                      className="cursor-help hover:text-blue-600 transition-colors"
+                    >
+                      BH_....{record.bhRecordNumber.slice(-4)}
+                    </span>
+                  ) : 'N/A'}
                 </div>
                 <div className="w-32 text-xs">
                   {record.batchDate || 'N/A'}
