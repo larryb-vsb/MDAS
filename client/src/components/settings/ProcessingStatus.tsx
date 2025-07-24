@@ -747,16 +747,16 @@ export default function ProcessingStatus() {
                       </div>
                       <div className="text-center p-2 bg-amber-50 rounded border">
                         <div className="font-semibold text-amber-700">
-                          {(realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0)))?.toLocaleString() || '0'}
+                          {tddfRawStatus?.pending?.toLocaleString() || '0'}
                         </div>
-                        <div className="text-amber-600">Backlog</div>
+                        <div className="text-amber-600">Pending</div>
                       </div>
                       <div className="text-center p-2 bg-blue-50 rounded border">
                         <div className="font-semibold text-blue-700">
                           {(() => {
-                            const backlog = realTimeStats.tddfOperations.totalRawLines - (realTimeStats.tddfOperations.dtRecordsProcessed + realTimeStats.tddfOperations.nonDtRecordsSkipped + (realTimeStats.tddfOperations.otherSkipped || 0));
-                            if (realTimeStats.tddfRecordsPerSecond <= 0 || backlog <= 0) return '< 1m';
-                            const estimatedSeconds = backlog / realTimeStats.tddfRecordsPerSecond;
+                            const pending = tddfRawStatus?.pending || 0;
+                            if (realTimeStats.tddfRecordsPerSecond <= 0 || pending <= 0) return '0s';
+                            const estimatedSeconds = pending / realTimeStats.tddfRecordsPerSecond;
                             return formatQueueEstimate(estimatedSeconds);
                           })()}
                         </div>
