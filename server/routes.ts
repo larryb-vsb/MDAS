@@ -869,15 +869,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${tddfRecordsTableName}
       `);
       
-      // Get TDDF raw import statistics with hierarchical record type breakdown
+      // Get TDDF raw import statistics with hierarchical record type breakdown using environment-specific table names
       const tddfRawStatsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_raw_lines,
-          COUNT(CASE WHEN processed_into_table = 'tddf_records' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN processed_into_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
+          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_batch_headers')}' THEN 1 END) as bh_records_processed,
+          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_purchasing_extensions')}' THEN 1 END) as p1_records_processed,
+          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_other_records')}' THEN 1 END) as other_records_processed,
           COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
-          COUNT(CASE WHEN record_type = 'BH' AND skip_reason = 'non_dt_record' THEN 1 END) as bh_records_skipped,
-          COUNT(CASE WHEN record_type = 'P1' AND skip_reason = 'non_dt_record' THEN 1 END) as p1_records_skipped,
-          COUNT(CASE WHEN record_type NOT IN ('DT', 'BH', 'P1') AND skip_reason = 'non_dt_record' THEN 1 END) as other_records_skipped,
           COUNT(CASE WHEN skip_reason IS NOT NULL AND skip_reason != 'non_dt_record' THEN 1 END) as other_skipped
         FROM ${tddfRawImportTableName}
       `);
@@ -913,10 +913,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tddfRecordsLastHour: parseInt(tddfStats.tddf_records_last_hour) || 0,
           totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
           dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
+          bhRecordsProcessed: parseInt(tddfRawStats.bh_records_processed) || 0,
+          p1RecordsProcessed: parseInt(tddfRawStats.p1_records_processed) || 0,
+          otherRecordsProcessed: parseInt(tddfRawStats.other_records_processed) || 0,
           nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
-          bhRecordsSkipped: parseInt(tddfRawStats.bh_records_skipped) || 0,
-          p1RecordsSkipped: parseInt(tddfRawStats.p1_records_skipped) || 0,
-          otherRecordsSkipped: parseInt(tddfRawStats.other_records_skipped) || 0,
           otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
         }
       };
