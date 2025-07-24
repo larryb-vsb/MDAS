@@ -7181,9 +7181,6 @@ export class DatabaseStorage implements IStorage {
         transaction_amount, auth_amount, merchant_name, source_file_id, 
         source_row_number, mms_raw_line
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (reference_number) DO UPDATE SET 
-        transaction_amount = EXCLUDED.transaction_amount,
-        recorded_at = CURRENT_TIMESTAMP
       RETURNING id
     `, [
       tddfRecord.sequence_number, tddfRecord.entry_run_number, tddfRecord.sequence_within_run,
