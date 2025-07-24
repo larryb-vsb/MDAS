@@ -214,6 +214,11 @@ function BHRecordsTable() {
     queryKey: ['/api/tddf/batch-headers'],
   });
 
+  // Debug logging for BH data
+  console.log('[BH DEBUG] bhData:', bhData);
+  console.log('[BH DEBUG] error:', error);
+  console.log('[BH DEBUG] record count:', bhData?.data?.length);
+
 
 
   const deleteBhMutation = useMutation({
