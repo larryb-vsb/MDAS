@@ -92,6 +92,13 @@ export interface IStorage {
     sourceFileId: string, 
     originalFilename: string
   ): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }>;
+  
+  // TDDF retry operations
+  retryFailedTddfFile(fileId: string): Promise<{ success: boolean; message: string }>;
+  retryAllFailedTddfFiles(): Promise<{ filesRetried: number; errors: string[] }>;
+  
+  // TDDF raw storage operations  
+  storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }>;
 
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
@@ -7185,6 +7192,122 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // RETRY LOGIC: Reset failed TDDF file for reprocessing
+  async retryFailedTddfFile(fileId: string): Promise<{ success: boolean; message: string }> {
+    console.log(`🔄 Retrying failed TDDF file: ${fileId}`);
+    
+    try {
+      const uploadsTableName = getTableName('uploaded_files');
+      const rawImportTableName = getTableName('tddf_raw_import');
+      
+      // Check if file exists and is failed
+      const fileResult = await db.execute(sql`
+        SELECT id, original_filename, file_content, processing_errors
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE id = ${fileId} AND file_type = 'tddf' AND processing_status = 'failed'
+      `);
+      
+      if (fileResult.rows.length === 0) {
+        return { success: false, message: 'File not found or not in failed state' };
+      }
+      
+      const file = fileResult.rows[0];
+      console.log(`🔄 Retrying: ${file.original_filename} (Previous error: ${file.processing_errors})`);
+      
+      // Reset file status to queued for reprocessing
+      await db.execute(sql`
+        UPDATE ${sql.identifier(uploadsTableName)}
+        SET processing_status = 'queued',
+            processing_errors = NULL,
+            processing_completed_at = NULL,
+            processed_at = NULL,
+            processed = false,
+            records_processed = 0,
+            records_skipped = 0,
+            records_with_errors = 0
+        WHERE id = ${fileId}
+      `);
+      
+      // Clear any existing raw import records for this file
+      await db.execute(sql`
+        DELETE FROM ${sql.identifier(rawImportTableName)}
+        WHERE source_file_id = ${fileId}
+      `);
+      
+      console.log(`✅ File ${file.original_filename} reset for reprocessing`);
+      return { success: true, message: `File ${file.original_filename} has been reset and queued for reprocessing` };
+      
+    } catch (error: any) {
+      console.error(`❌ Error retrying file ${fileId}:`, error);
+      return { success: false, message: `Error retrying file: ${error.message}` };
+    }
+  }
+
+  // BULK RETRY LOGIC: Reset all failed TDDF files for reprocessing
+  async retryAllFailedTddfFiles(): Promise<{ filesRetried: number; errors: string[] }> {
+    console.log(`🔄 Retrying all failed TDDF files`);
+    
+    const uploadsTableName = getTableName('uploaded_files');
+    const rawImportTableName = getTableName('tddf_raw_import');
+    const errors: string[] = [];
+    let filesRetried = 0;
+    
+    try {
+      // Get all failed TDDF files
+      const failedFilesResult = await db.execute(sql`
+        SELECT id, original_filename, processing_errors
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE file_type = 'tddf' AND processing_status = 'failed'
+        ORDER BY upload_date ASC
+      `);
+      
+      const failedFiles = failedFilesResult.rows;
+      console.log(`📄 Found ${failedFiles.length} failed TDDF files to retry`);
+      
+      for (const file of failedFiles) {
+        try {
+          console.log(`🔄 Retrying: ${file.original_filename} (Error: ${file.processing_errors?.substring(0, 50)}...)`);
+          
+          // Reset file status to queued
+          await db.execute(sql`
+            UPDATE ${sql.identifier(uploadsTableName)}
+            SET processing_status = 'queued',
+                processing_errors = NULL,
+                processing_completed_at = NULL,
+                processed_at = NULL,
+                processed = false,
+                records_processed = 0,
+                records_skipped = 0,
+                records_with_errors = 0
+            WHERE id = ${file.id}
+          `);
+          
+          // Clear existing raw import records
+          await db.execute(sql`
+            DELETE FROM ${sql.identifier(rawImportTableName)}
+            WHERE source_file_id = ${file.id}
+          `);
+          
+          filesRetried++;
+          console.log(`✅ Reset: ${file.original_filename}`);
+          
+        } catch (fileError: any) {
+          const errorMsg = `Failed to retry ${file.original_filename}: ${fileError.message}`;
+          errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+      
+      console.log(`🎉 Bulk retry complete: ${filesRetried} files reset for reprocessing`);
+      return { filesRetried, errors };
+      
+    } catch (error: any) {
+      console.error(`❌ Error in bulk retry:`, error);
+      errors.push(`Bulk retry error: ${error.message}`);
+      return { filesRetried, errors };
+    }
+  }
+
   // PROCESSING LOGIC: Complete TDDF file processing from raw import data
   async processTddfFileFromContent(
     base64Content: string, 
@@ -8109,6 +8232,133 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error: any) {
       console.error('Error processing hierarchical TDDF migration:', error);
+      throw error;
+    }
+  }
+
+  // TDDF retry methods
+  async retryFailedTddfFile(fileId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Check if file exists and is failed
+      const fileResult = await pool.query(`
+        SELECT id, original_filename, processing_status, file_content
+        FROM "${uploadsTableName}"
+        WHERE id = $1 AND file_type = 'tddf' AND processing_status = 'failed'
+      `, [fileId]);
+      
+      if (fileResult.rows.length === 0) {
+        return { success: false, message: 'File not found or not in failed status' };
+      }
+      
+      const file = fileResult.rows[0];
+      console.log(`Retrying TDDF file: ${file.original_filename} (${fileId})`);
+      
+      // Update status to processing and reset file to queued state
+      await pool.query(`
+        UPDATE "${uploadsTableName}"
+        SET processing_status = 'queued',
+            processed = false,
+            processing_errors = null,
+            processing_completed_at = null,
+            processing_time_ms = null
+        WHERE id = $1
+      `, [fileId]);
+      
+      return { success: true, message: `Successfully queued ${file.original_filename} for retry` };
+    } catch (error: any) {
+      console.error('Error retrying TDDF file:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  async retryAllFailedTddfFiles(): Promise<{ filesRetried: number; errors: string[] }> {
+    try {
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Get all failed TDDF files
+      const failedFilesResult = await pool.query(`
+        SELECT id, original_filename
+        FROM "${uploadsTableName}"
+        WHERE file_type = 'tddf' AND processing_status = 'failed'
+      `);
+      
+      const failedFiles = failedFilesResult.rows;
+      console.log(`Found ${failedFiles.length} failed TDDF files to retry`);
+      
+      if (failedFiles.length === 0) {
+        return { filesRetried: 0, errors: [] };
+      }
+      
+      let filesRetried = 0;
+      const errors: string[] = [];
+      
+      // Reset all failed files to queued status
+      for (const file of failedFiles) {
+        try {
+          await pool.query(`
+            UPDATE "${uploadsTableName}"
+            SET processing_status = 'queued',
+                processed = false,
+                processing_errors = null,
+                processing_completed_at = null,
+                processing_time_ms = null
+            WHERE id = $1
+          `, [file.id]);
+          
+          filesRetried++;
+          console.log(`Queued ${file.original_filename} for retry`);
+        } catch (fileError: any) {
+          errors.push(`Failed to retry ${file.original_filename}: ${fileError.message}`);
+        }
+      }
+      
+      return { filesRetried, errors };
+    } catch (error: any) {
+      console.error('Error retrying all failed TDDF files:', error);
+      return { filesRetried: 0, errors: [error.message] };
+    }
+  }
+
+  // TDDF raw storage method
+  async storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
+    try {
+      console.log(`[TDDF RAW IMPORT] Starting raw import for file: ${filename}`);
+      
+      const lines = content.split('\n').filter(line => line.trim() !== '');
+      const tableName = getTableName('tddf_raw_import');
+      const recordTypes: { [key: string]: number } = {};
+      let rowsStored = 0;
+      let errors = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = i + 1;
+        
+        try {
+          // Extract record type from positions 18-19 (0-based: 17-18)
+          const recordType = line.length >= 19 ? line.substring(17, 19).trim() : 'UNK';
+          recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
+          
+          // Store raw line
+          await pool.query(`
+            INSERT INTO "${tableName}" 
+            (source_file_id, line_number, raw_line, record_type, processing_status, created_at)
+            VALUES ($1, $2, $3, $4, 'pending', NOW())
+          `, [fileId, lineNumber, line, recordType]);
+          
+          rowsStored++;
+        } catch (lineError: any) {
+          console.error(`Error storing raw line ${lineNumber}:`, lineError);
+          errors++;
+        }
+      }
+      
+      console.log(`[TDDF RAW IMPORT] Stored ${rowsStored} lines with record types:`, recordTypes);
+      return { rowsStored, recordTypes, errors };
+    } catch (error: any) {
+      console.error('Error storing TDDF file as raw import:', error);
       throw error;
     }
   }

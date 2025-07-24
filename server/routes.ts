@@ -4773,6 +4773,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Retry single failed TDDF file endpoint
+  app.post("/api/tddf/retry/:fileId", isAuthenticated, async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      console.log(`Retry TDDF file request: ${fileId}`);
+      
+      const result = await storage.retryFailedTddfFile(fileId);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.message
+        });
+      }
+    } catch (error: any) {
+      console.error("Error retrying TDDF file:", error);
+      res.status(500).json({ 
+        error: "Failed to retry TDDF file", 
+        details: error.message 
+      });
+    }
+  });
+
+  // Retry all failed TDDF files endpoint
+  app.post("/api/tddf/retry-all-failed", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`Retry all failed TDDF files request`);
+      
+      const result = await storage.retryAllFailedTddfFiles();
+      
+      res.json({
+        success: true,
+        message: `Successfully retried ${result.filesRetried} failed TDDF files`,
+        filesRetried: result.filesRetried,
+        errors: result.errors
+      });
+    } catch (error: any) {
+      console.error("Error retrying all failed TDDF files:", error);
+      res.status(500).json({ 
+        error: "Failed to retry all failed TDDF files", 
+        details: error.message 
+      });
+    }
+  });
+
   // Process pending BH records from raw import into hierarchical table
   app.post("/api/tddf/process-pending-bh", isAuthenticated, async (req, res) => {
     try {
