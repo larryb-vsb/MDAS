@@ -645,7 +645,7 @@ export default function ProcessingStatus() {
                 </div>
                 
                 {/* TDDF Processing Breakdown */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs">
                   <div className="text-center p-2 bg-green-50 rounded border">
                     <div className="font-semibold text-green-700">
                       {realTimeStats.tddfOperations.dtRecordsProcessed?.toLocaleString() || '0'}
@@ -675,6 +675,12 @@ export default function ProcessingStatus() {
                       {realTimeStats.tddfOperations.otherRecordsSkipped?.toLocaleString() || '0'}
                     </div>
                     <div className="text-red-600">Other</div>
+                  </div>
+                  <div className="text-center p-2 bg-orange-50 rounded border">
+                    <div className="font-semibold text-orange-700">
+                      {realTimeStats.tddfOperations.tddfRecordsToday?.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-orange-600">Today</div>
                   </div>
                 </div>
 
