@@ -6642,11 +6642,8 @@ export class DatabaseStorage implements IStorage {
           
           // Parse BH record into hierarchical batch header format with complete field extraction
           const bhRecord = {
-            sequence_number: line.substring(0, 7).trim() || null,
-            entry_run_number: line.substring(7, 13).trim() || null,
-            sequence_within_run: line.substring(13, 17).trim() || null,
+            bh_record_number: `BH_${rawLine.source_file_id}_${rawLine.line_number}`, // Use column that exists
             record_identifier: line.substring(17, 19).trim() || null,
-            bank_number: line.substring(19, 23).trim() || null,
             merchant_account_number: line.substring(23, 39).trim() || null,
             // BH-specific fields based on TDDF specification  
             transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
@@ -6656,7 +6653,7 @@ export class DatabaseStorage implements IStorage {
             reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
             source_file_id: rawLine.source_file_id,
             source_row_number: rawLine.line_number,
-            raw_data: JSON.stringify({ rawLine: line }) // Store complete raw line for reference
+            raw_data: { rawLine: line } // Store complete raw line for reference
           };
           
           // Validate this is a BH record
@@ -6667,11 +6664,8 @@ export class DatabaseStorage implements IStorage {
           // Insert BH record into hierarchical table within transaction
           const insertResult = await client.query(`
             INSERT INTO "${batchHeaderTableName}" (
-              sequence_number,
-              entry_run_number,
-              sequence_within_run,
+              bh_record_number,
               record_identifier,
-              bank_number,
               merchant_account_number,
               transaction_code,
               batch_date,
@@ -6680,15 +6674,13 @@ export class DatabaseStorage implements IStorage {
               reject_reason,
               source_file_id,
               source_row_number,
-              raw_data
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+              raw_data,
+              recorded_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING id
           `, [
-            bhRecord.sequence_number,
-            bhRecord.entry_run_number,
-            bhRecord.sequence_within_run,
+            bhRecord.bh_record_number,
             bhRecord.record_identifier,
-            bhRecord.bank_number,
             bhRecord.merchant_account_number,
             bhRecord.transaction_code,
             bhRecord.batch_date,
@@ -6697,7 +6689,8 @@ export class DatabaseStorage implements IStorage {
             bhRecord.reject_reason,
             bhRecord.source_file_id,
             bhRecord.source_row_number,
-            bhRecord.raw_data
+            bhRecord.raw_data,
+            new Date()
           ]);
           
           const createdRecordId = insertResult.rows[0].id;
