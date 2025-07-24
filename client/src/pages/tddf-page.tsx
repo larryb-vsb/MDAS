@@ -192,7 +192,10 @@ const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
 
 // BH Records Table Component
 function BHRecordsTable() {
-  const { data: bhData, isLoading: bhLoading } = useQuery<{
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [detailsRecord, setDetailsRecord] = useState<TddfBatchHeader | null>(null);
+  
+  const { data: bhData, isLoading: bhLoading, error } = useQuery<{
     data: TddfBatchHeader[];
     pagination: {
       currentPage: number;
@@ -202,14 +205,40 @@ function BHRecordsTable() {
     };
   }>({
     queryKey: ['/api/tddf/batch-headers'],
-    queryFn: () => fetch('/api/tddf/batch-headers').then(res => res.json())
+    queryFn: async () => {
+      const response = await fetch('/api/tddf/batch-headers', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch BH records');
+      }
+      return response.json();
+    }
   });
+
+  const handleSelectRecord = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedRecords);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && bhData?.data) {
+      setSelectedRecords(new Set(bhData.data.map(record => record.id)));
+    } else {
+      setSelectedRecords(new Set());
+    }
+  };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>BH Records (Batch Headers) - {bhData?.pagination?.totalItems || 0}</CardTitle>
+          <CardTitle>BH Records ({bhData?.pagination?.totalItems || 0})</CardTitle>
           <Button variant="outline" size="sm">
             <Eye className="h-4 w-4 mr-2" />
             View Fields
@@ -221,51 +250,83 @@ function BHRecordsTable() {
           <div className="flex justify-center py-8">
             <div className="text-muted-foreground">Loading BH records...</div>
           </div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-600">
+            Error loading BH records: {error.message}
+          </div>
         ) : bhData?.data?.length === 0 || !bhData?.data ? (
           <div className="text-center py-8 text-muted-foreground">
             No BH records found
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Table Header */}
+            {/* Table Header - matching DT format exactly */}
             <div className="flex items-center space-x-4 text-sm font-medium text-muted-foreground border-b pb-2">
-              <div className="w-32">Batch ID</div>
-              <div className="w-32">Sequence Number</div>
-              <div className="w-40">Merchant Account</div>
-              <div className="w-36">Batch Date</div>
-              <div className="w-32">Net Deposit</div>
-              <div className="w-32">Record Identifier</div>
+              <Checkbox
+                checked={selectedRecords.size === bhData.data.length && bhData.data.length > 0}
+                onCheckedChange={handleSelectAll}
+                className="ml-4"
+              />
+              <div className="w-56">Reference Number</div>
+              <div className="w-40">Merchant Name</div>
+              <div className="w-24">Merchant ID</div>
+              <div className="w-20">D/C Indicator</div>
+              <div className="w-36">Transaction Date</div>
+              <div className="w-32">Association Number</div>
+              <div className="w-32">Card Number</div>
+              <div className="w-28">Auth Amount</div>
+              <div className="w-28">Amount</div>
               <div className="w-20">Actions</div>
             </div>
 
-            {/* Table Rows */}
+            {/* Table Rows - using BH data but DT format */}
             {bhData.data.map((record: TddfBatchHeader) => (
               <div
                 key={record.id}
                 className="flex items-center space-x-4 text-sm py-3 border-b hover:bg-muted/50"
               >
-                <div className="w-32 font-mono text-xs">
-                  BH-{record.id}
+                <Checkbox
+                  checked={selectedRecords.has(record.id)}
+                  onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
+                  className="ml-4"
+                />
+                <div className="w-56">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs">BH-{record.sequenceNumber || record.id}</span>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200 flex-shrink-0">
+                      BH
+                    </span>
+                  </div>
                 </div>
-                <div className="w-32 font-mono text-xs">
-                  {record.sequenceNumber || 'N/A'}
+                <div className="w-40 text-xs">
+                  {record.merchantReferenceNumber || 'Batch Header'}
                 </div>
-                <div className="w-40 font-mono text-xs">
-                  {record.merchantAccountNumber || 'N/A'}
+                <div className="w-24 font-mono text-xs">
+                  {record.merchantAccountNumber || '-'}
+                </div>
+                <div className="w-20">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200 border">
+                    Batch
+                  </span>
                 </div>
                 <div className="w-36 text-xs">
                   {record.batchDate ? formatTableDate(record.batchDate) : 'N/A'}
                 </div>
-                <div className="w-32 font-medium text-green-600">
+                <div className="w-32 font-mono text-xs">
+                  {record.entryRunNumber || 'N/A'}
+                </div>
+                <div className="w-32 font-mono text-xs">
+                  {record.bankNumber || 'N/A'}
+                </div>
+                <div className="w-28 font-medium text-blue-600">
                   {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
                 </div>
-                <div className="w-32">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                    {record.recordIdentifier || 'BH'}
-                  </span>
+                <div className="w-28 font-medium text-green-600">
+                  {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
                 </div>
                 <div className="w-20">
                   <Button
+                    onClick={() => setDetailsRecord(record)}
                     variant="ghost"
                     size="sm"
                   >
@@ -276,6 +337,48 @@ function BHRecordsTable() {
             ))}
           </div>
         )}
+
+        {/* BH Record Details Dialog */}
+        <Dialog open={!!detailsRecord} onOpenChange={(open) => !open && setDetailsRecord(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>BH Record Details - ID: {detailsRecord?.id}</DialogTitle>
+            </DialogHeader>
+            {detailsRecord && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Core BH Fields</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Sequence Number:</span> {detailsRecord.sequenceNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Entry Run Number:</span> {detailsRecord.entryRunNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Sequence Within Run:</span> {detailsRecord.sequenceWithinRun || 'N/A'}</div>
+                      <div><span className="font-medium">Record Identifier:</span> {detailsRecord.recordIdentifier || 'N/A'}</div>
+                      <div><span className="font-medium">Bank Number:</span> {detailsRecord.bankNumber || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Batch Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Merchant Account:</span> {detailsRecord.merchantAccountNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Batch Date:</span> {detailsRecord.batchDate ? formatTableDate(detailsRecord.batchDate) : 'N/A'}</div>
+                      <div><span className="font-medium">Net Deposit:</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
+                      <div><span className="font-medium">Merchant Reference:</span> {detailsRecord.merchantReferenceNumber || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">System Information</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
+                    <div><span className="font-medium">Source Row:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
+                    <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
