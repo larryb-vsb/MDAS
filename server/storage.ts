@@ -7164,9 +7164,16 @@ export class DatabaseStorage implements IStorage {
       record_identifier: line.substring(17, 19).trim() || null,
       bank_number: line.substring(19, 23).trim() || null,
       merchant_account_number: line.substring(23, 39).trim() || null,
+      association_number_1: line.substring(39, 45).trim() || null,
+      group_number: line.substring(45, 51).trim() || null,
+      transaction_code: line.substring(51, 55).trim() || null,
+      association_number_2: line.substring(55, 61).trim() || null,
       reference_number: line.substring(61, 84).trim() || null,
       transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
       transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
+      batch_julian_date: line.substring(103, 108).trim() || null,
+      net_deposit: this.parseAuthAmount(line.substring(108, 119).trim()) || null,
+      cardholder_account_number: line.substring(123, 142).trim() || null,
       auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
       merchant_name: line.substring(217, 242).trim() || null,
       source_file_id: rawRecord.source_file_id,
@@ -7177,17 +7184,20 @@ export class DatabaseStorage implements IStorage {
     const insertResult = await client.query(`
       INSERT INTO "${tddfRecordsTableName}" (
         sequence_number, entry_run_number, sequence_within_run, record_identifier,
-        bank_number, merchant_account_number, reference_number, transaction_date,
-        transaction_amount, auth_amount, merchant_name, source_file_id, 
-        source_row_number, mms_raw_line
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        bank_number, merchant_account_number, association_number_1, group_number,
+        transaction_code, association_number_2, reference_number, transaction_date,
+        transaction_amount, batch_julian_date, net_deposit, cardholder_account_number,
+        auth_amount, merchant_name, source_file_id, source_row_number, mms_raw_line
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING id
     `, [
       tddfRecord.sequence_number, tddfRecord.entry_run_number, tddfRecord.sequence_within_run,
       tddfRecord.record_identifier, tddfRecord.bank_number, tddfRecord.merchant_account_number,
-      tddfRecord.reference_number, tddfRecord.transaction_date, tddfRecord.transaction_amount,
-      tddfRecord.auth_amount, tddfRecord.merchant_name, tddfRecord.source_file_id,
-      tddfRecord.source_row_number, tddfRecord.mms_raw_line
+      tddfRecord.association_number_1, tddfRecord.group_number, tddfRecord.transaction_code,
+      tddfRecord.association_number_2, tddfRecord.reference_number, tddfRecord.transaction_date,
+      tddfRecord.transaction_amount, tddfRecord.batch_julian_date, tddfRecord.net_deposit,
+      tddfRecord.cardholder_account_number, tddfRecord.auth_amount, tddfRecord.merchant_name,
+      tddfRecord.source_file_id, tddfRecord.source_row_number, tddfRecord.mms_raw_line
     ]);
 
     await client.query(`
