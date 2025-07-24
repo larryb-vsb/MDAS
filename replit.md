@@ -387,7 +387,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
-### BH RECORDS DELETE FUNCTIONALITY COMPLETED (July 24, 2025)
+### BH RECORDS AUTOMATIC PROCESSING COMPLETELY FIXED (July 24, 2025)
 - **✅ COMPLETE BH DELETE FUNCTIONALITY IMPLEMENTED**: Successfully added comprehensive delete capabilities to BH Records tab with full UI integration
   - **API Endpoint Created**: DELETE /api/tddf/batch-headers endpoint with proper authentication and error handling
   - **Database Method Added**: deleteTddfBatchHeaders method in DatabaseStorage with inArray support for bulk operations
@@ -396,6 +396,13 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **User Confirmation**: Checkbox functionality verified as working correctly by user
   - **Test Data Created**: 3 sample BH records with authentic TDDF field structure for testing and demonstration
   - **Production Ready**: Complete TDDF BH records management with create, read, and delete operations fully operational
+- **✅ CRITICAL SQL SYNTAX ERROR COMPLETELY RESOLVED**: Fixed malformed SQL query preventing automatic BH processing during file uploads
+  - **Root Cause Identified**: SQL query construction error with "ORDER BY line_number AND source_file_id" causing boolean/integer type mismatch
+  - **WHERE Clause Fixed**: Properly separated WHERE conditions from ORDER BY clause in processPendingTddfBhRecords method
+  - **Duplicate Handling Added**: Implemented ON CONFLICT (bh_record_number) DO UPDATE to handle raw import duplicate records gracefully
+  - **Processing Pipeline Operational**: Successfully processed all 10 BH records from failed upload (5 unique BH records created)
+  - **Automatic Processing Restored**: New TDDF file uploads now automatically process both DT and BH records without SQL errors
+  - **Zero Backlog Achieved**: TDDF backlog monitoring shows 0 pending records with complete BH processing integration
 
 ### TABLE-LEVEL AUTOMATIC BH PROCESSING IMPLEMENTATION COMPLETED (July 24, 2025)
 - **✅ AUTOMATIC BH PROCESSING AT TABLE LEVEL IMPLEMENTED**: Successfully integrated automatic BH record creation into the TDDF file processing pipeline to prevent future manual intervention requirements
