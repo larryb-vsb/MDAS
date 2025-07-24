@@ -211,15 +211,32 @@ function BHRecordsTable() {
       itemsPerPage: number;
     };
   }>({
-    queryKey: ['/api/tddf/batch-headers'],
-    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    queryKey: ['bh-records-isolated'], // Completely isolated key
+    queryFn: async () => {
+      const response = await fetch('/api/tddf/batch-headers', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
+    staleTime: 10 * 60 * 1000, // Keep data fresh for 10 minutes  
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window gains focus
   });
 
   // Debug logging for BH data
   console.log('[BH DEBUG] bhData:', bhData);
   console.log('[BH DEBUG] error:', error);
   console.log('[BH DEBUG] record count:', bhData?.data?.length);
+  
+  // Manual refresh function for BH data
+  const refreshBhData = () => {
+    queryClient.invalidateQueries({ queryKey: ['bh-records-isolated'] });
+    console.log('[BH REFRESH] Manual refresh triggered for isolated BH cache');
+  };
 
 
 
@@ -232,7 +249,7 @@ function BHRecordsTable() {
       return response;
     },
     onSuccess: (data, recordIds) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tddf/batch-headers'] });
+      queryClient.invalidateQueries({ queryKey: ['bh-records-isolated'] }); // Match new key
       setSelectedRecords(new Set());
       toast({
         title: "Success",
