@@ -8471,13 +8471,56 @@ export class DatabaseStorage implements IStorage {
         const lineNumber = i + 1;
         
         try {
+          // VALIDATION 1: Check line length - TDDF records should be at least 200+ characters
+          if (line.length < 150) {
+            console.warn(`⚠️  Line ${lineNumber}: Too short (${line.length} chars) - likely corrupted`);
+            const recordType = 'BAD';
+            recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
+            
+            // Store as BAD record type for immediate skipping
+            await pool.query(`
+              INSERT INTO "${tableName}" 
+              (source_file_id, line_number, raw_line, record_type, processing_status, skip_reason, created_at)
+              VALUES ($1, $2, $3, $4, 'skipped', 'line_too_short', NOW())
+            `, [fileId, lineNumber, line, recordType]);
+            rowsStored++;
+            continue;
+          }
+          
           // Extract record type from positions 18-19 (0-based: 17-18) - FROM DECODED CONTENT
           const recordType = line.length >= 19 ? line.substring(17, 19).trim() : 'UNK';
+          
+          // VALIDATION 2: Check for valid transaction code patterns (positions 52-55) for DT records
+          if (recordType === 'DT' && line.length >= 55) {
+            const transactionCode = line.substring(51, 55).trim();
+            
+            // Check if transaction code contains scrambled data
+            const hasInvalidChars = /[^A-Za-z0-9]/.test(transactionCode);
+            const hasConsecutiveRepeats = /(.)\1{3,}/.test(transactionCode); // 4+ repeated chars
+            const isBlank = transactionCode.length === 0;
+            
+            if (hasInvalidChars || hasConsecutiveRepeats || isBlank) {
+              console.warn(`⚠️  Line ${lineNumber}: Invalid transaction code "${transactionCode}" - marking as BAD`);
+              recordTypes['BAD'] = (recordTypes['BAD'] || 0) + 1;
+              
+              // Store as BAD record type for immediate skipping
+              await pool.query(`
+                INSERT INTO "${tableName}" 
+                (source_file_id, line_number, raw_line, record_type, processing_status, skip_reason, created_at)
+                VALUES ($1, $2, $3, 'BAD', 'skipped', 'invalid_transaction_code', NOW())
+              `, [fileId, lineNumber, line]);
+              rowsStored++;
+              continue;
+            }
+            
+            console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}", TxnCode="${transactionCode}" from "${line.substring(15, 25)}..."`);
+          } else {
+            console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}" from "${line.substring(15, 25)}..."`);
+          }
+          
           recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
           
-          console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}" from "${line.substring(15, 25)}..."`);
-          
-          // Store the decoded raw line
+          // Store the validated raw line
           await pool.query(`
             INSERT INTO "${tableName}" 
             (source_file_id, line_number, raw_line, record_type, processing_status, created_at)

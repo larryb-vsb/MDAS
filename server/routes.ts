@@ -969,7 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentStats.currentlyProcessing > 0 ? 'processing' : 'idle',
           'snapshot',
           currentStats.tddfOperations.dtRecordsProcessed || 0,
-          currentStats.tddfOperations.nonDtRecordsSkipped || 0,
+          (currentStats.tddfOperations.nonDtRecordsSkipped || 0) + (currentStats.tddfOperations.otherSkipped || 0),
           currentStats.tddfOperations.totalRawLines || 0
         ]);
       } catch (dbError) {

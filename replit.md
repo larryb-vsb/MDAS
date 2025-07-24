@@ -387,6 +387,23 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### CRITICAL TDDF VALIDATION ENHANCEMENT WITH SKIPPED LINE TRACKING COMPLETED (July 24, 2025)
+- **✅ TRANSACTION CODE VALIDATION IMPLEMENTED**: Added comprehensive validation logic to detect invalid transaction codes in TDDF records
+  - **Line Length Validation**: Records shorter than 150 characters marked as 'BAD' with skip_reason 'line_too_short'
+  - **Transaction Code Pattern Validation**: DT records validated for positions 52-55 transaction codes
+  - **Invalid Character Detection**: Non-alphanumeric characters in transaction codes trigger BAD classification
+  - **Consecutive Repeat Detection**: 4+ repeated characters (e.g., "AAAA") indicate scrambled data and trigger skip
+  - **Blank Code Detection**: Empty transaction codes marked as invalid with proper skip_reason tracking
+- **✅ ENHANCED SKIPPED LINE TRACKING**: Fixed metrics recording gaps to include all types of skipped lines
+  - **Processing Metrics Integration**: Updated 1-minute processing statistics to include both nonDtRecordsSkipped and otherSkipped counts
+  - **BAD Record Classification**: Invalid records now properly stored with 'BAD' record_type and immediate 'skipped' status
+  - **Comprehensive Skip Reasons**: Database tracks specific reasons (line_too_short, invalid_transaction_code, non_dt_record)
+  - **Monitoring Integration**: Scanly-Watcher and ProcessingStatus widgets now show complete skipped line visibility
+- **✅ PRODUCTION READY VALIDATION**: Complete TDDF processing pipeline enhanced with robust validation and comprehensive monitoring
+  - **Data Corruption Protection**: System automatically detects and skips corrupted lines preventing text scrambling issues
+  - **Monitoring Accuracy**: All skipped lines now properly recorded in 1-minute processing statistics for accurate performance monitoring
+  - **Technical Transparency**: Clear logging shows exactly which lines are skipped and why for debugging purposes
+
 ### CRITICAL BASE64 PROCESSING AND ROUTING BUGS COMPLETELY RESOLVED (July 24, 2025)
 - **✅ ROOT CAUSE DISCOVERED**: TDDF content was being stored as Base64 in database but record type detection was running on encoded content instead of decoded TDDF
 - **✅ PROCESSING LOGIC FIXED**: Updated both `storeTddfFileAsRawImport` and `processTddfFileFromContent` methods to decode Base64 content before processing
