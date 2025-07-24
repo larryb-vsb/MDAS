@@ -17,6 +17,13 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 24, 2025 - COMPLETE 4-STEP TDDF PROCESSING PIPELINE OPERATIONAL
+- **✅ PROCESSING PERFORMANCE KPI DISPLAY FIX COMPLETELY RESOLVED (July 24, 2025)**: Fixed real-time stats API to properly display TDDF processing breakdown in dashboard Performance KPIs section
+  - **Root Cause Fixed**: API query was using hardcoded table names ('tddf_records') instead of environment-specific names ('dev_tddf_records')
+  - **Environment Detection Enhanced**: Updated SQL queries to use proper `${tddfRecordsTableName}` and `getTableName()` function calls for table detection
+  - **Hierarchical Processing Display**: Added proper field extraction for BH, P1, and Other record types with accurate processing counts
+  - **API Response Updated**: Enhanced tddfOperations response to include bhRecordsProcessed, p1RecordsProcessed, otherRecordsProcessed fields
+  - **Live Testing Verified**: Upload processing confirmed working with real-time counter updates (DT: 896→900, BH: 124→126, P1: 102→106)
+  - **Dashboard Accuracy Restored**: Processing Performance KPIs section now displays authentic processing data instead of persistent zeros
 - **✅ BH RECORDS FRONTEND CACHE ISSUE COMPLETELY RESOLVED (July 24, 2025)**: Implemented bulletproof isolated state system eliminating all React Query cache conflicts
   - **Root Cause Eliminated**: File upload operations and TDDF cache invalidations were triggering broad React Query cache clearing affecting BH records
   - **Pure React State Architecture**: Completely removed React Query for BH records, implemented isolated `useState` with direct fetch() calls
