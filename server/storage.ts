@@ -6648,9 +6648,12 @@ export class DatabaseStorage implements IStorage {
             record_identifier: line.substring(17, 19).trim() || null,
             bank_number: line.substring(19, 23).trim() || null,
             merchant_account_number: line.substring(23, 39).trim() || null,
-            batch_date: new Date(), // Current timestamp as batch processing date
-            net_deposit: null, // Will be enhanced based on actual BH format requirements
-            merchant_reference_number: null, // Will be enhanced based on actual BH format requirements
+            // BH-specific fields based on TDDF specification  
+            transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
+            batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars) 
+            batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
+            net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N)
+            reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
             source_file_id: rawLine.source_file_id,
             source_row_number: rawLine.line_number,
             raw_data: JSON.stringify({ rawLine: line }) // Store complete raw line for reference
@@ -6670,13 +6673,15 @@ export class DatabaseStorage implements IStorage {
               record_identifier,
               bank_number,
               merchant_account_number,
+              transaction_code,
               batch_date,
+              batch_julian_date,
               net_deposit,
-              merchant_reference_number,
+              reject_reason,
               source_file_id,
               source_row_number,
               raw_data
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING id
           `, [
             bhRecord.sequence_number,
@@ -6685,9 +6690,11 @@ export class DatabaseStorage implements IStorage {
             bhRecord.record_identifier,
             bhRecord.bank_number,
             bhRecord.merchant_account_number,
+            bhRecord.transaction_code,
             bhRecord.batch_date,
+            bhRecord.batch_julian_date,
             bhRecord.net_deposit,
-            bhRecord.merchant_reference_number,
+            bhRecord.reject_reason,
             bhRecord.source_file_id,
             bhRecord.source_row_number,
             bhRecord.raw_data
@@ -6766,16 +6773,12 @@ export class DatabaseStorage implements IStorage {
       // Batch-specific fields
       const merchantAccountNumber = rawLine.substring(23, 39).trim() || null;
       
-      // Parse batch date from TDDF format (assuming similar to DT records)
-      // For now, use current timestamp as batch date - this can be enhanced based on actual BH format
-      const batchDate = new Date();
-      
-      // Extract net deposit amount if available (this would need to be determined from BH format)
-      // For now, set to null - this can be enhanced based on actual BH format
-      const netDeposit = null;
-      
-      // Merchant reference number (position may vary in BH records)
-      const merchantReferenceNumber = null;
+      // BH-specific fields based on TDDF specification
+      const transactionCode = rawLine.substring(51, 55).trim() || null; // Positions 52-55 (4 chars)
+      const batchDate = rawLine.substring(55, 60).trim() || null; // Positions 56-60 (5 chars)
+      const batchJulianDate = rawLine.substring(60, 65).trim() || null; // Positions 61-65 (5 chars)
+      const netDeposit = this.parseAuthAmount(rawLine.substring(68, 83).trim()) || null; // Positions 69-83 (15 chars N)
+      const rejectReason = rawLine.substring(83, 87).trim() || null; // Positions 84-87 (4 chars AN)
 
       // Validate this is a BH record
       if (recordIdentifier !== 'BH') {
@@ -6789,9 +6792,11 @@ export class DatabaseStorage implements IStorage {
         recordIdentifier,
         bankNumber,
         merchantAccountNumber,
+        transactionCode,
         batchDate,
+        batchJulianDate,
         netDeposit,
-        merchantReferenceNumber,
+        rejectReason,
         sourceFileId,
         sourceRowNumber,
         rawData: JSON.parse(JSON.stringify({ rawLine })) // Store complete raw line for reference
@@ -6901,9 +6906,12 @@ export class DatabaseStorage implements IStorage {
               record_identifier: line.substring(17, 19).trim() || null,
               bank_number: line.substring(19, 23).trim() || null,
               merchant_account_number: line.substring(23, 39).trim() || null,
-              batch_date: new Date(),
-              net_deposit: null,
-              merchant_reference_number: null,
+              // BH-specific fields based on TDDF specification
+              transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
+              batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars)
+              batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
+              net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N)
+              reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
               source_file_id: rawLine.source_file_id,
               source_row_number: rawLine.line_number,
               raw_data: JSON.stringify({ rawLine: line })
@@ -6912,16 +6920,16 @@ export class DatabaseStorage implements IStorage {
             const insertResult = await client.query(`
               INSERT INTO "${targetTable}" (
                 sequence_number, entry_run_number, sequence_within_run, record_identifier,
-                bank_number, merchant_account_number, batch_date, net_deposit,
-                merchant_reference_number, source_file_id, source_row_number, raw_data
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                bank_number, merchant_account_number, transaction_code, batch_date, 
+                batch_julian_date, net_deposit, reject_reason, source_file_id, source_row_number, raw_data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
               RETURNING id
             `, [
               bhRecord.sequence_number, bhRecord.entry_run_number,
               bhRecord.sequence_within_run, bhRecord.record_identifier,
               bhRecord.bank_number, bhRecord.merchant_account_number,
-              bhRecord.batch_date, bhRecord.net_deposit,
-              bhRecord.merchant_reference_number, bhRecord.source_file_id,
+              bhRecord.transaction_code, bhRecord.batch_date, bhRecord.batch_julian_date,
+              bhRecord.net_deposit, bhRecord.reject_reason, bhRecord.source_file_id,
               bhRecord.source_row_number, bhRecord.raw_data
             ]);
             

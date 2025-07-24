@@ -102,10 +102,12 @@ async function processBhRecords(bhRecords) {
         bank_number: line.substring(19, 23).trim() || null,
         merchant_account_number: line.substring(23, 39).trim() || null,
         
-        // Batch-specific fields (positions vary by TDDF specification)
-        batch_date: parseDate(line.substring(84, 92).trim()), // Using same date position as DT for now
-        net_deposit: parseAmount(line.substring(108, 123).trim()), // Similar to DT net deposit field
-        merchant_reference_number: line.substring(61, 84).trim() || null, // Similar to reference number
+        // Batch-specific fields based on TDDF BH specification
+        transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
+        batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars)
+        batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
+        net_deposit: parseAmount(line.substring(68, 83).trim()), // Positions 69-83 (15 chars N)
+        reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
         
         // System fields
         source_file_id: fileId,
@@ -113,19 +115,20 @@ async function processBhRecords(bhRecords) {
         raw_data: JSON.stringify({ rawLine: line })
       };
       
-      // Insert into hierarchical batch headers table
+      // Insert into hierarchical batch headers table with corrected fields
       const insertResult = await pool.query(`
         INSERT INTO dev_tddf_batch_headers (
           sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-          merchant_account_number, batch_date, net_deposit, merchant_reference_number,
-          source_file_id, source_row_number, raw_data, created_at, updated_at
+          merchant_account_number, transaction_code, batch_date, batch_julian_date, 
+          net_deposit, reject_reason, source_file_id, source_row_number, raw_data, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
         ) RETURNING id
       `, [
         bhRecord.sequence_number, bhRecord.entry_run_number, bhRecord.sequence_within_run,
         bhRecord.record_identifier, bhRecord.bank_number, bhRecord.merchant_account_number,
-        bhRecord.batch_date, bhRecord.net_deposit, bhRecord.merchant_reference_number,
+        bhRecord.transaction_code, bhRecord.batch_date, bhRecord.batch_julian_date,
+        bhRecord.net_deposit, bhRecord.reject_reason, 
         bhRecord.source_file_id, bhRecord.source_row_number, bhRecord.raw_data
       ]);
       
@@ -143,7 +146,7 @@ async function processBhRecords(bhRecords) {
       `, [rawLine.id, recordId.toString()]);
       
       processed++;
-      console.log(`✅ BH Record ${recordId}: Batch ${bhRecord.merchant_account_number} - ${bhRecord.merchant_reference_number}`);
+      console.log(`✅ BH Record ${recordId}: Account ${bhRecord.merchant_account_number} - Net Deposit: $${bhRecord.net_deposit?.toFixed(2) || '0.00'}`);
       
     } catch (error) {
       errors++;

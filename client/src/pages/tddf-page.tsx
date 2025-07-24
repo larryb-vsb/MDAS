@@ -270,7 +270,7 @@ function BHRecordsTable() {
               <div className="w-48">BH Record Number</div>
               <div className="w-32">Batch Date (64-68)</div>
               <div className="w-32">Transaction Code (56-63)</div>
-              <div className="w-32">Net Deposit (52-55)</div>
+              <div className="w-32">Net Deposit (69-83)</div>
               <div className="w-36">Merchant Account (24-39)</div>
               <div className="w-24">Record ID</div>
               <div className="w-20">Actions</div>
@@ -349,7 +349,7 @@ function BHRecordsTable() {
                   <div>
                     <h4 className="font-medium mb-2">BH Specific Fields</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Net Deposit (52-55):</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
+                      <div><span className="font-medium">Net Deposit (69-83):</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
                       <div><span className="font-medium">Transaction Code (56-63):</span> {detailsRecord.transactionCode || 'N/A'}</div>
                       <div><span className="font-medium">Batch Date (64-68):</span> {detailsRecord.batchDate || 'N/A'}</div>
                       <div><span className="font-medium">Batch Julian Date (69-73):</span> {detailsRecord.batchJulianDate || 'N/A'}</div>

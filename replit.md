@@ -396,10 +396,10 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Comprehensive Results**: Total TDDF records created now includes both DT records and BH batch headers in unified count
   - **Error Handling**: Combined error tracking across all processing steps for complete pipeline transparency
   - **Production Ready**: All future TDDF files will have complete record processing without requiring manual BH creation
-- **✅ COMPLETE BH SCHEMA UPDATE IMPLEMENTED**: Successfully updated BH Records schema with new TDDF specification fields
-  - **First Three Fields Removed**: Eliminated sequenceNumber, entryRunNumber, sequenceWithinRun fields as requested
-  - **New Field Schema Added**: Net Deposit (52-55), Transaction Code (56-63), Batch Date (64-68), Batch Julian Date (69-73), Reject Reason (84-87)
-  - **Field Position Accuracy**: Confirmed Net Deposit positioning at 52-55 with 15-character precision
+- **✅ COMPLETE BH SCHEMA UPDATE IMPLEMENTED**: Successfully updated BH Records schema with corrected TDDF specification fields
+  - **Critical Field Position Correction**: Fixed Net Deposit field extraction from incorrect positions 52-55 to proper TDDF specification at positions 69-83 (15N)
+  - **TDDF Specification Verified**: Confirmed actual field positions through database analysis - Transaction Code (52-55), Net Deposit (69-83), Batch Date (56-60)
+  - **Processing Methods Updated**: Corrected field extraction in both fix-tddf-dt-bh-processing.js and server/storage.ts to use proper TDDF positions
   - **Database Migration Applied**: Updated schema structure with proper field types and indexes
   - **Stalled Processing Fixed**: Resolved CA record type causing 1-record backlog stall - system now shows 0 pending records
   - **Production Ready Schema**: BH processing infrastructure updated to use new field structure with automatic processing pipeline

@@ -240,10 +240,10 @@ export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   recordIdentifier: text("record_identifier"), // Positions 18-19: Always "BH"
   
   // Updated BH-specific fields based on TDDF specification
-  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 52-55: Net Deposit amount (15 chars)
-  transactionCode: text("transaction_code"), // Positions 56-63: Global Payments Transaction code (4 chars)
-  batchDate: text("batch_date"), // Positions 64-68: Batch Date MMDDCCYY format (8 chars)
-  batchJulianDate: text("batch_julian_date"), // Positions 69-73: Batch Julian Date DDDYY format (5 chars)
+  transactionCode: text("transaction_code"), // Positions 52-55: Global Payments Transaction code (4 chars)
+  batchDate: text("batch_date"), // Positions 56-60: Batch Date MMDDCCYY format (5 chars)
+  batchJulianDate: text("batch_julian_date"), // Positions 61-65: Batch Julian Date DDDYY format (5 chars)
+  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 69-83: Net Deposit amount (15 chars N)
   rejectReason: text("reject_reason"), // Positions 84-87: Global Payments Reject Reason Code (4 chars AN)
   
   // Merchant identification (keeping for existing data compatibility)
