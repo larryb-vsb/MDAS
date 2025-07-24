@@ -7090,6 +7090,42 @@ export class DatabaseStorage implements IStorage {
             ]);
             
             processedRecord = { id: insertResult.rows[0].id, type: 'BH', ...bhRecord };
+            
+          } else if (recordType === 'P1') {
+            // Process P1 record (purchasing extension)
+            targetTable = getTableName('tddf_purchasing_extensions');
+            
+            const p1Record = {
+              p1_record_number: `P1_${rawLine.source_file_id}_${rawLine.line_number}`,
+              record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19
+              parent_dt_reference: line.substring(61, 84).trim() || null, // Reference to parent DT record (positions 62-84)
+              tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null, // Tax amount field
+              discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null, // Discount amount
+              freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null, // Freight amount
+              duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null, // Duty amount
+              purchase_identifier: line.substring(198, 225).trim() || null, // Purchase ID
+              source_file_id: rawLine.source_file_id,
+              source_row_number: rawLine.line_number,
+              raw_data: JSON.stringify({ rawLine: line })
+            };
+            
+            const insertResult = await client.query(`
+              INSERT INTO "${targetTable}" (
+                p1_record_number, record_identifier, parent_dt_reference,
+                tax_amount, discount_amount, freight_amount, duty_amount, purchase_identifier,
+                source_file_id, source_row_number, raw_data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (p1_record_number) DO UPDATE SET
+                recorded_at = CURRENT_TIMESTAMP
+              RETURNING id
+            `, [
+              p1Record.p1_record_number, p1Record.record_identifier, p1Record.parent_dt_reference,
+              p1Record.tax_amount, p1Record.discount_amount, p1Record.freight_amount,
+              p1Record.duty_amount, p1Record.purchase_identifier, p1Record.source_file_id,
+              p1Record.source_row_number, p1Record.raw_data
+            ]);
+            
+            processedRecord = { id: insertResult.rows[0].id, type: 'P1', ...p1Record };
           }
           
           // Update raw line processing status within same transaction
