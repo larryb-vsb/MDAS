@@ -372,6 +372,17 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### PROCESSING CHART VISUALIZATION ENHANCEMENT COMPLETED (July 24, 2025)
+- **✅ CHART COLOR SCHEME UPDATED**: Changed Records per minute chart colors to gray (#6B7280) for processed records and red (#EF4444) for skipped records
+- **✅ HIERARCHICAL BREAKDOWN LABEL UPDATED**: Changed "DT Processed" to "Total Processed" in ProcessingStatus widget for better clarity
+- **✅ RAW LINE DATA TRACKING IMPLEMENTED**: Added comprehensive raw line processing data to minute-by-minute performance database
+  - Added raw_lines_processed, raw_lines_skipped, and raw_lines_total columns to processing_metrics schema
+  - Enhanced real-time stats API to record raw line processing metrics with every database snapshot
+  - Database migration applied to development environment processing_metrics table
+  - Complete raw line tracking now operational alongside existing TDDF processing metrics
+- **✅ VISUAL CLARITY ENHANCEMENT**: Updated chart tooltips and legends to clearly distinguish between processed DT records (gray) and skipped records (red)
+- **✅ PROCESSING STATUS WIDGET ENHANCED**: 6-column hierarchical breakdown now includes Total Processed column for comprehensive TDDF operation visibility
+
 ### HIERARCHICAL TDDF ARCHITECTURE IMPLEMENTATION COMPLETED (July 23, 2025)
 - **✅ SCHEMA VERSION 2.4.0 RELEASED**: Complete hierarchical TDDF record architecture with separate tables for each record type
   - Four-Table Hierarchy: `tddf_batch_headers` (BH) → `tddf_transaction_records` (DT) → `tddf_purchasing_extensions` (P1/P2) → `tddf_other_records` (AD/DR/G2/etc.)

@@ -650,7 +650,7 @@ export default function ProcessingStatus() {
                     <div className="font-semibold text-green-700">
                       {realTimeStats.tddfOperations.dtRecordsProcessed?.toLocaleString() || '0'}
                     </div>
-                    <div className="text-green-600">DT Processed</div>
+                    <div className="text-green-600">Total Processed</div>
                   </div>
                   <div className="text-center p-2 bg-blue-50 rounded border">
                     <div className="font-semibold text-blue-700">

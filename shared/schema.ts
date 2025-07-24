@@ -831,7 +831,11 @@ export const processingMetrics = pgTable(getTableName("processing_metrics"), {
   averageProcessingTimeMs: integer("average_processing_time_ms"),
   systemStatus: text("system_status").notNull().default("idle"), // idle, processing, paused
   metricType: text("metric_type").notNull().default("snapshot"), // snapshot, peak_update, hourly_summary
-  notes: text("notes")
+  notes: text("notes"),
+  // Raw line processing tracking
+  rawLinesProcessed: integer("raw_lines_processed").default(0),
+  rawLinesSkipped: integer("raw_lines_skipped").default(0),
+  rawLinesTotal: integer("raw_lines_total").default(0)
 }, (table) => {
   return {
     // Create indexes for better query performance

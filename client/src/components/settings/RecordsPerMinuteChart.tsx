@@ -193,29 +193,29 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
             <div className="h-px bg-gray-200 my-2"></div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                <div className="w-3 h-3 bg-gray-500 rounded-sm"></div>
                 DT:
               </span>
               <span>{data.dtRecords.toLocaleString()} records/min</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-emerald-500 rounded-sm"></div>
-                BH:
+                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                BH (Skipped):
               </span>
               <span>{data.bhRecords.toLocaleString()} records/min</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-amber-500 rounded-sm"></div>
-                P1:
+                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                P1 (Skipped):
               </span>
               <span>{data.p1Records.toLocaleString()} records/min</span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                Other:
+                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                Other (Skipped):
               </span>
               <span>{data.otherRecords.toLocaleString()} records/min</span>
             </div>
@@ -439,30 +439,30 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 <Bar 
                   dataKey="dtRecords" 
                   stackId="records"
-                  fill="#3b82f6"
+                  fill="#6b7280"
                   radius={[0, 0, 0, 0]}
                   name="DT Records"
                 />
                 <Bar 
                   dataKey="bhRecords" 
                   stackId="records"
-                  fill="#10b981"
+                  fill="#ef4444"
                   radius={[0, 0, 0, 0]}
-                  name="BH Records"
+                  name="BH Records (Skipped)"
                 />
                 <Bar 
                   dataKey="p1Records" 
                   stackId="records"
-                  fill="#f59e0b"
+                  fill="#ef4444"
                   radius={[0, 0, 0, 0]}
-                  name="P1 Records"
+                  name="P1 Records (Skipped)"
                 />
                 <Bar 
                   dataKey="otherRecords" 
                   stackId="records"
-                  fill="#3b82f6"
+                  fill="#ef4444"
                   radius={[2, 2, 0, 0]}
-                  name="Other Records"
+                  name="Other Records (Skipped)"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -482,19 +482,19 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
             </span>
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <div className="w-2 h-2 bg-gray-500 rounded-full" />
                 DT
               </span>
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
                 BH
               </span>
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
                 P1
               </span>
               <span className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
                 Other
               </span>
             </div>

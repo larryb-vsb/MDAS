@@ -937,7 +937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recordsPerMinute = totalRecordsPerSecond * 60;
       const newRecordsPeak = Math.max(parseFloat(currentRecordsPeak), recordsPerMinute);
       
-      // Save metrics snapshot to database
+      // Save metrics snapshot to database with raw line processing data
       try {
         await pool.query(`
           INSERT INTO ${metricsTableName} (
@@ -951,8 +951,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             files_with_errors,
             currently_processing,
             system_status,
-            metric_type
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            metric_type,
+            raw_lines_processed,
+            raw_lines_skipped,
+            raw_lines_total
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         `, [
           currentStats.transactionsPerSecond,
           newTxnPeak,
@@ -964,7 +967,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentStats.filesWithErrors,
           currentStats.currentlyProcessing,
           currentStats.currentlyProcessing > 0 ? 'processing' : 'idle',
-          'snapshot'
+          'snapshot',
+          currentStats.tddfOperations.dtRecordsProcessed || 0,
+          currentStats.tddfOperations.nonDtRecordsSkipped || 0,
+          currentStats.tddfOperations.totalRawLines || 0
         ]);
       } catch (dbError) {
         console.error('Error saving processing metrics to database:', dbError);
