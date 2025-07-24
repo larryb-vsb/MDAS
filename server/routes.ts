@@ -4767,6 +4767,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process pending BH records from raw import into hierarchical table
+  app.post("/api/tddf/process-pending-bh", isAuthenticated, async (req, res) => {
+    try {
+      const { fileId, maxRecords } = req.body;
+      
+      console.log(`[BH PROCESSING API] Processing pending BH records - fileId: ${fileId}, maxRecords: ${maxRecords}`);
+      
+      const result = await storage.processPendingTddfBhRecords(fileId, maxRecords);
+      
+      res.json({
+        success: true,
+        message: `BH processing complete: ${result.processed} processed, ${result.skipped} skipped, ${result.errors} errors`,
+        ...result
+      });
+    } catch (error) {
+      console.error('Error processing pending BH records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process BH records" 
+      });
+    }
+  });
+
+  // Get TDDF batch headers with pagination
+  app.get("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const merchantAccount = req.query.merchantAccount as string;
+      
+      const result = await storage.getTddfBatchHeaders({
+        page,
+        limit,
+        merchantAccount
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching BH records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch BH records" 
+      });
+    }
+  });
+
   // POST /api/tddf/process-pending - Process pending DT records for completed files
   app.post("/api/tddf/process-pending", isAuthenticated, async (req, res) => {
     try {

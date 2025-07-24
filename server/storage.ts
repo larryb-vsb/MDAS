@@ -282,6 +282,20 @@ export interface IStorage {
   getHierarchicalTddfCount(): Promise<number>;
   getLegacyTddfCount(): Promise<number>;
   processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }>;
+  processPendingTddfBhRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  getTddfBatchHeaders(options: {
+    page?: number;
+    limit?: number;
+    merchantAccount?: string;
+  }): Promise<{
+    data: TddfBatchHeader[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
   
   // File operations
   getFileById(fileId: string): Promise<any>;
@@ -6481,6 +6495,193 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting TDDF raw processing status:', error);
+      throw error;
+    }
+  }
+
+  // Process pending BH records from raw import into hierarchical table
+  async processPendingTddfBhRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
+    console.log(`=================== TDDF BH PROCESSING (HIERARCHICAL) ===================`);
+    console.log(`Processing pending BH records from raw import table into hierarchical table`);
+    
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    try {
+      // Get pending BH records from raw import table
+      const whereConditions = [
+        eq(tddfRawImportTable.recordType, 'BH'),
+        eq(tddfRawImportTable.processingStatus, 'pending')
+      ];
+      
+      if (fileId) {
+        whereConditions.push(eq(tddfRawImportTable.sourceFileId, fileId));
+      }
+      
+      let query = db.select()
+        .from(tddfRawImportTable)
+        .where(and(...whereConditions))
+        .orderBy(tddfRawImportTable.lineNumber);
+      
+      if (maxRecords) {
+        query = query.limit(maxRecords);
+      }
+      
+      const bhRecords = await query;
+      console.log(`Found ${bhRecords.length} pending BH records to process`);
+      
+      for (const rawLine of bhRecords) {
+        try {
+          console.log(`[BH PROCESSING] Processing line ${rawLine.lineNumber}: ${rawLine.recordDescription}`);
+          
+          // Parse the BH record using fixed-width parsing
+          const line = rawLine.rawLine;
+          const bhRecord = this.processBhLineFromRawData(line, rawLine.sourceFileId, rawLine.lineNumber);
+          
+          if (bhRecord) {
+            // Create BH record in hierarchical table
+            const [createdRecord] = await db.insert(tddfBatchHeaders)
+              .values(bhRecord)
+              .returning();
+            
+            // Mark raw line as processed
+            await this.markRawImportLineProcessed(rawLine.id, getTableName('tddf_batch_headers'), createdRecord.id.toString());
+            processed++;
+            
+            if (processed % 10 === 0) {
+              console.log(`[BH PROCESSING] Processed ${processed} BH records so far...`);
+            }
+          } else {
+            // Skip invalid BH record
+            await this.markRawImportLineSkipped(rawLine.id, 'invalid_bh_format');
+            skipped++;
+          }
+          
+        } catch (error) {
+          console.error(`[BH PROCESSING] Error processing line ${rawLine.id}:`, error);
+          await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${error instanceof Error ? error.message : 'unknown'}`);
+          errors++;
+        }
+      }
+
+      console.log(`[BH PROCESSING] Batch complete - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+      return { processed, skipped, errors };
+      
+    } catch (error) {
+      console.error('Error processing pending BH records:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to process a single BH line from raw data
+  private processBhLineFromRawData(rawLine: string, sourceFileId: string, sourceRowNumber: number): InsertTddfBatchHeader | null {
+    try {
+      if (!rawLine || rawLine.length < 100) {
+        return null;
+      }
+
+      // Extract BH fields from fixed-width positions based on TDDF specification
+      const sequenceNumber = rawLine.substring(0, 7).trim() || null;
+      const entryRunNumber = rawLine.substring(7, 13).trim() || null;
+      const sequenceWithinRun = rawLine.substring(13, 17).trim() || null;
+      const recordIdentifier = rawLine.substring(17, 19).trim() || null;
+      const bankNumber = rawLine.substring(19, 23).trim() || null;
+      
+      // Batch-specific fields
+      const merchantAccountNumber = rawLine.substring(23, 39).trim() || null;
+      
+      // Parse batch date from TDDF format (assuming similar to DT records)
+      // For now, use current timestamp as batch date - this can be enhanced based on actual BH format
+      const batchDate = new Date();
+      
+      // Extract net deposit amount if available (this would need to be determined from BH format)
+      // For now, set to null - this can be enhanced based on actual BH format
+      const netDeposit = null;
+      
+      // Merchant reference number (position may vary in BH records)
+      const merchantReferenceNumber = null;
+
+      // Validate this is a BH record
+      if (recordIdentifier !== 'BH') {
+        return null;
+      }
+
+      return {
+        sequenceNumber,
+        entryRunNumber,
+        sequenceWithinRun,
+        recordIdentifier,
+        bankNumber,
+        merchantAccountNumber,
+        batchDate,
+        netDeposit,
+        merchantReferenceNumber,
+        sourceFileId,
+        sourceRowNumber,
+        rawData: JSON.parse(JSON.stringify({ rawLine })) // Store complete raw line for reference
+      };
+
+    } catch (error) {
+      console.error('Error processing BH line from raw data:', error);
+      return null;
+    }
+  }
+
+  // Get TDDF batch headers with pagination
+  async getTddfBatchHeaders(options: {
+    page?: number;
+    limit?: number;
+    merchantAccount?: string;
+  }): Promise<{
+    data: TddfBatchHeader[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = Math.min(options.limit || 50, 500);
+      const offset = (page - 1) * limit;
+
+      // Build where conditions
+      const whereConditions = [];
+      if (options.merchantAccount) {
+        whereConditions.push(eq(tddfBatchHeaders.merchantAccountNumber, options.merchantAccount));
+      }
+
+      // Get total count
+      let countQuery = db.select({ count: sql<number>`count(*)` }).from(tddfBatchHeaders);
+      if (whereConditions.length > 0) {
+        countQuery = countQuery.where(and(...whereConditions));
+      }
+      const [{ count }] = await countQuery;
+
+      // Get records
+      let dataQuery = db.select().from(tddfBatchHeaders);
+      if (whereConditions.length > 0) {
+        dataQuery = dataQuery.where(and(...whereConditions));
+      }
+      dataQuery = dataQuery.orderBy(desc(tddfBatchHeaders.createdAt)).limit(limit).offset(offset);
+      
+      const data = await dataQuery;
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        data,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF batch headers:', error);
       throw error;
     }
   }
