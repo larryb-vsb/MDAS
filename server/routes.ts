@@ -4380,15 +4380,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get TDDF batch headers with pagination (must come before :id route)
   app.get("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
     try {
+      console.log('[BH API] Batch headers request received');
+      console.log('[BH API] User authenticated:', !!req.user);
+      console.log('[BH API] Query params:', req.query);
+      
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
       const merchantAccount = req.query.merchantAccount as string;
+      
+      console.log('[BH API] Calling storage.getTddfBatchHeaders with:', { page, limit, merchantAccount });
       
       const result = await storage.getTddfBatchHeaders({
         page,
         limit,
         merchantAccount
       });
+      
+      console.log('[BH API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
       
       res.json(result);
     } catch (error) {
