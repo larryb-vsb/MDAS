@@ -6527,10 +6527,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Process TDDF (Transaction Daily Detail File) from database content using Raw Import approach
-  async processTddfFileFromContent(base64Content: string, fileId: string, filename: string): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
-    console.log(`=================== ENHANCED TDDF FILE PROCESSING (RAW IMPORT) ===================`);
-    console.log(`Processing TDDF file with raw import approach: ${filename}`);
+  // UPLOAD LOGIC: Store TDDF file content as raw import records only (no processing)
+  async storeTddfFileAsRawImport(base64Content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
+    console.log(`=================== TDDF RAW IMPORT STORAGE (UPLOAD ONLY) ===================`);
+    console.log(`Storing TDDF file as raw import records: ${filename}`);
     
     // Decode base64 content
     const fileContent = Buffer.from(base64Content, 'base64').toString('utf8');
@@ -6538,7 +6538,6 @@ export class DatabaseStorage implements IStorage {
     
     let rowCount = 0;
     let errorCount = 0;
-    let tddfRecordsCreated = 0;
     
     // Comprehensive record type definitions
     const recordTypeDefinitions: { [key: string]: string } = {
@@ -6656,21 +6655,49 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`✅ Stored ${successfulInserts} raw lines in TDDF raw import table (${errorCount} failed)`);
       
-      // STEP 2: Process only DT records from the database (not just from insertedRawLines array)
-      console.log(`\n=== STEP 2: PROCESSING DT RECORDS FROM DATABASE ===`);
+      return {
+        rowsStored: successfulInserts,
+        recordTypes: recordTypeStats,
+        errors: errorCount
+      };
       
-      // Get all DT records from the database for this file
-      const dtRecords = await db.select()
+    } catch (error: any) {
+      console.error('Error storing TDDF raw import records:', error);
+      throw new Error(`Failed to store TDDF raw import: ${error.message}`);
+    }
+  }
+
+  // PROCESSING LOGIC: Process pending DT records from raw import table (separate from upload)
+  async processPendingTddfDtRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
+    console.log(`=================== TDDF DT PROCESSING (PROCESSING ONLY) ===================`);
+    console.log(`Processing pending DT records from raw import table`);
+    
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    try {
+      // Get pending DT records from raw import table
+      const whereConditions = [
+        eq(tddfRawImportTable.recordType, 'DT'),
+        eq(tddfRawImportTable.processingStatus, 'pending')
+      ];
+      
+      if (fileId) {
+        whereConditions.push(eq(tddfRawImportTable.sourceFileId, fileId));
+      }
+      
+      let query = db.select()
         .from(tddfRawImportTable)
-        .where(
-          and(
-            eq(tddfRawImportTable.sourceFileId, fileId),
-            eq(tddfRawImportTable.recordType, 'DT')
-          )
-        )
+        .where(and(...whereConditions))
         .orderBy(tddfRawImportTable.lineNumber);
       
-      console.log(`Found ${dtRecords.length} DT records to process from database`);
+      if (maxRecords) {
+        query = query.limit(maxRecords);
+      }
+      
+      const dtRecords = await query;
+      console.log(`Found ${dtRecords.length} pending DT records to process`);
       
       for (const rawLine of dtRecords) {
         if (rawLine.recordType === 'DT') {

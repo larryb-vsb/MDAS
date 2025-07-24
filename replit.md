@@ -372,7 +372,12 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
-### TRANSACTIONAL INTEGRITY FOR TDDF PROCESSING COMPLETED (July 24, 2025)
+### ARCHITECTURAL SEPARATION & TRANSACTIONAL INTEGRITY COMPLETED (July 24, 2025)
+- **✅ UPLOAD/PROCESSING SEPARATION ACHIEVED**: Successfully separated upload logic from processing logic with clean architecture
+  - **Upload Logic**: `storeTddfFileAsRawImport()` method only stores raw TDDF lines in database without processing
+  - **Processing Logic**: `processPendingTddfDtRecords()` method processes DT records from raw import table separately  
+  - **API Endpoints**: `/api/tddf/upload` only stores raw data, `/api/tddf/process-pending-dt` handles DT processing
+  - **Clean Separation**: Upload and processing responsibilities completely decoupled for better scalability and reliability
 - **✅ ATOMIC DATABASE OPERATIONS IMPLEMENTED**: Enhanced `processPendingDtRecordsHierarchical` method with complete transactional integrity
   - Database Transactions: Each TDDF record processing wrapped in BEGIN/COMMIT transaction for atomic operations
   - Connection Pool Management: Individual client connections from pool for each transaction with proper resource cleanup

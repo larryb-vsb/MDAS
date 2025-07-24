@@ -4661,53 +4661,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'queued'
       ]);
       
-      // Process TDDF raw data immediately
+      // SEPARATED ARCHITECTURE: Store TDDF raw data only (no processing during upload)
       try {
-        console.log(`[TDDF API UPLOAD] Processing raw TDDF data for file: ${fileId}`);
-        const processingResult = await storage.processTddfFileFromContent(fileContentBase64, fileId, req.file.originalname);
+        console.log(`[TDDF API UPLOAD] Storing raw TDDF data for file: ${fileId}`);
+        const storageResult = await storage.storeTddfFileAsRawImport(fileContentBase64, fileId, req.file.originalname);
         
-        // Update upload record with processing results
+        // Update upload record with storage results
         await pool.query(`
           UPDATE ${uploadedFilesTableName} 
           SET raw_lines_count = $1, 
-              processing_notes = $2
+              processing_notes = $2,
+              processing_status = 'completed'
           WHERE id = $3
         `, [
-          processingResult.rowsProcessed,
-          `API Upload - Raw import: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} DT records created, ${processingResult.errors} errors`,
+          storageResult.rowsStored,
+          `API Upload - Raw import stored: ${storageResult.rowsStored} lines, Record types: ${Object.entries(storageResult.recordTypes).map(([type, count]) => `${type}:${count}`).join(', ')}, ${storageResult.errors} errors`,
           fileId
         ]);
         
-        console.log(`[TDDF API UPLOAD] Successfully processed: ${processingResult.rowsProcessed} lines, ${processingResult.tddfRecordsCreated} records, ${processingResult.errors} errors`);
+        console.log(`[TDDF API UPLOAD] Successfully stored: ${storageResult.rowsStored} lines, ${Object.keys(storageResult.recordTypes).length} record types, ${storageResult.errors} errors`);
         
         // Clean up temporary file
         fs.unlinkSync(req.file.path);
         
         res.json({
           success: true,
-          message: "TDDF file uploaded and processed successfully",
+          message: "TDDF file uploaded and stored successfully (processing queued separately)",
           fileId: fileId,
           fileName: req.file.originalname,
-          processingResults: {
-            rawLinesProcessed: processingResult.rowsProcessed,
-            tddfRecordsCreated: processingResult.tddfRecordsCreated,
-            errors: processingResult.errors,
-            processingTime: processingResult.processingTime || "< 1s"
+          storageResults: {
+            rawLinesStored: storageResult.rowsStored,
+            recordTypes: storageResult.recordTypes,
+            errors: storageResult.errors,
+            processingStatus: "Raw data stored - DT processing queued"
           },
           uploadedBy: apiUser.clientName,
           uploadedAt: new Date().toISOString()
         });
         
-      } catch (processingError) {
-        console.error('[TDDF API UPLOAD] Error processing TDDF content:', processingError);
+      } catch (storageError) {
+        console.error('[TDDF API UPLOAD] Error storing TDDF content:', storageError);
         
-        // Still return success for upload, but indicate processing issue
-        res.json({
-          success: true,
-          message: "TDDF file uploaded but processing encountered issues",
+        // Update file status to failed
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName} 
+          SET processing_status = 'failed',
+              processing_notes = $1
+          WHERE id = $2
+        `, [
+          `Storage failed: ${storageError instanceof Error ? storageError.message : "Storage error"}`,
+          fileId
+        ]);
+        
+        res.status(500).json({
+          success: false,
+          message: "TDDF file upload failed during storage",
           fileId: fileId,
           fileName: req.file.originalname,
-          processingError: processingError instanceof Error ? processingError.message : "Processing failed",
+          storageError: storageError instanceof Error ? storageError.message : "Storage failed",
           uploadedBy: apiUser.clientName,
           uploadedAt: new Date().toISOString()
         });
@@ -4986,6 +4997,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching TDDF raw status:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch TDDF raw status" 
+      });
+    }
+  });
+
+  // SEPARATED PROCESSING: Process pending DT records from raw import table
+  app.post("/api/tddf/process-pending-dt", isAuthenticated, async (req, res) => {
+    try {
+      const { fileId, maxRecords } = req.body;
+      
+      console.log(`[TDDF PROCESSING API] Processing pending DT records. FileId: ${fileId || 'all'}, MaxRecords: ${maxRecords || 'unlimited'}`);
+      
+      const result = await storage.processPendingTddfDtRecords(fileId, maxRecords);
+      
+      res.json({
+        success: true,
+        message: `Processed ${result.processed} DT records successfully`,
+        results: result,
+        fileId: fileId || null,
+        processedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error processing pending TDDF DT records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process pending TDDF DT records" 
       });
     }
   });
