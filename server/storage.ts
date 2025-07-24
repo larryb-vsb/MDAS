@@ -7346,9 +7346,42 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // HELPER: Centralized Base64 detection and decoding logic
+  private detectAndDecodeBase64Content(content: string, context: string): string {
+    console.log(`🔍 [${context}] Base64 detection: Content length ${content.length}, First 50 chars: "${content.substring(0, 50)}"`);
+    
+    // Improved TDDF pattern detection - TDDF files have specific patterns
+    const hasTddfPatterns = content.length > 50 && (
+      content.includes('BH') || content.includes('DT') || content.includes('P1') || // Record types
+      /^\d{6,}/.test(content) || // Starts with 6+ digits (sequence numbers like 000214...)
+      content.startsWith('01') // Some TDDF files start with '01'
+    );
+    
+    // Detect Base64 content - must be long string without TDDF patterns and all Base64 chars
+    const isBase64 = content.length > 100 && 
+                    !hasTddfPatterns && // No TDDF patterns detected
+                    /^[A-Za-z0-9+/=\s]*$/.test(content); // Base64 character pattern
+    
+    if (isBase64) {
+      console.log(`🔍 [${context}] DETECTED BASE64 CONTENT - DECODING FIRST`);
+      try {
+        const decodedContent = Buffer.from(content, 'base64').toString('utf8');
+        console.log(`🔍 [${context}] DECODED: Base64 length ${content.length} → Decoded length ${decodedContent.length}`);
+        console.log(`🔍 [${context}] DECODED First 50 chars: "${decodedContent.substring(0, 50)}"`);
+        return decodedContent;
+      } catch (decodeError) {
+        console.error(`❌ [${context}] BASE64 DECODE ERROR:`, decodeError);
+        throw new Error(`Failed to decode Base64 content: ${decodeError.message}`);
+      }
+    } else {
+      console.log(`🔍 [${context}] CONTENT APPEARS TO BE PLAIN TEXT (not Base64)`);
+      return content;
+    }
+  }
+
   // PROCESSING LOGIC: Complete TDDF file processing from raw import data
   async processTddfFileFromContent(
-    base64Content: string, 
+    content: string, 
     sourceFileId: string, 
     originalFilename: string
   ): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
@@ -7356,8 +7389,11 @@ export class DatabaseStorage implements IStorage {
     console.log(`Processing TDDF file: ${originalFilename} (${sourceFileId})`);
     
     try {
-      // STEP 1: Store all raw lines first
-      const storageResult = await this.storeTddfFileAsRawImport(base64Content, sourceFileId, originalFilename);
+      // CRITICAL FIX: Apply consistent Base64 detection and decoding
+      const decodedContent = this.detectAndDecodeBase64Content(content, 'COMPLETE_PIPELINE');
+      
+      // STEP 1: Store all raw lines first (now properly decoded)
+      const storageResult = await this.storeTddfFileAsRawImport(decodedContent, sourceFileId, originalFilename);
       console.log(`Raw storage completed: ${storageResult.rowsStored} lines stored`);
       
       // STEP 2: Process DT records from stored raw data
@@ -8420,29 +8456,9 @@ export class DatabaseStorage implements IStorage {
   async storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
     try {
       console.log(`[TDDF RAW IMPORT LEGACY] Starting raw import for file: ${filename}`);
-      console.log(`🔍 CRITICAL DEBUG: Content length: ${content.length}, First 50 chars: "${content.substring(0, 50)}"`);
       
-      // CRITICAL FIX: Check if content is Base64 encoded and decode if necessary
-      let fileContent = content;
-      
-      // Detect Base64 content by checking if it's a long string without typical TDDF patterns
-      const isBase64 = content.length > 100 && 
-                      !content.startsWith('01') && // TDDF files start with sequence numbers like '01696...'
-                      /^[A-Za-z0-9+/=]+$/.test(content.substring(0, 100)); // Base64 character pattern
-      
-      if (isBase64) {
-        console.log(`🔍 DETECTED BASE64 CONTENT - DECODING FIRST`);
-        try {
-          fileContent = Buffer.from(content, 'base64').toString('utf8');
-          console.log(`🔍 DECODED: Base64 length ${content.length} → Decoded length ${fileContent.length}`);
-          console.log(`🔍 DECODED First 50 chars: "${fileContent.substring(0, 50)}"`);
-        } catch (decodeError) {
-          console.error(`❌ BASE64 DECODE ERROR:`, decodeError);
-          throw new Error(`Failed to decode Base64 content: ${decodeError.message}`);
-        }
-      } else {
-        console.log(`🔍 CONTENT APPEARS TO BE PLAIN TEXT (not Base64)`);
-      }
+      // CRITICAL FIX: Use centralized Base64 detection and decoding
+      const fileContent = this.detectAndDecodeBase64Content(content, 'RAW_IMPORT_LEGACY');
       
       const lines = fileContent.split('\n').filter(line => line.trim() !== '');
       const tableName = getTableName('tddf_raw_import');
