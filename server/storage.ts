@@ -7137,6 +7137,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // PROCESSING LOGIC: Complete TDDF file processing from raw import data
+  async processTddfFileFromContent(
+    base64Content: string, 
+    sourceFileId: string, 
+    originalFilename: string
+  ): Promise<{ rowsProcessed: number; tddfRecordsCreated: number; errors: number }> {
+    console.log(`=================== TDDF FILE PROCESSING (COMPLETE PIPELINE) ===================`);
+    console.log(`Processing TDDF file: ${originalFilename} (${sourceFileId})`);
+    
+    try {
+      // STEP 1: Store all raw lines first
+      const storageResult = await this.storeTddfFileAsRawImport(base64Content, sourceFileId, originalFilename);
+      console.log(`Raw storage completed: ${storageResult.rowsStored} lines stored`);
+      
+      // STEP 2: Process DT records from stored raw data
+      const processingResult = await this.processPendingTddfDtRecords(sourceFileId);
+      console.log(`DT processing completed: ${processingResult.processed} records created`);
+      
+      return {
+        rowsProcessed: storageResult.rowsStored,
+        tddfRecordsCreated: processingResult.processed,
+        errors: storageResult.errors + processingResult.errors
+      };
+      
+    } catch (error: any) {
+      console.error(`Error in complete TDDF processing pipeline: ${error.message}`);
+      throw error;
+    }
+  }
+
   // PROCESSING LOGIC: Process pending DT records from raw import table (separate from upload)
   async processPendingTddfDtRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
     console.log(`=================== TDDF DT PROCESSING (PROCESSING ONLY) ===================`);
