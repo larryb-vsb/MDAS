@@ -2877,17 +2877,22 @@ export class DatabaseStorage implements IStorage {
                 
                 // Update database with processing metrics and completion status using environment-specific table
                 // PRESERVE raw_lines_count and processing_notes during completion
+                // Add defensive checks for undefined processingMetrics
+                const safeMetrics = {
+                  tddfRecordsCreated: processingMetrics?.tddfRecordsCreated || 0,
+                  rowsProcessed: processingMetrics?.rowsProcessed || 0,
+                  errors: processingMetrics?.errors || 0
+                };
+                
+                const processingDetailsJson = JSON.stringify(safeMetrics);
+                
                 await db.execute(sql`
                   UPDATE ${sql.identifier(uploadedFilesTableName)}
-                  SET records_processed = ${processingMetrics.tddfRecordsCreated},
-                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.tddfRecordsCreated},
-                      records_with_errors = ${processingMetrics.errors},
+                  SET records_processed = ${safeMetrics.tddfRecordsCreated},
+                      records_skipped = ${safeMetrics.rowsProcessed - safeMetrics.tddfRecordsCreated},
+                      records_with_errors = ${safeMetrics.errors},
                       processing_time_ms = ${processingTimeMs},
-                      processing_details = ${JSON.stringify({ 
-                        tddfRecordsCreated: processingMetrics.tddfRecordsCreated,
-                        rowsProcessed: processingMetrics.rowsProcessed, 
-                        errors: processingMetrics.errors
-                      })},
+                      processing_details = ${processingDetailsJson},
                       processing_status = 'completed',
                       processing_completed_at = ${processingCompletedTime.toISOString()},
                       processed_at = ${processingCompletedTime.toISOString()},
@@ -2897,7 +2902,7 @@ export class DatabaseStorage implements IStorage {
                 `);
                 
                 console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
-                console.log(`📊 METRICS: ${processingMetrics.rowsProcessed} rows, ${processingMetrics.tddfRecordsCreated} TDDF records created, ${processingMetrics.errors} errors`);
+                console.log(`📊 METRICS: ${safeMetrics.rowsProcessed} rows, ${safeMetrics.tddfRecordsCreated} TDDF records created, ${safeMetrics.errors} errors`);
               } else {
                 console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
                 console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
