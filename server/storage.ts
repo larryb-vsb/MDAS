@@ -7984,22 +7984,20 @@ export class DatabaseStorage implements IStorage {
       const storageResult = await this.storeTddfFileAsRawImport(processedContent, sourceFileId, originalFilename);
       console.log(`Raw storage completed: ${storageResult.rowsStored} lines stored`);
       
-      // STEP 2: Process DT records from stored raw data
-      const processingResult = await this.processPendingTddfDtRecords(sourceFileId);
-      console.log(`DT processing completed: ${processingResult.processed} records created`);
-      
-      // STEP 3: Process BH records automatically at table level to prevent future issues
-      const bhProcessingResult = await this.processPendingTddfBhRecords(sourceFileId);
-      console.log(`BH processing completed: ${bhProcessingResult.processed} batch headers created`);
-      
-      // STEP 4: Process P1 (Purchasing Extension) records automatically at table level
-      const p1ProcessingResult = await this.processPendingTddfP1Records(sourceFileId);
-      console.log(`P1 processing completed: ${p1ProcessingResult.processed} purchasing extensions created`);
+      // STEP 2: Process ALL record types using switch-based approach (single-query optimization)
+      console.log(`🔄 [SWITCH-PIPELINE] Starting switch-based processing for all record types`);
+      const switchProcessingResult = await this.processPendingTddfRecordsSwitchBased(sourceFileId, 1000);
+      console.log(`✅ [SWITCH-PIPELINE] Switch processing completed:`);
+      console.log(`   • Total Processed: ${switchProcessingResult.totalProcessed}`);
+      console.log(`   • Total Skipped: ${switchProcessingResult.totalSkipped}`);
+      console.log(`   • Total Errors: ${switchProcessingResult.totalErrors}`);
+      console.log(`   • Processing Time: ${switchProcessingResult.processingTime}ms`);
+      console.log(`   • Record Type Breakdown:`, JSON.stringify(switchProcessingResult.breakdown, null, 2));
       
       return {
         rowsProcessed: storageResult.rowsStored,
-        tddfRecordsCreated: processingResult.processed + bhProcessingResult.processed + p1ProcessingResult.processed,
-        errors: storageResult.errors + processingResult.errors + bhProcessingResult.errors
+        tddfRecordsCreated: switchProcessingResult.totalProcessed,
+        errors: storageResult.errors + switchProcessingResult.totalErrors
       };
       
     } catch (error: any) {
