@@ -52,9 +52,9 @@ interface RealTimeStats {
     totalRawLines: number;
     dtRecordsProcessed: number;
     nonDtRecordsSkipped: number;
-    bhRecordsSkipped?: number;
-    p1RecordsSkipped?: number;
-    otherRecordsSkipped?: number;
+    bhRecordsProcessed?: number;
+    p1RecordsProcessed?: number;
+    otherRecordsProcessed?: number;
     otherSkipped: number;
     pendingRawLines: number;
     rawLineBacklog: number;
@@ -660,11 +660,10 @@ export default function ProcessingStatus() {
                         // Calculate total processed: DT + BH + P1 + Other (ALL hierarchical records, not just DT)
                         const dtProcessed = realTimeStats.tddfOperations.dtRecordsProcessed || 0;
                         
-                        // BH, P1, Other are currently showing "skipped" counts but these should be "processed" counts
-                        // For hierarchical processing, these records are processed (not skipped) into their respective tables
-                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsSkipped || 0; // Actually processed BH records
-                        const p1Processed = realTimeStats.tddfOperations.p1RecordsSkipped || 0; // Actually processed P1 records
-                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsSkipped || 0; // Actually processed Other records
+                        // BH, P1, Other records are processed into hierarchical tables
+                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsProcessed || 0;
+                        const p1Processed = realTimeStats.tddfOperations.p1RecordsProcessed || 0;
+                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsProcessed || 0;
                         
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
                         
@@ -682,22 +681,22 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center p-2 bg-emerald-50 rounded border">
                     <div className="font-semibold text-emerald-700">
-                      {/* BH records are "processed" into hierarchical tables, not skipped */}
-                      {realTimeStats.tddfOperations.bhRecordsSkipped?.toLocaleString() || '0'}
+                      {/* BH records are processed into hierarchical tables */}
+                      {realTimeStats.tddfOperations.bhRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
                   <div className="text-center p-2 bg-amber-50 rounded border">
                     <div className="font-semibold text-amber-700">
-                      {/* P1 records are "processed" into hierarchical tables, not skipped */}
-                      {realTimeStats.tddfOperations.p1RecordsSkipped?.toLocaleString() || '0'}
+                      {/* P1 records are processed into hierarchical tables */}
+                      {realTimeStats.tddfOperations.p1RecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
                   <div className="text-center p-2 bg-red-50 rounded border">
                     <div className="font-semibold text-red-700">
-                      {/* Other records are "processed" into hierarchical tables, not skipped */}
-                      {realTimeStats.tddfOperations.otherRecordsSkipped?.toLocaleString() || '0'}
+                      {/* Other records are processed into hierarchical tables */}
+                      {realTimeStats.tddfOperations.otherRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-red-600">Other</div>
                   </div>
