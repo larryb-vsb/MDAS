@@ -1053,12 +1053,36 @@ export default function TddfPage() {
         <TabsContent value="bh" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>BH Records (Coming Soon)</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>BH Records (Batch Headers)</CardTitle>
+                <Button variant="outline" size="sm">
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Fields
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Batch Header records will be displayed here once the hierarchical table architecture is fully implemented.</p>
-                <p className="text-sm mt-2">Currently showing BH records processed into the hierarchical database structure.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Batch ID</th>
+                      <th className="text-left p-2">Batch Date</th>
+                      <th className="text-left p-2">Merchant Account</th>
+                      <th className="text-left p-2">Transaction Count</th>
+                      <th className="text-left p-2">Total Amount</th>
+                      <th className="text-left p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="text-center text-muted-foreground">
+                      <td colSpan={6} className="py-8">
+                        <p>BH records from hierarchical processing will appear here</p>
+                        <p className="text-xs mt-2">API endpoint: /api/tddf/batch-headers (pending implementation)</p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -1067,12 +1091,36 @@ export default function TddfPage() {
         <TabsContent value="p1" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>P1 Records (Coming Soon)</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>P1 Records (Purchasing Extensions)</CardTitle>
+                <Button variant="outline" size="sm">
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Fields
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Purchasing Card Extension records will be displayed here once the hierarchical table architecture is fully implemented.</p>
-                <p className="text-sm mt-2">Currently showing P1 records processed into the hierarchical database structure.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Parent DT ID</th>
+                      <th className="text-left p-2">Tax Amount</th>
+                      <th className="text-left p-2">Discount Amount</th>
+                      <th className="text-left p-2">Freight Amount</th>
+                      <th className="text-left p-2">Duty Amount</th>
+                      <th className="text-left p-2">Purchase Identifier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="text-center text-muted-foreground">
+                      <td colSpan={6} className="py-8">
+                        <p>P1 records from hierarchical processing will appear here</p>
+                        <p className="text-xs mt-2">API endpoint: /api/tddf/purchasing-extensions (pending implementation)</p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -1081,12 +1129,36 @@ export default function TddfPage() {
         <TabsContent value="other" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Other Records (Coming Soon)</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Other Records (AD, DR, G2, etc.)</CardTitle>
+                <Button variant="outline" size="sm">
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Fields
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Other TDDF record types (AD, DR, G2, etc.) will be displayed here once the hierarchical table architecture is fully implemented.</p>
-                <p className="text-sm mt-2">Currently showing Other records processed into the hierarchical database structure.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Record Type</th>
+                      <th className="text-left p-2">Reference Number</th>
+                      <th className="text-left p-2">Merchant Account</th>
+                      <th className="text-left p-2">Transaction Date</th>
+                      <th className="text-left p-2">Amount</th>
+                      <th className="text-left p-2">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="text-center text-muted-foreground">
+                      <td colSpan={6} className="py-8">
+                        <p>Other TDDF records (AD, DR, G2, etc.) from hierarchical processing will appear here</p>
+                        <p className="text-xs mt-2">API endpoint: /api/tddf/other-records (pending implementation)</p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
