@@ -212,21 +212,13 @@ function BHRecordsTable() {
     };
   }>({
     queryKey: ['/api/tddf/batch-headers'],
-    queryFn: async () => {
-      const response = await fetch('/api/tddf/batch-headers', {
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch BH records');
-      }
-      return response.json();
-    }
   });
 
   const deleteBhMutation = useMutation({
     mutationFn: async (recordIds: number[]) => {
-      const response = await apiRequest("DELETE", "/api/tddf/batch-headers", {
-        recordIds
+      const response = await apiRequest("/api/tddf/batch-headers", {
+        method: "DELETE",
+        body: { recordIds }
       });
       return response;
     },
