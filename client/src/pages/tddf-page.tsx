@@ -267,17 +267,16 @@ function BHRecordsTable() {
                 onCheckedChange={handleSelectAll}
                 className="ml-4"
               />
-              <div className="w-32">Sequence Number (1-7)</div>
-              <div className="w-32">Entry Run Number (8-13)</div>
-              <div className="w-32">Sequence Within Run (14-17)</div>
-              <div className="w-24">Record ID (18-19)</div>
-              <div className="w-36">Batch Date</div>
-              <div className="w-32">Debit/Credit Indicator</div>
-              <div className="w-32">Net Deposit</div>
+              <div className="w-48">BH Record Number</div>
+              <div className="w-32">Batch Date (64-68)</div>
+              <div className="w-32">Transaction Code (56-63)</div>
+              <div className="w-32">Net Deposit (52-55)</div>
+              <div className="w-36">Merchant Account (24-39)</div>
+              <div className="w-24">Record ID</div>
               <div className="w-20">Actions</div>
             </div>
 
-            {/* Table Rows - using BH data but DT format */}
+            {/* Table Rows - BH specific data display */}
             {bhData.data.map((record: TddfBatchHeader) => (
               <div
                 key={record.id}
@@ -288,30 +287,25 @@ function BHRecordsTable() {
                   onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
                   className="ml-4"
                 />
-                <div className="w-32 font-mono text-xs">
-                  {record.sequenceNumber || 'N/A'}
+                <div className="w-48 font-mono text-xs">
+                  {record.bhRecordNumber || 'N/A'}
+                </div>
+                <div className="w-32 text-xs">
+                  {record.batchDate || 'N/A'}
                 </div>
                 <div className="w-32 font-mono text-xs">
-                  {record.entryRunNumber || 'N/A'}
+                  {record.transactionCode || 'N/A'}
                 </div>
-                <div className="w-32 font-mono text-xs">
-                  {record.sequenceWithinRun || 'N/A'}
+                <div className="w-32 font-medium text-green-600">
+                  {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
+                </div>
+                <div className="w-36 font-mono text-xs">
+                  {record.merchantAccountNumber || 'N/A'}
                 </div>
                 <div className="w-24">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border-green-200 border">
                     {record.recordIdentifier || 'BH'}
                   </span>
-                </div>
-                <div className="w-36 text-xs">
-                  {record.batchDate ? formatTableDate(record.batchDate) : 'N/A'}
-                </div>
-                <div className="w-32">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200 border">
-                    Batch
-                  </span>
-                </div>
-                <div className="w-32 font-medium text-green-600">
-                  {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
                 </div>
                 <div className="w-20">
                   <Button
@@ -337,28 +331,27 @@ function BHRecordsTable() {
               <div className="space-y-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <h4 className="font-medium mb-2">Core Header Fields (1-23)</h4>
+                    <h4 className="font-medium mb-2">BH Record Identifier</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Sequence Number (1-7):</span> {detailsRecord.sequenceNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Entry Run Number (8-13):</span> {detailsRecord.entryRunNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Sequence Within Run (14-17):</span> {detailsRecord.sequenceWithinRun || 'N/A'}</div>
+                      <div><span className="font-medium">BH Record Number:</span> {detailsRecord.bhRecordNumber || 'N/A'}</div>
                       <div><span className="font-medium">Record Identifier (18-19):</span> {detailsRecord.recordIdentifier || 'N/A'}</div>
-                      <div><span className="font-medium">Bank Number (20-23):</span> {detailsRecord.bankNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium mb-2">Batch Specific Fields (24+)</h4>
+                    <h4 className="font-medium mb-2">BH Specific Fields</h4>
                     <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Net Deposit (52-55):</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
+                      <div><span className="font-medium">Transaction Code (56-63):</span> {detailsRecord.transactionCode || 'N/A'}</div>
+                      <div><span className="font-medium">Batch Date (64-68):</span> {detailsRecord.batchDate || 'N/A'}</div>
+                      <div><span className="font-medium">Batch Julian Date (69-73):</span> {detailsRecord.batchJulianDate || 'N/A'}</div>
+                      <div><span className="font-medium">Reject Reason (84-87):</span> {detailsRecord.rejectReason || 'N/A'}</div>
                       <div><span className="font-medium">Merchant Account (24-39):</span> {detailsRecord.merchantAccountNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Batch Date:</span> {detailsRecord.batchDate ? formatTableDate(detailsRecord.batchDate) : 'N/A'}</div>
-                      <div><span className="font-medium">Net Deposit:</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
-                      <div><span className="font-medium">Merchant Reference:</span> {detailsRecord.merchantReferenceNumber || 'N/A'}</div>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">System & Audit Fields</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
                       <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
                       <div><span className="font-medium">Source Row Number:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
                       <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
