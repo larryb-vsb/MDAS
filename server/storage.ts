@@ -7155,39 +7155,32 @@ export class DatabaseStorage implements IStorage {
 
   private async processDTRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
     const line = rawRecord.raw_line;
-    const transactionTableName = getTableName('tddf_transaction_records');
+    const tddfRecordsTableName = getTableName('tddf_records');
 
-    const transactionRecord = {
-      sequence_number: line.substring(0, 7).trim() || null,
-      entry_run_number: line.substring(7, 13).trim() || null,
-      sequence_within_run: line.substring(13, 17).trim() || null,
-      record_identifier: line.substring(17, 19).trim() || null,
-      bank_number: line.substring(19, 23).trim() || null,
-      merchant_account_number: line.substring(23, 39).trim() || null,
+    const tddfRecord = {
+      sequenceNumber: line.substring(0, 7).trim() || null,
       reference_number: line.substring(61, 84).trim() || null,
       transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
       transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
-      auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
-      source_file_id: rawRecord.source_file_id,
-      source_row_number: rawRecord.line_number,
-      raw_data: JSON.stringify({ rawLine: line })
+      merchant_name: line.substring(23, 39).trim() || null,
+      txn_type: line.substring(17, 19).trim() || 'DT',
+      batch_id: rawRecord.source_file_id,
+      source_file_id: rawRecord.source_file_id
     };
 
     const insertResult = await client.query(`
-      INSERT INTO "${transactionTableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier,
-        bank_number, merchant_account_number, reference_number, transaction_date,
-        transaction_amount, auth_amount, source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      INSERT INTO "${tddfRecordsTableName}" (
+        "sequenceNumber", reference_number, transaction_date, transaction_amount,
+        merchant_name, txn_type, batch_id, source_file_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (reference_number) DO UPDATE SET 
+        transaction_amount = EXCLUDED.transaction_amount,
+        recorded_at = CURRENT_TIMESTAMP
       RETURNING id
     `, [
-      transactionRecord.sequence_number, transactionRecord.entry_run_number,
-      transactionRecord.sequence_within_run, transactionRecord.record_identifier,
-      transactionRecord.bank_number, transactionRecord.merchant_account_number,
-      transactionRecord.reference_number, transactionRecord.transaction_date,
-      transactionRecord.transaction_amount, transactionRecord.auth_amount,
-      transactionRecord.source_file_id, transactionRecord.source_row_number,
-      transactionRecord.raw_data
+      tddfRecord.sequenceNumber, tddfRecord.reference_number, tddfRecord.transaction_date,
+      tddfRecord.transaction_amount, tddfRecord.merchant_name, tddfRecord.txn_type,
+      tddfRecord.batch_id, tddfRecord.source_file_id
     ]);
 
     await client.query(`
@@ -7197,7 +7190,7 @@ export class DatabaseStorage implements IStorage {
           processed_record_id = $2,
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
-    `, [transactionTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+    `, [tddfRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
   }
 
   private async processP1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {

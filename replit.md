@@ -396,6 +396,13 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Batch Size Configuration**: Switch processing uses 1000 record batches for optimal performance with large TDDF files
   - **Unified Error Handling**: Single error handling approach across all record types with detailed breakdown reporting
   - **Production Ready**: All future TDDF file uploads will automatically use switch-based architecture for maximum efficiency
+- **✅ CRITICAL DT ROUTING FIX APPLIED**: Fixed switch-based processing to route DT records to main TDDF records table instead of hierarchical table
+  - **Issue Identified**: Switch processing was routing DT records to `dev_tddf_transaction_records` (hierarchical) instead of `dev_tddf_records` (main table)
+  - **Root Cause**: `processDTRecordWithClient()` method was using hierarchical table architecture instead of main table schema
+  - **Solution Applied**: Updated DT processing to use `getTableName('tddf_records')` and main table field mapping
+  - **Field Mapping Fixed**: Corrected field names to match main TDDF records table (sequenceNumber, reference_number, merchant_name, etc.)
+  - **Conflict Handling**: Added proper ON CONFLICT clause for reference_number updates with timestamp refresh
+  - **Production Ready**: DT records now properly appear in main TDDF Records page after switch-based processing
 
 ### COMPLETE TDDF RECORD TYPE AUTOMATION ENHANCED (July 24, 2025)
 - **✅ AUTOMATIC P1 PROCESSING IMPLEMENTED**: Successfully added automatic P1 (Purchasing Extension) record processing to the complete TDDF processing pipeline
