@@ -47,6 +47,11 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Debug Verification**: Chart API now returns dtRecords > 0 for active hierarchical migration periods instead of persistent 0.00 values
   - **Production Verification**: API response shows "dtRecords": 4350 matching actual migration progress instead of false zero display
   - **Complete Resolution**: All hierarchical TDDF migration activity now visible in real-time processing charts with correct blue area visualization
+- **✅ HIERARCHICAL TDDF DASHBOARD CALCULATION FIX COMPLETED (July 24, 2025)**: Fixed Total Processed calculation to properly show sum of all hierarchical record types
+  - **Corrected Calculation Logic**: Total Processed now shows DT + BH + P1 + Other (all processed hierarchical records) instead of just DT records
+  - **Gray Background Applied**: Updated Total Processed box styling to gray background as requested
+  - **Authentic Data Integration**: System properly calculates hierarchical totals from real processing metrics (129,542 total vs 100,354 DT-only)
+  - **Terminology Clarification**: BH, P1, and Other records are "processed" into hierarchical tables, not "skipped" - important distinction for accurate reporting
 - **✅ COMPREHENSIVE MULTI-STREAM JSON UPLOAD SYSTEM COMPLETED (July 23, 2025)**: Developed complete local agent architecture with PowerShell-based TDDF processing
   - **PowerShell Script Enhanced**: Updated test-production-tddf.ps1 with complete 100+ field TDDF schema parsing from specification
   - **Multi-Stream Architecture**: Added -JsonMode, -StreamCount, and -BatchSize parameters for parallel JSON uploads

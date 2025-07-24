@@ -660,15 +660,19 @@ export default function ProcessingStatus() {
                   <div className="text-center p-2 bg-gray-50 rounded border">
                     <div className="font-semibold text-gray-700">
                       {(() => {
-                        // Calculate total processed: DT + BH + P1 + Other (all processed, not skipped)
+                        // Calculate total processed: DT + BH + P1 + Other (ALL hierarchical records, not just DT)
                         const dtProcessed = realTimeStats.tddfOperations.dtRecordsProcessed || 0;
-                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsProcessed || 0;
-                        const p1Processed = realTimeStats.tddfOperations.p1RecordsProcessed || 0;
-                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsProcessed || 0;
+                        
+                        // BH, P1, Other are currently showing "skipped" counts but these should be "processed" counts
+                        // For hierarchical processing, these records are processed (not skipped) into their respective tables
+                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsSkipped || 0; // Actually processed BH records
+                        const p1Processed = realTimeStats.tddfOperations.p1RecordsSkipped || 0; // Actually processed P1 records
+                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsSkipped || 0; // Actually processed Other records
+                        
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
                         
-                        // Use raw status if available, otherwise calculate from existing data
-                        return (tddfRawStatus?.processed || totalProcessed || dtProcessed).toLocaleString();
+                        // Use raw status if available, otherwise calculate from hierarchical totals
+                        return (tddfRawStatus?.processed || totalProcessed).toLocaleString();
                       })()}
                     </div>
                     <div className="text-gray-600">Total Processed</div>
@@ -681,33 +685,22 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center p-2 bg-emerald-50 rounded border">
                     <div className="font-semibold text-emerald-700">
-                      {/* BH records processed - calculated from raw status breakdown if available */}
-                      {(() => {
-                        // For now, show BH processed count if available, otherwise show skipped count with label clarification
-                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsProcessed || 0;
-                        const bhSkipped = realTimeStats.tddfOperations.bhRecordsSkipped || 0;
-                        return (bhProcessed > 0 ? bhProcessed : bhSkipped).toLocaleString();
-                      })()}
+                      {/* BH records are "processed" into hierarchical tables, not skipped */}
+                      {realTimeStats.tddfOperations.bhRecordsSkipped?.toLocaleString() || '0'}
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
                   <div className="text-center p-2 bg-amber-50 rounded border">
                     <div className="font-semibold text-amber-700">
-                      {(() => {
-                        const p1Processed = realTimeStats.tddfOperations.p1RecordsProcessed || 0;
-                        const p1Skipped = realTimeStats.tddfOperations.p1RecordsSkipped || 0;
-                        return (p1Processed > 0 ? p1Processed : p1Skipped).toLocaleString();
-                      })()}
+                      {/* P1 records are "processed" into hierarchical tables, not skipped */}
+                      {realTimeStats.tddfOperations.p1RecordsSkipped?.toLocaleString() || '0'}
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
                   <div className="text-center p-2 bg-red-50 rounded border">
                     <div className="font-semibold text-red-700">
-                      {(() => {
-                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsProcessed || 0;
-                        const otherSkipped = realTimeStats.tddfOperations.otherRecordsSkipped || 0;
-                        return (otherProcessed > 0 ? otherProcessed : otherSkipped).toLocaleString();
-                      })()}
+                      {/* Other records are "processed" into hierarchical tables, not skipped */}
+                      {realTimeStats.tddfOperations.otherRecordsSkipped?.toLocaleString() || '0'}
                     </div>
                     <div className="text-red-600">Other</div>
                   </div>
