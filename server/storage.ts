@@ -7365,17 +7365,37 @@ export class DatabaseStorage implements IStorage {
     console.log(`Processing TDDF file: ${originalFilename} (${sourceFileId})`);
     
     try {
-      // CRITICAL FIX: Base64 decode the content first before processing
+      // FIXED: Detect if content is Base64 encoded or raw TDDF content
       let processedContent: string;
-      try {
-        // Content is stored as Base64 in database, decode it first
-        processedContent = Buffer.from(content, 'base64').toString('utf8');
-        console.log(`📋 [COMPLETE_PIPELINE] Decoded Base64 content - Original length: ${content.length}, Decoded length: ${processedContent.length}`);
-        console.log(`📋 [COMPLETE_PIPELINE] First 80 chars of decoded content: "${processedContent.substring(0, 80)}"`);
-      } catch (decodeError) {
-        // If Base64 decoding fails, assume it's already plain text
-        processedContent = content;
-        console.log(`📋 [COMPLETE_PIPELINE] Using content as plain text - Length: ${processedContent.length}`);
+      
+      // Check if content looks like TDDF (has record types, sequence numbers, etc.)
+      const hasTddfPatterns = content.length > 50 && (
+        content.includes('BH') || content.includes('DT') || content.includes('P1') || // Record types
+        /^\d{6,}/.test(content) || // Starts with 6+ digits (sequence numbers)
+        content.startsWith('01') // Some TDDF files start with '01'
+      );
+      
+      const isBase64 = content.length > 100 && 
+                      !hasTddfPatterns && 
+                      /^[A-Za-z0-9+/=\s]*$/.test(content);
+      
+      if (isBase64) {
+        // Content is Base64 encoded - decode it
+        const decodedContent = Buffer.from(content, 'base64').toString('utf8');
+        // CRITICAL FIX: Remove null bytes that cause PostgreSQL UTF-8 errors
+        processedContent = decodedContent.replace(/\x00/g, '');
+        console.log(`📋 [COMPLETE_PIPELINE] Detected Base64 content - Decoded from ${content.length} to ${decodedContent.length} chars`);
+        if (decodedContent.length !== processedContent.length) {
+          console.log(`🧹 [COMPLETE_PIPELINE] Removed ${decodedContent.length - processedContent.length} null bytes for database compatibility`);
+        }
+        console.log(`📋 [COMPLETE_PIPELINE] First 80 chars of cleaned TDDF: "${processedContent.substring(0, 80)}"`);
+      } else {
+        // Content is already raw TDDF - clean any potential null bytes
+        processedContent = content.replace(/\x00/g, '');
+        if (content.length !== processedContent.length) {
+          console.log(`🧹 [COMPLETE_PIPELINE] Removed ${content.length - processedContent.length} null bytes from raw content`);
+        }
+        console.log(`📋 [COMPLETE_PIPELINE] Detected raw TDDF content - Length: ${processedContent.length}`);
         console.log(`📋 [COMPLETE_PIPELINE] First 80 chars: "${processedContent.substring(0, 80)}"`);
       }
       
@@ -8444,18 +8464,16 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[TDDF RAW IMPORT] Starting raw import for file: ${filename}`);
       
-      // CRITICAL FIX: Content is Base64 encoded - decode it to get authentic TDDF lines 
-      let fileContent: string;
-      try {
-        // Decode Base64 to get the actual TDDF file content
-        fileContent = Buffer.from(content, 'base64').toString('utf8');
-        console.log(`📋 [RAW_IMPORT] Decoded TDDF content - Original Base64 length: ${content.length}, Decoded length: ${fileContent.length}`);
-        console.log(`📋 [RAW_IMPORT] Sample decoded TDDF line: "${fileContent.substring(0, 150)}"`);
-      } catch (decodeError) {
-        // If Base64 decoding fails, assume it's already plain text TDDF content
-        fileContent = content;
-        console.log(`📋 [RAW_IMPORT] Using content as plain TDDF text - Length: ${fileContent.length}`);
-        console.log(`📋 [RAW_IMPORT] Sample TDDF line: "${fileContent.substring(0, 150)}"`);
+      // FIXED: Use content directly - it has already been processed by parent method
+      const fileContent = content;
+      console.log(`📋 [RAW_IMPORT] Processing TDDF content - Length: ${fileContent.length}`);
+      console.log(`📋 [RAW_IMPORT] Sample TDDF line: "${fileContent.substring(0, 150)}"`);
+      
+      // Validate content looks like TDDF
+      if (fileContent.length < 100) {
+        console.warn(`⚠️  [RAW_IMPORT] Content appears too short for valid TDDF (${fileContent.length} chars)`);
+      } else if (!fileContent.includes('BH') && !fileContent.includes('DT')) {
+        console.warn(`⚠️  [RAW_IMPORT] Content may not be valid TDDF (no BH/DT record types found)`);
       }
       
       const lines = fileContent.split('\n').filter(line => line.trim() !== '');
