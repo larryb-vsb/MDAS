@@ -6606,17 +6606,15 @@ export class DatabaseStorage implements IStorage {
       const tableName = getTableName('tddf_raw_import');
       
       // Get pending BH records using pool query for consistency with DT processing
-      let query = `
-        SELECT * FROM "${tableName}" 
-        WHERE processing_status = 'pending' AND record_type = 'BH'
-        ORDER BY line_number
-      `;
+      let whereClause = `WHERE processing_status = 'pending' AND record_type = 'BH'`;
       const queryParams: any[] = [];
       
       if (fileId) {
-        query += ' AND source_file_id = $1';
+        whereClause += ` AND source_file_id = $${queryParams.length + 1}`;
         queryParams.push(fileId);
       }
+      
+      let query = `SELECT * FROM "${tableName}" ${whereClause} ORDER BY line_number`;
       
       if (maxRecords) {
         query += ` LIMIT $${queryParams.length + 1}`;
@@ -6661,7 +6659,7 @@ export class DatabaseStorage implements IStorage {
             throw new Error(`Invalid record type: ${bhRecord.record_identifier}, expected 'BH'`);
           }
           
-          // Insert BH record into hierarchical table within transaction
+          // Insert BH record into hierarchical table within transaction with duplicate handling
           const insertResult = await client.query(`
             INSERT INTO "${batchHeaderTableName}" (
               bh_record_number,
@@ -6677,6 +6675,8 @@ export class DatabaseStorage implements IStorage {
               raw_data,
               recorded_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (bh_record_number) DO UPDATE SET
+              recorded_at = EXCLUDED.recorded_at
             RETURNING id
           `, [
             bhRecord.bh_record_number,
