@@ -669,6 +669,21 @@ export default function ProcessingFilters() {
                                         <RotateCcw className="mr-2 h-4 w-4" />
                                         Reprocess
                                       </DropdownMenuItem>
+                                      {/* Show error details for failed files */}
+                                      {file.processingStatus === 'failed' && file.processingErrors && (
+                                        <DropdownMenuItem
+                                          onClick={() => {
+                                            toast({
+                                              title: "Processing Error",
+                                              description: file.processingErrors,
+                                              variant: "destructive",
+                                            });
+                                          }}
+                                        >
+                                          <AlertCircle className="mr-2 h-4 w-4" />
+                                          View Error
+                                        </DropdownMenuItem>
+                                      )}
                                       <DropdownMenuItem
                                         onClick={() => deleteFile.mutate(file.id)}
                                         className="text-destructive focus:text-destructive"
