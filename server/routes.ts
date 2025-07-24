@@ -4498,7 +4498,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // Terminal information
               terminal_id: txnFields.terminalId || '',
-              v_number: txnFields.vNumber || '',
               terminal_capability: txnFields.terminalCapability || '',
               
               // POS environment
