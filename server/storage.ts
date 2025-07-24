@@ -7368,21 +7368,47 @@ export class DatabaseStorage implements IStorage {
       // FIXED: Detect if content is Base64 encoded or raw TDDF content
       let processedContent: string;
       
-      // IMPROVED: Check for TDDF patterns first (more reliable than Base64 detection)
-      const hasTddfPatterns = content.includes('BH') || 
-                             content.includes('DT') || 
-                             content.includes('P1') ||
-                             /^\d{14,}/.test(content) || // TDDF lines start with long sequences like 01469680606880002
-                             content.startsWith('01469') || // Common TDDF sequence number pattern
-                             /\d{14,}BH/.test(content) || // Sequence number followed by BH
-                             /\d{14,}DT/.test(content);   // Sequence number followed by DT
+      // IMPROVED: First detect Base64, then check for TDDF patterns in decoded content
+      const couldBeBase64 = content.length >= 50 && 
+                           /^[A-Za-z0-9+/=\s]*$/.test(content) &&
+                           !content.includes('\n') && 
+                           content.length % 4 === 0;
       
-      // Only consider Base64 if it clearly doesn't contain TDDF patterns
-      const isBase64 = !hasTddfPatterns && 
-                      content.length >= 50 && 
-                      /^[A-Za-z0-9+/=\s]*$/.test(content) &&
-                      !content.includes('\n') && 
-                      content.length % 4 === 0;
+      let testContent = content;
+      let isBase64 = false;
+      
+      // If it could be Base64, try to decode and check for TDDF patterns in decoded content
+      if (couldBeBase64) {
+        try {
+          const decodedContent = Buffer.from(content, 'base64').toString('utf8');
+          const hasTddfPatternsInDecoded = decodedContent.includes('BH') || 
+                                          decodedContent.includes('DT') || 
+                                          decodedContent.includes('P1') ||
+                                          /^\d{14,}/.test(decodedContent) ||
+                                          decodedContent.startsWith('01469') ||
+                                          /\d{14,}BH/.test(decodedContent) ||
+                                          /\d{14,}DT/.test(decodedContent);
+          
+          if (hasTddfPatternsInDecoded) {
+            // It's Base64 encoded TDDF content
+            isBase64 = true;
+            testContent = decodedContent;
+            console.log(`📋 [COMPLETE_PIPELINE] Detected Base64-encoded TDDF content`);
+          }
+        } catch (decodeError) {
+          // Not valid Base64, treat as raw content
+          console.log(`📋 [COMPLETE_PIPELINE] Base64 decode failed, treating as raw content`);
+        }
+      }
+      
+      // Check for TDDF patterns in the test content (either raw or decoded)
+      const hasTddfPatterns = testContent.includes('BH') || 
+                             testContent.includes('DT') || 
+                             testContent.includes('P1') ||
+                             /^\d{14,}/.test(testContent) ||
+                             testContent.startsWith('01469') ||
+                             /\d{14,}BH/.test(testContent) ||
+                             /\d{14,}DT/.test(testContent);
       
       if (isBase64) {
         // Content is Base64 encoded - decode it
