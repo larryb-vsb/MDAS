@@ -1077,8 +1077,9 @@ export default function TddfPage() {
                   <tbody>
                     <tr className="text-center text-muted-foreground">
                       <td colSpan={6} className="py-8">
-                        <p>BH records from hierarchical processing will appear here</p>
-                        <p className="text-xs mt-2">API endpoint: /api/tddf/batch-headers (pending implementation)</p>
+                        <p>54,243 BH records available in raw data (2,852 processed + 51,391 pending)</p>
+                        <p className="text-xs mt-2">Hierarchical processing needed to move from raw import to BH table</p>
+                        <p className="text-xs">API endpoint: /api/tddf/batch-headers (pending implementation)</p>
                       </td>
                     </tr>
                   </tbody>
@@ -1115,8 +1116,9 @@ export default function TddfPage() {
                   <tbody>
                     <tr className="text-center text-muted-foreground">
                       <td colSpan={6} className="py-8">
-                        <p>P1 records from hierarchical processing will appear here</p>
-                        <p className="text-xs mt-2">API endpoint: /api/tddf/purchasing-extensions (pending implementation)</p>
+                        <p>6,130 P1 records available in raw data (776 processed + 5,354 pending)</p>
+                        <p className="text-xs mt-2">Hierarchical processing needed to move from raw import to P1 table</p>
+                        <p className="text-xs">API endpoint: /api/tddf/purchasing-extensions (pending implementation)</p>
                       </td>
                     </tr>
                   </tbody>
@@ -1153,8 +1155,10 @@ export default function TddfPage() {
                   <tbody>
                     <tr className="text-center text-muted-foreground">
                       <td colSpan={6} className="py-8">
-                        <p>Other TDDF records (AD, DR, G2, etc.) from hierarchical processing will appear here</p>
-                        <p className="text-xs mt-2">API endpoint: /api/tddf/other-records (pending implementation)</p>
+                        <p>295,000+ Other records available (G2, DR, E1, AD, etc.)</p>
+                        <p className="text-xs mt-2">Raw data includes 282,883 G2 + 5,184 DR + others in raw import table</p>
+                        <p className="text-xs">Hierarchical processing needed to move from raw import to Other table</p>
+                        <p className="text-xs">API endpoint: /api/tddf/other-records (pending implementation)</p>
                       </td>
                     </tr>
                   </tbody>
