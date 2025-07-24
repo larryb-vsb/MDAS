@@ -7368,19 +7368,21 @@ export class DatabaseStorage implements IStorage {
       // FIXED: Detect if content is Base64 encoded or raw TDDF content
       let processedContent: string;
       
-      // IMPROVED: More reliable Base64 detection 
-      // First check if content is clearly Base64 format
-      const isBase64 = content.length >= 50 && 
-                      /^[A-Za-z0-9+/=\s]*$/.test(content) &&
-                      !content.includes('\n') && // TDDF has newlines, Base64 is usually one line
-                      content.length % 4 === 0; // Base64 length is divisible by 4
+      // IMPROVED: Check for TDDF patterns first (more reliable than Base64 detection)
+      const hasTddfPatterns = content.includes('BH') || 
+                             content.includes('DT') || 
+                             content.includes('P1') ||
+                             /^\d{14,}/.test(content) || // TDDF lines start with long sequences like 01469680606880002
+                             content.startsWith('01469') || // Common TDDF sequence number pattern
+                             /\d{14,}BH/.test(content) || // Sequence number followed by BH
+                             /\d{14,}DT/.test(content);   // Sequence number followed by DT
       
-      // Only check TDDF patterns if it's NOT Base64
-      const hasTddfPatterns = !isBase64 && content.length > 50 && (
-        content.includes('BH') || content.includes('DT') || content.includes('P1') || // Record types
-        /^\d{6,}/.test(content) || // Starts with 6+ digits (sequence numbers)
-        content.startsWith('01') // Some TDDF files start with '01'
-      );
+      // Only consider Base64 if it clearly doesn't contain TDDF patterns
+      const isBase64 = !hasTddfPatterns && 
+                      content.length >= 50 && 
+                      /^[A-Za-z0-9+/=\s]*$/.test(content) &&
+                      !content.includes('\n') && 
+                      content.length % 4 === 0;
       
       if (isBase64) {
         // Content is Base64 encoded - decode it
