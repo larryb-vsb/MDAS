@@ -288,7 +288,7 @@ function BHRecordsTable() {
                   className="ml-4"
                 />
                 <div className="w-48 font-mono text-xs">
-                  {record.bhRecordNumber || 'N/A'}
+                  {record.bhRecordNumber ? `BH_....${record.bhRecordNumber.slice(-4)}` : 'N/A'}
                 </div>
                 <div className="w-32 text-xs">
                   {record.batchDate || 'N/A'}
@@ -334,6 +334,7 @@ function BHRecordsTable() {
                     <h4 className="font-medium mb-2">BH Record Identifier</h4>
                     <div className="space-y-2 text-sm">
                       <div><span className="font-medium">BH Record Number:</span> {detailsRecord.bhRecordNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Short BHRN:</span> {detailsRecord.bhRecordNumber ? `BH_....${detailsRecord.bhRecordNumber.slice(-4)}` : 'N/A'}</div>
                       <div><span className="font-medium">Record Identifier (18-19):</span> {detailsRecord.recordIdentifier || 'N/A'}</div>
                       <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
                     </div>
