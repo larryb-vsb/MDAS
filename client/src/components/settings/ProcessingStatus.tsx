@@ -229,6 +229,17 @@ export default function ProcessingStatus() {
     staleTime: 15000,
   });
 
+  // Fetch TDDF raw processing status for accurate hierarchical counts
+  const { data: tddfRawStatus } = useQuery({
+    queryKey: ['/api/tddf/raw-status'],
+    refetchInterval: 5000, // Refresh every 5 seconds for real-time monitoring  
+    staleTime: 2000,
+    retry: 1, // Retry only once on failure
+    onError: (error) => {
+      console.log('TDDF raw status query failed:', error);
+    }
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -646,11 +657,21 @@ export default function ProcessingStatus() {
                 
                 {/* TDDF Processing Breakdown */}
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs">
-                  <div className="text-center p-2 bg-green-50 rounded border">
-                    <div className="font-semibold text-green-700">
-                      {realTimeStats.tddfOperations.dtRecordsProcessed?.toLocaleString() || '0'}
+                  <div className="text-center p-2 bg-gray-50 rounded border">
+                    <div className="font-semibold text-gray-700">
+                      {(() => {
+                        // Calculate total processed: DT + BH + P1 + Other (all processed, not skipped)
+                        const dtProcessed = realTimeStats.tddfOperations.dtRecordsProcessed || 0;
+                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsProcessed || 0;
+                        const p1Processed = realTimeStats.tddfOperations.p1RecordsProcessed || 0;
+                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsProcessed || 0;
+                        const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
+                        
+                        // Use raw status if available, otherwise calculate from existing data
+                        return (tddfRawStatus?.processed || totalProcessed || dtProcessed).toLocaleString();
+                      })()}
                     </div>
-                    <div className="text-green-600">Total Processed</div>
+                    <div className="text-gray-600">Total Processed</div>
                   </div>
                   <div className="text-center p-2 bg-blue-50 rounded border">
                     <div className="font-semibold text-blue-700">
@@ -660,19 +681,33 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center p-2 bg-emerald-50 rounded border">
                     <div className="font-semibold text-emerald-700">
-                      {realTimeStats.tddfOperations.bhRecordsSkipped?.toLocaleString() || '0'}
+                      {/* BH records processed - calculated from raw status breakdown if available */}
+                      {(() => {
+                        // For now, show BH processed count if available, otherwise show skipped count with label clarification
+                        const bhProcessed = realTimeStats.tddfOperations.bhRecordsProcessed || 0;
+                        const bhSkipped = realTimeStats.tddfOperations.bhRecordsSkipped || 0;
+                        return (bhProcessed > 0 ? bhProcessed : bhSkipped).toLocaleString();
+                      })()}
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
                   <div className="text-center p-2 bg-amber-50 rounded border">
                     <div className="font-semibold text-amber-700">
-                      {realTimeStats.tddfOperations.p1RecordsSkipped?.toLocaleString() || '0'}
+                      {(() => {
+                        const p1Processed = realTimeStats.tddfOperations.p1RecordsProcessed || 0;
+                        const p1Skipped = realTimeStats.tddfOperations.p1RecordsSkipped || 0;
+                        return (p1Processed > 0 ? p1Processed : p1Skipped).toLocaleString();
+                      })()}
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
                   <div className="text-center p-2 bg-red-50 rounded border">
                     <div className="font-semibold text-red-700">
-                      {realTimeStats.tddfOperations.otherRecordsSkipped?.toLocaleString() || '0'}
+                      {(() => {
+                        const otherProcessed = realTimeStats.tddfOperations.otherRecordsProcessed || 0;
+                        const otherSkipped = realTimeStats.tddfOperations.otherRecordsSkipped || 0;
+                        return (otherProcessed > 0 ? otherProcessed : otherSkipped).toLocaleString();
+                      })()}
                     </div>
                     <div className="text-red-600">Other</div>
                   </div>
