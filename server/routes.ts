@@ -1758,9 +1758,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create file record with basic information and file content
         const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // Read file content and encode as base64 for database storage
-        const fileContent = fs.readFileSync(file.path, 'utf8');
-        const fileContentBase64 = Buffer.from(fileContent).toString('base64');
+        // Read file content properly for different file types
+        let fileContent: string;
+        let fileContentBase64: string;
+        
+        if (type === 'tddf') {
+          // For TDDF files, read as binary first then convert to UTF-8 to avoid encoding issues
+          const rawBuffer = fs.readFileSync(file.path);
+          fileContent = rawBuffer.toString('utf8');
+          fileContentBase64 = rawBuffer.toString('base64');
+        } else {
+          // For CSV files, read as UTF-8 text
+          fileContent = fs.readFileSync(file.path, 'utf8');
+          fileContentBase64 = Buffer.from(fileContent, 'utf8').toString('base64');
+        }
         
         console.log(`Storing file content for ${fileId}: ${fileContent.length} characters, ${fileContentBase64.length} base64 chars`);
         

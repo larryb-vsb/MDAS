@@ -8442,20 +8442,20 @@ export class DatabaseStorage implements IStorage {
   // FIXED METHOD: This method now properly handles Base64 content detection and decoding
   async storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
     try {
-      console.log(`[TDDF RAW IMPORT LEGACY] Starting raw import for file: ${filename}`);
+      console.log(`[TDDF RAW IMPORT] Starting raw import for file: ${filename}`);
       
-      // CRITICAL FIX: Base64 decode the content first before processing
+      // CRITICAL FIX: Content is Base64 encoded - decode it to get authentic TDDF lines 
       let fileContent: string;
       try {
-        // Content is stored as Base64 in database, decode it first
+        // Decode Base64 to get the actual TDDF file content
         fileContent = Buffer.from(content, 'base64').toString('utf8');
-        console.log(`📋 [RAW_IMPORT_LEGACY] Decoded Base64 content - Original length: ${content.length}, Decoded length: ${fileContent.length}`);
-        console.log(`📋 [RAW_IMPORT_LEGACY] First 80 chars of decoded content: "${fileContent.substring(0, 80)}"`);
+        console.log(`📋 [RAW_IMPORT] Decoded TDDF content - Original Base64 length: ${content.length}, Decoded length: ${fileContent.length}`);
+        console.log(`📋 [RAW_IMPORT] Sample decoded TDDF line: "${fileContent.substring(0, 150)}"`);
       } catch (decodeError) {
-        // If Base64 decoding fails, assume it's already plain text
+        // If Base64 decoding fails, assume it's already plain text TDDF content
         fileContent = content;
-        console.log(`📋 [RAW_IMPORT_LEGACY] Using content as plain text - Length: ${fileContent.length}`);
-        console.log(`📋 [RAW_IMPORT_LEGACY] First 80 chars: "${fileContent.substring(0, 80)}"`);
+        console.log(`📋 [RAW_IMPORT] Using content as plain TDDF text - Length: ${fileContent.length}`);
+        console.log(`📋 [RAW_IMPORT] Sample TDDF line: "${fileContent.substring(0, 150)}"`);
       }
       
       const lines = fileContent.split('\n').filter(line => line.trim() !== '');
@@ -8464,37 +8464,37 @@ export class DatabaseStorage implements IStorage {
       let rowsStored = 0;
       let errors = 0;
       
-      console.log(`🔍 PROCESSING ${lines.length} LINES`);
+      console.log(`📁 [RAW_IMPORT] Storing ${lines.length} raw TDDF lines for file: ${filename}`);
       
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const rawLine = lines[i];  // Store exactly as received - no processing
         const lineNumber = i + 1;
         
         try {
-          // VALIDATION 1: Check line length - TDDF records should be at least 200+ characters
-          if (line.length < 150) {
-            console.warn(`⚠️  Line ${lineNumber}: Too short (${line.length} chars) - likely corrupted`);
+          // VALIDATION: Check line length - TDDF records should be at least 150 characters
+          if (rawLine.length < 150) {
+            console.warn(`⚠️  Line ${lineNumber}: Too short (${rawLine.length} chars) - likely corrupted`);
             const recordType = 'BAD';
             recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
             
-            // Store as BAD record type for immediate skipping
+            // Store BAD record with skip reason
             await pool.query(`
               INSERT INTO "${tableName}" 
               (source_file_id, line_number, raw_line, record_type, processing_status, skip_reason, created_at)
               VALUES ($1, $2, $3, $4, 'skipped', 'line_too_short', NOW())
-            `, [fileId, lineNumber, line, recordType]);
+            `, [fileId, lineNumber, rawLine, recordType]);
             rowsStored++;
             continue;
           }
           
-          // Extract record type from positions 18-19 (0-based: 17-18) - FROM DECODED CONTENT
-          const recordType = line.length >= 19 ? line.substring(17, 19).trim() : 'UNK';
+          // Extract record type from positions 18-19 (0-based: 17-18) from raw TDDF line
+          const recordType = rawLine.length >= 19 ? rawLine.substring(17, 19).trim() : 'UNK';
           
-          // VALIDATION 2: Check for valid transaction code patterns (positions 52-55) for DT records
-          if (recordType === 'DT' && line.length >= 55) {
-            const transactionCode = line.substring(51, 55).trim();
+          // VALIDATION: For DT records, check transaction code patterns (positions 52-55)
+          if (recordType === 'DT' && rawLine.length >= 55) {
+            const transactionCode = rawLine.substring(51, 55).trim();
             
-            // Check if transaction code contains scrambled data
+            // Detect corrupted transaction codes
             const hasInvalidChars = /[^A-Za-z0-9]/.test(transactionCode);
             const hasConsecutiveRepeats = /(.)\1{3,}/.test(transactionCode); // 4+ repeated chars
             const isBlank = transactionCode.length === 0;
@@ -8503,38 +8503,44 @@ export class DatabaseStorage implements IStorage {
               console.warn(`⚠️  Line ${lineNumber}: Invalid transaction code "${transactionCode}" - marking as BAD`);
               recordTypes['BAD'] = (recordTypes['BAD'] || 0) + 1;
               
-              // Store as BAD record type for immediate skipping
+              // Store BAD record with invalid transaction code reason
               await pool.query(`
                 INSERT INTO "${tableName}" 
                 (source_file_id, line_number, raw_line, record_type, processing_status, skip_reason, created_at)
-                VALUES ($1, $2, $3, 'BAD', 'skipped', 'invalid_transaction_code', NOW())
-              `, [fileId, lineNumber, line]);
+                VALUES ($1, $2, $3, $4, 'skipped', 'invalid_transaction_code', NOW())
+              `, [fileId, lineNumber, rawLine, 'BAD']);
               rowsStored++;
               continue;
             }
-            
-            console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}", TxnCode="${transactionCode}" from "${line.substring(15, 25)}..."`);
-          } else {
-            console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}" from "${line.substring(15, 25)}..."`);
           }
           
+          // Count record types for reporting
           recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
           
-          // Store the validated raw line
+          // Store the authentic raw TDDF line exactly as received
           await pool.query(`
             INSERT INTO "${tableName}" 
             (source_file_id, line_number, raw_line, record_type, processing_status, created_at)
             VALUES ($1, $2, $3, $4, 'pending', NOW())
-          `, [fileId, lineNumber, line, recordType]);
+          `, [fileId, lineNumber, rawLine, recordType]);
           
           rowsStored++;
+          
+          // Log progress every 100 lines for large files
+          if (rowsStored % 100 === 0) {
+            console.log(`📄 [RAW_IMPORT] Stored ${rowsStored} raw lines...`);
+          }
         } catch (lineError: any) {
-          console.error(`Error storing raw line ${lineNumber}:`, lineError);
+          console.error(`❌ Error storing raw line ${lineNumber}:`, lineError);
           errors++;
         }
       }
       
-      console.log(`[TDDF RAW IMPORT LEGACY] ✅ FIXED: Stored ${rowsStored} lines with record types:`, recordTypes);
+      console.log(`✅ [RAW_IMPORT] Successfully stored ${rowsStored} authentic TDDF lines with record types:`, recordTypes);
+      if (errors > 0) {
+        console.warn(`⚠️  [RAW_IMPORT] ${errors} errors occurred during raw line storage`);
+      }
+      
       return { rowsStored, recordTypes, errors };
     } catch (error: any) {
       console.error('Error storing TDDF file as raw import:', error);
