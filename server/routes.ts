@@ -874,12 +874,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           COUNT(*) as total_raw_lines,
           COUNT(CASE WHEN processed_into_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
-          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_batch_headers')}' THEN 1 END) as bh_records_processed,
-          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_purchasing_extensions')}' THEN 1 END) as p1_records_processed,
-          COUNT(CASE WHEN processed_into_table = '${getTableName('tddf_other_records')}' THEN 1 END) as other_records_processed,
           COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
           COUNT(CASE WHEN skip_reason IS NOT NULL AND skip_reason != 'non_dt_record' THEN 1 END) as other_skipped
         FROM ${tddfRawImportTableName}
+      `);
+      
+      // Get actual hierarchical record counts from their respective tables instead of raw import processing attempts
+      const hierarchicalStatsResult = await pool.query(`
+        SELECT 
+          (SELECT COUNT(*) FROM ${getTableName('tddf_batch_headers')}) as bh_records_processed,
+          (SELECT COUNT(*) FROM ${getTableName('tddf_purchasing_extensions')}) as p1_records_processed,
+          (SELECT COUNT(*) FROM ${getTableName('tddf_other_records')}) as other_records_processed
       `);
 
       const stats = result.rows[0];
@@ -892,6 +897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tddfStats = tddfStatsResult.rows[0];
       const tddfRawStats = tddfRawStatsResult.rows[0];
+      const hierarchicalStats = hierarchicalStatsResult.rows[0];
       
       // Store metrics in database for persistent tracking
       const metricsTableName = getTableName('processing_metrics');
@@ -913,9 +919,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tddfRecordsLastHour: parseInt(tddfStats.tddf_records_last_hour) || 0,
           totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
           dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
-          bhRecordsProcessed: parseInt(tddfRawStats.bh_records_processed) || 0,
-          p1RecordsProcessed: parseInt(tddfRawStats.p1_records_processed) || 0,
-          otherRecordsProcessed: parseInt(tddfRawStats.other_records_processed) || 0,
+          bhRecordsProcessed: parseInt(hierarchicalStats.bh_records_processed) || 0,
+          p1RecordsProcessed: parseInt(hierarchicalStats.p1_records_processed) || 0,
+          otherRecordsProcessed: parseInt(hierarchicalStats.other_records_processed) || 0,
           nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
           otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
         }

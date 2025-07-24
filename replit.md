@@ -24,6 +24,7 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **API Response Updated**: Enhanced tddfOperations response to include bhRecordsProcessed, p1RecordsProcessed, otherRecordsProcessed fields
   - **Live Testing Verified**: Upload processing confirmed working with real-time counter updates (DT: 896→900, BH: 124→126, P1: 102→106)
   - **Dashboard Accuracy Restored**: Processing Performance KPIs section now displays authentic processing data instead of persistent zeros
+  - **BH Counter Accuracy Fix**: Corrected BH counting logic to show actual table records (63) instead of duplicate processing attempts (126)
 - **✅ BH RECORDS FRONTEND CACHE ISSUE COMPLETELY RESOLVED (July 24, 2025)**: Implemented bulletproof isolated state system eliminating all React Query cache conflicts
   - **Root Cause Eliminated**: File upload operations and TDDF cache invalidations were triggering broad React Query cache clearing affecting BH records
   - **Pure React State Architecture**: Completely removed React Query for BH records, implemented isolated `useState` with direct fetch() calls
