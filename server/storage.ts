@@ -7526,7 +7526,7 @@ export class DatabaseStorage implements IStorage {
           
           // Record processing metrics for hierarchical migration every 10 records
           if (processed % 10 === 0) {
-            await this.recordProcessingMetrics(10, 'hierarchical_dt_migration', 'processing');
+            await this.recordTddfProcessingMetrics(processed, pendingRecords.length);
           }
           
         } catch (lineError: any) {
