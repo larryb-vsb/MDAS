@@ -212,6 +212,8 @@ function BHRecordsTable() {
     };
   }>({
     queryKey: ['/api/tddf/batch-headers'],
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Debug logging for BH data
@@ -876,6 +878,7 @@ export default function TddfPage() {
       });
       setSelectedRecords(new Set());
       queryClient.invalidateQueries({ queryKey: ["/api/tddf"] });
+      // Note: Intentionally not invalidating /api/tddf/batch-headers to prevent BH tab clearing
     },
     onError: (error: Error) => {
       toast({
@@ -996,9 +999,12 @@ export default function TddfPage() {
             Transaction Daily Detail File records from fixed-width format processing
           </p>
         </div>
-        <Button onClick={() => refetch()} variant="outline" size="sm">
+        <Button onClick={() => {
+          refetch(); // Only refresh DT records, not BH records
+          console.log('[REFRESH] Only refreshing DT records, preserving BH cache');
+        }} variant="outline" size="sm">
           <RotateCcw className="h-4 w-4 mr-2" />
-          Refresh
+          Refresh DT
         </Button>
       </div>
 
