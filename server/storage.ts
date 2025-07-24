@@ -7543,27 +7543,47 @@ export class DatabaseStorage implements IStorage {
       const limit = Math.min(options.limit || 50, 500);
       const offset = (page - 1) * limit;
 
-      // Build where conditions
-      const whereConditions = [];
-      if (options.merchantAccount) {
-        whereConditions.push(eq(tddfBatchHeaders.merchantAccountNumber, options.merchantAccount));
-      }
-
-      // Get total count
-      let countQuery = db.select({ count: sql<number>`count(*)` }).from(tddfBatchHeaders);
-      if (whereConditions.length > 0) {
-        countQuery = countQuery.where(and(...whereConditions));
-      }
-      const [{ count }] = await countQuery;
-
-      // Get records
-      let dataQuery = db.select().from(tddfBatchHeaders);
-      if (whereConditions.length > 0) {
-        dataQuery = dataQuery.where(and(...whereConditions));
-      }
-      dataQuery = dataQuery.orderBy(desc(tddfBatchHeaders.createdAt)).limit(limit).offset(offset);
+      const tableName = getTableName("tddf_batch_headers");
       
-      const data = await dataQuery;
+      // Build WHERE clause for merchant account filtering
+      let whereClause = "";
+      let queryParams: any[] = [];
+      
+      if (options.merchantAccount) {
+        whereClause = "WHERE merchant_account_number = $1";
+        queryParams = [options.merchantAccount, limit, offset];
+      } else {
+        queryParams = [limit, offset];
+      }
+
+      // Get total count using raw SQL to bypass foreign key constraints
+      const countQuery = `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`;
+      const countParams = options.merchantAccount ? [options.merchantAccount] : [];
+      const countResult = await pool.query(countQuery, countParams);
+      const count = parseInt(countResult.rows[0]?.count || '0');
+
+      // Get records using raw SQL
+      const dataQuery = `
+        SELECT id, bh_record_number as "bhRecordNumber", record_identifier as "recordIdentifier", 
+               transaction_code as "transactionCode", batch_date as "batchDate", 
+               batch_julian_date as "batchJulianDate", net_deposit as "netDeposit", 
+               reject_reason as "rejectReason", merchant_account_number as "merchantAccountNumber",
+               source_file_id as "sourceFileId", source_row_number as "sourceRowNumber",
+               recorded_at as "recordedAt", raw_data as "rawData",
+               created_at as "createdAt", updated_at as "updatedAt"
+        FROM ${tableName} 
+        ${whereClause}
+        ORDER BY created_at DESC 
+        LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
+      `;
+      
+      console.log(`[BH QUERY] Executing: ${dataQuery}`);
+      console.log(`[BH QUERY] Params:`, queryParams);
+      
+      const dataResult = await pool.query(dataQuery, queryParams);
+      const data = dataResult.rows;
+
+      console.log(`[BH QUERY] Found ${data.length} BH records out of ${count} total`);
 
       const totalPages = Math.ceil(count / limit);
 
