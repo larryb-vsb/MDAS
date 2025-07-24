@@ -7878,36 +7878,10 @@ export class DatabaseStorage implements IStorage {
       }
 
       // STEP 2.5: Skip all non-DT records in the same file
-      console.log(`\n=== STEP 2.5: SKIPPING NON-DT RECORDS ===`);
-      
-      // Get all non-DT records from the database for this file using direct SQL
-      const nonDtRecordsQuery = await pool.query(`
-        SELECT * FROM "${tableName}" 
-        WHERE source_file_id = $1 
-        AND record_type != 'DT' 
-        AND processing_status = 'pending'
-        ORDER BY line_number
-      `, [fileId]);
-      const nonDtRecords = nonDtRecordsQuery.rows;
-      
-      console.log(`Found ${nonDtRecords.length} non-DT records to skip`);
-      
-      let skippedCount = 0;
-      for (const rawLine of nonDtRecords) {
-        try {
-          console.log(`[SKIPPING] Line ${rawLine.line_number}: ${rawLine.record_type} - ${rawLine.record_description}`);
-          
-          // Mark the raw line as skipped
-          await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
-          skippedCount++;
-          
-        } catch (skipError: any) {
-          console.error(`❌ [SKIP ERROR] Line ${rawLine.line_number}:`, skipError);
-          errorCount++;
-        }
-      }
-      
-      console.log(`✅ Skipped ${skippedCount} non-DT records`);
+      console.log(`\n=== STEP 2.5: NON-DT RECORD PROCESSING DISABLED ===`);
+      console.log(`✅ [STEP 2.5] Old non-DT skipping logic REMOVED`);
+      console.log(`🚀 [STEP 2.5] BH and P1 records will be processed by the 4-step pipeline instead of being skipped`);
+      console.log(`📋 [STEP 2.5] This method will only process DT records - BH/P1 processing moved to processTddfFileFromContent`);
 
       // Update statistics
       tddfRecordsCreated = processed;
@@ -7973,35 +7947,11 @@ export class DatabaseStorage implements IStorage {
       console.log(`🔗 Linked to upload record: ${fileId}`);
       console.log(`📁 Ready for future expansion to other record types`);
       
-      // STEP 2.5: AUTOMATIC NON-DT RECORD CLEANUP (Critical Fix)
-      console.log(`\n=== STEP 2.5: AUTOMATIC NON-DT RECORD CLEANUP ===`);
-      try {
-        const tableName = getTableName('tddf_raw_import');
-        
-        // Skip all pending non-DT records for this file
-        const skipResult = await pool.query(`
-          UPDATE ${tableName} 
-          SET processing_status = 'skipped', 
-              skip_reason = 'non_dt_record',
-              processed_at = NOW()
-          WHERE source_file_id = $1 
-            AND processing_status = 'pending' 
-            AND record_type != 'DT'
-        `, [fileId]);
-        
-        const skippedCount = skipResult.rowCount || 0;
-        console.log(`✅ [STEP 2.5] Automatically skipped ${skippedCount} non-DT records (BH, P1, P2, A1, A2, etc.)`);
-        
-        if (skippedCount > 0) {
-          console.log(`🚀 [STEP 2.5] Non-DT record cleanup complete - backlog prevented!`);
-        } else {
-          console.log(`ℹ️  [STEP 2.5] No pending non-DT records found to skip`);
-        }
-        
-      } catch (cleanupError) {
-        console.error(`❌ [STEP 2.5] Error during automatic non-DT cleanup:`, cleanupError);
-        // Don't throw - cleanup failure shouldn't break main processing
-      }
+      // STEP 2.5: REPLACED WITH NEW 4-STEP PROCESSING PIPELINE
+      console.log(`\n=== STEP 2.5: AUTOMATIC RECORD TYPE PROCESSING ===`);
+      console.log(`✅ [STEP 2.5] Old non-DT skipping logic REMOVED - using new 4-step pipeline`);
+      console.log(`🚀 [STEP 2.5] BH and P1 records will be automatically processed in the 4-step pipeline`);
+      console.log(`📋 [STEP 2.5] Processing order: Raw Storage → DT Processing → BH Processing → P1 Processing`);
       
       console.log(`=================== ENHANCED TDDF PROCESSING COMPLETE ===================`);
 
@@ -8014,35 +7964,10 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error processing TDDF file:", error);
       
-      // STEP 2.5: CRITICAL ERROR-PATH CLEANUP - Always skip non-DT records even if processing failed
-      console.log(`\n=== STEP 2.5: ERROR-PATH NON-DT CLEANUP ===`);
-      try {
-        const tableName = getTableName('tddf_raw_import');
-        
-        // Skip all pending non-DT records for this file even on error
-        const skipResult = await pool.query(`
-          UPDATE ${tableName} 
-          SET processing_status = 'skipped', 
-              skip_reason = 'non_dt_record',
-              processed_at = NOW()
-          WHERE source_file_id = $1 
-            AND processing_status = 'pending' 
-            AND record_type != 'DT'
-        `, [fileId]);
-        
-        const skippedCount = skipResult.rowCount || 0;
-        console.log(`✅ [STEP 2.5 ERROR-PATH] Automatically skipped ${skippedCount} non-DT records despite processing failure`);
-        
-        if (skippedCount > 0) {
-          console.log(`🚀 [STEP 2.5 ERROR-PATH] Non-DT record cleanup complete - backlog prevented even on error!`);
-        } else {
-          console.log(`ℹ️  [STEP 2.5 ERROR-PATH] No pending non-DT records found to skip`);
-        }
-        
-      } catch (cleanupError) {
-        console.error(`❌ [STEP 2.5 ERROR-PATH] Error during error-path non-DT cleanup:`, cleanupError);
-        // Don't throw - cleanup failure shouldn't break error reporting
-      }
+      // STEP 2.5: ERROR-PATH PROCESSING - Use 4-step pipeline even on errors
+      console.log(`\n=== STEP 2.5: ERROR-PATH PROCESSING ===`);
+      console.log(`✅ [STEP 2.5 ERROR-PATH] Old non-DT skipping logic REMOVED from error path`);
+      console.log(`🚀 [STEP 2.5 ERROR-PATH] Future enhancement: 4-step pipeline will handle BH/P1 processing even on partial errors`);
       
       console.log(`=================== ENHANCED TDDF PROCESSING COMPLETED WITH ERROR ===================`);
       
