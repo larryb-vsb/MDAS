@@ -309,19 +309,18 @@ function BHRecordsTable() {
                     Batch
                   </span>
                 </div>
+                <div className="w-32 font-mono text-xs">
+                  {record.sequenceNumber || `BH-${record.id}`}
+                </div>
                 <div className="w-36 text-xs">
                   {record.batchDate ? formatTableDate(record.batchDate) : 'N/A'}
                 </div>
-                <div className="w-32 font-mono text-xs">
-                  {record.entryRunNumber || 'N/A'}
+                <div className="w-32">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border-blue-200 border">
+                    Batch
+                  </span>
                 </div>
-                <div className="w-32 font-mono text-xs">
-                  {record.bankNumber || 'N/A'}
-                </div>
-                <div className="w-28 font-medium text-blue-600">
-                  {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
-                </div>
-                <div className="w-28 font-medium text-green-600">
+                <div className="w-32 font-medium text-green-600">
                   {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
                 </div>
                 <div className="w-20">

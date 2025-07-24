@@ -4377,6 +4377,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF batch headers with pagination (must come before :id route)
+  app.get("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const merchantAccount = req.query.merchantAccount as string;
+      
+      const result = await storage.getTddfBatchHeaders({
+        page,
+        limit,
+        merchantAccount
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching BH records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch BH records" 
+      });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
@@ -4869,27 +4891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get TDDF batch headers with pagination
-  app.get("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const merchantAccount = req.query.merchantAccount as string;
-      
-      const result = await storage.getTddfBatchHeaders({
-        page,
-        limit,
-        merchantAccount
-      });
-      
-      res.json(result);
-    } catch (error) {
-      console.error('Error fetching BH records:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to fetch BH records" 
-      });
-    }
-  });
+
 
   // POST /api/tddf/process-pending - Process pending DT records for completed files
   app.post("/api/tddf/process-pending", isAuthenticated, async (req, res) => {
