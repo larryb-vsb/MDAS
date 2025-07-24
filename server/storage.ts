@@ -7215,7 +7215,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // PROCESSING LOGIC: Process pending DT records from raw import table (separate from upload)
+  // PROCESSING LOGIC: Process pending DT records from raw import table (separate from upload) 
   async processPendingTddfDtRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
     console.log(`=================== TDDF DT PROCESSING (PROCESSING ONLY) ===================`);
     console.log(`Processing pending DT records from raw import table`);
@@ -7225,35 +7225,40 @@ export class DatabaseStorage implements IStorage {
     let errors = 0;
     
     try {
-      // Get pending DT records from raw import table
-      const whereConditions = [
-        eq(tddfRawImportTable.recordType, 'DT'),
-        eq(tddfRawImportTable.processingStatus, 'pending')
-      ];
+      // Use raw SQL to avoid Drizzle ORM column name issues
+      const tableName = getTableName('tddf_raw_import');
+      
+      let sqlQuery = `
+        SELECT * FROM "${tableName}"
+        WHERE record_type = 'DT' 
+        AND processing_status = 'pending'
+      `;
+      const queryParams: any[] = [];
       
       if (fileId) {
-        whereConditions.push(eq(tddfRawImportTable.sourceFileId, fileId));
+        sqlQuery += ' AND source_file_id = $1';
+        queryParams.push(fileId);
       }
       
-      let query = db.select()
-        .from(tddfRawImportTable)
-        .where(and(...whereConditions))
-        .orderBy(tddfRawImportTable.lineNumber);
+      sqlQuery += ' ORDER BY line_number';
       
       if (maxRecords) {
-        query = query.limit(maxRecords);
+        const paramIndex = queryParams.length + 1;
+        sqlQuery += ` LIMIT $${paramIndex}`;
+        queryParams.push(maxRecords);
       }
       
-      const dtRecords = await query;
+      const result = await pool.query(sqlQuery, queryParams);
+      const dtRecords = result.rows;
       console.log(`Found ${dtRecords.length} pending DT records to process`);
       
       for (const rawLine of dtRecords) {
-        if (rawLine.recordType === 'DT') {
+        if (rawLine.record_type === 'DT') {
           try {
-            console.log(`[DT PROCESSING] Processing line ${rawLine.lineNumber}: ${rawLine.recordDescription}`);
+            console.log(`[DT PROCESSING] Processing line ${rawLine.line_number}: ${rawLine.record_description}`);
             
             // Parse the DT record using the existing parsing logic
-            const line = rawLine.rawLine;
+            const line = rawLine.raw_line;
             
             // Parse comprehensive TDDF fixed-width format based on full specification
             const tddfRecord: InsertTddfRecord = {
@@ -7384,12 +7389,12 @@ export class DatabaseStorage implements IStorage {
               
               // System and audit fields
               sourceFileId: fileId,
-              sourceRowNumber: rawLine.lineNumber,
+              sourceRowNumber: rawLine.line_number,
               mmsRawLine: line, // Store complete raw line in the MMS-RAW-Line field
               rawData: {
-                recordType: rawLine.recordType,
-                recordDescription: rawLine.recordDescription,
-                lineNumber: rawLine.lineNumber,
+                recordType: rawLine.record_type,
+                recordDescription: rawLine.record_description,
+                lineNumber: rawLine.line_number,
                 filename: filename,
                 lineLength: line.length,
                 processingTimestamp: new Date().toISOString(),
@@ -7409,11 +7414,11 @@ export class DatabaseStorage implements IStorage {
               createdRecord.id.toString()
             );
 
-            console.log(`✅ [DT PROCESSED] Line ${rawLine.lineNumber}: Created TDDF record ID ${createdRecord.id} - Amount: $${tddfRecord.transactionAmount}`);
+            console.log(`✅ [DT PROCESSED] Line ${rawLine.line_number}: Created TDDF record ID ${createdRecord.id} - Amount: $${tddfRecord.transactionAmount}`);
 
           } catch (lineError: any) {
             errorCount++;
-            console.error(`❌ [DT ERROR] Line ${rawLine.lineNumber}:`, lineError);
+            console.error(`❌ [DT ERROR] Line ${rawLine.line_number}:`, lineError);
             
             // Mark the raw line as processed with error
             await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${lineError.message}`);
@@ -7425,7 +7430,6 @@ export class DatabaseStorage implements IStorage {
       console.log(`\n=== STEP 2.5: SKIPPING NON-DT RECORDS ===`);
       
       // Get all non-DT records from the database for this file using direct SQL
-      const tableName = getTableName('tddf_raw_import');
       const nonDtRecordsQuery = await pool.query(`
         SELECT * FROM "${tableName}" 
         WHERE source_file_id = $1 
@@ -7440,14 +7444,14 @@ export class DatabaseStorage implements IStorage {
       let skippedCount = 0;
       for (const rawLine of nonDtRecords) {
         try {
-          console.log(`[SKIPPING] Line ${rawLine.lineNumber}: ${rawLine.recordType} - ${rawLine.recordDescription}`);
+          console.log(`[SKIPPING] Line ${rawLine.line_number}: ${rawLine.record_type} - ${rawLine.record_description}`);
           
           // Mark the raw line as skipped
           await this.markRawImportLineSkipped(rawLine.id, 'non_dt_record');
           skippedCount++;
           
         } catch (skipError: any) {
-          console.error(`❌ [SKIP ERROR] Line ${rawLine.lineNumber}:`, skipError);
+          console.error(`❌ [SKIP ERROR] Line ${rawLine.line_number}:`, skipError);
           errorCount++;
         }
       }
