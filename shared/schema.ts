@@ -233,6 +233,9 @@ export const insertTransactionSchema = transactionsSchema.omit({ id: true });
 export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   id: serial("id").primaryKey(),
   
+  // Unique BH record identifier to prevent duplicates and ensure all BH records load
+  bhRecordNumber: text("bh_record_number").unique(), // Generated unique identifier for each BH record
+  
   // Core TDDF header fields (positions 18-23)
   recordIdentifier: text("record_identifier"), // Positions 18-19: Always "BH"
   
@@ -254,6 +257,7 @@ export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
+  bhRecordNumberIndex: index("tddf_bh_record_number_idx").on(table.bhRecordNumber),
   merchantAccountIndex: index("tddf_bh_merchant_account_idx").on(table.merchantAccountNumber),
   batchDateIndex: index("tddf_bh_batch_date_idx").on(table.batchDate),
   transactionCodeIndex: index("tddf_bh_transaction_code_idx").on(table.transactionCode)
