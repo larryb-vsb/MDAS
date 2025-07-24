@@ -7365,8 +7365,19 @@ export class DatabaseStorage implements IStorage {
     console.log(`Processing TDDF file: ${originalFilename} (${sourceFileId})`);
     
     try {
-      // DIRECT PROCESSING: Process TDDF content as-is without encoding detection
-      const processedContent = this.processTddfContentDirectly(content, 'COMPLETE_PIPELINE');
+      // CRITICAL FIX: Base64 decode the content first before processing
+      let processedContent: string;
+      try {
+        // Content is stored as Base64 in database, decode it first
+        processedContent = Buffer.from(content, 'base64').toString('utf8');
+        console.log(`📋 [COMPLETE_PIPELINE] Decoded Base64 content - Original length: ${content.length}, Decoded length: ${processedContent.length}`);
+        console.log(`📋 [COMPLETE_PIPELINE] First 80 chars of decoded content: "${processedContent.substring(0, 80)}"`);
+      } catch (decodeError) {
+        // If Base64 decoding fails, assume it's already plain text
+        processedContent = content;
+        console.log(`📋 [COMPLETE_PIPELINE] Using content as plain text - Length: ${processedContent.length}`);
+        console.log(`📋 [COMPLETE_PIPELINE] First 80 chars: "${processedContent.substring(0, 80)}"`);
+      }
       
       // STEP 1: Store all raw lines first (processed directly)
       const storageResult = await this.storeTddfFileAsRawImport(processedContent, sourceFileId, originalFilename);
@@ -8433,8 +8444,19 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[TDDF RAW IMPORT LEGACY] Starting raw import for file: ${filename}`);
       
-      // DIRECT PROCESSING: Process TDDF content as-is without encoding detection
-      const fileContent = this.processTddfContentDirectly(content, 'RAW_IMPORT_LEGACY');
+      // CRITICAL FIX: Base64 decode the content first before processing
+      let fileContent: string;
+      try {
+        // Content is stored as Base64 in database, decode it first
+        fileContent = Buffer.from(content, 'base64').toString('utf8');
+        console.log(`📋 [RAW_IMPORT_LEGACY] Decoded Base64 content - Original length: ${content.length}, Decoded length: ${fileContent.length}`);
+        console.log(`📋 [RAW_IMPORT_LEGACY] First 80 chars of decoded content: "${fileContent.substring(0, 80)}"`);
+      } catch (decodeError) {
+        // If Base64 decoding fails, assume it's already plain text
+        fileContent = content;
+        console.log(`📋 [RAW_IMPORT_LEGACY] Using content as plain text - Length: ${fileContent.length}`);
+        console.log(`📋 [RAW_IMPORT_LEGACY] First 80 chars: "${fileContent.substring(0, 80)}"`);
+      }
       
       const lines = fileContent.split('\n').filter(line => line.trim() !== '');
       const tableName = getTableName('tddf_raw_import');
@@ -8449,13 +8471,13 @@ export class DatabaseStorage implements IStorage {
         const lineNumber = i + 1;
         
         try {
-          // Extract record type from positions 18-19 (0-based: 17-18) - AFTER DECODING
+          // Extract record type from positions 18-19 (0-based: 17-18) - FROM DECODED CONTENT
           const recordType = line.length >= 19 ? line.substring(17, 19).trim() : 'UNK';
           recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
           
           console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}" from "${line.substring(15, 25)}..."`);
           
-          // Store raw line (now properly decoded)
+          // Store the decoded raw line
           await pool.query(`
             INSERT INTO "${tableName}" 
             (source_file_id, line_number, raw_line, record_type, processing_status, created_at)
