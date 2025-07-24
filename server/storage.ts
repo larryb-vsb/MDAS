@@ -6165,7 +6165,7 @@ export class DatabaseStorage implements IStorage {
   async createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
     try {
       const currentTime = new Date();
-      const records = await batchDb
+      const records = await db
         .insert(tddfRecordsTable)
         .values({
           ...recordData,
