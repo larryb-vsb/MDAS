@@ -5142,6 +5142,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Switch-based TDDF processing API (Alternative approach)
+  app.post("/api/tddf/process-switch", isAuthenticated, async (req, res) => {
+    try {
+      const { fileId, batchSize = 100 } = req.body;
+      
+      console.log(`[SWITCH-BASED API] Processing ${batchSize} records using switch logic${fileId ? ` for file ${fileId}` : ''}`);
+      
+      const result = await storage.processPendingTddfRecordsSwitchBased(fileId, batchSize);
+      
+      res.json({
+        success: true,
+        message: `Switch-based processing complete - Processed ${result.totalProcessed} records, skipped ${result.totalSkipped}, errors: ${result.totalErrors} in ${result.processingTime}ms`,
+        details: {
+          totalProcessed: result.totalProcessed,
+          totalSkipped: result.totalSkipped,
+          totalErrors: result.totalErrors,
+          breakdown: result.breakdown,
+          processingTime: result.processingTime,
+          fileId: fileId || 'all_files',
+          batchSize,
+          approach: 'switch-based'
+        }
+      });
+    } catch (error) {
+      console.error('Error in switch-based TDDF processing:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process TDDF records with switch-based method" 
+      });
+    }
+  });
+
   // Process pending TDDF records (unified DT and BH) with transactional integrity
   app.post("/api/tddf/process-unified", isAuthenticated, async (req, res) => {
     try {

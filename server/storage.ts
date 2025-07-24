@@ -298,6 +298,7 @@ export interface IStorage {
   processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }>;
   processPendingTddfBhRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
   processPendingTddfP1Records(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  processPendingTddfRecordsSwitchBased(fileId?: string, batchSize?: number): Promise<{ totalProcessed: number; totalSkipped: number; totalErrors: number; breakdown: Record<string, { processed: number; skipped: number; errors: number }>; processingTime: number }>;
   getTddfBatchHeaders(options: {
     page?: number;
     limit?: number;
@@ -6962,6 +6963,338 @@ export class DatabaseStorage implements IStorage {
       console.error('Error processing BH line from raw data:', error);
       return null;
     }
+  }
+
+  // NEW: Switch-based TDDF processing method (Alternative to sequential approach)
+  async processPendingTddfRecordsSwitchBased(
+    fileId?: string,
+    batchSize: number = 100
+  ): Promise<{
+    totalProcessed: number;
+    totalSkipped: number;
+    totalErrors: number;
+    breakdown: Record<string, { processed: number; skipped: number; errors: number }>;
+    processingTime: number;
+  }> {
+    const startTime = Date.now();
+    console.log(`=================== TDDF SWITCH-BASED PROCESSING ===================`);
+    console.log(`Single-pass processing with switch logic for all record types`);
+    
+    let totalProcessed = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+    const breakdown: Record<string, { processed: number; skipped: number; errors: number }> = {};
+    
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Single query for ALL pending records (the key improvement)
+      let query = `
+        SELECT * FROM "${tableName}" 
+        WHERE processing_status = 'pending'
+      `;
+      const queryParams: any[] = [];
+      
+      if (fileId) {
+        query += ` AND source_file_id = $${queryParams.length + 1}`;
+        queryParams.push(fileId);
+      }
+      
+      query += ` ORDER BY line_number LIMIT $${queryParams.length + 1}`;
+      queryParams.push(batchSize);
+      
+      const result = await pool.query(query, queryParams);
+      const pendingRecords = result.rows;
+      
+      console.log(`[SWITCH] Found ${pendingRecords.length} pending records to process`);
+      console.log(`[SWITCH] Record types: ${[...new Set(pendingRecords.map(r => r.record_type))].join(', ')}`);
+      
+      // Process each record with switch-based routing
+      for (const rawRecord of pendingRecords) {
+        const recordType = rawRecord.record_type;
+        
+        // Initialize breakdown for this record type if not exists
+        if (!breakdown[recordType]) {
+          breakdown[recordType] = { processed: 0, skipped: 0, errors: 0 };
+        }
+        
+        // Begin transaction for this record
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          console.log(`[SWITCH-${recordType}] Processing line ${rawRecord.line_number}`);
+          
+          // SWITCH-BASED RECORD TYPE ROUTING
+          switch (recordType) {
+            case 'BH':
+              await this.processBHRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            case 'DT':
+              await this.processDTRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            case 'P1':
+              await this.processP1RecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            case 'P2':
+              await this.processP2RecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            default:
+              // Skip unknown record types
+              await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].skipped++;
+              totalSkipped++;
+              console.log(`[SWITCH-SKIP] Unknown record type '${recordType}' skipped`);
+              break;
+          }
+          
+          await client.query('COMMIT');
+          
+          if (totalProcessed % 10 === 0) {
+            console.log(`[SWITCH] Processed ${totalProcessed} records so far...`);
+          }
+          
+        } catch (error) {
+          await client.query('ROLLBACK');
+          console.error(`[SWITCH-${recordType}] Transaction failed for line ${rawRecord.line_number}:`, error);
+          
+          // Mark as error using pool connection
+          try {
+            await pool.query(`
+              UPDATE "${tableName}" 
+              SET processing_status = 'skipped',
+                  skip_reason = $1,
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [`switch_error: ${error instanceof Error ? error.message : 'unknown'}`, rawRecord.id]);
+          } catch (skipError) {
+            console.error(`[SWITCH-${recordType}] Failed to mark as skipped:`, skipError);
+          }
+          
+          breakdown[recordType].errors++;
+          totalErrors++;
+          
+        } finally {
+          client.release();
+        }
+      }
+      
+      const processingTime = Date.now() - startTime;
+      console.log(`=================== SWITCH-BASED PROCESSING COMPLETE ===================`);
+      console.log(`[SWITCH] Total: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalErrors} errors in ${processingTime}ms`);
+      console.log(`[SWITCH] Breakdown:`, breakdown);
+      
+      return {
+        totalProcessed,
+        totalSkipped,
+        totalErrors,
+        breakdown,
+        processingTime
+      };
+      
+    } catch (error) {
+      console.error('Error in switch-based TDDF processing:', error);
+      throw error;
+    }
+  }
+
+  // Helper methods for switch-based processing
+  private async processBHRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const batchHeaderTableName = getTableName('tddf_batch_headers');
+    
+    const bhRecord = {
+      bh_record_number: `BH_${rawRecord.source_file_id}_${rawRecord.line_number}`,
+      record_identifier: line.substring(17, 19).trim() || null,
+      merchant_account_number: line.substring(23, 39).trim() || null,
+      transaction_code: line.substring(51, 55).trim() || null,
+      batch_date: line.substring(55, 60).trim() || null,
+      batch_julian_date: line.substring(60, 65).trim() || null,
+      net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null,
+      reject_reason: line.substring(83, 87).trim() || null,
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${batchHeaderTableName}" (
+        bh_record_number, record_identifier, merchant_account_number,
+        transaction_code, batch_date, batch_julian_date, net_deposit, reject_reason,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (bh_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
+      RETURNING id
+    `, [
+      bhRecord.bh_record_number, bhRecord.record_identifier, bhRecord.merchant_account_number,
+      bhRecord.transaction_code, bhRecord.batch_date, bhRecord.batch_julian_date,
+      bhRecord.net_deposit, bhRecord.reject_reason, bhRecord.source_file_id,
+      bhRecord.source_row_number, bhRecord.raw_data
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [batchHeaderTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processDTRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const transactionTableName = getTableName('tddf_transaction_records');
+
+    const transactionRecord = {
+      sequence_number: line.substring(0, 7).trim() || null,
+      entry_run_number: line.substring(7, 13).trim() || null,
+      sequence_within_run: line.substring(13, 17).trim() || null,
+      record_identifier: line.substring(17, 19).trim() || null,
+      bank_number: line.substring(19, 23).trim() || null,
+      merchant_account_number: line.substring(23, 39).trim() || null,
+      reference_number: line.substring(61, 84).trim() || null,
+      transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
+      transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
+      auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${transactionTableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier,
+        bank_number, merchant_account_number, reference_number, transaction_date,
+        transaction_amount, auth_amount, source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id
+    `, [
+      transactionRecord.sequence_number, transactionRecord.entry_run_number,
+      transactionRecord.sequence_within_run, transactionRecord.record_identifier,
+      transactionRecord.bank_number, transactionRecord.merchant_account_number,
+      transactionRecord.reference_number, transactionRecord.transaction_date,
+      transactionRecord.transaction_amount, transactionRecord.auth_amount,
+      transactionRecord.source_file_id, transactionRecord.source_row_number,
+      transactionRecord.raw_data
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [transactionTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processP1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const purchasingTableName = getTableName('tddf_purchasing_extensions');
+
+    const p1Record = {
+      p1_record_number: `P1_${rawRecord.source_file_id}_${rawRecord.line_number}`,
+      record_identifier: line.substring(17, 19).trim() || null,
+      parent_dt_reference: line.substring(61, 84).trim() || null,
+      tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null,
+      discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null,
+      freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null,
+      duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null,
+      purchase_identifier: line.substring(198, 225).trim() || null,
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${purchasingTableName}" (
+        p1_record_number, record_identifier, parent_dt_reference,
+        tax_amount, discount_amount, freight_amount, duty_amount, purchase_identifier,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (p1_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
+      RETURNING id
+    `, [
+      p1Record.p1_record_number, p1Record.record_identifier, p1Record.parent_dt_reference,
+      p1Record.tax_amount, p1Record.discount_amount, p1Record.freight_amount,
+      p1Record.duty_amount, p1Record.purchase_identifier, p1Record.source_file_id,
+      p1Record.source_row_number, p1Record.raw_data
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processP2RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    // P2 processing similar to P1 but with different field positions
+    const line = rawRecord.raw_line;
+    const purchasingTableName = getTableName('tddf_purchasing_extensions');
+
+    const p2Record = {
+      p1_record_number: `P2_${rawRecord.source_file_id}_${rawRecord.line_number}`,
+      record_identifier: line.substring(17, 19).trim() || null,
+      parent_dt_reference: line.substring(61, 84).trim() || null,
+      tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null,
+      discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null,
+      freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null,
+      duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null,
+      purchase_identifier: line.substring(198, 225).trim() || null,
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${purchasingTableName}" (
+        p1_record_number, record_identifier, parent_dt_reference,
+        tax_amount, discount_amount, freight_amount, duty_amount, purchase_identifier,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (p1_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
+      RETURNING id
+    `, [
+      p2Record.p1_record_number, p2Record.record_identifier, p2Record.parent_dt_reference,
+      p2Record.tax_amount, p2Record.discount_amount, p2Record.freight_amount,
+      p2Record.duty_amount, p2Record.purchase_identifier, p2Record.source_file_id,
+      p2Record.source_row_number, p2Record.raw_data
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'skipped',
+          skip_reason = 'unknown_record_type',
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [rawRecord.id]);
   }
 
   // Unified method to process both DT and BH records with transactional integrity
