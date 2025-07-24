@@ -26,6 +26,24 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+interface TddfBatchHeader {
+  id: number;
+  sequenceNumber?: string;
+  entryRunNumber?: string;
+  sequenceWithinRun?: string;
+  recordIdentifier?: string;
+  bankNumber?: string;
+  merchantAccountNumber?: string;
+  batchDate?: string;
+  netDeposit?: number;
+  merchantReferenceNumber?: string;
+  sourceFileId?: string;
+  sourceRowNumber?: number;
+  recordedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface TddfRecord {
   id: number;
   // Core TDDF header fields (positions 1-23)
@@ -172,6 +190,96 @@ interface TddfFilters {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
 
+// BH Records Table Component
+function BHRecordsTable() {
+  const { data: bhData, isLoading: bhLoading } = useQuery<{
+    data: TddfBatchHeader[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>({
+    queryKey: ['/api/tddf/batch-headers'],
+    queryFn: () => fetch('/api/tddf/batch-headers').then(res => res.json())
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>BH Records (Batch Headers) - {bhData?.pagination?.totalItems || 0}</CardTitle>
+          <Button variant="outline" size="sm">
+            <Eye className="h-4 w-4 mr-2" />
+            View Fields
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {bhLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="text-muted-foreground">Loading BH records...</div>
+          </div>
+        ) : bhData?.data?.length === 0 || !bhData?.data ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No BH records found
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Table Header */}
+            <div className="flex items-center space-x-4 text-sm font-medium text-muted-foreground border-b pb-2">
+              <div className="w-32">Batch ID</div>
+              <div className="w-32">Sequence Number</div>
+              <div className="w-40">Merchant Account</div>
+              <div className="w-36">Batch Date</div>
+              <div className="w-32">Net Deposit</div>
+              <div className="w-32">Record Identifier</div>
+              <div className="w-20">Actions</div>
+            </div>
+
+            {/* Table Rows */}
+            {bhData.data.map((record: TddfBatchHeader) => (
+              <div
+                key={record.id}
+                className="flex items-center space-x-4 text-sm py-3 border-b hover:bg-muted/50"
+              >
+                <div className="w-32 font-mono text-xs">
+                  BH-{record.id}
+                </div>
+                <div className="w-32 font-mono text-xs">
+                  {record.sequenceNumber || 'N/A'}
+                </div>
+                <div className="w-40 font-mono text-xs">
+                  {record.merchantAccountNumber || 'N/A'}
+                </div>
+                <div className="w-36 text-xs">
+                  {record.batchDate ? formatTableDate(record.batchDate) : 'N/A'}
+                </div>
+                <div className="w-32 font-medium text-green-600">
+                  {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
+                </div>
+                <div className="w-32">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                    {record.recordIdentifier || 'BH'}
+                  </span>
+                </div>
+                <div className="w-20">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // Card type filter options
 const CARD_TYPE_OPTIONS = [
@@ -1052,26 +1160,7 @@ export default function TddfPage() {
         </TabsContent>
 
         <TabsContent value="bh" className="mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>BH Records (Batch Headers)</CardTitle>
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Fields
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>✅ BH Processing Implemented and Working</p>
-                <p className="text-xs mt-2">5 BH records successfully processed from raw import</p>
-                <p className="text-xs">51,386 BH records remaining in processing queue</p>
-                <p className="text-xs mt-4">API endpoint: <span className="font-mono">/api/tddf/batch-headers</span> (ready)</p>
-                <p className="text-xs">Processing method: <span className="font-mono">processPendingTddfBhRecords()</span> (functional)</p>
-              </div>
-            </CardContent>
-          </Card>
+          <BHRecordsTable />
         </TabsContent>
 
         <TabsContent value="p1" className="mt-6">
