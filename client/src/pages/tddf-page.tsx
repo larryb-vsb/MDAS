@@ -335,35 +335,50 @@ function BHRecordsTable() {
             </DialogHeader>
             {detailsRecord && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <h4 className="font-medium mb-2">Core BH Fields</h4>
+                    <h4 className="font-medium mb-2">Core Header Fields (1-23)</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Sequence Number:</span> {detailsRecord.sequenceNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Entry Run Number:</span> {detailsRecord.entryRunNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Sequence Within Run:</span> {detailsRecord.sequenceWithinRun || 'N/A'}</div>
-                      <div><span className="font-medium">Record Identifier:</span> {detailsRecord.recordIdentifier || 'N/A'}</div>
-                      <div><span className="font-medium">Bank Number:</span> {detailsRecord.bankNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Sequence Number (1-7):</span> {detailsRecord.sequenceNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Entry Run Number (8-13):</span> {detailsRecord.entryRunNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Sequence Within Run (14-17):</span> {detailsRecord.sequenceWithinRun || 'N/A'}</div>
+                      <div><span className="font-medium">Record Identifier (18-19):</span> {detailsRecord.recordIdentifier || 'N/A'}</div>
+                      <div><span className="font-medium">Bank Number (20-23):</span> {detailsRecord.bankNumber || 'N/A'}</div>
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium mb-2">Batch Information</h4>
+                    <h4 className="font-medium mb-2">Batch Specific Fields (24+)</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Merchant Account:</span> {detailsRecord.merchantAccountNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Merchant Account (24-39):</span> {detailsRecord.merchantAccountNumber || 'N/A'}</div>
                       <div><span className="font-medium">Batch Date:</span> {detailsRecord.batchDate ? formatTableDate(detailsRecord.batchDate) : 'N/A'}</div>
                       <div><span className="font-medium">Net Deposit:</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
                       <div><span className="font-medium">Merchant Reference:</span> {detailsRecord.merchantReferenceNumber || 'N/A'}</div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <h4 className="font-medium mb-2">System Information</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
-                    <div><span className="font-medium">Source Row:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
-                    <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
+                  <div>
+                    <h4 className="font-medium mb-2">System & Audit Fields</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
+                      <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
+                      <div><span className="font-medium">Source Row Number:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
+                      <div><span className="font-medium">Created At:</span> {detailsRecord.createdAt ? formatTableDate(detailsRecord.createdAt) : 'N/A'}</div>
+                      <div><span className="font-medium">Updated At:</span> {detailsRecord.updatedAt ? formatTableDate(detailsRecord.updatedAt) : 'N/A'}</div>
+                    </div>
                   </div>
                 </div>
+                
+                {detailsRecord.rawData && (
+                  <div>
+                    <h4 className="font-medium mb-2">Raw TDDF Data</h4>
+                    <div className="bg-gray-50 p-3 rounded text-xs font-mono overflow-x-auto">
+                      {typeof detailsRecord.rawData === 'string' 
+                        ? detailsRecord.rawData 
+                        : JSON.stringify(detailsRecord.rawData, null, 2)
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
