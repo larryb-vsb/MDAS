@@ -6177,30 +6177,78 @@ export class DatabaseStorage implements IStorage {
 
   async upsertTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
     try {
-      // Check if record with same reference number exists
+      // FIXED: Use raw SQL to avoid Drizzle ORM syntax error in UPDATE queries
+      // Check if record with same reference number exists using raw SQL
       if (recordData.referenceNumber) {
-        const existingRecords = await db
-          .select()
-          .from(tddfRecordsTable)
-          .where(eq(tddfRecordsTable.referenceNumber, recordData.referenceNumber))
-          .limit(1);
+        const tableName = getTableName('tddf_records');
+        
+        // Check for existing record
+        const existingResult = await pool.query(`
+          SELECT id FROM "${tableName}" 
+          WHERE reference_number = $1 
+          LIMIT 1
+        `, [recordData.referenceNumber]);
 
-        if (existingRecords.length > 0) {
-          // Overwrite existing record
-          console.log(`🔄 [OVERWRITE] Reference ${recordData.referenceNumber}: Updating existing TDDF record ID ${existingRecords[0].id}`);
+        if (existingResult.rows.length > 0) {
+          const existingId = existingResult.rows[0].id;
+          console.log(`🔄 [OVERWRITE] Reference ${recordData.referenceNumber}: Updating existing TDDF record ID ${existingId}`);
           
+          // Use raw SQL UPDATE to avoid ORM syntax error
           const currentTime = new Date();
-          const updatedRecords = await db
-            .update(tddfRecordsTable)
-            .set({
-              ...recordData,
-              recordedAt: currentTime, // Update recorded_at to current time for metrics
-              updatedAt: currentTime
-            })
-            .where(eq(tddfRecordsTable.referenceNumber, recordData.referenceNumber))
-            .returning();
+          const updateResult = await pool.query(`
+            UPDATE "${tableName}" 
+            SET 
+              sequence_number = $2,
+              entry_run_number = $3,
+              sequence_within_run = $4,
+              record_identifier = $5,
+              bank_number = $6,
+              merchant_account_number = $7,
+              association_number_1 = $8,
+              group_number = $9,
+              transaction_code = $10,
+              association_number_2 = $11,
+              transaction_date = $12,
+              transaction_amount = $13,
+              batch_julian_date = $14,
+              net_deposit = $15,
+              cardholder_account_number = $16,
+              merchant_name = $17,
+              auth_amount = $18,
+              source_file_id = $19,
+              source_row_number = $20,
+              mms_raw_line = $21,
+              recorded_at = $22,
+              updated_at = $23
+            WHERE reference_number = $1
+            RETURNING *
+          `, [
+            recordData.referenceNumber,
+            recordData.sequenceNumber,
+            recordData.entryRunNumber,
+            recordData.sequenceWithinRun,
+            recordData.recordIdentifier,
+            recordData.bankNumber,
+            recordData.merchantAccountNumber,
+            recordData.associationNumber1,
+            recordData.groupNumber,
+            recordData.transactionCode,
+            recordData.associationNumber2,
+            recordData.transactionDate,
+            recordData.transactionAmount,
+            recordData.batchJulianDate,
+            recordData.netDeposit,
+            recordData.cardholderAccountNumber,
+            recordData.merchantName,
+            recordData.authAmount,
+            recordData.sourceFileId,
+            recordData.sourceRowNumber,
+            recordData.mmsRawLine,
+            currentTime,
+            currentTime
+          ]);
           
-          return updatedRecords[0];
+          return updateResult.rows[0];
         }
       }
 

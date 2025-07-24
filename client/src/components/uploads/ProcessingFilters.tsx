@@ -760,15 +760,15 @@ export default function ProcessingFilters() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        {fileContent.headers.map((header, index) => (
+                        {fileContent.headers.map((header: string, index: number) => (
                           <TableHead key={index}>{header}</TableHead>
                         ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {fileContent.rows.map((row, rowIndex) => (
+                      {fileContent.rows.map((row: any, rowIndex: number) => (
                         <TableRow key={rowIndex}>
-                          {fileContent.headers.map((header, cellIndex) => (
+                          {fileContent.headers.map((header: string, cellIndex: number) => (
                             <TableCell key={cellIndex}>
                               {row[header] != null ? String(row[header]) : ""}
                             </TableCell>

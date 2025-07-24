@@ -4357,6 +4357,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
       const recordId = parseInt(req.params.id);
+      
+      // Validate that recordId is a valid number
+      if (isNaN(recordId) || recordId <= 0) {
+        return res.status(400).json({ error: "Invalid record ID" });
+      }
+      
       const record = await storage.getTddfRecordById(recordId);
       
       if (!record) {
