@@ -7089,14 +7089,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // UPLOAD LOGIC: Store TDDF file content as raw import records only (no processing)
-  async storeTddfFileAsRawImport(base64Content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
+  // COMPREHENSIVE UPLOAD LOGIC: Store TDDF file content as raw import records only (no processing)
+  async storeTddfFileAsRawImportComprehensive(base64Content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
     console.log(`=================== TDDF RAW IMPORT STORAGE (UPLOAD ONLY) ===================`);
     console.log(`Storing TDDF file as raw import records: ${filename}`);
     
-    // Decode base64 content
+    // Decode base64 content FIRST - this is critical for correct record type detection
     const fileContent = Buffer.from(base64Content, 'base64').toString('utf8');
     console.log(`File content length: ${fileContent.length} characters`);
+    console.log(`🔍 DEBUG: Base64 length: ${base64Content.length}, Decoded length: ${fileContent.length}`);
     
     let rowCount = 0;
     let errorCount = 0;
@@ -8415,27 +8416,54 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // TDDF raw storage method
+  // FIXED METHOD: This method now properly handles Base64 content detection and decoding
   async storeTddfFileAsRawImport(content: string, fileId: string, filename: string): Promise<{ rowsStored: number; recordTypes: { [key: string]: number }; errors: number }> {
     try {
-      console.log(`[TDDF RAW IMPORT] Starting raw import for file: ${filename}`);
+      console.log(`[TDDF RAW IMPORT LEGACY] Starting raw import for file: ${filename}`);
+      console.log(`🔍 CRITICAL DEBUG: Content length: ${content.length}, First 50 chars: "${content.substring(0, 50)}"`);
       
-      const lines = content.split('\n').filter(line => line.trim() !== '');
+      // CRITICAL FIX: Check if content is Base64 encoded and decode if necessary
+      let fileContent = content;
+      
+      // Detect Base64 content by checking if it's a long string without typical TDDF patterns
+      const isBase64 = content.length > 100 && 
+                      !content.startsWith('01') && // TDDF files start with sequence numbers like '01696...'
+                      /^[A-Za-z0-9+/=]+$/.test(content.substring(0, 100)); // Base64 character pattern
+      
+      if (isBase64) {
+        console.log(`🔍 DETECTED BASE64 CONTENT - DECODING FIRST`);
+        try {
+          fileContent = Buffer.from(content, 'base64').toString('utf8');
+          console.log(`🔍 DECODED: Base64 length ${content.length} → Decoded length ${fileContent.length}`);
+          console.log(`🔍 DECODED First 50 chars: "${fileContent.substring(0, 50)}"`);
+        } catch (decodeError) {
+          console.error(`❌ BASE64 DECODE ERROR:`, decodeError);
+          throw new Error(`Failed to decode Base64 content: ${decodeError.message}`);
+        }
+      } else {
+        console.log(`🔍 CONTENT APPEARS TO BE PLAIN TEXT (not Base64)`);
+      }
+      
+      const lines = fileContent.split('\n').filter(line => line.trim() !== '');
       const tableName = getTableName('tddf_raw_import');
       const recordTypes: { [key: string]: number } = {};
       let rowsStored = 0;
       let errors = 0;
+      
+      console.log(`🔍 PROCESSING ${lines.length} LINES`);
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const lineNumber = i + 1;
         
         try {
-          // Extract record type from positions 18-19 (0-based: 17-18)
+          // Extract record type from positions 18-19 (0-based: 17-18) - AFTER DECODING
           const recordType = line.length >= 19 ? line.substring(17, 19).trim() : 'UNK';
           recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
           
-          // Store raw line
+          console.log(`🔍 DEBUG Line ${lineNumber}: RecordType="${recordType}" from "${line.substring(15, 25)}..."`);
+          
+          // Store raw line (now properly decoded)
           await pool.query(`
             INSERT INTO "${tableName}" 
             (source_file_id, line_number, raw_line, record_type, processing_status, created_at)
@@ -8449,7 +8477,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      console.log(`[TDDF RAW IMPORT] Stored ${rowsStored} lines with record types:`, recordTypes);
+      console.log(`[TDDF RAW IMPORT LEGACY] ✅ FIXED: Stored ${rowsStored} lines with record types:`, recordTypes);
       return { rowsStored, recordTypes, errors };
     } catch (error: any) {
       console.error('Error storing TDDF file as raw import:', error);

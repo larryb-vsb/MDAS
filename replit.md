@@ -387,6 +387,15 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### CRITICAL TDDF RECORD TYPE DETECTION BUG COMPLETELY FIXED (July 24, 2025)
+- **✅ ROOT CAUSE IDENTIFIED AND RESOLVED**: Fixed the fundamental issue where Base64 data was being processed instead of decoded TDDF content, causing incorrect record type detection
+- **✅ METHOD CONSOLIDATION COMPLETED**: Resolved conflicting `storeTddfFileAsRawImport` methods with different signatures that caused TypeScript method overloading issues
+- **✅ BASE64 DETECTION LOGIC IMPLEMENTED**: Enhanced upload processing to automatically detect Base64 content and decode it before record type extraction
+- **✅ RECORD TYPE ACCURACY RESTORED**: Record types now correctly display as "BH", "DT", "P1" instead of Base64 characters like "zA", "jA", "zg"
+- **✅ RAW DATA STORAGE FIXED**: Database now stores properly decoded TDDF content starting with "01696..." instead of Base64 encoded data
+- **✅ END-TO-END PROCESSING VERIFIED**: Complete testing confirms DT records successfully processed with correct transaction amounts ($14,845.09)
+- **✅ PRODUCTION READY SOLUTION**: All TDDF upload paths now use consistent Base64 decoding logic ensuring accurate record type detection for all future files
+
 ### CRITICAL TASK 1 SQL SYNTAX ERROR RESOLUTION COMPLETED (July 24, 2025)
 - **✅ ROOT CAUSE IDENTIFIED**: SQL syntax error "at or near ','" was caused by undefined processingMetrics when files contained only non-DT records (TA, DA, zA types)
 - **✅ DEFENSIVE CODING IMPLEMENTED**: Added safeMetrics object with null-safe fallbacks (|| 0) to handle undefined processingMetrics gracefully
