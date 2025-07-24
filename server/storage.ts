@@ -297,6 +297,7 @@ export interface IStorage {
   getLegacyTddfCount(): Promise<number>;
   processPendingDtRecordsHierarchical(batchSize: number): Promise<{ processed: number; errors: number; sampleRecord?: any }>;
   processPendingTddfBhRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
+  processPendingTddfP1Records(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
   getTddfBatchHeaders(options: {
     page?: number;
     limit?: number;
@@ -6749,6 +6750,168 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Process pending P1 (Purchasing Extension) records from raw import into hierarchical table with transactional integrity
+  async processPendingTddfP1Records(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
+    console.log(`=================== TDDF P1 PROCESSING (HIERARCHICAL TRANSACTIONAL) ===================`);
+    console.log(`Processing pending P1 records from raw import table into hierarchical table with atomic transactions`);
+    
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    const isProduction = process.env.NODE_ENV === 'production';
+    const purchasingExtensionsTableName = isProduction ? 'tddf_purchasing_extensions' : 'dev_tddf_purchasing_extensions';
+    const rawImportTableName = isProduction ? 'tddf_raw_import' : 'dev_tddf_raw_import';
+    
+    try {
+      // Get pending P1 records from raw import table
+      let query = `
+        SELECT * FROM "${rawImportTableName}" 
+        WHERE record_type = 'P1' 
+          AND processing_status = 'pending'
+      `;
+      
+      const queryParams: any[] = [];
+      
+      if (fileId) {
+        query += ` AND source_file_id = $${queryParams.length + 1}`;
+        queryParams.push(fileId);
+      }
+      
+      query += ` ORDER BY line_number`;
+      
+      if (maxRecords) {
+        query += ` LIMIT $${queryParams.length + 1}`;
+        queryParams.push(maxRecords);
+      }
+      
+      const result = await pool.query(query, queryParams);
+      const p1Records = result.rows;
+      
+      console.log(`Found ${p1Records.length} pending P1 records to process`);
+      
+      if (p1Records.length === 0) {
+        console.log(`No pending P1 records found`);
+        return { processed: 0, skipped: 0, errors: 0 };
+      }
+      
+      // Process each P1 record with individual transactions for atomic integrity
+      for (const rawRecord of p1Records) {
+        const client = await pool.connect();
+        
+        try {
+          await client.query('BEGIN');
+          
+          // Parse P1 record from TDDF fixed-width format
+          const line = rawRecord.raw_line;
+          
+          // Parse P1 purchasing extension fields from TDDF specification
+          const p1Record = {
+            p1_record_number: `P1_${rawRecord.source_file_id}_${rawRecord.line_number}`,
+            record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19
+            parent_dt_reference: line.substring(61, 84).trim() || null, // Reference to parent DT record (positions 62-84)
+            tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null, // Tax amount field
+            discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null, // Discount amount
+            freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null, // Freight amount
+            duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null, // Duty amount
+            purchase_identifier: line.substring(198, 225).trim() || null, // Purchase ID
+            source_file_id: rawRecord.source_file_id,
+            source_row_number: rawRecord.line_number,
+            raw_data: { rawLine: line },
+            recorded_at: new Date()
+          };
+          
+          // Validate record identifier
+          if (p1Record.record_identifier !== 'P1') {
+            throw new Error(`Invalid record type: ${p1Record.record_identifier}, expected 'P1'`);
+          }
+          
+          // Insert P1 record into hierarchical table within transaction with duplicate handling
+          const insertResult = await client.query(`
+            INSERT INTO "${purchasingExtensionsTableName}" (
+              p1_record_number,
+              record_identifier,
+              parent_dt_reference,
+              tax_amount,
+              discount_amount,
+              freight_amount,
+              duty_amount,
+              purchase_identifier,
+              source_file_id,
+              source_row_number,
+              raw_data,
+              recorded_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (p1_record_number) DO UPDATE SET
+              recorded_at = EXCLUDED.recorded_at
+            RETURNING id
+          `, [
+            p1Record.p1_record_number,
+            p1Record.record_identifier,
+            p1Record.parent_dt_reference,
+            p1Record.tax_amount,
+            p1Record.discount_amount,
+            p1Record.freight_amount,
+            p1Record.duty_amount,
+            p1Record.purchase_identifier,
+            p1Record.source_file_id,
+            p1Record.source_row_number,
+            p1Record.raw_data,
+            p1Record.recorded_at
+          ]);
+          
+          const p1Id = insertResult.rows[0].id;
+          
+          // Update raw import line status within same transaction
+          await client.query(`
+            UPDATE "${rawImportTableName}"
+            SET processing_status = 'processed',
+                processed_into_table = '${purchasingExtensionsTableName}',
+                processed_record_id = $1,
+                processed_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+          `, [p1Id.toString(), rawRecord.id]);
+          
+          await client.query('COMMIT');
+          processed++;
+          
+          console.log(`✅ P1 Record ${p1Record.p1_record_number} processed successfully (ID: ${p1Id})`);
+          
+        } catch (recordError: any) {
+          await client.query('ROLLBACK');
+          console.error(`❌ P1 Record processing failed for line ${rawRecord.line_number}:`, recordError);
+          
+          // Mark as skipped using pool connection (outside transaction to prevent deadlocks)
+          try {
+            await pool.query(`
+              UPDATE "${rawImportTableName}"
+              SET processing_status = 'skipped',
+                  skip_reason = 'p1_processing_error: ' || $1,
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [recordError.message?.substring(0, 200) || 'Unknown error', rawRecord.id]);
+            skipped++;
+          } catch (skipError) {
+            console.error(`Failed to mark P1 record as skipped:`, skipError);
+            errors++;
+          }
+          
+        } finally {
+          client.release();
+        }
+      }
+      
+      console.log(`\n=================== P1 PROCESSING COMPLETE ===================`);
+      console.log(`Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+      
+    } catch (error: any) {
+      console.error(`Error in P1 processing:`, error);
+      throw error;
+    }
+    
+    return { processed, skipped, errors };
+  }
+
   // Helper method to process a single BH line from raw data
   private processBhLineFromRawData(rawLine: string, sourceFileId: string, sourceRowNumber: number): InsertTddfBatchHeader | null {
     try {
@@ -7460,9 +7623,13 @@ export class DatabaseStorage implements IStorage {
       const bhProcessingResult = await this.processPendingTddfBhRecords(sourceFileId);
       console.log(`BH processing completed: ${bhProcessingResult.processed} batch headers created`);
       
+      // STEP 4: Process P1 (Purchasing Extension) records automatically at table level
+      const p1ProcessingResult = await this.processPendingTddfP1Records(sourceFileId);
+      console.log(`P1 processing completed: ${p1ProcessingResult.processed} purchasing extensions created`);
+      
       return {
         rowsProcessed: storageResult.rowsStored,
-        tddfRecordsCreated: processingResult.processed + bhProcessingResult.processed,
+        tddfRecordsCreated: processingResult.processed + bhProcessingResult.processed + p1ProcessingResult.processed,
         errors: storageResult.errors + processingResult.errors + bhProcessingResult.errors
       };
       
