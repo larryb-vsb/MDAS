@@ -2849,8 +2849,11 @@ export class DatabaseStorage implements IStorage {
             }
           } else if (file.fileType === 'tddf') {
             try {
+              console.log(`\n🔍 UPLOAD TASK 1 & 2 STEP-BY-STEP LOGGING: ${file.originalFilename} (${file.id})`);
+              console.log(`📋 UPLOAD STEP 1: File Type Detection - TDDF file identified`);
+              
               // Always use database content first (database-first approach)
-              console.log(`[TRACE] Processing TDDF file ${file.id} (${file.originalFilename})`);
+              console.log(`📋 UPLOAD STEP 2: Database Content Retrieval - Starting...`);
               let dbContent = null;
               try {
                 console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
@@ -2858,18 +2861,29 @@ export class DatabaseStorage implements IStorage {
                   SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
                 `);
                 dbContent = dbContentResults.rows[0]?.file_content;
-                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                
+                if (dbContent) {
+                  console.log(`✅ UPLOAD STEP 2: Database Content Retrieval - SUCCESS (${dbContent.length} bytes)`);
+                } else {
+                  console.log(`❌ UPLOAD STEP 2: Database Content Retrieval - FAILED (No content found)`);
+                }
+                
                 if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
-                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                  console.log(`⚠️  UPLOAD STEP 2: Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
                 }
               } catch (error) {
-                console.log(`[TRACE] Database content error for ${file.id}:`, error);
+                console.log(`❌ UPLOAD STEP 2: Database Content Retrieval - ERROR:`, error);
               }
               
               if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
-                console.log(`[TRACE] Processing TDDF file from database content: ${file.id}`);
+                console.log(`✅ UPLOAD STEP 3: Content Validation - PASSED (Valid TDDF content)`);
+                console.log(`📋 UPLOAD STEP 4: TDDF Processing Pipeline - Starting...`);
+                
                 const processingStartTime = new Date();
                 const processingMetrics = await this.processTddfFileFromContent(dbContent, file.id, file.originalFilename);
+                
+                console.log(`✅ UPLOAD STEP 4: TDDF Processing Pipeline - COMPLETED`);
+                console.log(`📋 UPLOAD STEP 5: Metrics Calculation - Starting...`);
                 
                 // Calculate processing time in milliseconds
                 const processingCompletedTime = new Date();
@@ -2884,35 +2898,48 @@ export class DatabaseStorage implements IStorage {
                   errors: processingMetrics?.errors || 0
                 };
                 
+                console.log(`✅ UPLOAD STEP 5: Metrics Calculation - SUCCESS (Processed: ${safeMetrics.rowsProcessed}, Created: ${safeMetrics.tddfRecordsCreated}, Errors: ${safeMetrics.errors})`);
+                console.log(`📋 UPLOAD STEP 6: Database Status Update - Starting...`);
+                
                 const processingDetailsJson = JSON.stringify(safeMetrics);
                 
-                await db.execute(sql`
-                  UPDATE ${sql.identifier(uploadedFilesTableName)}
-                  SET records_processed = ${safeMetrics.tddfRecordsCreated},
-                      records_skipped = ${safeMetrics.rowsProcessed - safeMetrics.tddfRecordsCreated},
-                      records_with_errors = ${safeMetrics.errors},
-                      processing_time_ms = ${processingTimeMs},
-                      processing_details = ${processingDetailsJson},
-                      processing_status = 'completed',
-                      processing_completed_at = ${processingCompletedTime.toISOString()},
-                      processed_at = ${processingCompletedTime.toISOString()},
-                      processed = ${true},
-                      processing_errors = ${null}
-                  WHERE id = ${file.id}
-                `);
-                
-                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
-                console.log(`📊 METRICS: ${safeMetrics.rowsProcessed} rows, ${safeMetrics.tddfRecordsCreated} TDDF records created, ${safeMetrics.errors} errors`);
+                try {
+                  await db.execute(sql`
+                    UPDATE ${sql.identifier(uploadedFilesTableName)}
+                    SET records_processed = ${safeMetrics.tddfRecordsCreated},
+                        records_skipped = ${safeMetrics.rowsProcessed - safeMetrics.tddfRecordsCreated},
+                        records_with_errors = ${safeMetrics.errors},
+                        processing_time_ms = ${processingTimeMs},
+                        processing_details = ${processingDetailsJson},
+                        processing_status = 'completed',
+                        processing_completed_at = ${processingCompletedTime.toISOString()},
+                        processed_at = ${processingCompletedTime.toISOString()},
+                        processed = ${true},
+                        processing_errors = ${null}
+                    WHERE id = ${file.id}
+                  `);
+                  
+                  console.log(`✅ UPLOAD STEP 6: Database Status Update - SUCCESS`);
+                  console.log(`🎉 UPLOAD TASK 1 & 2 COMPLETE: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+                  console.log(`📊 FINAL METRICS: ${safeMetrics.rowsProcessed} rows, ${safeMetrics.tddfRecordsCreated} TDDF records created, ${safeMetrics.errors} errors`);
+                  
+                } catch (dbError) {
+                  console.log(`❌ UPLOAD STEP 6: Database Status Update - FAILED:`, dbError);
+                  throw dbError;
+                }
               } else {
-                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
-                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
-                console.error(`[TRACE] Storage path: ${file.storagePath}`);
-                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+                console.log(`❌ UPLOAD STEP 3: Content Validation - FAILED`);
+                console.log(`❌ UPLOAD STEP 3 DETAILS:`);
+                console.log(`   Content Length: ${dbContent ? dbContent.length : 0} bytes`);
+                console.log(`   Is Placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.log(`   Storage Path: ${file.storagePath}`);
+                throw new Error(`UPLOAD TASK 1 FAILED - File content not available: ${file.storagePath}. The temporary file may have been removed by the system.`);
               }
                 
               console.log(`TDDF file ${file.id} successfully processed`);
             } catch (error) {
-              console.error(`Error processing TDDF file ${file.id}:`, error);
+              console.log(`\n❌ UPLOAD TASK 1 & 2 ERROR: ${file.originalFilename} (${file.id})`);
+              console.log(`❌ ERROR DETAILS:`, error);
               
               // Always record processing completion time and duration, even for errors
               const processingCompletedTime = new Date();
