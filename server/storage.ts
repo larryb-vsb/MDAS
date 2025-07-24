@@ -7440,10 +7440,14 @@ export class DatabaseStorage implements IStorage {
       const processingResult = await this.processPendingTddfDtRecords(sourceFileId);
       console.log(`DT processing completed: ${processingResult.processed} records created`);
       
+      // STEP 3: Process BH records automatically at table level to prevent future issues
+      const bhProcessingResult = await this.processPendingTddfBhRecords(sourceFileId);
+      console.log(`BH processing completed: ${bhProcessingResult.processed} batch headers created`);
+      
       return {
         rowsProcessed: storageResult.rowsStored,
-        tddfRecordsCreated: processingResult.processed,
-        errors: storageResult.errors + processingResult.errors
+        tddfRecordsCreated: processingResult.processed + bhProcessingResult.processed,
+        errors: storageResult.errors + processingResult.errors + bhProcessingResult.errors
       };
       
     } catch (error: any) {
