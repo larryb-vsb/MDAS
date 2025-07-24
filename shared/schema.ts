@@ -288,38 +288,38 @@ export const tddfTransactionRecords = pgTable(getTableName("tddf_transaction_rec
   referenceNumber: text("reference_number"), // Positions 62-84: Reference number (23 chars)
   transactionDate: timestamp("transaction_date"), // Positions 85-92: MMDDCCYY format
   transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103: Transaction amount
-  batchJulianDate: text("batch_julian_date"), // Positions 104-108: Batch Julian date
-  netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 109-119: Net deposit amount
-  cardholderAccountNumber: text("cardholder_account_number"), // Positions 120-135: Cardholder account
+  batchJulianDate: text("batch_julian_date"), // Positions 104-108: DDDYY format
+  netDeposit: numeric("net_deposit", { precision: 17, scale: 2 }), // Positions 109-123: Net deposit amount
+  cardholderAccountNumber: text("cardholder_account_number"), // Positions 124-142: Cardholder account
   
   // Transaction details (positions 143-187)
-  bestInterchangeEligible: text("best_interchange_eligible"), // Positions 143-145: Best interchange eligible
-  transactionDataConditionCode: text("transaction_data_condition_code"), // Positions 146-148: Transaction data condition
-  downgradeReason1: text("downgrade_reason_1"), // Positions 149-151: First downgrade reason
-  downgradeReason2: text("downgrade_reason_2"), // Positions 152-154: Second downgrade reason
-  downgradeReason3: text("downgrade_reason_3"), // Positions 155-157: Third downgrade reason
-  onlineEntry: text("online_entry"), // Positions 158-160: Online entry indicator
-  achFlag: text("ach_flag"), // Positions 161-163: ACH flag
-  authSource: text("auth_source"), // Positions 164-166: Authorization source
-  cardholderIdMethod: text("cardholder_id_method"), // Positions 167-169: Cardholder ID method
-  catIndicator: text("cat_indicator"), // Positions 170-172: CAT indicator
-  reimbursementAttribute: text("reimbursement_attribute"), // Positions 173-175: Reimbursement attribute
-  mailOrderTelephoneIndicator: text("mail_order_telephone_indicator"), // Positions 176-178: Mail order telephone indicator
-  authCharInd: text("auth_char_ind"), // Positions 179-181: Authorization character indicator
-  banknetReferenceNumber: text("banknet_reference_number"), // Positions 182-187: Banknet reference number
+  bestInterchangeEligible: text("best_interchange_eligible"), // Positions 143-144
+  transactionDataConditionCode: text("transaction_data_condition_code"), // Positions 145-146
+  downgradeReason1: text("downgrade_reason_1"), // Positions 147-150
+  downgradeReason2: text("downgrade_reason_2"), // Positions 151-154
+  downgradeReason3: text("downgrade_reason_3"), // Positions 155-164
+  onlineEntry: text("online_entry"), // Position 165
+  achFlag: text("ach_flag"), // Position 166: Y/N
+  authSource: text("auth_source"), // Position 167
+  cardholderIdMethod: text("cardholder_id_method"), // Position 168
+  catIndicator: text("cat_indicator"), // Position 169
+  reimbursementAttribute: text("reimbursement_attribute"), // Position 170
+  mailOrderTelephoneIndicator: text("mail_order_telephone_indicator"), // Position 171
+  authCharInd: text("auth_char_ind"), // Position 172
+  banknetReferenceNumber: text("banknet_reference_number"), // Positions 173-187
   
   // Additional transaction info (positions 188-242)
-  draftAFlag: text("draft_a_flag"), // Positions 188-190: Draft A flag
-  authCurrencyCode: text("auth_currency_code"), // Positions 191-193: Authorization currency code
-  authAmount: numeric("auth_amount", { precision: 15, scale: 2 }), // Positions 192-203: Authorization amount
-  validationCode: text("validation_code"), // Positions 204-207: Validation code
-  authResponseCode: text("auth_response_code"), // Positions 208-209: Authorization response code
-  networkIdentifierDebit: text("network_identifier_debit"), // Positions 210-211: Network identifier debit
-  switchSettledIndicator: text("switch_settled_indicator"), // Positions 212-214: Switch settled indicator
-  posEntryMode: text("pos_entry_mode"), // Positions 215-216: POS entry mode
-  debitCreditIndicator: text("debit_credit_indicator"), // Positions 217-219: Debit/credit indicator
-  reversalFlag: text("reversal_flag"), // Positions 220-222: Reversal flag
-  merchantName: text("merchant_name"), // Positions 218-242: Merchant name (25 chars)
+  draftAFlag: text("draft_a_flag"), // Position 188: Y/N
+  authCurrencyCode: text("auth_currency_code"), // Positions 189-191
+  authAmount: numeric("auth_amount", { precision: 14, scale: 2 }), // Positions 192-203
+  validationCode: text("validation_code"), // Positions 204-207
+  authResponseCode: text("auth_response_code"), // Positions 208-209
+  networkIdentifierDebit: text("network_identifier_debit"), // Positions 210-212
+  switchSettledIndicator: text("switch_settled_indicator"), // Position 213
+  posEntryMode: text("pos_entry_mode"), // Positions 214-215
+  debitCreditIndicator: text("debit_credit_indicator"), // Position 216: D/C
+  reversalFlag: text("reversal_flag"), // Position 217
+  merchantName: text("merchant_name"), // Positions 218-242: DBA name (25 chars)
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
@@ -473,7 +473,7 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   
   // Authorization and card details (positions 243-268)
   authorizationNumber: text("authorization_number"), // Positions 243-248
-  rejectReason: text("reject_reason"), // Positions 249-252
+  rejectReason: text("reject_reason"), // Positions 249-250
   cardType: text("card_type"), // Positions 251-256: Updated to match PowerShell spec (2 chars to 6 chars)
   currencyCode: text("currency_code"), // Positions 255-257
   originalTransactionAmount: numeric("original_transaction_amount", { precision: 13, scale: 2 }), // Positions 258-268
