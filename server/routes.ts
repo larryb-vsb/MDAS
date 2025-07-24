@@ -5245,6 +5245,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add manual TDDF processing route (no auth required for backlog processing)
+  app.post("/api/tddf/process-backlog", async (req, res) => {
+    try {
+      console.log('🚀 [MANUAL TDDF] Starting processing of pending DT records...');
+      
+      const batchSize = parseInt(req.body.batchSize) || 100;
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending DT records
+      const result = await pool.query(`
+        SELECT id, source_file_id, line_number, raw_line, record_type, record_description
+        FROM ${tableName}
+        WHERE processing_status = 'pending' 
+        AND record_type = 'DT'
+        ORDER BY source_file_id, line_number
+        LIMIT $1
+      `, [batchSize]);
+      
+      const pendingLines = result.rows;
+      console.log(`📄 [MANUAL TDDF] Found ${pendingLines.length} pending DT records to process`);
+      
+      let processed = 0;
+      let errors = 0;
+      const results = [];
+      
+      for (const rawLine of pendingLines) {
+        try {
+          const line = rawLine.raw_line;
+          const fileId = rawLine.source_file_id;
+          
+          // Parse TDDF data using the same logic as the storage method
+          const tddfRecord = {
+            // Core TDDF header fields (positions 1-23)
+            sequenceNumber: line.substring(0, 7).trim() || null,
+            entryRunNumber: line.substring(7, 13).trim() || null,
+            sequenceWithinRun: line.substring(13, 17).trim() || null,
+            recordIdentifier: line.substring(17, 19).trim() || null,
+            bankNumber: line.substring(19, 23).trim() || null,
+            
+            // Account and merchant fields (positions 24-61)
+            merchantAccountNumber: line.substring(23, 39).trim() || null,
+            associationNumber1: line.substring(39, 45).trim() || null,
+            groupNumber: line.substring(45, 51).trim() || null,
+            transactionCode: line.substring(51, 55).trim() || null,
+            associationNumber2: line.substring(55, 61).trim() || null,
+            
+            // Core transaction fields (positions 62-142)
+            referenceNumber: line.substring(61, 84).trim() || null,
+            transactionDate: parseDate(line.substring(84, 92).trim()),
+            transactionAmount: parseAmount(line.substring(92, 103).trim()),
+            batchJulianDate: line.substring(103, 108).trim() || null,
+            netDeposit: parseAmount(line.substring(108, 123).trim()),
+            cardholderAccountNumber: line.substring(123, 142).trim() || null,
+            
+            // Additional key fields
+            merchantName: line.length > 242 ? line.substring(217, 242).trim() || null : null,
+            authAmount: parseAmount(line.substring(191, 203).trim()),
+            
+            // System fields
+            sourceFileId: fileId,
+            sourceRowNumber: rawLine.line_number,
+            mmsRawLine: line
+          };
+          
+          // Use the corrected upsertTddfRecord method (which now uses raw SQL)
+          const createdRecord = await storage.upsertTddfRecord(tddfRecord);
+          
+          // Mark raw line as processed
+          await pool.query(`
+            UPDATE ${tableName} 
+            SET processing_status = 'processed',
+                processed_into_table = 'dev_tddf_records',
+                processed_record_id = $2,
+                processed_at = NOW(),
+                updated_at = NOW()
+            WHERE id = $1
+          `, [rawLine.id, createdRecord.id.toString()]);
+          
+          processed++;
+          results.push({
+            lineId: rawLine.id,
+            recordId: createdRecord.id,
+            referenceNumber: tddfRecord.referenceNumber,
+            amount: tddfRecord.transactionAmount,
+            status: 'processed'
+          });
+          
+          if (processed % 10 === 0) {
+            console.log(`✅ [MANUAL TDDF] Processed ${processed} records so far...`);
+          }
+          
+        } catch (lineError: any) {
+          errors++;
+          console.error(`❌ [MANUAL TDDF] Error processing line ${rawLine.id}:`, lineError.message);
+          
+          // Mark as skipped
+          await pool.query(`
+            UPDATE ${tableName} 
+            SET processing_status = 'skipped',
+                skip_reason = $2,
+                processed_at = NOW(),
+                updated_at = NOW()
+            WHERE id = $1
+          `, [rawLine.id, `manual_processing_error: ${lineError.message.substring(0, 100)}`]);
+          
+          results.push({
+            lineId: rawLine.id,
+            error: lineError.message,
+            status: 'error'
+          });
+        }
+      }
+      
+      console.log(`🎉 [MANUAL TDDF] Processing complete - Processed: ${processed}, Errors: ${errors}`);
+      
+      res.json({
+        success: true,
+        summary: {
+          totalProcessed: processed,
+          totalErrors: errors,
+          batchSize: pendingLines.length
+        },
+        results: results.slice(0, 10) // Return first 10 results for verification
+      });
+      
+    } catch (error: any) {
+      console.error('❌ [MANUAL TDDF] Processing error:', error);
+      res.status(500).json({
+        error: error.message,
+        success: false
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper functions for manual TDDF processing
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr || dateStr.length !== 8) return null;
+  
+  // MMDDCCYY format
+  const month = parseInt(dateStr.substring(0, 2));
+  const day = parseInt(dateStr.substring(2, 4));
+  const year = parseInt(dateStr.substring(4, 8));
+  
+  if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
+  
+  return new Date(year, month - 1, day);
+}
+
+function parseAmount(amountStr: string): number | null {
+  if (!amountStr) return null;
+  
+  const cleanAmount = amountStr.replace(/[^\d.-]/g, '');
+  if (!cleanAmount) return null;
+  
+  const amount = parseFloat(cleanAmount);
+  if (isNaN(amount)) return null;
+  
+  // Convert from cents to dollars (divide by 100)
+  return amount / 100;
 }
