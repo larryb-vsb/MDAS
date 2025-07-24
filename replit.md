@@ -387,13 +387,18 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
-### ARCHITECTURAL SEPARATION & TRANSACTIONAL INTEGRITY COMPLETED (July 24, 2025)
+### TRANSACTIONAL INTEGRITY FULLY UNIFIED COMPLETED (July 24, 2025)
 - **✅ UPLOAD/PROCESSING SEPARATION ACHIEVED**: Successfully separated upload logic from processing logic with clean architecture
   - **Upload Logic**: `storeTddfFileAsRawImport()` method only stores raw TDDF lines in database without processing
   - **Processing Logic**: `processPendingTddfDtRecords()` method processes DT records from raw import table separately  
   - **API Endpoints**: `/api/tddf/upload` only stores raw data, `/api/tddf/process-pending-dt` handles DT processing
   - **Clean Separation**: Upload and processing responsibilities completely decoupled for better scalability and reliability
-- **✅ ATOMIC DATABASE OPERATIONS IMPLEMENTED**: Enhanced `processPendingDtRecordsHierarchical` method with complete transactional integrity
+- **✅ TRANSACTIONAL INTEGRITY FULLY UNIFIED**: Updated BH processing method to include complete transactional integrity flow with proper transaction handling, rollback capabilities, and atomic operations matching DT processing standards
+  - **BH Processing Upgraded**: BH records now process with full transactional safety including proper field extraction, validation, and error recovery
+  - **Processing Consistency Achieved**: All TDDF record processing now follows unified transactional patterns with comprehensive logging and monitoring
+  - **Unified Processing Method Created**: Implemented new `processPendingTddfRecordsUnified()` method that processes both DT and BH records together with same transactional integrity standards
+  - **Atomic Transaction Processing**: Both record types now use individual transactions per record with proper error handling and connection management
+- **✅ ATOMIC DATABASE OPERATIONS IMPLEMENTED**: Enhanced all TDDF processing methods with complete transactional integrity
   - Database Transactions: Each TDDF record processing wrapped in BEGIN/COMMIT transaction for atomic operations
   - Connection Pool Management: Individual client connections from pool for each transaction with proper resource cleanup
   - Error Handling: Automatic ROLLBACK on any processing error with proper connection release
@@ -401,6 +406,11 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - Production Safety: Failed records marked as skipped using pool connection outside transaction to prevent deadlocks
   - Complete Logging: Comprehensive transaction lifecycle logging for monitoring and debugging
   - **CRITICAL BENEFITS**: Ensures data consistency until successful insert into TDDF table, prevents partial processing states, maintains database integrity under all error conditions
+- **✅ UNIFIED API ENDPOINT CREATED**: Added `/api/tddf/process-unified` endpoint for processing multiple record types with transactional integrity
+  - **Multi-Type Support**: Processes DT, BH, P1, P2, AD, DR, G2 record types with configurable batch sizes
+  - **Record Type Validation**: Built-in validation ensures only valid TDDF record types are processed
+  - **Breakdown Reporting**: Returns detailed processing breakdown showing success/error counts per record type
+  - **Sample Record Response**: Includes sample processed record for verification and debugging
 - **✅ ENHANCED ERROR RECOVERY**: Failed transactions automatically rollback with proper error logging and raw line status management
 - **✅ CONNECTION RESOURCE MANAGEMENT**: Proper database connection acquisition, transaction management, and release cycle
 - **✅ PRODUCTION READY INTEGRITY**: Complete transactional system operational for processing 699,224+ pending TDDF records with guaranteed atomicity

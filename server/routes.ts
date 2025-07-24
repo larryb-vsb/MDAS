@@ -5045,6 +5045,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process pending TDDF records (unified DT and BH) with transactional integrity
+  app.post("/api/tddf/process-unified", isAuthenticated, async (req, res) => {
+    try {
+      const { batchSize = 100, recordTypes = ['DT', 'BH'] } = req.body;
+      
+      // Validate record types
+      const validTypes = ['DT', 'BH', 'P1', 'P2', 'AD', 'DR', 'G2'];
+      const invalidTypes = recordTypes.filter((type: string) => !validTypes.includes(type));
+      if (invalidTypes.length > 0) {
+        return res.status(400).json({
+          error: `Invalid record types: ${invalidTypes.join(', ')}. Valid types are: ${validTypes.join(', ')}`
+        });
+      }
+      
+      console.log(`[UNIFIED PROCESSING API] Processing ${batchSize} records of types: ${recordTypes.join(', ')}`);
+      
+      const result = await storage.processPendingTddfRecordsUnified(batchSize, recordTypes);
+      
+      res.json({
+        success: true,
+        message: `Unified processing complete - Processed ${result.processed} records, errors: ${result.errors}`,
+        details: {
+          totalProcessed: result.processed,
+          totalErrors: result.errors,
+          breakdown: result.breakdown,
+          sampleRecord: result.sampleRecord,
+          recordTypes: recordTypes,
+          batchSize
+        }
+      });
+    } catch (error) {
+      console.error('Error in unified TDDF processing:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process TDDF records with unified method" 
+      });
+    }
+  });
+
   // SEPARATED PROCESSING: Process pending DT records from raw import table
   app.post("/api/tddf/process-pending-dt", isAuthenticated, async (req, res) => {
     try {

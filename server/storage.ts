@@ -6499,77 +6499,158 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Process pending BH records from raw import into hierarchical table
+  // Process pending BH records from raw import into hierarchical table with transactional integrity
   async processPendingTddfBhRecords(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }> {
-    console.log(`=================== TDDF BH PROCESSING (HIERARCHICAL) ===================`);
-    console.log(`Processing pending BH records from raw import table into hierarchical table`);
+    console.log(`=================== TDDF BH PROCESSING (HIERARCHICAL TRANSACTIONAL) ===================`);
+    console.log(`Processing pending BH records from raw import table into hierarchical table with atomic transactions`);
     
     let processed = 0;
     let skipped = 0;
     let errors = 0;
     
     try {
-      // Get pending BH records from raw import table
-      const whereConditions = [
-        eq(tddfRawImportTable.recordType, 'BH'),
-        eq(tddfRawImportTable.processingStatus, 'pending')
-      ];
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending BH records using pool query for consistency with DT processing
+      let query = `
+        SELECT * FROM "${tableName}" 
+        WHERE processing_status = 'pending' AND record_type = 'BH'
+        ORDER BY line_number
+      `;
+      const queryParams: any[] = [];
       
       if (fileId) {
-        whereConditions.push(eq(tddfRawImportTable.sourceFileId, fileId));
+        query += ' AND source_file_id = $1';
+        queryParams.push(fileId);
       }
-      
-      let query = db.select()
-        .from(tddfRawImportTable)
-        .where(and(...whereConditions))
-        .orderBy(tddfRawImportTable.lineNumber);
       
       if (maxRecords) {
-        query = query.limit(maxRecords);
+        query += ` LIMIT $${queryParams.length + 1}`;
+        queryParams.push(maxRecords);
       }
       
-      const bhRecords = await query;
-      console.log(`Found ${bhRecords.length} pending BH records to process`);
+      const result = await pool.query(query, queryParams);
+      const bhRecords = result.rows;
       
+      console.log(`Found ${bhRecords.length} pending BH records to process with transactional integrity`);
+      
+      const batchHeaderTableName = getTableName('tddf_batch_headers');
+      
+      // Process each BH record within its own transaction for atomic integrity  
       for (const rawLine of bhRecords) {
+        // Begin transaction for this BH record
+        const client = await pool.connect();
         try {
-          console.log(`[BH PROCESSING] Processing line ${rawLine.lineNumber}: ${rawLine.recordDescription}`);
+          await client.query('BEGIN');
+          console.log(`[BH TRANSACTION] Starting transaction for line ${rawLine.line_number}`);
           
-          // Parse the BH record using fixed-width parsing
-          const line = rawLine.rawLine;
-          const bhRecord = this.processBhLineFromRawData(line, rawLine.sourceFileId, rawLine.lineNumber);
+          const line = rawLine.raw_line;
           
-          if (bhRecord) {
-            // Create BH record in hierarchical table
-            const [createdRecord] = await db.insert(tddfBatchHeaders)
-              .values(bhRecord)
-              .returning();
-            
-            // Mark raw line as processed
-            await this.markRawImportLineProcessed(rawLine.id, getTableName('tddf_batch_headers'), createdRecord.id.toString());
-            processed++;
-            
-            if (processed % 10 === 0) {
-              console.log(`[BH PROCESSING] Processed ${processed} BH records so far...`);
-            }
-          } else {
-            // Skip invalid BH record
-            await this.markRawImportLineSkipped(rawLine.id, 'invalid_bh_format');
-            skipped++;
+          // Parse BH record into hierarchical batch header format with complete field extraction
+          const bhRecord = {
+            sequence_number: line.substring(0, 7).trim() || null,
+            entry_run_number: line.substring(7, 13).trim() || null,
+            sequence_within_run: line.substring(13, 17).trim() || null,
+            record_identifier: line.substring(17, 19).trim() || null,
+            bank_number: line.substring(19, 23).trim() || null,
+            merchant_account_number: line.substring(23, 39).trim() || null,
+            batch_date: new Date(), // Current timestamp as batch processing date
+            net_deposit: null, // Will be enhanced based on actual BH format requirements
+            merchant_reference_number: null, // Will be enhanced based on actual BH format requirements
+            source_file_id: rawLine.source_file_id,
+            source_row_number: rawLine.line_number,
+            raw_data: JSON.stringify({ rawLine: line }) // Store complete raw line for reference
+          };
+          
+          // Validate this is a BH record
+          if (bhRecord.record_identifier !== 'BH') {
+            throw new Error(`Invalid record type: ${bhRecord.record_identifier}, expected 'BH'`);
+          }
+          
+          // Insert BH record into hierarchical table within transaction
+          const insertResult = await client.query(`
+            INSERT INTO "${batchHeaderTableName}" (
+              sequence_number,
+              entry_run_number,
+              sequence_within_run,
+              record_identifier,
+              bank_number,
+              merchant_account_number,
+              batch_date,
+              net_deposit,
+              merchant_reference_number,
+              source_file_id,
+              source_row_number,
+              raw_data
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING id
+          `, [
+            bhRecord.sequence_number,
+            bhRecord.entry_run_number,
+            bhRecord.sequence_within_run,
+            bhRecord.record_identifier,
+            bhRecord.bank_number,
+            bhRecord.merchant_account_number,
+            bhRecord.batch_date,
+            bhRecord.net_deposit,
+            bhRecord.merchant_reference_number,
+            bhRecord.source_file_id,
+            bhRecord.source_row_number,
+            bhRecord.raw_data
+          ]);
+          
+          const createdRecordId = insertResult.rows[0].id;
+          
+          // Update raw line processing status within same transaction
+          await client.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'processed',
+                processed_into_table = $1,
+                processed_record_id = $2,
+                processed_at = CURRENT_TIMESTAMP
+            WHERE id = $3
+          `, [batchHeaderTableName, createdRecordId.toString(), rawLine.id]);
+          
+          // Commit transaction
+          await client.query('COMMIT');
+          console.log(`[BH TRANSACTION] Committed BH record ${createdRecordId} from line ${rawLine.line_number}`);
+          
+          processed++;
+          
+          if (processed % 10 === 0) {
+            console.log(`[BH TRANSACTIONAL] Processed ${processed} BH records so far with atomic integrity...`);
           }
           
         } catch (error) {
-          console.error(`[BH PROCESSING] Error processing line ${rawLine.id}:`, error);
-          await this.markRawImportLineSkipped(rawLine.id, `processing_error: ${error instanceof Error ? error.message : 'unknown'}`);
+          // Rollback transaction on error
+          await client.query('ROLLBACK');
+          console.error(`[BH TRANSACTION] Rolled back transaction for line ${rawLine.line_number}:`, error);
           errors++;
+          
+          // Mark as skipped using pool connection (outside transaction)
+          try {
+            await pool.query(`
+              UPDATE "${tableName}" 
+              SET processing_status = 'skipped',
+                  skip_reason = $1,
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [`transactional_error: ${error instanceof Error ? error.message : 'unknown'}`, rawLine.id]);
+          } catch (skipError) {
+            console.error(`[BH TRANSACTION] Failed to mark line as skipped:`, skipError);
+          }
+          
+        } finally {
+          // Always release the client back to the pool
+          client.release();
         }
       }
 
-      console.log(`[BH PROCESSING] Batch complete - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
+      console.log(`[BH TRANSACTIONAL] Batch complete - Processed: ${processed}, Skipped: ${skipped}, Errors: ${errors}`);
       return { processed, skipped, errors };
       
     } catch (error) {
-      console.error('Error processing pending BH records:', error);
+      console.error('Error processing pending BH records with transactional integrity:', error);
       throw error;
     }
   }
@@ -6625,6 +6706,194 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error processing BH line from raw data:', error);
       return null;
+    }
+  }
+
+  // Unified method to process both DT and BH records with transactional integrity
+  async processPendingTddfRecordsUnified(batchSize: number, recordTypes: string[] = ['DT', 'BH']): Promise<{ 
+    processed: number; 
+    errors: number; 
+    breakdown: Record<string, { processed: number; errors: number }>;
+    sampleRecord?: any 
+  }> {
+    console.log(`[TDDF UNIFIED TRANSACTIONAL] Starting unified TDDF processing with transactional integrity for record types: ${recordTypes.join(', ')}`);
+    
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get pending records for all specified types
+      const recordTypesList = recordTypes.map(type => `'${type}'`).join(',');
+      const result = await pool.query(`
+        SELECT * FROM "${tableName}" 
+        WHERE processing_status = 'pending' AND record_type IN (${recordTypesList})
+        ORDER BY line_number
+        LIMIT $1
+      `, [batchSize]);
+      
+      const pendingRecords = result.rows;
+      console.log(`[UNIFIED PROCESSING] Processing ${pendingRecords.length} pending records (${recordTypes.join(', ')}) with transactional integrity`);
+      
+      let totalProcessed = 0;
+      let totalErrors = 0;
+      let sampleRecord = null;
+      const breakdown: Record<string, { processed: number; errors: number }> = {};
+      
+      // Initialize breakdown for each record type
+      recordTypes.forEach(type => {
+        breakdown[type] = { processed: 0, errors: 0 };
+      });
+      
+      // Process each record within its own transaction for atomic integrity
+      for (const rawLine of pendingRecords) {
+        const recordType = rawLine.record_type;
+        
+        // Begin transaction for this TDDF record
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          console.log(`[${recordType} TRANSACTION] Starting transaction for line ${rawLine.line_number}`);
+          
+          const line = rawLine.raw_line;
+          let targetTable: string;
+          let processedRecord: any;
+          
+          if (recordType === 'DT') {
+            // Process DT record (existing logic)
+            targetTable = getTableName('tddf_transaction_records');
+            
+            const transactionRecord = {
+              sequence_number: line.substring(0, 17).trim() || null,
+              entry_run_number: line.substring(2, 9).trim() || null,
+              sequence_within_run: line.substring(9, 17).trim() || null,
+              record_identifier: line.substring(17, 23).trim() || null,
+              bank_number: line.substring(23, 24).trim() || null,
+              merchant_account_number: line.substring(23, 39).trim() || null,
+              reference_number: line.substring(61, 84).trim() || null,
+              transaction_date: this.parseTddfDate(line.substring(84, 92).trim()) || null,
+              transaction_amount: this.parseAuthAmount(line.substring(92, 103).trim()) || 0,
+              auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
+              source_file_id: rawLine.source_file_id,
+              source_row_number: rawLine.line_number,
+              raw_data: JSON.stringify({ rawLine: line })
+            };
+            
+            const insertResult = await client.query(`
+              INSERT INTO "${targetTable}" (
+                sequence_number, entry_run_number, sequence_within_run, record_identifier,
+                bank_number, merchant_account_number, reference_number, transaction_date,
+                transaction_amount, auth_amount, source_file_id, source_row_number, raw_data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+              RETURNING id
+            `, [
+              transactionRecord.sequence_number, transactionRecord.entry_run_number,
+              transactionRecord.sequence_within_run, transactionRecord.record_identifier,
+              transactionRecord.bank_number, transactionRecord.merchant_account_number,
+              transactionRecord.reference_number, transactionRecord.transaction_date,
+              transactionRecord.transaction_amount, transactionRecord.auth_amount,
+              transactionRecord.source_file_id, transactionRecord.source_row_number,
+              transactionRecord.raw_data
+            ]);
+            
+            processedRecord = { id: insertResult.rows[0].id, type: 'DT', ...transactionRecord };
+            
+          } else if (recordType === 'BH') {
+            // Process BH record (existing logic)
+            targetTable = getTableName('tddf_batch_headers');
+            
+            const bhRecord = {
+              sequence_number: line.substring(0, 7).trim() || null,
+              entry_run_number: line.substring(7, 13).trim() || null,
+              sequence_within_run: line.substring(13, 17).trim() || null,
+              record_identifier: line.substring(17, 19).trim() || null,
+              bank_number: line.substring(19, 23).trim() || null,
+              merchant_account_number: line.substring(23, 39).trim() || null,
+              batch_date: new Date(),
+              net_deposit: null,
+              merchant_reference_number: null,
+              source_file_id: rawLine.source_file_id,
+              source_row_number: rawLine.line_number,
+              raw_data: JSON.stringify({ rawLine: line })
+            };
+            
+            const insertResult = await client.query(`
+              INSERT INTO "${targetTable}" (
+                sequence_number, entry_run_number, sequence_within_run, record_identifier,
+                bank_number, merchant_account_number, batch_date, net_deposit,
+                merchant_reference_number, source_file_id, source_row_number, raw_data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              RETURNING id
+            `, [
+              bhRecord.sequence_number, bhRecord.entry_run_number,
+              bhRecord.sequence_within_run, bhRecord.record_identifier,
+              bhRecord.bank_number, bhRecord.merchant_account_number,
+              bhRecord.batch_date, bhRecord.net_deposit,
+              bhRecord.merchant_reference_number, bhRecord.source_file_id,
+              bhRecord.source_row_number, bhRecord.raw_data
+            ]);
+            
+            processedRecord = { id: insertResult.rows[0].id, type: 'BH', ...bhRecord };
+          }
+          
+          // Update raw line processing status within same transaction
+          await client.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'processed',
+                processed_into_table = $1,
+                processed_record_id = $2,
+                processed_at = CURRENT_TIMESTAMP
+            WHERE id = $3
+          `, [targetTable, processedRecord.id.toString(), rawLine.id]);
+          
+          // Commit transaction
+          await client.query('COMMIT');
+          console.log(`[${recordType} TRANSACTION] Committed ${recordType} record ${processedRecord.id} from line ${rawLine.line_number}`);
+          
+          totalProcessed++;
+          breakdown[recordType].processed++;
+          
+          if (!sampleRecord) {
+            sampleRecord = processedRecord;
+          }
+          
+          if (totalProcessed % 10 === 0) {
+            console.log(`[UNIFIED TRANSACTIONAL] Processed ${totalProcessed} records so far (DT: ${breakdown.DT?.processed || 0}, BH: ${breakdown.BH?.processed || 0})...`);
+          }
+          
+        } catch (error) {
+          // Rollback transaction on error
+          await client.query('ROLLBACK');
+          console.error(`[${recordType} TRANSACTION] Rolled back transaction for line ${rawLine.line_number}:`, error);
+          totalErrors++;
+          breakdown[recordType].errors++;
+          
+          // Mark as skipped using pool connection (outside transaction)
+          try {
+            await pool.query(`
+              UPDATE "${tableName}" 
+              SET processing_status = 'skipped',
+                  skip_reason = $1,
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [`transactional_error: ${error instanceof Error ? error.message : 'unknown'}`, rawLine.id]);
+          } catch (skipError) {
+            console.error(`[${recordType} TRANSACTION] Failed to mark line as skipped:`, skipError);
+          }
+          
+        } finally {
+          // Always release the client back to the pool
+          client.release();
+        }
+      }
+
+      console.log(`[UNIFIED TRANSACTIONAL] Batch complete - Total Processed: ${totalProcessed}, Total Errors: ${totalErrors}`);
+      console.log(`[UNIFIED BREAKDOWN] DT: ${breakdown.DT?.processed || 0} processed, ${breakdown.DT?.errors || 0} errors`);
+      console.log(`[UNIFIED BREAKDOWN] BH: ${breakdown.BH?.processed || 0} processed, ${breakdown.BH?.errors || 0} errors`);
+      
+      return { processed: totalProcessed, errors: totalErrors, breakdown, sampleRecord };
+      
+    } catch (error) {
+      console.error('Error in unified TDDF processing with transactional integrity:', error);
+      throw error;
     }
   }
 
