@@ -421,7 +421,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
     - Group Number (46-51): `800000` ✓
     - Batch Julian Date (104-108): `31322` ✓
     - Terminal ID (279-284): `161166` ✓
-    - Card Type (251-256): `MD84` ✓
+    - Card Type (253-254): `MD` ✓
     - MCC Code (275-278): `9917` ✓
   - **Database Schema Consistency**: All hierarchical and legacy table schemas remain synchronized with TDDF specification positions
   - **Production Ready**: New TDDF file uploads now capture complete field data instead of NULL values

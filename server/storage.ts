@@ -7176,7 +7176,7 @@ export class DatabaseStorage implements IStorage {
       cardholder_account_number: line.substring(123, 142).trim() || null,
       auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
       merchant_name: line.substring(217, 242).trim() || null,
-      card_type: line.substring(250, 256).trim() || null,
+      card_type: line.substring(252, 254).trim() || null,
       mcc_code: line.substring(274, 278).trim() || null,
       terminal_id: line.substring(278, 284).trim() || null,
       source_file_id: rawRecord.source_file_id,
