@@ -7179,7 +7179,7 @@ export class DatabaseStorage implements IStorage {
       card_type: line.substring(252, 254).trim() || null,
       mcc_code: line.substring(274, 278).trim() || null,
       terminal_id: line.substring(278, 284).trim() || null,
-      debit_credit_indicator: line.substring(214, 216).trim() || null,
+      debit_credit_indicator: line.substring(215, 216).trim() || null,
       source_file_id: rawRecord.source_file_id,
       source_row_number: rawRecord.line_number,
       mms_raw_line: line

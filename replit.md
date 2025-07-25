@@ -423,7 +423,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
     - Terminal ID (279-284): `161166` ✓
     - Card Type (253-254): `MD` ✓
     - MCC Code (275-278): `9917` ✓
-    - Debit/Credit Indicator (215-216): `1D` ✓
+    - Debit/Credit Indicator (216): `D` ✓
   - **Database Schema Consistency**: All hierarchical and legacy table schemas remain synchronized with TDDF specification positions
   - **Production Ready**: New TDDF file uploads now capture complete field data instead of NULL values
   - **Live Testing Verified**: Latest DT record (ID 39526) shows previously missing fields now populated with authentic data
