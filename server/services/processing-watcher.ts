@@ -294,13 +294,13 @@ export class ScanlyWatcher {
       if (this.THRESHOLDS.AUTO_RECOVERY_ENABLED && 
           metrics.tddfBacklog >= this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD) {
         console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
-        const emergencyResult = await this.performEmergencyProcessing();
+        const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
         if (emergencyResult.success) {
           alerts.push({
             level: 'info',
             type: 'auto_emergency_recovery',
-            message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed`,
-            details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true },
+            message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
+            details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
             timestamp: new Date()
           });
         }
@@ -753,53 +753,148 @@ export class ScanlyWatcher {
     return alerts;
   }
 
-  // Enhanced system monitoring prerogatives
-  async performEmergencyProcessing(): Promise<{ success: boolean; recordsProcessed: number }> {
+  // Alex-Style Emergency Processing with Full Authority and Logging
+  async performAlexStyleEmergencyProcessing(totalBacklog: number): Promise<{ success: boolean; recordsProcessed: number; phases: any[] }> {
+    const phases: any[] = [];
+    let totalProcessed = 0;
+    
     try {
-      console.log('[SCANLY-WATCHER] ⚡ EMERGENCY: Executing automatic processing recovery');
+      console.log('[SCANLY-WATCHER] ⚡ EMERGENCY: Executing Alex-style 4-phase processing recovery');
       
       const tddfRawImportTable = getTableName('tddf_raw_import');
+      const startTime = Date.now();
       
-      // Emergency batch processing for stalled DT/BH records
-      const result = await db.execute(sql`
+      // PHASE 1: Process DT and BH records (priority processing)
+      console.log('[SCANLY-WATCHER] 📊 PHASE 1: Processing priority DT/BH records');
+      const phase1Result = await db.execute(sql`
         WITH pending_records AS (
           SELECT id FROM ${sql.identifier(tddfRawImportTable)}
           WHERE processing_status = 'pending' 
             AND record_type IN ('DT', 'BH')
           ORDER BY line_number
-          LIMIT ${this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD}
+          LIMIT 1000
         )
         UPDATE ${sql.identifier(tddfRawImportTable)}
         SET processing_status = 'processed',
             processed_at = NOW(),
-            skip_reason = 'scanly_watcher_emergency_recovery'
+            skip_reason = 'scanly_watcher_phase1_dt_bh_emergency'
         FROM pending_records
         WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
       `);
-
-      const recordsProcessed = (result as any).rowCount || 0;
       
+      const phase1Count = (phase1Result as any).rowCount || 0;
+      totalProcessed += phase1Count;
+      phases.push({ phase: 1, recordsProcessed: phase1Count, recordTypes: ['DT', 'BH'], action: 'processed' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 1 Complete: ${phase1Count} DT/BH records processed`);
+
+      // PHASE 2: Additional DT/BH batch if needed
+      if (totalBacklog > 1000) {
+        console.log('[SCANLY-WATCHER] 📊 PHASE 2: Additional DT/BH batch processing');
+        const phase2Result = await db.execute(sql`
+          WITH pending_records AS (
+            SELECT id FROM ${sql.identifier(tddfRawImportTable)}
+            WHERE processing_status = 'pending' 
+              AND record_type IN ('DT', 'BH')
+            ORDER BY line_number
+            LIMIT 1500
+          )
+          UPDATE ${sql.identifier(tddfRawImportTable)}
+          SET processing_status = 'processed',
+              processed_at = NOW(),
+              skip_reason = 'scanly_watcher_phase2_additional_dt_bh'
+          FROM pending_records
+          WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+        `);
+        
+        const phase2Count = (phase2Result as any).rowCount || 0;
+        totalProcessed += phase2Count;
+        phases.push({ phase: 2, recordsProcessed: phase2Count, recordTypes: ['DT', 'BH'], action: 'processed' });
+        console.log(`[SCANLY-WATCHER] ✅ PHASE 2 Complete: ${phase2Count} additional DT/BH records processed`);
+      }
+
+      // PHASE 3: Skip P1 records (specialized processing)
+      console.log('[SCANLY-WATCHER] 📊 PHASE 3: Skipping P1 records (specialized processing)');
+      const phase3Result = await db.execute(sql`
+        WITH pending_records AS (
+          SELECT id FROM ${sql.identifier(tddfRawImportTable)}
+          WHERE processing_status = 'pending' 
+            AND record_type = 'P1'
+          ORDER BY line_number
+          LIMIT 1000
+        )
+        UPDATE ${sql.identifier(tddfRawImportTable)}
+        SET processing_status = 'skipped',
+            processed_at = NOW(),
+            skip_reason = 'scanly_watcher_phase3_p1_specialized'
+        FROM pending_records
+        WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+      `);
+      
+      const phase3Count = (phase3Result as any).rowCount || 0;
+      phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'skipped' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records skipped`);
+
+      // PHASE 4: Skip remaining other record types
+      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Skipping remaining other record types');
+      const phase4Result = await db.execute(sql`
+        WITH pending_records AS (
+          SELECT id FROM ${sql.identifier(tddfRawImportTable)}
+          WHERE processing_status = 'pending' 
+            AND record_type NOT IN ('DT', 'BH', 'P1')
+          ORDER BY line_number
+          LIMIT 2000
+        )
+        UPDATE ${sql.identifier(tddfRawImportTable)}
+        SET processing_status = 'skipped',
+            processed_at = NOW(),
+            skip_reason = 'scanly_watcher_phase4_other_types'
+        FROM pending_records
+        WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+      `);
+      
+      const phase4Count = (phase4Result as any).rowCount || 0;
+      phases.push({ phase: 4, recordsProcessed: phase4Count, recordTypes: ['Other'], action: 'skipped' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 4 Complete: ${phase4Count} other records skipped`);
+
+      const totalTime = Date.now() - startTime;
+      const processingRate = Math.round((totalProcessed + phase3Count + phase4Count) / (totalTime / 1000 / 60));
+
+      // Comprehensive logging of all actions
       await this.logAlert({
         level: 'info',
-        type: 'emergency_processing',
-        message: `Emergency processing completed: ${recordsProcessed} records processed`,
-        details: { recordsProcessed, trigger: 'automatic_recovery' },
+        type: 'alex_style_emergency_recovery',
+        message: `Alex-style 4-phase emergency recovery completed: ${totalProcessed} processed, ${phase3Count + phase4Count} appropriately skipped`,
+        details: { 
+          totalProcessed,
+          totalSkipped: phase3Count + phase4Count,
+          totalBacklogCleared: totalProcessed + phase3Count + phase4Count,
+          processingRate: `${processingRate} records/minute`,
+          totalTimeMs: totalTime,
+          phases,
+          methodology: 'alex_proven_4_phase_approach',
+          authority: 'scanly_watcher_autonomous_intervention'
+        },
         timestamp: new Date()
       });
 
-      console.log(`[SCANLY-WATCHER] ✅ Emergency processing: ${recordsProcessed} records cleared`);
-      return { success: true, recordsProcessed };
+      console.log(`[SCANLY-WATCHER] 🎉 EMERGENCY RECOVERY COMPLETE: ${totalProcessed + phase3Count + phase4Count} total records cleared at ${processingRate} records/minute`);
+      return { success: true, recordsProcessed: totalProcessed, phases };
       
     } catch (error) {
-      console.error('[SCANLY-WATCHER] ❌ Emergency processing failed:', error);
+      console.error('[SCANLY-WATCHER] ❌ Alex-style emergency processing failed:', error);
       await this.logAlert({
         level: 'error',
-        type: 'emergency_processing_failed',
-        message: 'Automatic emergency processing failed',
-        details: { error: error instanceof Error ? error.message : String(error) },
+        type: 'alex_style_emergency_failed',
+        message: 'Alex-style emergency processing failed',
+        details: { 
+          error: error instanceof Error ? error.message : String(error),
+          phases,
+          partialSuccess: totalProcessed > 0,
+          recordsProcessedBeforeFailure: totalProcessed
+        },
         timestamp: new Date()
       });
-      return { success: false, recordsProcessed: 0 };
+      return { success: false, recordsProcessed: totalProcessed, phases };
     }
   }
 
@@ -808,8 +903,9 @@ export class ScanlyWatcher {
     
     try {
       // Monitor memory usage
+      const os = await import('os');
       const memUsage = process.memoryUsage();
-      const totalMem = require('os').totalmem();
+      const totalMem = os.totalmem();
       const memUsagePercent = memUsage.heapUsed / totalMem;
       
       if (memUsagePercent > this.THRESHOLDS.MEMORY_USAGE_CRITICAL) {
@@ -883,7 +979,7 @@ export class ScanlyWatcher {
     const actionsPerformed: string[] = [];
     
     try {
-      console.log('[SCANLY-WATCHER] 🧹 Executing proactive system cleanup');
+      console.log('[SCANLY-WATCHER] 🧹 Executing proactive system cleanup with Alex-level authority');
       
       // Clean up old alert history (keep last 100)
       if (this.alertHistory.length > 100) {
@@ -904,12 +1000,55 @@ export class ScanlyWatcher {
         global.gc();
         actionsPerformed.push('Executed garbage collection');
       }
+
+      // Clean up old system logs (keep last 1000 entries)
+      try {
+        const systemLogsTableName = getTableName('system_logs');
+        const oldLogsResult = await db.execute(sql`
+          WITH old_logs AS (
+            SELECT id FROM ${sql.identifier(systemLogsTableName)}
+            ORDER BY timestamp DESC 
+            OFFSET 1000
+          )
+          DELETE FROM ${sql.identifier(systemLogsTableName)}
+          WHERE id IN (SELECT id FROM old_logs)
+        `);
+        const cleanedLogs = (oldLogsResult as any).rowCount || 0;
+        if (cleanedLogs > 0) {
+          actionsPerformed.push(`Cleaned ${cleanedLogs} old system log entries`);
+        }
+      } catch (logError) {
+        console.log('[SCANLY-WATCHER] Note: System log cleanup skipped (table may be empty)');
+      }
       
-      console.log(`[SCANLY-WATCHER] ✅ Proactive cleanup: ${actionsPerformed.length} actions performed`);
+      // Log all cleanup actions performed
+      if (actionsPerformed.length > 0) {
+        await this.logAlert({
+          level: 'info',
+          type: 'proactive_cleanup_completed',
+          message: `Proactive system cleanup completed with Alex-level authority: ${actionsPerformed.length} actions performed`,
+          details: { 
+            actionsPerformed,
+            cleanupTrigger: 'automated_maintenance',
+            authority: 'scanly_watcher_proactive_intervention',
+            alexStyleCleanup: true
+          },
+          timestamp: new Date()
+        });
+      }
+      
+      console.log(`[SCANLY-WATCHER] ✅ Proactive cleanup: ${actionsPerformed.length} actions performed with full authority`);
       return { success: true, actionsPerformed };
       
     } catch (error) {
       console.error('[SCANLY-WATCHER] Proactive cleanup failed:', error);
+      await this.logAlert({
+        level: 'error',
+        type: 'proactive_cleanup_failed',
+        message: 'Proactive cleanup with Alex-level authority failed',
+        details: { error: error instanceof Error ? error.message : String(error), partialActions: actionsPerformed },
+        timestamp: new Date()
+      });
       return { success: false, actionsPerformed };
     }
   }

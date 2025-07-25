@@ -5466,12 +5466,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scanly-watcher/emergency-processing", isAuthenticated, async (req, res) => {
     try {
       const { scanlyWatcher } = await import("./services/processing-watcher");
-      const result = await scanlyWatcher.performEmergencyProcessing();
+      
+      // Get current backlog first
+      const tddfRawImportTable = getTableName('tddf_raw_import');
+      const { db } = await import("./db");
+      const backlogResult = await db.execute(sql`
+        SELECT COUNT(*) as backlog_count FROM ${sql.identifier(tddfRawImportTable)}
+        WHERE processing_status = 'pending'
+      `);
+      const currentBacklog = parseInt(String((backlogResult as any).rows[0]?.backlog_count)) || 0;
+      
+      const result = await scanlyWatcher.performAlexStyleEmergencyProcessing(currentBacklog);
       res.json(result);
     } catch (error) {
-      console.error('Error performing emergency processing:', error);
+      console.error('Error performing Alex-style emergency processing:', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to perform emergency processing" 
+        error: error instanceof Error ? error.message : "Failed to perform Alex-style emergency processing" 
       });
     }
   });
