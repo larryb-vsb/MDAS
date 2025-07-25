@@ -7000,31 +7000,27 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('tddf_raw_import');
       
-      // ENHANCED DUPLICATE PREVENTION: Multiple layers of protection
-      let query = `
-        WITH unique_pending AS (
-          SELECT DISTINCT ON (source_file_id, line_number) *
-          FROM "${tableName}" 
-          WHERE processing_status = 'pending'
-            AND record_type != 'P1'
-            AND NOT EXISTS (
-              SELECT 1 FROM "${tableName}" t2 
-              WHERE t2.source_file_id = "${tableName}".source_file_id 
-                AND t2.line_number = "${tableName}".line_number
-                AND t2.processing_status IN ('processed', 'skipped')
-            )
-          ORDER BY source_file_id, line_number, id
-        )
-        SELECT * FROM unique_pending
-      `;
+      // SIMPLIFIED DUPLICATE PREVENTION: Fixed SQL syntax error
       const queryParams: any[] = [];
+      let query = `
+        SELECT DISTINCT ON (source_file_id, line_number) *
+        FROM "${tableName}" 
+        WHERE processing_status = 'pending' 
+          AND record_type != 'P1'
+          AND NOT EXISTS (
+            SELECT 1 FROM "${tableName}" t2 
+            WHERE t2.source_file_id = "${tableName}".source_file_id 
+              AND t2.line_number = "${tableName}".line_number
+              AND t2.processing_status IN ('processed', 'skipped')
+          )
+      `;
       
       if (fileId) {
         query += ` AND source_file_id = $${queryParams.length + 1}`;
         queryParams.push(fileId);
       }
       
-      query += ` ORDER BY line_number LIMIT $${queryParams.length + 1}`;
+      query += ` ORDER BY source_file_id, line_number, id LIMIT $${queryParams.length + 1}`;
       queryParams.push(batchSize);
       
       const result = await pool.query(query, queryParams);
