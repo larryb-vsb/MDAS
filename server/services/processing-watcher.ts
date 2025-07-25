@@ -94,33 +94,24 @@ export class ScanlyWatcher {
     // Check backlog immediately
     this.checkTddfBacklog();
     
-    // Set up 30-second monitoring
-    const backlogInterval = setInterval(async () => {
+    // Set up 30-second monitoring for both TDDF backlog and orphan cleanup
+    const combinedInterval = setInterval(async () => {
       if (!this.isRunning) {
-        clearInterval(backlogInterval);
+        clearInterval(combinedInterval);
         return;
       }
       await this.checkTddfBacklog();
+      await this.cleanupOrphanedFiles();
     }, this.THRESHOLDS.BACKLOG_CHECK_INTERVAL);
   }
 
   private startOrphanedFileCleanup(): void {
-    console.log('[SCANLY-WATCHER] Starting orphaned file cleanup (every 2 minutes)');
+    console.log('[SCANLY-WATCHER] Orphaned file cleanup integrated with 30-second monitoring');
     
     // Run cleanup immediately
     this.cleanupOrphanedFiles();
     
-    // Set up 2-minute cleanup monitoring
-    this.orphanCleanupInterval = setInterval(async () => {
-      if (!this.isRunning) {
-        if (this.orphanCleanupInterval) {
-          clearInterval(this.orphanCleanupInterval);
-          this.orphanCleanupInterval = null;
-        }
-        return;
-      }
-      await this.cleanupOrphanedFiles();
-    }, 2 * 60 * 1000); // Every 2 minutes
+    // Note: Cleanup now runs every 30 seconds as part of TDDF backlog monitoring
   }
 
   private async checkTddfBacklog(): Promise<void> {
