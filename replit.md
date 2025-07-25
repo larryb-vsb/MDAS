@@ -486,6 +486,20 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Production Ready**: V Number search operational with case-insensitive exact matching against Terminal ID field in TDDF records
   - **User Confirmation**: System tested and confirmed working excellently for V Number-based TDDF record filtering
 
+### COMPLETE TDDF RAW LINE DATA CONSISTENCY ACROSS ALL VIEWS ACHIEVED (July 25, 2025)
+- **✅ TERMINAL VIEW RAW LINE DATA FIELD MAPPING FIXED**: Successfully resolved missing `mmsRawLine` field in Terminal TDDF API endpoint response transformation
+  - **Root Cause Fixed**: Terminal endpoint `/api/tddf/by-terminal/:terminalId` was excluding `mmsRawLine` field during manual transformation
+  - **API Response Enhanced**: Added `mmsRawLine`, `createdAt`, `updatedAt`, `sourceRowNumber` fields to transformation for complete field parity
+  - **Cross-View Consistency**: Terminal View and TDDF Records page now display identical raw line data availability and content
+  - **User Verification Confirmed**: Raw line data now displays properly in Terminal View transaction detail modals
+- **✅ TDDF SUMMARY PAGE RAW LINE DATA SECTION ADDED**: Successfully implemented comprehensive raw line data display in TDDF Transaction Detail Modal summary tab
+  - **Summary Tab Enhancement**: Added dedicated "Raw Line Data" card section after TDDF Record Details with availability badge display
+  - **Authentic Data Display**: Shows original fixed-width TDDF record data with character count (701 characters) and proper formatting
+  - **Availability Status**: Dynamic "Yes/No" badge indicates raw data availability with appropriate styling
+  - **Consistent Styling**: Matches Terminal View raw data display format with monospace font and break-all text handling
+  - **Complete Implementation**: Raw line data now accessible from all TDDF transaction views (Records page, Terminal View, Summary modals)
+- **✅ UNIVERSAL RAW LINE DATA ACCESS COMPLETED**: Achieved complete consistency across all TDDF transaction detail views with authentic fixed-width record display
+
 ### CRITICAL TDDF DATE DISPLAY ISSUE COMPLETELY RESOLVED (July 25, 2025)
 - **✅ SCHEMA-DATABASE TYPE MISMATCH FIXED**: Successfully resolved critical issue where transactionDate was showing null in API responses due to schema/database type mismatch
   - **Root Cause Identified**: Schema defined transactionDate as `timestamp("transaction_date")` but database stored field as `date` type, causing Drizzle ORM to return null values

@@ -180,6 +180,38 @@ export function TddfTransactionDetailModal({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Raw Line Data Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Raw Line Data
+                  <Badge variant={transaction.mmsRawLine ? "default" : "secondary"} className="text-xs">
+                    {transaction.mmsRawLine ? "Yes" : "No"}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Original fixed-width TDDF record data from source file
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {transaction.mmsRawLine ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">
+                      Fixed-width TDDF record • {transaction.mmsRawLine.length} characters
+                    </div>
+                    <div className="bg-muted/30 border rounded-lg p-4 font-mono text-xs leading-relaxed break-all overflow-x-auto">
+                      {transaction.mmsRawLine}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Raw line data not available for this record</p>
+                    <p className="text-xs mt-2">This may occur for older records or manually created entries</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="fields" className="mt-6">
