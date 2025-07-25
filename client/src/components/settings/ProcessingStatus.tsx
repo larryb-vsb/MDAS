@@ -91,19 +91,22 @@ const formatQueueEstimate = (totalSeconds: number) => {
   }
 };
 
-// Enhanced multi-colored gauge for different record types
+// Enhanced multi-colored gauge for different record types with peak bar
 const MultiColorGauge = ({ 
   currentSpeed, 
   maxScale = 20, 
   recordTypes = { dt: 0, bh: 0, p1: 0, other: 0 },
-  showRecordTypes = false 
+  showRecordTypes = false,
+  peakValue = 0
 }: { 
   currentSpeed: number;
   maxScale?: number;
   recordTypes?: { dt: number; bh: number; p1: number; other: number };
   showRecordTypes?: boolean;
+  peakValue?: number;
 }) => {
   const currentPercentage = Math.min((currentSpeed / maxScale) * 100, 100);
+  const peakPercentage = Math.min((peakValue / maxScale) * 100, 100);
   
   // Calculate percentages for each record type when showing types
   const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
@@ -163,6 +166,14 @@ const MultiColorGauge = ({
           />
         )}
         
+        {/* Peak indicator bar - shows total/peak over last 10 minutes */}
+        {peakValue > 0 && (
+          <div 
+            className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
+            style={{ left: `${peakPercentage}%` }}
+            title={`Peak: ${peakValue} over last 10 min`}
+          />
+        )}
 
       </div>
       
@@ -177,12 +188,13 @@ const MultiColorGauge = ({
 };
 
 // Keep original gauge for backward compatibility
-const TransactionSpeedGauge = ({ currentSpeed, maxScale = 20 }: { currentSpeed: number, maxScale?: number }) => {
+const TransactionSpeedGauge = ({ currentSpeed, maxScale = 20, peakValue = 0 }: { currentSpeed: number, maxScale?: number, peakValue?: number }) => {
   return (
     <MultiColorGauge 
       currentSpeed={currentSpeed}
       maxScale={maxScale}
       showRecordTypes={false}
+      peakValue={peakValue}
     />
   );
 };
@@ -372,16 +384,15 @@ export default function ProcessingStatus() {
     }
   }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed]);
 
-  // Update TDDF peak tracking when real-time stats change
+  // Update TDDF peak tracking when performance KPIs change
   useEffect(() => {
-    const currentStats = realTimeStats;
-    if (currentStats?.tddfRecordsPerSecond !== undefined) {
+    if (performanceKpis?.tddfPerMinute !== undefined) {
       const currentTime = Date.now();
       const tenMinutesAgo = currentTime - (10 * 60 * 1000);
       
       // Store current TDDF reading with timestamp
       const currentTddfReading = {
-        value: currentStats.tddfRecordsPerSecond,
+        value: performanceKpis.tddfPerMinute,
         timestamp: currentTime
       };
       
@@ -408,7 +419,7 @@ export default function ProcessingStatus() {
         return newHistory;
       });
     }
-  }, [realTimeStats?.tddfRecordsPerSecond, peakTddfSpeed]);
+  }, [performanceKpis?.tddfPerMinute, peakTddfSpeed, lastTddfPeakTime]);
 
   // Helper functions
   const getStatusBadge = () => {
@@ -571,6 +582,7 @@ export default function ProcessingStatus() {
                   <TransactionSpeedGauge 
                     currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
                     maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    peakValue={peakTxnSpeed * 60}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
@@ -661,6 +673,15 @@ export default function ProcessingStatus() {
                                 style={{ width: `${Math.min((tddfPerMinute / 125) * 100, 100)}%` }}
                               />
                             )}
+                            
+                            {/* Peak indicator bar for TDDF gauge */}
+                            {peakTddfSpeed > 0 && (
+                              <div 
+                                className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
+                                style={{ left: `${Math.min((peakTddfSpeed / Math.max(tddfPerMinute * 1.2, 125)) * 100, 100)}%` }}
+                                title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
+                              />
+                            )}
                           </div>
                           
                           {/* Record Type Counts Display */}
@@ -737,6 +758,7 @@ export default function ProcessingStatus() {
                             other: totalOtherProcessed + totalSkipped // Combine other and skipped for visualization
                           }}
                           showRecordTypes={true}
+                          peakValue={peakTxnSpeed * 60} // Use transaction peak for records gauge
                         />
                       );
                     } else {
@@ -745,6 +767,7 @@ export default function ProcessingStatus() {
                         <TransactionSpeedGauge 
                           currentSpeed={recordsPerMinute}
                           maxScale={Math.max(recordsPerMinute * 1.2, 600)}
+                          peakValue={peakTxnSpeed * 60}
                         />
                       );
                     }
