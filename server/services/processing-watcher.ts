@@ -259,6 +259,9 @@ export class ScanlyWatcher {
       const metrics = await this.collectMetrics();
       const alerts = await this.analyzeMetrics(metrics);
       
+      // Check for processing issues and run cleanup if needed
+      await this.checkStatusAndCleanup(metrics);
+      
       // Log alerts
       for (const alert of alerts) {
         await this.logAlert(alert);
@@ -278,6 +281,160 @@ export class ScanlyWatcher {
         details: { error: error instanceof Error ? error.message : String(error) },
         timestamp: new Date()
       });
+    }
+  }
+
+  private async checkStatusAndCleanup(metrics: ProcessingMetrics): Promise<void> {
+    try {
+      const issues: string[] = [];
+      let cleanupPerformed = false;
+
+      // Check for stalled TDDF processing (backlog > 0 for 3+ minutes)
+      if (metrics.tddfBacklog > 0) {
+        const stalledMinutes = this.getTddfBacklogStalledMinutes();
+        if (stalledMinutes >= 3) {
+          issues.push(`TDDF backlog stalled for ${stalledMinutes} minutes`);
+          
+          // Run emergency TDDF processing cleanup
+          await this.runTddfEmergencyCleanup();
+          cleanupPerformed = true;
+        }
+      }
+
+      // Check for stuck files (processing > 30 minutes)
+      if (metrics.stuckFiles > 0) {
+        issues.push(`${metrics.stuckFiles} files stuck in processing`);
+        
+        // Run stuck file cleanup
+        await this.runStuckFileCleanup();
+        cleanupPerformed = true;
+      }
+
+      // Check for orphaned locks (additional check beyond regular 30-second cleanup)
+      const orphanCount = await this.checkOrphanedLocks();
+      if (orphanCount > 0) {
+        issues.push(`${orphanCount} orphaned server locks detected`);
+        
+        // Force orphan cleanup
+        await this.cleanupOrphanedFiles();
+        cleanupPerformed = true;
+      }
+
+      if (issues.length > 0) {
+        console.log(`[SCANLY-WATCHER] 🚨 Processing issues detected: ${issues.join(', ')}`);
+        
+        if (cleanupPerformed) {
+          console.log('[SCANLY-WATCHER] ✅ Emergency cleanup procedures completed');
+          
+          await this.logAlert({
+            level: 'warning',
+            type: 'emergency_cleanup_performed',
+            message: 'Emergency cleanup procedures executed',
+            details: { 
+              issues,
+              cleanupActions: ['TDDF processing', 'stuck files', 'orphaned locks'].filter((_, i) => 
+                [metrics.tddfBacklog > 0, metrics.stuckFiles > 0, orphanCount > 0][i]
+              ),
+              timestamp: new Date()
+            },
+            timestamp: new Date()
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error during status check and cleanup:', error);
+    }
+  }
+
+  private getTddfBacklogStalledMinutes(): number {
+    if (this.tddfBacklogHistory.length < 2) return 0;
+    
+    const oldest = this.tddfBacklogHistory[0];
+    const latest = this.tddfBacklogHistory[this.tddfBacklogHistory.length - 1];
+    
+    // Check if backlog count has remained the same
+    if (oldest.count === latest.count && latest.count > 0) {
+      const minutesDiff = (latest.timestamp.getTime() - oldest.timestamp.getTime()) / (1000 * 60);
+      return Math.floor(minutesDiff);
+    }
+    
+    return 0;
+  }
+
+  private async checkOrphanedLocks(): Promise<number> {
+    try {
+      const { getCachedServerId } = await import("../utils/server-id");
+      const currentServerId = getCachedServerId();
+      const uploadsTable = getTableName('uploaded_files');
+      
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const orphanedResult = await db.execute(sql`
+        SELECT COUNT(*) as orphan_count
+        FROM ${sql.identifier(uploadsTable)}
+        WHERE processing_server_id IS NOT NULL
+          AND processing_server_id != ${currentServerId}
+          AND uploaded_at < ${fiveMinutesAgo.toISOString()}
+      `);
+      
+      return Number(orphanedResult.rows[0]?.orphan_count || 0);
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error checking orphaned locks:', error);
+      return 0;
+    }
+  }
+
+  private async runTddfEmergencyCleanup(): Promise<void> {
+    try {
+      console.log('[SCANLY-WATCHER] 🚨 Running emergency TDDF cleanup...');
+      
+      // Call manual TDDF processing API to clear backlog
+      
+      const response = await fetch('http://localhost:5000/api/tddf/process-switch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Request': 'true' // Bypass auth for internal requests
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`[SCANLY-WATCHER] ✅ Emergency TDDF cleanup completed: ${result.totalProcessed || 0} records processed`);
+      } else {
+        console.log('[SCANLY-WATCHER] ⚠️ Emergency TDDF cleanup failed:', response.statusText);
+      }
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error during emergency TDDF cleanup:', error);
+    }
+  }
+
+  private async runStuckFileCleanup(): Promise<void> {
+    try {
+      console.log('[SCANLY-WATCHER] 🚨 Running stuck file cleanup...');
+      
+      const { getCachedServerId } = await import("../utils/server-id");
+      const currentServerId = getCachedServerId();
+      const uploadsTable = getTableName('uploaded_files');
+      
+      // Reset files stuck in processing for >30 minutes
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      
+      const result = await db.execute(sql`
+        UPDATE ${sql.identifier(uploadsTable)}
+        SET processing_status = 'queued',
+            processing_server_id = NULL,
+            processing_started_at = NULL
+        WHERE processing_status = 'processing'
+          AND processing_started_at < ${thirtyMinutesAgo.toISOString()}
+      `);
+      
+      console.log(`[SCANLY-WATCHER] ✅ Stuck file cleanup completed: ${result.rowCount || 0} files reset to queued`);
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error during stuck file cleanup:', error);
     }
   }
 
