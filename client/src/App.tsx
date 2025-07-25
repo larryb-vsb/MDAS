@@ -32,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/terminals" component={TerminalsPage} />
       <ProtectedRoute path="/terminals/:id" component={TerminalViewPage} />
       <ProtectedRoute path="/transactions" component={Transactions} />
+      <ProtectedRoute path="/tddf-records" component={TddfPage} />
       <ProtectedRoute path="/tddf" component={TddfPage} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
