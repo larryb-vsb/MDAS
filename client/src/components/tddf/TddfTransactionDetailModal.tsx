@@ -348,6 +348,46 @@ export function TddfTransactionDetailModal({
                       </div>
                     </div>
                   </div>
+
+                  {/* System & Raw Data Fields */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3 text-indigo-700">System & Raw Data Fields</h4>
+                    <div className="grid grid-cols-1 gap-3 text-sm">
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-muted-foreground">Source Row Number</span>
+                        <span className="font-mono">{transaction.sourceRowNumber || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-muted-foreground">Created At</span>
+                        <span className="font-mono text-xs">{transaction.createdAt ? formatTableDate(transaction.createdAt) : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-gray-100">
+                        <span className="text-muted-foreground">Updated At</span>
+                        <span className="font-mono text-xs">{transaction.updatedAt ? formatTableDate(transaction.updatedAt) : 'N/A'}</span>
+                      </div>
+                      <div className="py-2">
+                        <span className="text-muted-foreground mb-2 block">Raw Data Available</span>
+                        <Badge variant={transaction.rawData ? "default" : "outline"}>
+                          {transaction.rawData ? "Yes" : "No"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Raw Line Data Section */}
+                  {transaction.rawData && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-3 text-slate-700">Raw Line Data</h4>
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-slate-800 bg-white p-3 rounded border">
+                          {transaction.rawData}
+                        </div>
+                        <div className="mt-3 text-xs text-muted-foreground">
+                          Fixed-width TDDF record - {transaction.rawData.length} characters
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
