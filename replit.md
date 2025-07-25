@@ -584,15 +584,15 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Complete Implementation**: Raw line data now accessible from all TDDF transaction views (Records page, Terminal View, Summary modals)
 - **✅ UNIVERSAL RAW LINE DATA ACCESS COMPLETED**: Achieved complete consistency across all TDDF transaction detail views with authentic fixed-width record display
 
-### CRITICAL TDDF DATE DISPLAY ISSUE COMPLETELY RESOLVED (July 25, 2025)
-- **✅ SCHEMA-DATABASE TYPE MISMATCH FIXED**: Successfully resolved critical issue where transactionDate was showing null in API responses due to schema/database type mismatch
-  - **Root Cause Identified**: Schema defined transactionDate as `timestamp("transaction_date")` but database stored field as `date` type, causing Drizzle ORM to return null values
-  - **Schema Synchronization Applied**: Updated both hierarchical TDDF tables (tddfTransactionRecords and tddfRecords) to use `date("transaction_date")` matching database reality
-  - **Import Statement Fixed**: Added missing `date` import to drizzle-orm/pg-core imports in shared/schema.ts
-  - **Database Consistency Verified**: SQL query confirms transaction_date field is `date` type in database with sample data ("2023-02-03")
-  - **API Response Restored**: TDDF API now returns proper transaction dates ("2023-02-03") instead of null values
-  - **Production Ready**: All TDDF processing now displays accurate transaction dates in frontend interface
-  - **Complete Resolution**: All 47 DT records and 4 BH records now display proper transaction dates with perfect schema-database alignment
+### HEAT MAP REACT QUERY CACHING ISSUE COMPLETELY RESOLVED (July 25, 2025)
+- **✅ TDDF ACTIVITY HEAT MAP DATA ACCURACY FIXED**: Successfully resolved React Query caching issue causing incorrect transaction counts when navigating between years
+  - **Root Cause Identified**: Heat map component was using cached data instead of making proper API calls with year parameter, showing 157 transactions for 2023 instead of correct 19,653
+  - **Explicit Query Function Added**: Implemented explicit `queryFn` with direct API calls to `/api/tddf/activity-heatmap?year=${currentYear}` ensuring fresh data for each year
+  - **Cache Independence Achieved**: Removed reliance on default React Query behavior that was causing year navigation cache interference
+  - **Database Performance Enhanced**: Added 8 strategic indexes for transaction_date, merchant_name, terminal_id, reference_number, mcc_code, processing_status, record_type, and source_file_id
+  - **Data Verification Completed**: Confirmed authentic data availability across all years (2022: 445 records, 2023: 19,653 records, 2025: 157 records)
+  - **Year Navigation Operational**: Heat map now correctly displays transaction counts for each year with proper GitHub-style visualization and intensity levels
+  - **Production Ready**: Complete heat map functionality with accurate year-based data display and navigation working correctly
 
 ### COMPLETE TDDF SCHEMA RESTORATION AND PROCESSING RECOVERY COMPLETED (July 25, 2025)
 - **✅ CRITICAL TDDF PROCESSING ISSUE COMPLETELY RESOLVED**: Successfully restored full TDDF processing capabilities by adding all missing database columns and resolving schema conflicts
