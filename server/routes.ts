@@ -5058,6 +5058,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF records by terminal ID (VAR number mapping)
+  app.get("/api/tddf/by-terminal/:terminalId", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = req.params.terminalId;
+      console.log(`[TDDF TERMINAL] Fetching TDDF records for Terminal ID: ${terminalId}`);
+      
+      // Query TDDF records where Terminal ID field matches the extracted terminal ID from VAR
+      // VAR V8357055 = Terminal ID 78357055 (remove V prefix)
+      const records = await db.select()
+        .from(tddfRecordsTable)
+        .where(eq(tddfRecordsTable.terminalId, terminalId))
+        .orderBy(desc(tddfRecordsTable.transactionDate))
+        .limit(100); // Limit to last 100 transactions for performance
+      
+      console.log(`[TDDF TERMINAL] Found ${records.length} TDDF records for Terminal ID ${terminalId}`);
+      
+      // Transform records to include consistent field names for frontend
+      const transformedRecords = records.map(record => ({
+        id: record.id,
+        referenceNumber: record.referenceNumber,
+        merchantName: record.merchantName,
+        transactionAmount: record.transactionAmount,
+        transactionDate: record.transactionDate,
+        recordedAt: record.recordedAt,
+        terminalId: record.terminalId,
+        cardType: record.cardType,
+        authorizationNumber: record.authorizationNumber,
+        merchantAccountNumber: record.merchantAccountNumber,
+        mccCode: record.mccCode,
+        transactionTypeIdentifier: record.transactionTypeIdentifier,
+        // Add any other fields needed for display
+        amount: record.transactionAmount, // Alias for amount field
+        date: record.transactionDate    // Alias for date field
+      }));
+      
+      res.json(transformedRecords);
+    } catch (error) {
+      console.error('Error fetching TDDF records by terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF records by terminal" 
+      });
+    }
+  });
+
   // Get TDDF records by batch ID
   app.get("/api/tddf/batch/:batchId", isAuthenticated, async (req, res) => {
     try {

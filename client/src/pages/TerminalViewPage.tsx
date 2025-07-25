@@ -51,15 +51,43 @@ export default function TerminalViewPage() {
     await refetch();
   };
 
-  // Fetch terminal transactions (filtered by POS Merchant Number)
+  // Extract Terminal ID from VAR Number for TDDF linking
+  // VAR V8357055 maps to Terminal ID 78357055 (add "7" prefix after removing "V")
+  const terminalIdFromVar = terminal?.vNumber ? '7' + terminal.vNumber.replace('V', '') : null;
+  
+  // Fetch TDDF transactions linked to this terminal via Terminal ID field
+  const { data: tddfTransactions = [], isLoading: tddfLoading } = useQuery({
+    queryKey: ["/api/tddf/by-terminal", terminalIdFromVar],
+    enabled: !!terminalIdFromVar,
+    queryFn: async () => {
+      const response = await fetch(`/api/tddf/by-terminal/${terminalIdFromVar}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch TDDF transactions');
+      }
+      return response.json();
+    }
+  });
+
+  // Debug logging for TDDF transactions
+  console.log('[TDDF DEBUG] Terminal VAR:', terminal?.vNumber);
+  console.log('[TDDF DEBUG] Extracted Terminal ID:', terminalIdFromVar);
+  console.log('[TDDF DEBUG] TDDF Transactions:', tddfTransactions);
+
+  // Fetch regular transactions (filtered by POS Merchant Number)
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions/by-merchant", terminal?.posMerchantNumber],
     enabled: !!terminal?.posMerchantNumber,
   });
 
-  // Calculate activity metrics
+  // Calculate activity metrics including TDDF transactions
   const activityMetrics = useMemo(() => {
-    if (!transactions.length) {
+    const validTransactions = Array.isArray(transactions) ? transactions : [];
+    const validTddfTransactions = Array.isArray(tddfTransactions) ? tddfTransactions : [];
+    const allTransactions = [...validTransactions, ...validTddfTransactions];
+    
+    if (!allTransactions.length) {
       return {
         totalTransactions: 0,
         totalVolume: 0,
@@ -70,13 +98,19 @@ export default function TerminalViewPage() {
       };
     }
 
-    const totalTransactions = transactions.length;
-    const totalVolume = transactions.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+    const totalTransactions = allTransactions.length;
+    const totalVolume = allTransactions.reduce((sum, t) => {
+      // Handle both regular transactions and TDDF records
+      const amount = t.amount || t.transactionAmount || 0;
+      return sum + parseFloat(amount.toString());
+    }, 0);
     const avgTransactionAmount = totalVolume / totalTransactions;
 
     // Calculate daily activity
-    const transactionsByDate = transactions.reduce((acc, transaction) => {
-      const date = new Date(transaction.date).toDateString();
+    const transactionsByDate = allTransactions.reduce((acc, transaction) => {
+      // Handle both regular transactions and TDDF records
+      const transactionDate = transaction.date || transaction.transactionDate || transaction.recordedAt;
+      const date = new Date(transactionDate).toDateString();
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -84,8 +118,11 @@ export default function TerminalViewPage() {
     const activeDays = Object.keys(transactionsByDate).length;
     const avgDailyTransactions = activeDays > 0 ? totalTransactions / activeDays : 0;
     
-    const lastActivityDate = transactions.length > 0 
-      ? new Date(Math.max(...transactions.map(t => new Date(t.date).getTime())))
+    const lastActivityDate = allTransactions.length > 0 
+      ? new Date(Math.max(...allTransactions.map(t => {
+          const transactionDate = t.date || t.transactionDate || t.recordedAt;
+          return new Date(transactionDate).getTime();
+        })))
       : null;
 
     return {
@@ -97,7 +134,7 @@ export default function TerminalViewPage() {
       lastActivityDate,
       dailyActivity: transactionsByDate
     };
-  }, [transactions]);
+  }, [transactions, tddfTransactions]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -310,10 +347,88 @@ export default function TerminalViewPage() {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
+            {/* TDDF Transactions Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Transaction History</CardTitle>
-                <CardDescription>Recent transactions for this terminal</CardDescription>
+                <CardTitle>TDDF Transaction History</CardTitle>
+                <CardDescription>
+                  TDDF records linked to this terminal via Terminal ID mapping (VAR {terminal?.vNumber} = Terminal ID {terminalIdFromVar})
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tddfLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading TDDF transactions...</p>
+                  </div>
+                ) : tddfTransactions.length > 0 ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Found {tddfTransactions.length} TDDF transactions for Terminal ID {terminalIdFromVar}
+                    </p>
+                    <div className="border rounded-lg">
+                      <div className="max-h-96 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 sticky top-0">
+                            <tr>
+                              <th className="text-left p-3 font-medium">Date</th>
+                              <th className="text-left p-3 font-medium">Reference</th>
+                              <th className="text-left p-3 font-medium">Merchant</th>
+                              <th className="text-right p-3 font-medium">Amount</th>
+                              <th className="text-left p-3 font-medium">Auth #</th>
+                              <th className="text-left p-3 font-medium">Card Type</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tddfTransactions.map((transaction: any) => (
+                              <tr key={transaction.id} className="border-t hover:bg-muted/25">
+                                <td className="p-3">
+                                  {transaction.transactionDate 
+                                    ? formatTableDate(transaction.transactionDate).split(' ')[0]
+                                    : 'N/A'
+                                  }
+                                </td>
+                                <td className="p-3 font-mono text-xs">
+                                  {transaction.referenceNumber || 'N/A'}
+                                </td>
+                                <td className="p-3 max-w-32 truncate">
+                                  {transaction.merchantName || 'N/A'}
+                                </td>
+                                <td className="p-3 text-right font-medium">
+                                  ${parseFloat(transaction.transactionAmount || 0).toFixed(2)}
+                                </td>
+                                <td className="p-3 font-mono text-xs">
+                                  {transaction.authorizationNumber || 'N/A'}
+                                </td>
+                                <td className="p-3">
+                                  <Badge variant="outline" className="text-xs">
+                                    {transaction.cardType || 'N/A'}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      No TDDF transactions found for Terminal ID {terminalIdFromVar}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      VAR {terminal?.vNumber} maps to Terminal ID {terminalIdFromVar} in TDDF records
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Regular Transactions Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Regular Transaction History</CardTitle>
+                <CardDescription>Regular transactions linked by POS Merchant Number</CardDescription>
               </CardHeader>
               <CardContent>
                 {transactionsLoading ? (
@@ -323,15 +438,15 @@ export default function TerminalViewPage() {
                 ) : transactions.length > 0 ? (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Found {transactions.length} transactions for this terminal
+                      Found {transactions.length} regular transactions for this terminal
                     </p>
                     <div className="h-64 bg-muted rounded-lg flex items-center justify-center">
-                      <p className="text-muted-foreground">Transaction viewer (coming soon)</p>
+                      <p className="text-muted-foreground">Regular transaction viewer (coming soon)</p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No transactions found for this terminal</p>
+                    <p className="text-muted-foreground">No regular transactions found for this terminal</p>
                   </div>
                 )}
               </CardContent>
