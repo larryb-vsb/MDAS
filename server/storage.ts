@@ -7252,7 +7252,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     const startTime = Date.now();
     console.log(`=================== TDDF OPTIMIZED SWITCH-BASED PROCESSING ===================`);
-    console.log(`High-performance batch processing (${batchSize} records/batch, P1 excluded)`);
+    console.log(`High-performance batch processing (${batchSize} records/batch, ALL record types)`);
     
     let totalProcessed = 0;
     let totalSkipped = 0;
@@ -7287,7 +7287,7 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(query, queryParams);
       const pendingRecords = result.rows;
       
-      console.log(`[SWITCH-OPTIMIZED] Found ${pendingRecords.length} pending records to process (P1 excluded)`);
+      console.log(`[SWITCH-OPTIMIZED] Found ${pendingRecords.length} pending records to process (ALL record types)`);
       console.log(`[SWITCH-OPTIMIZED] Record types: ${[...new Set(pendingRecords.map(r => r.record_type))].join(', ')}`);
       
       // Process each record with switch-based routing
