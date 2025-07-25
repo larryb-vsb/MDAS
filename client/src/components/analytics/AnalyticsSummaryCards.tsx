@@ -60,7 +60,7 @@ export default function AnalyticsSummaryCards({ data, isLoading }: AnalyticsSumm
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">
-            Total Revenue
+            ACH Volume
           </CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
