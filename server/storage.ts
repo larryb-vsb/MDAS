@@ -7000,10 +7000,17 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('tddf_raw_import');
       
-      // Single query for ALL pending records (the key improvement)
+      // CRITICAL FIX: Prevent duplicate processing with proper locking
       let query = `
         SELECT * FROM "${tableName}" 
         WHERE processing_status = 'pending'
+          AND record_type != 'P1'
+          AND NOT EXISTS (
+            SELECT 1 FROM "${tableName}" t2 
+            WHERE t2.source_file_id = "${tableName}".source_file_id 
+              AND t2.line_number = "${tableName}".line_number
+              AND t2.processed_at > NOW() - INTERVAL '5 minutes'
+          )
       `;
       const queryParams: any[] = [];
       
@@ -7012,9 +7019,8 @@ export class DatabaseStorage implements IStorage {
         queryParams.push(fileId);
       }
       
-      // OPTIMIZATION 1: Exclude P1 records at query level to prevent constraint errors
-      query += ` AND record_type != 'P1' ORDER BY line_number LIMIT $${queryParams.length + 1}`;
-      queryParams.push(batchSize); // Optimized batch size processing
+      query += ` ORDER BY line_number LIMIT $${queryParams.length + 1}`;
+      queryParams.push(batchSize);
       
       const result = await pool.query(query, queryParams);
       const pendingRecords = result.rows;
@@ -7156,7 +7162,9 @@ export class DatabaseStorage implements IStorage {
         transaction_code, batch_date, batch_julian_date, net_deposit, reject_reason,
         source_file_id, source_row_number, raw_data
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT (bh_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
+      ON CONFLICT (bh_record_number) DO UPDATE SET 
+        recorded_at = CURRENT_TIMESTAMP,
+        net_deposit = EXCLUDED.net_deposit
       RETURNING id
     `, [
       bhRecord.bh_record_number, bhRecord.record_identifier, bhRecord.merchant_account_number,
