@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw } from "lucide-react";
+import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
@@ -44,6 +44,54 @@ export default function TerminalViewPage() {
   console.log('[TERMINAL DEBUG] Terminal ID:', terminalId);
   console.log('[TERMINAL DEBUG] Terminal data:', terminal);
   console.log('[TERMINAL DEBUG] VAR Number from data:', terminal?.vNumber);
+
+  // Card Type Detection Function - Converts plain card type codes to formatted badges
+  function getCardTypeBadges(cardType: string) {
+    const cardTypeUpper = cardType?.trim().toUpperCase();
+    
+    // Mastercard identification (MC, MD, MB)
+    if (cardTypeUpper === 'MC') {
+      return { label: 'MC', className: 'bg-red-100 text-red-800 border-red-200' };
+    }
+    if (cardTypeUpper === 'MD') {
+      return { label: 'MC-D', className: 'bg-red-100 text-red-800 border-red-200' };
+    }
+    if (cardTypeUpper === 'MB') {
+      return { label: 'MC-B', className: 'bg-red-100 text-red-800 border-red-200' };
+    }
+    
+    // Visa identification (VS, VD, VB, etc.)
+    if (cardTypeUpper === 'VS') {
+      return { label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' };
+    }
+    if (cardTypeUpper === 'VD') {
+      return { label: 'VISA-D', className: 'bg-blue-100 text-blue-800 border-blue-200' };
+    }
+    if (cardTypeUpper === 'VB') {
+      return { label: 'VISA-B', className: 'bg-blue-100 text-blue-800 border-blue-200' };
+    }
+    if (cardTypeUpper?.startsWith('V')) {
+      return { label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' };
+    }
+    
+    // American Express identification (AM, AX, etc.)
+    if (cardTypeUpper === 'AM' || cardTypeUpper?.startsWith('AX')) {
+      return { label: 'AMEX', className: 'bg-green-100 text-green-800 border-green-200' };
+    }
+    
+    // Discover identification (DS, DI, etc.)
+    if (cardTypeUpper === 'DS' || cardTypeUpper === 'DI' || cardTypeUpper?.startsWith('DISC')) {
+      return { label: 'DISC', className: 'bg-orange-100 text-orange-800 border-orange-200' };
+    }
+
+    // Debit specific codes
+    if (cardTypeUpper === 'DB' || cardTypeUpper === 'DEBIT') {
+      return { label: 'DEBIT', className: 'bg-purple-100 text-purple-800 border-purple-200' };
+    }
+    
+    // Default fallback
+    return { label: cardType || 'UNKNOWN', className: 'bg-gray-100 text-gray-800 border-gray-200' };
+  }
 
   // Manual refresh function
   const handleRefresh = async () => {
@@ -400,9 +448,16 @@ export default function TerminalViewPage() {
                                   {transaction.authorizationNumber || 'N/A'}
                                 </td>
                                 <td className="p-3">
-                                  <Badge variant="outline" className="text-xs">
-                                    {transaction.cardType || 'N/A'}
-                                  </Badge>
+                                  {transaction.cardType ? (
+                                    <span 
+                                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${getCardTypeBadges(transaction.cardType).className} flex-shrink-0`}
+                                    >
+                                      <CreditCard className="h-3 w-3" />
+                                      {getCardTypeBadges(transaction.cardType).label}
+                                    </span>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">N/A</Badge>
+                                  )}
                                 </td>
                               </tr>
                             ))}
