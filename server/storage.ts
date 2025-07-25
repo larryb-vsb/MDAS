@@ -7176,6 +7176,7 @@ export class DatabaseStorage implements IStorage {
       cardholder_account_number: line.substring(123, 142).trim() || null,
       auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
       merchant_name: line.substring(217, 242).trim() || null,
+      authorization_number: line.substring(242, 250).trim() || null,
       card_type: line.substring(252, 254).trim() || null,
       mcc_code: line.substring(272, 276).trim() || null,
       terminal_id: line.substring(278, 284).trim() || null,
@@ -7192,9 +7193,9 @@ export class DatabaseStorage implements IStorage {
         bank_number, merchant_account_number, association_number_1, group_number,
         transaction_code, association_number_2, reference_number, transaction_date,
         transaction_amount, batch_julian_date, net_deposit, cardholder_account_number,
-        auth_amount, merchant_name, card_type, mcc_code, terminal_id, debit_credit_indicator, 
+        auth_amount, merchant_name, authorization_number, card_type, mcc_code, terminal_id, debit_credit_indicator, 
         transaction_type_identifier, source_file_id, source_row_number, mms_raw_line
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
       RETURNING id
     `, [
       tddfRecord.sequence_number, tddfRecord.entry_run_number, tddfRecord.sequence_within_run,
@@ -7203,7 +7204,7 @@ export class DatabaseStorage implements IStorage {
       tddfRecord.association_number_2, tddfRecord.reference_number, tddfRecord.transaction_date,
       tddfRecord.transaction_amount, tddfRecord.batch_julian_date, tddfRecord.net_deposit,
       tddfRecord.cardholder_account_number, tddfRecord.auth_amount, tddfRecord.merchant_name,
-      tddfRecord.card_type, tddfRecord.mcc_code, tddfRecord.terminal_id, tddfRecord.debit_credit_indicator,
+      tddfRecord.authorization_number, tddfRecord.card_type, tddfRecord.mcc_code, tddfRecord.terminal_id, tddfRecord.debit_credit_indicator,
       tddfRecord.transaction_type_identifier, tddfRecord.source_file_id, tddfRecord.source_row_number, tddfRecord.mms_raw_line
     ]);
 
@@ -8169,9 +8170,9 @@ export class DatabaseStorage implements IStorage {
               merchantName: line.substring(217, 242).trim() || null,
               
               // Authorization and card details (positions 243-268)
-              authorizationNumber: line.substring(242, 248).trim() || null,
+              authorizationNumber: line.substring(242, 250).trim() || null,
               rejectReason: line.substring(248, 252).trim() || null,
-              cardType: line.substring(250, 256).trim() || null, // Updated to match PowerShell spec: positions 251-256 (6 chars)
+              cardType: line.substring(252, 254).trim() || null, // Corrected to TDDF spec: positions 253-254 (2 chars)
               currencyCode: line.substring(254, 257).trim() || null,
               originalTransactionAmount: this.parseAmount(line.substring(257, 268).trim()),
               
