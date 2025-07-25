@@ -908,20 +908,46 @@ export class ScanlyWatcher {
       const totalMem = os.totalmem();
       const memUsagePercent = memUsage.heapUsed / totalMem;
       
-      if (memUsagePercent > this.THRESHOLDS.MEMORY_USAGE_CRITICAL) {
+      if (memUsagePercent > 0.9) { // 90% critical threshold
         alerts.push({
           level: 'critical',
-          type: 'memory_usage_critical',
-          message: `Critical memory usage: ${(memUsagePercent * 100).toFixed(1)}%`,
-          details: { memUsagePercent, heapUsed: memUsage.heapUsed, totalMem },
+          type: 'system_resource_alert',
+          message: `CRITICAL: Memory usage exceeded threshold: ${(memUsagePercent * 100).toFixed(1)}%`,
+          details: { 
+            resourceType: 'memory',
+            currentValue: memUsagePercent,
+            threshold: 0.9,
+            alertLevel: 'critical',
+            interventionRequired: true,
+            monitoringAuthority: 'scanly_watcher_resource_oversight',
+            memoryDetails: {
+              heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+              heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+              totalSystem: Math.round(totalMem / 1024 / 1024),
+              usagePercent: (memUsagePercent * 100).toFixed(1)
+            }
+          },
           timestamp: new Date()
         });
-      } else if (memUsagePercent > this.THRESHOLDS.MEMORY_USAGE_WARNING) {
+      } else if (memUsagePercent > 0.8) { // 80% warning threshold
         alerts.push({
           level: 'warning',
-          type: 'memory_usage_warning', 
-          message: `High memory usage: ${(memUsagePercent * 100).toFixed(1)}%`,
-          details: { memUsagePercent, heapUsed: memUsage.heapUsed, totalMem },
+          type: 'system_resource_alert',
+          message: `WARNING: Memory usage approaching threshold: ${(memUsagePercent * 100).toFixed(1)}%`,
+          details: { 
+            resourceType: 'memory',
+            currentValue: memUsagePercent,
+            threshold: 0.8,
+            alertLevel: 'warning',
+            interventionRequired: false,
+            monitoringAuthority: 'scanly_watcher_resource_oversight',
+            memoryDetails: {
+              heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+              heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+              totalSystem: Math.round(totalMem / 1024 / 1024),
+              usagePercent: (memUsagePercent * 100).toFixed(1)
+            }
+          },
           timestamp: new Date()
         });
       }
@@ -932,29 +958,65 @@ export class ScanlyWatcher {
         await db.execute(sql`SELECT 1 as connectivity_check`);
         const dbResponseTime = Date.now() - dbConnectivityStart;
         
-        if (dbResponseTime > this.THRESHOLDS.API_RESPONSE_TIME_CRITICAL) {
+        if (dbResponseTime > 10000) { // 10s critical threshold
           alerts.push({
             level: 'critical',
-            type: 'database_slow_response',
-            message: `Database response time critical: ${dbResponseTime}ms`,
-            details: { responseTime: dbResponseTime },
+            type: 'system_resource_alert',
+            message: `CRITICAL: Database response time exceeded threshold: ${dbResponseTime}ms`,
+            details: { 
+              resourceType: 'database',
+              currentValue: dbResponseTime,
+              threshold: 10000,
+              alertLevel: 'critical',
+              interventionRequired: true,
+              monitoringAuthority: 'scanly_watcher_resource_oversight',
+              databaseDetails: {
+                responseTimeMs: dbResponseTime,
+                connectivityStatus: 'connected_slow',
+                thresholdExceeded: true
+              }
+            },
             timestamp: new Date()
           });
-        } else if (dbResponseTime > this.THRESHOLDS.API_RESPONSE_TIME_WARNING) {
+        } else if (dbResponseTime > 5000) { // 5s warning threshold
           alerts.push({
             level: 'warning',
-            type: 'database_slow_response',
-            message: `Database response time warning: ${dbResponseTime}ms`,
-            details: { responseTime: dbResponseTime },
+            type: 'system_resource_alert',
+            message: `WARNING: Database response time approaching threshold: ${dbResponseTime}ms`,
+            details: { 
+              resourceType: 'database',
+              currentValue: dbResponseTime,
+              threshold: 5000,
+              alertLevel: 'warning',
+              interventionRequired: false,
+              monitoringAuthority: 'scanly_watcher_resource_oversight',
+              databaseDetails: {
+                responseTimeMs: dbResponseTime,
+                connectivityStatus: 'connected_warning',
+                thresholdApproached: true
+              }
+            },
             timestamp: new Date()
           });
         }
       } catch (dbError) {
         alerts.push({
           level: 'critical',
-          type: 'database_connectivity_failure',
-          message: 'Database connectivity check failed',
-          details: { error: dbError instanceof Error ? dbError.message : String(dbError) },
+          type: 'system_resource_alert',
+          message: 'CRITICAL: Database connectivity check failed',
+          details: { 
+            resourceType: 'database',
+            currentValue: 'connection_failed',
+            threshold: 'connectivity_required',
+            alertLevel: 'critical',
+            interventionRequired: true,
+            monitoringAuthority: 'scanly_watcher_resource_oversight',
+            databaseDetails: {
+              connectivityStatus: 'failed',
+              error: dbError instanceof Error ? dbError.message : String(dbError),
+              requiresImmediateAttention: true
+            }
+          },
           timestamp: new Date()
         });
       }
