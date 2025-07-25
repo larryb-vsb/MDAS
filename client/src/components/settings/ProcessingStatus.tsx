@@ -322,29 +322,12 @@ export default function ProcessingStatus() {
     },
   });
 
-  // Use cached data when available, otherwise fallback to individual queries
-  const effectiveStatus = cachedProcessingStatus?.success 
-    ? cachedProcessingStatus.data.fileProcessorStatus 
-    : status;
-  
-  const effectiveRealTimeStats = cachedProcessingStatus?.success 
-    ? cachedProcessingStatus.data.realTimeStats 
-    : realTimeStats;
-  
-  const effectiveConcurrencyStats = cachedProcessingStatus?.success 
-    ? cachedProcessingStatus.data.metrics 
-    : concurrencyStats;
-  
-  const effectiveTddfRawStatus = (cachedProcessingStatus?.success && cachedProcessingStatus.data.tddfRawStatus)
-    ? cachedProcessingStatus.data.tddfRawStatus 
-    : tddfRawStatus;
-
-  // Create safe access wrapper for realTimeStats to prevent TypeScript errors
-  const safeRealTimeStats = (effectiveRealTimeStats || realTimeStats) || {} as RealTimeStats;
+  // Simplified approach - use direct API responses without complex caching
+  // This eliminates the caching logic that was causing display issues
 
   // Update peak tracking when real-time stats change
   useEffect(() => {
-    const currentStats = effectiveRealTimeStats || realTimeStats;
+    const currentStats = realTimeStats;
     if (currentStats?.transactionsPerSecond !== undefined) {
       const currentTime = Date.now();
       const tenMinutesAgo = currentTime - (10 * 60 * 1000);
@@ -378,11 +361,11 @@ export default function ProcessingStatus() {
         return newHistory;
       });
     }
-  }, [(effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond, peakTxnSpeed]);
+  }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed]);
 
   // Update TDDF peak tracking when real-time stats change
   useEffect(() => {
-    const currentStats = effectiveRealTimeStats || realTimeStats;
+    const currentStats = realTimeStats;
     if (currentStats?.tddfRecordsPerSecond !== undefined) {
       const currentTime = Date.now();
       const tenMinutesAgo = currentTime - (10 * 60 * 1000);
@@ -416,12 +399,12 @@ export default function ProcessingStatus() {
         return newHistory;
       });
     }
-  }, [(effectiveRealTimeStats || realTimeStats)?.tddfRecordsPerSecond, peakTddfSpeed]);
+  }, [realTimeStats?.tddfRecordsPerSecond, peakTddfSpeed]);
 
   // Helper functions
   const getStatusBadge = () => {
-    const currentStatus = effectiveStatus || status;
-    const currentConcurrency = effectiveConcurrencyStats || concurrencyStats;
+    const currentStatus = status;
+    const currentConcurrency = concurrencyStats;
     
     if (isLoading || !currentStatus) {
       return <Badge variant="secondary">Loading...</Badge>;
@@ -443,7 +426,7 @@ export default function ProcessingStatus() {
   };
 
   const calculateProgress = () => {
-    const currentStatus = effectiveStatus || status;
+    const currentStatus = status;
     if (!currentStatus?.currentTransactionRange) return 0;
     const currentId = parseInt(currentStatus.currentTransactionRange.replace(/\D/g, ''));
     const maxEstimatedId = 71127230050000;
@@ -476,7 +459,7 @@ export default function ProcessingStatus() {
     );
   }
 
-  if (!(effectiveStatus || status) || !(effectiveRealTimeStats || realTimeStats)) {
+  if (!status || !realTimeStats) {
     return (
       <Card>
         <CardHeader>
@@ -742,14 +725,14 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center p-2 bg-orange-50 rounded border">
                     <div className="font-semibold text-orange-700">
-                      {safeRealTimeStats.tddfOperations?.tddfRecordsToday?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.tddfRecordsToday?.toLocaleString() || '0'}
                     </div>
                     <div className="text-orange-600">Today</div>
                   </div>
                 </div>
 
                 {/* Raw Line Processing Backlog Section */}
-                {(safeRealTimeStats.tddfOperations?.totalRawLines || 0) > 0 && (
+                {(realTimeStats?.tddfOperations?.totalRawLines || 0) > 0 && (
                   <div className="space-y-3 border-t pt-3">
                     <div className="text-sm font-medium text-muted-foreground">Raw Line Processing Backlog</div>
                     
@@ -759,20 +742,20 @@ export default function ProcessingStatus() {
                         <span className="text-muted-foreground">Processing Progress</span>
                         <span className="font-medium">
                           {(() => {
-                            const dtProcessed = safeRealTimeStats.tddfOperations?.dtRecordsProcessed || 0;
-                            const nonDtSkipped = safeRealTimeStats.tddfOperations?.nonDtRecordsSkipped || 0;
-                            const otherSkipped = safeRealTimeStats.tddfOperations?.otherSkipped || 0;
-                            const totalRawLines = safeRealTimeStats.tddfOperations?.totalRawLines || 1;
+                            const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
+                            const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
+                            const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
+                            const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
                             return ((dtProcessed + nonDtSkipped + otherSkipped) / totalRawLines * 100).toFixed(1);
                           })()}% Complete
                         </span>
                       </div>
                       <Progress 
                         value={(() => {
-                          const dtProcessed = safeRealTimeStats.tddfOperations?.dtRecordsProcessed || 0;
-                          const nonDtSkipped = safeRealTimeStats.tddfOperations?.nonDtRecordsSkipped || 0;
-                          const otherSkipped = safeRealTimeStats.tddfOperations?.otherSkipped || 0;
-                          const totalRawLines = safeRealTimeStats.tddfOperations?.totalRawLines || 1;
+                          const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
+                          const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
+                          const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
+                          const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
                           return (dtProcessed + nonDtSkipped + otherSkipped) / totalRawLines * 100;
                         })()} 
                         className="h-2"
@@ -783,16 +766,16 @@ export default function ProcessingStatus() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="text-center p-2 bg-slate-50 rounded border">
                         <div className="font-semibold text-slate-700">
-                          {safeRealTimeStats.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
+                          {realTimeStats?.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
                         </div>
                         <div className="text-slate-600">Total Lines</div>
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded border">
                         <div className="font-semibold text-green-700">
                           {(() => {
-                            const dtProcessed = safeRealTimeStats.tddfOperations?.dtRecordsProcessed || 0;
-                            const nonDtSkipped = safeRealTimeStats.tddfOperations?.nonDtRecordsSkipped || 0;
-                            const otherSkipped = safeRealTimeStats.tddfOperations?.otherSkipped || 0;
+                            const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
+                            const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
+                            const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
                             return (dtProcessed + nonDtSkipped + otherSkipped).toLocaleString();
                           })()}
                         </div>
@@ -808,8 +791,8 @@ export default function ProcessingStatus() {
                         <div className="font-semibold text-blue-700">
                           {(() => {
                             const pending = (tddfRawStatus as any)?.pending || 0;
-                            if ((safeRealTimeStats.tddfRecordsPerSecond || 0) <= 0 || pending <= 0) return '0s';
-                            const estimatedSeconds = pending / (safeRealTimeStats.tddfRecordsPerSecond || 1);
+                            if ((realTimeStats?.tddfRecordsPerSecond || 0) <= 0 || pending <= 0) return '0s';
+                            const estimatedSeconds = pending / (realTimeStats?.tddfRecordsPerSecond || 1);
                             return formatQueueEstimate(estimatedSeconds);
                           })()}
                         </div>
@@ -824,7 +807,7 @@ export default function ProcessingStatus() {
         </div>
 
         {/* Multi-Node Concurrency Status */}
-        {(effectiveConcurrencyStats || concurrencyStats) && (
+        {concurrencyStats && (
           <div className="space-y-4">
             <Separator />
             <div className="text-sm font-medium">Multi-Node Concurrency Control</div>
@@ -833,8 +816,8 @@ export default function ProcessingStatus() {
                 <span className="text-muted-foreground">Active Servers:</span>
                 <div className="font-medium">
                   {(() => {
-                    const fileServers = Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length;
-                    const tddfPending = effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0;
+                    const fileServers = Object.keys(concurrencyStats?.processingByServer || {}).length;
+                    const tddfPending = (tddfRawStatus as any)?.pending || 0;
                     
                     if (fileServers > 0) {
                       return `${fileServers} processing`;
@@ -846,15 +829,15 @@ export default function ProcessingStatus() {
                   })()}
                 </div>
 
-                {Object.entries((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).map(([serverId, fileCount]) => (
+                {Object.entries(concurrencyStats?.processingByServer || {}).map(([serverId, fileCount]) => (
                   <div key={serverId} className="text-xs text-muted-foreground mt-1">
                     Server {serverId.split('-').slice(-1)[0]}: {fileCount} file{fileCount !== 1 ? 's' : ''}
                   </div>
                 ))}
                 {/* Show TDDF processing details */}
                 {(() => {
-                  const fileServers = Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length;
-                  const tddfPending = effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0;
+                  const fileServers = Object.keys(concurrencyStats?.processingByServer || {}).length;
+                  const tddfPending = (tddfRawStatus as any)?.pending || 0;
                   
                   if (fileServers === 0 && tddfPending > 0) {
                     return (
@@ -869,8 +852,8 @@ export default function ProcessingStatus() {
               <div>
                 <span className="text-muted-foreground">Stale Files:</span>
                 <div className="font-medium">
-                  {(effectiveConcurrencyStats || concurrencyStats)?.staleProcessingFiles || 0}
-                  {((effectiveConcurrencyStats || concurrencyStats)?.staleProcessingFiles || 0) > 0 && (
+                  {concurrencyStats?.staleProcessingFiles || 0}
+                  {(concurrencyStats?.staleProcessingFiles || 0) > 0 && (
                     <Badge variant="destructive" className="ml-2 text-xs">Needs Cleanup</Badge>
                   )}
                 </div>
