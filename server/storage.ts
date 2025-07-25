@@ -7000,17 +7000,22 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('tddf_raw_import');
       
-      // CRITICAL FIX: Prevent duplicate processing with proper locking
+      // ENHANCED DUPLICATE PREVENTION: Multiple layers of protection
       let query = `
-        SELECT * FROM "${tableName}" 
-        WHERE processing_status = 'pending'
-          AND record_type != 'P1'
-          AND NOT EXISTS (
-            SELECT 1 FROM "${tableName}" t2 
-            WHERE t2.source_file_id = "${tableName}".source_file_id 
-              AND t2.line_number = "${tableName}".line_number
-              AND t2.processed_at > NOW() - INTERVAL '5 minutes'
-          )
+        WITH unique_pending AS (
+          SELECT DISTINCT ON (source_file_id, line_number) *
+          FROM "${tableName}" 
+          WHERE processing_status = 'pending'
+            AND record_type != 'P1'
+            AND NOT EXISTS (
+              SELECT 1 FROM "${tableName}" t2 
+              WHERE t2.source_file_id = "${tableName}".source_file_id 
+                AND t2.line_number = "${tableName}".line_number
+                AND t2.processing_status IN ('processed', 'skipped')
+            )
+          ORDER BY source_file_id, line_number, id
+        )
+        SELECT * FROM unique_pending
       `;
       const queryParams: any[] = [];
       
@@ -7041,6 +7046,20 @@ export class DatabaseStorage implements IStorage {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
+          
+          // DUPLICATE PROTECTION: Check if already processed before starting
+          const duplicateCheck = await client.query(`
+            SELECT COUNT(*) as count FROM "${tableName}" 
+            WHERE source_file_id = $1 AND line_number = $2 
+              AND processing_status IN ('processed', 'skipped')
+          `, [rawRecord.source_file_id, rawRecord.line_number]);
+          
+          if (parseInt(duplicateCheck.rows[0].count) > 0) {
+            await client.query('ROLLBACK');
+            console.log(`[SWITCH-SKIP] Line ${rawRecord.line_number} already processed, skipping duplicate`);
+            continue;
+          }
+          
           console.log(`[SWITCH-${recordType}] Processing line ${rawRecord.line_number}`);
           
           // SWITCH-BASED RECORD TYPE ROUTING
