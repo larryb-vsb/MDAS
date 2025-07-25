@@ -237,6 +237,15 @@ export default function ProcessingStatus() {
     retry: 1, // Retry only once on failure
   });
 
+  // NEW: Fetch Scanly-Watcher cached processing status (every 30 seconds)
+  const { data: cachedProcessingStatus, isLoading: isCacheLoading, error: cacheError } = useQuery({
+    queryKey: ['/api/scanly-watcher/processing-status'],
+    refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher update cycle
+    staleTime: 25000, // Consider data stale after 25 seconds
+    retry: 1, // Retry once on failure
+    gcTime: 60000, // Keep in cache for 1 minute
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -472,10 +481,24 @@ export default function ProcessingStatus() {
             >
               {import.meta.env.MODE === "production" ? "Production" : "Development"}
             </Badge>
+            {/* Scanly-Watcher Cache Status Indicator */}
+            {cachedProcessingStatus?.success && (
+              <Badge variant="secondary" className="text-xs">
+                <Clock className="h-3 w-3 mr-1" />
+                Cached
+              </Badge>
+            )}
           </div>
           {getStatusBadge()}
         </CardTitle>
-        <CardDescription>Real-time file processing monitoring and controls</CardDescription>
+        <CardDescription>
+          Real-time file processing monitoring and controls
+          {cachedProcessingStatus?.success && (
+            <div className="text-xs text-green-600 mt-1">
+              • Auto-updating every 30 seconds via Scanly-Watcher cache
+            </div>
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Current Status Section */}

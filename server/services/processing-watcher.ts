@@ -63,6 +63,8 @@ export class ScanlyWatcher {
 
   private tddfBacklogHistory: Array<{ count: number; timestamp: Date }> = [];
   private orphanCleanupInterval: NodeJS.Timeout | null = null;
+  private processingStatusCache: any = null;
+  private lastProcessingStatusUpdate: Date | null = null;
 
   start(): void {
     if (this.isRunning) {
@@ -99,16 +101,19 @@ export class ScanlyWatcher {
     }
     this.isRunning = false;
     this.tddfBacklogHistory = []; // Clear backlog history
+    this.processingStatusCache = null;
+    this.lastProcessingStatusUpdate = null;
     console.log('[SCANLY-WATCHER] Stopped monitoring');
   }
 
   private startTddfBacklogMonitoring(): void {
     console.log('[SCANLY-WATCHER] Starting TDDF backlog monitoring (every 30 seconds)');
     
-    // Check backlog immediately
+    // Check backlog immediately and initialize cache
     this.checkTddfBacklog();
+    this.updateProcessingStatusCache();
     
-    // Set up 30-second monitoring for both TDDF backlog and orphan cleanup
+    // Set up 30-second monitoring for TDDF backlog, orphan cleanup, and processing status updates
     const combinedInterval = setInterval(async () => {
       if (!this.isRunning) {
         clearInterval(combinedInterval);
@@ -116,6 +121,7 @@ export class ScanlyWatcher {
       }
       await this.checkTddfBacklog();
       await this.cleanupOrphanedFiles();
+      await this.updateProcessingStatusCache();
     }, this.THRESHOLDS.BACKLOG_CHECK_INTERVAL);
   }
 
@@ -389,6 +395,140 @@ export class ScanlyWatcher {
     } catch (error) {
       console.error('[SCANLY-WATCHER] Error during status check and cleanup:', error);
     }
+  }
+
+  // Update processing status cache for dashboard every 30 seconds
+  private async updateProcessingStatusCache(): Promise<void> {
+    try {
+      console.log('[SCANLY-WATCHER] Updating processing status cache...');
+      
+      const currentTime = new Date();
+      
+      // Collect comprehensive processing data
+      const metrics = await this.collectMetrics();
+      
+      // Get real-time stats data 
+      const realTimeStats = await this.getRealTimeStats();
+      
+      // Get TDDF raw status
+      const tddfRawStatus = await this.getTddfRawStatus();
+      
+      // Get file processor status
+      const fileProcessorStatus = await this.getFileProcessorStatus();
+      
+      // Cache the combined data
+      this.processingStatusCache = {
+        metrics,
+        realTimeStats,
+        tddfRawStatus,
+        fileProcessorStatus,
+        lastUpdated: currentTime,
+        updateSource: 'scanly_watcher_30_second_update'
+      };
+      
+      this.lastProcessingStatusUpdate = currentTime;
+      
+      console.log(`[SCANLY-WATCHER] ✅ Processing status cache updated - ${metrics.queuedFiles} queued, ${metrics.processingFiles} processing, ${tddfRawStatus.pending} TDDF pending`);
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error updating processing status cache:', error);
+    }
+  }
+
+  private async getRealTimeStats(): Promise<any> {
+    try {
+      const uploadsTable = getTableName('uploaded_files');
+      const transactionsTable = getTableName('transactions');
+      const tddfRecordsTable = getTableName('tddf_records');
+      
+      const result = await db.execute(sql`
+        SELECT 
+          (SELECT COUNT(*) FROM ${sql.identifier(uploadsTable)}) as "totalFiles",
+          (SELECT COUNT(*) FROM ${sql.identifier(uploadsTable)} WHERE processing_status = 'queued') as "queuedFiles",
+          (SELECT COUNT(*) FROM ${sql.identifier(uploadsTable)} WHERE processing_status = 'processing') as "processingFiles",
+          (SELECT COUNT(*) FROM ${sql.identifier(uploadsTable)} WHERE processing_status = 'completed') as "completedFiles",
+          (SELECT COUNT(*) FROM ${sql.identifier(uploadsTable)} WHERE processing_status = 'failed') as "errorFiles",
+          (SELECT COUNT(*) FROM ${sql.identifier(transactionsTable)}) as "totalTransactions",
+          (SELECT COUNT(*) FROM ${sql.identifier(tddfRecordsTable)}) as "totalTddfRecords"
+      `);
+      
+      return result.rows[0];
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error getting real-time stats:', error);
+      return {};
+    }
+  }
+
+  private async getTddfRawStatus(): Promise<any> {
+    try {
+      const tddfRawImportTable = getTableName('tddf_raw_import');
+      
+      const result = await db.execute(sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN processing_status = 'processed' THEN 1 END) as processed,
+          COUNT(CASE WHEN processing_status = 'pending' THEN 1 END) as pending,
+          COUNT(CASE WHEN processing_status = 'skipped' THEN 1 END) as skipped
+        FROM ${sql.identifier(tddfRawImportTable)}
+      `);
+      
+      return result.rows[0];
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error getting TDDF raw status:', error);
+      return { total: 0, processed: 0, pending: 0, skipped: 0 };
+    }
+  }
+
+  private async getFileProcessorStatus(): Promise<any> {
+    try {
+      const uploadsTable = getTableName('uploaded_files');
+      
+      // Check if any files are currently being processed
+      const result = await db.execute(sql`
+        SELECT 
+          COUNT(CASE WHEN processing_status = 'processing' THEN 1 END) as processing_count,
+          processing_server_id,
+          original_filename,
+          processing_started_at
+        FROM ${sql.identifier(uploadsTable)}
+        WHERE processing_status = 'processing'
+        GROUP BY processing_server_id, original_filename, processing_started_at
+        ORDER BY processing_started_at DESC
+        LIMIT 1
+      `);
+      
+      const isRunning = (result.rows[0]?.processing_count || 0) > 0;
+      
+      return {
+        isRunning,
+        currentlyProcessingFile: result.rows[0]?.original_filename || null,
+        processingStartedAt: result.rows[0]?.processing_started_at || null,
+        nextScheduledRun: new Date(Date.now() + 30000).toISOString(), // Next check in 30 seconds
+        lastRunTime: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error getting file processor status:', error);
+      return {
+        isRunning: false,
+        currentlyProcessingFile: null,
+        processingStartedAt: null,
+        nextScheduledRun: null,
+        lastRunTime: null
+      };
+    }
+  }
+
+  // Public method to get cached processing status
+  public getProcessingStatusCache(): any {
+    return this.processingStatusCache;
+  }
+
+  // Public method to check if cache is fresh (updated within last 60 seconds)
+  public isCacheFresh(): boolean {
+    if (!this.lastProcessingStatusUpdate) return false;
+    const now = new Date();
+    const timeDiff = now.getTime() - this.lastProcessingStatusUpdate.getTime();
+    return timeDiff < 60000; // Fresh if updated within last 60 seconds
   }
 
   private getTddfBacklogStalledMinutes(): number {

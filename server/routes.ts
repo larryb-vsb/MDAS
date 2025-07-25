@@ -5512,6 +5512,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Scanly-Watcher Processing Status Cache Endpoint
+  app.get("/api/scanly-watcher/processing-status", isAuthenticated, async (req, res) => {
+    try {
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const cachedData = scanlyWatcher.getProcessingStatusCache();
+      const isFresh = scanlyWatcher.isCacheFresh();
+      
+      if (cachedData && isFresh) {
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          updateSource: 'scanly_watcher_30_second_cache'
+        });
+      } else {
+        // Return indication that cache is stale or not available
+        res.json({
+          success: false,
+          message: "Processing status cache not available or stale",
+          cached: false,
+          lastUpdate: cachedData?.lastUpdated || null,
+          recommendation: "Use standard processing status endpoints"
+        });
+      }
+    } catch (error) {
+      console.error('Error getting cached processing status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get cached processing status" 
+      });
+    }
+  });
+
   // Delete TDDF record
   app.delete("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
