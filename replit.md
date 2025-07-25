@@ -556,6 +556,13 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ CHART VISUALIZATION FIXES COMPLETED (July 25, 2025)
+- **✅ TIME DISPLAY FIXED**: KPI gauges now show "10 min" window instead of "0.5 minutes" for proper time period labeling
+- **✅ SKIPPED RECORDS VISUALIZATION IMPLEMENTED**: Charts now display skipped records with red color coding in stacked bars, tooltips, and legend
+- **✅ COMPLETE RECORD TYPE BREAKDOWN**: All TDDF record types (DT-blue, BH-green, P1-orange, Other-gray, Skip-red) properly visualized with comprehensive tooltip support
+- **✅ CHART LEGEND ENHANCED**: Added red "Skip" indicator to chart legend for complete processing status visibility
+- **✅ USER CONFIRMED WORKING**: Screenshot verification shows both fixes operational - proper "10 min" time display and red skipped records visualization
+
 ### ✅ ENHANCED COLOR-CODED KPI DISPLAY SYSTEM COMPLETED (July 25, 2025)
 - **✅ COMPREHENSIVE RECORD TYPE BREAKDOWN IMPLEMENTATION**: Successfully completed production-ready color-coded TDDF processing visualization with detailed record type analysis
   - **Enhanced API Endpoints**: Updated `/api/processing/performance-kpis` and `/api/processing/performance-chart-history` with complete TDDF record type breakdown data
