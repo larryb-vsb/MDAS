@@ -750,13 +750,36 @@ function VNumberLink({ terminalId }: { terminalId?: string }) {
     queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
   });
 
-  // Find terminal by Terminal ID (remove V prefix for matching)
+  // Debug logs to understand the mapping
+  console.log('[TERMINAL DEBUG] Terminal ID:', terminalId);
+  console.log('[TERMINAL DEBUG] Terminal data:', terminals?.find((t: any) => {
+    if (!terminalId) return false;
+    // VAR mapping: V5245762 maps to Terminal ID 75245762 (with "7" prefix)
+    // So we need to add "7" prefix to V Number numeric part for comparison
+    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const expectedTerminalId = '7' + vNumberNumeric;
+    return expectedTerminalId === terminalId;
+  }));
+
+  // Find terminal by VAR mapping pattern: V5245762 → 75245762
   const terminal = terminals?.find((t: any) => {
     if (!terminalId) return false;
-    // Extract numeric part from V Number (remove V prefix) and compare with Terminal ID
+    // Extract numeric part from V Number and add "7" prefix for comparison
     const vNumberNumeric = t.vNumber?.replace('V', '');
-    return vNumberNumeric === terminalId;
+    const expectedTerminalId = '7' + vNumberNumeric;
+    console.log('[TDDF DEBUG] Terminal VAR:', t.vNumber);
+    console.log('[TDDF DEBUG] Extracted Terminal ID:', expectedTerminalId);
+    return expectedTerminalId === terminalId;
   });
+
+  const tddfRecords = terminals ? terminals.filter((t: any) => {
+    if (!terminalId) return false;
+    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const expectedTerminalId = '7' + vNumberNumeric;
+    return expectedTerminalId === terminalId;
+  }) : [];
+
+  console.log('[TDDF DEBUG] TDDF Transactions:', tddfRecords);
 
   if (!terminal) {
     return (
