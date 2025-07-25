@@ -367,23 +367,23 @@ export function TddfTransactionDetailModal({
                       </div>
                       <div className="py-2">
                         <span className="text-muted-foreground mb-2 block">Raw Data Available</span>
-                        <Badge variant={transaction.rawData ? "default" : "outline"}>
-                          {transaction.rawData ? "Yes" : "No"}
+                        <Badge variant={transaction.mmsRawLine ? "default" : "outline"}>
+                          {transaction.mmsRawLine ? "Yes" : "No"}
                         </Badge>
                       </div>
                     </div>
                   </div>
 
                   {/* Raw Line Data Section */}
-                  {transaction.rawData && (
+                  {transaction.mmsRawLine && (
                     <div>
                       <h4 className="font-semibold text-sm mb-3 text-slate-700">Raw Line Data</h4>
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                         <div className="font-mono text-xs leading-relaxed break-all whitespace-pre-wrap text-slate-800 bg-white p-3 rounded border">
-                          {transaction.rawData}
+                          {transaction.mmsRawLine}
                         </div>
                         <div className="mt-3 text-xs text-muted-foreground">
-                          Fixed-width TDDF record - {transaction.rawData.length} characters
+                          Fixed-width TDDF record - {transaction.mmsRawLine.length} characters
                         </div>
                       </div>
                     </div>
