@@ -416,6 +416,8 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Database Integration Updated**: Modified processDTRecordWithClient method to use substring(276, 284) for proper field extraction
   - **Field Extraction Logic**: Now correctly extracts authentic terminal IDs like "79007171", "78912064", "78351994" (8 characters) instead of truncated "007171", "912064", "351994" (6 characters)
   - **Frontend Label Accuracy**: Updated TDDF Records page to display correct position labels (277-284) for Terminal ID field in both summary and detailed views
+  - **Frontend Display Added**: Terminal ID column added to DT Records table between Merchant ID and D/C Indicator columns
+  - **Database Records Updated**: Fixed existing records to show proper 8-character Terminal IDs with "7" prefix using raw TDDF data
   - **Production Ready**: All new TDDF file processing will capture complete Terminal ID data from correct field positions
   - **Complete Implementation**: Terminal ID now extracted, stored, and displayed with proper 8-character TDDF specification compliance
 
