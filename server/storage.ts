@@ -44,7 +44,7 @@ import {
   insertSchemaContentSchema
 } from "@shared/schema";
 import { db, batchDb, sessionPool, pool } from "./db";
-import { eq, gt, gte, lt, lte, and, or, count, desc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
+import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -251,6 +251,9 @@ export interface IStorage {
     merchantId?: string;
     search?: string;
     cardType?: string;
+    vNumber?: string;
+    sortBy?: string;
+    sortOrder?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -6085,6 +6088,8 @@ export class DatabaseStorage implements IStorage {
     cardType?: string;
     search?: string;
     vNumber?: string;
+    sortBy?: string;
+    sortOrder?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -6189,8 +6194,41 @@ export class DatabaseStorage implements IStorage {
       if (conditions.length > 0) {
         dataQuery = dataQuery.where(and(...conditions));
       }
+      
+      // Dynamic sorting
+      const sortBy = options.sortBy || 'transactionDate';
+      const sortOrder = options.sortOrder || 'desc';
+      
+      // Map sort fields to database columns
+      let sortColumn = tddfRecordsTable.transactionDate; // default
+      switch (sortBy) {
+        case 'transactionDate':
+          sortColumn = tddfRecordsTable.transactionDate;
+          break;
+        case 'terminalId':
+          sortColumn = tddfRecordsTable.terminalId;
+          break;
+        case 'merchantName':
+          sortColumn = tddfRecordsTable.merchantName;
+          break;
+        case 'transactionAmount':
+          sortColumn = tddfRecordsTable.transactionAmount;
+          break;
+        case 'referenceNumber':
+          sortColumn = tddfRecordsTable.referenceNumber;
+          break;
+        default:
+          sortColumn = tddfRecordsTable.transactionDate;
+      }
+      
+      // Apply sorting with proper order
+      if (sortOrder === 'asc') {
+        dataQuery = dataQuery.orderBy(asc(sortColumn));
+      } else {
+        dataQuery = dataQuery.orderBy(desc(sortColumn));
+      }
+      
       dataQuery = dataQuery
-        .orderBy(desc(tddfRecordsTable.transactionDate))
         .limit(limit)
         .offset(offset);
 

@@ -194,6 +194,8 @@ interface TddfFilters {
   merchantId: string;
   cardType: string;
   vNumber: string;
+  sortBy: string;
+  sortOrder: string;
 }
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
@@ -922,6 +924,8 @@ export default function TddfPage() {
     merchantId: "",
     cardType: "all",
     vNumber: "",
+    sortBy: "transactionDate",
+    sortOrder: "desc",
   });
 
   const { toast } = useToast();
@@ -940,6 +944,8 @@ export default function TddfPage() {
         ...(filters.merchantId && { merchantId: filters.merchantId }),
         ...(filters.cardType && filters.cardType !== "all" && { cardType: filters.cardType }),
         ...(filters.vNumber && { vNumber: filters.vNumber }),
+        ...(filters.sortBy && { sortBy: filters.sortBy }),
+        ...(filters.sortOrder && { sortOrder: filters.sortOrder }),
       });
 
       const response = await fetch(`/api/tddf?${params}`, {
@@ -1020,6 +1026,8 @@ export default function TddfPage() {
       merchantId: "",
       cardType: "all",
       vNumber: "",
+      sortBy: "transactionDate",
+      sortOrder: "desc",
     });
     setCurrentPage(1);
   };
@@ -1110,7 +1118,7 @@ export default function TddfPage() {
           <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Search</label>
               <div className="relative">
@@ -1172,6 +1180,42 @@ export default function TddfPage() {
                 value={filters.vNumber}
                 onChange={(e) => handleFilterChange("vNumber", e.target.value)}
               />
+            </div>
+            
+            {/* Sorting Controls */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Sort By</label>
+              <Select
+                value={filters.sortBy}
+                onValueChange={(value) => handleFilterChange("sortBy", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transactionDate">Transaction Date</SelectItem>
+                  <SelectItem value="terminalId">Terminal ID</SelectItem>
+                  <SelectItem value="merchantName">Merchant Name</SelectItem>
+                  <SelectItem value="transactionAmount">Amount</SelectItem>
+                  <SelectItem value="referenceNumber">Reference Number</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium mb-2 block">Sort Order</label>
+              <Select
+                value={filters.sortOrder}
+                onValueChange={(value) => handleFilterChange("sortOrder", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Ascending</SelectItem>
+                  <SelectItem value="desc">Descending</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
