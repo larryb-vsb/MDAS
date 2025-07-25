@@ -5089,6 +5089,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         merchantAccountNumber: record.merchantAccountNumber,
         mccCode: record.mccCode,
         transactionTypeIdentifier: record.transactionTypeIdentifier,
+        mmsRawLine: record.mmsRawLine, // Include raw TDDF line data for details modal
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        sourceRowNumber: record.sourceRowNumber,
         // Add any other fields needed for display
         amount: record.transactionAmount, // Alias for amount field
         date: record.transactionDate    // Alias for date field
