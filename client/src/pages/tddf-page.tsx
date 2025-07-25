@@ -1232,97 +1232,101 @@ export default function TddfPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Table Header */}
-              <div className="flex items-center space-x-4 text-sm font-medium text-muted-foreground border-b pb-2">
-                <Checkbox
-                  checked={selectedRecords.size === records.length && records.length > 0}
-                  onCheckedChange={handleSelectAll}
-                  className="ml-4"
-                />
-                <div className="w-56">Reference Number</div>
-                <div className="w-40">Merchant Name</div>
-                <div className="w-24">Merchant ID</div>
-                <div className="w-24">Terminal ID</div>
-                <div className="w-20">D/C Indicator</div>
-                <div className="w-36">Transaction Date</div>
-                <div className="w-32">Association Number</div>
-                <div className="w-32">Card Number</div>
-                <div className="w-28">Auth Amount</div>
-                <div className="w-28">Amount</div>
-                <div className="w-20">Actions</div>
-              </div>
-
-              {/* Table Rows */}
-              {records.map((record: TddfRecord) => (
-                <div
-                  key={record.id}
-                  className="flex items-center space-x-4 text-sm py-3 border-b hover:bg-muted/50"
-                >
-                  <Checkbox
-                    checked={selectedRecords.has(record.id)}
-                    onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
-                    className="ml-4"
-                  />
-                  <div className="w-56">
-                    <div className="flex items-center gap-2">
-                      <TruncatedRefNumber refNumber={record.referenceNumber || null} />
-                      {getCardTypeBadges(record).map((badge, index) => (
-                        <span 
-                          key={index}
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
-                        >
-                          <CreditCard className="h-3 w-3" />
-                          {badge.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="w-40 text-xs">
-                    {record.merchantName || 'N/A'}
-                  </div>
-                  <div className="w-24 font-mono text-xs">
-                    {record.merchantAccountNumber || '-'}
-                  </div>
-                  <div className="w-24 font-mono text-xs">
-                    {record.terminalId || '-'}
-                  </div>
-                  <div className="w-20">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      record.debitCreditIndicator === 'D' 
-                        ? 'bg-red-100 text-red-800 border-red-200' 
-                        : record.debitCreditIndicator === 'C'
-                        ? 'bg-green-100 text-green-800 border-green-200'
-                        : 'bg-gray-100 text-gray-800 border-gray-200'
-                    } border`}>
-                      {record.debitCreditIndicator === 'D' ? 'Debit' : record.debitCreditIndicator === 'C' ? 'Credit' : record.debitCreditIndicator || '-'}
-                    </span>
-                  </div>
-                  <div className="w-36 text-xs">
-                    {record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A'}
-                  </div>
-                  <div className="w-32 font-mono text-xs">
-                    {record.associationNumber1 || 'N/A'}
-                  </div>
-                  <div className="w-32 font-mono text-xs">
-                    {record.cardholderAccountNumber || 'N/A'}
-                  </div>
-                  <div className="w-28 font-medium text-blue-600">
-                    {record.authAmount ? formatCurrency(record.authAmount) : 'N/A'}
-                  </div>
-                  <div className="w-28 font-medium text-green-600">
-                    {formatCurrency(record.transactionAmount)}
-                  </div>
-                  <div className="w-20">
-                    <Button
-                      onClick={() => setDetailsRecord(record)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
+              {/* Bulk Actions */}
+              {selectedRecords.size > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <span className="text-sm font-medium text-blue-800">
+                    {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
+                  </span>
+                  <Button
+                    onClick={handleBulkDelete}
+                    disabled={deleteMutation.isPending}
+                    variant="destructive"
+                    size="sm"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected
+                  </Button>
                 </div>
-              ))}
+              )}
+
+              {/* Clean Table Layout matching Terminal Transaction History */}
+              <div className="rounded-lg border overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium w-12">
+                        <Checkbox
+                          checked={selectedRecords.size === records.length && records.length > 0}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </th>
+                      <th className="text-left p-3 font-medium">Date</th>
+                      <th className="text-left p-3 font-medium">Reference</th>
+                      <th className="text-left p-3 font-medium">Merchant</th>
+                      <th className="text-right p-3 font-medium">Amount</th>
+                      <th className="text-left p-3 font-medium">Auth #</th>
+                      <th className="text-left p-3 font-medium">Card Type</th>
+                      <th className="text-center p-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.map((record: TddfRecord) => (
+                      <tr key={record.id} className="border-t hover:bg-muted/25">
+                        <td className="p-3">
+                          <Checkbox
+                            checked={selectedRecords.has(record.id)}
+                            onCheckedChange={(checked) => handleSelectRecord(record.id, checked as boolean)}
+                          />
+                        </td>
+                        <td className="p-3">
+                          {record.transactionDate 
+                            ? formatTddfDate(record.transactionDate.toString())
+                            : 'N/A'
+                          }
+                        </td>
+                        <td className="p-3 font-mono text-xs">
+                          <div className="flex items-center gap-2">
+                            <TruncatedRefNumber refNumber={record.referenceNumber || null} />
+                            {getCardTypeBadges(record).map((badge, index) => (
+                              <span 
+                                key={index}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
+                              >
+                                <CreditCard className="h-3 w-3" />
+                                {badge.label}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-3 max-w-32 truncate">
+                          {record.merchantName || 'N/A'}
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          ${parseFloat(record.transactionAmount?.toString() || '0').toFixed(2)}
+                        </td>
+                        <td className="p-3 font-mono text-xs">
+                          {record.authorizationNumber || 'N/A'}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-xs">
+                            {record.cardType || 'N/A'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-center">
+                          <Button
+                            onClick={() => setDetailsRecord(record)}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
