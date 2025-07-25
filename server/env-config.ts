@@ -4,9 +4,10 @@
  */
 
 // Determine the current environment from process.env with Replit environment detection
-// Check if we're in Replit production environment first
+// Check if we're in Replit production environment first  
 const isReplitProduction = process.env.REPLIT_ENVIRONMENT === 'production';
-const detectedEnv = process.env.NODE_ENV || (isReplitProduction ? 'production' : 'development');
+// FORCE production detection when REPLIT_ENVIRONMENT is production
+const detectedEnv = isReplitProduction ? 'production' : (process.env.NODE_ENV || 'development');
 export const NODE_ENV = detectedEnv;
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
