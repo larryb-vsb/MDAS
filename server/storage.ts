@@ -7176,6 +7176,9 @@ export class DatabaseStorage implements IStorage {
       cardholder_account_number: line.substring(123, 142).trim() || null,
       auth_amount: this.parseAuthAmount(line.substring(191, 203).trim()) || 0,
       merchant_name: line.substring(217, 242).trim() || null,
+      card_type: line.substring(250, 256).trim() || null,
+      mcc_code: line.substring(274, 278).trim() || null,
+      terminal_id: line.substring(278, 284).trim() || null,
       source_file_id: rawRecord.source_file_id,
       source_row_number: rawRecord.line_number,
       mms_raw_line: line
@@ -7187,8 +7190,9 @@ export class DatabaseStorage implements IStorage {
         bank_number, merchant_account_number, association_number_1, group_number,
         transaction_code, association_number_2, reference_number, transaction_date,
         transaction_amount, batch_julian_date, net_deposit, cardholder_account_number,
-        auth_amount, merchant_name, source_file_id, source_row_number, mms_raw_line
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        auth_amount, merchant_name, card_type, mcc_code, terminal_id, source_file_id, 
+        source_row_number, mms_raw_line
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
       RETURNING id
     `, [
       tddfRecord.sequence_number, tddfRecord.entry_run_number, tddfRecord.sequence_within_run,
@@ -7197,7 +7201,8 @@ export class DatabaseStorage implements IStorage {
       tddfRecord.association_number_2, tddfRecord.reference_number, tddfRecord.transaction_date,
       tddfRecord.transaction_amount, tddfRecord.batch_julian_date, tddfRecord.net_deposit,
       tddfRecord.cardholder_account_number, tddfRecord.auth_amount, tddfRecord.merchant_name,
-      tddfRecord.source_file_id, tddfRecord.source_row_number, tddfRecord.mms_raw_line
+      tddfRecord.card_type, tddfRecord.mcc_code, tddfRecord.terminal_id, tddfRecord.source_file_id,
+      tddfRecord.source_row_number, tddfRecord.mms_raw_line
     ]);
 
     await client.query(`
