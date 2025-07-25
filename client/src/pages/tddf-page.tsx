@@ -744,12 +744,20 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   );
 }
 
-// V Number Link Component - Links Terminal ID to Terminal View Page
-function VNumberLink({ terminalId }: { terminalId?: string }) {
+// Terminal ID Display Component - Shows Terminal ID with styling when V Number doesn't match
+function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   const { data: terminals } = useQuery({
     queryKey: ['/api/terminals'],
     queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
   });
+
+  if (!terminalId) {
+    return (
+      <span className="text-xs text-muted-foreground font-mono">
+        N/A
+      </span>
+    );
+  }
 
   // Find terminal by VAR mapping pattern: V8912064 → 78912064
   const terminal = terminals?.find((t: any) => {
@@ -760,25 +768,27 @@ function VNumberLink({ terminalId }: { terminalId?: string }) {
     return expectedTerminalId === terminalId;
   });
 
-  if (!terminal) {
+  // If terminal found and V Number matches Terminal ID
+  if (terminal) {
     return (
-      <span className="text-xs text-muted-foreground font-mono">
-        {terminalId ? `No VAR` : 'N/A'}
-      </span>
+      <Link href={`/terminals/${terminal.id}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          {terminal.vNumber}
+        </Button>
+      </Link>
     );
   }
 
+  // If no matching V Number found, display Terminal ID with light orange styling
   return (
-    <Link href={`/terminals/${terminal.id}`}>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-      >
-        <ExternalLink className="h-3 w-3 mr-1" />
-        {terminal.vNumber}
-      </Button>
-    </Link>
+    <span className="text-xs font-mono text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+      {terminalId}
+    </span>
   );
 }
 
@@ -1145,9 +1155,9 @@ export default function TddfPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">V Number</label>
+              <label className="text-sm font-medium mb-2 block">Terminal ID</label>
               <Input
-                placeholder="Enter V Number (e.g., V6487134)"
+                placeholder="Enter Terminal ID or V Number (e.g., 76487134 or V6487134)"
                 value={filters.vNumber}
                 onChange={(e) => handleFilterChange("vNumber", e.target.value)}
               />
@@ -1317,7 +1327,7 @@ export default function TddfPage() {
                       <th className="text-left p-3 font-medium">Merchant</th>
                       <th className="text-right p-3 font-medium">Amount</th>
                       <th className="text-left p-3 font-medium">Auth #</th>
-                      <th className="text-left p-3 font-medium">V Number</th>
+                      <th className="text-left p-3 font-medium">Terminal ID</th>
                       <th className="text-left p-3 font-medium">Card Type</th>
                       <th className="text-center p-3 font-medium">Actions</th>
                     </tr>
@@ -1350,7 +1360,7 @@ export default function TddfPage() {
                           {record.authorizationNumber || 'N/A'}
                         </td>
                         <td className="p-3">
-                          <VNumberLink terminalId={record.terminalId} />
+                          <TerminalIdDisplay terminalId={record.terminalId} />
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
