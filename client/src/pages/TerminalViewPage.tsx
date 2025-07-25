@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield } from "lucide-react";
+import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 // import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
@@ -20,13 +21,35 @@ export default function TerminalViewPage() {
   
   const terminalId = params.id ? parseInt(params.id) : null;
 
-  // Fetch terminal details
-  const { data: terminal, isLoading: terminalLoading } = useQuery<Terminal>({
-    queryKey: ["/api/terminals", terminalId],
+  // Fetch terminal details with forced refresh
+  const { data: terminal, isLoading: terminalLoading, refetch } = useQuery<Terminal>({
+    queryKey: [`/api/terminals/${terminalId}`],
     enabled: !!terminalId,
-    staleTime: 0, // Force fresh data
+    staleTime: 0,
+    cacheTime: 0,
     refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const response = await fetch(`/api/terminals/${terminalId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch terminal');
+      }
+      return response.json();
+    }
   });
+
+  // Debug logging
+  console.log('[TERMINAL DEBUG] Terminal ID:', terminalId);
+  console.log('[TERMINAL DEBUG] Terminal data:', terminal);
+  console.log('[TERMINAL DEBUG] VAR Number from data:', terminal?.vNumber);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: [`/api/terminals/${terminalId}`] });
+    await refetch();
+  };
 
   // Fetch terminal transactions (filtered by POS Merchant Number)
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
@@ -165,6 +188,15 @@ export default function TerminalViewPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={terminalLoading}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
             <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
