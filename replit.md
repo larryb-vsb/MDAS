@@ -558,6 +558,12 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Time Period Labels**: Enhanced display showing actual calculation windows (e.g., "0.5 minutes") from performance metric timestamps
   - **30-second Refresh Consistency**: Both charts and KPIs refresh every 30 seconds matching Scanly-Watcher recording schedule
   - **Complete Data Integrity**: All processing visualizations now use authenticated performance metrics with full transparency and accuracy
+- **✅ RECORDS PER MINUTE CHART INTEGRATION COMPLETED**: Successfully migrated RecordsPerMinuteChart component to use performance metrics database
+  - **API Endpoint Migration**: Updated chart from `/api/processing/records-per-minute-history` to `/api/processing/performance-chart-history` for data source consistency
+  - **Data Structure Updates**: Modified chart interfaces and calculations to handle dtRecords, bhRecords, p1Records, otherRecords fields from performance metrics
+  - **Color-Coded Visualization**: Chart displays stacked bars with color-coded record types matching KPI gauge colors (DT-blue, BH-green, P1-orange, Other-gray)
+  - **Authentic Processing Display**: Chart now shows real processing activity (1,586 peak, 741 average) instead of previous flat line with zero records
+  - **Complete Data Consistency**: Both Performance KPIs and Records Processed per Minute chart pull from identical Scanly-Watcher performance metrics database
 
 ### ✅ HISTORICAL KPI RECORDING SYSTEM FULLY OPERATIONAL (July 25, 2025)
 - **✅ SCANLY-WATCHER PERFORMANCE RECORDING ACTIVATED**: Successfully implemented complete 30-second historical TDDF performance recording system for KPI tracking
