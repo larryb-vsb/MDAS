@@ -866,7 +866,31 @@ export const processingMetrics = pgTable(getTableName("processing_metrics"), {
   tddfRecords: integer("tddf_records").default(0),
   tddfRawLines: integer("tddf_raw_lines").default(0),
   tddfTotalValue: numeric("tddf_total_value", { precision: 15, scale: 2 }).default('0'),
-  tddfPendingLines: integer("tddf_pending_lines").default(0)
+  tddfPendingLines: integer("tddf_pending_lines").default(0),
+  // Individual TDDF record type breakdowns
+  dtProcessed: integer("dt_processed").default(0),
+  dtPending: integer("dt_pending").default(0),
+  dtSkipped: integer("dt_skipped").default(0),
+  bhProcessed: integer("bh_processed").default(0),
+  bhPending: integer("bh_pending").default(0),
+  bhSkipped: integer("bh_skipped").default(0),
+  p1Processed: integer("p1_processed").default(0),
+  p1Pending: integer("p1_pending").default(0),
+  p1Skipped: integer("p1_skipped").default(0),
+  e1Processed: integer("e1_processed").default(0),
+  e1Pending: integer("e1_pending").default(0),
+  e1Skipped: integer("e1_skipped").default(0),
+  g2Processed: integer("g2_processed").default(0),
+  g2Pending: integer("g2_pending").default(0),
+  g2Skipped: integer("g2_skipped").default(0),
+  adProcessed: integer("ad_processed").default(0),
+  adSkipped: integer("ad_skipped").default(0),
+  drProcessed: integer("dr_processed").default(0),
+  drSkipped: integer("dr_skipped").default(0),
+  p2Processed: integer("p2_processed").default(0),
+  p2Skipped: integer("p2_skipped").default(0),
+  otherProcessed: integer("other_processed").default(0),
+  otherSkipped: integer("other_skipped").default(0)
 }, (table) => {
   return {
     // Create indexes for better query performance

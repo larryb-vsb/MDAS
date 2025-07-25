@@ -166,7 +166,8 @@ export class ScanlyWatcher {
       const [
         fileStats,
         tddfStats,
-        rawStats
+        rawStats,
+        recordTypeStats
       ] = await Promise.all([
         // Count TDDF files
         db.execute(sql`
@@ -192,12 +193,29 @@ export class ScanlyWatcher {
             COUNT(CASE WHEN processing_status = 'processed' THEN 1 END) as processed_lines,
             COUNT(CASE WHEN processing_status = 'pending' THEN 1 END) as pending_lines
           FROM ${sql.identifier(tddfRawImportTableName)}
+        `),
+        
+        // Count individual record types by processing status
+        db.execute(sql`
+          SELECT 
+            record_type,
+            processing_status,
+            COUNT(*) as count
+          FROM ${sql.identifier(tddfRawImportTableName)}
+          GROUP BY record_type, processing_status
         `)
       ]);
 
       const fileRow = fileStats.rows[0];
       const tddfRow = tddfStats.rows[0];
       const rawRow = rawStats.rows[0];
+      const recordTypeRows = recordTypeStats.rows || [];
+
+      // Process individual record type counts
+      const getCount = (type: string, status: string) => {
+        const row = recordTypeRows.find(r => r.record_type === type && r.processing_status === status);
+        return Number(row?.count) || 0;
+      };
 
       // Create performance metrics record with all required fields based on schema
       const metricsData: InsertProcessingMetrics = {
@@ -223,13 +241,43 @@ export class ScanlyWatcher {
         tddfRecords: Number(tddfRow.dt_records) || 0,
         tddfRawLines: Number(rawRow.total_lines) || 0,
         tddfTotalValue: String(tddfRow.total_value) || '0',
-        tddfPendingLines: Number(rawRow.pending_lines) || 0
+        tddfPendingLines: Number(rawRow.pending_lines) || 0,
+        // Individual record type breakdowns
+        dtProcessed: getCount('DT', 'processed'),
+        dtPending: getCount('DT', 'pending'),
+        dtSkipped: getCount('DT', 'skipped'),
+        bhProcessed: getCount('BH', 'processed'),
+        bhPending: getCount('BH', 'pending'),
+        bhSkipped: getCount('BH', 'skipped'),
+        p1Processed: getCount('P1', 'processed'),
+        p1Pending: getCount('P1', 'pending'),
+        p1Skipped: getCount('P1', 'skipped'),
+        e1Processed: getCount('E1', 'processed'),
+        e1Pending: getCount('E1', 'pending'),
+        e1Skipped: getCount('E1', 'skipped'),
+        g2Processed: getCount('G2', 'processed'),
+        g2Pending: getCount('G2', 'pending'),
+        g2Skipped: getCount('G2', 'skipped'),
+        adProcessed: getCount('AD', 'processed'),
+        adSkipped: getCount('AD', 'skipped'),
+        drProcessed: getCount('DR', 'processed'),
+        drSkipped: getCount('DR', 'skipped'),
+        p2Processed: getCount('P2', 'processed'),
+        p2Skipped: getCount('P2', 'skipped'),
+        // Other record types (any types not specifically handled above)
+        otherProcessed: recordTypeRows
+          .filter(r => !['DT', 'BH', 'P1', 'E1', 'G2', 'AD', 'DR', 'P2'].includes(r.record_type) && r.processing_status === 'processed')
+          .reduce((sum, r) => sum + Number(r.count), 0),
+        otherSkipped: recordTypeRows
+          .filter(r => !['DT', 'BH', 'P1', 'E1', 'G2', 'AD', 'DR', 'P2'].includes(r.record_type) && r.processing_status === 'skipped')
+          .reduce((sum, r) => sum + Number(r.count), 0)
       };
 
       // Insert metrics into database
       await db.insert(processingMetricsTable).values(metricsData);
 
       console.log(`[SCANLY-WATCHER] ✅ Performance metrics recorded: ${tddfRow.dt_records} DT records, ${rawRow.total_lines} raw lines, $${tddfRow.total_value} total value, ${rawRow.pending_lines} pending`);
+      console.log(`[SCANLY-WATCHER] Record type breakdown: DT(${getCount('DT', 'processed')}/${getCount('DT', 'pending')}/${getCount('DT', 'skipped')}), BH(${getCount('BH', 'processed')}/${getCount('BH', 'pending')}/${getCount('BH', 'skipped')}), P1(${getCount('P1', 'processed')}/${getCount('P1', 'pending')}/${getCount('P1', 'skipped')}), E1(${getCount('E1', 'processed')}/${getCount('E1', 'pending')}/${getCount('E1', 'skipped')}), G2(${getCount('G2', 'processed')}/${getCount('G2', 'pending')}/${getCount('G2', 'skipped')})`);
       
     } catch (error) {
       console.error('[SCANLY-WATCHER] ❌ Error recording performance metrics:', error);
