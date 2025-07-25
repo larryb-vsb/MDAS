@@ -538,6 +538,16 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### 🚨 CRITICAL DATABASE SCHEMA MISMATCHES DISCOVERED (July 25, 2025)
+- **✅ PRODUCTION VS DEVELOPMENT DEEP DIVE COMPLETED**: Comprehensive database comparison reveals significant schema inconsistencies requiring immediate attention
+  - **Terminals Table**: Production missing 16 essential fields (60 vs 44 columns) including TDDF processing fields, audit timestamps, and transaction codes
+  - **TDDF Records Table**: Production missing 13 advanced fields (126 vs 113 columns) and critical `transaction_date` type mismatch (timestamp vs date)
+  - **Processing Metrics**: Development missing 11 production fields (18 vs 29 columns) limiting metrics capabilities
+  - **System Infrastructure**: Development completely missing schema_versions, backup_history, backup_schedules, schema_content tables
+  - **Data Volume Gaps**: Production has 27,721 transactions vs development's 24, plus 852 more uploaded files
+  - **Critical Risk**: Terminal-TDDF relationship functionality may fail in production due to missing terminal metadata fields
+  - **Immediate Action Required**: Schema synchronization needed before production deployment of new features
+
 ### MCC FIELD MAPPING ISSUE COMPLETELY RESOLVED (July 25, 2025)
 - **✅ CRITICAL COLUMN NAME MISMATCH FIXED**: Successfully resolved MCC field mapping issue by correcting CSV column header detection
   - **Root Cause Identified**: CSV files contained "Terminal Visa MCC" column but system was looking for "Visa MCC"
