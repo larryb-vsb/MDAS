@@ -5083,7 +5083,7 @@ export class DatabaseStorage implements IStorage {
               // Special handling for MCC field - try multiple possible column names
               if (dbField === 'mcc') {
                 // Try alternative MCC column names if primary one is empty
-                const mccValue = row[csvField] || row["MCC"] || row["MC Code"] || row["Merchant Category Code"] || row["Category Code"];
+                const mccValue = row[csvField] || row["Terminal Visa MCC"] || row["Visa MCC"] || row["MCC"] || row["MC Code"] || row["Merchant Category Code"] || row["Category Code"];
                 if (mccValue && mccValue.toString().trim()) {
                   terminalData.mcc = mccValue.toString().trim();
                   console.log(`MCC mapped from column "${csvField}" or alternative: ${mccValue}`);
