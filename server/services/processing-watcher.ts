@@ -48,6 +48,7 @@ export class ScanlyWatcher {
   };
 
   private tddfBacklogHistory: Array<{ count: number; timestamp: Date }> = [];
+  private orphanCleanupInterval: NodeJS.Timeout | null = null;
 
   start(): void {
     if (this.isRunning) {
@@ -60,6 +61,9 @@ export class ScanlyWatcher {
     
     // Start TDDF backlog monitoring (every 30 seconds)
     this.startTddfBacklogMonitoring();
+    
+    // Start orphaned file cleanup (every 2 minutes)
+    this.startOrphanedFileCleanup();
     
     // Run initial check
     this.performHealthCheck();
@@ -74,6 +78,10 @@ export class ScanlyWatcher {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.orphanCleanupInterval) {
+      clearInterval(this.orphanCleanupInterval);
+      this.orphanCleanupInterval = null;
     }
     this.isRunning = false;
     this.tddfBacklogHistory = []; // Clear backlog history
@@ -94,6 +102,25 @@ export class ScanlyWatcher {
       }
       await this.checkTddfBacklog();
     }, this.THRESHOLDS.BACKLOG_CHECK_INTERVAL);
+  }
+
+  private startOrphanedFileCleanup(): void {
+    console.log('[SCANLY-WATCHER] Starting orphaned file cleanup (every 2 minutes)');
+    
+    // Run cleanup immediately
+    this.cleanupOrphanedFiles();
+    
+    // Set up 2-minute cleanup monitoring
+    this.orphanCleanupInterval = setInterval(async () => {
+      if (!this.isRunning) {
+        if (this.orphanCleanupInterval) {
+          clearInterval(this.orphanCleanupInterval);
+          this.orphanCleanupInterval = null;
+        }
+        return;
+      }
+      await this.cleanupOrphanedFiles();
+    }, 2 * 60 * 1000); // Every 2 minutes
   }
 
   private async checkTddfBacklog(): Promise<void> {
@@ -156,6 +183,78 @@ export class ScanlyWatcher {
         level: 'error',
         type: 'tddf_backlog_check_error',
         message: 'Failed to check TDDF backlog',
+        details: { error: error instanceof Error ? error.message : String(error) },
+        timestamp: new Date()
+      });
+    }
+  }
+
+  private async cleanupOrphanedFiles(): Promise<void> {
+    try {
+      const { getCachedServerId } = await import("../utils/server-id");
+      const currentServerId = getCachedServerId();
+      const uploadsTable = getTableName('uploaded_files');
+      
+      console.log('[SCANLY-WATCHER] Running orphaned file cleanup...');
+      
+      // Find files locked by different server instances inactive for 5+ minutes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const orphanedResult = await db.execute(sql`
+        SELECT 
+          id,
+          original_filename,
+          processing_server_id,
+          uploaded_at,
+          EXTRACT(MINUTE FROM (NOW() - uploaded_at)) as minutes_since_upload
+        FROM ${sql.identifier(uploadsTable)}
+        WHERE processing_server_id IS NOT NULL
+          AND processing_server_id != ${currentServerId}
+          AND uploaded_at < ${fiveMinutesAgo.toISOString()}
+        LIMIT 10
+      `);
+      
+      const orphanedFiles = orphanedResult.rows;
+      
+      if (orphanedFiles.length > 0) {
+        console.log(`[SCANLY-WATCHER] Found ${orphanedFiles.length} orphaned file locks from inactive servers`);
+        
+        // Clear the orphaned locks
+        const cleanupResult = await db.execute(sql`
+          UPDATE ${sql.identifier(uploadsTable)}
+          SET processing_server_id = NULL
+          WHERE processing_server_id IS NOT NULL
+            AND processing_server_id != ${currentServerId}
+            AND uploaded_at < ${fiveMinutesAgo.toISOString()}
+        `);
+        
+        console.log(`[SCANLY-WATCHER] ✅ Cleared ${orphanedFiles.length} orphaned server locks`);
+        
+        // Log cleanup activity
+        await this.logAlert({
+          level: 'info',
+          type: 'orphaned_files_cleanup',
+          message: `Cleaned up ${orphanedFiles.length} orphaned file locks`,
+          details: { 
+            currentServerId,
+            cleanedFiles: orphanedFiles.map((f: any) => ({
+              filename: f.original_filename,
+              oldServerId: f.processing_server_id,
+              minutesSinceUpload: f.minutes_since_upload
+            }))
+          },
+          timestamp: new Date()
+        });
+      } else {
+        console.log('[SCANLY-WATCHER] ✅ No orphaned file locks found');
+      }
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error during orphaned file cleanup:', error);
+      await this.logAlert({
+        level: 'error',
+        type: 'orphan_cleanup_error',
+        message: 'Failed to cleanup orphaned files',
         details: { error: error instanceof Error ? error.message : String(error) },
         timestamp: new Date()
       });
