@@ -1,5 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Transaction } from "@shared/schema";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TerminalActivityHeatMapProps {
   transactions: any[]; // TDDF transactions with transactionDate field
@@ -11,41 +13,41 @@ export default function TerminalActivityHeatMap({
   timeRange 
 }: TerminalActivityHeatMapProps) {
   
+  // Get available years from transactions
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    transactions.forEach(t => {
+      const date = new Date(t.transactionDate || t.date);
+      if (!isNaN(date.getTime())) {
+        years.add(date.getFullYear());
+      }
+    });
+    return Array.from(years).sort((a, b) => b - a); // Most recent first
+  }, [transactions]);
+
+  // Current year state - default to most recent year with data
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    return availableYears.length > 0 ? availableYears[0] : new Date().getFullYear();
+  });
+  
   // Calculate heat map data
   const heatMapData = useMemo(() => {
+    // Filter transactions for selected year
+    const yearTransactions = transactions.filter(t => {
+      const date = new Date(t.transactionDate || t.date);
+      return date.getFullYear() === selectedYear;
+    });
+
+    // Set date range for the selected year
+    const startDate = new Date(selectedYear, 0, 1); // January 1st of selected year
+    const endDate = new Date(selectedYear, 11, 31); // December 31st of selected year
     const now = new Date();
-    let startDate: Date;
-    
-    // Determine date range
-    switch (timeRange) {
-      case "30days":
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "3months":
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "6months":
-        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-        break;
-      case "12months":
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default: // "all"
-        if (transactions.length > 0) {
-          const earliestTransaction = transactions.reduce((earliest, t) => 
-            new Date(t.transactionDate || t.date) < new Date(earliest.transactionDate || earliest.date) ? t : earliest
-          );
-          startDate = new Date(earliestTransaction.transactionDate || earliestTransaction.date);
-          startDate.setDate(startDate.getDate() - 7); // Add some padding
-        } else {
-          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        }
-    }
+    const actualEndDate = endDate > now ? now : endDate;
 
     // Group transactions by date
-    const transactionsByDate = transactions.reduce((acc, transaction) => {
+    const transactionsByDate = yearTransactions.reduce((acc, transaction) => {
       const transactionDate = new Date(transaction.transactionDate || transaction.date);
-      if (transactionDate >= startDate && transactionDate <= now) {
+      if (transactionDate >= startDate && transactionDate <= actualEndDate) {
         const dateKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
         acc[dateKey] = (acc[dateKey] || 0) + 1;
       }
@@ -60,7 +62,7 @@ export default function TerminalActivityHeatMap({
     const dayOfWeek = currentDate.getDay();
     currentDate.setDate(currentDate.getDate() - dayOfWeek);
     
-    while (currentDate <= now) {
+    while (currentDate <= actualEndDate) {
       const week: Array<{ date: string; count: number; dateObj: Date }> = [];
       
       for (let day = 0; day < 7; day++) {
@@ -83,7 +85,7 @@ export default function TerminalActivityHeatMap({
     const maxCount = Math.max(...Object.values(transactionsByDate), 1);
 
     return { weeks, maxCount, totalDays: weeks.length * 7 };
-  }, [transactions, timeRange]);
+  }, [transactions, selectedYear]);
 
   // Get color intensity based on transaction count
   const getIntensity = (count: number): string => {
@@ -124,11 +126,50 @@ export default function TerminalActivityHeatMap({
 
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Navigation handlers
+  const goToPreviousYear = () => {
+    const currentIndex = availableYears.indexOf(selectedYear);
+    if (currentIndex < availableYears.length - 1) {
+      setSelectedYear(availableYears[currentIndex + 1]);
+    }
+  };
+
+  const goToNextYear = () => {
+    const currentIndex = availableYears.indexOf(selectedYear);
+    if (currentIndex > 0) {
+      setSelectedYear(availableYears[currentIndex - 1]);
+    }
+  };
+
+  const canGoToPrevious = availableYears.indexOf(selectedYear) < availableYears.length - 1;
+  const canGoToNext = availableYears.indexOf(selectedYear) > 0;
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center text-sm text-muted-foreground">
-        <span>{heatMapData.weeks.length} weeks of activity</span>
+      {/* Year Navigation */}
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousYear}
+            disabled={!canGoToPrevious}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="text-lg font-semibold min-w-[80px] text-center">{selectedYear}</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextYear}
+            disabled={!canGoToNext}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Less</span>
           <div className="flex gap-1">
             <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
@@ -195,9 +236,8 @@ export default function TerminalActivityHeatMap({
         <div>
           <strong>{transactions.filter(t => {
             const transactionDate = new Date(t.transactionDate || t.date);
-            const startOfRange = heatMapData.weeks[0]?.[0]?.dateObj || new Date();
-            return transactionDate >= startOfRange;
-          }).length}</strong> transactions in the selected period
+            return transactionDate.getFullYear() === selectedYear;
+          }).length}</strong> transactions in {selectedYear}
         </div>
         <div>
           Peak day: <strong>{heatMapData.maxCount}</strong> transactions
