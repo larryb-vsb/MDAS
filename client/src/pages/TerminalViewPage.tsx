@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye, FileText } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
@@ -18,15 +19,17 @@ export default function TerminalViewPage() {
   const params = useParams();
   const [, navigate] = useLocation();
   const [timeRange, setTimeRange] = useState("12months");
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [showTransactionDetail, setShowTransactionDetail] = useState(false);
   
   const terminalId = params.id ? parseInt(params.id) : null;
 
   // Fetch terminal details with forced refresh
-  const { data: terminal, isLoading: terminalLoading, refetch } = useQuery<Terminal>({
+  const { data: terminal, isLoading: terminalLoading, refetch } = useQuery({
     queryKey: [`/api/terminals/${terminalId}`],
     enabled: !!terminalId,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     queryFn: async () => {
@@ -425,6 +428,7 @@ export default function TerminalViewPage() {
                               <th className="text-right p-3 font-medium">Amount</th>
                               <th className="text-left p-3 font-medium">Auth #</th>
                               <th className="text-left p-3 font-medium">Card Type</th>
+                              <th className="text-center p-3 font-medium">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -459,6 +463,159 @@ export default function TerminalViewPage() {
                                   ) : (
                                     <Badge variant="outline" className="text-xs">N/A</Badge>
                                   )}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setSelectedTransaction(transaction)}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                      <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                          <FileText className="h-5 w-5" />
+                                          TDDF Transaction Detail
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                          Complete transaction information from TDDF processing
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      
+                                      {selectedTransaction && (
+                                        <div className="space-y-6">
+                                          {/* Transaction Summary */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="text-lg">Transaction Summary</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Transaction Date</p>
+                                                  <p className="font-semibold">
+                                                    {selectedTransaction.transactionDate 
+                                                      ? formatTddfDate(selectedTransaction.transactionDate)
+                                                      : 'N/A'
+                                                    }
+                                                  </p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                                                  <p className="font-semibold text-lg text-green-600">
+                                                    ${parseFloat(selectedTransaction.transactionAmount || 0).toFixed(2)}
+                                                  </p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Card Type</p>
+                                                  <div className="mt-1">
+                                                    {selectedTransaction.cardType ? (
+                                                      <span 
+                                                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(selectedTransaction.cardType).className}`}
+                                                      >
+                                                        <CreditCard className="h-3 w-3" />
+                                                        {getCardTypeBadges(selectedTransaction.cardType).label}
+                                                      </span>
+                                                    ) : (
+                                                      <Badge variant="outline">N/A</Badge>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Authorization #</p>
+                                                  <p className="font-mono font-semibold">
+                                                    {selectedTransaction.authorizationNumber || 'N/A'}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+
+                                          {/* Merchant & Terminal Information */}
+                                          <div className="grid md:grid-cols-2 gap-6">
+                                            <Card>
+                                              <CardHeader>
+                                                <CardTitle className="text-lg">Merchant Information</CardTitle>
+                                              </CardHeader>
+                                              <CardContent className="space-y-3">
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Merchant Name</p>
+                                                  <p className="font-semibold">{selectedTransaction.merchantName || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Merchant Account #</p>
+                                                  <p className="font-mono text-sm">{selectedTransaction.merchantAccountNumber || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">MCC Code</p>
+                                                  <p className="font-mono">{selectedTransaction.mccCode || 'N/A'}</p>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                              <CardHeader>
+                                                <CardTitle className="text-lg">Terminal Information</CardTitle>
+                                              </CardHeader>
+                                              <CardContent className="space-y-3">
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Terminal ID</p>
+                                                  <p className="font-mono font-semibold">{selectedTransaction.terminalId || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">VAR Number</p>
+                                                  <p className="font-mono">{terminal?.vNumber || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-muted-foreground">Transaction Type</p>
+                                                  <p className="font-mono">{selectedTransaction.transactionTypeIdentifier || 'Standard'}</p>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          </div>
+
+                                          {/* Transaction Details */}
+                                          <Card>
+                                            <CardHeader>
+                                              <CardTitle className="text-lg">TDDF Record Details</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                  <p className="font-medium text-muted-foreground">Reference Number</p>
+                                                  <p className="font-mono text-xs bg-muted p-2 rounded break-all">
+                                                    {selectedTransaction.referenceNumber || 'N/A'}
+                                                  </p>
+                                                </div>
+                                                <div>
+                                                  <p className="font-medium text-muted-foreground">Record ID</p>
+                                                  <p className="font-mono">{selectedTransaction.id}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="font-medium text-muted-foreground">Recorded At</p>
+                                                  <p className="text-sm">
+                                                    {selectedTransaction.recordedAt 
+                                                      ? formatTableDate(selectedTransaction.recordedAt)
+                                                      : 'N/A'
+                                                    }
+                                                  </p>
+                                                </div>
+                                                <div>
+                                                  <p className="font-medium text-muted-foreground">Processing Status</p>
+                                                  <Badge variant="secondary" className="text-xs">Processed</Badge>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        </div>
+                                      )}
+                                    </DialogContent>
+                                  </Dialog>
                                 </td>
                               </tr>
                             ))}
