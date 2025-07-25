@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
-import { formatTableDate } from "@/lib/date-utils";
+import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
 // import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
 // import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
 
@@ -431,7 +431,7 @@ export default function TerminalViewPage() {
                               <tr key={transaction.id} className="border-t hover:bg-muted/25">
                                 <td className="p-3">
                                   {transaction.transactionDate 
-                                    ? formatTableDate(transaction.transactionDate)
+                                    ? formatTddfDate(transaction.transactionDate)
                                     : 'N/A'
                                   }
                                 </td>
