@@ -6,10 +6,6 @@ import { Button } from '@/components/ui/button';
 interface ActivityData {
   date: string;
   dtCount: number;
-  bhCount: number;
-  p1Count: number;
-  otherCount: number;
-  totalCount: number;
 }
 
 interface DaySquareProps {
@@ -19,7 +15,7 @@ interface DaySquareProps {
 }
 
 const DaySquare: React.FC<DaySquareProps> = ({ date, activity, size = 12 }) => {
-  const totalActivity = activity?.totalCount || 0;
+  const totalActivity = activity?.dtCount || 0;
   
   // Determine intensity level for background color
   const getIntensityLevel = (count: number) => {
@@ -58,10 +54,6 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, size = 12 }) => {
       <div className="font-semibold">{formatDate(date)}</div>
       <div className="mt-1">
         <div className="text-blue-600">DT Records: {activity.dtCount}</div>
-        <div className="text-green-600">BH Records: {activity.bhCount}</div>
-        <div className="text-orange-600">P1 Records: {activity.p1Count}</div>
-        <div className="text-red-600">Other Records: {activity.otherCount}</div>
-        <div className="font-semibold border-t pt-1 mt-1">Total: {activity.totalCount}</div>
       </div>
     </div>
   ) : (
@@ -138,14 +130,11 @@ const TddfActivityHeatMap: React.FC = () => {
     .reduce((acc, day) => {
       if (day.activity) {
         acc.dtCount += day.activity.dtCount;
-        acc.bhCount += day.activity.bhCount;
-        acc.p1Count += day.activity.p1Count;
-        acc.otherCount += day.activity.otherCount;
-        acc.totalCount += day.activity.totalCount;
+        acc.totalCount += day.activity.dtCount;
         acc.activeDays += 1;
       }
       return acc;
-    }, { dtCount: 0, bhCount: 0, p1Count: 0, otherCount: 0, totalCount: 0, activeDays: 0 });
+    }, { dtCount: 0, totalCount: 0, activeDays: 0 });
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     if (direction === 'prev') {
@@ -279,27 +268,7 @@ const TddfActivityHeatMap: React.FC = () => {
           <span className="font-medium">{currentMonthStats.totalCount}</span> transactions in {monthNames[currentMonth]} {currentYear}
         </div>
         <div className="text-sm text-gray-600">
-          Peak day: <span className="font-medium">{Math.max(...days.filter(d => d.isCurrentMonth && d.activity).map(d => d.activity!.totalCount), 0)}</span> transactions
-        </div>
-        
-        {/* Record type breakdown */}
-        <div className="flex items-center gap-6 mt-3 text-xs text-gray-500">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-            <span>DT: {currentMonthStats.dtCount}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-            <span>BH: {currentMonthStats.bhCount}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-orange-500 rounded-sm"></div>
-            <span>P1: {currentMonthStats.p1Count}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
-            <span>Other: {currentMonthStats.otherCount}</span>
-          </div>
+          Peak day: <span className="font-medium">{Math.max(...days.filter(d => d.isCurrentMonth && d.activity).map(d => d.activity!.dtCount), 0)}</span> transactions
         </div>
       </div>
     </div>
