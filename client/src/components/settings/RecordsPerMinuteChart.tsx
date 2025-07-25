@@ -13,16 +13,20 @@ interface RecordsPerMinuteData {
   bhRecords: number;
   p1Records: number;
   otherRecords: number;
-  status: string;
+  rawLines: number;
+  status?: string;
   formattedTime: string;
   formattedDateTime: string;
 }
 
 interface RecordsPerMinuteHistoryResponse {
   data: RecordsPerMinuteData[];
-  totalPoints: number;
-  timeRange: string;
-  lastUpdated: string;
+  period?: string;
+  dataSource?: string;
+  lastUpdate?: string;
+  totalPoints?: number;
+  timeRange?: string;
+  lastUpdated?: string;
 }
 
 interface RecordsPerMinuteChartProps {
@@ -36,14 +40,14 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const [timeOffset, setTimeOffset] = useState(0); // Hours to offset from current time
   
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
-    queryKey: ['/api/processing/records-per-minute-history', timeRange, timeOffset],
+    queryKey: ['/api/processing/performance-chart-history', timeRange, timeOffset],
     queryFn: async () => {
-      const response = await fetch(`/api/processing/records-per-minute-history?hours=${timeRange}&timeOffset=${timeOffset}`);
+      const response = await fetch(`/api/processing/performance-chart-history?hours=${timeRange}&timeOffset=${timeOffset}`);
       if (!response.ok) throw new Error('Failed to fetch data');
       return response.json();
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 15000,
+    refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
+    staleTime: 25000, // Match KPI refresh timing
   });
 
   // Time range options
@@ -95,8 +99,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   // Generate better Y-axis ticks
   const getYAxisTicks = () => {
     if (!historyData?.data.length) return [0, 50, 100];
-    const maxValue = Math.max(...historyData.data.map(d => d.recordsPerMinute));
-    const minValue = Math.min(...historyData.data.map(d => d.recordsPerMinute));
+    const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
+    const minValue = Math.min(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
     
     if (maxValue <= 10) return [0, 2, 4, 6, 8, 10];
     if (maxValue <= 50) return [0, 10, 20, 30, 40, 50];
@@ -279,8 +283,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   }
 
   const zoomedData = getDataWithShortTime();
-  const maxValue = Math.max(...historyData.data.map(d => d.recordsPerMinute));
-  const avgValue = historyData.data.reduce((sum, d) => sum + d.recordsPerMinute, 0) / historyData.data.length;
+  const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
+  const avgValue = historyData.data.reduce((sum, d) => sum + ((d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)), 0) / historyData.data.length;
   const currentDate = getCurrentDate();
   const zoomLevels = getZoomLevels();
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
