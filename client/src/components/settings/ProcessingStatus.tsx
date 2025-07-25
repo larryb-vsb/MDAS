@@ -246,6 +246,15 @@ export default function ProcessingStatus() {
     gcTime: 60000, // Keep in cache for 1 minute
   });
 
+  // Fetch historical performance KPIs from Scanly-Watcher metrics
+  const { data: performanceKpis } = useQuery<any>({
+    queryKey: ['/api/processing/performance-kpis'],
+    refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
+    staleTime: 25000, // Consider data stale after 25 seconds
+    retry: 1, // Retry once on failure
+    gcTime: 60000, // Keep in cache for 1 minute
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -568,25 +577,27 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 {(() => {
-                  // Calculate current TDDF rate from chart data (same as chart)
+                  // Use historical performance metrics from Scanly-Watcher instead of chart data
+                  const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
+                  
+                  // For gauge display, also get chart data for record type breakdown
                   const recentChartData = (chartData as any)?.data || [];
                   const latestDataPoint = recentChartData[recentChartData.length - 1];
                   const currentTddfRate = latestDataPoint ? 
                     ((latestDataPoint.bhRecords || 0) + (latestDataPoint.p1Records || 0) + (latestDataPoint.otherRecords || 0)) : 0;
                   const currentDtRate = latestDataPoint ? (latestDataPoint.dtRecords || 0) : 0;
-                  const totalTddfRate = currentTddfRate + currentDtRate;
 
                   return (
                     <>
                       <div className="text-lg font-semibold text-indigo-600">
-                        {totalTddfRate.toFixed(0)}
+                        {tddfPerMinute}
                       </div>
                       <div className="text-muted-foreground">TDDF/min</div>
                       {/* TDDF Speed Gauge with Record Type Colors */}
                       <div className="mt-2 px-2">
                         <MultiColorGauge 
-                          currentSpeed={totalTddfRate}
-                          maxScale={125}
+                          currentSpeed={tddfPerMinute}
+                          maxScale={Math.max(tddfPerMinute * 1.2, 125)}
                           recordTypes={{
                             dt: currentDtRate,
                             bh: latestDataPoint?.bhRecords || 0,
@@ -596,7 +607,9 @@ export default function ProcessingStatus() {
                           showRecordTypes={true}
                         />
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">(last hour)</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(no data)'}
+                      </div>
                     </>
                   );
                 })()}
@@ -622,17 +635,19 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-orange-600">
-                  {((realTimeStats?.transactionsPerSecond || 0) * 60).toFixed(0)}
+                  {performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Records/min</div>
                 {/* Records per Minute Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={(realTimeStats?.transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max((realTimeStats?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    currentSpeed={performanceKpis?.hasData ? performanceKpis.recordsPerMinute : (realTimeStats?.transactionsPerSecond || 0) * 60}
+                    maxScale={Math.max(performanceKpis?.hasData ? performanceKpis.recordsPerMinute * 1.2 : (realTimeStats?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(real-time)'}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">

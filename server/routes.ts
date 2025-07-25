@@ -5512,6 +5512,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Historical Performance KPIs from Scanly-Watcher Metrics
+  app.get("/api/processing/performance-kpis", isAuthenticated, async (req, res) => {
+    try {
+      const metricsTableName = getTableName('processing_metrics');
+      
+      // Get latest and previous metrics for rate calculation
+      const result = await pool.query(`
+        SELECT 
+          timestamp,
+          tddf_records,
+          tddf_raw_lines,
+          tddf_pending_lines
+        FROM ${metricsTableName} 
+        WHERE metric_type = 'scanly_watcher_snapshot'
+          AND timestamp >= NOW() - INTERVAL '10 minutes'
+        ORDER BY timestamp DESC 
+        LIMIT 3
+      `);
+      
+      const metrics = result.rows;
+      
+      if (metrics.length < 2) {
+        return res.json({
+          tddfPerMinute: 0,
+          recordsPerMinute: 0,
+          hasData: false,
+          message: "Insufficient historical data for KPI calculation"
+        });
+      }
+      
+      // Calculate rates using the last two data points
+      const latest = metrics[0];
+      const previous = metrics[1];
+      
+      const timeDiffMinutes = (new Date(latest.timestamp) - new Date(previous.timestamp)) / (1000 * 60);
+      const rawLineDiff = latest.tddf_raw_lines - previous.tddf_raw_lines;
+      const recordsDiff = latest.tddf_records - previous.tddf_records;
+      
+      // Calculate per-minute rates
+      const rawLinesPerMinute = timeDiffMinutes > 0 ? rawLineDiff / timeDiffMinutes : 0;
+      const recordsPerMinute = timeDiffMinutes > 0 ? recordsDiff / timeDiffMinutes : 0;
+      
+      res.json({
+        tddfPerMinute: Math.max(0, Math.round(rawLinesPerMinute)), // TDDF lines per minute
+        recordsPerMinute: Math.max(0, Math.round(recordsPerMinute)), // DT records per minute
+        hasData: true,
+        lastUpdate: latest.timestamp,
+        timePeriod: `${timeDiffMinutes.toFixed(1)} minutes`,
+        rawData: {
+          latest: latest,
+          previous: previous,
+          timeDiffMinutes: timeDiffMinutes,
+          rawLineDiff: rawLineDiff,
+          recordsDiff: recordsDiff
+        }
+      });
+    } catch (error) {
+      console.error('Error calculating performance KPIs:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to calculate performance KPIs",
+        tddfPerMinute: 0,
+        recordsPerMinute: 0,
+        hasData: false
+      });
+    }
+  });
+
   // Scanly-Watcher Processing Status Cache Endpoint
   app.get("/api/scanly-watcher/processing-status", isAuthenticated, async (req, res) => {
     try {
