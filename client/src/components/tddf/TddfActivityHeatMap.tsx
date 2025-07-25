@@ -199,28 +199,26 @@ const TddfActivityHeatMap: React.FC = () => {
         </div>
       </div>
 
-      {/* Heat Map Grid */}
+      {/* Heat Map Grid - GitHub-style contribution chart */}
       <div className="mb-4">
-        {/* Month labels */}
-        <div className="flex mb-2 ml-6">
+        {/* Month labels - positioned above the grid */}
+        <div className="flex mb-2 ml-8">
           {monthNames.map((month, index) => (
-            <div key={month} className="text-xs text-gray-500 flex-1 text-center first:text-left">
-              {index % 2 === 0 ? month : ''}
+            <div key={month} className="text-xs text-gray-500" style={{ width: `${100/12}%`, textAlign: 'left' }}>
+              {month}
             </div>
           ))}
         </div>
         
         <div className="flex">
-          {/* Day labels */}
-          <div className="flex flex-col mr-2 justify-between text-xs text-gray-500 h-21">
-            {weekDays.map((day, index) => (
-              <div key={day} className={index === 1 ? 'my-1' : ''}>
-                {day}
-              </div>
-            ))}
+          {/* Day labels - Mon, Wed, Fri on left side */}
+          <div className="flex flex-col justify-around text-xs text-gray-500 mr-2" style={{ height: '105px' }}>
+            <div>Mon</div>
+            <div>Wed</div>
+            <div>Fri</div>
           </div>
           
-          {/* Calendar grid */}
+          {/* GitHub-style grid - weeks as columns, days as rows */}
           <div className="flex gap-1">
             {weeks.map((week, weekIndex) => (
               <div key={weekIndex} className="flex flex-col gap-1">
