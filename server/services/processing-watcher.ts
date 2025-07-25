@@ -712,10 +712,11 @@ export class ScanlyWatcher {
       };
 
       const systemLogsTableName = getTableName('system_logs');
+      const logTimestamp = logEntry.timestamp || new Date();
       await db.execute(sql`
         INSERT INTO ${sql.identifier(systemLogsTableName)} 
         (level, source, message, details, timestamp)
-        VALUES (${logEntry.level}, ${logEntry.source}, ${logEntry.message}, ${logEntry.details}, ${logEntry.timestamp.toISOString()})
+        VALUES (${logEntry.level}, ${logEntry.source}, ${logEntry.message}, ${logEntry.details}, ${logTimestamp.toISOString()})
       `);
 
     } catch (error) {

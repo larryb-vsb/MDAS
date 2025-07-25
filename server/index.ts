@@ -64,17 +64,21 @@ function setupProcessMonitoring() {
     }).catch(console.error);
   });
   
-  // Monitor filesystem events (file processing activities)
-  const fs = require('fs');
+  // Monitor filesystem events (file processing activities) - Use dynamic import for production compatibility
   try {
-    const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType, filename) => {
-      if (filename && eventType === 'rename') {
-        systemLogger.info('File System', 'File upload activity detected', {
-          filename,
-          eventType,
-          timestamp: new Date().toISOString()
-        }).catch(console.error);
-      }
+    import('fs').then((fs) => {
+      const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType, filename) => {
+        if (filename && eventType === 'rename') {
+          systemLogger.info('File System', 'File upload activity detected', {
+            filename,
+            eventType,
+            timestamp: new Date().toISOString()
+          }).catch(console.error);
+        }
+      });
+    }).catch(() => {
+      // Filesystem monitoring not available in this environment
+      console.log('[MONITORING] Filesystem monitoring disabled in production environment');
     });
   } catch (error) {
     // Directory might not exist yet, ignore
