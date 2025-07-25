@@ -423,34 +423,6 @@ export default function TerminalViewPage() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Regular Transactions Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Regular Transaction History</CardTitle>
-                <CardDescription>Regular transactions linked by POS Merchant Number</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {transactionsLoading ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading transactions...</p>
-                  </div>
-                ) : transactions.length > 0 ? (
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Found {transactions.length} regular transactions for this terminal
-                    </p>
-                    <div className="h-64 bg-muted rounded-lg flex items-center justify-center">
-                      <p className="text-muted-foreground">Regular transaction viewer (coming soon)</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No regular transactions found for this terminal</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="details" className="space-y-4">
