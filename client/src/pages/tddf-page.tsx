@@ -1284,13 +1284,13 @@ export default function TddfPage() {
                   </div>
                   <div className="w-20">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      record.debitCreditIndicator === 'D' 
+                      record.debitCreditIndicator?.endsWith('D') 
                         ? 'bg-red-100 text-red-800 border-red-200' 
-                        : record.debitCreditIndicator === 'C'
+                        : record.debitCreditIndicator?.endsWith('C')
                         ? 'bg-green-100 text-green-800 border-green-200'
                         : 'bg-gray-100 text-gray-800 border-gray-200'
                     } border`}>
-                      {record.debitCreditIndicator === 'D' ? 'Debit' : record.debitCreditIndicator === 'C' ? 'Credit' : '-'}
+                      {record.debitCreditIndicator?.endsWith('D') ? 'Debit' : record.debitCreditIndicator?.endsWith('C') ? 'Credit' : record.debitCreditIndicator || '-'}
                     </span>
                   </div>
                   <div className="w-36 text-xs">
