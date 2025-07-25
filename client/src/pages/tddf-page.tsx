@@ -1286,18 +1286,7 @@ export default function TddfPage() {
                           }
                         </td>
                         <td className="p-3 font-mono text-xs">
-                          <div className="flex items-center gap-2">
-                            <TruncatedRefNumber refNumber={record.referenceNumber || null} />
-                            {getCardTypeBadges(record).map((badge, index) => (
-                              <span 
-                                key={index}
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
-                              >
-                                <CreditCard className="h-3 w-3" />
-                                {badge.label}
-                              </span>
-                            ))}
-                          </div>
+                          <TruncatedRefNumber refNumber={record.referenceNumber || null} />
                         </td>
                         <td className="p-3 max-w-32 truncate">
                           {record.merchantName || 'N/A'}
@@ -1309,9 +1298,17 @@ export default function TddfPage() {
                           {record.authorizationNumber || 'N/A'}
                         </td>
                         <td className="p-3">
-                          <Badge variant="outline" className="text-xs">
-                            {record.cardType || 'N/A'}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {getCardTypeBadges(record).map((badge, index) => (
+                              <span 
+                                key={index}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
+                              >
+                                <CreditCard className="h-3 w-3" />
+                                {badge.label}
+                              </span>
+                            ))}
+                          </div>
                         </td>
                         <td className="p-3 text-center">
                           <Button
