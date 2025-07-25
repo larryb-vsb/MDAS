@@ -2220,7 +2220,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use environment-specific table for uploads
       const tableName = getTableName('uploaded_files');
-      console.log(`[UPLOADS API] Using table: ${tableName} for environment: ${process.env.NODE_ENV}`);
+      const { getEnvironment } = await import('./env-config');
+      const currentEnv = getEnvironment();
+      console.log(`[UPLOADS API] Using table: ${tableName} for environment: ${currentEnv}`);
       
       // PERFORMANCE FIX: Exclude file_content field which can be massive (hundreds of KB)
       // Only fetch it when specifically needed for file viewing/download

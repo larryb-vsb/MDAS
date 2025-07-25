@@ -30,13 +30,34 @@ export default function TerminalsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch terminals data
-  const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
+  // Fetch terminals data with proper error handling
+  const { data: terminalsResponse, isLoading, error, refetch } = useQuery({
     queryKey: ["/api/terminals"],
     refetchOnWindowFocus: true, // Refetch when window gains focus
     staleTime: 0, // Always consider data stale to ensure fresh fetches
     gcTime: 0, // Don't cache data in garbage collection
   });
+
+  // Ensure terminals is always an array, even if API returns error object
+  const terminals: Terminal[] = Array.isArray(terminalsResponse) ? terminalsResponse : [];
+  
+  // Show authentication error if not logged in
+  if (error || (!isLoading && !Array.isArray(terminalsResponse))) {
+    return (
+      <MainLayout>
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-red-600">Authentication Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Please log in to access terminal data.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
+    );
+  }
 
   // Filter, sort and paginate terminals
   const { paginatedTerminals, pagination } = useMemo(() => {
