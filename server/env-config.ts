@@ -3,12 +3,8 @@
  * Centralized place for environment-specific settings
  */
 
-// Determine the current environment from process.env with Replit environment detection
-// Check if we're in Replit production environment first  
-const isReplitProduction = process.env.REPLIT_ENVIRONMENT === 'production';
-// FORCE production detection when REPLIT_ENVIRONMENT is production
-const detectedEnv = isReplitProduction ? 'production' : (process.env.NODE_ENV || 'development');
-export const NODE_ENV = detectedEnv;
+// Determine the current environment from process.env
+export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
@@ -19,9 +15,6 @@ export function getEnvironment() {
 }
 
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
-console.log(`[ENV CONFIG] REPLIT_ENVIRONMENT: ${process.env.REPLIT_ENVIRONMENT}`);
-console.log(`[ENV CONFIG] Is Replit Production: ${isReplitProduction}`);
-console.log(`[ENV CONFIG] Detected environment: ${detectedEnv}`);
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
 
 // IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
