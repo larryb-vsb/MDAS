@@ -813,7 +813,7 @@ export default function ProcessingStatus() {
         </div>
 
         {/* Multi-Node Concurrency Status */}
-        {concurrencyStats && (
+        {(effectiveConcurrencyStats || concurrencyStats) && (
           <div className="space-y-4">
             <Separator />
             <div className="text-sm font-medium">Multi-Node Concurrency Control</div>
@@ -821,21 +821,27 @@ export default function ProcessingStatus() {
               <div>
                 <span className="text-muted-foreground">Active Servers:</span>
                 <div className="font-medium">
-                  {Object.keys(concurrencyStats.processingByServer).length > 0 
-                    ? `${Object.keys(concurrencyStats.processingByServer).length} processing`
-                    : "No active processing"}
+                  {Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length > 0 
+                    ? `${Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length} processing`
+                    : ((effectiveTddfRawStatus?.pending || 0) > 0 ? "TDDF Processing Active" : "No active processing")}
                 </div>
-                {Object.entries(concurrencyStats.processingByServer).map(([serverId, fileCount]) => (
+                {Object.entries((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).map(([serverId, fileCount]) => (
                   <div key={serverId} className="text-xs text-muted-foreground mt-1">
                     Server {serverId.split('-').slice(-1)[0]}: {fileCount} file{fileCount !== 1 ? 's' : ''}
                   </div>
                 ))}
+                {/* Show TDDF processing when no file servers but TDDF is active */}
+                {Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length === 0 && (effectiveTddfRawStatus?.pending || 0) > 0 && (
+                  <div className="text-xs text-green-600 mt-1 font-medium">
+                    TDDF Background: {(effectiveTddfRawStatus?.pending || 0).toLocaleString()} pending records
+                  </div>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground">Stale Files:</span>
                 <div className="font-medium">
-                  {concurrencyStats.staleProcessingFiles || 0}
-                  {concurrencyStats.staleProcessingFiles > 0 && (
+                  {(effectiveConcurrencyStats || concurrencyStats)?.staleProcessingFiles || 0}
+                  {((effectiveConcurrencyStats || concurrencyStats)?.staleProcessingFiles || 0) > 0 && (
                     <Badge variant="destructive" className="ml-2 text-xs">Needs Cleanup</Badge>
                   )}
                 </div>
