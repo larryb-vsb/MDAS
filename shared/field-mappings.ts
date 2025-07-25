@@ -103,7 +103,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   dialPay: "Dial Pay", // Dial payment configuration
   encryption: "Encryption", // Payment encryption settings
   prr: "PRR", // Processing rate/rule
-  mcc: "MCC", // Merchant Category Code
+  mcc: "Visa MCC", // Merchant Category Code (mapped from Visa MCC field)
   ssl: "SSL", // SSL security configuration
   tokenization: "Tokenization", // Tokenization settings
   agent: "Agent", // Agent information
