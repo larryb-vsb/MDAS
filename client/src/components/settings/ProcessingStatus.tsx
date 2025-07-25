@@ -577,15 +577,24 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 {(() => {
-                  // Use historical performance metrics from Scanly-Watcher instead of chart data
+                  // Use enhanced performance KPI data with color-coded breakdown
                   const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
+                  const colorBreakdown = performanceKpis?.colorBreakdown;
                   
-                  // For gauge display, get chart data from performance metrics database
-                  const recentChartData = (chartData as any)?.data || [];
-                  const latestDataPoint = recentChartData[recentChartData.length - 1];
-                  const currentDtRate = latestDataPoint ? (latestDataPoint.dtRecords || 0) : 0;
-                  const currentTddfRate = latestDataPoint ? 
-                    ((latestDataPoint.bhRecords || 0) + (latestDataPoint.p1Records || 0) + (latestDataPoint.otherRecords || 0)) : 0;
+                  // Calculate total processed records for gauge display
+                  const dtProcessed = colorBreakdown?.dt?.processed || 0;
+                  const bhProcessed = colorBreakdown?.bh?.processed || 0;
+                  const p1Processed = colorBreakdown?.p1?.processed || 0;
+                  const e1Processed = colorBreakdown?.e1?.processed || 0;
+                  const g2Processed = colorBreakdown?.g2?.processed || 0;
+                  const adProcessed = colorBreakdown?.ad?.processed || 0;
+                  const drProcessed = colorBreakdown?.dr?.processed || 0;
+                  const p2Processed = colorBreakdown?.p2?.processed || 0;
+                  const otherProcessed = colorBreakdown?.other?.processed || 0;
+                  const totalSkipped = colorBreakdown?.totalSkipped || 0;
+                  
+                  // Combine gray categories (E1, G2, AD, DR, P2, other)
+                  const combinedOtherProcessed = e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed;
 
                   return (
                     <>
@@ -593,19 +602,75 @@ export default function ProcessingStatus() {
                         {tddfPerMinute}
                       </div>
                       <div className="text-muted-foreground">TDDF/min</div>
-                      {/* TDDF Speed Gauge with Record Type Colors */}
+                      {/* Enhanced Color-Coded Gauge with Record Type Breakdown */}
                       <div className="mt-2 px-2">
-                        <MultiColorGauge 
-                          currentSpeed={tddfPerMinute}
-                          maxScale={Math.max(tddfPerMinute * 1.2, 125)}
-                          recordTypes={{
-                            dt: currentDtRate,
-                            bh: latestDataPoint?.bhRecords || 0,
-                            p1: latestDataPoint?.p1Records || 0,
-                            other: latestDataPoint?.otherRecords || 0
-                          }}
-                          showRecordTypes={true}
-                        />
+                        <div className="w-full space-y-1">
+                          {/* Multi-Segment Gauge Bar */}
+                          <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+                            {colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
+                              <>
+                                {/* DT Records - Blue */}
+                                <div 
+                                  className="absolute left-0 top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    width: `${Math.min((dtProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100, 100)}%`, 
+                                    backgroundColor: '#3b82f6' 
+                                  }}
+                                />
+                                {/* BH Records - Green */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${(dtProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
+                                    width: `${(bhProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    backgroundColor: '#10b981' 
+                                  }}
+                                />
+                                {/* P1 Records - Orange */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${((dtProcessed + bhProcessed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
+                                    width: `${(p1Processed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    backgroundColor: '#f59e0b' 
+                                  }}
+                                />
+                                {/* Other Records - Gray */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${((dtProcessed + bhProcessed + p1Processed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
+                                    width: `${(combinedOtherProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    backgroundColor: '#6b7280' 
+                                  }}
+                                />
+                                {/* Skipped Records - Red */}
+                                <div 
+                                  className="absolute top-0 h-full rounded-r-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${((dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
+                                    width: `${(totalSkipped / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    backgroundColor: '#ef4444' 
+                                  }}
+                                />
+                              </>
+                            ) : (
+                              /* Single blue bar for fallback */
+                              <div 
+                                className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min((tddfPerMinute / 125) * 100, 100)}%` }}
+                              />
+                            )}
+                          </div>
+                          
+                          {/* Record Type Counts Display */}
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>DT: {dtProcessed.toLocaleString()}</span>
+                            <span>BH: {bhProcessed.toLocaleString()}</span>
+                            <span>P1: {p1Processed.toLocaleString()}</span>
+                            <span>Skip: {totalSkipped.toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(no data)'}
@@ -613,7 +678,7 @@ export default function ProcessingStatus() {
                     </>
                   );
                 })()}
-                {/* Record Type Legend for TDDF */}
+                {/* Enhanced Record Type Legend with Skipped Records */}
                 <div className="flex items-center justify-center gap-2 text-xs mt-1">
                   <span className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
@@ -628,8 +693,12 @@ export default function ProcessingStatus() {
                     P1
                   </span>
                   <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#6b7280' }} />
                     Other
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+                    Skip
                   </span>
                 </div>
               </div>
@@ -638,12 +707,48 @@ export default function ProcessingStatus() {
                   {performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Records/min</div>
-                {/* Records per Minute Gauge */}
+                {/* Enhanced Records per Minute Gauge with Color Breakdown */}
                 <div className="mt-2 px-2">
-                  <TransactionSpeedGauge 
-                    currentSpeed={performanceKpis?.hasData ? performanceKpis.recordsPerMinute : (realTimeStats?.transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max(performanceKpis?.hasData ? performanceKpis.recordsPerMinute * 1.2 : (realTimeStats?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
-                  />
+                  {(() => {
+                    const colorBreakdown = performanceKpis?.colorBreakdown;
+                    const recordsPerMinute = performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60);
+                    
+                    if (colorBreakdown) {
+                      // Use enhanced color-coded gauge for records/min
+                      const dtProcessed = colorBreakdown.dt?.processed || 0;
+                      const bhProcessed = colorBreakdown.bh?.processed || 0;
+                      const p1Processed = colorBreakdown.p1?.processed || 0;
+                      const totalOtherProcessed = (colorBreakdown.e1?.processed || 0) + 
+                                                 (colorBreakdown.g2?.processed || 0) + 
+                                                 (colorBreakdown.ad?.processed || 0) + 
+                                                 (colorBreakdown.dr?.processed || 0) + 
+                                                 (colorBreakdown.p2?.processed || 0) + 
+                                                 (colorBreakdown.other?.processed || 0);
+                      const totalSkipped = colorBreakdown.totalSkipped || 0;
+                      
+                      return (
+                        <MultiColorGauge 
+                          currentSpeed={recordsPerMinute}
+                          maxScale={Math.max(recordsPerMinute * 1.2, 600)}
+                          recordTypes={{
+                            dt: dtProcessed,
+                            bh: bhProcessed,
+                            p1: p1Processed,
+                            other: totalOtherProcessed + totalSkipped // Combine other and skipped for visualization
+                          }}
+                          showRecordTypes={true}
+                        />
+                      );
+                    } else {
+                      // Fallback to single color gauge
+                      return (
+                        <TransactionSpeedGauge 
+                          currentSpeed={recordsPerMinute}
+                          maxScale={Math.max(recordsPerMinute * 1.2, 600)}
+                        />
+                      );
+                    }
+                  })()}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(real-time)'}

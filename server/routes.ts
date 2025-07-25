@@ -5512,18 +5512,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Historical Performance KPIs from Scanly-Watcher Metrics
+  // Enhanced Performance KPIs with Color-Coded Record Type Breakdown
   app.get("/api/processing/performance-kpis", isAuthenticated, async (req, res) => {
     try {
       const metricsTableName = getTableName('processing_metrics');
       
-      // Get latest and previous metrics for rate calculation
+      // Get latest and previous metrics for rate calculation with detailed breakdown
       const result = await pool.query(`
         SELECT 
           timestamp,
           tddf_records,
           tddf_raw_lines,
-          tddf_pending_lines
+          tddf_pending_lines,
+          dt_processed, dt_pending, dt_skipped,
+          bh_processed, bh_pending, bh_skipped,
+          p1_processed, p1_pending, p1_skipped,
+          e1_processed, e1_pending, e1_skipped,
+          g2_processed, g2_pending, g2_skipped,
+          ad_processed, ad_skipped,
+          dr_processed, dr_skipped,
+          p2_processed, p2_skipped,
+          other_processed, other_skipped
         FROM ${metricsTableName} 
         WHERE metric_type = 'scanly_watcher_snapshot'
           AND timestamp >= NOW() - INTERVAL '10 minutes'
@@ -5538,7 +5547,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tddfPerMinute: 0,
           recordsPerMinute: 0,
           hasData: false,
-          message: "Insufficient historical data for KPI calculation"
+          message: "Insufficient historical data for KPI calculation",
+          colorBreakdown: {
+            dt: { processed: 0, pending: 0, skipped: 0 },
+            bh: { processed: 0, pending: 0, skipped: 0 },
+            p1: { processed: 0, pending: 0, skipped: 0 },
+            e1: { processed: 0, pending: 0, skipped: 0 },
+            g2: { processed: 0, pending: 0, skipped: 0 },
+            ad: { processed: 0, skipped: 0 },
+            dr: { processed: 0, skipped: 0 },
+            p2: { processed: 0, skipped: 0 },
+            other: { processed: 0, skipped: 0 },
+            totalSkipped: 0
+          }
         });
       }
       
@@ -5554,12 +5575,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rawLinesPerMinute = timeDiffMinutes > 0 ? rawLineDiff / timeDiffMinutes : 0;
       const recordsPerMinute = timeDiffMinutes > 0 ? recordsDiff / timeDiffMinutes : 0;
       
+      // Calculate total skipped records for red display
+      const totalSkipped = (latest.dt_skipped || 0) + (latest.bh_skipped || 0) + (latest.p1_skipped || 0) + 
+                          (latest.e1_skipped || 0) + (latest.g2_skipped || 0) + (latest.ad_skipped || 0) + 
+                          (latest.dr_skipped || 0) + (latest.p2_skipped || 0) + (latest.other_skipped || 0);
+      
       res.json({
         tddfPerMinute: Math.max(0, Math.round(rawLinesPerMinute)), // TDDF lines per minute
         recordsPerMinute: Math.max(0, Math.round(recordsPerMinute)), // DT records per minute
         hasData: true,
         lastUpdate: latest.timestamp,
         timePeriod: `${timeDiffMinutes.toFixed(1)} minutes`,
+        colorBreakdown: {
+          dt: { 
+            processed: latest.dt_processed || 0, 
+            pending: latest.dt_pending || 0, 
+            skipped: latest.dt_skipped || 0,
+            color: '#3b82f6' // blue
+          },
+          bh: { 
+            processed: latest.bh_processed || 0, 
+            pending: latest.bh_pending || 0, 
+            skipped: latest.bh_skipped || 0,
+            color: '#10b981' // green
+          },
+          p1: { 
+            processed: latest.p1_processed || 0, 
+            pending: latest.p1_pending || 0, 
+            skipped: latest.p1_skipped || 0,
+            color: '#f59e0b' // orange
+          },
+          e1: { 
+            processed: latest.e1_processed || 0, 
+            pending: latest.e1_pending || 0, 
+            skipped: latest.e1_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          g2: { 
+            processed: latest.g2_processed || 0, 
+            pending: latest.g2_pending || 0, 
+            skipped: latest.g2_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          ad: { 
+            processed: latest.ad_processed || 0, 
+            skipped: latest.ad_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          dr: { 
+            processed: latest.dr_processed || 0, 
+            skipped: latest.dr_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          p2: { 
+            processed: latest.p2_processed || 0, 
+            skipped: latest.p2_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          other: { 
+            processed: latest.other_processed || 0, 
+            skipped: latest.other_skipped || 0,
+            color: '#6b7280' // gray
+          },
+          totalSkipped: totalSkipped,
+          skippedColor: '#ef4444' // red for all skipped records
+        },
         rawData: {
           latest: latest,
           previous: previous,
@@ -5587,15 +5667,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const metricsTableName = getTableName('processing_metrics');
       
-      // Get historical performance metrics for chart display
+      // Get historical performance metrics with detailed record type breakdown for chart display
       const result = await pool.query(`
         SELECT 
           timestamp,
           tddf_records,
           tddf_raw_lines,
           tddf_pending_lines,
-          LAG(tddf_records) OVER (ORDER BY timestamp) as prev_tddf_records,
-          LAG(tddf_raw_lines) OVER (ORDER BY timestamp) as prev_tddf_raw_lines,
+          dt_processed, dt_pending, dt_skipped,
+          bh_processed, bh_pending, bh_skipped,
+          p1_processed, p1_pending, p1_skipped,
+          e1_processed, e1_pending, e1_skipped,
+          g2_processed, g2_pending, g2_skipped,
+          ad_processed, ad_skipped,
+          dr_processed, dr_skipped,
+          p2_processed, p2_skipped,
+          other_processed, other_skipped,
+          LAG(dt_processed) OVER (ORDER BY timestamp) as prev_dt_processed,
+          LAG(bh_processed) OVER (ORDER BY timestamp) as prev_bh_processed,
+          LAG(p1_processed) OVER (ORDER BY timestamp) as prev_p1_processed,
+          LAG(e1_processed) OVER (ORDER BY timestamp) as prev_e1_processed,
+          LAG(g2_processed) OVER (ORDER BY timestamp) as prev_g2_processed,
+          LAG(ad_processed) OVER (ORDER BY timestamp) as prev_ad_processed,
+          LAG(dr_processed) OVER (ORDER BY timestamp) as prev_dr_processed,
+          LAG(p2_processed) OVER (ORDER BY timestamp) as prev_p2_processed,
+          LAG(other_processed) OVER (ORDER BY timestamp) as prev_other_processed,
+          LAG(dt_skipped + bh_skipped + p1_skipped + e1_skipped + g2_skipped + ad_skipped + dr_skipped + p2_skipped + other_skipped) OVER (ORDER BY timestamp) as prev_total_skipped,
           LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
         FROM ${metricsTableName} 
         WHERE metric_type = 'scanly_watcher_snapshot'
@@ -5611,27 +5708,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dtRecords: 0,
             bhRecords: 0,
             p1Records: 0,
+            e1Records: 0,
+            g2Records: 0,
+            adRecords: 0,
+            drRecords: 0,
+            p2Records: 0,
             otherRecords: 0,
-            rawLines: 0
+            skippedRecords: 0,
+            rawLines: 0,
+            colorMapping: {
+              dtRecords: '#3b82f6',    // blue
+              bhRecords: '#10b981',    // green
+              p1Records: '#f59e0b',    // orange
+              skippedRecords: '#ef4444', // red
+              otherRecords: '#6b7280'   // gray (E1, G2, AD, DR, P2, other)
+            }
           };
         }
         
         // Calculate rates based on difference from previous data point
         const timeDiffMinutes = (new Date(row.timestamp) - new Date(row.prev_timestamp)) / (1000 * 60);
-        const recordsDiff = (row.tddf_records || 0) - (row.prev_tddf_records || 0);
-        const rawLinesDiff = (row.tddf_raw_lines || 0) - (row.prev_tddf_raw_lines || 0);
         
-        // Calculate per-minute rates
-        const recordsPerMinute = timeDiffMinutes > 0 ? recordsDiff / timeDiffMinutes : 0;
-        const rawLinesPerMinute = timeDiffMinutes > 0 ? rawLinesDiff / timeDiffMinutes : 0;
+        // Calculate per-minute processing rates for each record type
+        const dtRate = timeDiffMinutes > 0 ? ((row.dt_processed || 0) - (row.prev_dt_processed || 0)) / timeDiffMinutes : 0;
+        const bhRate = timeDiffMinutes > 0 ? ((row.bh_processed || 0) - (row.prev_bh_processed || 0)) / timeDiffMinutes : 0;
+        const p1Rate = timeDiffMinutes > 0 ? ((row.p1_processed || 0) - (row.prev_p1_processed || 0)) / timeDiffMinutes : 0;
+        const e1Rate = timeDiffMinutes > 0 ? ((row.e1_processed || 0) - (row.prev_e1_processed || 0)) / timeDiffMinutes : 0;
+        const g2Rate = timeDiffMinutes > 0 ? ((row.g2_processed || 0) - (row.prev_g2_processed || 0)) / timeDiffMinutes : 0;
+        const adRate = timeDiffMinutes > 0 ? ((row.ad_processed || 0) - (row.prev_ad_processed || 0)) / timeDiffMinutes : 0;
+        const drRate = timeDiffMinutes > 0 ? ((row.dr_processed || 0) - (row.prev_dr_processed || 0)) / timeDiffMinutes : 0;
+        const p2Rate = timeDiffMinutes > 0 ? ((row.p2_processed || 0) - (row.prev_p2_processed || 0)) / timeDiffMinutes : 0;
+        const otherRate = timeDiffMinutes > 0 ? ((row.other_processed || 0) - (row.prev_other_processed || 0)) / timeDiffMinutes : 0;
+        
+        // Calculate total skipped records rate
+        const currentTotalSkipped = (row.dt_skipped || 0) + (row.bh_skipped || 0) + (row.p1_skipped || 0) + 
+                                   (row.e1_skipped || 0) + (row.g2_skipped || 0) + (row.ad_skipped || 0) + 
+                                   (row.dr_skipped || 0) + (row.p2_skipped || 0) + (row.other_skipped || 0);
+        const skippedRate = timeDiffMinutes > 0 ? (currentTotalSkipped - (row.prev_total_skipped || 0)) / timeDiffMinutes : 0;
+        
+        // Combine gray record types (E1, G2, AD, DR, P2, other)
+        const combinedOtherRate = e1Rate + g2Rate + adRate + drRate + p2Rate + otherRate;
         
         return {
           timestamp: row.timestamp,
-          dtRecords: Math.max(0, Math.round(recordsPerMinute)), // DT records processed per minute
-          bhRecords: 0, // Not available in current metrics, would need hierarchical breakdown
-          p1Records: 0, // Not available in current metrics
-          otherRecords: Math.max(0, Math.round(rawLinesPerMinute - recordsPerMinute)), // Estimate non-DT lines
-          rawLines: Math.max(0, Math.round(rawLinesPerMinute)) // Total raw lines per minute
+          dtRecords: Math.max(0, Math.round(dtRate)),
+          bhRecords: Math.max(0, Math.round(bhRate)),
+          p1Records: Math.max(0, Math.round(p1Rate)),
+          otherRecords: Math.max(0, Math.round(combinedOtherRate)), // Combined gray categories
+          skippedRecords: Math.max(0, Math.round(skippedRate)), // Red for all skipped
+          rawLines: Math.max(0, Math.round(dtRate + bhRate + p1Rate + combinedOtherRate + skippedRate)),
+          colorMapping: {
+            dtRecords: '#3b82f6',      // blue
+            bhRecords: '#10b981',      // green
+            p1Records: '#f59e0b',      // orange
+            skippedRecords: '#ef4444', // red
+            otherRecords: '#6b7280'    // gray
+          }
         };
       });
       
