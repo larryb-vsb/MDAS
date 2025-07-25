@@ -653,13 +653,13 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
-                  {(effectiveRealTimeStats || realTimeStats)?.processedFiles?.toLocaleString() || '0'}
+                  {realTimeStats?.processedFiles?.toLocaleString() || '0'}
                 </div>
                 <div className="text-muted-foreground">Processed</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-green-600">
-                  {(effectiveRealTimeStats || realTimeStats)?.filesWithErrors === 0 && ((effectiveRealTimeStats || realTimeStats)?.processedFiles || 0) > 0 ? '100.0' : '0.0'}%
+                  {realTimeStats?.filesWithErrors === 0 && (realTimeStats?.processedFiles || 0) > 0 ? '100.0' : '0.0'}%
                 </div>
                 <div className="text-muted-foreground">Resolution Rate</div>
               </div>
@@ -671,40 +671,31 @@ export default function ProcessingStatus() {
             </div>
             
             {/* TDDF Operations Section */}
-            {/* Debug - shows current values */}
-            <div className="text-xs text-red-500 mt-2 p-2 bg-red-50 border">
-              Debug: TDDF Data = {JSON.stringify({
-                hasOps: !!(effectiveRealTimeStats || realTimeStats)?.tddfOperations,
-                totalRecords: (effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0,
-                filesProcessed: (effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0,
-                shouldShow: !!(effectiveRealTimeStats || realTimeStats)?.tddfOperations && (((effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0) > 0 || ((effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0) > 0)
-              })}
-            </div>
-            {(effectiveRealTimeStats || realTimeStats)?.tddfOperations && (((effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0) > 0 || ((effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0) > 0) && (
+            {realTimeStats?.tddfOperations && ((realTimeStats.tddfOperations.totalTddfRecords || 0) > 0 || (realTimeStats.tddfFilesProcessed || 0) > 0) && (
               <div className="space-y-3">
                 <div className="text-sm font-medium text-muted-foreground border-t pt-3">TDDF File Operations</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-emerald-600">
-                      {(effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfFilesProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-muted-foreground">TDDF Files</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-cyan-600">
-                      {(effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.totalTddfRecords?.toLocaleString() || '0'}
                     </div>
                     <div className="text-muted-foreground">DT Records</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-slate-600">
-                      {(effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
                     </div>
                     <div className="text-muted-foreground">Raw Lines</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-amber-600">
-                      ${(safeRealTimeStats.tddfOperations?.totalTddfAmount ? safeRealTimeStats.tddfOperations.totalTddfAmount / 100 : 0)?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                      ${(realTimeStats?.tddfOperations?.totalTddfAmount ? realTimeStats.tddfOperations.totalTddfAmount / 100 : 0)?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                     </div>
                     <div className="text-muted-foreground">Total Value</div>
                   </div>
@@ -715,17 +706,11 @@ export default function ProcessingStatus() {
                   <div className="text-center p-2 bg-gray-50 rounded border">
                     <div className="font-semibold text-gray-700">
                       {(() => {
-                        // Calculate total processed: DT + BH + P1 + Other (ALL hierarchical records, not just DT)
-                        const dtProcessed = safeRealTimeStats.tddfOperations?.dtRecordsProcessed || 0;
-                        
-                        // BH, P1, Other records are processed into hierarchical tables
-                        const bhProcessed = safeRealTimeStats.tddfOperations?.bhRecordsProcessed || 0;
-                        const p1Processed = safeRealTimeStats.tddfOperations?.p1RecordsProcessed || 0;
-                        const otherProcessed = safeRealTimeStats.tddfOperations?.otherRecordsProcessed || 0;
-                        
+                        const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
+                        const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
+                        const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                        const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
-                        
-                        // Use raw status if available, otherwise calculate from hierarchical totals
                         return ((tddfRawStatus as any)?.processed || totalProcessed).toLocaleString();
                       })()}
                     </div>
@@ -733,28 +718,25 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center p-2 bg-blue-50 rounded border">
                     <div className="font-semibold text-blue-700">
-                      {safeRealTimeStats.tddfOperations?.dtRecordsProcessed?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.dtRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-blue-600">DT</div>
                   </div>
                   <div className="text-center p-2 bg-emerald-50 rounded border">
                     <div className="font-semibold text-emerald-700">
-                      {/* BH records are processed into hierarchical tables */}
-                      {safeRealTimeStats.tddfOperations?.bhRecordsProcessed?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.bhRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
                   <div className="text-center p-2 bg-amber-50 rounded border">
                     <div className="font-semibold text-amber-700">
-                      {/* P1 records are processed into hierarchical tables */}
-                      {safeRealTimeStats.tddfOperations?.p1RecordsProcessed?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.p1RecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
                   <div className="text-center p-2 bg-red-50 rounded border">
                     <div className="font-semibold text-red-700">
-                      {/* Other records are processed into hierarchical tables */}
-                      {safeRealTimeStats.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
+                      {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-red-600">Other</div>
                   </div>
