@@ -335,7 +335,7 @@ export default function ProcessingStatus() {
     ? cachedProcessingStatus.data.metrics 
     : concurrencyStats;
   
-  const effectiveTddfRawStatus = cachedProcessingStatus?.success 
+  const effectiveTddfRawStatus = (cachedProcessingStatus?.success && cachedProcessingStatus.data.tddfRawStatus)
     ? cachedProcessingStatus.data.tddfRawStatus 
     : tddfRawStatus;
 
@@ -837,6 +837,7 @@ export default function ProcessingStatus() {
                 {/* Debug display - remove after confirming fix */}
                 <div className="text-xs text-gray-500 mt-1">
                   Debug: TDDF pending = {effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0}
+                  {cachedProcessingStatus?.success ? '' : ' (using fallback)'}
                 </div>
                 {Object.entries((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).map(([serverId, fileCount]) => (
                   <div key={serverId} className="text-xs text-muted-foreground mt-1">
