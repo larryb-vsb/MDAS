@@ -860,7 +860,13 @@ export const processingMetrics = pgTable(getTableName("processing_metrics"), {
   // Raw line processing tracking
   rawLinesProcessed: integer("raw_lines_processed").default(0),
   rawLinesSkipped: integer("raw_lines_skipped").default(0),
-  rawLinesTotal: integer("raw_lines_total").default(0)
+  rawLinesTotal: integer("raw_lines_total").default(0),
+  // TDDF-specific fields for historical tracking
+  tddfFiles: integer("tddf_files").default(0),
+  tddfRecords: integer("tddf_records").default(0),
+  tddfRawLines: integer("tddf_raw_lines").default(0),
+  tddfTotalValue: numeric("tddf_total_value", { precision: 15, scale: 2 }).default('0'),
+  tddfPendingLines: integer("tddf_pending_lines").default(0)
 }, (table) => {
   return {
     // Create indexes for better query performance

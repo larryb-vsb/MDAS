@@ -4,7 +4,9 @@ import { eq, sql, and, gte, lte, desc, count } from "drizzle-orm";
 import { 
   uploadedFiles as uploadedFilesTable,
   systemLogs as systemLogsTable,
-  InsertSystemLog
+  processingMetrics as processingMetricsTable,
+  InsertSystemLog,
+  InsertProcessingMetrics
 } from "@shared/schema";
 
 interface ProcessingMetrics {
@@ -65,6 +67,7 @@ export class ScanlyWatcher {
   private orphanCleanupInterval: NodeJS.Timeout | null = null;
   private processingStatusCache: any = null;
   private lastProcessingStatusUpdate: Date | null = null;
+  private performanceRecordingInterval: NodeJS.Timeout | null = null;
 
   start(): void {
     if (this.isRunning) {
@@ -77,6 +80,9 @@ export class ScanlyWatcher {
     
     // Start TDDF backlog monitoring (every 30 seconds)
     this.startTddfBacklogMonitoring();
+    
+    // Start performance data recording (every 30 seconds)
+    this.startPerformanceRecording();
     
     // Start orphaned file cleanup (every 2 minutes)
     this.startOrphanedFileCleanup();
@@ -98,6 +104,10 @@ export class ScanlyWatcher {
     if (this.orphanCleanupInterval) {
       clearInterval(this.orphanCleanupInterval);
       this.orphanCleanupInterval = null;
+    }
+    if (this.performanceRecordingInterval) {
+      clearInterval(this.performanceRecordingInterval);
+      this.performanceRecordingInterval = null;
     }
     this.isRunning = false;
     this.tddfBacklogHistory = []; // Clear backlog history
@@ -123,6 +133,107 @@ export class ScanlyWatcher {
       await this.cleanupOrphanedFiles();
       await this.updateProcessingStatusCache();
     }, this.THRESHOLDS.BACKLOG_CHECK_INTERVAL);
+  }
+
+  private startPerformanceRecording(): void {
+    console.log('[SCANLY-WATCHER] Starting performance metrics recording (every 30 seconds)');
+    
+    // Record initial performance metrics
+    this.recordPerformanceMetrics();
+    
+    // Set up 30-second performance recording interval
+    this.performanceRecordingInterval = setInterval(async () => {
+      if (!this.isRunning) {
+        if (this.performanceRecordingInterval) {
+          clearInterval(this.performanceRecordingInterval);
+          this.performanceRecordingInterval = null;
+        }
+        return;
+      }
+      await this.recordPerformanceMetrics();
+    }, 30000); // 30 seconds
+  }
+
+  private async recordPerformanceMetrics(): Promise<void> {
+    try {
+      // Read current TDDF performance data from database tables
+      const metricsTableName = getTableName('processing_metrics');
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfRawImportTableName = getTableName('tddf_raw_import');
+
+      // Get current TDDF stats from database tables
+      const [
+        fileStats,
+        tddfStats,
+        rawStats
+      ] = await Promise.all([
+        // Count TDDF files
+        db.execute(sql`
+          SELECT 
+            COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND deleted = false THEN 1 END) as tddf_files,
+            COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND deleted = false THEN 1 END) as queued_files,
+            COUNT(CASE WHEN deleted = false THEN 1 END) as total_files
+          FROM ${sql.identifier(uploadedFilesTableName)}
+        `),
+        
+        // Count TDDF records and total value  
+        db.execute(sql`
+          SELECT 
+            COUNT(*) as dt_records,
+            COALESCE(SUM(transaction_amount), 0) as total_value
+          FROM ${sql.identifier(tddfRecordsTableName)}
+        `),
+        
+        // Count raw lines and processing status
+        db.execute(sql`
+          SELECT 
+            COUNT(*) as total_lines,
+            COUNT(CASE WHEN processing_status = 'processed' THEN 1 END) as processed_lines,
+            COUNT(CASE WHEN processing_status = 'pending' THEN 1 END) as pending_lines
+          FROM ${sql.identifier(tddfRawImportTableName)}
+        `)
+      ]);
+
+      const fileRow = fileStats.rows[0];
+      const tddfRow = tddfStats.rows[0];
+      const rawRow = rawStats.rows[0];
+
+      // Create performance metrics record with all required fields based on schema
+      const metricsData: InsertProcessingMetrics = {
+        timestamp: new Date(),
+        transactionsPerSecond: '0',
+        peakTransactionsPerSecond: '0', 
+        recordsPerMinute: '0',
+        peakRecordsPerMinute: '0',
+        totalFiles: Number(fileRow.total_files) || 0,
+        queuedFiles: Number(fileRow.queued_files) || 0,
+        processedFiles: Number(fileRow.tddf_files) || 0,
+        filesWithErrors: 0,
+        currentlyProcessing: 0,
+        averageProcessingTimeMs: null,
+        systemStatus: rawRow.pending_lines > 0 ? 'processing' : 'idle',
+        metricType: 'scanly_watcher_snapshot',
+        notes: `TDDF Snapshot: ${tddfRow.dt_records} DT records, ${rawRow.total_lines} raw lines`,
+        rawLinesProcessed: Number(rawRow.processed_lines) || 0,
+        rawLinesSkipped: Number(rawRow.total_lines) - Number(rawRow.processed_lines) - Number(rawRow.pending_lines) || 0,
+        rawLinesTotal: Number(rawRow.total_lines) || 0,
+        // TDDF-specific snapshot data
+        tddfFiles: Number(fileRow.tddf_files) || 0,
+        tddfRecords: Number(tddfRow.dt_records) || 0,
+        tddfRawLines: Number(rawRow.total_lines) || 0,
+        tddfTotalValue: String(tddfRow.total_value) || '0',
+        tddfPendingLines: Number(rawRow.pending_lines) || 0
+      };
+
+      // Insert metrics into database
+      await db.insert(processingMetricsTable).values(metricsData);
+
+      console.log(`[SCANLY-WATCHER] ✅ Performance metrics recorded: ${tddfRow.dt_records} DT records, ${rawRow.total_lines} raw lines, $${tddfRow.total_value} total value, ${rawRow.pending_lines} pending`);
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] ❌ Error recording performance metrics:', error);
+    }
   }
 
   private startOrphanedFileCleanup(): void {

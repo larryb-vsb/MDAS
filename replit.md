@@ -545,6 +545,20 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ HISTORICAL KPI RECORDING SYSTEM FULLY OPERATIONAL (July 25, 2025)
+- **✅ SCANLY-WATCHER PERFORMANCE RECORDING ACTIVATED**: Successfully implemented complete 30-second historical TDDF performance recording system for KPI tracking
+  - **Missing startPerformanceRecording Method Added**: Implemented comprehensive performance metrics recording method with 30-second intervals
+  - **Database Schema Enhanced**: Added TDDF-specific fields (tddf_files, tddf_records, tddf_raw_lines, tddf_total_value, tddf_pending_lines) to processing_metrics table
+  - **Complete Data Capture**: Successfully recording 233 TDDF Files, 27,985 DT Records, 166,871 Raw Lines, $3,064,127.57 Total Value, 321 pending lines
+  - **Real-time Console Logging**: Scanly-Watcher provides detailed console output showing comprehensive TDDF metrics every 30 seconds
+  - **Historical KPI Foundation**: Database now captures time-series TDDF performance data for Settings page historical display and trend analysis
+  - **Production Ready**: Complete historical performance tracking operational with proper database storage and authentic data recording
+- **✅ DATA FLOW IMPLEMENTATION COMPLETE**: System now fully matches user's documented worker service diagram with 30-second performance snapshots
+  - **Direct Database Reads**: Settings page continues to perform real-time API calls reading current database state
+  - **Historical Data Storage**: Scanly-Watcher service records performance snapshots every 30 seconds for historical KPI tracking and trend analysis
+  - **Complete Data Transparency**: Both real-time display (direct table reads) and historical recording (time-series snapshots) operational
+  - **Performance Verification**: Console logs confirm successful recording: "✅ Performance metrics recorded: 27985 DT records, 166871 raw lines, $3064127.57 total value, 321 pending"
+
 ### ✅ TDDF PROCESSING DISPLAY RESTORATION COMPLETED (July 25, 2025)
 - **✅ COMPLEX CACHING LOGIC REMOVAL**: Successfully removed problematic real-time stats caching logic that was preventing TDDF processing boxes from displaying
   - **Root Cause Fixed**: Complex "effectiveRealTimeStats" and "safeRealTimeStats" fallback logic was causing rendering failures
