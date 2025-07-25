@@ -17,27 +17,33 @@ interface DaySquareProps {
 const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true }) => {
   const count = activity?.dtCount || 0;
   
-  // Determine intensity level for background color
-  const getIntensityLevel = (count: number) => {
-    if (count === 0) return 0;
-    if (count <= 3) return 1;
-    if (count <= 6) return 2;
-    if (count <= 12) return 3;
-    return 4;
-  };
-
-  const intensityLevel = getIntensityLevel(count);
-  
-  // Color mapping based on activity levels
-  const getBackgroundColor = (level: number) => {
-    switch (level) {
-      case 0: return 'bg-gray-100 hover:bg-gray-200';
-      case 1: return 'bg-green-100 hover:bg-green-200';
-      case 2: return 'bg-green-300 hover:bg-green-400';
-      case 3: return 'bg-green-500 hover:bg-green-600';
-      case 4: return 'bg-green-700 hover:bg-green-800';
-      default: return 'bg-gray-100 hover:bg-gray-200';
+  // Enhanced gradient mapping: 0-1000 Green, 1000-2000 Blue, 2000-3000 Purple
+  const getBackgroundColor = (count: number) => {
+    if (count === 0) {
+      return 'bg-gray-100 hover:bg-gray-200';
     }
+    
+    // Green gradient: 0-1000 transactions
+    if (count <= 1000) {
+      if (count <= 250) return 'bg-green-100 hover:bg-green-200';
+      if (count <= 500) return 'bg-green-300 hover:bg-green-400';
+      if (count <= 750) return 'bg-green-500 hover:bg-green-600';
+      return 'bg-green-700 hover:bg-green-800';
+    }
+    
+    // Blue gradient: 1000-2000 transactions
+    if (count <= 2000) {
+      if (count <= 1250) return 'bg-blue-300 hover:bg-blue-400';
+      if (count <= 1500) return 'bg-blue-500 hover:bg-blue-600';
+      if (count <= 1750) return 'bg-blue-700 hover:bg-blue-800';
+      return 'bg-blue-900 hover:bg-blue-950';
+    }
+    
+    // Purple gradient: 2000-3000+ transactions
+    if (count <= 2250) return 'bg-purple-400 hover:bg-purple-500';
+    if (count <= 2500) return 'bg-purple-600 hover:bg-purple-700';
+    if (count <= 2750) return 'bg-purple-800 hover:bg-purple-900';
+    return 'bg-purple-950 hover:bg-purple-950';
   };
 
   const formatDate = (date: Date) => {
@@ -51,7 +57,7 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
   return (
     <div
-      className={`w-3 h-3 rounded-sm cursor-help relative group transition-colors ${getBackgroundColor(intensityLevel)} ${!isCurrentMonth ? 'opacity-30' : ''}`}
+      className={`w-3 h-3 rounded-sm cursor-help relative group transition-colors ${getBackgroundColor(count)} ${!isCurrentMonth ? 'opacity-30' : ''}`}
       title={`${formatDate(date)}: ${count} transactions`}
     >
       {/* Tooltip */}
@@ -252,11 +258,13 @@ const TddfActivityHeatMap: React.FC = () => {
         <div className="flex items-center gap-2">
           <span>Less</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-700 rounded-sm"></div>
+            <div className="w-3 h-3 bg-gray-100 rounded-sm" title="0 transactions"></div>
+            <div className="w-3 h-3 bg-green-300 rounded-sm" title="1-1000 transactions"></div>
+            <div className="w-3 h-3 bg-green-700 rounded-sm" title="High Green (750-1000)"></div>
+            <div className="w-3 h-3 bg-blue-500 rounded-sm" title="1000-2000 transactions"></div>
+            <div className="w-3 h-3 bg-blue-900 rounded-sm" title="High Blue (1750-2000)"></div>
+            <div className="w-3 h-3 bg-purple-600 rounded-sm" title="2000-3000 transactions"></div>
+            <div className="w-3 h-3 bg-purple-950 rounded-sm" title="3000+ transactions"></div>
           </div>
           <span>More</span>
         </div>
