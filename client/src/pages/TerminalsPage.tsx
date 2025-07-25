@@ -40,7 +40,10 @@ export default function TerminalsPage() {
 
   // Filter, sort and paginate terminals
   const { paginatedTerminals, pagination } = useMemo(() => {
-    let filteredTerminals = terminals.filter((terminal) => {
+    // Ensure terminals is always an array to prevent map errors
+    const validTerminals = Array.isArray(terminals) ? terminals : [];
+    
+    let filteredTerminals = validTerminals.filter((terminal) => {
       const matchesSearch = 
         terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -156,6 +159,11 @@ export default function TerminalsPage() {
   };
 
   const { toast } = useToast();
+  
+  // Handle authentication error display
+  if (error) {
+    console.error('Terminals API Error:', error);
+  }
 
   // Delete selected terminals mutation
   const deleteMutation = useMutation({
