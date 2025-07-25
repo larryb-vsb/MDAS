@@ -11,7 +11,7 @@ import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, Re
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
-// import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
+import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
 // import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
 
 export default function TerminalViewPage() {
@@ -387,9 +387,10 @@ export default function TerminalViewPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-32 bg-muted rounded-lg flex items-center justify-center">
-                  <p className="text-muted-foreground">Activity heat map visualization (coming soon)</p>
-                </div>
+                <TerminalActivityHeatMap 
+                  transactions={tddfTransactions || []} 
+                  timeRange={timeRange} 
+                />
               </CardContent>
             </Card>
           </TabsContent>

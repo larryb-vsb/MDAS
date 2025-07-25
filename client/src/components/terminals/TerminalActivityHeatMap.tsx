@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Transaction } from "@shared/schema";
 
 interface TerminalActivityHeatMapProps {
-  transactions: Transaction[];
+  transactions: any[]; // TDDF transactions with transactionDate field
   timeRange: string;
 }
 
@@ -33,9 +33,9 @@ export default function TerminalActivityHeatMap({
       default: // "all"
         if (transactions.length > 0) {
           const earliestTransaction = transactions.reduce((earliest, t) => 
-            new Date(t.date) < new Date(earliest.date) ? t : earliest
+            new Date(t.transactionDate || t.date) < new Date(earliest.transactionDate || earliest.date) ? t : earliest
           );
-          startDate = new Date(earliestTransaction.date);
+          startDate = new Date(earliestTransaction.transactionDate || earliestTransaction.date);
           startDate.setDate(startDate.getDate() - 7); // Add some padding
         } else {
           startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
@@ -44,7 +44,7 @@ export default function TerminalActivityHeatMap({
 
     // Group transactions by date
     const transactionsByDate = transactions.reduce((acc, transaction) => {
-      const transactionDate = new Date(transaction.date);
+      const transactionDate = new Date(transaction.transactionDate || transaction.date);
       if (transactionDate >= startDate && transactionDate <= now) {
         const dateKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
         acc[dateKey] = (acc[dateKey] || 0) + 1;
@@ -194,7 +194,7 @@ export default function TerminalActivityHeatMap({
       <div className="text-sm text-muted-foreground space-y-1">
         <div>
           <strong>{transactions.filter(t => {
-            const transactionDate = new Date(t.date);
+            const transactionDate = new Date(t.transactionDate || t.date);
             const startOfRange = heatMapData.weeks[0]?.[0]?.dateObj || new Date();
             return transactionDate >= startOfRange;
           }).length}</strong> transactions in the selected period
