@@ -69,6 +69,11 @@ const TddfActivityHeatMap: React.FC = () => {
 
   const { data: activityData, isLoading, error } = useQuery<ActivityData[]>({
     queryKey: ['/api/tddf/activity-heatmap', currentYear],
+    queryFn: async () => {
+      const response = await fetch(`/api/tddf/activity-heatmap?year=${currentYear}`);
+      if (!response.ok) throw new Error('Failed to fetch activity data');
+      return response.json();
+    },
     enabled: true,
   });
 
