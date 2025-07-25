@@ -139,11 +139,24 @@ export function formatTableDate(utcTimestamp: string | null): string {
 
 /**
  * Formats date for TDDF records (date only, no time since TDDF contains only date data)
- * @param utcTimestamp - UTC timestamp from database
- * @returns Date-only format in user's timezone
+ * @param dateString - Date string from database (format: "2023-02-03")
+ * @returns Date-only format without timezone conversion
  */
-export function formatTddfDate(utcTimestamp: string | null): string {
-  return formatLocalTime(utcTimestamp, "MMM d, yyyy", "-");
+export function formatTddfDate(dateString: string | null): string {
+  if (!dateString) return "N/A";
+  
+  try {
+    // TDDF dates are stored as date-only strings (e.g., "2023-02-03")
+    // Parse without timezone conversion since they're date-only
+    const date = new Date(dateString + 'T00:00:00');
+    
+    if (!isValid(date)) return "N/A";
+    
+    return format(date, "MMM d, yyyy");
+  } catch (error) {
+    console.warn('Invalid TDDF date provided:', dateString);
+    return "N/A";
+  }
 }
 
 /**

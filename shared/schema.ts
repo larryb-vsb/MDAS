@@ -18,7 +18,7 @@
  * - 2.2.0: MINOR FEATURE - Universal raw data processing with raw_lines_count and processing_notes fields for comprehensive file diagnostics
  * - 2.3.0: MINOR FEATURE - Hidden millisecond sort values implementation for performance-optimized precise sorting with preserved user-friendly display
  */
-import { pgTable, text, serial, integer, numeric, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -286,7 +286,7 @@ export const tddfTransactionRecords = pgTable(getTableName("tddf_transaction_rec
   
   // Core transaction fields (positions 62-142)
   referenceNumber: text("reference_number"), // Positions 62-84: Reference number (23 chars)
-  transactionDate: timestamp("transaction_date"), // Positions 85-92: MMDDCCYY format
+  transactionDate: date("transaction_date"), // Positions 85-92: MMDDCCYY format (stored as date)
   transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103: Transaction amount
   batchJulianDate: text("batch_julian_date"), // Positions 104-108: DDDYY format
   netDeposit: numeric("net_deposit", { precision: 17, scale: 2 }), // Positions 109-123: Net deposit amount
@@ -436,7 +436,7 @@ export const tddfRecords = pgTable(getTableName("tddf_records"), {
   
   // Core transaction fields (positions 62-142)
   referenceNumber: text("reference_number"), // Positions 62-84: Reference number (23 chars)
-  transactionDate: timestamp("transaction_date"), // Positions 85-92: MMDDCCYY format
+  transactionDate: date("transaction_date"), // Positions 85-92: MMDDCCYY format (stored as date)
   transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103: Transaction amount
   batchJulianDate: text("batch_julian_date"), // Positions 104-108: DDDYY format
   netDeposit: numeric("net_deposit", { precision: 17, scale: 2 }), // Positions 109-123: Deposited amount
