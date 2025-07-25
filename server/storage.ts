@@ -6867,19 +6867,47 @@ export class DatabaseStorage implements IStorage {
           // Parse P1 record from TDDF fixed-width format
           const line = rawRecord.raw_line;
           
-          // Parse P1 purchasing extension fields from TDDF specification
+          // Parse P1 purchasing extension fields from TDDF specification (positions 1-700)
           const p1Record = {
-            p1_record_number: `P1_${rawRecord.source_file_id}_${rawRecord.line_number}`,
-            record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19
-            parent_dt_reference: line.substring(61, 84).trim() || null, // Reference to parent DT record (positions 62-84)
-            tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null, // Tax amount field
-            discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null, // Discount amount
-            freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null, // Freight amount
-            duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null, // Duty amount
-            purchase_identifier: line.substring(198, 225).trim() || null, // Purchase ID
+            // Core TDDF header fields (positions 1-19)
+            sequence_number: line.substring(0, 7).trim() || null, // Positions 1-7
+            entry_run_number: line.substring(7, 13).trim() || null, // Positions 8-13  
+            sequence_within_run: line.substring(13, 17).trim() || null, // Positions 14-17
+            record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19: "P1"
+            
+            // P1 specific fields based on detailed TDDF specification
+            tax_amount: this.parseAmount(line.substring(19, 31).trim()) || null, // Positions 20-31: Tax amount (12 chars N)
+            tax_rate: this.parseAmount(line.substring(31, 38).trim()) || null, // Positions 32-38: Tax rate (7 chars N)
+            tax_type: line.substring(38, 39).trim() || null, // Position 39: Tax type indicator
+            
+            // Purchasing Card Level 2 Data
+            purchase_identifier: line.substring(39, 64).trim() || null, // Positions 40-64: Purchase identifier (25 chars AN)
+            customer_code: line.substring(64, 89).trim() || null, // Positions 65-89: Customer code (25 chars AN)
+            sales_tax: this.parseAmount(line.substring(89, 101).trim()) || null, // Positions 90-101: Sales tax amount (12 chars N)
+            freight_amount: this.parseAmount(line.substring(113, 125).trim()) || null, // Positions 114-125: Freight amount (12 chars N)
+            destination_zip: line.substring(125, 135).trim() || null, // Positions 126-135: Destination ZIP (10 chars N)
+            merchant_type: line.substring(135, 139).trim() || null, // Positions 136-139: Merchant type (4 chars AN)
+            duty_amount: this.parseAmount(line.substring(139, 151).trim()) || null, // Positions 140-151: Duty amount (12 chars N)
+            merchant_tax_id: line.substring(151, 161).trim() || null, // Positions 152-161: Merchant tax ID (10 chars AN)
+            ship_from_zip_code: line.substring(161, 171).trim() || null, // Positions 162-171: Ship from ZIP (10 chars N)
+            national_tax_included: line.substring(171, 172).trim() || null, // Position 172: National tax included (1 char N)
+            national_tax_amount: this.parseAmount(line.substring(172, 184).trim()) || null, // Positions 173-184: National/ALT tax amount (12 chars N)
+            other_tax: this.parseAmount(line.substring(184, 196).trim()) || null, // Positions 185-196: Other tax (12 chars N)
+            destination_country_code: line.substring(196, 199).trim() || null, // Positions 197-199: Destination country code (3 chars AN)
+            merchant_reference_number: line.substring(199, 216).trim() || null, // Positions 200-216: Merchant reference number (17 chars N)
+            discount_amount: this.parseAmount(line.substring(216, 228).trim()) || null, // Positions 217-228: Discount amount (12 chars N)
+            merchant_vat_registration: line.substring(228, 248).trim() || null, // Positions 229-248: Merchant VAT registration (20 chars AN)
+            customer_vat_registration: line.substring(248, 261).trim() || null, // Positions 249-261: Customer VAT registration (13 chars AN)
+            summary_commodity_code: line.substring(261, 265).trim() || null, // Positions 262-265: Summary commodity code (4 chars N)
+            vat_invoice_reference_number: line.substring(265, 280).trim() || null, // Positions 266-280: VAT invoice reference number (15 chars N)
+            order_date: line.substring(280, 286).trim() || null, // Positions 281-286: Order date (6 chars N) MMDDYY
+            detail_record_to_follow: line.substring(286, 287).trim() || null, // Position 287: Detail record to follow (1 char AN)
+            
+            // System fields
             source_file_id: rawRecord.source_file_id,
             source_row_number: rawRecord.line_number,
-            raw_data: { rawLine: line },
+            raw_data: JSON.stringify({ rawLine: line }),
+            mms_raw_line: line,
             recorded_at: new Date()
           };
           
@@ -6888,37 +6916,77 @@ export class DatabaseStorage implements IStorage {
             throw new Error(`Invalid record type: ${p1Record.record_identifier}, expected 'P1'`);
           }
           
-          // Insert P1 record into hierarchical table within transaction with duplicate handling
+          // Insert P1 record into hierarchical table within transaction with proper field mapping
           const insertResult = await client.query(`
             INSERT INTO "${purchasingExtensionsTableName}" (
-              p1_record_number,
+              sequence_number,
+              entry_run_number,
+              sequence_within_run,
               record_identifier,
-              parent_dt_reference,
               tax_amount,
-              discount_amount,
-              freight_amount,
-              duty_amount,
+              tax_rate,
+              tax_type,
               purchase_identifier,
+              customer_code,
+              sales_tax,
+              freight_amount,
+              destination_zip,
+              merchant_type,
+              duty_amount,
+              merchant_tax_id,
+              ship_from_zip_code,
+              national_tax_included,
+              national_tax_amount,
+              other_tax,
+              destination_country_code,
+              merchant_reference_number,
+              discount_amount,
+              merchant_vat_registration,
+              customer_vat_registration,
+              summary_commodity_code,
+              vat_invoice_reference_number,
+              order_date,
+              detail_record_to_follow,
               source_file_id,
               source_row_number,
               raw_data,
+              mms_raw_line,
               recorded_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            ON CONFLICT (p1_record_number) DO UPDATE SET
-              recorded_at = EXCLUDED.recorded_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
             RETURNING id
           `, [
-            p1Record.p1_record_number,
+            p1Record.sequence_number,
+            p1Record.entry_run_number,
+            p1Record.sequence_within_run,
             p1Record.record_identifier,
-            p1Record.parent_dt_reference,
             p1Record.tax_amount,
-            p1Record.discount_amount,
-            p1Record.freight_amount,
-            p1Record.duty_amount,
+            p1Record.tax_rate,
+            p1Record.tax_type,
             p1Record.purchase_identifier,
+            p1Record.customer_code,
+            p1Record.sales_tax,
+            p1Record.freight_amount,
+            p1Record.destination_zip,
+            p1Record.merchant_type,
+            p1Record.duty_amount,
+            p1Record.merchant_tax_id,
+            p1Record.ship_from_zip_code,
+            p1Record.national_tax_included,
+            p1Record.national_tax_amount,
+            p1Record.other_tax,
+            p1Record.destination_country_code,
+            p1Record.merchant_reference_number,
+            p1Record.discount_amount,
+            p1Record.merchant_vat_registration,
+            p1Record.customer_vat_registration,
+            p1Record.summary_commodity_code,
+            p1Record.vat_invoice_reference_number,
+            p1Record.order_date,
+            p1Record.detail_record_to_follow,
             p1Record.source_file_id,
             p1Record.source_row_number,
             p1Record.raw_data,
+            p1Record.mms_raw_line,
             p1Record.recorded_at
           ]);
           
@@ -6937,7 +7005,7 @@ export class DatabaseStorage implements IStorage {
           await client.query('COMMIT');
           processed++;
           
-          console.log(`✅ P1 Record ${p1Record.p1_record_number} processed successfully (ID: ${p1Id})`);
+          console.log(`✅ P1 Record ${p1Record.record_identifier} (seq: ${p1Record.sequence_number}) processed successfully (ID: ${p1Id})`);
           
         } catch (recordError: any) {
           await client.query('ROLLBACK');
@@ -6972,6 +7040,151 @@ export class DatabaseStorage implements IStorage {
     }
     
     return { processed, skipped, errors };
+  }
+
+  // Helper method to process a single P1 record with client
+  private async processP1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const purchasingExtensionsTableName = getTableName('tddf_purchasing_extensions');
+    
+    // Parse P1 record from TDDF fixed-width format
+    const line = rawRecord.raw_line;
+    
+    // Parse P1 purchasing extension fields from TDDF specification (positions 1-700)
+    const p1Record = {
+      // Core TDDF header fields (positions 1-19)
+      sequence_number: line.substring(0, 7).trim() || null, // Positions 1-7
+      entry_run_number: line.substring(7, 13).trim() || null, // Positions 8-13  
+      sequence_within_run: line.substring(13, 17).trim() || null, // Positions 14-17
+      record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19: "P1"
+      
+      // P1 specific fields based on detailed TDDF specification
+      tax_amount: this.parseAmount(line.substring(19, 31).trim()) || null, // Positions 20-31: Tax amount (12 chars N)
+      tax_rate: this.parseAmount(line.substring(31, 38).trim()) || null, // Positions 32-38: Tax rate (7 chars N)
+      tax_type: line.substring(38, 39).trim() || null, // Position 39: Tax type indicator
+      
+      // Purchasing Card Level 2 Data
+      purchase_identifier: line.substring(39, 64).trim() || null, // Positions 40-64: Purchase identifier (25 chars AN)
+      customer_code: line.substring(64, 89).trim() || null, // Positions 65-89: Customer code (25 chars AN)
+      sales_tax: this.parseAmount(line.substring(89, 101).trim()) || null, // Positions 90-101: Sales tax amount (12 chars N)
+      freight_amount: this.parseAmount(line.substring(113, 125).trim()) || null, // Positions 114-125: Freight amount (12 chars N)
+      destination_zip: line.substring(125, 135).trim() || null, // Positions 126-135: Destination ZIP (10 chars N)
+      merchant_type: line.substring(135, 139).trim() || null, // Positions 136-139: Merchant type (4 chars AN)
+      duty_amount: this.parseAmount(line.substring(139, 151).trim()) || null, // Positions 140-151: Duty amount (12 chars N)
+      merchant_tax_id: line.substring(151, 161).trim() || null, // Positions 152-161: Merchant tax ID (10 chars AN)
+      ship_from_zip_code: line.substring(161, 171).trim() || null, // Positions 162-171: Ship from ZIP (10 chars N)
+      national_tax_included: line.substring(171, 172).trim() || null, // Position 172: National tax included (1 char N)
+      national_tax_amount: this.parseAmount(line.substring(172, 184).trim()) || null, // Positions 173-184: National/ALT tax amount (12 chars N)
+      other_tax: this.parseAmount(line.substring(184, 196).trim()) || null, // Positions 185-196: Other tax (12 chars N)
+      destination_country_code: line.substring(196, 199).trim() || null, // Positions 197-199: Destination country code (3 chars AN)
+      merchant_reference_number: line.substring(199, 216).trim() || null, // Positions 200-216: Merchant reference number (17 chars N)
+      discount_amount: this.parseAmount(line.substring(216, 228).trim()) || null, // Positions 217-228: Discount amount (12 chars N)
+      merchant_vat_registration: line.substring(228, 248).trim() || null, // Positions 229-248: Merchant VAT registration (20 chars AN)
+      customer_vat_registration: line.substring(248, 261).trim() || null, // Positions 249-261: Customer VAT registration (13 chars AN)
+      summary_commodity_code: line.substring(261, 265).trim() || null, // Positions 262-265: Summary commodity code (4 chars N)
+      vat_invoice_reference_number: line.substring(265, 280).trim() || null, // Positions 266-280: VAT invoice reference number (15 chars N)
+      order_date: line.substring(280, 286).trim() || null, // Positions 281-286: Order date (6 chars N) MMDDYY
+      detail_record_to_follow: line.substring(286, 287).trim() || null, // Position 287: Detail record to follow (1 char AN)
+      
+      // System fields
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line }),
+      mms_raw_line: line,
+      recorded_at: new Date()
+    };
+    
+    // Validate record identifier
+    if (p1Record.record_identifier !== 'P1') {
+      throw new Error(`Invalid record type: ${p1Record.record_identifier}, expected 'P1'`);
+    }
+    
+    // Insert P1 record into hierarchical table within transaction with proper field mapping
+    const insertResult = await client.query(`
+      INSERT INTO "${purchasingExtensionsTableName}" (
+        sequence_number,
+        entry_run_number,
+        sequence_within_run,
+        record_identifier,
+        tax_amount,
+        tax_rate,
+        tax_type,
+        purchase_identifier,
+        customer_code,
+        sales_tax,
+        freight_amount,
+        destination_zip,
+        merchant_type,
+        duty_amount,
+        merchant_tax_id,
+        ship_from_zip_code,
+        national_tax_included,
+        national_tax_amount,
+        other_tax,
+        destination_country_code,
+        merchant_reference_number,
+        discount_amount,
+        merchant_vat_registration,
+        customer_vat_registration,
+        summary_commodity_code,
+        vat_invoice_reference_number,
+        order_date,
+        detail_record_to_follow,
+        source_file_id,
+        source_row_number,
+        raw_data,
+        mms_raw_line,
+        recorded_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+      RETURNING id
+    `, [
+      p1Record.sequence_number,
+      p1Record.entry_run_number,
+      p1Record.sequence_within_run,
+      p1Record.record_identifier,
+      p1Record.tax_amount,
+      p1Record.tax_rate,
+      p1Record.tax_type,
+      p1Record.purchase_identifier,
+      p1Record.customer_code,
+      p1Record.sales_tax,
+      p1Record.freight_amount,
+      p1Record.destination_zip,
+      p1Record.merchant_type,
+      p1Record.duty_amount,
+      p1Record.merchant_tax_id,
+      p1Record.ship_from_zip_code,
+      p1Record.national_tax_included,
+      p1Record.national_tax_amount,
+      p1Record.other_tax,
+      p1Record.destination_country_code,
+      p1Record.merchant_reference_number,
+      p1Record.discount_amount,
+      p1Record.merchant_vat_registration,
+      p1Record.customer_vat_registration,
+      p1Record.summary_commodity_code,
+      p1Record.vat_invoice_reference_number,
+      p1Record.order_date,
+      p1Record.detail_record_to_follow,
+      p1Record.source_file_id,
+      p1Record.source_row_number,
+      p1Record.raw_data,
+      p1Record.mms_raw_line,
+      p1Record.recorded_at
+    ]);
+    
+    const p1Id = insertResult.rows[0].id;
+    
+    // Update raw import line status within same transaction
+    await client.query(`
+      UPDATE "${tableName}"
+      SET processing_status = 'processed',
+          processed_into_table = '${purchasingExtensionsTableName}',
+          processed_record_id = $1,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [p1Id.toString(), rawRecord.id]);
+    
+    console.log(`✅ P1 Record ${p1Record.record_identifier} (seq: ${p1Record.sequence_number}) processed successfully (ID: ${p1Id})`);
   }
 
   // Helper method to process a single BH line from raw data
@@ -7055,7 +7268,6 @@ export class DatabaseStorage implements IStorage {
         SELECT DISTINCT ON (source_file_id, line_number) *
         FROM "${tableName}" 
         WHERE processing_status = 'pending' 
-          AND record_type != 'P1'
           AND NOT EXISTS (
             SELECT 1 FROM "${tableName}" t2 
             WHERE t2.source_file_id = "${tableName}".source_file_id 
@@ -7122,17 +7334,9 @@ export class DatabaseStorage implements IStorage {
               break;
               
             case 'P1':
-              // OPTIMIZATION 3: Skip P1 records immediately to prevent constraint errors
-              await client.query(`
-                UPDATE "${tableName}" 
-                SET processing_status = 'skipped',
-                    skip_reason = 'p1_processing_optimization_skip',
-                    processed_at = CURRENT_TIMESTAMP
-                WHERE id = $1
-              `, [rawRecord.id]);
-              breakdown[recordType].skipped++;
-              totalSkipped++;
-              console.log(`[SWITCH-P1] Skipped P1 record to prevent constraint errors`);
+              await this.processP1RecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
               break;
               
             case 'P2':

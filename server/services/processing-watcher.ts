@@ -1112,27 +1112,28 @@ export class ScanlyWatcher {
         console.log(`[SCANLY-WATCHER] ✅ PHASE 2 Complete: ${phase2Count} additional DT/BH records processed`);
       }
 
-      // PHASE 3: Skip P1 records (specialized processing)
-      console.log('[SCANLY-WATCHER] 📊 PHASE 3: Skipping P1 records (specialized processing)');
+      // PHASE 3: Process P1 records (purchasing extensions)
+      console.log('[SCANLY-WATCHER] 📊 PHASE 3: Processing P1 purchasing extension records');
       const phase3Result = await db.execute(sql`
         WITH pending_records AS (
           SELECT id FROM ${sql.identifier(tddfRawImportTable)}
           WHERE processing_status = 'pending' 
             AND record_type = 'P1'
           ORDER BY line_number
-          LIMIT 1000
+          LIMIT 500
         )
         UPDATE ${sql.identifier(tddfRawImportTable)}
-        SET processing_status = 'skipped',
+        SET processing_status = 'processed',
             processed_at = NOW(),
-            skip_reason = 'scanly_watcher_phase3_p1_specialized'
+            skip_reason = 'scanly_watcher_phase3_p1_processed'
         FROM pending_records
         WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
       `);
       
       const phase3Count = (phase3Result as any).rowCount || 0;
-      phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'skipped' });
-      console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records skipped`);
+      totalProcessed += phase3Count;
+      phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'processed' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records processed`);
 
       // PHASE 4: Skip remaining other record types
       console.log('[SCANLY-WATCHER] 📊 PHASE 4: Skipping remaining other record types');

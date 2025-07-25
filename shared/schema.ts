@@ -364,37 +364,58 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   // Link to parent transaction
   transactionRecordId: integer("transaction_record_id").references(() => tddfTransactionRecords.id),
   
-  // Core TDDF header fields (positions 1-23) - shared with all record types
+  // Core TDDF header fields (positions 1-19) - shared with all record types
   sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
   entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
   sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
   recordIdentifier: text("record_identifier"), // Positions 18-19: "P1" or "P2"
-  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
   
-  // Purchasing card specific fields
-  vatTaxAmount: numeric("vat_tax_amount", { precision: 15, scale: 2 }), // VAT tax amount
-  productIdentifier: text("product_identifier"), // Product identifier
-  productDescription: text("product_description"), // Product description
-  unitCost: numeric("unit_cost", { precision: 15, scale: 2 }), // Unit cost
-  quantity: numeric("quantity", { precision: 12, scale: 3 }), // Quantity
-  unitOfMeasure: text("unit_of_measure"), // Unit of measure
-  extendedItemAmount: numeric("extended_item_amount", { precision: 15, scale: 2 }), // Extended item amount
-  discountAmount: numeric("discount_amount", { precision: 15, scale: 2 }), // Discount amount
-  freightAmount: numeric("freight_amount", { precision: 15, scale: 2 }), // Freight amount
-  dutyAmount: numeric("duty_amount", { precision: 15, scale: 2 }), // Duty amount
-  destinationPostalCode: text("destination_postal_code"), // Destination postal code
-  shipFromPostalCode: text("ship_from_postal_code"), // Ship from postal code
-  destinationCountryCode: text("destination_country_code"), // Destination country code
+  // Standard P1 fields based on TDDF specification (positions 20-700)
+  parentDtReference: text("parent_dt_reference"), // Reference to parent DT record
+  
+  // Purchasing Card Level 1 Data (positions 20-39) 
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }), // Positions 20-31: Tax amount
+  taxRate: numeric("tax_rate", { precision: 7, scale: 4 }), // Positions 32-38: Tax rate
+  taxType: text("tax_type"), // Position 39: Tax type indicator
+  
+  // Purchasing Card Level 2 Data (positions 40-113)
+  purchaseIdentifier: text("purchase_identifier"), // Positions 40-64: Purchase identifier
+  customerCode: text("customer_code"), // Positions 65-89: Customer code  
+  salesTax: numeric("sales_tax", { precision: 12, scale: 2 }), // Positions 90-101: Sales tax amount
+  freightAmount: numeric("freight_amount", { precision: 12, scale: 2 }), // Positions 114-125: Freight amount
+  destinationZip: text("destination_zip"), // Positions 126-135: Destination ZIP
+  merchantType: text("merchant_type"), // Positions 136-139: Merchant type
+  dutyAmount: numeric("duty_amount", { precision: 12, scale: 2 }), // Positions 140-151: Duty amount
+  merchantTaxId: text("merchant_tax_id"), // Positions 152-161: Merchant tax ID
+  shipFromZipCode: text("ship_from_zip_code"), // Positions 162-171: Ship from ZIP
+  nationalTaxIncluded: text("national_tax_included"), // Position 172: National tax included
+  nationalTaxAmount: numeric("national_tax_amount", { precision: 12, scale: 2 }), // Positions 173-184: National/ALT tax amount
+  otherTax: numeric("other_tax", { precision: 12, scale: 2 }), // Positions 185-196: Other tax
+  destinationCountryCode: text("destination_country_code"), // Positions 197-199: Destination country code
+  merchantReferenceNumber: text("merchant_reference_number"), // Positions 200-216: Merchant reference number
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }), // Positions 217-228: Discount amount
+  merchantVatRegistration: text("merchant_vat_registration"), // Positions 229-248: Merchant VAT registration
+  customerVatRegistration: text("customer_vat_registration"), // Positions 249-261: Customer VAT registration
+  summaryCommodityCode: text("summary_commodity_code"), // Positions 262-265: Summary commodity code
+  vatInvoiceReferenceNumber: text("vat_invoice_reference_number"), // Positions 266-280: VAT invoice reference number
+  orderDate: text("order_date"), // Positions 281-286: Order date (MMDDYY)
+  detailRecordToFollow: text("detail_record_to_follow"), // Position 287: Detail record to follow
+  
+  // Reserved for future use (positions 288-700)
+  reservedFutureUse: text("reserved_future_use"), // Positions 288-700: Reserved for future use
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
   sourceRowNumber: integer("source_row_number"),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
   rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  mmsRawLine: text("mms_raw_line"), // Custom MMS-RAW-Line field to store original line before processing
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
-  transactionRecordIndex: index("tddf_pe_transaction_record_idx").on(table.transactionRecordId)
+  transactionRecordIndex: index("tddf_pe_transaction_record_idx").on(table.transactionRecordId),
+  parentDtReferenceIndex: index("tddf_pe_parent_dt_ref_idx").on(table.parentDtReference),
+  recordIdentifierIndex: index("tddf_pe_record_identifier_idx").on(table.recordIdentifier)
 }));
 
 // TDDF Other Records (AD, DR, G2, CT, LG, FT, F2, CK, HD, TR) - Catch-all table for other record types
