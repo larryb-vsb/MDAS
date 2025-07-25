@@ -5059,6 +5059,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get orphan terminals (Terminal IDs that exist in TDDF but not in terminals table)
+  app.get("/api/tddf/orphan-terminals", isAuthenticated, async (req, res) => {
+    try {
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const terminalsTableName = getTableName('terminals');
+      
+      console.log(`[ORPHAN TERMINALS] Getting orphan terminals from ${tddfRecordsTableName} not in ${terminalsTableName}`);
+      
+      // Query to find Terminal IDs in TDDF records that don't exist in terminals table
+      const orphanTerminals = await pool.query(`
+        SELECT 
+          terminal_id as "terminalId",
+          COUNT(*) as "transactionCount",
+          SUM(CAST(transaction_amount AS DECIMAL)) as "totalAmount",
+          MIN(transaction_date) as "firstSeen",
+          MAX(transaction_date) as "lastSeen",
+          merchant_name as "merchantName",
+          mcc_code as "mccCode",
+          AVG(CAST(transaction_amount AS DECIMAL)) as "averageTransaction"
+        FROM ${tddfRecordsTableName} t1
+        WHERE terminal_id IS NOT NULL 
+          AND terminal_id != ''
+          AND NOT EXISTS (
+            SELECT 1 FROM ${terminalsTableName} t2 
+            WHERE ('7' || SUBSTRING(t2.v_number FROM 2)) = t1.terminal_id
+          )
+        GROUP BY terminal_id, merchant_name, mcc_code
+        ORDER BY "transactionCount" DESC, "totalAmount" DESC
+      `);
+      
+      // Calculate additional metrics for each orphan terminal
+      const orphanTerminalsWithMetrics = orphanTerminals.rows.map((terminal: any) => {
+        const firstSeen = new Date(terminal.firstSeen);
+        const lastSeen = new Date(terminal.lastSeen);
+        const daysDiff = Math.ceil((lastSeen.getTime() - firstSeen.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        return {
+          ...terminal,
+          totalAmount: parseFloat(terminal.totalAmount) || 0,
+          averageTransaction: parseFloat(terminal.averageTransaction) || 0,
+          dailyAverage: terminal.transactionCount / daysDiff,
+          activeDays: daysDiff
+        };
+      });
+      
+      console.log(`[ORPHAN TERMINALS] Found ${orphanTerminalsWithMetrics.length} orphan terminals`);
+      res.json(orphanTerminalsWithMetrics);
+    } catch (error) {
+      console.error('Error fetching orphan terminals:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch orphan terminals" 
+      });
+    }
+  });
+
+  // Get details for a specific orphan terminal
+  app.get("/api/tddf/orphan-terminals/:terminalId", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = req.params.terminalId;
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      console.log(`[ORPHAN TERMINAL DETAILS] Getting details for orphan terminal: ${terminalId}`);
+      
+      // Query for detailed information about this specific orphan terminal
+      const terminalDetails = await pool.query(`
+        SELECT 
+          terminal_id as "terminalId",
+          COUNT(*) as "transactionCount",
+          SUM(CAST(transaction_amount AS DECIMAL)) as "totalAmount",
+          MIN(transaction_date) as "firstSeen",
+          MAX(transaction_date) as "lastSeen",
+          merchant_name as "merchantName",
+          mcc_code as "mccCode",
+          AVG(CAST(transaction_amount AS DECIMAL)) as "averageTransaction"
+        FROM ${tddfRecordsTableName}
+        WHERE terminal_id = $1
+        GROUP BY terminal_id, merchant_name, mcc_code
+      `, [terminalId]);
+      
+      if (terminalDetails.rows.length === 0) {
+        return res.status(404).json({ error: "Orphan terminal not found" });
+      }
+      
+      const terminal = terminalDetails.rows[0];
+      const firstSeen = new Date(terminal.firstSeen);
+      const lastSeen = new Date(terminal.lastSeen);
+      const daysDiff = Math.ceil((lastSeen.getTime() - firstSeen.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      const orphanTerminalDetails = {
+        ...terminal,
+        totalAmount: parseFloat(terminal.totalAmount) || 0,
+        averageTransaction: parseFloat(terminal.averageTransaction) || 0,
+        dailyAverage: terminal.transactionCount / daysDiff,
+        activeDays: daysDiff
+      };
+      
+      console.log(`[ORPHAN TERMINAL DETAILS] Found details for terminal ${terminalId}: ${terminal.transactionCount} transactions`);
+      res.json(orphanTerminalDetails);
+    } catch (error) {
+      console.error('Error fetching orphan terminal details:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch orphan terminal details" 
+      });
+    }
+  });
+
   // Get TDDF records by terminal ID (VAR number mapping)
   app.get("/api/tddf/by-terminal/:terminalId", isAuthenticated, async (req, res) => {
     try {

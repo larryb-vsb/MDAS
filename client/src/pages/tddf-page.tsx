@@ -745,7 +745,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
 }
 
 // Terminal ID Display Component - Shows Terminal ID with styling when V Number doesn't match
-function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
+function TerminalIdDisplay({ terminalId, recordId }: { terminalId?: string; recordId?: number }) {
   const { data: terminals } = useQuery({
     queryKey: ['/api/terminals'],
     queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
@@ -784,11 +784,18 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
     );
   }
 
-  // If no matching V Number found, display Terminal ID with light orange styling
+  // If no matching V Number found, display Terminal ID with light orange styling as link to orphan terminal
   return (
-    <span className="text-xs font-mono text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-200">
-      {terminalId}
-    </span>
+    <Link href={`/orphan-terminals/${terminalId}`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 p-1 text-xs font-mono text-orange-600 bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:text-orange-800"
+      >
+        <ExternalLink className="h-3 w-3 mr-1" />
+        {terminalId}
+      </Button>
+    </Link>
   );
 }
 
@@ -1360,7 +1367,7 @@ export default function TddfPage() {
                           {record.authorizationNumber || 'N/A'}
                         </td>
                         <td className="p-3">
-                          <TerminalIdDisplay terminalId={record.terminalId} />
+                          <TerminalIdDisplay terminalId={record.terminalId} recordId={record.id} />
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">

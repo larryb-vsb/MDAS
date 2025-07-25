@@ -18,6 +18,8 @@ import Transactions from "@/pages/Transactions";
 import TerminalsPage from "@/pages/TerminalsPage";
 import TerminalViewPage from "@/pages/TerminalViewPage";
 import TddfPage from "@/pages/tddf-page";
+import OrphanTerminalsPage from "@/pages/OrphanTerminalsPage";
+import OrphanTerminalViewPage from "@/pages/OrphanTerminalViewPage";
 import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
@@ -31,6 +33,8 @@ function Router() {
       <ProtectedRoute path="/merchants/:id" component={MerchantDetail} />
       <ProtectedRoute path="/terminals" component={TerminalsPage} />
       <ProtectedRoute path="/terminals/:id" component={TerminalViewPage} />
+      <ProtectedRoute path="/orphan-terminals" component={OrphanTerminalsPage} />
+      <ProtectedRoute path="/orphan-terminals/:terminalId" component={OrphanTerminalViewPage} />
       <ProtectedRoute path="/transactions" component={Transactions} />
       <ProtectedRoute path="/tddf-records" component={TddfPage} />
       <ProtectedRoute path="/tddf" component={TddfPage} />
