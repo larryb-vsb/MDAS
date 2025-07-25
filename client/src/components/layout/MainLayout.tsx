@@ -135,6 +135,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   // Filter navigation items based on admin status
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
   
+  // Debug log navigation items
+  console.log("[NAVIGATION DEBUG] Total navItems:", navItems.length);
+  console.log("[NAVIGATION DEBUG] Filtered items:", filteredNavItems.length);
+  console.log("[NAVIGATION DEBUG] User admin status:", isAdmin);
+  console.log("[NAVIGATION DEBUG] Filtered items:", filteredNavItems.map(item => item.label));
+  
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
