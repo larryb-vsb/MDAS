@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db, pool } from "../db";
 import { getTableName } from "../table-config";
 import { eq, sql, and, gte, lte, desc, count } from "drizzle-orm";
 import { 
@@ -8,6 +8,7 @@ import {
   InsertSystemLog,
   InsertProcessingMetrics
 } from "@shared/schema";
+import { storage } from "../storage";
 
 interface ProcessingMetrics {
   totalFiles: number;
@@ -1112,25 +1113,52 @@ export class ScanlyWatcher {
         console.log(`[SCANLY-WATCHER] ✅ PHASE 2 Complete: ${phase2Count} additional DT/BH records processed`);
       }
 
-      // PHASE 3: Process P1 records (purchasing extensions)
-      console.log('[SCANLY-WATCHER] 📊 PHASE 3: Processing P1 purchasing extension records');
-      const phase3Result = await db.execute(sql`
-        WITH pending_records AS (
-          SELECT id FROM ${sql.identifier(tddfRawImportTable)}
-          WHERE processing_status = 'pending' 
-            AND record_type = 'P1'
-          ORDER BY line_number
-          LIMIT 500
-        )
-        UPDATE ${sql.identifier(tddfRawImportTable)}
-        SET processing_status = 'processed',
-            processed_at = NOW(),
-            skip_reason = 'scanly_watcher_phase3_p1_processed'
-        FROM pending_records
-        WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+      // PHASE 3: Process P1 records (purchasing extensions) using actual P1 processing method
+      console.log('[SCANLY-WATCHER] 📊 PHASE 3: Processing P1 purchasing extension records using processP1RecordWithClient');
+      
+      // Get pending P1 records for actual processing
+      const pendingP1Result = await db.execute(sql`
+        SELECT id, raw_line, source_file_id, line_number
+        FROM ${sql.identifier(tddfRawImportTable)}
+        WHERE processing_status = 'pending' 
+          AND record_type = 'P1'
+        ORDER BY line_number
+        LIMIT 500
       `);
       
-      const phase3Count = (phase3Result as any).rowCount || 0;
+      const pendingP1Records = pendingP1Result.rows;
+      let phase3Count = 0;
+      
+      // Process each P1 record using the actual processing method
+      for (const rawRecord of pendingP1Records) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          // Use the actual P1 processing method from storage
+          await storage.processP1RecordWithClient(client, rawRecord, tddfRawImportTable);
+          
+          await client.query('COMMIT');
+          phase3Count++;
+          
+        } catch (error: any) {
+          await client.query('ROLLBACK');
+          console.error(`[SCANLY-WATCHER] P1 processing error for record ${rawRecord.id}:`, error);
+          
+          // Mark as skipped with error reason
+          await pool.query(`
+            UPDATE ${tddfRawImportTable}
+            SET processing_status = 'skipped',
+                skip_reason = 'scanly_watcher_p1_error: ' || $1,
+                processed_at = NOW()
+            WHERE id = $2
+          `, [error.message?.substring(0, 200) || 'Unknown error', rawRecord.id]);
+          
+        } finally {
+          client.release();
+        }
+      }
+      
       totalProcessed += phase3Count;
       phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'processed' });
       console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records processed`);
