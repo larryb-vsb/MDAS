@@ -545,6 +545,20 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ COMPLETE CHART AND KPI DATA SOURCE UNIFICATION COMPLETED (July 25, 2025)
+- **✅ CHART DATA SOURCE UPDATED TO PERFORMANCE METRICS DATABASE**: Successfully updated all visualization components to use Scanly-Watcher performance metrics instead of old chart data
+  - **New API Endpoint Added**: Created `/api/processing/performance-chart-history` that generates chart data from performance metrics database using LAG window functions
+  - **Chart Data Consistency**: Both KPIs and charts now use the same time-series performance data source recorded by Scanly-Watcher every 30 seconds
+  - **Historical Rate Calculations**: Chart data calculated using actual time differences between Scanly-Watcher snapshots instead of aggregated processing logs
+  - **Data Source Transparency**: Chart API responses include `dataSource: 'scanly_watcher_performance_metrics'` for clear data lineage tracking
+  - **Frontend Integration Complete**: Updated ProcessingStatus component chart queries to use performance metrics endpoint with same refresh intervals as KPIs
+- **✅ PERFORMANCE KPI DATABASE INTEGRATION FULLY OPERATIONAL**: KPIs now display authentic rates calculated from historical performance metrics
+  - **Real-time Rate Calculations**: TDDF/min and Records/min calculated from consecutive Scanly-Watcher snapshots with actual time differences
+  - **Authentic Data Display**: KPIs show real processing rates based on database metrics instead of unreliable real-time approximations
+  - **Time Period Labels**: Enhanced display showing actual calculation windows (e.g., "0.5 minutes") from performance metric timestamps
+  - **30-second Refresh Consistency**: Both charts and KPIs refresh every 30 seconds matching Scanly-Watcher recording schedule
+  - **Complete Data Integrity**: All processing visualizations now use authenticated performance metrics with full transparency and accuracy
+
 ### ✅ HISTORICAL KPI RECORDING SYSTEM FULLY OPERATIONAL (July 25, 2025)
 - **✅ SCANLY-WATCHER PERFORMANCE RECORDING ACTIVATED**: Successfully implemented complete 30-second historical TDDF performance recording system for KPI tracking
   - **Missing startPerformanceRecording Method Added**: Implemented comprehensive performance metrics recording method with 30-second intervals

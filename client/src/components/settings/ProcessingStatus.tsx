@@ -222,11 +222,11 @@ export default function ProcessingStatus() {
     staleTime: 1000,
   });
 
-  // Fetch recent chart data for TDDF gauge (same data source as chart)
+  // Fetch recent chart data for TDDF gauge from performance metrics database
   const { data: chartData } = useQuery({
-    queryKey: ['/api/processing/records-per-minute-history', 1, 0], // Last 1 hour, no offset
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 15000,
+    queryKey: ['/api/processing/performance-chart-history', { hours: 1 }],
+    refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
+    staleTime: 25000,
   });
 
   // Fetch TDDF raw processing status for accurate hierarchical counts
@@ -580,12 +580,12 @@ export default function ProcessingStatus() {
                   // Use historical performance metrics from Scanly-Watcher instead of chart data
                   const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
                   
-                  // For gauge display, also get chart data for record type breakdown
+                  // For gauge display, get chart data from performance metrics database
                   const recentChartData = (chartData as any)?.data || [];
                   const latestDataPoint = recentChartData[recentChartData.length - 1];
+                  const currentDtRate = latestDataPoint ? (latestDataPoint.dtRecords || 0) : 0;
                   const currentTddfRate = latestDataPoint ? 
                     ((latestDataPoint.bhRecords || 0) + (latestDataPoint.p1Records || 0) + (latestDataPoint.otherRecords || 0)) : 0;
-                  const currentDtRate = latestDataPoint ? (latestDataPoint.dtRecords || 0) : 0;
 
                   return (
                     <>

@@ -5579,6 +5579,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Historical Performance Chart Data from Scanly-Watcher Metrics
+  app.get("/api/processing/performance-chart-history", isAuthenticated, async (req, res) => {
+    try {
+      const hoursParam = parseInt(req.query.hours as string) || 1;
+      const hours = Math.min(Math.max(hoursParam, 1), 24); // Limit between 1-24 hours
+      
+      const metricsTableName = getTableName('processing_metrics');
+      
+      // Get historical performance metrics for chart display
+      const result = await pool.query(`
+        SELECT 
+          timestamp,
+          tddf_records,
+          tddf_raw_lines,
+          tddf_pending_lines,
+          LAG(tddf_records) OVER (ORDER BY timestamp) as prev_tddf_records,
+          LAG(tddf_raw_lines) OVER (ORDER BY timestamp) as prev_tddf_raw_lines,
+          LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
+        FROM ${metricsTableName} 
+        WHERE metric_type = 'scanly_watcher_snapshot'
+          AND timestamp >= NOW() - INTERVAL '${hours} hours'
+        ORDER BY timestamp ASC
+      `);
+      
+      const chartData = result.rows.map((row, index) => {
+        if (index === 0 || !row.prev_timestamp) {
+          // First row - no rate calculation possible
+          return {
+            timestamp: row.timestamp,
+            dtRecords: 0,
+            bhRecords: 0,
+            p1Records: 0,
+            otherRecords: 0,
+            rawLines: 0
+          };
+        }
+        
+        // Calculate rates based on difference from previous data point
+        const timeDiffMinutes = (new Date(row.timestamp) - new Date(row.prev_timestamp)) / (1000 * 60);
+        const recordsDiff = (row.tddf_records || 0) - (row.prev_tddf_records || 0);
+        const rawLinesDiff = (row.tddf_raw_lines || 0) - (row.prev_tddf_raw_lines || 0);
+        
+        // Calculate per-minute rates
+        const recordsPerMinute = timeDiffMinutes > 0 ? recordsDiff / timeDiffMinutes : 0;
+        const rawLinesPerMinute = timeDiffMinutes > 0 ? rawLinesDiff / timeDiffMinutes : 0;
+        
+        return {
+          timestamp: row.timestamp,
+          dtRecords: Math.max(0, Math.round(recordsPerMinute)), // DT records processed per minute
+          bhRecords: 0, // Not available in current metrics, would need hierarchical breakdown
+          p1Records: 0, // Not available in current metrics
+          otherRecords: Math.max(0, Math.round(rawLinesPerMinute - recordsPerMinute)), // Estimate non-DT lines
+          rawLines: Math.max(0, Math.round(rawLinesPerMinute)) // Total raw lines per minute
+        };
+      });
+      
+      res.json({
+        data: chartData,
+        period: `${hours} hour${hours > 1 ? 's' : ''}`,
+        dataSource: 'scanly_watcher_performance_metrics',
+        lastUpdate: chartData.length > 0 ? chartData[chartData.length - 1].timestamp : null
+      });
+    } catch (error) {
+      console.error('Error fetching performance chart history:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch performance chart history",
+        data: []
+      });
+    }
+  });
+
   // Scanly-Watcher Processing Status Cache Endpoint
   app.get("/api/scanly-watcher/processing-status", isAuthenticated, async (req, res) => {
     try {
