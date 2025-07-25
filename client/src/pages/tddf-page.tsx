@@ -1092,131 +1092,138 @@ export default function TddfPage() {
 
   return (
     <MainLayout>
-      <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">TDDF Records</h1>
-          <p className="text-muted-foreground">
-            Transaction Daily Detail File records from fixed-width format processing
-          </p>
-        </div>
-        <Button onClick={() => {
-          refetch(); // Only refresh DT records, not BH records
-          console.log('[REFRESH] Only refreshing DT records, preserving BH cache');
-        }} variant="outline" size="sm">
-          <RotateCcw className="h-4 w-4 mr-2" />
-          Refresh DT
-        </Button>
-      </div>
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">TDDF Records</h1>
+              <p className="text-sm sm:text-base text-muted-foreground mt-1">
+                Transaction Daily Detail File records from fixed-width format processing
+              </p>
+            </div>
+            <Button onClick={() => {
+              refetch(); // Only refresh DT records, not BH records
+              console.log('[REFRESH] Only refreshing DT records, preserving BH cache');
+            }} variant="outline" size="sm" className="shrink-0">
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Refresh DT
+            </Button>
+          </div>
 
-      {/* TDDF Activity Heat Map */}
-      <TddfActivityHeatMap className="mb-6" />
+          {/* TDDF Activity Heat Map */}
+          <div className="mb-4 sm:mb-6">
+            <TddfActivityHeatMap />
+          </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Merchant Name, MCC, Reference Number..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Card Type</label>
-              <Select
-                value={filters.cardType}
-                onValueChange={(value) => handleFilterChange("cardType", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Card Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CARD_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">From Date</label>
-              <Input
-                type="date"
-                value={filters.txnDateFrom}
-                onChange={(e) => handleFilterChange("txnDateFrom", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">To Date</label>
-              <Input
-                type="date"
-                value={filters.txnDateTo}
-                onChange={(e) => handleFilterChange("txnDateTo", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Merchant ID</label>
-              <Input
-                placeholder="Enter Merchant ID"
-                value={filters.merchantId}
-                onChange={(e) => handleFilterChange("merchantId", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Terminal ID</label>
-              <Input
-                placeholder="Enter Terminal ID or V Number (e.g., 76487134 or V6487134)"
-                value={filters.vNumber}
-                onChange={(e) => handleFilterChange("vNumber", e.target.value)}
-              />
-            </div>
-            
-            {/* Sorting Controls */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Sort By</label>
-              <Select
-                value={filters.sortBy}
-                onValueChange={(value) => handleFilterChange("sortBy", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="transactionDate">Transaction Date</SelectItem>
-                  <SelectItem value="terminalId">Terminal ID</SelectItem>
-                  <SelectItem value="merchantName">Merchant Name</SelectItem>
-                  <SelectItem value="transactionAmount">Amount</SelectItem>
-                  <SelectItem value="referenceNumber">Reference Number</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium mb-2 block">Sort Order</label>
-              <Select
-                value={filters.sortOrder}
-                onValueChange={(value) => handleFilterChange("sortOrder", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asc">Ascending</SelectItem>
-                  <SelectItem value="desc">Descending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base sm:text-lg">Filters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Merchant, MCC, Reference..."
+                      value={filters.search}
+                      onChange={(e) => handleFilterChange("search", e.target.value)}
+                      className="pl-10 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Card Type</label>
+                  <Select
+                    value={filters.cardType}
+                    onValueChange={(value) => handleFilterChange("cardType", value)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="All Cards" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CARD_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">From Date</label>
+                  <Input
+                    type="date"
+                    value={filters.txnDateFrom}
+                    onChange={(e) => handleFilterChange("txnDateFrom", e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">To Date</label>
+                  <Input
+                    type="date"
+                    value={filters.txnDateTo}
+                    onChange={(e) => handleFilterChange("txnDateTo", e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Merchant ID</label>
+                  <Input
+                    placeholder="Merchant ID"
+                    value={filters.merchantId}
+                    onChange={(e) => handleFilterChange("merchantId", e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Terminal ID</label>
+                  <Input
+                    placeholder="Terminal ID or V Number"
+                    value={filters.vNumber}
+                    onChange={(e) => handleFilterChange("vNumber", e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                
+                {/* Sorting Controls */}
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Sort By</label>
+                  <Select
+                    value={filters.sortBy}
+                    onValueChange={(value) => handleFilterChange("sortBy", value)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="transactionDate">Date</SelectItem>
+                      <SelectItem value="terminalId">Terminal</SelectItem>
+                      <SelectItem value="merchantName">Merchant</SelectItem>
+                      <SelectItem value="transactionAmount">Amount</SelectItem>
+                      <SelectItem value="referenceNumber">Reference</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-xs sm:text-sm font-medium mb-2 block">Order</label>
+                  <Select
+                    value={filters.sortOrder}
+                    onValueChange={(value) => handleFilterChange("sortOrder", value)}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Asc</SelectItem>
+                      <SelectItem value="desc">Desc</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
           </div>
           
           {/* Date Filter Buttons */}
@@ -1287,25 +1294,29 @@ export default function TddfPage() {
       )}
 
       {/* Records Table with Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="dt" className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-            DT Records
-          </TabsTrigger>
-          <TabsTrigger value="bh" className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-green-500"></span>
-            BH Records
-          </TabsTrigger>
-          <TabsTrigger value="p1" className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-            P1 Records
-          </TabsTrigger>
-          <TabsTrigger value="other" className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-500"></span>
-            Other Records
-          </TabsTrigger>
-        </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+              <TabsTrigger value="dt" className="flex items-center gap-1 text-xs sm:text-sm">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></span>
+                <span className="hidden sm:inline">DT Records</span>
+                <span className="sm:hidden">DT</span>
+              </TabsTrigger>
+              <TabsTrigger value="bh" className="flex items-center gap-1 text-xs sm:text-sm">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></span>
+                <span className="hidden sm:inline">BH Records</span>
+                <span className="sm:hidden">BH</span>
+              </TabsTrigger>
+              <TabsTrigger value="p1" className="flex items-center gap-1 text-xs sm:text-sm">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-orange-500"></span>
+                <span className="hidden sm:inline">P1 Records</span>
+                <span className="sm:hidden">P1</span>
+              </TabsTrigger>
+              <TabsTrigger value="other" className="flex items-center gap-1 text-xs sm:text-sm">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-500"></span>
+                <span className="hidden sm:inline">Other</span>
+                <span className="sm:hidden">Oth</span>
+              </TabsTrigger>
+            </TabsList>
 
         <TabsContent value="dt" className="mt-6">
           <Card>
@@ -1371,20 +1382,21 @@ export default function TddfPage() {
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 font-medium w-12">
+                      <th className="text-left p-2 sm:p-3 font-medium w-8 sm:w-12">
                         <Checkbox
                           checked={selectedRecords.size === records.length && records.length > 0}
                           onCheckedChange={handleSelectAll}
+                          className="w-3 h-3 sm:w-4 sm:h-4"
                         />
                       </th>
-                      <th className="text-left p-3 font-medium">Date</th>
-                      <th className="text-left p-3 font-medium">Reference</th>
-                      <th className="text-left p-3 font-medium">Merchant</th>
-                      <th className="text-right p-3 font-medium">Amount</th>
-                      <th className="text-left p-3 font-medium">Auth #</th>
-                      <th className="text-left p-3 font-medium">Terminal ID</th>
-                      <th className="text-left p-3 font-medium">Card Type</th>
-                      <th className="text-center p-3 font-medium">Actions</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Date</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden sm:table-cell">Reference</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden md:table-cell">Merchant</th>
+                      <th className="text-right p-2 sm:p-3 font-medium text-xs sm:text-sm">Amount</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden lg:table-cell">Auth #</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Terminal ID</th>
+                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden xl:table-cell">Card Type</th>
+                      <th className="text-center p-2 sm:p-3 font-medium text-xs sm:text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1574,6 +1586,7 @@ export default function TddfPage() {
           {detailsRecord && <TddfRecordDetails record={detailsRecord} formatCurrency={formatCurrency} formatTddfDate={formatTddfDate} />}
         </DialogContent>
       </Dialog>
+        </div>
       </div>
     </MainLayout>
   );

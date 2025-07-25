@@ -134,30 +134,32 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 mt-4 sm:gap-4 sm:mt-6 sm:grid-cols-2 lg:grid-cols-4">
       {/* Primary Stats Row */}
       <div className="col-span-1 sm:col-span-2 lg:col-span-4">
-        <h3 className="text-lg font-medium text-gray-800 mb-2">Key Performance Indicators</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">Key Performance Indicators</h3>
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.slice(0, 4).map((stat, index) => (
             <Card key={index} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
+              <CardContent className="p-3 sm:p-5">
                 <div className="flex items-center">
-                  <div className={`flex-shrink-0 p-3 text-white rounded-md ${stat.bgColor}`}>
-                    {stat.icon}
+                  <div className={`flex-shrink-0 p-2 sm:p-3 text-white rounded-md ${stat.bgColor}`}>
+                    <div className="w-4 h-4 sm:w-6 sm:h-6">
+                      {stat.icon}
+                    </div>
                   </div>
-                  <div className="flex-1 w-0 ml-5">
+                  <div className="flex-1 w-0 ml-3 sm:ml-5 min-w-0">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{stat.title}</dt>
-                      <dd className="text-2xl font-semibold text-gray-900">
+                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">{stat.title}</dt>
+                      <dd className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                         {isLoading ? (
-                          <Skeleton className="h-8 w-24" />
+                          <Skeleton className="h-6 w-16 sm:h-8 sm:w-24" />
                         ) : (
                           stat.value
                         )}
                       </dd>
                       {!isLoading && stat.secondaryValue && (
-                        <dd className="text-sm font-medium mt-1">
+                        <dd className="text-xs sm:text-sm font-medium mt-1 truncate">
                           {stat.secondaryValue}
                         </dd>
                       )}
@@ -165,8 +167,8 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="px-5 py-3 bg-gray-50">
-                <div className="text-sm">
+              <CardFooter className="px-3 py-2 sm:px-5 sm:py-3 bg-gray-50">
+                <div className="text-xs sm:text-sm">
                   <a 
                     href={stat.link} 
                     className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer"
@@ -186,27 +188,29 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
       
       {/* Secondary Stats Row */}
       <div className="col-span-1 sm:col-span-2 lg:col-span-4 mt-2">
-        <h3 className="text-lg font-medium text-gray-800 mb-2">Additional Metrics</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <h3 className="text-base sm:text-lg font-medium text-gray-800 mb-2">Additional Metrics</h3>
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.slice(4).map((stat, index) => (
             <Card key={index} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-5">
+              <CardContent className="p-3 sm:p-5">
                 <div className="flex items-center">
-                  <div className={`flex-shrink-0 p-3 text-white rounded-md ${stat.bgColor}`}>
-                    {stat.icon}
+                  <div className={`flex-shrink-0 p-2 sm:p-3 text-white rounded-md ${stat.bgColor}`}>
+                    <div className="w-4 h-4 sm:w-6 sm:h-6">
+                      {stat.icon}
+                    </div>
                   </div>
-                  <div className="flex-1 w-0 ml-5">
+                  <div className="flex-1 w-0 ml-3 sm:ml-5 min-w-0">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{stat.title}</dt>
-                      <dd className="text-2xl font-semibold text-gray-900">
+                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">{stat.title}</dt>
+                      <dd className="text-lg sm:text-2xl font-semibold text-gray-900 truncate">
                         {isLoading ? (
-                          <Skeleton className="h-8 w-24" />
+                          <Skeleton className="h-6 w-16 sm:h-8 sm:w-24" />
                         ) : (
                           stat.value
                         )}
                       </dd>
                       {!isLoading && stat.secondaryValue && (
-                        <dd className="text-sm font-medium mt-1">
+                        <dd className="text-xs sm:text-sm font-medium mt-1 truncate">
                           {stat.secondaryValue}
                         </dd>
                       )}
@@ -214,8 +218,8 @@ export default function DashboardStats({ isLoading, stats }: DashboardStatsProps
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="px-5 py-3 bg-gray-50">
-                <div className="text-sm">
+              <CardFooter className="px-3 py-2 sm:px-5 sm:py-3 bg-gray-50">
+                <div className="text-xs sm:text-sm">
                   <a 
                     href={stat.link} 
                     className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer"

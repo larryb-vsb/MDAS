@@ -110,7 +110,7 @@ export default function Dashboard() {
         targetMerchantId, 
         sourceMerchantIds
       });
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -172,31 +172,31 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="container mx-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Content */}
         <div className="relative">
-          <div className="py-6">
+          <div className="py-4 sm:py-6">
             <div className="mx-auto">
-              {/* Page header */}
-              <div className="md:flex md:items-center md:justify-between">
+              {/* Page header - Mobile Optimized */}
+              <div className="flex flex-col space-y-3 md:flex-row md:items-center md:justify-between md:space-y-0">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-2xl font-semibold text-gray-800">Merchant Management</h2>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Merchant Management</h2>
+                  <p className="mt-1 text-xs sm:text-sm text-gray-500">
                     Manage your merchants, upload data, and view statistics
                   </p>
                 </div>
-                <div className="flex mt-4 space-x-3 md:mt-0 md:ml-4">
+                <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-3 md:mt-0">
                   <Button
                     variant="outline"
                     onClick={() => navigate('/merchants/new')}
-                    className="inline-flex items-center"
+                    className="inline-flex items-center justify-center text-sm"
                   >
                     <PlusCircle className="w-4 h-4 mr-2" />
                     New Merchant
                   </Button>
                   <Button
                     onClick={toggleUploadModal}
-                    className="inline-flex items-center"
+                    className="inline-flex items-center justify-center text-sm"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Data
