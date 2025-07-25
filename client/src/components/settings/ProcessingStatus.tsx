@@ -821,21 +821,42 @@ export default function ProcessingStatus() {
               <div>
                 <span className="text-muted-foreground">Active Servers:</span>
                 <div className="font-medium">
-                  {Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length > 0 
-                    ? `${Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length} processing`
-                    : (((effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0) > 0) ? "TDDF Processing Active" : "No active processing")}
+                  {(() => {
+                    const fileServers = Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length;
+                    const tddfPending = effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0;
+                    
+                    if (fileServers > 0) {
+                      return `${fileServers} processing`;
+                    } else if (tddfPending > 0) {
+                      return "TDDF Processing Active";
+                    } else {
+                      return "No active processing";
+                    }
+                  })()}
+                </div>
+                {/* Debug display - remove after confirming fix */}
+                <div className="text-xs text-gray-500 mt-1">
+                  Debug: TDDF pending = {effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0}
                 </div>
                 {Object.entries((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).map(([serverId, fileCount]) => (
                   <div key={serverId} className="text-xs text-muted-foreground mt-1">
                     Server {serverId.split('-').slice(-1)[0]}: {fileCount} file{fileCount !== 1 ? 's' : ''}
                   </div>
                 ))}
-                {/* Show TDDF processing when no file servers but TDDF is active */}
-                {Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length === 0 && ((effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0) > 0) && (
-                  <div className="text-xs text-green-600 mt-1 font-medium">
-                    TDDF Background: {(effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0).toLocaleString()} pending records
-                  </div>
-                )}
+                {/* Show TDDF processing details */}
+                {(() => {
+                  const fileServers = Object.keys((effectiveConcurrencyStats || concurrencyStats)?.processingByServer || {}).length;
+                  const tddfPending = effectiveTddfRawStatus?.pending || (tddfRawStatus as any)?.pending || 0;
+                  
+                  if (fileServers === 0 && tddfPending > 0) {
+                    return (
+                      <div className="text-xs text-green-600 mt-1 font-medium">
+                        TDDF Background: {tddfPending.toLocaleString()} pending records
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div>
                 <span className="text-muted-foreground">Stale Files:</span>
