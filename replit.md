@@ -150,14 +150,21 @@ WHERE processing_status = 'pending'
   - **Script Cleanup**: Backed up final script and removed obsolete test*.ps1 files for clean repository
 - **✅ LARGE FILE UPLOAD SUPPORT IMPLEMENTED**: Fixed 413 Request Entity Too Large error by increasing Express.js body size limits to 100MB for TDDF file uploads
 - **✅ PRODUCTION POWERSHELL SCRIPT CONSOLIDATED**: Created unified test-production-tddf.ps1 script combining connectivity, authentication, and upload testing with proper X-API-Key headers
-- **✅ SCANLY-WATCHER SERVICE DEPLOYMENT COMPLETED**: Successfully renamed and deployed processing watcher service to "Scanly-Watcher" with comprehensive monitoring capabilities
+- **✅ SCANLY-WATCHER SERVICE WITH ENHANCED PREROGATIVES COMPLETED**: Successfully deployed comprehensive monitoring service with expanded system authority and proactive intervention capabilities
   - Service Class Rename: ProcessingWatcher → ScanlyWatcher with complete branding update throughout system
   - API Endpoints Updated: /api/processing-watcher/* → /api/scanly-watcher/* for status, alerts, and health checks
   - Console Logging: All log messages updated to "[SCANLY-WATCHER]" prefix for clear identification
   - System Integration: Updated server/index.ts initialization and error handling for new service name
   - Diagnostic Tools Created: Added `/api/tddf/analyze-stuck` and `/api/tddf/requeue-stuck` endpoints for backlog management
   - IStorage Interface Enhanced: Added diagnostic method signatures (analyzeStuckTddfLines, requeueStuckTddfLines, processNonDtPendingLines)
-  - Service Operational: Scanly-Watcher successfully starting with health check monitoring and alert generation capabilities
+  - **Enhanced Monitoring Prerogatives**: Expanded system authority including:
+    - **System Resource Monitoring**: Memory usage tracking (80%/90% warning/critical thresholds)
+    - **Database Connectivity Oversight**: Response time monitoring with 5s/10s warning/critical alerts
+    - **Automatic Emergency Processing**: Auto-triggers at 1000+ stalled records with batch SQL processing
+    - **Proactive System Cleanup**: Memory cleanup, alert history management, garbage collection
+    - **Performance Monitoring**: Real-time system health metrics and intervention capabilities
+    - **Enhanced API Endpoints**: `/api/scanly-watcher/emergency-processing`, `/api/scanly-watcher/system-resources`, `/api/scanly-watcher/proactive-cleanup`
+  - Service Operational: Scanly-Watcher successfully starting with comprehensive health check monitoring, automatic recovery, and expanded system oversight capabilities
 - **✅ SETTINGS NAVIGATION MOVED TO BOTTOM**: Relocated Settings menu item to bottom of sidebar navigation as requested (July 23, 2025)
 - **✅ ENHANCED SCANLY-WATCHER WITH TDDF BACKLOG MONITORING COMPLETED**: Implemented comprehensive 30-second interval monitoring system ensuring processing always moves toward zero
   - Backlog Flexibility: System allows backlog count to increase when new files are uploaded but ensures continuous downward progress

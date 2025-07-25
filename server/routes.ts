@@ -5462,6 +5462,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Scanly-Watcher prerogative endpoints
+  app.post("/api/scanly-watcher/emergency-processing", isAuthenticated, async (req, res) => {
+    try {
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const result = await scanlyWatcher.performEmergencyProcessing();
+      res.json(result);
+    } catch (error) {
+      console.error('Error performing emergency processing:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to perform emergency processing" 
+      });
+    }
+  });
+
+  app.get("/api/scanly-watcher/system-resources", isAuthenticated, async (req, res) => {
+    try {
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const alerts = await scanlyWatcher.monitorSystemResources();
+      res.json({ success: true, resourceAlerts: alerts });
+    } catch (error) {
+      console.error('Error monitoring system resources:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to monitor system resources" 
+      });
+    }
+  });
+
+  app.post("/api/scanly-watcher/proactive-cleanup", isAuthenticated, async (req, res) => {
+    try {
+      const { scanlyWatcher } = await import("./services/processing-watcher");
+      const result = await scanlyWatcher.executeProactiveCleanup();
+      res.json(result);
+    } catch (error) {
+      console.error('Error executing proactive cleanup:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to execute proactive cleanup" 
+      });
+    }
+  });
+
   // Delete TDDF record
   app.delete("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {

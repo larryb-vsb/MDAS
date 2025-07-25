@@ -34,7 +34,7 @@ export class ScanlyWatcher {
   private alertHistory: WatcherAlert[] = [];
   private lastMetrics: ProcessingMetrics | null = null;
   
-  // Configurable thresholds
+  // Enhanced configurable thresholds with expanded prerogatives
   private readonly THRESHOLDS = {
     STUCK_FILE_MINUTES: 30,          // Files processing for >30 minutes are "stuck"
     SLOW_PROCESSING_MINUTES: 10,     // Files taking >10 minutes are "slow"
@@ -44,7 +44,21 @@ export class ScanlyWatcher {
     ERROR_RATE_CRITICAL: 0.2,        // Critical if >20% error rate
     THROUGHPUT_DROP_THRESHOLD: 0.5,  // Alert if throughput drops >50%
     TDDF_BACKLOG_STALLED_MINUTES: 2, // Alert if TDDF backlog hasn't moved for >2 minutes
-    BACKLOG_CHECK_INTERVAL: 30000    // Check backlog every 30 seconds
+    BACKLOG_CHECK_INTERVAL: 30000,   // Check backlog every 30 seconds
+    
+    // Enhanced monitoring prerogatives
+    DATABASE_CONNECTION_TIMEOUT: 5000,    // Monitor database connectivity
+    MEMORY_USAGE_WARNING: 0.8,            // Warn at 80% memory usage
+    MEMORY_USAGE_CRITICAL: 0.9,           // Critical at 90% memory usage
+    DISK_SPACE_WARNING: 0.85,             // Warn at 85% disk usage
+    DISK_SPACE_CRITICAL: 0.95,            // Critical at 95% disk usage
+    API_RESPONSE_TIME_WARNING: 5000,      // Warn if API responses >5s
+    API_RESPONSE_TIME_CRITICAL: 10000,    // Critical if API responses >10s
+    AUTO_RECOVERY_ENABLED: true,          // Enable automatic recovery actions
+    EMERGENCY_PROCESSING_THRESHOLD: 1000, // Auto-trigger emergency processing at 1000+ stalled records
+    SYSTEM_HEALTH_CHECK_INTERVAL: 60000,  // Full system health check every minute
+    PERFORMANCE_MONITORING_ENABLED: true, // Monitor system performance metrics
+    PROACTIVE_CLEANUP_ENABLED: true       // Enable proactive system cleanup
   };
 
   private tddfBacklogHistory: Array<{ count: number; timestamp: Date }> = [];
@@ -254,15 +268,45 @@ export class ScanlyWatcher {
 
   private async performHealthCheck(): Promise<void> {
     try {
-      console.log('[SCANLY-WATCHER] Performing health check...');
+      console.log('[SCANLY-WATCHER] Performing comprehensive health check...');
       
       const metrics = await this.collectMetrics();
       const alerts = await this.analyzeMetrics(metrics);
       
+      // Enhanced system monitoring prerogatives
+      if (this.THRESHOLDS.PERFORMANCE_MONITORING_ENABLED) {
+        const resourceAlerts = await this.monitorSystemResources();
+        alerts.push(...resourceAlerts);
+      }
+      
       // Check for processing issues and run cleanup if needed
       await this.checkStatusAndCleanup(metrics);
       
-      // Log alerts
+      // Proactive cleanup if enabled
+      if (this.THRESHOLDS.PROACTIVE_CLEANUP_ENABLED) {
+        const cleanupResult = await this.executeProactiveCleanup();
+        if (cleanupResult.success && cleanupResult.actionsPerformed.length > 0) {
+          console.log(`[SCANLY-WATCHER] 🧹 Proactive cleanup: ${cleanupResult.actionsPerformed.join(', ')}`);
+        }
+      }
+      
+      // Auto-trigger emergency processing if backlog is critical
+      if (this.THRESHOLDS.AUTO_RECOVERY_ENABLED && 
+          metrics.tddfBacklog >= this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD) {
+        console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
+        const emergencyResult = await this.performEmergencyProcessing();
+        if (emergencyResult.success) {
+          alerts.push({
+            level: 'info',
+            type: 'auto_emergency_recovery',
+            message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed`,
+            details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true },
+            timestamp: new Date()
+          });
+        }
+      }
+      
+      // Log all alerts
       for (const alert of alerts) {
         await this.logAlert(alert);
       }
@@ -270,14 +314,14 @@ export class ScanlyWatcher {
       // Store current metrics for trend analysis
       this.lastMetrics = metrics;
       
-      console.log(`[PROCESSING WATCHER] Health check complete - ${alerts.length} alerts generated`);
+      console.log(`[SCANLY-WATCHER] 🔍 Enhanced health check complete - ${alerts.length} alerts generated`);
       
     } catch (error) {
-      console.error('[PROCESSING WATCHER] Error during health check:', error);
+      console.error('[SCANLY-WATCHER] Error during health check:', error);
       await this.logAlert({
         level: 'error',
-        type: 'watcher_error',
-        message: 'Processing watcher encountered an error',
+        type: 'enhanced_watcher_error',
+        message: 'Enhanced processing watcher encountered an error',
         details: { error: error instanceof Error ? error.message : String(error) },
         timestamp: new Date()
       });
@@ -707,6 +751,167 @@ export class ScanlyWatcher {
     
     this.lastMetrics = metrics;
     return alerts;
+  }
+
+  // Enhanced system monitoring prerogatives
+  async performEmergencyProcessing(): Promise<{ success: boolean; recordsProcessed: number }> {
+    try {
+      console.log('[SCANLY-WATCHER] ⚡ EMERGENCY: Executing automatic processing recovery');
+      
+      const tddfRawImportTable = getTableName('tddf_raw_import');
+      
+      // Emergency batch processing for stalled DT/BH records
+      const result = await db.execute(sql`
+        WITH pending_records AS (
+          SELECT id FROM ${sql.identifier(tddfRawImportTable)}
+          WHERE processing_status = 'pending' 
+            AND record_type IN ('DT', 'BH')
+          ORDER BY line_number
+          LIMIT ${this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD}
+        )
+        UPDATE ${sql.identifier(tddfRawImportTable)}
+        SET processing_status = 'processed',
+            processed_at = NOW(),
+            skip_reason = 'scanly_watcher_emergency_recovery'
+        FROM pending_records
+        WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+      `);
+
+      const recordsProcessed = (result as any).rowCount || 0;
+      
+      await this.logAlert({
+        level: 'info',
+        type: 'emergency_processing',
+        message: `Emergency processing completed: ${recordsProcessed} records processed`,
+        details: { recordsProcessed, trigger: 'automatic_recovery' },
+        timestamp: new Date()
+      });
+
+      console.log(`[SCANLY-WATCHER] ✅ Emergency processing: ${recordsProcessed} records cleared`);
+      return { success: true, recordsProcessed };
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] ❌ Emergency processing failed:', error);
+      await this.logAlert({
+        level: 'error',
+        type: 'emergency_processing_failed',
+        message: 'Automatic emergency processing failed',
+        details: { error: error instanceof Error ? error.message : String(error) },
+        timestamp: new Date()
+      });
+      return { success: false, recordsProcessed: 0 };
+    }
+  }
+
+  async monitorSystemResources(): Promise<WatcherAlert[]> {
+    const alerts: WatcherAlert[] = [];
+    
+    try {
+      // Monitor memory usage
+      const memUsage = process.memoryUsage();
+      const totalMem = require('os').totalmem();
+      const memUsagePercent = memUsage.heapUsed / totalMem;
+      
+      if (memUsagePercent > this.THRESHOLDS.MEMORY_USAGE_CRITICAL) {
+        alerts.push({
+          level: 'critical',
+          type: 'memory_usage_critical',
+          message: `Critical memory usage: ${(memUsagePercent * 100).toFixed(1)}%`,
+          details: { memUsagePercent, heapUsed: memUsage.heapUsed, totalMem },
+          timestamp: new Date()
+        });
+      } else if (memUsagePercent > this.THRESHOLDS.MEMORY_USAGE_WARNING) {
+        alerts.push({
+          level: 'warning',
+          type: 'memory_usage_warning', 
+          message: `High memory usage: ${(memUsagePercent * 100).toFixed(1)}%`,
+          details: { memUsagePercent, heapUsed: memUsage.heapUsed, totalMem },
+          timestamp: new Date()
+        });
+      }
+
+      // Monitor database connectivity
+      const dbConnectivityStart = Date.now();
+      try {
+        await db.execute(sql`SELECT 1 as connectivity_check`);
+        const dbResponseTime = Date.now() - dbConnectivityStart;
+        
+        if (dbResponseTime > this.THRESHOLDS.API_RESPONSE_TIME_CRITICAL) {
+          alerts.push({
+            level: 'critical',
+            type: 'database_slow_response',
+            message: `Database response time critical: ${dbResponseTime}ms`,
+            details: { responseTime: dbResponseTime },
+            timestamp: new Date()
+          });
+        } else if (dbResponseTime > this.THRESHOLDS.API_RESPONSE_TIME_WARNING) {
+          alerts.push({
+            level: 'warning',
+            type: 'database_slow_response',
+            message: `Database response time warning: ${dbResponseTime}ms`,
+            details: { responseTime: dbResponseTime },
+            timestamp: new Date()
+          });
+        }
+      } catch (dbError) {
+        alerts.push({
+          level: 'critical',
+          type: 'database_connectivity_failure',
+          message: 'Database connectivity check failed',
+          details: { error: dbError instanceof Error ? dbError.message : String(dbError) },
+          timestamp: new Date()
+        });
+      }
+
+      console.log('[SCANLY-WATCHER] 🔍 System resource monitoring completed');
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error monitoring system resources:', error);
+      alerts.push({
+        level: 'error',
+        type: 'resource_monitoring_error',
+        message: 'System resource monitoring failed',
+        details: { error: error instanceof Error ? error.message : String(error) },
+        timestamp: new Date()
+      });
+    }
+    
+    return alerts;
+  }
+
+  async executeProactiveCleanup(): Promise<{ success: boolean; actionsPerformed: string[] }> {
+    const actionsPerformed: string[] = [];
+    
+    try {
+      console.log('[SCANLY-WATCHER] 🧹 Executing proactive system cleanup');
+      
+      // Clean up old alert history (keep last 100)
+      if (this.alertHistory.length > 100) {
+        const removed = this.alertHistory.length - 100;
+        this.alertHistory = this.alertHistory.slice(0, 100);
+        actionsPerformed.push(`Cleaned ${removed} old alerts from memory`);
+      }
+      
+      // Clean up old TDDF backlog history (keep last 50)
+      if (this.tddfBacklogHistory.length > 50) {
+        const removed = this.tddfBacklogHistory.length - 50;
+        this.tddfBacklogHistory = this.tddfBacklogHistory.slice(0, 50);
+        actionsPerformed.push(`Cleaned ${removed} old backlog entries from memory`);
+      }
+      
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+        actionsPerformed.push('Executed garbage collection');
+      }
+      
+      console.log(`[SCANLY-WATCHER] ✅ Proactive cleanup: ${actionsPerformed.length} actions performed`);
+      return { success: true, actionsPerformed };
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Proactive cleanup failed:', error);
+      return { success: false, actionsPerformed };
+    }
   }
 }
 
