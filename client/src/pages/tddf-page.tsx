@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatTableDate, formatTddfDate } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
+import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import {
   Dialog,
   DialogContent,
@@ -1099,6 +1100,9 @@ export default function TddfPage() {
           Refresh DT
         </Button>
       </div>
+
+      {/* TDDF Activity Heat Map */}
+      <TddfActivityHeatMap className="mb-6" />
 
       {/* Filters */}
       <Card>

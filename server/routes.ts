@@ -5020,6 +5020,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF activity data for heat map (must be before :id route)
+  app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfBatchHeadersTableName = getTableName('tddf_batch_headers');
+      const tddfPurchasingExtensionsTableName = getTableName('tddf_purchasing_extensions');
+      const tddfOtherRecordsTableName = getTableName('tddf_other_records');
+      
+      console.log(`[TDDF ACTIVITY HEATMAP] Getting activity data for year: ${year}`);
+      
+      // Query to get daily activity counts for all record types
+      const activityData = await pool.query(`
+        WITH dt_daily AS (
+          SELECT 
+            DATE(transaction_date) as activity_date,
+            COUNT(*) as dt_count
+          FROM ${tddfRecordsTableName}
+          WHERE EXTRACT(YEAR FROM transaction_date) = $1
+          GROUP BY DATE(transaction_date)
+        ),
+        bh_daily AS (
+          SELECT 
+            DATE(recorded_at) as activity_date,
+            COUNT(*) as bh_count
+          FROM ${tddfBatchHeadersTableName}
+          WHERE EXTRACT(YEAR FROM recorded_at) = $1
+          GROUP BY DATE(recorded_at)  
+        ),
+        p1_daily AS (
+          SELECT 
+            DATE(created_at) as activity_date,
+            COUNT(*) as p1_count
+          FROM ${tddfPurchasingExtensionsTableName}
+          WHERE EXTRACT(YEAR FROM created_at) = $1
+          GROUP BY DATE(created_at)
+        ),
+        other_daily AS (
+          SELECT 
+            DATE(created_at) as activity_date,
+            COUNT(*) as other_count
+          FROM ${tddfOtherRecordsTableName}
+          WHERE EXTRACT(YEAR FROM created_at) = $1
+          GROUP BY DATE(created_at)
+        ),
+        all_dates AS (
+          SELECT DISTINCT activity_date FROM dt_daily
+          UNION SELECT DISTINCT activity_date FROM bh_daily
+          UNION SELECT DISTINCT activity_date FROM p1_daily
+          UNION SELECT DISTINCT activity_date FROM other_daily
+        )
+        SELECT 
+          d.activity_date as date,
+          COALESCE(dt.dt_count, 0) as "dtCount",
+          COALESCE(bh.bh_count, 0) as "bhCount",
+          COALESCE(p1.p1_count, 0) as "p1Count",
+          COALESCE(other.other_count, 0) as "otherCount",
+          (COALESCE(dt.dt_count, 0) + COALESCE(bh.bh_count, 0) + COALESCE(p1.p1_count, 0) + COALESCE(other.other_count, 0)) as "totalCount"
+        FROM all_dates d
+        LEFT JOIN dt_daily dt ON d.activity_date = dt.activity_date
+        LEFT JOIN bh_daily bh ON d.activity_date = bh.activity_date
+        LEFT JOIN p1_daily p1 ON d.activity_date = p1.activity_date
+        LEFT JOIN other_daily other ON d.activity_date = other.activity_date
+        ORDER BY d.activity_date
+      `, [year]);
+      
+      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with activity for year ${year}`);
+      res.json(activityData.rows);
+    } catch (error) {
+      console.error('Error fetching TDDF activity heatmap data:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF activity data" 
+      });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
@@ -5164,6 +5240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+
 
   // Get TDDF records by terminal ID (VAR number mapping)
   app.get("/api/tddf/by-terminal/:terminalId", isAuthenticated, async (req, res) => {
