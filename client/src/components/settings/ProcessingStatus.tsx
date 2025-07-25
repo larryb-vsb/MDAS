@@ -322,15 +322,33 @@ export default function ProcessingStatus() {
     },
   });
 
+  // Use cached data when available, otherwise fallback to individual queries
+  const effectiveStatus = cachedProcessingStatus?.success 
+    ? cachedProcessingStatus.data.fileProcessorStatus 
+    : status;
+  
+  const effectiveRealTimeStats = cachedProcessingStatus?.success 
+    ? cachedProcessingStatus.data.realTimeStats 
+    : realTimeStats;
+  
+  const effectiveConcurrencyStats = cachedProcessingStatus?.success 
+    ? cachedProcessingStatus.data.metrics 
+    : concurrencyStats;
+  
+  const effectiveTddfRawStatus = cachedProcessingStatus?.success 
+    ? cachedProcessingStatus.data.tddfRawStatus 
+    : tddfRawStatus;
+
   // Update peak tracking when real-time stats change
   useEffect(() => {
-    if (realTimeStats?.transactionsPerSecond !== undefined) {
+    const currentStats = effectiveRealTimeStats || realTimeStats;
+    if (currentStats?.transactionsPerSecond !== undefined) {
       const currentTime = Date.now();
       const tenMinutesAgo = currentTime - (10 * 60 * 1000);
       
       // Store current reading with timestamp
       const currentReading = {
-        value: realTimeStats.transactionsPerSecond,
+        value: currentStats.transactionsPerSecond,
         timestamp: currentTime
       };
       
@@ -357,17 +375,18 @@ export default function ProcessingStatus() {
         return newHistory;
       });
     }
-  }, [realTimeStats?.transactionsPerSecond, peakTxnSpeed]);
+  }, [(effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond, peakTxnSpeed]);
 
   // Update TDDF peak tracking when real-time stats change
   useEffect(() => {
-    if (realTimeStats?.tddfRecordsPerSecond !== undefined) {
+    const currentStats = effectiveRealTimeStats || realTimeStats;
+    if (currentStats?.tddfRecordsPerSecond !== undefined) {
       const currentTime = Date.now();
       const tenMinutesAgo = currentTime - (10 * 60 * 1000);
       
       // Store current TDDF reading with timestamp
       const currentTddfReading = {
-        value: realTimeStats.tddfRecordsPerSecond,
+        value: currentStats.tddfRecordsPerSecond,
         timestamp: currentTime
       };
       
@@ -394,32 +413,36 @@ export default function ProcessingStatus() {
         return newHistory;
       });
     }
-  }, [realTimeStats?.tddfRecordsPerSecond, peakTddfSpeed]);
+  }, [(effectiveRealTimeStats || realTimeStats)?.tddfRecordsPerSecond, peakTddfSpeed]);
 
   // Helper functions
   const getStatusBadge = () => {
-    if (isLoading || !status) {
+    const currentStatus = effectiveStatus || status;
+    const currentConcurrency = effectiveConcurrencyStats || concurrencyStats;
+    
+    if (isLoading || !currentStatus) {
       return <Badge variant="secondary">Loading...</Badge>;
     }
     
     // Check if any server is currently processing files
-    const isGloballyProcessing = concurrencyStats && Object.keys(concurrencyStats.processingByServer).length > 0;
+    const isGloballyProcessing = currentConcurrency && Object.keys(currentConcurrency.processingByServer).length > 0;
     
-    if (status.isPaused) {
+    if (currentStatus.isPaused) {
       return <Badge variant="secondary" className="flex items-center gap-1"><Pause className="h-3 w-3" />Paused</Badge>;
     }
     if (isGloballyProcessing) {
       return <Badge variant="default" className="flex items-center gap-1 bg-green-600"><Activity className="h-3 w-3" />Processing</Badge>;
     }
-    if (status.isRunning) {
+    if (currentStatus.isRunning) {
       return <Badge variant="default" className="flex items-center gap-1 bg-blue-600"><Activity className="h-3 w-3" />Active</Badge>;
     }
     return <Badge variant="outline" className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />Idle</Badge>;
   };
 
   const calculateProgress = () => {
-    if (!status?.currentTransactionRange) return 0;
-    const currentId = parseInt(status.currentTransactionRange.replace(/\D/g, ''));
+    const currentStatus = effectiveStatus || status;
+    if (!currentStatus?.currentTransactionRange) return 0;
+    const currentId = parseInt(currentStatus.currentTransactionRange.replace(/\D/g, ''));
     const maxEstimatedId = 71127230050000;
     return Math.min((currentId / maxEstimatedId) * 100, 95);
   };
@@ -450,7 +473,7 @@ export default function ProcessingStatus() {
     );
   }
 
-  if (!status || !realTimeStats) {
+  if (!(effectiveStatus || status) || !(effectiveRealTimeStats || realTimeStats)) {
     return (
       <Card>
         <CardHeader>
@@ -508,7 +531,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Queue Status</div>
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-lg font-semibold">{realTimeStats.queuedFiles}</span>
+                <span className="text-lg font-semibold">{(effectiveRealTimeStats || realTimeStats).queuedFiles}</span>
                 <span className="text-sm text-muted-foreground">files queued</span>
               </div>
             </div>
@@ -516,7 +539,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Files Processed</div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-lg font-semibold">{realTimeStats.processedFiles}</span>
+                <span className="text-lg font-semibold">{(effectiveRealTimeStats || realTimeStats).processedFiles}</span>
                 <span className="text-sm text-muted-foreground">completed</span>
               </div>
             </div>
@@ -545,14 +568,14 @@ export default function ProcessingStatus() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-blue-600">
-                  {((realTimeStats.transactionsPerSecond || 0) * 60).toFixed(0)}
+                  {(((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Txns/min</div>
                 {/* Transaction Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    currentSpeed={((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60}
+                    maxScale={Math.max(((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
