@@ -517,7 +517,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Queue Status</div>
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-lg font-semibold">{(effectiveRealTimeStats || realTimeStats).queuedFiles}</span>
+                <span className="text-lg font-semibold">{realTimeStats.queuedFiles}</span>
                 <span className="text-sm text-muted-foreground">files queued</span>
               </div>
             </div>
@@ -525,7 +525,7 @@ export default function ProcessingStatus() {
               <div className="text-sm font-medium text-muted-foreground">Files Processed</div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-lg font-semibold">{(effectiveRealTimeStats || realTimeStats).processedFiles}</span>
+                <span className="text-lg font-semibold">{realTimeStats.processedFiles}</span>
                 <span className="text-sm text-muted-foreground">completed</span>
               </div>
             </div>
@@ -554,14 +554,14 @@ export default function ProcessingStatus() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-blue-600">
-                  {(((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60).toFixed(0)}
+                  {((realTimeStats.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Txns/min</div>
                 {/* Transaction Speed Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max(((effectiveRealTimeStats || realTimeStats).transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
+                    maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
@@ -622,14 +622,14 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-orange-600">
-                  {(((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60).toFixed(0)}
+                  {((realTimeStats?.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Records/min</div>
                 {/* Records per Minute Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max(((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    currentSpeed={(realTimeStats?.transactionsPerSecond || 0) * 60}
+                    maxScale={Math.max((realTimeStats?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
