@@ -82,6 +82,24 @@ export const terminals = pgTable(getTableName("terminals"), {
   boardDate: timestamp("board_date"), // Board date from TSYS
   terminalVisa: text("terminal_visa"), // Visa terminal settings
   
+  // Extended payment processing fields from comprehensive specification
+  bankNumber: text("bank_number"), // Bank identification number
+  associationNumber1: text("association_number_1"), // Association mapping
+  transactionCode: text("transaction_code"), // Processing codes
+  authSource: text("auth_source"), // Authorization source
+  networkIdentifierDebit: text("network_identifier_debit"), // Network routing
+  posEntryMode: text("pos_entry_mode"), // Entry method capability
+  authResponseCode: text("auth_response_code"), // Response handling
+  validationCode: text("validation_code"), // Transaction validation
+  catIndicator: text("cat_indicator"), // Cardholder authentication capability
+  onlineEntry: text("online_entry"), // Online processing capability
+  achFlag: text("ach_flag"), // ACH capability flag
+  cardholderIdMethod: text("cardholder_id_method"), // ID verification method
+  terminalId: text("terminal_id"), // Terminal hardware ID
+  discoverPosEntryMode: text("discover_pos_entry_mode"), // Discover network entry mode
+  purchaseId: text("purchase_id"), // Purchase identification capability
+  posDataCode: text("pos_data_code"), // POS configuration code
+  
   // Additional management fields
   terminalType: text("terminal_type"), // countertop, mobile, virtual, integrated POS, etc.
   status: text("status").notNull().default("Active"), // Active, Inactive, Maintenance, Deployed

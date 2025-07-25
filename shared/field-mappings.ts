@@ -114,6 +114,24 @@ export const terminalFieldMappings: Record<string, string | null> = {
   boardDate: "Board Date", // Board date from TSYS
   terminalVisa: "Terminal Visa", // Visa terminal settings
   
+  // Extended fields from comprehensive specification (if available in CSV)
+  bankNumber: "Bank Number", // Bank identification
+  associationNumber1: "Association Number 1", // Association mapping
+  transactionCode: "Transaction Code", // Processing codes
+  authSource: "Auth Source", // Authorization source
+  networkIdentifierDebit: "Network Identifier Debit", // Network routing
+  posEntryMode: "POS Entry Mode", // Entry method
+  authResponseCode: "Auth Response Code", // Response handling
+  validationCode: "Validation Code", // Transaction validation
+  catIndicator: "CAT Indicator", // Cardholder authentication
+  onlineEntry: "Online Entry", // Online processing capability
+  achFlag: "ACH Flag", // ACH capability
+  cardholderIdMethod: "Cardholder ID Method", // ID verification method
+  terminalId: "Terminal ID", // Terminal hardware ID
+  discoverPosEntryMode: "Discover POS Entry Mode", // Discover network entry
+  purchaseId: "Purchase ID", // Purchase identification
+  posDataCode: "POS Data Code", // POS configuration code
+  
   // Additional fields not directly from TSYS but managed internally
   terminalType: null, // Will be set during processing
   status: null, // Managed internally

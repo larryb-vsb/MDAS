@@ -18,6 +18,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 ### Session Context & Learning  
 - Current session: July 25, 2025 - DEVELOPMENT PROCESSING RESUMED & PRODUCTION READY
 - Unused tables removed: dev_tddf_other_records (never used) and tddf_records_backup_20250723 (obsolete backup)
+- Terminal CSV schema enhanced: Added 16 new fields from comprehensive specification for advanced payment processing
 
 ## Today's Emergency Processing Recovery Summary (July 25, 2025)
 
