@@ -1278,7 +1278,7 @@ export default function TddfPage() {
                     {selectedRecords.size} record{selectedRecords.size !== 1 ? 's' : ''} selected
                   </span>
                   <Button
-                    onClick={handleBulkDelete}
+                    onClick={handleDelete}
                     disabled={deleteMutation.isPending}
                     variant="destructive"
                     size="sm"
