@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Search, RotateCcw, Eye, CreditCard } from "lucide-react";
+import { Trash2, Search, RotateCcw, Eye, CreditCard, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -742,6 +743,43 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   );
 }
 
+// V Number Link Component - Links Terminal ID to Terminal View Page
+function VNumberLink({ terminalId }: { terminalId?: string }) {
+  const { data: terminals } = useQuery({
+    queryKey: ['/api/terminals'],
+    queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
+  });
+
+  // Find terminal by Terminal ID (remove V prefix for matching)
+  const terminal = terminals?.find((t: any) => {
+    if (!terminalId) return false;
+    // Extract numeric part from V Number (remove V prefix) and compare with Terminal ID
+    const vNumberNumeric = t.vNumber?.replace('V', '');
+    return vNumberNumeric === terminalId;
+  });
+
+  if (!terminal) {
+    return (
+      <span className="text-xs text-muted-foreground font-mono">
+        {terminalId ? `No VAR` : 'N/A'}
+      </span>
+    );
+  }
+
+  return (
+    <Link href={`/terminals/${terminal.id}`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+      >
+        <ExternalLink className="h-3 w-3 mr-1" />
+        {terminal.vNumber}
+      </Button>
+    </Link>
+  );
+}
+
 // Card Type Detection Function - Returns single badge per transaction using Card Type field (251-256)
 function getCardTypeBadges(record: TddfRecord) {
   const isDebit = record.debitCreditIndicator === 'D';
@@ -1266,6 +1304,7 @@ export default function TddfPage() {
                       <th className="text-left p-3 font-medium">Merchant</th>
                       <th className="text-right p-3 font-medium">Amount</th>
                       <th className="text-left p-3 font-medium">Auth #</th>
+                      <th className="text-left p-3 font-medium">V Number</th>
                       <th className="text-left p-3 font-medium">Card Type</th>
                       <th className="text-center p-3 font-medium">Actions</th>
                     </tr>
@@ -1296,6 +1335,9 @@ export default function TddfPage() {
                         </td>
                         <td className="p-3 font-mono text-xs">
                           {record.authorizationNumber || 'N/A'}
+                        </td>
+                        <td className="p-3">
+                          <VNumberLink terminalId={record.terminalId} />
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
