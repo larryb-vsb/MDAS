@@ -671,6 +671,15 @@ export default function ProcessingStatus() {
             </div>
             
             {/* TDDF Operations Section */}
+            {/* Debug - shows current values */}
+            <div className="text-xs text-red-500 mt-2 p-2 bg-red-50 border">
+              Debug: TDDF Data = {JSON.stringify({
+                hasOps: !!(effectiveRealTimeStats || realTimeStats)?.tddfOperations,
+                totalRecords: (effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0,
+                filesProcessed: (effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0,
+                shouldShow: !!(effectiveRealTimeStats || realTimeStats)?.tddfOperations && (((effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0) > 0 || ((effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0) > 0)
+              })}
+            </div>
             {(effectiveRealTimeStats || realTimeStats)?.tddfOperations && (((effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0) > 0 || ((effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0) > 0) && (
               <div className="space-y-3">
                 <div className="text-sm font-medium text-muted-foreground border-t pt-3">TDDF File Operations</div>
@@ -689,7 +698,7 @@ export default function ProcessingStatus() {
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-slate-600">
-                      {realTimeStats.tddfOperations.totalRawLines?.toLocaleString() || '0'}
+                      {(effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
                     </div>
                     <div className="text-muted-foreground">Raw Lines</div>
                   </div>
@@ -792,7 +801,7 @@ export default function ProcessingStatus() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="text-center p-2 bg-slate-50 rounded border">
                         <div className="font-semibold text-slate-700">
-                          {realTimeStats.tddfOperations.totalRawLines?.toLocaleString() || '0'}
+                          {safeRealTimeStats.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
                         </div>
                         <div className="text-slate-600">Total Lines</div>
                       </div>
