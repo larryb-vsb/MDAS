@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Transaction } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -25,10 +25,15 @@ export default function TerminalActivityHeatMap({
     return Array.from(years).sort((a, b) => b - a); // Most recent first
   }, [transactions]);
 
-  // Current year state - default to most recent year with data
-  const [selectedYear, setSelectedYear] = useState<number>(() => {
-    return availableYears.length > 0 ? availableYears[0] : new Date().getFullYear();
-  });
+  // Current year state - will be updated when availableYears changes
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  
+  // Update selectedYear when availableYears change (when transactions load)
+  useEffect(() => {
+    if (availableYears.length > 0) {
+      setSelectedYear(availableYears[0]); // Most recent year with data
+    }
+  }, [availableYears]);
   
   // Calculate heat map data
   const heatMapData = useMemo(() => {
