@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { TddfTransactionDetailModal } from "@/components/tddf/TddfTransactionDetailModal";
 import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye, FileText } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
@@ -465,335 +466,17 @@ export default function TerminalViewPage() {
                                   )}
                                 </td>
                                 <td className="p-3 text-center">
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0"
-                                        onClick={() => setSelectedTransaction(transaction)}
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                                      <DialogHeader>
-                                        <DialogTitle className="flex items-center gap-2">
-                                          <FileText className="h-5 w-5" />
-                                          TDDF Transaction Detail
-                                        </DialogTitle>
-                                        <DialogDescription>
-                                          Complete transaction information from TDDF processing
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      
-                                      {selectedTransaction && (
-                                        <Tabs defaultValue="summary" className="w-full">
-                                          <TabsList className="grid w-full grid-cols-2">
-                                            <TabsTrigger value="summary">Summary</TabsTrigger>
-                                            <TabsTrigger value="fields">Field Details</TabsTrigger>
-                                          </TabsList>
-                                          
-                                          <TabsContent value="summary" className="space-y-6 mt-6">
-                                            {/* Transaction Summary */}
-                                            <Card>
-                                              <CardHeader>
-                                                <CardTitle className="text-lg">Transaction Summary</CardTitle>
-                                              </CardHeader>
-                                              <CardContent>
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Transaction Date</p>
-                                                    <p className="font-semibold">
-                                                      {selectedTransaction.transactionDate 
-                                                        ? formatTddfDate(selectedTransaction.transactionDate)
-                                                        : 'N/A'
-                                                      }
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Amount</p>
-                                                    <p className="font-semibold text-lg text-green-600">
-                                                      ${parseFloat(selectedTransaction.transactionAmount || 0).toFixed(2)}
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Card Type</p>
-                                                    <div className="mt-1">
-                                                      {selectedTransaction.cardType ? (
-                                                        <span 
-                                                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(selectedTransaction.cardType).className}`}
-                                                        >
-                                                          <CreditCard className="h-3 w-3" />
-                                                          {getCardTypeBadges(selectedTransaction.cardType).label}
-                                                        </span>
-                                                      ) : (
-                                                        <Badge variant="outline">N/A</Badge>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Authorization #</p>
-                                                    <p className="font-mono font-semibold">
-                                                      {selectedTransaction.authorizationNumber || 'N/A'}
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-
-                                            {/* Merchant & Terminal Information */}
-                                            <div className="grid md:grid-cols-2 gap-6">
-                                              <Card>
-                                                <CardHeader>
-                                                  <CardTitle className="text-lg">Merchant Information</CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="space-y-3">
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Merchant Name</p>
-                                                    <p className="font-semibold">{selectedTransaction.merchantName || 'N/A'}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Merchant Account #</p>
-                                                    <p className="font-mono text-sm">{selectedTransaction.merchantAccountNumber || 'N/A'}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">MCC Code</p>
-                                                    <p className="font-mono">{selectedTransaction.mccCode || 'N/A'}</p>
-                                                  </div>
-                                                </CardContent>
-                                              </Card>
-
-                                              <Card>
-                                                <CardHeader>
-                                                  <CardTitle className="text-lg">Terminal Information</CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="space-y-3">
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Terminal ID</p>
-                                                    <p className="font-mono font-semibold">{selectedTransaction.terminalId || 'N/A'}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">VAR Number</p>
-                                                    <p className="font-mono">{(terminal as any)?.vNumber || 'N/A'}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-sm font-medium text-muted-foreground">Transaction Type</p>
-                                                    <p className="font-mono">{selectedTransaction.transactionTypeIdentifier || 'Standard'}</p>
-                                                  </div>
-                                                </CardContent>
-                                              </Card>
-                                            </div>
-
-                                            {/* Transaction Details */}
-                                            <Card>
-                                              <CardHeader>
-                                                <CardTitle className="text-lg">TDDF Record Details</CardTitle>
-                                              </CardHeader>
-                                              <CardContent>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                  <div>
-                                                    <p className="font-medium text-muted-foreground">Reference Number</p>
-                                                    <p className="font-mono text-xs bg-muted p-2 rounded break-all">
-                                                      {selectedTransaction.referenceNumber || 'N/A'}
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="font-medium text-muted-foreground">Record ID</p>
-                                                    <p className="font-mono">{selectedTransaction.id}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="font-medium text-muted-foreground">Recorded At</p>
-                                                    <p className="text-sm">
-                                                      {selectedTransaction.recordedAt 
-                                                        ? formatTableDate(selectedTransaction.recordedAt)
-                                                        : 'N/A'
-                                                      }
-                                                    </p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="font-medium text-muted-foreground">Processing Status</p>
-                                                    <Badge variant="secondary" className="text-xs">Processed</Badge>
-                                                  </div>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-                                          </TabsContent>
-
-                                          <TabsContent value="fields" className="mt-6">
-                                            <Card>
-                                              <CardHeader>
-                                                <CardTitle className="text-lg">Complete TDDF Field Details</CardTitle>
-                                                <CardDescription>
-                                                  All TDDF specification fields with position mappings
-                                                </CardDescription>
-                                              </CardHeader>
-                                              <CardContent>
-                                                <div className="space-y-6">
-                                                  {/* Header Fields (1-23) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-blue-700">Header Fields (1-23)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">ID</span>
-                                                        <span className="font-mono">{selectedTransaction.id}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Sequence Number (1-7)</span>
-                                                        <span className="font-mono">{selectedTransaction.sequenceNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Entry Run Number (8-13)</span>
-                                                        <span className="font-mono">{selectedTransaction.entryRunNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Sequence Within Run (14-17)</span>
-                                                        <span className="font-mono">{selectedTransaction.sequenceWithinRun || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Record Identifier (18-19)</span>
-                                                        <span className="font-mono">{selectedTransaction.recordIdentifier || 'DT'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Bank Number (20-23)</span>
-                                                        <span className="font-mono">{selectedTransaction.bankNumber || 'N/A'}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Merchant Account Fields (24-61) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-green-700">Merchant Account Fields (24-61)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Merchant Account Number (24-39)</span>
-                                                        <span className="font-mono">{selectedTransaction.merchantAccountNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Association Number 1 (40-45)</span>
-                                                        <span className="font-mono">{selectedTransaction.associationNumber1 || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Group Number (46-51)</span>
-                                                        <span className="font-mono">{selectedTransaction.groupNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Transaction Code (52-55)</span>
-                                                        <span className="font-mono">{selectedTransaction.transactionCode || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Association Number 2 (56-61)</span>
-                                                        <span className="font-mono">{selectedTransaction.associationNumber2 || 'N/A'}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Transaction Identification Fields (62-123) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-purple-700">Transaction Identification Fields (62-123)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Reference Number (62-84)</span>
-                                                        <span className="font-mono text-xs break-all bg-muted p-1 rounded">{selectedTransaction.referenceNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Transaction Amount (85-99)</span>
-                                                        <span className="font-mono font-semibold text-green-600">${parseFloat(selectedTransaction.transactionAmount || 0).toFixed(2)}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Transaction Date (100-103)</span>
-                                                        <span className="font-mono">{selectedTransaction.transactionDate ? formatTddfDate(selectedTransaction.transactionDate) : 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Batch Julian Date (104-108)</span>
-                                                        <span className="font-mono">{selectedTransaction.batchJulianDate || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Net Deposit (109-123)</span>
-                                                        <span className="font-mono">{selectedTransaction.netDeposit || 'N/A'}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Card & Account Fields (124-187) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-orange-700">Card & Account Fields (124-187)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Cardholder Account Number (124-142)</span>
-                                                        <span className="font-mono">{selectedTransaction.cardholderAccountNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">D/C Indicator (216)</span>
-                                                        <span className="font-mono">{selectedTransaction.debitCreditIndicator || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Merchant Name (218-242)</span>
-                                                        <span className="font-mono">{selectedTransaction.merchantName || 'N/A'}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Authorization & Terminal Fields (243-284) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-red-700">Authorization & Terminal Fields (243-284)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Authorization Number (243-250)</span>
-                                                        <span className="font-mono">{selectedTransaction.authorizationNumber || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Card Type (253-254)</span>
-                                                        <div>
-                                                          {selectedTransaction.cardType ? (
-                                                            <span 
-                                                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getCardTypeBadges(selectedTransaction.cardType).className}`}
-                                                            >
-                                                              <CreditCard className="h-3 w-3" />
-                                                              {getCardTypeBadges(selectedTransaction.cardType).label}
-                                                            </span>
-                                                          ) : (
-                                                            <span className="font-mono">N/A</span>
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">MCC Code (273-276)</span>
-                                                        <span className="font-mono">{selectedTransaction.mccCode || 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Terminal ID (277-284)</span>
-                                                        <span className="font-mono font-semibold">{selectedTransaction.terminalId || 'N/A'}</span>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Extended Fields (285+) */}
-                                                  <div>
-                                                    <h4 className="font-semibold text-sm mb-3 text-gray-700">Extended Fields (285+)</h4>
-                                                    <div className="grid grid-cols-1 gap-3 text-sm">
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Transaction Type Identifier (336-338)</span>
-                                                        <span className="font-mono">{selectedTransaction.transactionTypeIdentifier || 'Standard'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Recorded At</span>
-                                                        <span className="font-mono text-xs">{selectedTransaction.recordedAt ? formatTableDate(selectedTransaction.recordedAt) : 'N/A'}</span>
-                                                      </div>
-                                                      <div className="flex justify-between py-2 border-b border-gray-100">
-                                                        <span className="text-muted-foreground">Processing Status</span>
-                                                        <Badge variant="secondary" className="text-xs">Processed</Badge>
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-                                          </TabsContent>
-                                        </Tabs>
-                                      )}
-                                    </DialogContent>
-                                  </Dialog>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => {
+                                      setSelectedTransaction(transaction);
+                                      setShowTransactionDetail(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                 </td>
                               </tr>
                             ))}
@@ -932,6 +615,14 @@ export default function TerminalViewPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Transaction Detail Modal */}
+      <TddfTransactionDetailModal
+        isOpen={showTransactionDetail}
+        onClose={() => setShowTransactionDetail(false)}
+        transaction={selectedTransaction}
+        terminal={terminal as any}
+      />
     </MainLayout>
   );
 }
