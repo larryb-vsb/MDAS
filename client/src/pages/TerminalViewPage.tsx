@@ -431,7 +431,7 @@ export default function TerminalViewPage() {
                               <tr key={transaction.id} className="border-t hover:bg-muted/25">
                                 <td className="p-3">
                                   {transaction.transactionDate 
-                                    ? formatTableDate(transaction.transactionDate).split(' ')[0]
+                                    ? formatTableDate(transaction.transactionDate)
                                     : 'N/A'
                                   }
                                 </td>
