@@ -305,11 +305,19 @@ export default function TerminalViewPage() {
                 <CardHeader>
                   <CardTitle>Terminal Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
+                  {/* Prominent V Number Display */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">VAR Number</p>
+                        <p className="text-lg font-bold text-blue-900">{terminal.vNumber || "Not specified"}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <span className="font-medium">V Number:</span>
-                    <span>{terminal.vNumber}</span>
-                    
                     <span className="font-medium">POS Merchant #:</span>
                     <span>{terminal.posMerchantNumber}</span>
                     
