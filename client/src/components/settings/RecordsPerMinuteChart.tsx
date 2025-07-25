@@ -13,6 +13,7 @@ interface RecordsPerMinuteData {
   bhRecords: number;
   p1Records: number;
   otherRecords: number;
+  skippedRecords: number;
   rawLines: number;
   status?: string;
   formattedTime: string;
@@ -99,8 +100,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   // Generate better Y-axis ticks
   const getYAxisTicks = () => {
     if (!historyData?.data.length) return [0, 50, 100];
-    const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
-    const minValue = Math.min(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
+    const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
+    const minValue = Math.min(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
     
     if (maxValue <= 10) return [0, 2, 4, 6, 8, 10];
     if (maxValue <= 50) return [0, 10, 20, 30, 40, 50];
@@ -184,7 +185,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const totalTddf = data.dtRecords + data.bhRecords + data.p1Records + data.otherRecords;
+      const totalTddf = data.dtRecords + data.bhRecords + data.p1Records + data.otherRecords + data.skippedRecords;
       
       return (
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
@@ -222,6 +223,13 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 Other:
               </span>
               <span>{data.otherRecords.toLocaleString()} records/min</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-sm"></div>
+                Skipped:
+              </span>
+              <span>{data.skippedRecords.toLocaleString()} records/min</span>
             </div>
           </div>
         </div>
@@ -283,8 +291,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   }
 
   const zoomedData = getDataWithShortTime();
-  const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)));
-  const avgValue = historyData.data.reduce((sum, d) => sum + ((d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0)), 0) / historyData.data.length;
+  const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
+  const avgValue = historyData.data.reduce((sum, d) => sum + ((d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)), 0) / historyData.data.length;
   const currentDate = getCurrentDate();
   const zoomLevels = getZoomLevels();
   const canZoomIn = zoomLevel < Math.max(...zoomLevels);
@@ -441,6 +449,13 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar 
+                  dataKey="skippedRecords" 
+                  stackId="records"
+                  fill="#ef4444"
+                  radius={[0, 0, 0, 0]}
+                  name="Skipped Records"
+                />
+                <Bar 
                   dataKey="otherRecords" 
                   stackId="records"
                   fill="#6b7280"
@@ -500,6 +515,10 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
               <span className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-gray-500 rounded-full" />
                 Other
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                Skip
               </span>
             </div>
           </div>

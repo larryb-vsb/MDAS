@@ -5585,7 +5585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordsPerMinute: Math.max(0, Math.round(recordsPerMinute)), // DT records per minute
         hasData: true,
         lastUpdate: latest.timestamp,
-        timePeriod: `${timeDiffMinutes.toFixed(1)} minutes`,
+        timePeriod: "10 min", // Fixed display period instead of actual calculation window
         colorBreakdown: {
           dt: { 
             processed: latest.dt_processed || 0, 
