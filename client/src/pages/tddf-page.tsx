@@ -542,7 +542,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   const summaryFields = [
     { label: 'Reference Number (62-84)', value: record.referenceNumber, mono: true },
     { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
-    { label: 'Terminal ID (279-284)', value: record.terminalId, mono: true },
+    { label: 'Terminal ID (277-284)', value: record.terminalId, mono: true },
     { label: 'MCC Code (273-276)', value: record.mccCode, mono: true },
     { label: 'Transaction Type Identifier (336-338)', value: record.transactionTypeIdentifier, mono: true },
     { label: 'Merchant Account Number (24-39)', value: record.merchantAccountNumber, mono: true },
@@ -628,7 +628,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Carryover Indicator (270-270)', value: record.carryoverIndicator, mono: true },
     { label: 'Extension Record Indicator (271-274)', value: record.extensionRecordIndicator, mono: true },
     { label: 'MCC Code (273-276)', value: record.mccCode, mono: true },
-    { label: 'Terminal ID (279-284)', value: record.terminalId, mono: true },
+    { label: 'Terminal ID (277-284)', value: record.terminalId, mono: true },
     
     // Extended fields (positions 285+)
     { label: 'Discover POS Entry Mode (285-287)', value: record.discoverPosEntryMode, mono: true },
