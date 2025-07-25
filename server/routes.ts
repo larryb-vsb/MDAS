@@ -4442,30 +4442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get TDDF record by ID
-  app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
-    try {
-      const recordId = parseInt(req.params.id);
-      
-      // Validate that recordId is a valid number
-      if (isNaN(recordId) || recordId <= 0) {
-        return res.status(400).json({ error: "Invalid record ID" });
-      }
-      
-      const record = await storage.getTddfRecordById(recordId);
-      
-      if (!record) {
-        return res.status(404).json({ error: "TDDF record not found" });
-      }
-      
-      res.json(record);
-    } catch (error) {
-      console.error('Error fetching TDDF record:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to fetch TDDF record" 
-      });
-    }
-  });
+
 
   // Multi-stream JSON TDDF upload endpoint (for PowerShell agent)
   app.post("/api/tddf/upload-json", isApiKeyAuthenticated, async (req, res) => {
