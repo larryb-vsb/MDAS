@@ -544,7 +544,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
     { label: 'Terminal ID (279-284)', value: record.terminalId, mono: true },
     { label: 'MCC Code (273-276)', value: record.mccCode, mono: true },
-    { label: 'Transaction Type Identifier (335-338)', value: record.transactionTypeIdentifier, mono: true },
+    { label: 'Transaction Type Identifier (336-338)', value: record.transactionTypeIdentifier, mono: true },
     { label: 'Merchant Account Number (24-39)', value: record.merchantAccountNumber, mono: true },
     { label: 'Merchant Name (218-242)', value: record.merchantName },
     { label: 'Batch Julian Date (104-108)', value: record.batchJulianDate, mono: true },
@@ -553,8 +553,8 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Auth Source (176-176)', value: record.authSource, mono: true },
     { label: 'Auth Amount (192-203)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A', highlight: true },
     { label: 'Authorization Number (243-250)', value: record.authorizationNumber, mono: true },
-    { label: 'Card Type (251-256)', value: record.cardType, mono: true },
-    { label: 'Reject Reason (251-254)', value: record.rejectReason, mono: true },
+    { label: 'Card Type (253-254)', value: record.cardType, mono: true },
+    { label: 'Reject Reason (255-258)', value: record.rejectReason, mono: true },
     { label: 'Cash Back Amount (312-322)', value: record.cashBackAmount ? formatCurrency(record.cashBackAmount) : 'N/A' },
     { label: 'Source Row Number', value: record.sourceRowNumber },
     { label: 'Recorded At', value: record.recordedAt ? formatTableDate(record.recordedAt.toString()) : 'N/A' },
@@ -618,8 +618,8 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     
     // Authorization and card details (positions 243-268)
     { label: 'Authorization Number (243-250)', value: record.authorizationNumber, mono: true },
-    { label: 'Reject Reason (251-254)', value: record.rejectReason, mono: true },
-    { label: 'Card Type (251-256)', value: record.cardType, mono: true },
+    { label: 'Reject Reason (251-252)', value: record.rejectReason, mono: true },
+    { label: 'Card Type (253-254)', value: record.cardType, mono: true },
     { label: 'Currency Code (257-259)', value: record.currencyCode, mono: true },
     { label: 'Original Transaction Amount (260-268)', value: record.originalTransactionAmount ? formatCurrency(record.originalTransactionAmount) : 'N/A' },
     
