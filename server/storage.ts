@@ -6073,6 +6073,7 @@ export class DatabaseStorage implements IStorage {
     merchantId?: string;
     cardType?: string;
     search?: string;
+    vNumber?: string;
   }): Promise<{
     data: TddfRecord[];
     pagination: {
@@ -6150,6 +6151,17 @@ export class DatabaseStorage implements IStorage {
             ilike(tddfRecordsTable.referenceNumber, searchTerm)
           )
         );
+      }
+
+      if (options.vNumber && options.vNumber.trim() !== '') {
+        const vNumber = options.vNumber.trim();
+        // Convert V Number (e.g., V6487134) to Terminal ID (e.g., 76487134)
+        // Remove "V" prefix and add "7" prefix to match TDDF Terminal ID field
+        let terminalId = vNumber;
+        if (vNumber.toUpperCase().startsWith('V')) {
+          terminalId = '7' + vNumber.substring(1);
+        }
+        conditions.push(eq(tddfRecordsTable.terminalId, terminalId));
       }
 
       // Get total count

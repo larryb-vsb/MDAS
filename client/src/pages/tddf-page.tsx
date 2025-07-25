@@ -192,6 +192,7 @@ interface TddfFilters {
   txnDateTo: string;
   merchantId: string;
   cardType: string;
+  vNumber: string;
 }
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
@@ -902,6 +903,7 @@ export default function TddfPage() {
     txnDateTo: "",
     merchantId: "",
     cardType: "all",
+    vNumber: "",
   });
 
   const { toast } = useToast();
@@ -919,6 +921,7 @@ export default function TddfPage() {
         ...(filters.txnDateTo && { txnDateTo: filters.txnDateTo }),
         ...(filters.merchantId && { merchantId: filters.merchantId }),
         ...(filters.cardType && filters.cardType !== "all" && { cardType: filters.cardType }),
+        ...(filters.vNumber && { vNumber: filters.vNumber }),
       });
 
       const response = await fetch(`/api/tddf?${params}`, {
@@ -998,6 +1001,7 @@ export default function TddfPage() {
       txnDateTo: "",
       merchantId: "",
       cardType: "all",
+      vNumber: "",
     });
     setCurrentPage(1);
   };
@@ -1085,7 +1089,7 @@ export default function TddfPage() {
           <CardTitle className="text-lg">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Search</label>
               <div className="relative">
@@ -1138,6 +1142,14 @@ export default function TddfPage() {
                 placeholder="Enter Merchant ID"
                 value={filters.merchantId}
                 onChange={(e) => handleFilterChange("merchantId", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">V Number</label>
+              <Input
+                placeholder="Enter V Number (e.g., V6487134)"
+                value={filters.vNumber}
+                onChange={(e) => handleFilterChange("vNumber", e.target.value)}
               />
             </div>
           </div>
