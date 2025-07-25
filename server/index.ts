@@ -10,6 +10,8 @@ import { pool, db } from "./db";
 import { fileProcessorService } from "./services/file-processor";
 import { migrateDatabase } from "./database-migrate";
 import { systemLogger } from './system-logger';
+import os from 'os';
+import fs from 'fs';
 
 // Setup comprehensive process monitoring for Replit scaling events and infrastructure changes
 function setupProcessMonitoring() {
@@ -26,7 +28,7 @@ function setupProcessMonitoring() {
     // Log significant memory changes (indicating scaling events)
     if (memUsageMB.rss > 512 || memUsageMB.heapTotal > 256) {
       systemLogger.warn('Infrastructure', 'High memory usage detected - potential scaling event', {
-        memoryUsageMB,
+        memoryUsageMB: memUsageMB,
         uptime: process.uptime(),
         environment: process.env.NODE_ENV
       }).catch(console.error);
@@ -37,7 +39,7 @@ function setupProcessMonitoring() {
   process.on('SIGUSR1', () => {
     systemLogger.info('Infrastructure', 'SIGUSR1 received - Replit deployment signal detected', {
       uptime: process.uptime(),
-      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+      serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
     }).catch(console.error);
   });
   
@@ -53,7 +55,7 @@ function setupProcessMonitoring() {
     systemLogger.error('System Error', 'Uncaught exception detected', {
       error: error.message,
       stack: error.stack,
-      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+      serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
     }).catch(console.error);
   });
   
@@ -65,9 +67,8 @@ function setupProcessMonitoring() {
   });
   
   // Monitor filesystem events (file processing activities)
-  const fs = require('fs');
   try {
-    const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType, filename) => {
+    const watcher = fs.watch('./tmp_uploads', { recursive: true }, (eventType: string, filename: string | null) => {
       if (filename && eventType === 'rename') {
         systemLogger.info('File System', 'File upload activity detected', {
           filename,
@@ -87,7 +88,7 @@ function setupProcessMonitoring() {
       memoryUsage: process.memoryUsage(),
       cpuUsage: process.cpuUsage(),
       environment: process.env.NODE_ENV,
-      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+      serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
     }).catch(console.error);
   }, 300000); // Every 5 minutes
   
@@ -166,7 +167,7 @@ app.use((req, res, next) => {
       environment: NODE_ENV,
       nodeVersion: process.version,
       platform: process.platform,
-      serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+      serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
     });
 
     // Try to run database migrations to create tables if they don't exist
@@ -266,7 +267,7 @@ app.use((req, res, next) => {
       // Log file processor initialization
       await systemLogger.info('Application', 'File processor service initialized', {
         environment: NODE_ENV,
-        serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+        serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
       });
 
       // Start processing watcher service
@@ -278,7 +279,7 @@ app.use((req, res, next) => {
         
         await systemLogger.info('Application', 'Scanly-Watcher service initialized', {
           environment: NODE_ENV,
-          serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+          serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`
         });
       } catch (error) {
         console.error('[SCANLY-WATCHER] Failed to start service:', error);
@@ -324,7 +325,7 @@ app.use((req, res, next) => {
         port: port,
         environment: NODE_ENV,
         uptime: process.uptime(),
-        serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`,
+        serverId: process.env.HOSTNAME || `${os.hostname()}-${process.pid}`,
         memoryUsage: process.memoryUsage(),
         version: process.version
       }).catch(console.error);
