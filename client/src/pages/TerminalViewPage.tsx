@@ -24,6 +24,8 @@ export default function TerminalViewPage() {
   const { data: terminal, isLoading: terminalLoading } = useQuery<Terminal>({
     queryKey: ["/api/terminals", terminalId],
     enabled: !!terminalId,
+    staleTime: 0, // Force fresh data
+    refetchOnMount: true,
   });
 
   // Fetch terminal transactions (filtered by POS Merchant Number)
@@ -147,9 +149,14 @@ export default function TerminalViewPage() {
             <div>
               <div className="flex items-center gap-3">
                 {getTerminalTypeIcon(terminal.terminalType)}
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {terminal.vNumber}
-                </h1>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-blue-600">VAR Number</span>
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-blue-900">
+                    {terminal.vNumber || "Not specified"}
+                  </h1>
+                </div>
                 {getStatusBadge(terminal.status)}
               </div>
               <p className="text-muted-foreground mt-1">
@@ -362,6 +369,30 @@ export default function TerminalViewPage() {
                     
                     <span className="font-medium">Sync Status:</span>
                     <span>{terminal.syncStatus || "Unknown"}</span>
+                  </div>
+                  
+                  {/* Additional TSYS Fields */}
+                  <div className="border-t pt-3 mt-3">
+                    <h4 className="font-medium mb-2 text-sm">TSYS Configuration</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <span className="font-medium">BIN:</span>
+                      <span>{terminal.bin || "Not specified"}</span>
+                      
+                      <span className="font-medium">Agent:</span>
+                      <span>{terminal.agent || "Not specified"}</span>
+                      
+                      <span className="font-medium">Chain:</span>
+                      <span>{terminal.chain || "Not specified"}</span>
+                      
+                      <span className="font-medium">Store:</span>
+                      <span>{terminal.store || "Not specified"}</span>
+                      
+                      <span className="font-medium">SSL:</span>
+                      <span>{terminal.ssl || "Not specified"}</span>
+                      
+                      <span className="font-medium">Tokenization:</span>
+                      <span>{terminal.tokenization || "Not specified"}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
