@@ -238,7 +238,7 @@ export default function ProcessingStatus() {
   });
 
   // NEW: Fetch Scanly-Watcher cached processing status (every 30 seconds)
-  const { data: cachedProcessingStatus, isLoading: isCacheLoading, error: cacheError } = useQuery({
+  const { data: cachedProcessingStatus, isLoading: isCacheLoading, error: cacheError } = useQuery<any>({
     queryKey: ['/api/scanly-watcher/processing-status'],
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher update cycle
     staleTime: 25000, // Consider data stale after 25 seconds
@@ -425,7 +425,7 @@ export default function ProcessingStatus() {
     }
     
     // Check if any server is currently processing files
-    const isGloballyProcessing = currentConcurrency && Object.keys(currentConcurrency.processingByServer).length > 0;
+    const isGloballyProcessing = currentConcurrency?.processingByServer && Object.keys(currentConcurrency.processingByServer).length > 0;
     
     if (currentStatus.isPaused) {
       return <Badge variant="secondary" className="flex items-center gap-1"><Pause className="h-3 w-3" />Paused</Badge>;
@@ -636,27 +636,27 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 <div className="text-lg font-semibold text-orange-600">
-                  {((realTimeStats.transactionsPerSecond || 0) * 60).toFixed(0)}
+                  {(((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60).toFixed(0)}
                 </div>
                 <div className="text-muted-foreground">Records/min</div>
                 {/* Records per Minute Gauge */}
                 <div className="mt-2 px-2">
                   <TransactionSpeedGauge 
-                    currentSpeed={(realTimeStats.transactionsPerSecond || 0) * 60}
-                    maxScale={Math.max((realTimeStats.transactionsPerSecond || 0) * 60 * 1.2, 600)}
+                    currentSpeed={((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60}
+                    maxScale={Math.max(((effectiveRealTimeStats || realTimeStats)?.transactionsPerSecond || 0) * 60 * 1.2, 600)}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">(last 10 min)</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-purple-600">
-                  {realTimeStats.processedFiles?.toLocaleString() || '0'}
+                  {(effectiveRealTimeStats || realTimeStats)?.processedFiles?.toLocaleString() || '0'}
                 </div>
                 <div className="text-muted-foreground">Processed</div>
               </div>
               <div className="text-center">
                 <div className="text-lg font-semibold text-green-600">
-                  {realTimeStats.filesWithErrors === 0 && realTimeStats.processedFiles > 0 ? '100.0' : '0.0'}%
+                  {(effectiveRealTimeStats || realTimeStats)?.filesWithErrors === 0 && ((effectiveRealTimeStats || realTimeStats)?.processedFiles || 0) > 0 ? '100.0' : '0.0'}%
                 </div>
                 <div className="text-muted-foreground">Resolution Rate</div>
               </div>
@@ -668,13 +668,13 @@ export default function ProcessingStatus() {
             </div>
             
             {/* TDDF Operations Section */}
-            {realTimeStats.tddfOperations && (realTimeStats.tddfOperations.totalTddfRecords > 0 || realTimeStats.tddfFilesProcessed > 0) && (
+            {(effectiveRealTimeStats || realTimeStats)?.tddfOperations && (((effectiveRealTimeStats || realTimeStats)?.tddfOperations?.totalTddfRecords || 0) > 0 || ((effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed || 0) > 0) && (
               <div className="space-y-3">
                 <div className="text-sm font-medium text-muted-foreground border-t pt-3">TDDF File Operations</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-emerald-600">
-                      {realTimeStats.tddfFilesProcessed?.toLocaleString() || '0'}
+                      {(effectiveRealTimeStats || realTimeStats)?.tddfFilesProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-muted-foreground">TDDF Files</div>
                   </div>
