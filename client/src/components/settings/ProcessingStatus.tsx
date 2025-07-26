@@ -657,31 +657,20 @@ export default function ProcessingStatus() {
                   const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
                   const colorBreakdown = performanceKpis?.colorBreakdown;
                   
-                  // Calculate total processed records for gauge display
-                  // Calculate total processing rate from all record types
-                  const totalProcessingRate = (colorBreakdown?.dt?.processed || 0) + 
-                                            (colorBreakdown?.bh?.processed || 0) + 
-                                            (colorBreakdown?.p1?.processed || 0) + 
-                                            (colorBreakdown?.e1?.processed || 0) + 
-                                            (colorBreakdown?.g2?.processed || 0) + 
-                                            (colorBreakdown?.ad?.processed || 0) + 
-                                            (colorBreakdown?.dr?.processed || 0) + 
-                                            (colorBreakdown?.p2?.processed || 0) + 
-                                            (colorBreakdown?.other?.processed || 0) + 
-                                            (colorBreakdown?.totalSkipped || 0);
+                  // Always display last sample color breakdown regardless of processing rate
+                  const dtProcessed = colorBreakdown?.dt?.processed || 0;
+                  const bhProcessed = colorBreakdown?.bh?.processed || 0;
+                  const p1Processed = colorBreakdown?.p1?.processed || 0;
+                  const e1Processed = colorBreakdown?.e1?.processed || 0;
+                  const g2Processed = colorBreakdown?.g2?.processed || 0;
+                  const adProcessed = colorBreakdown?.ad?.processed || 0;
+                  const drProcessed = colorBreakdown?.dr?.processed || 0;
+                  const p2Processed = colorBreakdown?.p2?.processed || 0;
+                  const otherProcessed = colorBreakdown?.other?.processed || 0;
+                  const totalSkipped = colorBreakdown?.totalSkipped || 0;
                   
-                  // If total processing is very low (less than 1000/min), show zero values to indicate no significant processing activity
-                  const showZeroValues = totalProcessingRate < 1000;
-                  const dtProcessed = showZeroValues ? 0 : (colorBreakdown?.dt?.processed || 0);
-                  const bhProcessed = showZeroValues ? 0 : (colorBreakdown?.bh?.processed || 0);
-                  const p1Processed = showZeroValues ? 0 : (colorBreakdown?.p1?.processed || 0);
-                  const e1Processed = showZeroValues ? 0 : (colorBreakdown?.e1?.processed || 0);
-                  const g2Processed = showZeroValues ? 0 : (colorBreakdown?.g2?.processed || 0);
-                  const adProcessed = showZeroValues ? 0 : (colorBreakdown?.ad?.processed || 0);
-                  const drProcessed = showZeroValues ? 0 : (colorBreakdown?.dr?.processed || 0);
-                  const p2Processed = showZeroValues ? 0 : (colorBreakdown?.p2?.processed || 0);
-                  const otherProcessed = showZeroValues ? 0 : (colorBreakdown?.other?.processed || 0);
-                  const totalSkipped = showZeroValues ? 0 : (colorBreakdown?.totalSkipped || 0);
+                  // Calculate total for reference
+                  const totalProcessingRate = dtProcessed + bhProcessed + p1Processed + e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed + totalSkipped;
                   
                   // Combine gray categories (E1, G2, AD, DR, P2, other)
                   const combinedOtherProcessed = e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed;
@@ -694,7 +683,7 @@ export default function ProcessingStatus() {
                         <div className="w-full space-y-1">
                           {/* Multi-Segment Gauge Bar */}
                           <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-                            {!showZeroValues && colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
+                            {colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
                               <>
                                 {/* DT Records - Blue (scaled to database peak) */}
                                 <div 
@@ -779,10 +768,10 @@ export default function ProcessingStatus() {
                             <div className="text-xs text-gray-600">
                               Total Processing Rate: {totalProcessingRate}/min
                             </div>
-                            <div className={`font-semibold ${showZeroValues ? 'text-red-600' : 'text-green-600'}`}>
-                              Gauge Display: {showZeroValues ? 'ZERO (< 1000/min threshold)' : 'ACTIVE (≥ 1000/min)'}
+                            <div className="font-semibold text-green-600">
+                              Gauge Display: ACTIVE (Last Sample Values)
                             </div>
-                            {!showZeroValues && colorBreakdown && (
+                            {colorBreakdown && (
                               <div className="text-xs text-gray-600 mt-1">
                                 Color Breakdown: DT:{colorBreakdown.dt?.processed || 0}, BH:{colorBreakdown.bh?.processed || 0}, P1:{colorBreakdown.p1?.processed || 0}, Other:{combinedOtherProcessed}, Skip:{colorBreakdown.totalSkipped || 0}
                               </div>
