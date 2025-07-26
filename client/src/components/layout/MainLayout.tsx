@@ -384,24 +384,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </header>
         
         {/* Main content */}
-        <main className="flex-1 bg-gray-100 p-6 relative">
+        <main className="flex-1 bg-gray-100 p-6">
           <FallbackStorageAlert />
-          
-          {/* Debug navigation test button - temporary for troubleshooting */}
-          {location === "/settings" && (
-            <div className="fixed top-4 right-4 z-[100] bg-red-500 text-white px-4 py-2 rounded shadow-lg">
-              <button 
-                onClick={() => {
-                  console.log("DEBUG: Test navigation clicked");
-                  window.location.href = "/";
-                }}
-                className="bg-white text-red-500 px-2 py-1 rounded text-sm"
-              >
-                Test Nav to Dashboard
-              </button>
-            </div>
-          )}
-          
           {children}
         </main>
       </div>
