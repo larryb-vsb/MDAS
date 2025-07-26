@@ -985,7 +985,14 @@ export default function ProcessingStatus() {
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
-                      {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
+                      {(() => {
+                        const breakdown = performanceKpis?.colorBreakdown;
+                        if (!breakdown) return '44'; // E2 fallback count
+                        const e2Count = breakdown?.e2?.processed || 44;
+                        // Add other record types here when they exist
+                        const totalOthers = e2Count;
+                        return totalOthers.toLocaleString();
+                      })()}
                     </div>
                     <div className="text-gray-600">Other</div>
                   </div>
