@@ -901,7 +901,10 @@ export default function ProcessingStatus() {
                   {(() => {
                     // Use same chart data source for Records gauge consistency 
                     const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
-                    const recordsPerMinute = performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60);
+                    // Get records per minute directly from chart data (same source as chart display)
+                    const recordsPerMinute = latestChartPoint ? 
+                      (latestChartPoint.dtRecords + latestChartPoint.bhRecords + latestChartPoint.p1Records + latestChartPoint.otherRecords + latestChartPoint.skippedRecords) 
+                      : ((realTimeStats?.transactionsPerSecond || 0) * 60);
                     
                     if (latestChartPoint && performanceKpis?.colorBreakdown) {
                       // Use enhanced color-coded gauge for records/min with detailed breakdown data
