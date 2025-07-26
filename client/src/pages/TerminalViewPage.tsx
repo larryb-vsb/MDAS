@@ -32,6 +32,7 @@ export default function TerminalViewPage() {
   // Debug logging
   console.log('[BACK NAV DEBUG] Current location:', location);
   console.log('[BACK NAV DEBUG] window.location.search:', window.location.search);
+  console.log('[BACK NAV DEBUG] window.location.href:', window.location.href);
   console.log('[BACK NAV DEBUG] Referrer:', referrer);
   
   const getBackUrl = () => {
