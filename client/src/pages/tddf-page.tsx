@@ -2136,9 +2136,7 @@ function E1RecordsTable() {
                     <th className="text-left p-3">ID</th>
                     <th className="text-left p-3">Reference Number</th>
                     <th className="text-left p-3">Merchant Account</th>
-                    <th className="text-left p-3">Transaction Date</th>
                     <th className="text-left p-3">EMV Amount</th>
-                    <th className="text-left p-3">EMV Application ID</th>
                     <th className="text-left p-3">EMV Term Tran Date</th>
                     <th className="text-left p-3">Actions</th>
                   </tr>
@@ -2161,14 +2159,8 @@ function E1RecordsTable() {
                       <td className="p-3 font-mono text-xs">
                         {record.merchantAccount || 'N/A'}
                       </td>
-                      <td className="p-3">
-                        {formatDate(record.transactionDate)}
-                      </td>
                       <td className="p-3 font-mono text-xs">
                         {record.recordData?.emvAmountAuthorized ? formatCurrency(record.recordData.emvAmountAuthorized) : 'N/A'}
-                      </td>
-                      <td className="p-3 font-mono text-xs">
-                        {record.recordData?.emvAppId || 'N/A'}
                       </td>
                       <td className="p-3 font-mono text-xs">
                         {record.recordData?.emvTermTranDate || 'N/A'}
