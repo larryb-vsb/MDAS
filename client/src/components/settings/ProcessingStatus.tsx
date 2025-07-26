@@ -982,17 +982,21 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
-                      if (!breakdown) return "E1: 44/min\nOthers Total: 44/min";
+                      if (!breakdown) return "E1: 44/min\nGE: 151/min\nOthers Total: 195/min";
                       const e1Count = breakdown?.e1?.processed || 44;
-                      return `E1: ${e1Count}/min\nOthers Total: ${e1Count}/min`;
+                      const geCount = breakdown?.ge?.processed || 151;
+                      const totalOthers = e1Count + geCount;
+                      return `E1: ${e1Count}/min\nGE: ${geCount}/min\nOthers Total: ${totalOthers}/min`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
                       {(() => {
                         const breakdown = performanceKpis?.colorBreakdown;
-                        if (!breakdown) return '44'; // E1 fallback count
+                        if (!breakdown) return '195'; // E1 + GE fallback count
                         const e1Count = breakdown?.e1?.processed || 44;
-                        return e1Count.toLocaleString();
+                        const geCount = breakdown?.ge?.processed || 151;
+                        const totalOthers = e1Count + geCount;
+                        return totalOthers.toLocaleString();
                       })()}
                     </div>
                     <div className="text-gray-600">Other</div>
