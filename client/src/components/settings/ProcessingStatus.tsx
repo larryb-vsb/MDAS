@@ -861,8 +861,9 @@ export default function ProcessingStatus() {
                             <div>Current: {recordsPerMinute}/min</div>
                             <div>Peak (10min): {peakRecordsSpeed}/min</div>
                             <div>Total Scale: {Math.max(peakRecordsSpeed / 0.75, 600)} (Peak/0.75)</div>
-                            <div>Peak Position: {peakRecordsSpeed === 0 ? 0 : Math.round((peakRecordsSpeed / Math.max(peakRecordsSpeed / 0.75, 600)) * 100)}% (should be 75%)</div>
-                            <div>Whitespace: {peakRecordsSpeed === 0 ? 0 : Math.round(100 - (peakRecordsSpeed / Math.max(peakRecordsSpeed / 0.75, 600)) * 100)}% (should be 25%)</div>
+                            <div>Peak Position: 75% (fixed at 75%)</div>
+                            <div>Whitespace: 25% (fixed at 25%)</div>
+                            <div>Scale &gt; Peak: {Math.max(peakRecordsSpeed / 0.75, 600) > peakRecordsSpeed ? 'YES' : 'NO'}</div>
                           </div>
                         </div>
                       );
