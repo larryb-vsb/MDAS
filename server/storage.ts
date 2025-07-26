@@ -6611,6 +6611,8 @@ export class DatabaseStorage implements IStorage {
     try {
       const tddfRecordsTableName = getTableName('tddf_records');
       
+      console.log(`[TDDF MERCHANT TERMINALS] Fetching terminals for merchant: ${merchantAccountNumber} from table: ${tddfRecordsTableName}`);
+      
       const query = `
         SELECT 
           terminal_id,
@@ -6626,6 +6628,9 @@ export class DatabaseStorage implements IStorage {
       `;
       
       const result = await pool.query(query, [merchantAccountNumber]);
+      
+      console.log(`[TDDF MERCHANT TERMINALS] Found ${result.rows.length} terminals for merchant ${merchantAccountNumber}`);
+      console.log(`[TDDF MERCHANT TERMINALS] Sample terminal data:`, result.rows.slice(0, 3));
       
       return result.rows.map(row => ({
         terminalId: row.terminal_id || '',

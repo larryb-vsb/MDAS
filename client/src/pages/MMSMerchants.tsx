@@ -617,11 +617,16 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tddf/merchants', merchantAccountNumber, 'terminals'],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf/merchants/${merchantAccountNumber}/terminals`);
+      console.log('[TERMINALS DEBUG] Fetching terminals for merchant:', merchantAccountNumber);
+      const response = await fetch(`/api/tddf/merchants/${merchantAccountNumber}/terminals`, {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch merchant terminals');
       }
-      return response.json();
+      const result = await response.json();
+      console.log('[TERMINALS DEBUG] Terminal response:', result);
+      return result;
     }
   });
 
