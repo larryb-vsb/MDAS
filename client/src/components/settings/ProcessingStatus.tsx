@@ -875,10 +875,7 @@ export default function ProcessingStatus() {
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (database): {recordsPeakFromDatabase}/min</div>
-                            <div>Peak (local): {peakRecordsSpeed}/min</div>
-                            <div>Peak (used): {recordsPeakFromDatabase}/min</div>
-                            <div>Database Peak Raw: {recordsPeakFromDatabase}</div>
+                            <div>Peak (10min): {recordsPeakFromDatabase} (verify)</div>
                           </div>
                         </div>
                       );
