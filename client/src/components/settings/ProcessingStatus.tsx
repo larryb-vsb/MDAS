@@ -184,14 +184,7 @@ const MultiColorGauge = ({
 
       </div>
       
-      {/* Hover tooltip for detailed breakdown */}
-      <div 
-        className="absolute inset-0 cursor-pointer"
-        title={showRecordTypes && recordTypes ? 
-          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1/P2: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit}\n  E1: ${detailedOtherTypes.e1}${unit}\n  G2: ${detailedOtherTypes.g2}${unit}\n  AD: ${detailedOtherTypes.ad}${unit}\n  DR: ${detailedOtherTypes.dr}${unit}\n  P2: ${detailedOtherTypes.p2}${unit}\n  CK: ${detailedOtherTypes.ck}${unit}\n  LG: ${detailedOtherTypes.lg}${unit}\n  GE: ${detailedOtherTypes.ge}${unit}\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
-          `${title}: ${currentSpeed}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}`
-        }
-      />
+      {/* Remove overlapping tooltip layer - tooltips handled by individual dashboard boxes */}
       
       {/* Scale labels */}
       <div className="flex justify-between text-xs text-muted-foreground">
@@ -763,14 +756,7 @@ export default function ProcessingStatus() {
                               title={`Peak: ${recordsPeakFromDatabase} records/min over last 10 min (database)`}
                             />
                             
-                            {/* Hover tooltip for TDDF gauge */}
-                            <div 
-                              className="absolute inset-0 cursor-pointer"
-                              title={showColorBreakdown ? 
-                                `TDDF: ${tddfPerMinute}/min\nDT: ${dtProcessed}/min\nBH: ${bhProcessed}/min\nP1: ${p1Processed}/min\nOther: ${combinedOtherProcessed}/min\nSkip: ${totalSkipped}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}` :
-                                `TDDF: ${tddfPerMinute}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}`
-                              }
-                            />
+                            {/* Remove overlapping tooltip layer - gauge tooltip handled by MultiColorGauge component */}
                           </div>
                           
                           {/* Scale labels with 25% whitespace based on database peak */}
