@@ -718,10 +718,37 @@ export default function ProcessingStatus() {
                             <span>{Math.round((Math.max(tddfPerMinute, 125) * 1.1) / 2)}</span>
                             <span>{Math.round(Math.max(tddfPerMinute, 125) * 1.1)}</span>
                           </div>
+                          
+                          {/* DEBUG: Temporary debug values display */}
+                          <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
+                            <div className="font-semibold">TDDF Debug Values:</div>
+                            <div>Current: {tddfPerMinute}/min</div>
+                            <div>Peak (10min): {peakTddfSpeed}/min</div>
+                            <div>Base Scale: {Math.max(tddfPerMinute, 125)}</div>
+                            <div>Scale + 10%: {Math.round(Math.max(tddfPerMinute, 125) * 1.1)}</div>
+                            <div>Peak Position: {peakTddfSpeed > 0 ? Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.1)) * 100) : 0}%</div>
+                          </div>
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(no data)'}
+                      </div>
+                      
+                      {/* Scale labels with 10% headroom for Records gauge */}
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>0</span>
+                        <span>{Math.round((Math.max(recordsPerMinute, 125) * 1.1) / 2)}</span>
+                        <span>{Math.round(Math.max(recordsPerMinute, 125) * 1.1)}</span>
+                      </div>
+                      
+                      {/* DEBUG: Temporary debug values display for Records */}
+                      <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
+                        <div className="font-semibold">Records Debug Values:</div>
+                        <div>Current: {recordsPerMinute}/min</div>
+                        <div>Peak (10min): {peakRecordsSpeed}/min</div>
+                        <div>Base Scale: {Math.max(recordsPerMinute, 125)}</div>
+                        <div>Scale + 10%: {Math.round(Math.max(recordsPerMinute, 125) * 1.1)}</div>
+                        <div>Peak Position: {peakRecordsSpeed > 0 ? Math.round((peakRecordsSpeed / (Math.max(recordsPerMinute, 125) * 1.1)) * 100) : 0}%</div>
                       </div>
                     </>
                   );
