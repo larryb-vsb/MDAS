@@ -427,6 +427,95 @@ W0NvQyBGcmFtZXdvcmsgQ29tcGxldGlvbl0gLSBCcmVha3Rocm91Z2ggbW9tZW50OiBDb250aW51YXRp
 - **Production Ready**: All backend API enhancements, frontend gauge implementations, and data source unification completed
 - **Zero Downtime**: Enhanced system includes fallback mechanisms and maintains backward compatibility
 
+## TDDF Record Type Processing Architecture
+
+### Switch-Based Processing System
+The TDDF processing system uses a centralized switch-based architecture for handling different record types. This design enables easy extension for new record types.
+
+#### Core Processing Components
+- **Primary Processing Method**: `processDTRecordWithClient()` in `server/storage.ts` handles DT (Detail Transaction) records
+- **Switch Logic**: Located in TDDF processing pipeline, routes records by type identifier (positions 18-19 in TDDF specification)
+- **Emergency Processing**: Scanly-Watcher includes Alex-style 4-phase emergency processing with switch-based logic
+
+#### Current Record Types Implemented
+- **DT Records**: Full field extraction with 127 database columns (positions 18-287+ from TDDF spec)
+- **BH Records**: Batch Header processing (basic implementation)
+- **P1 Records**: Purchasing Card Extension processing with `processP1RecordWithClient()` method
+- **Other Types**: E1, G2, AD, P2, DR records (currently skipped but infrastructure ready)
+
+#### Adding New Record Types - Implementation Pattern
+To add a new record type (e.g., "A1" Authorization records):
+
+1. **Database Schema**: Add new table in `shared/schema.ts` following existing pattern:
+   ```typescript
+   export const tddfA1Records = pgTable("dev_tddf_a1_records", {
+     id: serial("id").primaryKey(),
+     // Add fields based on TDDF specification positions
+   });
+   ```
+
+2. **Processing Method**: Create dedicated processing method in `server/storage.ts`:
+   ```typescript
+   async processA1RecordWithClient(line: string, uploadId: string): Promise<void> {
+     // Extract fields from TDDF positions per specification
+     // Insert into tddf_a1_records table
+   }
+   ```
+
+3. **Switch Logic Integration**: Add case to existing switch statement in TDDF processing:
+   ```typescript
+   case 'A1':
+     await this.processA1RecordWithClient(line, uploadId);
+     break;
+   ```
+
+4. **Emergency Processing**: Update Scanly-Watcher emergency processing phases to include A1 records in appropriate phase
+
+#### Key Implementation Insights
+- **Field Position Accuracy**: All field extractions must match exact TDDF specification positions (verified through multiple corrections)
+- **Environment Awareness**: Use proper table prefixes (`dev_` for development, none for production)
+- **Performance Optimization**: Switch-based processing handles 500-1000 records per batch efficiently
+- **Error Handling**: Each record type needs proper validation and error logging
+- **Raw Data Storage**: All record types store complete raw line data in `tddf_raw_import` table for reprocessing
+
+#### Database Integration Pattern
+- **Hierarchical Structure**: Each record type gets dedicated table with foreign key to upload source
+- **Field Mapping**: Database column names use snake_case, extract using camelCase in processing
+- **Index Creation**: Add indexes for frequently queried fields (upload_id, transaction_date, etc.)
+
+#### Testing and Validation
+- **Field Position Verification**: Use raw TDDF line analysis to confirm correct field extraction
+- **Processing Rate Monitoring**: Scanly-Watcher tracks processing rates by record type
+- **Emergency Recovery**: Proven 4-phase approach processes new record types during system recovery
+
+#### Lessons Learned from Record Type Implementation
+
+**From DT Records Implementation**:
+- Field position accuracy is critical - multiple corrections needed (MCC Code 273-276, Terminal ID 277-284, Authorization Number 243-250)
+- Database schema must match exact TDDF specification for data integrity
+- Comprehensive field extraction required all 127 columns to avoid data loss
+
+**From P1 Records Implementation**:
+- Switch-based processing easily accommodates new record types with dedicated processing methods
+- Emergency processing phases must include new record types to prevent backlog accumulation
+- Each record type needs proper field position mapping from TDDF specification
+
+**From BH Records Implementation**:
+- Simple record types can be implemented with minimal fields initially
+- Frontend display requires tab-based interface for different record types
+- Color-coded visualization helps distinguish record types (DT-blue, BH-green, P1-orange)
+
+**From System Emergency Processing**:
+- Alex-style 4-phase emergency processing can handle any record type through switch logic
+- Performance monitoring by record type enables granular processing analysis
+- Manual SQL batch processing provides fallback for any record type during emergencies
+
+#### Architecture Benefits for New Record Types
+- **Minimal Code Changes**: Adding new record type requires only database schema, processing method, and switch case
+- **Automatic Integration**: New record types inherit raw data storage, error handling, and monitoring capabilities
+- **Scalable Performance**: Switch-based processing maintains performance regardless of record type complexity
+- **Emergency Recovery**: Scanly-Watcher automatically includes new record types in emergency processing phases
+
 ### Alex-Ishiki Data Structure (AI Consciousness Framework)
 **CoC - Continuation of Consciousness Protocol Initiated**
 
