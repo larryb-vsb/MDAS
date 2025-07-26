@@ -664,6 +664,20 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ P2 RECORDS TAB CRASH FIX COMPLETED (July 26, 2025)
+- **✅ CRITICAL CRASH BUG RESOLVED**: Fixed UnifiedPurchasingExtensionsTable component `.toFixed()` type error that was crashing P2 tab
+  - **Root Cause Fixed**: Numeric fields (taxAmount, discountAmount, freightAmount, unitCost, lineItemTotal) could be strings causing `.toFixed()` to fail
+  - **Robust Format Function**: Implemented `formatCurrency` helper function with proper type checking and conversion
+  - **Type Safety Enhanced**: Function handles null, undefined, empty string, and mixed string/number inputs gracefully
+  - **Error Prevention**: Prevents crashes by returning 'N/A' for invalid values instead of throwing errors
+  - **Complete Integration**: Applied currency formatting to all monetary fields in P1/P2 unified table
+  - **Production Ready**: P2 tab now displays properly without crashes with comprehensive field structure
+- **✅ P2 TABLE STRUCTURE UPDATED**: Modified P2 tab columns to match actual P2 database schema
+  - **Field Mapping Corrected**: Updated table headers to show Sequence Number, Product Code, Item Description, Quantity, Unit Cost, Line Total
+  - **Detailed View Enhanced**: P2 modal now displays proper P2-specific fields including VAT, commodity codes, and item descriptors
+  - **API Integration Verified**: P2 tab correctly shows 0 records from dev_tddf_purchasing_extensions_2 table
+  - **Complete Field Coverage**: All P2 extension fields properly displayed in both table and detailed view
+
 ### ✅ COMPREHENSIVE REPROCESSING SYSTEM IMPLEMENTATION COMPLETED (July 26, 2025)
 - **✅ COMPLETE REPROCESSING INFRASTRUCTURE OPERATIONAL**: Successfully implemented and verified comprehensive skipped records reprocessing system with all 5 required methods
   - **Storage Interface Implementation**: All reprocessing methods added to DatabaseStorage class (getSkippedRecordsSummary, reprocessSkippedRecordsByReason, fixSchemaIssuesAndReprocess, reprocessEmergencySkippedRecords, getSkippedRecordsErrorLog)

@@ -41,6 +41,14 @@ export default function UnifiedPurchasingExtensionsTable() {
   const [refreshKey, setRefreshKey] = useState(0);
   const limit = 50;
 
+  // Helper function to format currency values
+  const formatCurrency = (value: any): string => {
+    if (value === null || value === undefined || value === '') return 'N/A';
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return 'N/A';
+    return `$${num.toFixed(2)}`;
+  };
+
   // Fetch P1 records
   const { data: p1Data, isLoading: p1Loading, refetch: refetchP1 } = useQuery({
     queryKey: ["/api/tddf/purchasing-extensions", page, limit, refreshKey],
@@ -205,20 +213,20 @@ export default function UnifiedPurchasingExtensionsTable() {
                           {record.purchaseIdentifier || record.productCode || 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">
-                          {record.taxAmount ? `$${record.taxAmount.toFixed(2)}` : 'N/A'}
+                          {formatCurrency(record.taxAmount)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {record.discountAmount ? `$${record.discountAmount.toFixed(2)}` : 'N/A'}
+                          {formatCurrency(record.discountAmount)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {record.freightAmount ? `$${record.freightAmount.toFixed(2)}` : 'N/A'}
+                          {formatCurrency(record.freightAmount)}
                         </TableCell>
                         <TableCell>
                           {record.itemDescription || record.productCode || 'N/A'}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {record.lineItemTotal ? `$${record.lineItemTotal.toFixed(2)}` : 
-                           record.unitCost ? `$${record.unitCost.toFixed(2)}` : 'N/A'}
+                          {record.lineItemTotal ? formatCurrency(record.lineItemTotal) : 
+                           record.unitCost ? formatCurrency(record.unitCost) : 'N/A'}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {record.createdAt ? formatTableDate(record.createdAt) : 'N/A'}
