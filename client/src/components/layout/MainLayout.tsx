@@ -108,16 +108,14 @@ function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
   const handleClick = (e: React.MouseEvent) => {
     console.log(`[NAV] Clicking ${label} -> ${href}`, e);
     
-    // Force the navigation by preventing any event bubbling issues
+    // Force the navigation using multiple approaches
     e.preventDefault();
     e.stopPropagation();
     
-    // Navigate manually using window.location if wouter fails
-    try {
+    // Immediately navigate using window.location for reliability
+    setTimeout(() => {
       window.location.href = href;
-    } catch (err) {
-      console.error(`[NAV] Navigation failed for ${href}:`, err);
-    }
+    }, 0);
     
     if (onClick) {
       onClick();
@@ -128,9 +126,15 @@ function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
     <div
       onClick={handleClick}
       className={cn(
-        "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
-        isActive ? "text-white bg-gray-700" : "text-gray-300 hover:bg-gray-700 hover:text-white"
+        "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation relative z-50 select-none",
+        isActive ? "text-white bg-gray-700 shadow-lg" : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
       )}
+      style={{
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        userSelect: 'none'
+      }}
     >
       {icon}
       <span>{label}</span>
@@ -276,7 +280,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 px-4 py-6">
+      <aside className="hidden w-64 flex-col md:flex border-r bg-gray-800 px-4 py-6 relative z-50">
         <div className="flex h-12 items-center px-4 mb-6">
           <h2 className="text-lg font-bold text-white">MMS Dashboard</h2>
         </div>
@@ -380,8 +384,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </header>
         
         {/* Main content */}
-        <main className="flex-1 bg-gray-100 p-6">
+        <main className="flex-1 bg-gray-100 p-6 relative">
           <FallbackStorageAlert />
+          
+          {/* Debug navigation test button - temporary for troubleshooting */}
+          {location === "/settings" && (
+            <div className="fixed top-4 right-4 z-[100] bg-red-500 text-white px-4 py-2 rounded shadow-lg">
+              <button 
+                onClick={() => {
+                  console.log("DEBUG: Test navigation clicked");
+                  window.location.href = "/";
+                }}
+                className="bg-white text-red-500 px-2 py-1 rounded text-sm"
+              >
+                Test Nav to Dashboard
+              </button>
+            </div>
+          )}
+          
           {children}
         </main>
       </div>
