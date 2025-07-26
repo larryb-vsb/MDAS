@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, ExternalLink, Monitor } from "lucide-react";
+import { Eye, Search, ExternalLink, Monitor, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -64,6 +66,7 @@ interface TddfMerchantsResponse {
 }
 
 export default function TddfMerchantsTable() {
+  const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [search, setSearch] = useState("");
@@ -79,6 +82,29 @@ export default function TddfMerchantsTable() {
   const [maxTransactions, setMaxTransactions] = useState("");
   const [minTerminals, setMinTerminals] = useState("");
   const [maxTerminals, setMaxTerminals] = useState("");
+
+  // Cache refresh mutation
+  const refreshCacheMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/tddf-merchants/refresh-cache");
+      return response;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Cache Refreshed",
+        description: `Successfully rebuilt ${data.rebuilt} merchants in ${data.performance.buildTimeMs}ms`,
+      });
+      // Invalidate and refetch the merchants data
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf/merchants"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cache Refresh Failed",
+        description: error.message || "Failed to refresh merchant cache",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data, isLoading, error, refetch } = useQuery<TddfMerchantsResponse>({
     queryKey: ["/api/tddf/merchants", { 
@@ -176,6 +202,15 @@ export default function TddfMerchantsTable() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => refreshCacheMutation.mutate()}
+                disabled={refreshCacheMutation.isPending}
+                className="whitespace-nowrap"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                {refreshCacheMutation.isPending ? 'Refreshing...' : 'Refresh from TDDF data'}
+              </Button>
               <Button 
                 variant={showAdvancedFilters ? "default" : "outline"}
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}

@@ -6228,6 +6228,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF Merchants Cache Management Routes
+  app.post('/api/tddf-merchants/refresh-cache', isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF CACHE] Starting cache refresh...');
+      
+      const result = await storage.refreshTddfMerchantsCache();
+      
+      console.log(`[TDDF CACHE] ✅ Cache refresh completed: ${result.rebuilt} merchants`);
+      
+      res.json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[TDDF CACHE] Error refreshing cache:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  app.get('/api/tddf-merchants/cache-stats', isAuthenticated, async (req, res) => {
+    try {
+      const stats = await storage.getTddfMerchantsCacheStats();
+      
+      res.json({
+        success: true,
+        stats
+      });
+    } catch (error: any) {
+      console.error('[TDDF CACHE] Error getting cache stats:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

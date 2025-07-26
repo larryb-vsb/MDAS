@@ -419,6 +419,31 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   recordIdentifierIndex: index("tddf_pe_record_identifier_idx").on(table.recordIdentifier)
 }));
 
+// Pre-cached TDDF Merchants table for performance optimization
+export const tddfMerchantsCache = pgTable(getTableName("tddf_merchants_cache"), {
+  id: serial("id").primaryKey(),
+  merchantName: text("merchant_name").notNull(),
+  merchantAccountNumber: text("merchant_account_number").notNull().unique(),
+  mccCode: text("mcc_code"),
+  transactionTypeIdentifier: text("transaction_type_identifier"),
+  terminalCount: integer("terminal_count").default(0),
+  totalTransactions: integer("total_transactions").default(0),
+  totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).default("0.00"),
+  lastTransactionDate: timestamp("last_transaction_date"),
+  posRelativeCode: text("pos_relative_code"), // First 5 digits of account for terminal linking
+  firstTransactionDate: timestamp("first_transaction_date"),
+  averageTransactionAmount: numeric("average_transaction_amount", { precision: 15, scale: 2 }).default("0.00"),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  merchantAccountNumberIdx: index("tddf_merchants_cache_merchant_account_number_idx").on(table.merchantAccountNumber),
+  merchantNameIdx: index("tddf_merchants_cache_merchant_name_idx").on(table.merchantName),
+  mccCodeIdx: index("tddf_merchants_cache_mcc_code_idx").on(table.mccCode),
+  totalTransactionsIdx: index("tddf_merchants_cache_total_transactions_idx").on(table.totalTransactions),
+  totalAmountIdx: index("tddf_merchants_cache_total_amount_idx").on(table.totalAmount),
+  terminalCountIdx: index("tddf_merchants_cache_terminal_count_idx").on(table.terminalCount),
+}));
+
 // TDDF Purchasing Card 2 Extensions (P2) - Item-level purchasing card data with VAT and discount details
 export const tddfPurchasingExtensions2 = pgTable(getTableName("tddf_purchasing_extensions_2"), {
   id: serial("id").primaryKey(),
@@ -807,6 +832,14 @@ export const insertTddfRecordSchema = tddfRecordsSchema.omit({ id: true, created
 // Zod schemas for TDDF raw import
 export const tddfRawImportSchema = createInsertSchema(tddfRawImport);
 export const insertTddfRawImportSchema = tddfRawImportSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF merchants cache
+export const tddfMerchantsCacheSchema = createInsertSchema(tddfMerchantsCache);
+export const insertTddfMerchantsCacheSchema = tddfMerchantsCacheSchema.omit({ id: true, createdAt: true });
+
+// TypeScript types for TDDF merchants cache
+export type TddfMerchantCache = typeof tddfMerchantsCache.$inferSelect;
+export type InsertTddfMerchantCache = z.infer<typeof insertTddfMerchantsCacheSchema>;
 
 // Zod schemas for backup history
 export const backupHistorySchema = createInsertSchema(backupHistory);

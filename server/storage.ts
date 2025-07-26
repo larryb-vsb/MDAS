@@ -148,6 +148,10 @@ export interface IStorage {
   reprocessEmergencySkippedRecords(batchSize?: number): Promise<{ totalProcessed: number; totalErrors: number; breakdown: Record<string, { processed: number; errors: number }> }>;
   getSkippedRecordsErrorLog(limit?: number): Promise<Array<{ skipReason: string; recordType: string; errorDetails: string; count: number; sampleRawData: string }>>;
 
+  // TDDF merchants cache operations
+  refreshTddfMerchantsCache(): Promise<{ rebuilt: number; updated: Date; performance: { buildTimeMs: number; recordsProcessed: number } }>;
+  getTddfMerchantsCacheStats(): Promise<{ totalMerchants: number; lastUpdated: Date; oldestRecord: Date; averageUpdateAge: number }>;
+
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
     merchants: any[];
@@ -11245,6 +11249,108 @@ export class DatabaseStorage implements IStorage {
       return 'Unrecognized TDDF record type';
     }
     return skipReason;
+  }
+
+  async refreshTddfMerchantsCache(): Promise<{ rebuilt: number; updated: Date; performance: { buildTimeMs: number; recordsProcessed: number } }> {
+    const startTime = Date.now();
+    try {
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const cacheTableName = getTableName('tddf_merchants_cache');
+
+      console.log('[TDDF CACHE] Starting cache rebuild...');
+
+      // Clear existing cache
+      await pool.query(`DELETE FROM "${cacheTableName}"`);
+
+      // Build merchant aggregates from TDDF records
+      const rebuildQuery = `
+        INSERT INTO "${cacheTableName}" (
+          merchant_name,
+          merchant_account_number,
+          mcc_code,
+          transaction_type_identifier,
+          terminal_count,
+          total_transactions,
+          total_amount,
+          last_transaction_date,
+          pos_relative_code,
+          first_transaction_date,
+          average_transaction_amount,
+          last_updated
+        )
+        SELECT 
+          merchant_name,
+          merchant_account_number,
+          mcc_code,
+          transaction_type_identifier,
+          COUNT(DISTINCT terminal_id) as terminal_count,
+          COUNT(*) as total_transactions,
+          SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+          MAX(transaction_date) as last_transaction_date,
+          SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code,
+          MIN(transaction_date) as first_transaction_date,
+          AVG(CAST(transaction_amount AS NUMERIC)) as average_transaction_amount,
+          NOW() as last_updated
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_name IS NOT NULL 
+          AND merchant_account_number IS NOT NULL
+          AND terminal_id IS NOT NULL 
+          AND terminal_id != ''
+        GROUP BY 
+          merchant_name, 
+          merchant_account_number, 
+          mcc_code, 
+          transaction_type_identifier,
+          SUBSTRING(merchant_account_number, 1, 5)
+      `;
+
+      const result = await pool.query(rebuildQuery);
+      const rebuiltCount = result.rowCount || 0;
+      const buildTimeMs = Date.now() - startTime;
+      const updated = new Date();
+
+      console.log(`[TDDF CACHE] ✅ Cache rebuilt: ${rebuiltCount} merchants in ${buildTimeMs}ms`);
+
+      return {
+        rebuilt: rebuiltCount,
+        updated,
+        performance: {
+          buildTimeMs,
+          recordsProcessed: rebuiltCount
+        }
+      };
+    } catch (error) {
+      console.error('[TDDF CACHE] Error rebuilding cache:', error);
+      throw error;
+    }
+  }
+
+  async getTddfMerchantsCacheStats(): Promise<{ totalMerchants: number; lastUpdated: Date; oldestRecord: Date; averageUpdateAge: number }> {
+    try {
+      const cacheTableName = getTableName('tddf_merchants_cache');
+
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as total_merchants,
+          MAX(last_updated) as last_updated,
+          MIN(created_at) as oldest_record,
+          EXTRACT(EPOCH FROM (NOW() - AVG(last_updated))) / 60 as average_update_age_minutes
+        FROM "${cacheTableName}"
+      `;
+
+      const result = await pool.query(statsQuery);
+      const row = result.rows[0];
+
+      return {
+        totalMerchants: parseInt(row.total_merchants) || 0,
+        lastUpdated: row.last_updated || new Date(),
+        oldestRecord: row.oldest_record || new Date(),
+        averageUpdateAge: parseFloat(row.average_update_age_minutes) || 0
+      };
+    } catch (error) {
+      console.error('[TDDF CACHE] Error getting cache stats:', error);
+      throw error;
+    }
   }
 }
 
