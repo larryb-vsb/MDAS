@@ -90,9 +90,13 @@ export default function TddfMerchantsTable() {
       return response;
     },
     onSuccess: (data) => {
+      // Handle the response structure correctly
+      const rebuilt = data.rebuilt || 0;
+      const buildTimeMs = data.performance?.buildTimeMs || 0;
+      
       toast({
         title: "Cache Refreshed",
-        description: `Successfully rebuilt ${data.rebuilt} merchants in ${data.performance.buildTimeMs}ms`,
+        description: `Successfully rebuilt ${rebuilt} merchants in ${buildTimeMs}ms`,
       });
       // Invalidate and refetch the merchants data
       queryClient.invalidateQueries({ queryKey: ["/api/tddf/merchants"] });
