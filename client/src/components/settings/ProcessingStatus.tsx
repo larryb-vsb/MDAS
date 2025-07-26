@@ -839,6 +839,9 @@ export default function ProcessingStatus() {
                       const drCount = breakdown?.dr?.processed || 0;
                       const totalSkippedDetailed = breakdown?.totalSkipped || 0;
                       
+                      // Calculate true "Other" records (exclude tracked types E1, G2, AD, P2, DR)
+                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Count + g2Count + adCount + p2Count + drCount));
+                      
                       return (
                         <MultiColorGauge 
                           currentSpeed={recordsPerMinute}
@@ -847,7 +850,7 @@ export default function ProcessingStatus() {
                             dt: dtProcessed,
                             bh: bhProcessed,
                             p1: p1Processed,
-                            other: otherProcessed + totalSkipped // Combine other and skipped for visualization
+                            other: trueOtherProcessed // Only true "other" records like E2
                           }}
                           detailedOtherTypes={{
                             e1: e1Count,
