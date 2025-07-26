@@ -1263,6 +1263,8 @@ export default function ProcessingStatus() {
                           <div className="text-blue-600 text-xs mt-1">
                             Est: {(() => {
                               const pending = (tddfRawStatus as any)?.pending || 0;
+                              if (pending <= 0) return '0 min';
+                              
                               const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
                               const chartRate = latestChartPoint ? 
                                 (latestChartPoint.dtRecords + latestChartPoint.bhRecords + latestChartPoint.p1Records + latestChartPoint.otherRecords + latestChartPoint.skippedRecords) : 0;
@@ -1270,9 +1272,18 @@ export default function ProcessingStatus() {
                               const hourlyRate = Math.round(peakRate * 0.8);
                               const dailyRate = Math.round(peakRate * 0.6);
                               
-                              // Use average rate for most reliable estimate
-                              const averageRate = Math.round((chartRate + hourlyRate + dailyRate) / 3);
-                              if (averageRate <= 0 || pending <= 0) return '0 min';
+                              // Use best available rate (fallback to peak if others are 0)
+                              let averageRate = 0;
+                              if (chartRate > 0 && peakRate > 0) {
+                                averageRate = Math.round((chartRate + hourlyRate + dailyRate) / 3);
+                              } else if (peakRate > 0) {
+                                averageRate = peakRate; // Use peak if chart data unavailable
+                              } else if (chartRate > 0) {
+                                averageRate = chartRate; // Use chart if peak unavailable
+                              } else {
+                                return 'calculating...'; // No data available yet
+                              }
+                              
                               const estimatedMinutes = Math.ceil(pending / averageRate);
                               return estimatedMinutes < 60 ? `${estimatedMinutes} min` : `${Math.round(estimatedMinutes / 60 * 10) / 10}h`;
                             })()}
