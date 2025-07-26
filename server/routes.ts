@@ -5161,6 +5161,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       
+      console.log('[TDDF MERCHANTS API] Query params:', {
+        page,
+        limit,
+        search: req.query.search,
+        sortBy: req.query.sortBy,
+        sortOrder: req.query.sortOrder
+      });
+      
       const result = await storage.getTddfMerchants({
         page,
         limit,

@@ -6401,6 +6401,7 @@ export class DatabaseStorage implements IStorage {
 
       if (options.search && options.search.trim() !== '') {
         const searchTerm = `%${options.search.trim().toLowerCase()}%`;
+        console.log('[SEARCH DEBUG] Search term:', options.search, '-> SQL term:', searchTerm);
         searchCondition = `
           WHERE (
             LOWER(merchant_name) LIKE $${paramIndex} OR 
@@ -6509,7 +6510,7 @@ export class DatabaseStorage implements IStorage {
         ${searchCondition}
       `;
 
-      const countParams = options.search && options.search.trim() !== '' ? [options.search.trim().toLowerCase()] : [];
+      const countParams = options.search && options.search.trim() !== '' ? [`%${options.search.trim().toLowerCase()}%`] : [];
 
       // Execute queries
       const [dataResult, countResult] = await Promise.all([
