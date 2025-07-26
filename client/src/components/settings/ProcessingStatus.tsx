@@ -734,33 +734,83 @@ export default function ProcessingStatus() {
                   return (
                     <>
                       <div className="text-muted-foreground">TDDF/min</div>
-                      {/* Use MultiColorGauge component for consistent tooltip support */}
+                      {/* Enhanced Color-Coded Gauge with Record Type Breakdown */}
                       <div className="mt-2 px-2">
-                        <MultiColorGauge 
-                          currentSpeed={tddfPerMinute}
-                          maxScale={Math.max(recordsPeakFromDatabase / 0.75, 125)}
-                          recordTypes={{
-                            dt: dtProcessed,
-                            bh: bhProcessed,
-                            p1: p1Processed,
-                            other: combinedOtherProcessed
-                          }}
-                          detailedOtherTypes={{
-                            e1: e1Processed,
-                            g2: g2Processed,
-                            ad: adProcessed,
-                            p2: p2Processed,
-                            dr: drProcessed,
-                            ck: 0,
-                            lg: 0,
-                            ge: 0,
-                            skipped: totalSkipped
-                          }}
-                          showRecordTypes={true}
-                          peakValue={recordsPeakFromDatabase}
-                          title="TDDF"
-                          unit="/min"
-                        />
+                        <div className="w-full space-y-1">
+                          {/* Multi-Segment Gauge Bar with Tooltip */}
+                          <div 
+                            className="relative h-3 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
+                            title={`TDDF: ${tddfPerMinute.toLocaleString()}/min\n\nDT: ${dtProcessed.toLocaleString()}/min\nBH: ${bhProcessed.toLocaleString()}/min\nP1: ${p1Processed.toLocaleString()}/min\nOther: ${combinedOtherProcessed.toLocaleString()}/min${totalSkipped > 0 ? `\nSkip: ${totalSkipped.toLocaleString()}/min` : ''}`}
+                          >
+                            {(dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
+                              <>
+                                {/* DT Records - Blue (scaled to database peak) */}
+                                <div 
+                                  className="absolute left-0 top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    width: `${Math.min((dtProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
+                                    backgroundColor: '#3b82f6' 
+                                  }}
+                                />
+                                {/* BH Records - Green (scaled to database peak) */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${Math.min((dtProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((bhProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
+                                    backgroundColor: '#10b981' 
+                                  }}
+                                />
+                                {/* P1 Records - Orange (scaled to database peak) */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${Math.min(((dtProcessed + bhProcessed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((p1Processed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
+                                    backgroundColor: '#f59e0b' 
+                                  }}
+                                />
+                                {/* Other Records - Gray (scaled to database peak) */}
+                                <div 
+                                  className="absolute top-0 h-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${Math.min(((dtProcessed + bhProcessed + p1Processed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((combinedOtherProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
+                                    backgroundColor: '#6b7280' 
+                                  }}
+                                />
+                                {/* Skipped Records - Red (scaled to database peak) */}
+                                <div 
+                                  className="absolute top-0 h-full rounded-r-full transition-all duration-300"
+                                  style={{ 
+                                    left: `${Math.min(((dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((totalSkipped / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
+                                    backgroundColor: '#ef4444' 
+                                  }}
+                                />
+                              </>
+                            ) : null}
+                            {/* Empty gauge when showing zero values - no bars */}
+                            
+                            {/* Peak indicator bar for TDDF gauge with 25% whitespace - using database peak */}
+                            <div 
+                              className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
+                              style={{ left: `${Math.min((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%` }}
+                              title={`Peak: ${recordsPeakFromDatabase} records/min over last 10 min (database)`}
+                            />
+                            
+                            {/* Remove overlapping tooltip layer - gauge tooltip handled by MultiColorGauge component */}
+                          </div>
+                          
+                          {/* Scale labels with 25% whitespace based on database peak */}
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>0</span>
+                            <span>{Math.round((Math.max(recordsPeakFromDatabase / 0.75, 125)) / 2)}</span>
+                            <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 125))}</span>
+                          </div>
+                          
+
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(no data)'}
