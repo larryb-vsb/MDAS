@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +37,34 @@ interface TddfTransaction {
 
 export default function OrphanTerminalViewPage() {
   const { terminalId } = useParams<{ terminalId: string }>();
+  const [location, navigate] = useLocation();
   const [detailsRecord, setDetailsRecord] = useState<TddfTransaction | null>(null);
+  
+  // Get referrer from URL params to handle back navigation
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const referrer = urlParams.get('referrer');
+  
+  const getBackUrl = () => {
+    switch (referrer) {
+      case 'mms-merchants':
+        return '/mms-merchants';
+      case 'tddf':
+        return '/tddf';
+      default:
+        return '/orphan-terminals';
+    }
+  };
+  
+  const getBackLabel = () => {
+    switch (referrer) {
+      case 'mms-merchants':
+        return 'Back to MMS Merchants';
+      case 'tddf':
+        return 'Back to TDDF Records';
+      default:
+        return 'Back';
+    }
+  };
 
   // Fetch orphan terminal details
   const { data: terminalDetails, isLoading: detailsLoading, refetch: refetchDetails } = useQuery({
@@ -104,12 +131,13 @@ export default function OrphanTerminalViewPage() {
           <p className="text-muted-foreground mb-4">
             Terminal ID {terminalId} not found in orphan terminals
           </p>
-          <Link href="/orphan-terminals">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Orphan Terminals
-            </Button>
-          </Link>
+          <Button 
+            variant="outline"
+            onClick={() => navigate(getBackUrl())}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {getBackLabel()}
+          </Button>
         </div>
       </MainLayout>
     );
@@ -121,12 +149,14 @@ export default function OrphanTerminalViewPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/orphan-terminals">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate(getBackUrl())}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {getBackLabel()}
+            </Button>
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold tracking-tight">Terminal ID</h1>

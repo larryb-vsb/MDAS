@@ -484,7 +484,7 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   // If terminal found and V Number matches Terminal ID
   if (terminal) {
     return (
-      <Link href={`/terminals/${terminal.id}`}>
+      <Link href={`/terminals/${terminal.id}?referrer=mms-merchants`}>
         <Button
           variant="ghost"
           size="sm"
@@ -499,7 +499,7 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
 
   // If no matching V Number found, display Terminal ID with light orange styling as link to orphan terminal
   return (
-    <Link href={`/orphan-terminals/${terminalId}`}>
+    <Link href={`/orphan-terminals/${terminalId}?referrer=mms-merchants`}>
       <Button
         variant="ghost"
         size="sm"

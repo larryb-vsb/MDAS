@@ -18,12 +18,38 @@ import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeat
 
 export default function TerminalViewPage() {
   const params = useParams();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [timeRange, setTimeRange] = useState("12months");
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showTransactionDetail, setShowTransactionDetail] = useState(false);
   
   const terminalId = params.id ? parseInt(params.id) : null;
+  
+  // Get referrer from URL params to handle back navigation
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const referrer = urlParams.get('referrer');
+  
+  const getBackUrl = () => {
+    switch (referrer) {
+      case 'mms-merchants':
+        return '/mms-merchants';
+      case 'tddf':
+        return '/tddf';
+      default:
+        return '/terminals';
+    }
+  };
+  
+  const getBackLabel = () => {
+    switch (referrer) {
+      case 'mms-merchants':
+        return 'Back to MMS Merchants';
+      case 'tddf':
+        return 'Back to TDDF Records';
+      default:
+        return 'Back';
+    }
+  };
 
   // Fetch terminal details with forced refresh
   const { data: terminal, isLoading: terminalLoading, refetch } = useQuery({
@@ -232,10 +258,10 @@ export default function TerminalViewPage() {
               <Button 
                 variant="outline" 
                 className="mt-4"
-                onClick={() => navigate("/terminals")}
+                onClick={() => navigate(getBackUrl())}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Terminals
+                {getBackLabel()}
               </Button>
             </CardContent>
           </Card>
@@ -253,10 +279,10 @@ export default function TerminalViewPage() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => navigate("/terminals")}
+              onClick={() => navigate(getBackUrl())}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              {getBackLabel()}
             </Button>
             <div>
               <div className="flex items-center gap-3">
