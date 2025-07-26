@@ -262,11 +262,6 @@ export default function ProcessingStatus() {
   // Fetch Records gauge peak value directly from performance metrics database
   const { data: recordsPeakData } = useQuery<{peakRecords: number}>({
     queryKey: ['/api/processing/records-peak'],
-    queryFn: async () => {
-      const response = await fetch('/api/processing/records-peak');
-      if (!response.ok) throw new Error('Failed to fetch records peak');
-      return response.json();
-    },
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
     staleTime: 25000,
   });
