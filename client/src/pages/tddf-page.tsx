@@ -2139,7 +2139,7 @@ function E1RecordsTable() {
                     <th className="text-left p-3">Transaction Date</th>
                     <th className="text-left p-3">EMV Amount</th>
                     <th className="text-left p-3">EMV Application ID</th>
-                    <th className="text-left p-3">EMV Currency</th>
+                    <th className="text-left p-3">EMV Term Tran Date</th>
                     <th className="text-left p-3">Actions</th>
                   </tr>
                 </thead>
@@ -2165,13 +2165,13 @@ function E1RecordsTable() {
                         {formatDate(record.transactionDate)}
                       </td>
                       <td className="p-3 font-mono text-xs">
-                        {record.emvAmount ? formatCurrency(record.emvAmount) : 'N/A'}
+                        {record.recordData?.emvAmountAuthorized ? formatCurrency(record.recordData.emvAmountAuthorized) : 'N/A'}
                       </td>
                       <td className="p-3 font-mono text-xs">
-                        {record.emvApplicationId || 'N/A'}
+                        {record.recordData?.emvAppId || 'N/A'}
                       </td>
                       <td className="p-3 font-mono text-xs">
-                        {record.emvTransactionCurrencyCode || 'N/A'}
+                        {record.recordData?.emvTermTranDate || 'N/A'}
                       </td>
                       <td className="p-3">
                         <Button 
@@ -2242,12 +2242,13 @@ function E1RecordsTable() {
                   <div>
                     <h4 className="font-medium mb-2">EMV Transaction Data</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">EMV Amount:</span> {detailsRecord.emvAmount ? formatCurrency(detailsRecord.emvAmount) : 'N/A'}</div>
-                      <div><span className="font-medium">EMV Application ID:</span> {detailsRecord.emvApplicationId || 'N/A'}</div>
-                      <div><span className="font-medium">EMV Currency Code:</span> {detailsRecord.emvTransactionCurrencyCode || 'N/A'}</div>
-                      <div><span className="font-medium">EMV Cryptogram:</span> {detailsRecord.emvApplicationCryptogram || 'N/A'}</div>
-                      <div><span className="font-medium">EMV Verification:</span> {detailsRecord.emvTerminalVerificationResults || 'N/A'}</div>
-                      <div><span className="font-medium">EMV Issuer Data:</span> {detailsRecord.emvIssuerApplicationData || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Amount:</span> {detailsRecord.recordData?.emvAmountAuthorized ? formatCurrency(detailsRecord.recordData.emvAmountAuthorized) : 'N/A'}</div>
+                      <div><span className="font-medium">EMV Application ID:</span> {detailsRecord.recordData?.emvAppId || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Currency Code:</span> {detailsRecord.recordData?.emvTranCurrencyCode || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Cryptogram:</span> {detailsRecord.recordData?.emvCryptogram || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Verification:</span> {detailsRecord.recordData?.emvTermVerifyResults || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Term Tran Date (219-224):</span> {detailsRecord.recordData?.emvTermTranDate || 'N/A'}</div>
+                      <div><span className="font-medium">EMV Issuer Data:</span> {detailsRecord.recordData?.emvIssAppData || 'N/A'}</div>
                     </div>
                   </div>
                   <div>
