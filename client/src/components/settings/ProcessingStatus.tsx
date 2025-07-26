@@ -292,6 +292,20 @@ export default function ProcessingStatus() {
     gcTime: 60000, // Keep in cache for 1 minute
   });
 
+  // Fetch chart data for TDDF gauge synchronization (same source as chart)
+  const { data: chartData } = useQuery<any>({
+    queryKey: ['/api/processing/performance-chart-history', 10/60, 0], // 10 minutes, no offset
+    queryFn: async () => {
+      const response = await fetch(`/api/processing/performance-chart-history?hours=${10/60}&timeOffset=0`);
+      if (!response.ok) throw new Error('Failed to fetch data');
+      return response.json();
+    },
+    refetchInterval: 30000,
+    staleTime: 25000,
+    retry: 1,
+    gcTime: 60000,
+  });
+
   // Pause processing mutation
   const pauseMutation = useMutation({
     mutationFn: async () => {
@@ -653,36 +667,29 @@ export default function ProcessingStatus() {
               </div>
               <div className="text-center space-y-2">
                 {(() => {
-                  // Use enhanced performance KPI data with color-coded breakdown
-                  const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
-                  const colorBreakdown = performanceKpis?.colorBreakdown;
+                  // Use the most recent data point from chart (same source as chart display)
+                  const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
+                  const rawDtProcessed = latestChartPoint?.dtRecords || 0;
+                  const rawBhProcessed = latestChartPoint?.bhRecords || 0;
+                  const rawP1Processed = latestChartPoint?.p1Records || 0;
+                  const rawOtherProcessed = latestChartPoint?.otherRecords || 0;
+                  const rawTotalSkipped = latestChartPoint?.skippedRecords || 0;
                   
-                  // Use current sample values but only show colors when there's significant activity
-                  const rawDtProcessed = colorBreakdown?.dt?.processed || 0;
-                  const rawBhProcessed = colorBreakdown?.bh?.processed || 0;
-                  const rawP1Processed = colorBreakdown?.p1?.processed || 0;
-                  const rawE1Processed = colorBreakdown?.e1?.processed || 0;
-                  const rawG2Processed = colorBreakdown?.g2?.processed || 0;
-                  const rawAdProcessed = colorBreakdown?.ad?.processed || 0;
-                  const rawDrProcessed = colorBreakdown?.dr?.processed || 0;
-                  const rawP2Processed = colorBreakdown?.p2?.processed || 0;
-                  const rawOtherProcessed = colorBreakdown?.other?.processed || 0;
-                  const rawTotalSkipped = colorBreakdown?.totalSkipped || 0;
+                  // Use same data as chart - this ensures consistency
+                  const totalProcessingRate = rawDtProcessed + rawBhProcessed + rawP1Processed + rawOtherProcessed + rawTotalSkipped;
+                  const tddfPerMinute = totalProcessingRate; // Total rate is TDDF rate
                   
-                  // Calculate total processing rate from current sample
-                  const totalProcessingRate = rawDtProcessed + rawBhProcessed + rawP1Processed + rawE1Processed + rawG2Processed + rawAdProcessed + rawDrProcessed + rawP2Processed + rawOtherProcessed + rawTotalSkipped;
-                  
-                  // Only show colors when current total processing rate is significant (>= 1000/min)
-                  // When processing is low, show empty gauge (zero values)
-                  const showColorBreakdown = totalProcessingRate >= 1000;
+                  // Only show colors when current total processing rate is significant (>= 10/min)
+                  // Use lower threshold since chart data shows current rates, not cumulative
+                  const showColorBreakdown = totalProcessingRate >= 10;
                   const dtProcessed = showColorBreakdown ? rawDtProcessed : 0;
                   const bhProcessed = showColorBreakdown ? rawBhProcessed : 0;
                   const p1Processed = showColorBreakdown ? rawP1Processed : 0;
-                  const e1Processed = showColorBreakdown ? rawE1Processed : 0;
-                  const g2Processed = showColorBreakdown ? rawG2Processed : 0;
-                  const adProcessed = showColorBreakdown ? rawAdProcessed : 0;
-                  const drProcessed = showColorBreakdown ? rawDrProcessed : 0;
-                  const p2Processed = showColorBreakdown ? rawP2Processed : 0;
+                  const e1Processed = 0; // Chart doesn't break down other types
+                  const g2Processed = 0;
+                  const adProcessed = 0;
+                  const drProcessed = 0;
+                  const p2Processed = 0;
                   const otherProcessed = showColorBreakdown ? rawOtherProcessed : 0;
                   const totalSkipped = showColorBreakdown ? rawTotalSkipped : 0;
                   
@@ -697,7 +704,7 @@ export default function ProcessingStatus() {
                         <div className="w-full space-y-1">
                           {/* Multi-Segment Gauge Bar */}
                           <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-                            {colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
+                            {(dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
                               <>
                                 {/* DT Records - Blue (scaled to database peak) */}
                                 <div 
@@ -757,7 +764,7 @@ export default function ProcessingStatus() {
                             {/* Hover tooltip for TDDF gauge */}
                             <div 
                               className="absolute inset-0 cursor-pointer"
-                              title={colorBreakdown ? 
+                              title={showColorBreakdown ? 
                                 `TDDF: ${tddfPerMinute}/min\nDT: ${dtProcessed}/min\nBH: ${bhProcessed}/min\nP1: ${p1Processed}/min\nOther: ${combinedOtherProcessed}/min\nSkip: ${totalSkipped}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}` :
                                 `TDDF: ${tddfPerMinute}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}`
                               }
@@ -780,16 +787,17 @@ export default function ProcessingStatus() {
                             <div>Peak Position: {recordsPeakFromDatabase === 0 ? 0 : Math.round((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 75%)</div>
                             <div>Whitespace: {recordsPeakFromDatabase === 0 ? 0 : Math.round(100 - (recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 25%)</div>
                             <div className="text-xs text-gray-600">
-                              Total Processing Rate: {totalProcessingRate}/min
+                              Total Processing Rate: {totalProcessingRate}/min (from chart)
                             </div>
                             <div className={`font-semibold ${showColorBreakdown ? 'text-green-600' : 'text-red-600'}`}>
-                              Gauge Display: {showColorBreakdown ? 'ACTIVE (≥ 1000/min)' : 'ZERO (< 1000/min threshold)'}
+                              Gauge Display: {showColorBreakdown ? 'ACTIVE (≥ 10/min chart data)' : 'ZERO (< 10/min threshold)'}
                             </div>
-                            {showColorBreakdown && colorBreakdown && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                Color Breakdown: DT:{rawDtProcessed}, BH:{rawBhProcessed}, P1:{rawP1Processed}, Other:{rawE1Processed + rawG2Processed + rawAdProcessed + rawDrProcessed + rawP2Processed + rawOtherProcessed}, Skip:{rawTotalSkipped}
-                              </div>
-                            )}
+                            <div className="text-xs text-gray-600 mt-1">
+                              Chart Sync: DT:{rawDtProcessed}, BH:{rawBhProcessed}, P1:{rawP1Processed}, Other:{rawOtherProcessed}, Skip:{rawTotalSkipped}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Data Source: Same as chart below (performance-chart-history)
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -828,22 +836,17 @@ export default function ProcessingStatus() {
                 {/* Enhanced Records per Minute Gauge with Color Breakdown */}
                 <div className="mt-2 px-2">
                   {(() => {
-                    const colorBreakdown = performanceKpis?.colorBreakdown;
+                    // Use same chart data source for Records gauge consistency 
+                    const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
                     const recordsPerMinute = performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60);
                     
-                    if (colorBreakdown) {
-                      // Use enhanced color-coded gauge for records/min
-                      // If current sample is zero, show zero values instead of historical data
-                      const dtProcessed = recordsPerMinute === 0 ? 0 : (colorBreakdown.dt?.processed || 0);
-                      const bhProcessed = recordsPerMinute === 0 ? 0 : (colorBreakdown.bh?.processed || 0);
-                      const p1Processed = recordsPerMinute === 0 ? 0 : (colorBreakdown.p1?.processed || 0);
-                      const totalOtherProcessed = recordsPerMinute === 0 ? 0 : ((colorBreakdown.e1?.processed || 0) + 
-                                                 (colorBreakdown.g2?.processed || 0) + 
-                                                 (colorBreakdown.ad?.processed || 0) + 
-                                                 (colorBreakdown.dr?.processed || 0) + 
-                                                 (colorBreakdown.p2?.processed || 0) + 
-                                                 (colorBreakdown.other?.processed || 0));
-                      const totalSkipped = recordsPerMinute === 0 ? 0 : (colorBreakdown.totalSkipped || 0);
+                    if (latestChartPoint) {
+                      // Use enhanced color-coded gauge for records/min with chart data
+                      const dtProcessed = latestChartPoint?.dtRecords || 0;
+                      const bhProcessed = latestChartPoint?.bhRecords || 0;
+                      const p1Processed = latestChartPoint?.p1Records || 0;
+                      const otherProcessed = latestChartPoint?.otherRecords || 0;
+                      const totalSkipped = latestChartPoint?.skippedRecords || 0;
                       
                       return (
                         <MultiColorGauge 
@@ -853,7 +856,7 @@ export default function ProcessingStatus() {
                             dt: dtProcessed,
                             bh: bhProcessed,
                             p1: p1Processed,
-                            other: totalOtherProcessed + totalSkipped // Combine other and skipped for visualization
+                            other: otherProcessed + totalSkipped // Combine other and skipped for visualization
                           }}
                           showRecordTypes={true}
                           peakValue={recordsPeakFromDatabase} // Direct peak from performance database
