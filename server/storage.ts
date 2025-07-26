@@ -7265,18 +7265,12 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('tddf_raw_import');
       
-      // SIMPLIFIED DUPLICATE PREVENTION: Fixed SQL syntax error
+      // SIMPLIFIED QUERY: Find pending records without complex subqueries
       const queryParams: any[] = [];
       let query = `
-        SELECT DISTINCT ON (source_file_id, line_number) *
+        SELECT *
         FROM "${tableName}" 
-        WHERE processing_status = 'pending' 
-          AND NOT EXISTS (
-            SELECT 1 FROM "${tableName}" t2 
-            WHERE t2.source_file_id = "${tableName}".source_file_id 
-              AND t2.line_number = "${tableName}".line_number
-              AND t2.processing_status IN ('processed', 'skipped')
-          )
+        WHERE processing_status = 'pending'
       `;
       
       if (fileId) {
