@@ -568,9 +568,6 @@ export default function TerminalViewPage() {
                   <div className="border-t pt-3 mt-3">
                     <h4 className="font-medium mb-2 text-sm">TSYS Configuration</h4>
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <span className="font-medium">Terminal #:</span>
-                      <span className="font-mono">{terminal.terminalId || "Not specified"}</span>
-                      
                       <span className="font-medium">BIN:</span>
                       <span>{terminal.bin || "Not specified"}</span>
                       
@@ -582,6 +579,9 @@ export default function TerminalViewPage() {
                       
                       <span className="font-medium">Store:</span>
                       <span>{terminal.store || "Not specified"}</span>
+                      
+                      <span className="font-medium">Terminal #:</span>
+                      <span className="font-mono">{terminal.terminalId || "Not specified"}</span>
                       
                       <span className="font-medium">SSL:</span>
                       <span>{terminal.ssl || "Not specified"}</span>
