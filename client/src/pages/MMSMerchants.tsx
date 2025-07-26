@@ -20,8 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, ArrowUpDown, Building2, CreditCard, Monitor } from "lucide-react";
-import { useLocation } from "wouter";
+import { Search, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink } from "lucide-react";
+import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 
 interface TddfMerchant {
@@ -457,6 +457,61 @@ function MerchantOverview({ merchant }: { merchant: TddfMerchant }) {
   );
 }
 
+// Terminal ID Display Component - same logic as TDDF page
+function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
+  const { data: terminals } = useQuery({
+    queryKey: ['/api/terminals'],
+    queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
+  });
+
+  if (!terminalId) {
+    return (
+      <span className="text-xs text-muted-foreground font-mono">
+        N/A
+      </span>
+    );
+  }
+
+  // Find terminal by VAR mapping pattern: V8912064 → 78912064
+  const terminal = terminals?.find((t: any) => {
+    if (!terminalId) return false;
+    // Extract numeric part from V Number and add "7" prefix for comparison
+    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const expectedTerminalId = '7' + vNumberNumeric;
+    return expectedTerminalId === terminalId;
+  });
+
+  // If terminal found and V Number matches Terminal ID
+  if (terminal) {
+    return (
+      <Link href={`/terminals/${terminal.id}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          {terminal.vNumber}
+        </Button>
+      </Link>
+    );
+  }
+
+  // If no matching V Number found, display Terminal ID with light orange styling as link to orphan terminal
+  return (
+    <Link href={`/orphan-terminals/${terminalId}`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 p-1 text-xs font-mono text-orange-600 bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:text-orange-800"
+      >
+        <ExternalLink className="h-3 w-3 mr-1" />
+        {terminalId}
+      </Button>
+    </Link>
+  );
+}
+
 // Transactions tab component
 function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber: string }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -524,7 +579,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Reference</TableHead>
-                  <TableHead>Terminal ID</TableHead>
+                  <TableHead>Terminal</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Card Type</TableHead>
                   <TableHead>Auth #</TableHead>
@@ -535,7 +590,9 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                   <TableRow key={`${transaction.id}-${index}`}>
                     <TableCell>{formatTableDate(transaction.transactionDate)}</TableCell>
                     <TableCell className="font-mono text-sm">{transaction.referenceNumber}</TableCell>
-                    <TableCell className="font-mono text-sm">{transaction.terminalId}</TableCell>
+                    <TableCell>
+                      <TerminalIdDisplay terminalId={transaction.terminalId} />
+                    </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       {new Intl.NumberFormat('en-US', {
                         style: 'currency',
@@ -613,7 +670,7 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead>Terminal ID</TableHead>
+                  <TableHead>Terminal</TableHead>
                   <TableHead className="text-right">Transaction Count</TableHead>
                   <TableHead className="text-right">Total Amount</TableHead>
                   <TableHead>Last Transaction</TableHead>
@@ -622,7 +679,9 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
               <TableBody>
                 {terminals.map((terminal: any, index: number) => (
                   <TableRow key={`${terminal.terminalId}-${index}`}>
-                    <TableCell className="font-mono font-medium">{terminal.terminalId}</TableCell>
+                    <TableCell>
+                      <TerminalIdDisplay terminalId={terminal.terminalId} />
+                    </TableCell>
                     <TableCell className="text-right">{terminal.transactionCount?.toLocaleString() || 0}</TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       {new Intl.NumberFormat('en-US', {
