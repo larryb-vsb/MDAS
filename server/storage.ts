@@ -322,6 +322,19 @@ export interface IStorage {
       itemsPerPage: number;
     };
   }>;
+  getTddfOtherRecords(options: {
+    page?: number;
+    limit?: number;
+    recordType?: string;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
 
   // P1 Purchasing Extensions
   getTddfPurchasingExtensions(options: {
@@ -8969,6 +8982,103 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting TDDF purchasing extensions 2 (P2):', error);
+      throw error;
+    }
+  }
+
+  // Get TDDF other records (E1, G2, AD, DR, etc.) with pagination and filtering
+  async getTddfOtherRecords(options: {
+    page?: number;
+    limit?: number;
+    recordType?: string;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = Math.min(options.limit || 50, 500);
+      const offset = (page - 1) * limit;
+
+      const tableName = getTableName("tddf_other_records");
+      
+      // Build WHERE clause for record type filtering
+      let whereClause = "";
+      let queryParams: any[] = [];
+      
+      if (options.recordType) {
+        whereClause = "WHERE record_type = $1";
+        queryParams = [options.recordType, limit, offset];
+      } else {
+        queryParams = [limit, offset];
+      }
+
+      // Get total count using raw SQL
+      const countQuery = `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`;
+      const countParams = options.recordType ? [options.recordType] : [];
+      const countResult = await pool.query(countQuery, countParams);
+      const count = parseInt(countResult.rows[0]?.count || '0');
+
+      // Get records using raw SQL
+      const dataQuery = `
+        SELECT id, record_type as "recordType", 
+               merchant_account_number as "merchantAccount",
+               reference_number as "referenceNumber",
+               transaction_date as "transactionDate",
+               amount, description,
+               record_data as "recordData",
+               source_file_id as "sourceFileId", 
+               source_row_number as "sourceRowNumber",
+               recorded_at as "recordedAt",
+               created_at as "createdAt", 
+               updated_at as "updatedAt"
+        FROM ${tableName} 
+        ${whereClause}
+        ORDER BY created_at DESC 
+        LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}
+      `;
+      
+      console.log(`[OTHER QUERY] Executing: ${dataQuery}`);
+      console.log(`[OTHER QUERY] Params:`, queryParams);
+      
+      const dataResult = await pool.query(dataQuery, queryParams);
+      const data = dataResult.rows.map(row => {
+        // Extract EMV fields from recordData for E1 records
+        if (row.recordType === 'E1' && row.recordData) {
+          const emvData = row.recordData;
+          return {
+            ...row,
+            emvAmount: emvData.emvAmountAuthorized || emvData.emvAmountOther || null,
+            emvApplicationId: emvData.emvApplicationId || null,
+            emvTerminalVerificationResults: emvData.emvTerminalVerificationResults || null,
+            emvTransactionCurrencyCode: emvData.emvTransactionCurrencyCode || null,
+            emvApplicationCryptogram: emvData.emvApplicationCryptogram || null,
+            emvIssuerApplicationData: emvData.emvIssuerApplicationData || null
+          };
+        }
+        return row;
+      });
+
+      console.log(`[OTHER QUERY] Found ${data.length} ${options.recordType || 'other'} records out of ${count} total`);
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        data,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF other records:', error);
       throw error;
     }
   }

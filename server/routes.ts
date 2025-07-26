@@ -4453,6 +4453,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF other records (E1, G2, AD, DR, etc.) with pagination and filtering
+  app.get("/api/tddf/other-records", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[OTHER API] Other records request received');
+      console.log('[OTHER API] Query params:', req.query);
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const recordType = req.query.recordType as string;
+      
+      // Validate parameters
+      if (isNaN(page) || page < 1) {
+        return res.status(400).json({ error: "Invalid page parameter" });
+      }
+      if (isNaN(limit) || limit < 1 || limit > 500) {
+        return res.status(400).json({ error: "Invalid limit parameter" });
+      }
+      
+      console.log('[OTHER API] Calling storage with:', { page, limit, recordType });
+      
+      const result = await storage.getTddfOtherRecords({
+        page,
+        limit,
+        recordType
+      });
+      
+      console.log('[OTHER API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching other records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch other records" 
+      });
+    }
+  });
+
   // Get TDDF purchasing extensions 2 (P2 records) with pagination
   app.get("/api/tddf/purchasing-extensions-2", isAuthenticated, async (req, res) => {
     try {
