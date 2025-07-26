@@ -20,6 +20,7 @@ import TerminalViewPage from "@/pages/TerminalViewPage";
 import TddfPage from "@/pages/tddf-page";
 import OrphanTerminalsPage from "@/pages/OrphanTerminalsPage";
 import OrphanTerminalViewPage from "@/pages/OrphanTerminalViewPage";
+import MMSMerchants from "@/pages/MMSMerchants";
 import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
@@ -31,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/merchants" component={Merchants} />
       <ProtectedRoute path="/merchants/new" component={NewMerchant} />
       <ProtectedRoute path="/merchants/:id" component={MerchantDetail} />
+      <ProtectedRoute path="/mms-merchants" component={MMSMerchants} />
       <ProtectedRoute path="/terminals" component={TerminalsPage} />
       <ProtectedRoute path="/terminals/:id" component={TerminalViewPage} />
       <ProtectedRoute path="/orphan-terminals" component={OrphanTerminalsPage} />
