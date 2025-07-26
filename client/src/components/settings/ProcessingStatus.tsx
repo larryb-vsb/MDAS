@@ -109,10 +109,10 @@ const MultiColorGauge = ({
   title?: string;
   unit?: string;
 }) => {
-  // Add 10% headroom to maxScale
-  const adjustedMaxScale = maxScale * 1.1;
+  // Add 25% headroom to maxScale
+  const adjustedMaxScale = maxScale * 1.25;
   const currentPercentage = Math.min((currentSpeed / adjustedMaxScale) * 100, 100);
-  const peakPercentage = Math.min((peakValue / adjustedMaxScale) * 100, 100);
+  const peakPercentage = Math.min((Math.max(peakValue, 1) / adjustedMaxScale) * 100, 100); // Always show at least 1% for visibility
   
   // Calculate percentages for each record type when showing types
   const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
@@ -172,14 +172,12 @@ const MultiColorGauge = ({
           />
         )}
         
-        {/* Peak indicator bar - shows total/peak over last 10 minutes */}
-        {peakValue > 0 && (
-          <div 
-            className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-            style={{ left: `${peakPercentage}%` }}
-            title={`Peak: ${peakValue}${unit} over last 10 min`}
-          />
-        )}
+        {/* Peak indicator bar - shows total/peak over last 10 minutes - always visible */}
+        <div 
+          className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
+          style={{ left: `${peakPercentage}%` }}
+          title={`Peak: ${peakValue}${unit} over last 10 min`}
+        />
 
       </div>
       
@@ -694,14 +692,12 @@ export default function ProcessingStatus() {
                               />
                             )}
                             
-                            {/* Peak indicator bar for TDDF gauge with 10% headroom */}
-                            {peakTddfSpeed > 0 && (
-                              <div 
-                                className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-                                style={{ left: `${Math.min((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.1)) * 100, 100)}%` }}
-                                title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
-                              />
-                            )}
+                            {/* Peak indicator bar for TDDF gauge with 25% headroom - always visible */}
+                            <div 
+                              className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
+                              style={{ left: `${Math.min((Math.max(peakTddfSpeed, 1) / (Math.max(tddfPerMinute, 125) * 1.25)) * 100, 100)}%` }}
+                              title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
+                            />
                             
                             {/* Hover tooltip for TDDF gauge */}
                             <div 
