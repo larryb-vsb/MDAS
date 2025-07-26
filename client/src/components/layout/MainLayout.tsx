@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRouter } from "wouter";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
@@ -105,17 +105,20 @@ const navItems = [
 ];
 
 function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
+  const navigate = useRouter()[1];
+  
   const handleClick = (e: React.MouseEvent) => {
-    console.log(`[NAV] Clicking ${label} -> ${href}`, e);
-    
-    // Force the navigation using multiple approaches
     e.preventDefault();
     e.stopPropagation();
     
-    // Immediately navigate using window.location for reliability
-    setTimeout(() => {
+    // Try fast client-side navigation first
+    try {
+      navigate(href);
+    } catch (err) {
+      // Fallback to window.location only if router fails
+      console.log(`[NAV] Router failed, using fallback for ${href}:`, err);
       window.location.href = href;
-    }, 0);
+    }
     
     if (onClick) {
       onClick();
