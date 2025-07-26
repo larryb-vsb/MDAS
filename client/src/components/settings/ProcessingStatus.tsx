@@ -943,7 +943,7 @@ export default function ProcessingStatus() {
                 </div>
                 
                 {/* TDDF Processing Breakdown */}
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-xs">
+                <div className="grid grid-cols-3 md:grid-cols-7 gap-4 text-xs">
                   <div className="text-center p-2 bg-gray-50 rounded border">
                     <div className="font-semibold text-gray-700">
                       {(() => {
@@ -957,29 +957,72 @@ export default function ProcessingStatus() {
                     </div>
                     <div className="text-gray-600">Total Processed</div>
                   </div>
-                  <div className="text-center p-2 bg-blue-50 rounded border">
+                  <div className="text-center p-2 bg-blue-50 rounded border pointer-events-none">
                     <div className="font-semibold text-blue-700">
                       {realTimeStats?.tddfOperations?.dtRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-blue-600">DT</div>
                   </div>
-                  <div className="text-center p-2 bg-emerald-50 rounded border">
+                  <div className="text-center p-2 bg-emerald-50 rounded border pointer-events-none">
                     <div className="font-semibold text-emerald-700">
                       {realTimeStats?.tddfOperations?.bhRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
-                  <div className="text-center p-2 bg-amber-50 rounded border">
+                  <div className="text-center p-2 bg-amber-50 rounded border pointer-events-none">
                     <div className="font-semibold text-amber-700">
                       {realTimeStats?.tddfOperations?.p1RecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
-                  <div className="text-center p-2 bg-gray-50 rounded border">
+                  <div 
+                    className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
+                    title={(() => {
+                      const breakdown = performanceKpis?.colorBreakdown;
+                      if (!breakdown) return "Other Record Types";
+                      const e1Count = breakdown?.e1?.processed || 0;
+                      const g2Count = breakdown?.g2?.processed || 0;
+                      const adCount = breakdown?.ad?.processed || 0;
+                      const p2Count = breakdown?.p2?.processed || 0;
+                      const drCount = breakdown?.dr?.processed || 0;
+                      const totalOther = e1Count + g2Count + adCount + p2Count + drCount;
+                      return `Other Record Types\n\nE1: ${e1Count}\nG2: ${g2Count}\nAD: ${adCount}\nP2: ${p2Count}\nDR: ${drCount}\n\nOthers Total: ${totalOther}`;
+                    })()}
+                  >
                     <div className="font-semibold text-gray-700">
                       {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
                     </div>
                     <div className="text-gray-600">Other</div>
+                  </div>
+                  <div 
+                    className="text-center p-2 bg-red-50 rounded border cursor-pointer hover:bg-red-100 transition-colors"
+                    title={(() => {
+                      const breakdown = performanceKpis?.colorBreakdown;
+                      if (!breakdown) return "Skipped Records";
+                      const e1Skipped = breakdown?.e1?.skipped || 0;
+                      const g2Skipped = breakdown?.g2?.skipped || 0;
+                      const adSkipped = breakdown?.ad?.skipped || 0;
+                      const p2Skipped = breakdown?.p2?.skipped || 0;
+                      const drSkipped = breakdown?.dr?.skipped || 0;
+                      const dtSkipped = breakdown?.dt?.skipped || 0;
+                      const bhSkipped = breakdown?.bh?.skipped || 0;
+                      const p1Skipped = breakdown?.p1?.skipped || 0;
+                      const totalSkipped = e1Skipped + g2Skipped + adSkipped + p2Skipped + drSkipped + dtSkipped + bhSkipped + p1Skipped;
+                      return `Skipped Records\n\nE1: ${e1Skipped} Skipped\nG2: ${g2Skipped} Skipped\nAD: ${adSkipped} Skipped\nP2: ${p2Skipped} Skipped\nDR: ${drSkipped} Skipped\nDT: ${dtSkipped} Skipped\nBH: ${bhSkipped} Skipped\nP1: ${p1Skipped} Skipped\n\nTotal Skipped: ${totalSkipped}`;
+                    })()}
+                  >
+                    <div className="font-semibold text-red-700">
+                      {(() => {
+                        const breakdown = performanceKpis?.colorBreakdown;
+                        if (!breakdown) return '0';
+                        const totalSkipped = (breakdown?.e1?.skipped || 0) + (breakdown?.g2?.skipped || 0) + 
+                                           (breakdown?.ad?.skipped || 0) + (breakdown?.p2?.skipped || 0) + 
+                                           (breakdown?.dr?.skipped || 0) + (breakdown?.dt?.skipped || 0) + 
+                                           (breakdown?.bh?.skipped || 0) + (breakdown?.p1?.skipped || 0);
+                        return totalSkipped.toLocaleString();
+                      })()}
+                    </div>
+                    <div className="text-red-600">Skipped</div>
                   </div>
                   <div className="text-center p-2 bg-orange-50 rounded border">
                     <div className="font-semibold text-orange-700">
