@@ -106,19 +106,17 @@ const navItems = [
 
 function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
   return (
-    <div onClick={onClick}>
-      <Link href={href}>
-        <div
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer",
-            isActive ? "text-white bg-gray-700" : "text-gray-300 hover:bg-gray-700"
-          )}
-        >
-          {icon}
-          <span>{label}</span>
-        </div>
-      </Link>
-    </div>
+    <Link 
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
+        isActive ? "text-white bg-gray-700" : "text-gray-300 hover:bg-gray-700 hover:text-white"
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
   );
 }
 
@@ -157,8 +155,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const MobileNav = () => (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden text-white">
-          <Menu className="h-5 w-5" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="md:hidden text-white hover:bg-gray-700 min-h-[44px] min-w-[44px] touch-manipulation"
+        >
+          <Menu className="h-6 w-6" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
@@ -214,7 +216,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     <div className="text-gray-400 text-xs">{user.email}</div>
                   </div>
                   <div
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700"
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer text-gray-300 hover:bg-gray-700 min-h-[44px] touch-manipulation"
                     onClick={(e) => {
                       e.preventDefault();
                       handleLogout();
@@ -354,9 +356,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       
       <div className="flex flex-1 flex-col">
         {/* Mobile header */}
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-gray-800 text-white px-6 md:hidden">
+        <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-gray-800 text-white px-4 md:hidden shadow-sm">
           <MobileNav />
-          <h1 className="text-xl font-bold">MMS Dashboard</h1>
+          <h1 className="text-lg font-bold truncate">MMS Dashboard</h1>
         </header>
         
         {/* Main content */}
