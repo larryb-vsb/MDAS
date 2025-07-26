@@ -568,6 +568,9 @@ export default function TerminalViewPage() {
                   <div className="border-t pt-3 mt-3">
                     <h4 className="font-medium mb-2 text-sm">TSYS Configuration</h4>
                     <div className="grid grid-cols-2 gap-2 text-xs">
+                      <span className="font-medium">Terminal #:</span>
+                      <span className="font-mono">{terminalIdFromVar || "Not available"}</span>
+                      
                       <span className="font-medium">BIN:</span>
                       <span>{terminal.bin || "Not specified"}</span>
                       
