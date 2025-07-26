@@ -109,8 +109,8 @@ const MultiColorGauge = ({
   title?: string;
   unit?: string;
 }) => {
-  // Add 25% headroom to maxScale
-  const adjustedMaxScale = maxScale * 1.25;
+  // Calculate scale to ensure 25% whitespace: X = peak / 0.75
+  const adjustedMaxScale = Math.max(peakValue / 0.75, maxScale);
   const currentPercentage = Math.min((currentSpeed / adjustedMaxScale) * 100, 100);
   const peakPercentage = Math.min((peakValue / adjustedMaxScale) * 100, 100);
   
@@ -692,10 +692,10 @@ export default function ProcessingStatus() {
                               />
                             )}
                             
-                            {/* Peak indicator bar for TDDF gauge with 25% headroom - always visible */}
+                            {/* Peak indicator bar for TDDF gauge with 25% whitespace - always visible */}
                             <div 
                               className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-                              style={{ left: `${Math.min((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100, 100)}%` }}
+                              style={{ left: `${Math.min((peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100, 100)}%` }}
                               title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
                             />
                             
@@ -709,21 +709,21 @@ export default function ProcessingStatus() {
                             />
                           </div>
                           
-                          {/* Scale labels with 25% headroom based on peak */}
+                          {/* Scale labels with 25% whitespace based on peak */}
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>0</span>
-                            <span>{Math.round((Math.max(peakTddfSpeed, 125) * 1.25) / 2)}</span>
-                            <span>{Math.round(Math.max(peakTddfSpeed, 125) * 1.25)}</span>
+                            <span>{Math.round((Math.max(peakTddfSpeed / 0.75, 125)) / 2)}</span>
+                            <span>{Math.round(Math.max(peakTddfSpeed / 0.75, 125))}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">TDDF Debug Values:</div>
                             <div>Current: {tddfPerMinute}/min</div>
-                            <div>Peak (10min): {tddfPerMinute === 0 ? 0 : peakTddfSpeed}/min</div>
-                            <div>Base Scale: {Math.max(peakTddfSpeed, 125)}</div>
-                            <div>Scale + 25%: {Math.round(Math.max(peakTddfSpeed, 125) * 1.25)}</div>
-                            <div>Peak Position: {(peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100)}%</div>
+                            <div>Peak (10min): {peakTddfSpeed}/min</div>
+                            <div>Total Scale: {Math.max(peakTddfSpeed / 0.75, 125)} (Peak/0.75)</div>
+                            <div>Peak Position: {peakTddfSpeed === 0 ? 0 : Math.round((peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100)}% (should be 75%)</div>
+                            <div>Whitespace: {peakTddfSpeed === 0 ? 0 : Math.round(100 - (peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100)}% (should be 25%)</div>
                           </div>
                         </div>
                       </div>
