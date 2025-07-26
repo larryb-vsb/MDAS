@@ -712,11 +712,11 @@ export default function ProcessingStatus() {
                             />
                           </div>
                           
-                          {/* Scale labels with 10% headroom */}
+                          {/* Scale labels with 25% headroom */}
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>0</span>
-                            <span>{Math.round((Math.max(tddfPerMinute, 125) * 1.1) / 2)}</span>
-                            <span>{Math.round(Math.max(tddfPerMinute, 125) * 1.1)}</span>
+                            <span>{Math.round((Math.max(tddfPerMinute, 125) * 1.25) / 2)}</span>
+                            <span>{Math.round(Math.max(tddfPerMinute, 125) * 1.25)}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display */}
@@ -725,8 +725,8 @@ export default function ProcessingStatus() {
                             <div>Current: {tddfPerMinute}/min</div>
                             <div>Peak (10min): {peakTddfSpeed}/min</div>
                             <div>Base Scale: {Math.max(tddfPerMinute, 125)}</div>
-                            <div>Scale + 10%: {Math.round(Math.max(tddfPerMinute, 125) * 1.1)}</div>
-                            <div>Peak Position: {peakTddfSpeed > 0 ? Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.1)) * 100) : 0}%</div>
+                            <div>Scale + 25%: {Math.round(Math.max(tddfPerMinute, 125) * 1.25)}</div>
+                            <div>Peak Position: {peakTddfSpeed > 0 ? Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.25)) * 100) : 0}%</div>
                           </div>
                         </div>
                       </div>
@@ -809,11 +809,11 @@ export default function ProcessingStatus() {
                             unit="/min"
                           />
                           
-                          {/* Scale labels with 10% headroom for Records gauge */}
+                          {/* Scale labels with 25% headroom for Records gauge */}
                           <div className="flex justify-between text-xs text-muted-foreground mt-1">
                             <span>0</span>
-                            <span>{Math.round((Math.max(recordsPerMinute, 600) * 1.1) / 2)}</span>
-                            <span>{Math.round(Math.max(recordsPerMinute, 600) * 1.1)}</span>
+                            <span>{Math.round((Math.max(recordsPerMinute, 600) * 1.25) / 2)}</span>
+                            <span>{Math.round(Math.max(recordsPerMinute, 600) * 1.25)}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display for Records */}
@@ -822,8 +822,8 @@ export default function ProcessingStatus() {
                             <div>Current: {recordsPerMinute}/min</div>
                             <div>Peak (10min): {peakTxnSpeed * 60}/min</div>
                             <div>Base Scale: {Math.max(recordsPerMinute, 600)}</div>
-                            <div>Scale + 10%: {Math.round(Math.max(recordsPerMinute, 600) * 1.1)}</div>
-                            <div>Peak Position: {peakTxnSpeed > 0 ? Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.1)) * 100) : 0}%</div>
+                            <div>Scale + 25%: {Math.round(Math.max(recordsPerMinute, 600) * 1.25)}</div>
+                            <div>Peak Position: {peakTxnSpeed > 0 ? Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.25)) * 100) : 0}%</div>
                           </div>
                         </div>
                       );
