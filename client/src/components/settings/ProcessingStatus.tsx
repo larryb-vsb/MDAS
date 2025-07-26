@@ -1224,7 +1224,7 @@ export default function ProcessingStatus() {
                         </div>
                         <div className="text-amber-600">Pending</div>
                       </div>
-                      <div className="text-center p-2 bg-purple-50 rounded border">
+                      <div className="text-center p-2 bg-purple-50 rounded border border-blue-500 border-2">
                         <div className="font-semibold text-purple-700">
                           {(() => {
                             const pending = (tddfRawStatus as any)?.pending || 0;
