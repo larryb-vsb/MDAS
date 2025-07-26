@@ -105,7 +105,7 @@ const MultiColorGauge = ({
   currentSpeed: number;
   maxScale?: number;
   recordTypes?: { dt: number; bh: number; p1: number; other: number };
-  detailedOtherTypes?: { e1: number; g2: number; ad: number; p2: number; dr: number; skipped: number };
+  detailedOtherTypes?: { e1: number; g2: number; ad: number; p2: number; dr: number; ck: number; lg: number; ge: number; skipped: number };
   showRecordTypes?: boolean;
   peakValue?: number;
   title?: string;
@@ -188,7 +188,7 @@ const MultiColorGauge = ({
       <div 
         className="absolute inset-0 cursor-pointer"
         title={showRecordTypes && recordTypes ? 
-          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit} (E2, misc)\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
+          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1/P2: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit}\n  E1: ${detailedOtherTypes.e1} records\n  G2: ${detailedOtherTypes.g2} records\n  AD: ${detailedOtherTypes.ad} records\n  DR: ${detailedOtherTypes.dr} records\n  P2: ${detailedOtherTypes.p2} records\n  CK: ${detailedOtherTypes.ck} records\n  LG: ${detailedOtherTypes.lg} records\n  GE: ${detailedOtherTypes.ge} records\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
           `${title}: ${currentSpeed}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}`
         }
       />
@@ -837,10 +837,13 @@ export default function ProcessingStatus() {
                       const adCount = breakdown?.ad?.processed || 0;
                       const p2Count = breakdown?.p2?.processed || 0;
                       const drCount = breakdown?.dr?.processed || 0;
+                      const ckCount = breakdown?.ck?.processed || 0;
+                      const lgCount = breakdown?.lg?.processed || 0;
+                      const geCount = breakdown?.ge?.processed || 0;
                       const totalSkippedDetailed = breakdown?.totalSkipped || 0;
                       
-                      // Calculate true "Other" records (exclude tracked types E1, G2, AD, P2, DR)
-                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Count + g2Count + adCount + p2Count + drCount));
+                      // Calculate true "Other" records (exclude tracked types E1, G2, AD, P2, DR, CK, LG, GE)
+                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Count + g2Count + adCount + p2Count + drCount + ckCount + lgCount + geCount));
                       
                       return (
                         <MultiColorGauge 
@@ -858,6 +861,9 @@ export default function ProcessingStatus() {
                             ad: adCount,
                             p2: p2Count,
                             dr: drCount,
+                            ck: ckCount,
+                            lg: lgCount,
+                            ge: geCount,
                             skipped: totalSkippedDetailed
                           }}
                           showRecordTypes={true}
