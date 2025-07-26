@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatTableDate, formatTddfDate } from "@/lib/date-utils";
+import { format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import UnifiedPurchasingExtensionsTable from "@/components/tddf/UnifiedPurchasingExtensionsTable";
@@ -1508,6 +1509,256 @@ function P2RecordsTable() {
   );
 }
 
+// AD Records Table Component
+function ADRecordsTable() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [detailsRecord, setDetailsRecord] = useState<any>(null);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/tddf/other-records", "AD", currentPage, itemsPerPage],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        recordType: "AD",
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
+
+      const response = await fetch(`/api/tddf/other-records?${params}`, {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch AD records");
+      }
+      return response.json();
+    },
+  });
+
+  const records = data?.data || [];
+  const totalRecords = data?.pagination?.totalItems || 0;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  const formatCurrency = (amount?: string | number) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(numAmount);
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return 'N/A';
+    try {
+      return format(new Date(date), 'MMM dd, yyyy');
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const toggleRecordSelection = (recordId: number) => {
+    const newSelected = new Set(selectedRecords);
+    if (newSelected.has(recordId)) {
+      newSelected.delete(recordId);
+    } else {
+      newSelected.add(recordId);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const toggleAllRecords = () => {
+    if (selectedRecords.size === records.length) {
+      setSelectedRecords(new Set());
+    } else {
+      setSelectedRecords(new Set(records.map(r => r.id)));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>
+            AD Records ({totalRecords}) - Merchant Adjustment Extension
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100, 200].map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="text-muted-foreground">Loading AD records...</div>
+          </div>
+        ) : records.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No AD records found
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Records Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left p-3 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecords.size === records.length && records.length > 0}
+                        onChange={toggleAllRecords}
+                        className="rounded border-border"
+                      />
+                    </th>
+                    <th className="text-left p-3">ID</th>
+                    <th className="text-left p-3">Reference Number</th>
+                    <th className="text-left p-3">Merchant Account</th>
+                    <th className="text-left p-3">Transaction Date</th>
+                    <th className="text-left p-3">Amount</th>
+                    <th className="text-left p-3">Source File</th>
+                    <th className="text-left p-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((record: any) => (
+                    <tr key={record.id} className="border-b hover:bg-muted/20">
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRecords.has(record.id)}
+                          onChange={() => toggleRecordSelection(record.id)}
+                          className="rounded border-border"
+                        />
+                      </td>
+                      <td className="p-3 font-mono text-xs">{record.id}</td>
+                      <td className="p-3 font-mono text-xs max-w-32 truncate">
+                        {record.referenceNumber || 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.merchantAccount || 'N/A'}
+                      </td>
+                      <td className="p-3 text-xs">
+                        {record.transactionDate ? formatDate(record.transactionDate) : 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.amount ? formatCurrency(record.amount) : 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.sourceFileId || 'N/A'}
+                      </td>
+                      <td className="p-3">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setDetailsRecord(record)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, totalRecords)} of {totalRecords} records
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Details Modal */}
+        <Dialog open={!!detailsRecord} onOpenChange={() => setDetailsRecord(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>AD Record Details - Merchant Adjustment Extension</DialogTitle>
+            </DialogHeader>
+            {detailsRecord && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium mb-2">Basic Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
+                      <div><span className="font-medium">Record Type:</span> {detailsRecord.recordType}</div>
+                      <div><span className="font-medium">Reference Number:</span> {detailsRecord.referenceNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Merchant Account:</span> {detailsRecord.merchantAccount || 'N/A'}</div>
+                      <div><span className="font-medium">Transaction Date:</span> {detailsRecord.transactionDate ? formatDate(detailsRecord.transactionDate) : 'N/A'}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div><span className="font-medium">Amount:</span> {detailsRecord.amount ? formatCurrency(detailsRecord.amount) : 'N/A'}</div>
+                      <div><span className="font-medium">Description:</span> {detailsRecord.description || 'N/A'}</div>
+                      <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
+                      <div><span className="font-medium">Source Row Number:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {detailsRecord.rawData && (
+                  <div>
+                    <h4 className="font-medium mb-2">Raw TDDF Data</h4>
+                    <div className="text-xs font-mono bg-gray-100 p-3 rounded overflow-x-auto">
+                      {JSON.stringify(detailsRecord.rawData, null, 2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 // E1 Records Table Component
 function E1RecordsTable() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -2414,16 +2665,7 @@ export default function TddfPage() {
         </TabsContent>
 
         <TabsContent value="ad" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>AD Records ({21})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                AD Merchant Adjustment Extension records display coming soon
-              </div>
-            </CardContent>
-          </Card>
+          <ADRecordsTable />
         </TabsContent>
 
         <TabsContent value="dr" className="mt-6">
