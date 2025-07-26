@@ -21,6 +21,7 @@ import logsRoutes from "./routes/logs_routes";
 import logTestRoutes from "./routes/log_test_routes";
 import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
+import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName } from "./table-config";
 
 // Authentication middleware
@@ -141,6 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Hierarchical TDDF migration routes
   app.use("/api/hierarchical-tddf", hierarchicalTddfMigrationRoutes);
+  
+  // Register reprocessing skipped records routes
+  registerReprocessSkippedRoutes(app);
   
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');

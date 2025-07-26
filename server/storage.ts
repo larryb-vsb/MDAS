@@ -107,6 +107,13 @@ export interface IStorage {
   processPendingTddfRecordsUnified(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
   processPendingRawTddfLines(batchSize?: number): Promise<{ processed: number; skipped: number; errors: number }>;
 
+  // Reprocessing skipped records operations
+  getSkippedRecordsSummary(): Promise<{ skipReasons: Array<{ skipReason: string; recordType: string; count: number }>, totalSkipped: number }>;
+  reprocessSkippedRecordsByReason(skipReason: string, recordType?: string, maxRecords?: number): Promise<{ processed: number; errors: number; details: string[] }>;
+  fixSchemaIssuesAndReprocess(): Promise<{ schemaFixesApplied: number; recordsReprocessed: number; details: string[] }>;
+  reprocessEmergencySkippedRecords(batchSize?: number): Promise<{ totalProcessed: number; totalErrors: number; breakdown: Record<string, { processed: number; errors: number }> }>;
+  getSkippedRecordsErrorLog(limit?: number): Promise<Array<{ skipReason: string; recordType: string; errorDetails: string; count: number; sampleRawData: string }>>;
+
   // Merchant operations
   getMerchants(page: number, limit: number, status?: string, lastUpload?: string, search?: string): Promise<{
     merchants: any[];
@@ -10570,6 +10577,268 @@ export class DatabaseStorage implements IStorage {
       console.error('Error storing TDDF file as raw import:', error);
       throw error;
     }
+  }
+
+  // ===== REPROCESSING SKIPPED RECORDS OPERATIONS =====
+  
+  async getSkippedRecordsSummary(): Promise<{ skipReasons: Array<{ skipReason: string; recordType: string; count: number }>, totalSkipped: number }> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      const result = await pool.query(`
+        SELECT skip_reason, record_type, COUNT(*) as count 
+        FROM "${tableName}" 
+        WHERE processing_status = 'skipped' 
+        GROUP BY skip_reason, record_type 
+        ORDER BY count DESC
+      `);
+      
+      const totalResult = await pool.query(`
+        SELECT COUNT(*) as total 
+        FROM "${tableName}" 
+        WHERE processing_status = 'skipped'
+      `);
+      
+      return {
+        skipReasons: result.rows.map(row => ({
+          skipReason: row.skip_reason,
+          recordType: row.record_type,
+          count: parseInt(row.count)
+        })),
+        totalSkipped: parseInt(totalResult.rows[0]?.total || '0')
+      };
+    } catch (error: any) {
+      console.error('Error getting skipped records summary:', error);
+      throw error;
+    }
+  }
+
+  async reprocessSkippedRecordsByReason(skipReason: string, recordType?: string, maxRecords: number = 1000): Promise<{ processed: number; errors: number; details: string[] }> {
+    console.log(`[REPROCESS] Starting reprocessing for reason: ${skipReason}, type: ${recordType || 'ALL'}, max: ${maxRecords}`);
+    
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Build query conditions
+      let whereClause = `WHERE processing_status = 'skipped' AND skip_reason = $1`;
+      const params: any[] = [skipReason];
+      
+      if (recordType) {
+        whereClause += ` AND record_type = $2`;
+        params.push(recordType);
+        params.push(maxRecords);
+      } else {
+        params.push(maxRecords);
+      }
+      
+      // Get skipped records to reprocess
+      const result = await pool.query(`
+        SELECT * FROM "${tableName}" 
+        ${whereClause}
+        ORDER BY line_number
+        LIMIT $${params.length}
+      `, params);
+      
+      const skippedRecords = result.rows;
+      console.log(`[REPROCESS] Found ${skippedRecords.length} skipped records to reprocess`);
+      
+      let processed = 0;
+      let errors = 0;
+      const details: string[] = [];
+      
+      // Reset records to pending status first
+      for (const record of skippedRecords) {
+        try {
+          await pool.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'pending', 
+                skip_reason = NULL, 
+                processed_at = NULL,
+                updated_at = NOW()
+            WHERE id = $1
+          `, [record.id]);
+          
+          console.log(`[REPROCESS] Reset record ${record.id} (${record.record_type}) to pending status`);
+          details.push(`Reset ${record.record_type} record ${record.id} to pending`);
+          processed++;
+        } catch (error: any) {
+          console.error(`[REPROCESS] Error resetting record ${record.id}:`, error);
+          details.push(`Error resetting record ${record.id}: ${error.message}`);
+          errors++;
+        }
+      }
+      
+      // Trigger processing using switch-based method
+      if (processed > 0) {
+        try {
+          console.log(`[REPROCESS] Triggering switch-based processing for ${processed} reset records`);
+          const processingResult = await this.processPendingTddfRecordsSwitchBased(undefined, processed);
+          details.push(`Switch-based processing completed: ${processingResult.totalProcessed} processed, ${processingResult.totalSkipped} skipped, ${processingResult.totalErrors} errors`);
+        } catch (error: any) {
+          console.error(`[REPROCESS] Error in switch-based processing:`, error);
+          details.push(`Error in switch-based processing: ${error.message}`);
+          errors++;
+        }
+      }
+      
+      console.log(`[REPROCESS] Completed: ${processed} processed, ${errors} errors`);
+      return { processed, errors, details };
+    } catch (error: any) {
+      console.error('Error reprocessing skipped records:', error);
+      throw error;
+    }
+  }
+
+  async fixSchemaIssuesAndReprocess(): Promise<{ schemaFixesApplied: number; recordsReprocessed: number; details: string[] }> {
+    console.log(`[SCHEMA_FIX] Starting schema fixes and reprocessing`);
+    
+    try {
+      const details: string[] = [];
+      let schemaFixesApplied = 0;
+      
+      // Fix 1: Ensure sequence_number column exists in tddf_other_records
+      try {
+        const otherRecordsTable = getTableName('tddf_other_records');
+        await pool.query(`ALTER TABLE "${otherRecordsTable}" ADD COLUMN IF NOT EXISTS sequence_number TEXT`);
+        details.push('Added sequence_number column to tddf_other_records table');
+        schemaFixesApplied++;
+      } catch (error: any) {
+        details.push(`Schema fix sequence_number error: ${error.message}`);
+      }
+      
+      // Fix 2: Add any other missing columns that might be causing errors
+      try {
+        const otherRecordsTable = getTableName('tddf_other_records');
+        await pool.query(`ALTER TABLE "${otherRecordsTable}" ADD COLUMN IF NOT EXISTS bank_number TEXT`);
+        await pool.query(`ALTER TABLE "${otherRecordsTable}" ADD COLUMN IF NOT EXISTS entry_run_number TEXT`);
+        details.push('Added missing bank_number and entry_run_number columns');
+        schemaFixesApplied++;
+      } catch (error: any) {
+        details.push(`Schema fix additional columns error: ${error.message}`);
+      }
+      
+      // Reprocess records that failed due to schema issues
+      const schemaErrorReasons = [
+        'scanly_watcher_G2_error: column "sequence_number" of relation "dev_tddf_other_records" does not exist',
+        'scanly_watcher_E1_error: column "sequence_number" of relation "dev_tddf_other_records" does not exist'
+      ];
+      
+      let totalReprocessed = 0;
+      
+      for (const skipReason of schemaErrorReasons) {
+        try {
+          const result = await this.reprocessSkippedRecordsByReason(skipReason, undefined, 500);
+          totalReprocessed += result.processed;
+          details.push(`Reprocessed ${result.processed} records for reason: ${skipReason}`);
+        } catch (error: any) {
+          details.push(`Error reprocessing ${skipReason}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[SCHEMA_FIX] Completed: ${schemaFixesApplied} fixes, ${totalReprocessed} reprocessed`);
+      return { schemaFixesApplied, recordsReprocessed: totalReprocessed, details };
+    } catch (error: any) {
+      console.error('Error fixing schema and reprocessing:', error);
+      throw error;
+    }
+  }
+
+  async reprocessEmergencySkippedRecords(batchSize: number = 500): Promise<{ totalProcessed: number; totalErrors: number; breakdown: Record<string, { processed: number; errors: number }> }> {
+    console.log(`[EMERGENCY_REPROCESS] Starting emergency/load management reprocessing (batch: ${batchSize})`);
+    
+    try {
+      const emergencySkipReasons = [
+        'scanly_watcher_phase4_other_types',
+        'scanly_watcher_phase3_p1_specialized', 
+        'production_stability_skip',
+        'emergency_system_overload_skip',
+        'load_management_optimization',
+        'manual_emergency_batch_3_p1_skipped',
+        'manual_emergency_batch_4_other_types'
+      ];
+      
+      let totalProcessed = 0;
+      let totalErrors = 0;
+      const breakdown: Record<string, { processed: number; errors: number }> = {};
+      
+      for (const skipReason of emergencySkipReasons) {
+        try {
+          console.log(`[EMERGENCY_REPROCESS] Processing skip reason: ${skipReason}`);
+          const result = await this.reprocessSkippedRecordsByReason(skipReason, undefined, batchSize);
+          
+          breakdown[skipReason] = {
+            processed: result.processed,
+            errors: result.errors
+          };
+          
+          totalProcessed += result.processed;
+          totalErrors += result.errors;
+          
+          console.log(`[EMERGENCY_REPROCESS] ${skipReason}: ${result.processed} processed, ${result.errors} errors`);
+        } catch (error: any) {
+          console.error(`[EMERGENCY_REPROCESS] Error processing ${skipReason}:`, error);
+          breakdown[skipReason] = { processed: 0, errors: 1 };
+          totalErrors++;
+        }
+      }
+      
+      console.log(`[EMERGENCY_REPROCESS] Completed: ${totalProcessed} processed, ${totalErrors} errors`);
+      return { totalProcessed, totalErrors, breakdown };
+    } catch (error: any) {
+      console.error('Error reprocessing emergency skipped records:', error);
+      throw error;
+    }
+  }
+
+  async getSkippedRecordsErrorLog(limit: number = 100): Promise<Array<{ skipReason: string; recordType: string; errorDetails: string; count: number; sampleRawData: string }>> {
+    try {
+      const tableName = getTableName('tddf_raw_import');
+      const result = await pool.query(`
+        SELECT 
+          skip_reason, 
+          record_type, 
+          COUNT(*) as count,
+          MAX(raw_line) as sample_raw_data
+        FROM "${tableName}" 
+        WHERE processing_status = 'skipped' 
+          AND skip_reason IS NOT NULL
+        GROUP BY skip_reason, record_type 
+        ORDER BY count DESC
+        LIMIT $1
+      `, [limit]);
+      
+      return result.rows.map(row => ({
+        skipReason: row.skip_reason,
+        recordType: row.record_type,
+        errorDetails: this.extractErrorDetailsFromSkipReason(row.skip_reason),
+        count: parseInt(row.count),
+        sampleRawData: row.sample_raw_data || ''
+      }));
+    } catch (error: any) {
+      console.error('Error getting skipped records error log:', error);
+      throw error;
+    }
+  }
+
+  private extractErrorDetailsFromSkipReason(skipReason: string): string {
+    if (skipReason.includes('column') && skipReason.includes('does not exist')) {
+      return 'Database schema error - missing column';
+    }
+    if (skipReason.includes('invalid input syntax')) {
+      return 'Data type conversion error';
+    }
+    if (skipReason.includes('date/time field value out of range')) {
+      return 'Invalid date format in source data';
+    }
+    if (skipReason.includes('emergency') || skipReason.includes('overload')) {
+      return 'Emergency processing skip due to system load';
+    }
+    if (skipReason.includes('production_stability')) {
+      return 'Production stability protection skip';
+    }
+    if (skipReason.includes('unknown_record_type')) {
+      return 'Unrecognized TDDF record type';
+    }
+    return skipReason;
   }
 }
 
