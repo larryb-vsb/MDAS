@@ -7348,6 +7348,12 @@ export class DatabaseStorage implements IStorage {
               totalProcessed++;
               break;
               
+            case 'GE':
+              await this.processGERecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
             default:
               // Skip unknown record types
               await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
@@ -7721,6 +7727,68 @@ export class DatabaseStorage implements IStorage {
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [merchantGeneralData2TableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processGERecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    // Parse GE record from TDDF fixed-width format based on specification
+    const geRecord = {
+      // Core TDDF header fields (positions 1-23) - shared with all record types
+      sequenceNumber: line.substring(0, 7).trim() || null, // Positions 1-7: File position identifier
+      entryRunNumber: line.substring(7, 13).trim() || null, // Positions 8-13: Entry run number  
+      sequenceWithinRun: line.substring(13, 17).trim() || null, // Positions 14-17: Sequence within entry run
+      recordIdentifier: line.substring(17, 19).trim() || null, // Positions 18-19: "GE"
+      bankNumber: line.substring(19, 23).trim() || null, // Positions 20-23: Global Payments bank number
+      
+      // Record type specific information
+      recordType: 'GE',
+      recordDescription: 'Global Payments Extension Record',
+      
+      // Common fields that might appear across multiple record types
+      merchantAccountNumber: line.substring(23, 39).trim() || null, // Positions 24-39: Account number when applicable
+      referenceNumber: line.substring(61, 84).trim() || null, // Reference number when applicable
+      
+      // Flexible data storage for GE-specific fields using jsonb
+      recordData: {
+        // GE-specific fields based on TDDF specification (can be extended as needed)
+        transactionCode: line.substring(51, 55).trim() || null, // Positions 52-55
+        associationNumber: line.substring(39, 45).trim() || null, // Positions 40-45
+        groupNumber: line.substring(45, 51).trim() || null, // Positions 46-51
+        // Additional GE fields can be added here as per TDDF specification
+        rawLine: line // Store complete raw line for reference
+      },
+      
+      // System and audit fields
+      sourceFileId: rawRecord.source_file_id,
+      sourceRowNumber: rawRecord.line_number,
+      rawData: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+        record_type, record_description, merchant_account_number, reference_number,
+        record_data, source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id
+    `, [
+      geRecord.sequenceNumber, geRecord.entryRunNumber, geRecord.sequenceWithinRun, 
+      geRecord.recordIdentifier, geRecord.bankNumber, geRecord.recordType, 
+      geRecord.recordDescription, geRecord.merchantAccountNumber, geRecord.referenceNumber,
+      JSON.stringify(geRecord.recordData), geRecord.sourceFileId, 
+      geRecord.sourceRowNumber, geRecord.rawData
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
   }
 
   private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
