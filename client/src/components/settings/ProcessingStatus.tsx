@@ -986,7 +986,7 @@ export default function ProcessingStatus() {
                       const p2Count = breakdown?.p2?.processed || 0;
                       const drCount = breakdown?.dr?.processed || 0;
                       const totalOther = e1Count + g2Count + adCount + p2Count + drCount;
-                      return `Other Record Types\n\nE1: ${e1Count}\nG2: ${g2Count}\nAD: ${adCount}\nP2: ${p2Count}\nDR: ${drCount}\n\nOthers Total: ${totalOther}`;
+                      return `Other Record Types\n\nE1: ${e1Count}/min\nG2: ${g2Count}/min\nAD: ${adCount}/min\nP2: ${p2Count}/min\nDR: ${drCount}/min\n\nOthers Total: ${totalOther}/min`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
@@ -1007,8 +1007,19 @@ export default function ProcessingStatus() {
                       const dtSkipped = breakdown?.dt?.skipped || 0;
                       const bhSkipped = breakdown?.bh?.skipped || 0;
                       const p1Skipped = breakdown?.p1?.skipped || 0;
-                      const totalSkipped = e1Skipped + g2Skipped + adSkipped + p2Skipped + drSkipped + dtSkipped + bhSkipped + p1Skipped;
-                      return `Skipped Records\n\nE1: ${e1Skipped} Skipped\nG2: ${g2Skipped} Skipped\nAD: ${adSkipped} Skipped\nP2: ${p2Skipped} Skipped\nDR: ${drSkipped} Skipped\nDT: ${dtSkipped} Skipped\nBH: ${bhSkipped} Skipped\nP1: ${p1Skipped} Skipped\n\nTotal Skipped: ${totalSkipped}`;
+                      
+                      let tooltip = "Skipped Records\n\n";
+                      tooltip += `DT: ${dtSkipped} Skipped\n`;
+                      tooltip += `BH: ${bhSkipped} Skipped\n`;
+                      tooltip += `P1: ${p1Skipped} Skipped\n`;
+                      tooltip += `E1: ${e1Skipped} Skipped\n`;
+                      tooltip += `G2: ${g2Skipped}/min Skipped\n`;
+                      tooltip += `AD: ${adSkipped} Skipped\n`;
+                      tooltip += `P2: ${p2Skipped} Skipped\n`;
+                      tooltip += `DR: ${drSkipped} Skipped\n\n`;
+                      tooltip += "any other DTTR type found but skipped";
+                      
+                      return tooltip;
                     })()}
                   >
                     <div className="font-semibold text-red-700">
