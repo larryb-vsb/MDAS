@@ -7632,109 +7632,114 @@ export class DatabaseStorage implements IStorage {
 
   private async processE1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
     const line = rawRecord.raw_line;
-    const merchantGeneralData2TableName = getTableName('tddf_merchant_general_data_2');
+    const otherRecordsTableName = getTableName('tddf_other_records');
 
-    // Parse E1 record from TDDF fixed-width format based on specification
-    const e1Record = {
+    // Extract key fields from TDDF fixed-width format for E1 records
+    const referenceNumber = line.substring(61, 84).trim() || null; // Positions 62-84: Reference Number (AN)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (AN)
+    const transactionDateStr = line.substring(84, 92).trim(); // Positions 85-92: Transaction Date MMDDCCYY (N)
+    
+    // Parse transaction date (MMDDCCYY format) - allow null for invalid dates
+    let transactionDate = null;
+    if (transactionDateStr && transactionDateStr.length === 8 && transactionDateStr.match(/^\d{8}$/) && transactionDateStr !== '40404040') {
+      try {
+        const month = transactionDateStr.substring(0, 2);
+        const day = transactionDateStr.substring(2, 4);
+        const year = transactionDateStr.substring(4, 8);
+        
+        // Validate date components
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2099) {
+          transactionDate = `${year}-${month}-${day}`;
+        }
+      } catch (error) {
+        // Invalid date - keep as null
+        transactionDate = null;
+      }
+    }
+
+    // Build comprehensive TDDF field extraction for jsonb storage
+    const comprehensiveE1Data = {
       // Core TDDF header fields (positions 1-23)
-      sequence_number: line.substring(0, 7).trim() || null, // Positions 1-7
-      entry_run_number: line.substring(7, 13).trim() || null, // Positions 8-13  
-      sequence_within_run: line.substring(13, 17).trim() || null, // Positions 14-17
-      record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19: "E1"
-      bank_number: line.substring(19, 23).trim() || null, // Positions 20-23
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null,
+      bankNumber: line.substring(19, 23).trim() || null,
 
       // Merchant identification (positions 24-51)
-      merchant_account_number: line.substring(23, 39).trim() || null, // Positions 24-39
-      association_number: line.substring(39, 45).trim() || null, // Positions 40-45
-      group_number: line.substring(45, 51).trim() || null, // Positions 46-51
-      transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      associationNumber: line.substring(39, 45).trim() || null,
+      groupNumber: line.substring(45, 51).trim() || null,
+      transactionCode: line.substring(51, 55).trim() || null,
 
       // EMV Transaction Data (positions 56-82)
-      emv_tran_type: line.substring(55, 57).trim() || null, // Positions 56-57
-      emv_term_cap_profile: line.substring(57, 63).trim() || null, // Positions 58-63
-      emv_app_tran_counter: line.substring(63, 67).trim() || null, // Positions 64-67
-      emv_cryptogram_amount: this.parseAmount(line.substring(67, 82).trim()) || null, // Positions 68-82
+      emvTranType: line.substring(55, 57).trim() || null,
+      emvTermCapProfile: line.substring(57, 63).trim() || null,
+      emvAppTranCounter: line.substring(63, 67).trim() || null,
+      emvCryptogramAmount: this.parseAmount(line.substring(67, 82).trim()) || null,
 
       // EMV Script and Application Data (positions 83-196)
-      emv_iss_script_results: line.substring(82, 132).trim() || null, // Positions 83-132
-      emv_iss_app_data: line.substring(132, 196).trim() || null, // Positions 133-196
+      emvIssScriptResults: line.substring(82, 132).trim() || null,
+      emvIssAppData: line.substring(132, 196).trim() || null,
 
       // EMV Card and Terminal Data (positions 197-232)
-      emv_card_sequence_number: line.substring(196, 200).trim() || null, // Positions 197-200
-      emv_term_country_code: line.substring(200, 204).trim() || null, // Positions 201-204
-      emv_app_interchange_profile: line.substring(204, 208).trim() || null, // Positions 205-208
-      emv_term_verify_results: line.substring(208, 218).trim() || null, // Positions 209-218
-      emv_term_tran_date: line.substring(218, 224).trim() || null, // Positions 219-224
-      emv_unpredictable_number: line.substring(224, 232).trim() || null, // Positions 225-232
+      emvCardSequenceNumber: line.substring(196, 200).trim() || null,
+      emvTermCountryCode: line.substring(200, 204).trim() || null,
+      emvAppInterchangeProfile: line.substring(204, 208).trim() || null,
+      emvTermVerifyResults: line.substring(208, 218).trim() || null,
+      emvTermTranDate: line.substring(218, 224).trim() || null,
+      emvUnpredictableNumber: line.substring(224, 232).trim() || null,
 
       // EMV Cryptogram and Form Factor (positions 233-256)
-      emv_cryptogram: line.substring(232, 248).trim() || null, // Positions 233-248
-      emv_form_factor_indicator: line.substring(248, 256).trim() || null, // Positions 249-256
+      emvCryptogram: line.substring(232, 248).trim() || null,
+      emvFormFactorIndicator: line.substring(248, 256).trim() || null,
 
       // EMV Currency and Files (positions 257-292)
-      emv_tran_currency_code: line.substring(256, 260).trim() || null, // Positions 257-260
-      emv_ded_file_name: line.substring(260, 292).trim() || null, // Positions 261-292
+      emvTranCurrencyCode: line.substring(256, 260).trim() || null,
+      emvDedFileName: line.substring(260, 292).trim() || null,
 
       // EMV Authorization and Processing Data (positions 293-340)
-      emv_iss_auth_data: line.substring(292, 324).trim() || null, // Positions 293-324
-      emv_tran_cat_code: line.substring(324, 326).trim() || null, // Positions 325-326
-      emv_crypt_info_data: line.substring(326, 330).trim() || null, // Positions 327-330
-      emv_term_type: line.substring(330, 332).trim() || null, // Positions 331-332
-      emv_transaction_sequence_number: line.substring(332, 340).trim() || null, // Positions 333-340
+      emvIssAuthData: line.substring(292, 324).trim() || null,
+      emvTranCatCode: line.substring(324, 326).trim() || null,
+      emvCryptInfoData: line.substring(326, 330).trim() || null,
+      emvTermType: line.substring(330, 332).trim() || null,
+      emvTransactionSequenceNumber: line.substring(332, 340).trim() || null,
 
       // EMV Amount Fields (positions 341-366)
-      emv_amount_authorized: this.parseAmount(line.substring(340, 353).trim()) || null, // Positions 341-353
-      emv_amount_other: this.parseAmount(line.substring(353, 366).trim()) || null, // Positions 354-366
+      emvAmountAuthorized: this.parseAmount(line.substring(340, 353).trim()) || null,
+      emvAmountOther: this.parseAmount(line.substring(353, 366).trim()) || null,
 
       // EMV CVM and Interface Data (positions 367-392)
-      emv_cvm_result: line.substring(366, 372).trim() || null, // Positions 367-372
-      emv_interface_dev_serial: line.substring(372, 388).trim() || null, // Positions 373-388
-      emv_terminal_application_version: line.substring(388, 392).trim() || null, // Positions 389-392
+      emvCvmResult: line.substring(366, 372).trim() || null,
+      emvInterfaceDevSerial: line.substring(372, 388).trim() || null,
+      emvTerminalApplicationVersion: line.substring(388, 392).trim() || null,
 
       // EMV Final Fields and Reserved (positions 393-700)
-      emv_cryptogram_information: line.substring(392, 394).trim() || null, // Positions 393-394
-      reserved_future_use: line.substring(394, 700).trim() || null, // Positions 395-700
-
-      // System and audit fields
-      source_file_id: rawRecord.source_file_id,
-      source_row_number: rawRecord.line_number,
-      raw_data: JSON.stringify({ rawLine: line }),
-      mms_raw_line: line
+      emvCryptogramInformation: line.substring(392, 394).trim() || null,
+      reservedFutureUse: line.substring(394, 700).trim() || null,
+      rawLine: line
     };
 
     const insertResult = await client.query(`
-      INSERT INTO "${merchantGeneralData2TableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-        merchant_account_number, association_number, group_number, transaction_code,
-        emv_tran_type, emv_term_cap_profile, emv_app_tran_counter, emv_cryptogram_amount,
-        emv_iss_script_results, emv_iss_app_data,
-        emv_card_sequence_number, emv_term_country_code, emv_app_interchange_profile,
-        emv_term_verify_results, emv_term_tran_date, emv_unpredictable_number,
-        emv_cryptogram, emv_form_factor_indicator,
-        emv_tran_currency_code, emv_ded_file_name,
-        emv_iss_auth_data, emv_tran_cat_code, emv_crypt_info_data, emv_term_type, emv_transaction_sequence_number,
-        emv_amount_authorized, emv_amount_other,
-        emv_cvm_result, emv_interface_dev_serial, emv_terminal_application_version,
-        emv_cryptogram_information, reserved_future_use,
-        source_file_id, source_row_number, raw_data, mms_raw_line
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
-      )
+      INSERT INTO "${otherRecordsTableName}" (
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
-      e1Record.sequence_number, e1Record.entry_run_number, e1Record.sequence_within_run, e1Record.record_identifier, e1Record.bank_number,
-      e1Record.merchant_account_number, e1Record.association_number, e1Record.group_number, e1Record.transaction_code,
-      e1Record.emv_tran_type, e1Record.emv_term_cap_profile, e1Record.emv_app_tran_counter, e1Record.emv_cryptogram_amount,
-      e1Record.emv_iss_script_results, e1Record.emv_iss_app_data,
-      e1Record.emv_card_sequence_number, e1Record.emv_term_country_code, e1Record.emv_app_interchange_profile,
-      e1Record.emv_term_verify_results, e1Record.emv_term_tran_date, e1Record.emv_unpredictable_number,
-      e1Record.emv_cryptogram, e1Record.emv_form_factor_indicator,
-      e1Record.emv_tran_currency_code, e1Record.emv_ded_file_name,
-      e1Record.emv_iss_auth_data, e1Record.emv_tran_cat_code, e1Record.emv_crypt_info_data, e1Record.emv_term_type, e1Record.emv_transaction_sequence_number,
-      e1Record.emv_amount_authorized, e1Record.emv_amount_other,
-      e1Record.emv_cvm_result, e1Record.emv_interface_dev_serial, e1Record.emv_terminal_application_version,
-      e1Record.emv_cryptogram_information, e1Record.reserved_future_use,
-      e1Record.source_file_id, e1Record.source_row_number, e1Record.raw_data, e1Record.mms_raw_line
+      'E1',
+      referenceNumber,
+      merchantAccount,
+      transactionDate,
+      comprehensiveE1Data.emvAmountAuthorized, // Use EMV authorized amount as primary amount
+      'Merchant General Data 2 Extension Record',
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveE1Data)
     ]);
 
     await client.query(`
@@ -7744,7 +7749,7 @@ export class DatabaseStorage implements IStorage {
           processed_record_id = $2,
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
-    `, [merchantGeneralData2TableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
   }
 
   private async processGERecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
@@ -7793,17 +7798,20 @@ export class DatabaseStorage implements IStorage {
 
     const insertResult = await client.query(`
       INSERT INTO "${otherRecordsTableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-        record_type, record_description, merchant_account_number, reference_number,
-        record_data, source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
-      geRecord.sequenceNumber, geRecord.entryRunNumber, geRecord.sequenceWithinRun, 
-      geRecord.recordIdentifier, geRecord.bankNumber, geRecord.recordType, 
-      geRecord.recordDescription, geRecord.merchantAccountNumber, geRecord.referenceNumber,
-      JSON.stringify(geRecord.recordData), geRecord.sourceFileId, 
-      geRecord.sourceRowNumber, geRecord.rawData
+      'GE',
+      null, // No reference number for GE records
+      geRecord.merchantAccountNumber,
+      null, // No transaction date for GE records
+      null, // No amount for GE records
+      'Merchant General Extension Record',
+      geRecord.sourceFileId,
+      geRecord.sourceRowNumber,
+      JSON.stringify(geRecord.recordData)
     ]);
 
     await client.query(`
@@ -7820,39 +7828,66 @@ export class DatabaseStorage implements IStorage {
     const line = rawRecord.raw_line;
     const otherRecordsTableName = getTableName('tddf_other_records');
 
-    const g2Record = {
+    // Extract key fields from TDDF fixed-width format for G2 records
+    const referenceNumber = line.substring(61, 84).trim() || null; // Positions 62-84: Reference Number (AN)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (AN)
+    const transactionDateStr = line.substring(84, 92).trim(); // Positions 85-92: Transaction Date MMDDCCYY (N)
+    
+    // Parse transaction date (MMDDCCYY format) - allow null for invalid dates
+    let transactionDate = null;
+    if (transactionDateStr && transactionDateStr.length === 8 && transactionDateStr.match(/^\d{8}$/) && transactionDateStr !== '40404040') {
+      try {
+        const month = transactionDateStr.substring(0, 2);
+        const day = transactionDateStr.substring(2, 4);
+        const year = transactionDateStr.substring(4, 8);
+        
+        // Validate date components
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2099) {
+          transactionDate = `${year}-${month}-${day}`;
+        }
+      } catch (error) {
+        // Invalid date - keep as null
+        transactionDate = null;
+      }
+    }
+
+    // Build comprehensive TDDF field extraction for jsonb storage
+    const comprehensiveG2Data = {
+      // Core TDDF header fields (positions 1-23)
       sequenceNumber: line.substring(0, 7).trim() || null,
       entryRunNumber: line.substring(7, 13).trim() || null,
       sequenceWithinRun: line.substring(13, 17).trim() || null,
       recordIdentifier: line.substring(17, 19).trim() || null,
       bankNumber: line.substring(19, 23).trim() || null,
-      recordType: 'G2',
-      recordDescription: 'Merchant General Data 2 Record',
+      
+      // Account and merchant fields specific to G2 records
       merchantAccountNumber: line.substring(23, 39).trim() || null,
-      recordData: {
-        associationNumber: line.substring(39, 45).trim() || null,
-        groupNumber: line.substring(45, 51).trim() || null,
-        transactionCode: line.substring(51, 55).trim() || null,
-        rawLine: line
-      },
-      sourceFileId: rawRecord.source_file_id,
-      sourceRowNumber: rawRecord.line_number,
-      rawData: JSON.stringify({ rawLine: line })
+      associationNumber: line.substring(39, 45).trim() || null,
+      groupNumber: line.substring(45, 51).trim() || null,
+      transactionCode: line.substring(51, 55).trim() || null,
+      rawLine: line
     };
 
     const insertResult = await client.query(`
       INSERT INTO "${otherRecordsTableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-        record_type, record_description, merchant_account_number, reference_number,
-        record_data, source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
-      g2Record.sequenceNumber, g2Record.entryRunNumber, g2Record.sequenceWithinRun, 
-      g2Record.recordIdentifier, g2Record.bankNumber, g2Record.recordType, 
-      g2Record.recordDescription, g2Record.merchantAccountNumber, null,
-      JSON.stringify(g2Record.recordData), g2Record.sourceFileId, 
-      g2Record.sourceRowNumber, g2Record.rawData
+      'G2',
+      referenceNumber,
+      merchantAccount,
+      transactionDate,
+      null, // No standard amount field for G2 records
+      'Merchant General Data 2 Record',
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveG2Data)
     ]);
 
     await client.query(`
@@ -7869,39 +7904,140 @@ export class DatabaseStorage implements IStorage {
     const line = rawRecord.raw_line;
     const otherRecordsTableName = getTableName('tddf_other_records');
 
-    const adRecord = {
-      sequenceNumber: line.substring(0, 7).trim() || null,
-      entryRunNumber: line.substring(7, 13).trim() || null,
-      sequenceWithinRun: line.substring(13, 17).trim() || null,
-      recordIdentifier: line.substring(17, 19).trim() || null,
-      bankNumber: line.substring(19, 23).trim() || null,
-      recordType: 'AD',
-      recordDescription: 'Adjustment Record',
-      merchantAccountNumber: line.substring(23, 39).trim() || null,
-      recordData: {
-        associationNumber: line.substring(39, 45).trim() || null,
-        groupNumber: line.substring(45, 51).trim() || null,
-        transactionCode: line.substring(51, 55).trim() || null,
-        rawLine: line
-      },
-      sourceFileId: rawRecord.source_file_id,
-      sourceRowNumber: rawRecord.line_number,
-      rawData: JSON.stringify({ rawLine: line })
+    // Parse AD record from TDDF fixed-width format based on Merchant Adjustment Extension Record specification
+    // Adjust to match actual database schema: record_type, reference_number, merchant_account, transaction_date, amount, description, source_file_id, source_row_number, raw_data
+    
+    // Extract key fields from TDDF fixed-width format
+    const referenceNumber = line.substring(61, 84).trim() || null; // Positions 62-84: Reference Number (AN)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (AN)
+    const adjustmentAmount = this.parseAmount(line.substring(92, 103).trim()) || null; // Positions 93-103: Adjustment Amount (N)
+    const transactionDateStr = line.substring(84, 92).trim(); // Positions 85-92: Transaction Date MMDDCCYY (N)
+    
+    // Parse transaction date (MMDDCCYY format) - allow null for invalid dates
+    let transactionDate = null;
+    if (transactionDateStr && transactionDateStr.length === 8 && transactionDateStr.match(/^\d{8}$/) && transactionDateStr !== '40404040') {
+      try {
+        const month = transactionDateStr.substring(0, 2);
+        const day = transactionDateStr.substring(2, 4);
+        const year = transactionDateStr.substring(4, 8);
+        
+        // Validate date components
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2099) {
+          transactionDate = `${year}-${month}-${day}`;
+        }
+      } catch (error) {
+        // Invalid date - keep as null
+        transactionDate = null;
+      }
+    }
+    
+    // Build comprehensive TDDF field extraction for jsonb storage
+    const comprehensiveADData = {
+      // Core TDDF header fields (positions 1-23)
+      sequenceNumber: line.substring(0, 7).trim() || null, // Positions 1-7: Sequence Number (N)
+      entryRunNumber: line.substring(7, 13).trim() || null, // Positions 8-13: Entry Run Number (N)
+      sequenceWithinRun: line.substring(13, 17).trim() || null, // Positions 14-17: Sequence Within Run (N)
+      recordIdentifier: line.substring(17, 19).trim() || null, // Positions 18-19: Record Identifier "AD" (A)
+      bankNumber: line.substring(19, 23).trim() || null, // Positions 20-23: Bank Number (N)
+      
+      // Account and merchant fields (positions 24-61)
+      merchantAccountNumber: line.substring(23, 39).trim() || null, // Positions 24-39: Merchant Account Number (AN)
+      associationNumber1: line.substring(39, 45).trim() || null, // Positions 40-45: Association Number 1 (N)
+      groupNumber: line.substring(45, 51).trim() || null, // Positions 46-51: Group Number (N)
+      transactionCode: line.substring(51, 55).trim() || null, // Positions 52-55: Transaction Code (N)
+      associationNumber2: line.substring(55, 61).trim() || null, // Positions 56-61: Association Number 2 (N)
+      
+      // Reference and transaction details (positions 62-92)
+      referenceNumber: line.substring(61, 84).trim() || null, // Positions 62-84: Reference Number (AN)
+      transactionDate: line.substring(84, 92).trim() || null, // Positions 85-92: Transaction Date MMDDCCYY (N)
+      
+      // Adjustment amounts and codes (positions 93-142)
+      adjustmentAmount: this.parseAmount(line.substring(92, 103).trim()) || null, // Positions 93-103: Adjustment Amount (N)
+      batchJulianDate: line.substring(103, 108).trim() || null, // Positions 104-108: Batch Julian Date DDDYY (N)
+      netDepositAdjustment: this.parseAmount(line.substring(108, 123).trim()) || null, // Positions 109-123: Net Deposit Adjustment (N)
+      cardholderAccount: line.substring(123, 142).trim() || null, // Positions 124-142: Cardholder Account Number (AN)
+      
+      // Adjustment details and codes (positions 143-187)
+      adjustmentReasonCode: line.substring(142, 144).trim() || null, // Positions 143-144: Adjustment Reason Code (AN)
+      adjustmentTypeCode: line.substring(144, 146).trim() || null, // Positions 145-146: Adjustment Type Code (AN)
+      merchantAdjustmentCode1: line.substring(146, 150).trim() || null, // Positions 147-150: Merchant Adjustment Code 1 (AN)
+      merchantAdjustmentCode2: line.substring(150, 154).trim() || null, // Positions 151-154: Merchant Adjustment Code 2 (AN)
+      adjustmentDescription: line.substring(154, 164).trim() || null, // Positions 155-164: Adjustment Description (AN)
+      onlineEntryIndicator: line.substring(164, 165).trim() || null, // Position 165: Online Entry Indicator (A)
+      achFlagIndicator: line.substring(165, 166).trim() || null, // Position 166: ACH Flag Indicator (A)
+      authSourceCode: line.substring(166, 167).trim() || null, // Position 167: Authorization Source Code (A)
+      cardholderIdMethod: line.substring(167, 168).trim() || null, // Position 168: Cardholder ID Method (A)
+      catIndicator: line.substring(168, 169).trim() || null, // Position 169: CAT Indicator (A)
+      reimbursementAttribute: line.substring(169, 170).trim() || null, // Position 170: Reimbursement Attribute (A)
+      mailOrderTelephoneIndicator: line.substring(170, 171).trim() || null, // Position 171: Mail Order/Telephone Indicator (A)
+      authCharacteristicIndicator: line.substring(171, 172).trim() || null, // Position 172: Authorization Characteristic Indicator (A)
+      banknetReferenceNumber: line.substring(172, 187).trim() || null, // Positions 173-187: Banknet Reference Number (AN)
+      
+      // Additional adjustment information (positions 188-242)
+      draftLocatorFlag: line.substring(187, 188).trim() || null, // Position 188: Draft Locator Flag (A)
+      adjustmentCurrencyCode: line.substring(188, 191).trim() || null, // Positions 189-191: Adjustment Currency Code (A)
+      originalAdjustmentAmount: this.parseAmount(line.substring(191, 203).trim()) || null, // Positions 192-203: Original Adjustment Amount (N)
+      validationCode: line.substring(203, 207).trim() || null, // Positions 204-207: Validation Code (AN)
+      adjustmentResponseCode: line.substring(207, 209).trim() || null, // Positions 208-209: Adjustment Response Code (AN)
+      networkIdentifierDebit: line.substring(209, 212).trim() || null, // Positions 210-212: Network Identifier Debit (AN)
+      switchSettledIndicator: line.substring(212, 213).trim() || null, // Position 213: Switch Settled Indicator (A)
+      posEntryMode: line.substring(213, 215).trim() || null, // Positions 214-215: POS Entry Mode (AN)
+      debitCreditIndicator: line.substring(215, 216).trim() || null, // Position 216: Debit/Credit Indicator (A)
+      reversalFlag: line.substring(216, 217).trim() || null, // Position 217: Reversal Flag (A)
+      merchantName: line.substring(217, 242).trim() || null, // Positions 218-242: Merchant Name DBA (AN)
+      
+      // Authorization and processing details (positions 243-338)
+      authorizationNumber: line.substring(242, 248).trim() || null, // Positions 243-248: Authorization Number (AN)
+      rejectReasonCode: line.substring(248, 250).trim() || null, // Positions 249-250: Reject Reason Code (AN)
+      cardTypeCode: line.substring(250, 256).trim() || null, // Positions 251-256: Card Type Code (AN)
+      currencyCode: line.substring(254, 257).trim() || null, // Positions 255-257: Currency Code (N)
+      originalTransactionAmount: this.parseAmount(line.substring(257, 268).trim()) || null, // Positions 258-268: Original Transaction Amount (N)
+      foreignCardIndicator: line.substring(268, 269).trim() || null, // Position 269: Foreign Card Indicator (A)
+      carryoverIndicator: line.substring(269, 270).trim() || null, // Position 270: Carryover Indicator (A)
+      extensionRecordIndicator: line.substring(270, 272).trim() || null, // Positions 271-272: Extension Record Indicator (AN)
+      mccCode: line.substring(272, 276).trim() || null, // Positions 273-276: MCC Code (N)
+      terminalId: line.substring(276, 284).trim() || null, // Positions 277-284: Terminal ID/V Number (AN)
+      discoverPosEntryMode: line.substring(284, 287).trim() || null, // Positions 285-287: Discover POS Entry Mode (AN)
+      purchaseId: line.substring(287, 312).trim() || null, // Positions 288-312: Purchase ID (AN)
+      cashBackAmount: this.parseAmount(line.substring(312, 321).trim()) || null, // Positions 313-321: Cash Back Amount (N)
+      cashBackAmountSign: line.substring(321, 322).trim() || null, // Position 322: Cash Back Amount Sign (A)
+      posDataCode: line.substring(322, 335).trim() || null, // Positions 323-335: POS Data Code (AN)
+      transactionTypeIdentifier: line.substring(335, 338).trim() || null, // Positions 336-338: Transaction Type Identifier (AN)
+      
+      // Extended fields and fee information (positions 339-500)
+      cardTypeExtended: line.substring(338, 341).trim() || null, // Positions 339-341: Extended Card Type (AN)
+      productId: line.substring(341, 343).trim() || null, // Positions 342-343: Product ID (AN)
+      submittedInterchange: line.substring(343, 348).trim() || null, // Positions 344-348: Submitted Interchange (AN)
+      systemTraceAuditNumber: line.substring(348, 354).trim() || null, // Positions 349-354: System Trace Audit Number (N)
+      discoverTransactionType: line.substring(354, 356).trim() || null, // Positions 355-356: Discover Transaction Type (AN)
+      localTransactionTime: line.substring(356, 362).trim() || null, // Positions 357-362: Local Transaction Time HHMMSS (N)
+      discoverProcessingCode: line.substring(362, 368).trim() || null, // Positions 363-368: Discover Processing Code (N)
+      commercialCardServiceIndicator: line.substring(368, 369).trim() || null, // Position 369: Commercial Card Service Indicator (A)
+      
+      // Complete raw line for debugging and future field additions
+      rawLine: line
     };
 
     const insertResult = await client.query(`
       INSERT INTO "${otherRecordsTableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-        record_type, record_description, merchant_account_number, reference_number,
-        record_data, source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
-      adRecord.sequenceNumber, adRecord.entryRunNumber, adRecord.sequenceWithinRun, 
-      adRecord.recordIdentifier, adRecord.bankNumber, adRecord.recordType, 
-      adRecord.recordDescription, adRecord.merchantAccountNumber, null,
-      JSON.stringify(adRecord.recordData), adRecord.sourceFileId, 
-      adRecord.sourceRowNumber, adRecord.rawData
+      'AD',
+      referenceNumber,
+      merchantAccount,
+      transactionDate,
+      adjustmentAmount,
+      'Merchant Adjustment Extension Record',
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveADData)
     ]);
 
     await client.query(`
@@ -7918,39 +8054,66 @@ export class DatabaseStorage implements IStorage {
     const line = rawRecord.raw_line;
     const otherRecordsTableName = getTableName('tddf_other_records');
 
-    const drRecord = {
+    // Extract key fields from TDDF fixed-width format
+    const referenceNumber = line.substring(61, 84).trim() || null; // Positions 62-84: Reference Number (AN)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (AN)
+    const transactionDateStr = line.substring(84, 92).trim(); // Positions 85-92: Transaction Date MMDDCCYY (N)
+    
+    // Parse transaction date (MMDDCCYY format) - allow null for invalid dates
+    let transactionDate = null;
+    if (transactionDateStr && transactionDateStr.length === 8 && transactionDateStr.match(/^\d{8}$/) && transactionDateStr !== '40404040') {
+      try {
+        const month = transactionDateStr.substring(0, 2);
+        const day = transactionDateStr.substring(2, 4);
+        const year = transactionDateStr.substring(4, 8);
+        
+        // Validate date components
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31 && yearNum >= 1900 && yearNum <= 2099) {
+          transactionDate = `${year}-${month}-${day}`;
+        }
+      } catch (error) {
+        // Invalid date - keep as null
+        transactionDate = null;
+      }
+    }
+
+    // Build comprehensive TDDF field extraction for jsonb storage
+    const comprehensiveDRData = {
+      // Core TDDF header fields (positions 1-23)
       sequenceNumber: line.substring(0, 7).trim() || null,
       entryRunNumber: line.substring(7, 13).trim() || null,
       sequenceWithinRun: line.substring(13, 17).trim() || null,
       recordIdentifier: line.substring(17, 19).trim() || null,
       bankNumber: line.substring(19, 23).trim() || null,
-      recordType: 'DR',
-      recordDescription: 'Detail Record (Non-DT)',
+      
+      // Account and merchant fields
       merchantAccountNumber: line.substring(23, 39).trim() || null,
-      recordData: {
-        associationNumber: line.substring(39, 45).trim() || null,
-        groupNumber: line.substring(45, 51).trim() || null,
-        transactionCode: line.substring(51, 55).trim() || null,
-        rawLine: line
-      },
-      sourceFileId: rawRecord.source_file_id,
-      sourceRowNumber: rawRecord.line_number,
-      rawData: JSON.stringify({ rawLine: line })
+      associationNumber: line.substring(39, 45).trim() || null,
+      groupNumber: line.substring(45, 51).trim() || null,
+      transactionCode: line.substring(51, 55).trim() || null,
+      rawLine: line
     };
 
     const insertResult = await client.query(`
       INSERT INTO "${otherRecordsTableName}" (
-        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
-        record_type, record_description, merchant_account_number, reference_number,
-        record_data, source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `, [
-      drRecord.sequenceNumber, drRecord.entryRunNumber, drRecord.sequenceWithinRun, 
-      drRecord.recordIdentifier, drRecord.bankNumber, drRecord.recordType, 
-      drRecord.recordDescription, drRecord.merchantAccountNumber, null,
-      JSON.stringify(drRecord.recordData), drRecord.sourceFileId, 
-      drRecord.sourceRowNumber, drRecord.rawData
+      'DR',
+      referenceNumber,
+      merchantAccount,
+      transactionDate,
+      null, // No standard amount field for DR records
+      'Detail Record (Non-DT)',
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveDRData)
     ]);
 
     await client.query(`

@@ -188,7 +188,7 @@ const MultiColorGauge = ({
       <div 
         className="absolute inset-0 cursor-pointer"
         title={showRecordTypes && recordTypes ? 
-          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1: ${recordTypes.p1}${unit}\nOthers: E1: ${detailedOtherTypes.e1}, G2: ${detailedOtherTypes.g2}, AD: ${detailedOtherTypes.ad}, P2: ${detailedOtherTypes.p2}, DR: ${detailedOtherTypes.dr}\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
+          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit} (E2, misc)\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
           `${title}: ${currentSpeed}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}`
         }
       />

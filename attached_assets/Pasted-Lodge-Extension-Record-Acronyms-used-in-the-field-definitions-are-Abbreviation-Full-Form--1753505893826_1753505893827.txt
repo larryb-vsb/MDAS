@@ -1,0 +1,597 @@
+Lodge Extension Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The Lodge Extension record contains information about lodging transactions. Mastercard allows a maximum of 99 lodging extension records in a transaction. Visa allows one lodging extension record per transaction.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+A value that identifies the type of record.
+
+Constant value is "LG"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-80
+
+Hotel Folio Number (Purchase ID)
+
+25
+
+AN
+
+For Visa:
+
+Positions 56-64: Hotel folio number
+Positions 65-80 Blanks
+For Mastercard:
+
+Positions 56-65: Hotel folio number
+Positions 66-75: Customer service telephone number
+Positions 76-80: Blanks For Discover:
+Positions 56-80: Folio Number
+For American Express:
+
+Positions 56-65: Record of charge number
+Positions 66-80: Blanks
+ 
+
+81-90
+
+Customer Service Number
+
+10
+
+N
+
+The telephone number used to resolve disputes or answer customer’s questions.
+
+ 
+
+91-91
+
+VS No Show Ind/AM Spec Prog Code
+
+1
+
+N
+
+An additional service associated with a lodging charge.
+
+For Visa, the field name is No Show Indicator.
+
+For American Express, the field name is Special Program Code.
+
+Possible Values:
+
+0 =Not applicable
+1 =No show
+92-97
+
+VS Extra Chgs/AM Room Rate
+
+6
+
+N
+
+For Visa, the field name is Extra Charges. The field indicates the amount of any extra charges.
+
+For American Express, the field name is Room Rate. The field indicates the rate charged for the room.
+
+Format:
+Blank or
+999999
+
+98-103
+
+CK IN Date (VS, AM)
+
+Arrival Date (MC)
+
+6
+
+N
+
+The date the cardholder checked into the lodging facility.
+
+The field names for
+
+Visa: Check-in Date
+
+Mastercard and Discover: Arrival Date
+
+Allowed format is MMDDYY
+
+104-104
+
+VS MKT SPEC AUTH DATA IND/AM CHG DE
+
+1
+
+AN
+
+For Visa, the field name is Market-Specific Authorization Data Indicator. The field identifies the type of enriched information that was present and valid in the initial authorization request.
+
+For American Express, the field name is Charge Descriptor. The field identifies the type of charge.
+
+ 
+
+105-116
+
+VS Total Auth AMT/AM Tax Amount
+
+12
+
+N
+
+For Visa, the field name is Amount Authorized. The field indicates the total amount authorized for the transaction.
+
+For American Express, the field name is Tax Assessed. The field indicates the amount of the tax assessed on the transaction.
+
+Format:
+Blank or
+999999999999
+
+117-126
+
+Property Telephone Number
+
+10
+
+N
+
+The telephone number at the lodging location.
+
+For Mastercard, the field name is Property Telephone Number.
+
+For Discover, the field name is Facility Telephone Number.
+
+ 
+
+127-132
+
+Check Out Date
+
+6
+
+N
+
+The departure date of the cardholder from the lodging.
+
+For Mastercard, the field name is Check-Out Date.
+
+For Discover, the field name is Departure Date.
+
+Allowed format: MMDDYY
+
+133-134
+
+MC Prog Code/AM Approval Code
+
+2
+
+N
+
+For Mastercard and Discover, the field name is Program Code.
+
+The field identifies special circumstances, such as a no-show customer.
+
+For American Express, the field name is Approval Code.
+
+ 
+
+135-146
+
+Daily Room Rate
+
+12
+
+N
+
+The lodging room rate per day.
+
+For Visa the field name is Daily Room Rate.
+
+For Mastercard and Discover, the field name is Room Rate.
+
+For both associations, this field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+147-158
+
+Total Tax (VS) Room Tax (MC, AM)
+
+12
+
+N
+
+For Visa, the field name is Tax Assessed. The field indicates the total amount of tax assessed on the transaction.
+
+For Mastercard and Discover, the field name is Room Tax. The field indicates the amount charged for taxes on the room.
+
+For all associations, the field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+159-170
+
+Total Charges For All Calls
+
+12
+
+N
+
+The total amount of all calls made from the room.
+
+For Mastercard, the field name is Call Charges.
+
+For Discover, the field name is Phone Charges.
+
+The field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+171-182
+
+Food/Beverage Charges
+
+12
+
+N
+
+For Visa, the field name is Food and Beverage Charges.
+
+The field indicates the amount of food and beverage charges.
+
+For Mastercard and Discover, the field name is Restaurant and Room Service Charges. The field indicates the amount for the restaurant and room service charges.
+
+For both associations, the field must be right justified. You can use zeros as filler.
+
+ 
+
+Format:
+Blank or
+999999999999
+
+183-194
+
+Bar/Mini Bar Charges
+
+12
+
+N
+
+The amount of bar or mini-bar charges.
+
+For Mastercard the field name is Bar Charges.
+
+For Discover, the field name is Mini-Bar Charges.
+
+This field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+195-206
+
+Gift Shop Charges
+
+12
+
+N
+
+The amount of gift shop charges.
+
+This field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+207-218
+
+Laundry/Dry Cleaning Amount
+
+12
+
+N
+
+The amount of laundry or dry cleaning charges.
+
+This field must be right justified. You can use zeros as filler.
+
+Format:
+Blank or
+999999999999
+
+219-221
+
+Other Services Code
+
+3
+
+AN
+
+Additional services for which the cardholder was billed.
+
+For Mastercard the field name is Other Services Code.
+
+For Discover, the field name is Other Indicator.
+
+ 
+
+222-233
+
+Other Services Charges
+
+12
+
+N
+
+The amount charged for the additional services identified in the Other Services Code field.
+
+For Mastercard, the field name is Other Services Charges.
+
+This field must be right justified. You can use zeros as filler.
+
+For Discover, the field name is Other Charges. The field indicates the amount charged for the additional services identified in the Other Indicator field.
+
+Format:
+Blank or
+999999999999
+
+234-234
+
+Billing Adjustment Indicator
+
+1
+
+AN
+
+Indicates if additional charges were made on the original transaction.
+
+Allowed values:
+
+{Blank} No additional charges
+Y=Additional charges added
+N=No additional charges were added
+235-246
+
+Folio Cash ADV (VS)
+
+Bill ADJ AMT (MC,AM)
+
+12
+
+N
+
+The total amount of adjustments or cash advances charged to the customer's account.
+
+For Visa, the field name is Cash Advance Amount.
+
+For Mastercard, the field name is Billing Adjustment Amount.
+
+For Discover, the field name is Adjustment Amount.
+
+Format:
+Blank or
+999999999999
+
+247-258
+
+Prepaid Expense
+
+12
+
+N
+
+The total amount of lodging expenses paid in advance by the customer.
+
+Format:
+Blank or
+999999999999
+
+259-263
+
+Extension Record Indicator
+
+5
+
+AN
+
+The code indicates if another extension record follows this record.
+
+ 
+
+264-265
+
+Room Nights
+
+2
+
+N
+
+The total number of nights spent in the room.
+
+Format:
+99
+
+266-277
+
+Total Room Tax
+
+12
+
+N
+
+The total amount of tax assessed on the room.
+
+Format:
+Blank or
+999999999999
+
+278-700
+
+Reserved for future use
+
+423
+
+AN
+
+ 
+
+ 
+
