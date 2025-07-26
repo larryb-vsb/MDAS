@@ -7801,49 +7801,7 @@ export class DatabaseStorage implements IStorage {
     `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
   }
 
-  private async processP2RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
-    // P2 processing similar to P1 but with different field positions
-    const line = rawRecord.raw_line;
-    const purchasingTableName = getTableName('tddf_purchasing_extensions');
 
-    const p2Record = {
-      p1_record_number: `P2_${rawRecord.source_file_id}_${rawRecord.line_number}`,
-      record_identifier: line.substring(17, 19).trim() || null,
-      parent_dt_reference: line.substring(61, 84).trim() || null,
-      tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null,
-      discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null,
-      freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null,
-      duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null,
-      purchase_identifier: line.substring(198, 225).trim() || null,
-      source_file_id: rawRecord.source_file_id,
-      source_row_number: rawRecord.line_number,
-      raw_data: JSON.stringify({ rawLine: line })
-    };
-
-    const insertResult = await client.query(`
-      INSERT INTO "${purchasingTableName}" (
-        p1_record_number, record_identifier, parent_dt_reference,
-        tax_amount, discount_amount, freight_amount, duty_amount, purchase_identifier,
-        source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT (p1_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
-      RETURNING id
-    `, [
-      p2Record.p1_record_number, p2Record.record_identifier, p2Record.parent_dt_reference,
-      p2Record.tax_amount, p2Record.discount_amount, p2Record.freight_amount,
-      p2Record.duty_amount, p2Record.purchase_identifier, p2Record.source_file_id,
-      p2Record.source_row_number, p2Record.raw_data
-    ]);
-
-    await client.query(`
-      UPDATE "${tableName}" 
-      SET processing_status = 'processed',
-          processed_into_table = $1,
-          processed_record_id = $2,
-          processed_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-    `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
-  }
 
   private async processE1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
     const line = rawRecord.raw_line;
