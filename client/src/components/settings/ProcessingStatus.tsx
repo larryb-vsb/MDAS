@@ -683,56 +683,56 @@ export default function ProcessingStatus() {
                           <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
                             {colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
                               <>
-                                {/* DT Records - Blue */}
+                                {/* DT Records - Blue (scaled to database peak) */}
                                 <div 
                                   className="absolute left-0 top-0 h-full transition-all duration-300"
                                   style={{ 
-                                    width: `${Math.min((dtProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100, 100)}%`, 
+                                    width: `${Math.min((dtProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
                                     backgroundColor: '#3b82f6' 
                                   }}
                                 />
-                                {/* BH Records - Green */}
+                                {/* BH Records - Green (scaled to database peak) */}
                                 <div 
                                   className="absolute top-0 h-full transition-all duration-300"
                                   style={{ 
-                                    left: `${(dtProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
-                                    width: `${(bhProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    left: `${Math.min((dtProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((bhProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
                                     backgroundColor: '#10b981' 
                                   }}
                                 />
-                                {/* P1 Records - Orange */}
+                                {/* P1 Records - Orange (scaled to database peak) */}
                                 <div 
                                   className="absolute top-0 h-full transition-all duration-300"
                                   style={{ 
-                                    left: `${((dtProcessed + bhProcessed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
-                                    width: `${(p1Processed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    left: `${Math.min(((dtProcessed + bhProcessed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((p1Processed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
                                     backgroundColor: '#f59e0b' 
                                   }}
                                 />
-                                {/* Other Records - Gray */}
+                                {/* Other Records - Gray (scaled to database peak) */}
                                 <div 
                                   className="absolute top-0 h-full transition-all duration-300"
                                   style={{ 
-                                    left: `${((dtProcessed + bhProcessed + p1Processed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
-                                    width: `${(combinedOtherProcessed / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    left: `${Math.min(((dtProcessed + bhProcessed + p1Processed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((combinedOtherProcessed / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
                                     backgroundColor: '#6b7280' 
                                   }}
                                 />
-                                {/* Skipped Records - Red */}
+                                {/* Skipped Records - Red (scaled to database peak) */}
                                 <div 
                                   className="absolute top-0 h-full rounded-r-full transition-all duration-300"
                                   style={{ 
-                                    left: `${((dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed) / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`,
-                                    width: `${(totalSkipped / (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped)) * 100}%`, 
+                                    left: `${Math.min(((dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed) / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`,
+                                    width: `${Math.min((totalSkipped / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%`, 
                                     backgroundColor: '#ef4444' 
                                   }}
                                 />
                               </>
                             ) : (
-                              /* Single blue bar for fallback */
+                              /* Single blue bar for fallback (scaled to database peak) */
                               <div 
                                 className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min((tddfPerMinute / 125) * 100, 100)}%` }}
+                                style={{ width: `${Math.min((tddfPerMinute / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%` }}
                               />
                             )}
                             
