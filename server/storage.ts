@@ -7733,34 +7733,41 @@ export class DatabaseStorage implements IStorage {
     const line = rawRecord.raw_line;
     const otherRecordsTableName = getTableName('tddf_other_records');
 
-    // Parse GE record from TDDF fixed-width format based on specification
+    // Parse GE record from TDDF fixed-width format based on complete specification
     const geRecord = {
       // Core TDDF header fields (positions 1-23) - shared with all record types
-      sequenceNumber: line.substring(0, 7).trim() || null, // Positions 1-7: File position identifier
-      entryRunNumber: line.substring(7, 13).trim() || null, // Positions 8-13: Entry run number  
-      sequenceWithinRun: line.substring(13, 17).trim() || null, // Positions 14-17: Sequence within entry run
-      recordIdentifier: line.substring(17, 19).trim() || null, // Positions 18-19: "GE"
-      bankNumber: line.substring(19, 23).trim() || null, // Positions 20-23: Global Payments bank number
+      sequenceNumber: line.substring(0, 7).trim() || null, // Positions 1-7: File position identifier (N)
+      entryRunNumber: line.substring(7, 13).trim() || null, // Positions 8-13: Entry run number (N)
+      sequenceWithinRun: line.substring(13, 17).trim() || null, // Positions 14-17: Sequence within entry run (N)
+      recordIdentifier: line.substring(17, 19).trim() || null, // Positions 18-19: "GE" (AN)
+      bankNumber: line.substring(19, 23).trim() || null, // Positions 20-23: Global Payments bank number (AN)
       
       // Record type specific information
       recordType: 'GE',
-      recordDescription: 'Global Payments Extension Record',
+      recordDescription: 'Merchant General Extension Record',
       
-      // Common fields that might appear across multiple record types
-      merchantAccountNumber: line.substring(23, 39).trim() || null, // Positions 24-39: Account number when applicable
-      referenceNumber: line.substring(61, 84).trim() || null, // Reference number when applicable
+      // Primary merchant account field
+      merchantAccountNumber: line.substring(23, 39).trim() || null, // Positions 24-39: Global Payments account number (N)
       
-      // Flexible data storage for GE-specific fields using jsonb
+      // GE-specific fields extracted according to TDDF specification
       recordData: {
-        // GE-specific fields based on TDDF specification (can be extended as needed)
-        transactionCode: line.substring(51, 55).trim() || null, // Positions 52-55
-        associationNumber: line.substring(39, 45).trim() || null, // Positions 40-45
-        groupNumber: line.substring(45, 51).trim() || null, // Positions 46-51
-        // Additional GE fields can be added here as per TDDF specification
-        rawLine: line // Store complete raw line for reference
+        // Merchant identification fields
+        associationNumber: line.substring(39, 45).trim() || null, // Positions 40-45: Association ID (AN)
+        groupNumber: line.substring(45, 51).trim() || null, // Positions 46-51: Group number (AN)
+        transactionCode: line.substring(51, 55).trim() || null, // Positions 52-55: GP Transaction code (N)
+        
+        // Merchant descriptor fields (currently reserved)
+        detailMerchantName: line.substring(55, 76).trim() || null, // Positions 56-76: Detail Merchant Name (AN) - Reserved
+        merchantSoftDescriptor: line.substring(76, 101).trim() || null, // Positions 77-101: Merchant Soft Descriptor (AN) - Reserved
+        
+        // Reserved area for future use
+        reservedFutureUse: line.substring(101, 700).trim() || null, // Positions 102-700: Reserved for future use (AN)
+        
+        // Complete raw line for reference and future field additions
+        rawLine: line
       },
       
-      // System and audit fields
+      // Standard system and audit fields
       sourceFileId: rawRecord.source_file_id,
       sourceRowNumber: rawRecord.line_number,
       rawData: JSON.stringify({ rawLine: line })
