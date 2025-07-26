@@ -695,7 +695,7 @@ export default function ProcessingStatus() {
                             {/* Peak indicator bar for TDDF gauge with 25% headroom - always visible */}
                             <div 
                               className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-                              style={{ left: `${Math.min((Math.max(peakTddfSpeed, 1) / (Math.max(tddfPerMinute, 125) * 1.25)) * 100, 100)}%` }}
+                              style={{ left: `${Math.min((Math.max(peakTddfSpeed, 1) / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100, 100)}%` }}
                               title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
                             />
                             
@@ -709,11 +709,11 @@ export default function ProcessingStatus() {
                             />
                           </div>
                           
-                          {/* Scale labels with 25% headroom */}
+                          {/* Scale labels with 25% headroom based on peak */}
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>0</span>
-                            <span>{Math.round((Math.max(tddfPerMinute, 125) * 1.25) / 2)}</span>
-                            <span>{Math.round(Math.max(tddfPerMinute, 125) * 1.25)}</span>
+                            <span>{Math.round((Math.max(peakTddfSpeed, 125) * 1.25) / 2)}</span>
+                            <span>{Math.round(Math.max(peakTddfSpeed, 125) * 1.25)}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display */}
@@ -721,9 +721,9 @@ export default function ProcessingStatus() {
                             <div className="font-semibold">TDDF Debug Values:</div>
                             <div>Current: {tddfPerMinute}/min</div>
                             <div>Peak (10min): {tddfPerMinute === 0 ? 0 : peakTddfSpeed}/min</div>
-                            <div>Base Scale: {Math.max(tddfPerMinute, 125)}</div>
-                            <div>Scale + 25%: {Math.round(Math.max(tddfPerMinute, 125) * 1.25)}</div>
-                            <div>Peak Position: {(tddfPerMinute === 0 || peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.25)) * 100)}%</div>
+                            <div>Base Scale: {Math.max(peakTddfSpeed, 125)}</div>
+                            <div>Scale + 25%: {Math.round(Math.max(peakTddfSpeed, 125) * 1.25)}</div>
+                            <div>Peak Position: {(tddfPerMinute === 0 || peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100)}%</div>
                           </div>
                         </div>
                       </div>
@@ -782,7 +782,7 @@ export default function ProcessingStatus() {
                       return (
                         <MultiColorGauge 
                           currentSpeed={recordsPerMinute}
-                          maxScale={Math.max(recordsPerMinute, 600)}
+                          maxScale={Math.max(peakTxnSpeed * 60, 600)}
                           recordTypes={{
                             dt: dtProcessed,
                             bh: bhProcessed,
@@ -801,17 +801,17 @@ export default function ProcessingStatus() {
                         <div>
                           <TransactionSpeedGauge 
                             currentSpeed={recordsPerMinute}
-                            maxScale={Math.max(recordsPerMinute, 600)}
+                            maxScale={Math.max(peakTxnSpeed * 60, 600)}
                             peakValue={peakTxnSpeed * 60}
                             title="Records"
                             unit="/min"
                           />
                           
-                          {/* Scale labels with 25% headroom for Records gauge */}
+                          {/* Scale labels with 25% headroom for Records gauge - based on peak */}
                           <div className="flex justify-between text-xs text-muted-foreground mt-1">
                             <span>0</span>
-                            <span>{Math.round((Math.max(recordsPerMinute, 600) * 1.25) / 2)}</span>
-                            <span>{Math.round(Math.max(recordsPerMinute, 600) * 1.25)}</span>
+                            <span>{Math.round((Math.max(peakTxnSpeed * 60, 600) * 1.25) / 2)}</span>
+                            <span>{Math.round(Math.max(peakTxnSpeed * 60, 600) * 1.25)}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display for Records */}
@@ -819,9 +819,9 @@ export default function ProcessingStatus() {
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
                             <div>Peak (10min): {recordsPerMinute === 0 ? 0 : (peakTxnSpeed * 60)}/min</div>
-                            <div>Base Scale: {Math.max(recordsPerMinute, 600)}</div>
-                            <div>Scale + 25%: {Math.round(Math.max(recordsPerMinute, 600) * 1.25)}</div>
-                            <div>Peak Position: {(recordsPerMinute === 0 || peakTxnSpeed === 0) ? 0 : Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.25)) * 100)}%</div>
+                            <div>Base Scale: {Math.max(peakTxnSpeed * 60, 600)}</div>
+                            <div>Scale + 25%: {Math.round(Math.max(peakTxnSpeed * 60, 600) * 1.25)}</div>
+                            <div>Peak Position: {(recordsPerMinute === 0 || peakTxnSpeed === 0) ? 0 : Math.round(((peakTxnSpeed * 60) / (Math.max(peakTxnSpeed * 60, 600) * 1.25)) * 100)}%</div>
                           </div>
                         </div>
                       );
