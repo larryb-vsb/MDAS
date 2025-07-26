@@ -982,18 +982,19 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
-                      if (!breakdown) return "E2: 44/min\nOthers Total: 44/min";
-                      const e2Count = breakdown?.e2?.processed || 44;
-                      return `E2: ${e2Count}/min\nOthers Total: ${e2Count}/min`;
+                      if (!breakdown) return "E2: 0/min\nOthers Total: 0/min";
+                      const e2Count = breakdown?.e2?.processed || 0;
+                      const otherTrueCount = breakdown?.other?.processed || 0;
+                      return `E2: ${e2Count}/min\nOther: ${otherTrueCount}/min\nOthers Total: ${e2Count + otherTrueCount}/min`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
                       {(() => {
                         const breakdown = performanceKpis?.colorBreakdown;
-                        if (!breakdown) return '44'; // E2 fallback count
-                        const e2Count = breakdown?.e2?.processed || 44;
-                        // Add other record types here when they exist
-                        const totalOthers = e2Count;
+                        if (!breakdown) return '0'; // No data available
+                        const e2Count = breakdown?.e2?.processed || 0;
+                        const otherTrueCount = breakdown?.other?.processed || 0;
+                        const totalOthers = e2Count + otherTrueCount;
                         return totalOthers.toLocaleString();
                       })()}
                     </div>
