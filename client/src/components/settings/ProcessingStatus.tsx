@@ -682,7 +682,7 @@ export default function ProcessingStatus() {
                         <div className="w-full space-y-1">
                           {/* Multi-Segment Gauge Bar */}
                           <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-                            {colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
+                            {!showZeroValues && colorBreakdown && (dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
                               <>
                                 {/* DT Records - Blue (scaled to database peak) */}
                                 <div 
@@ -729,13 +729,8 @@ export default function ProcessingStatus() {
                                   }}
                                 />
                               </>
-                            ) : (
-                              /* Single blue bar for fallback (scaled to database peak) */
-                              <div 
-                                className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min((tddfPerMinute / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%` }}
-                              />
-                            )}
+                            ) : null}
+                            {/* Empty gauge when showing zero values - no bars */}
                             
                             {/* Peak indicator bar for TDDF gauge with 25% whitespace - using database peak */}
                             <div 
@@ -772,6 +767,11 @@ export default function ProcessingStatus() {
                             <div className={`font-semibold ${showZeroValues ? 'text-red-600' : 'text-green-600'}`}>
                               Gauge Display: {showZeroValues ? 'ZERO (< 1000/min threshold)' : 'ACTIVE (≥ 1000/min)'}
                             </div>
+                            {!showZeroValues && colorBreakdown && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                Color Breakdown: DT:{colorBreakdown.dt?.processed || 0}, BH:{colorBreakdown.bh?.processed || 0}, P1:{colorBreakdown.p1?.processed || 0}, Other:{combinedOtherProcessed}, Skip:{colorBreakdown.totalSkipped || 0}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
