@@ -740,7 +740,25 @@ export default function ProcessingStatus() {
                           {/* Multi-Segment Gauge Bar with Tooltip */}
                           <div 
                             className="relative h-3 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
-                            title={`TDDF: ${tddfPerMinute.toLocaleString()}/min\n\nDT: ${dtProcessed.toLocaleString()}/min\nBH: ${bhProcessed.toLocaleString()}/min\nP1: ${p1Processed.toLocaleString()}/min\nOther: ${combinedOtherProcessed.toLocaleString()}/min${totalSkipped > 0 ? `\nSkip: ${totalSkipped.toLocaleString()}/min` : ''}`}
+                            title={(() => {
+                              // Create meaningful tooltip even when breakdown is disabled
+                              const lines = [`TDDF: ${tddfPerMinute.toLocaleString()}/min`];
+                              
+                              if (showColorBreakdown) {
+                                lines.push(''); // Empty line for breakdown
+                                if (dtProcessed > 0) lines.push(`DT: ${dtProcessed.toLocaleString()}/min`);
+                                if (bhProcessed > 0) lines.push(`BH: ${bhProcessed.toLocaleString()}/min`);
+                                if (p1Processed > 0) lines.push(`P1: ${p1Processed.toLocaleString()}/min`);
+                                if (combinedOtherProcessed > 0) lines.push(`Other: ${combinedOtherProcessed.toLocaleString()}/min`);
+                                if (totalSkipped > 0) lines.push(`Skip: ${totalSkipped.toLocaleString()}/min`);
+                              } else {
+                                lines.push(''); // Empty line
+                                lines.push('Processing all TDDF record types');
+                                lines.push('(breakdown hidden for low rates)');
+                              }
+                              
+                              return lines.join('\n');
+                            })()}
                           >
                             {(dtProcessed + bhProcessed + p1Processed + combinedOtherProcessed + totalSkipped) > 0 ? (
                               <>
