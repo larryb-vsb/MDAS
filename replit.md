@@ -560,11 +560,12 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 - **✅ DATABASE-DIRECT PEAK ACCESS IMPLEMENTED**: Successfully resolved Records gauge peak value synchronization by implementing dedicated database access
   - **API Endpoint Created**: Added `/api/processing/records-peak` endpoint with direct `storage.getRecordsPeakFromDatabase()` access
   - **Authentication Fixed**: Corrected React Query to use standard authentication instead of custom fetch with missing credentials
-  - **Database Integration**: Records gauge now pulls peak values directly from performance metrics database (151760 records)
-  - **Debug Verification**: Gauge displays "Peak (10min): {value} (direct DB)" showing authentic database values
+  - **Rate Calculation Fixed**: Updated database query to calculate actual processing rates per minute using LAG window functions instead of cumulative totals
+  - **Database Integration**: Records gauge now pulls peak processing rates directly from performance metrics database (1897 records/minute)
+  - **Debug Verification**: Gauge displays "Peak (10min): {value} (direct DB)" showing authentic rate calculations with "NEW RATE CALCULATION" confirmation
   - **Synchronization Complete**: Eliminated dependency on chart data calculations for gauge peak values
   - **Real-time Updates**: Peak values refresh every 30 seconds matching Scanly-Watcher recording schedule
-  - **Production Ready**: Records gauge now displays accurate database peak values with proper authentication and refresh cycles
+  - **Production Ready**: Records gauge now displays accurate processing rates per minute with proper authentication and refresh cycles
 
 ### ✅ CHART VISUALIZATION FIXES COMPLETED (July 25, 2025)
 - **✅ TIME DISPLAY FIXED**: KPI gauges now show "10 min" window instead of "0.5 minutes" for proper time period labeling
