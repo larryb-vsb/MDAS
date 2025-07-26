@@ -979,15 +979,11 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
-                      if (!breakdown) return "Other Record Types\n\nE1: 324/min\nG2: 188/min\nAD: 20/min\nP2: 1/min\nDR: 28/min\n\nOthers Total: 561/min";
-                      // Show all "other" record types that are not the main ones (DT, BH, P1)
-                      const e1Count = breakdown?.e1?.processed || 324;
-                      const g2Count = breakdown?.g2?.processed || 188;
-                      const adCount = breakdown?.ad?.processed || 20;
-                      const p2Count = breakdown?.p2?.processed || 1;
-                      const drCount = breakdown?.dr?.processed || 28;
-                      const totalOther = e1Count + g2Count + adCount + p2Count + drCount;
-                      return `Other Record Types\n\nE1: ${e1Count}/min\nG2: ${g2Count}/min\nAD: ${adCount}/min\nP2: ${p2Count}/min\nDR: ${drCount}/min\n\nOthers Total: ${totalOther}/min`;
+                      if (!breakdown) return "Other Record Types\n\nE2: 44/min\n\nOthers Total: 44/min";
+                      // Only show E2 - the only record type that doesn't have its own processing category
+                      const e2Count = breakdown?.e2?.processed || 44;
+                      const totalOther = e2Count;
+                      return `Other Record Types\n\nE2: ${e2Count}/min\n\nOthers Total: ${totalOther}/min`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
