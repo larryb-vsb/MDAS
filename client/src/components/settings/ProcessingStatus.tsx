@@ -228,10 +228,13 @@ export default function ProcessingStatus() {
   // Peak meter state management
   const [peakTxnSpeed, setPeakTxnSpeed] = useState(0);
   const [peakTddfSpeed, setPeakTddfSpeed] = useState(0);
+  const [peakRecordsSpeed, setPeakRecordsSpeed] = useState(0);
   const [speedHistory, setSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
   const [tddfSpeedHistory, setTddfSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
+  const [recordsSpeedHistory, setRecordsSpeedHistory] = useState<Array<{value: number, timestamp: number}>>([]);
   const [lastPeakTime, setLastPeakTime] = useState<Date | null>(null);
   const [lastTddfPeakTime, setLastTddfPeakTime] = useState<Date | null>(null);
+  const [lastRecordsPeakTime, setLastRecordsPeakTime] = useState<Date | null>(null);
 
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
@@ -441,6 +444,43 @@ export default function ProcessingStatus() {
       });
     }
   }, [performanceKpis?.tddfPerMinute, peakTddfSpeed, lastTddfPeakTime]);
+
+  // Update Records peak tracking when performance KPIs change
+  useEffect(() => {
+    if (performanceKpis?.recordsPerMinute !== undefined) {
+      const currentTime = Date.now();
+      const tenMinutesAgo = currentTime - (10 * 60 * 1000);
+      
+      // Store current Records reading with timestamp
+      const currentRecordsReading = {
+        value: performanceKpis.recordsPerMinute,
+        timestamp: currentTime
+      };
+      
+      // Update Records speed history - keep readings from last 10 minutes only
+      setRecordsSpeedHistory(prev => {
+        const newHistory = [...prev, currentRecordsReading]
+          .filter(reading => reading.timestamp > tenMinutesAgo)
+          .slice(-100); // Keep max 100 readings for performance
+        
+        // Calculate peak from the last 10 minutes of data
+        const peakValue = Math.max(...newHistory.map(r => r.value), 0);
+        
+        // Update peak if we found a higher value
+        if (peakValue > peakRecordsSpeed) {
+          setPeakRecordsSpeed(peakValue);
+          setLastRecordsPeakTime(new Date());
+        }
+        
+        // Only reset peak if no readings exist in the last 10 minutes (complete inactivity)
+        if (newHistory.length === 0 && lastRecordsPeakTime && (currentTime - lastRecordsPeakTime.getTime()) > (10 * 60 * 1000)) {
+          setPeakRecordsSpeed(0);
+        }
+        
+        return newHistory;
+      });
+    }
+  }, [performanceKpis?.recordsPerMinute, peakRecordsSpeed, lastRecordsPeakTime]);
 
   // Helper functions
   const getStatusBadge = () => {
@@ -782,7 +822,7 @@ export default function ProcessingStatus() {
                       return (
                         <MultiColorGauge 
                           currentSpeed={recordsPerMinute}
-                          maxScale={Math.max(peakTxnSpeed * 60, 600)}
+                          maxScale={Math.max(peakRecordsSpeed, 600)}
                           recordTypes={{
                             dt: dtProcessed,
                             bh: bhProcessed,
@@ -790,7 +830,7 @@ export default function ProcessingStatus() {
                             other: totalOtherProcessed + totalSkipped // Combine other and skipped for visualization
                           }}
                           showRecordTypes={true}
-                          peakValue={peakTxnSpeed * 60} // Use transaction peak for records gauge
+                          peakValue={peakRecordsSpeed} // Use actual records peak from performance metrics
                           title="Records"
                           unit="/min"
                         />
@@ -801,27 +841,27 @@ export default function ProcessingStatus() {
                         <div>
                           <TransactionSpeedGauge 
                             currentSpeed={recordsPerMinute}
-                            maxScale={Math.max(peakTxnSpeed * 60, 600)}
-                            peakValue={peakTxnSpeed * 60}
+                            maxScale={Math.max(peakRecordsSpeed, 600)}
+                            peakValue={peakRecordsSpeed}
                             title="Records"
                             unit="/min"
                           />
                           
-                          {/* Scale labels with 25% headroom for Records gauge - based on peak */}
+                          {/* Scale labels with 25% whitespace for Records gauge - based on peak */}
                           <div className="flex justify-between text-xs text-muted-foreground mt-1">
                             <span>0</span>
-                            <span>{Math.round((Math.max(peakTxnSpeed * 60, 600) * 1.25) / 2)}</span>
-                            <span>{Math.round(Math.max(peakTxnSpeed * 60, 600) * 1.25)}</span>
+                            <span>{Math.round((Math.max(peakRecordsSpeed / 0.75, 600)) / 2)}</span>
+                            <span>{Math.round(Math.max(peakRecordsSpeed / 0.75, 600))}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display for Records */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (10min): {recordsPerMinute === 0 ? 0 : (peakTxnSpeed * 60)}/min</div>
-                            <div>Base Scale: {Math.max(peakTxnSpeed * 60, 600)}</div>
-                            <div>Scale + 25%: {Math.round(Math.max(peakTxnSpeed * 60, 600) * 1.25)}</div>
-                            <div>Peak Position: {(recordsPerMinute === 0 || peakTxnSpeed === 0) ? 0 : Math.round(((peakTxnSpeed * 60) / (Math.max(peakTxnSpeed * 60, 600) * 1.25)) * 100)}%</div>
+                            <div>Peak (10min): {peakRecordsSpeed}/min</div>
+                            <div>Total Scale: {Math.max(peakRecordsSpeed / 0.75, 600)} (Peak/0.75)</div>
+                            <div>Peak Position: {peakRecordsSpeed === 0 ? 0 : Math.round((peakRecordsSpeed / Math.max(peakRecordsSpeed / 0.75, 600)) * 100)}% (should be 75%)</div>
+                            <div>Whitespace: {peakRecordsSpeed === 0 ? 0 : Math.round(100 - (peakRecordsSpeed / Math.max(peakRecordsSpeed / 0.75, 600)) * 100)}% (should be 25%)</div>
                           </div>
                         </div>
                       );
