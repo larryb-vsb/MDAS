@@ -581,7 +581,7 @@ export default function TerminalViewPage() {
                       <span>{terminal.store || "Not specified"}</span>
                       
                       <span className="font-medium">Terminal #:</span>
-                      <span className="font-mono">{terminal.terminalInfo || terminal.terminalId || "Not specified"}</span>
+                      <span className="font-mono">{terminal.genericField1 || "Not specified"}</span>
                       
                       <span className="font-medium">SSL:</span>
                       <span>{terminal.ssl || "Not specified"}</span>

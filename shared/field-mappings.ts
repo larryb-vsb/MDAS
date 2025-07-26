@@ -131,6 +131,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   discoverPosEntryMode: "Discover POS Entry Mode", // Discover network entry
   purchaseId: "Purchase ID", // Purchase identification
   posDataCode: "POS Data Code", // POS configuration code
+  genericField1: "Terminal #", // Terminal # from CSV import
   
   // Additional fields not directly from TSYS but managed internally
   terminalType: null, // Will be set during processing
@@ -147,7 +148,6 @@ export const terminalFieldMappings: Record<string, string | null> = {
   firmwareVersion: null, // Internal field
   networkType: null, // Internal field
   ipAddress: null, // Internal field
-  genericField1: null, // Generic field for custom use
   genericField2: null, // Generic field for custom use
   description: null, // Internal field
   notes: null, // Internal field
