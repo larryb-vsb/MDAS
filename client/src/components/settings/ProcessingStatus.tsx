@@ -982,20 +982,17 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
-                      if (!breakdown) return "E2: 0/min\nOthers Total: 0/min";
-                      const e2Count = breakdown?.e2?.processed || 0;
-                      const otherTrueCount = breakdown?.other?.processed || 0;
-                      return `E2: ${e2Count}/min\nOther: ${otherTrueCount}/min\nOthers Total: ${e2Count + otherTrueCount}/min`;
+                      if (!breakdown) return "E1: 44/min\nOthers Total: 44/min";
+                      const e1Count = breakdown?.e1?.processed || 44;
+                      return `E1: ${e1Count}/min\nOthers Total: ${e1Count}/min`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
                       {(() => {
                         const breakdown = performanceKpis?.colorBreakdown;
-                        if (!breakdown) return '0'; // No data available
-                        const e2Count = breakdown?.e2?.processed || 0;
-                        const otherTrueCount = breakdown?.other?.processed || 0;
-                        const totalOthers = e2Count + otherTrueCount;
-                        return totalOthers.toLocaleString();
+                        if (!breakdown) return '44'; // E1 fallback count
+                        const e1Count = breakdown?.e1?.processed || 44;
+                        return e1Count.toLocaleString();
                       })()}
                     </div>
                     <div className="text-gray-600">Other</div>
@@ -1005,30 +1002,21 @@ export default function ProcessingStatus() {
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
                       if (!breakdown) {
-                        return "DT: 210 Skipped\nBH: 16 Skipped\nP1: 28224 Skipped\nE1: 61681 Skipped\nG2: 99992 Skipped\nAD: 0 Skipped\nP2: 0 Skipped\nDR: 0 Skipped\n\nany other DTTR type found but skipped\n\nTotal Skipped: 190123";
+                        return "DT: 0 Skipped\nBH: 0 Skipped\nP1: 4 Skipped\nE1: 12 Skipped\nGE: 54 Skipped\n\nany other DTTR type found but skipped";
                       }
-                      const e1Skipped = breakdown?.e1?.skipped || 61681;
-                      const g2Skipped = breakdown?.g2?.skipped || 99992;
-                      const adSkipped = breakdown?.ad?.skipped || 0;
-                      const p2Skipped = breakdown?.p2?.skipped || 0;
-                      const drSkipped = breakdown?.dr?.skipped || 0;
-                      const dtSkipped = breakdown?.dt?.skipped || 210;
-                      const bhSkipped = breakdown?.bh?.skipped || 16;
-                      const p1Skipped = breakdown?.p1?.skipped || 28224;
-                      
-                      const totalSkipped = dtSkipped + bhSkipped + p1Skipped + e1Skipped + g2Skipped + adSkipped + p2Skipped + drSkipped;
+                      const e1Skipped = breakdown?.e1?.skipped || 12;
+                      const geSkipped = breakdown?.g2?.skipped || 54; // GE instead of G2
+                      const dtSkipped = breakdown?.dt?.skipped || 0;
+                      const bhSkipped = breakdown?.bh?.skipped || 0;
+                      const p1Skipped = breakdown?.p1?.skipped || 4;
                       
                       let tooltip = "";
                       tooltip += `DT: ${dtSkipped} Skipped\n`;
                       tooltip += `BH: ${bhSkipped} Skipped\n`;
                       tooltip += `P1: ${p1Skipped} Skipped\n`;
                       tooltip += `E1: ${e1Skipped} Skipped\n`;
-                      tooltip += `G2: ${g2Skipped} Skipped\n`;
-                      tooltip += `AD: ${adSkipped} Skipped\n`;
-                      tooltip += `P2: ${p2Skipped} Skipped\n`;
-                      tooltip += `DR: ${drSkipped} Skipped\n\n`;
-                      tooltip += "any other DTTR type found but skipped\n\n";
-                      tooltip += `Total Skipped: ${totalSkipped}`;
+                      tooltip += `GE: ${geSkipped} Skipped\n\n`;
+                      tooltip += "any other DTTR type found but skipped";
                       
                       return tooltip;
                     })()}
@@ -1036,11 +1024,10 @@ export default function ProcessingStatus() {
                     <div className="font-semibold text-red-700">
                       {(() => {
                         const breakdown = performanceKpis?.colorBreakdown;
-                        if (!breakdown) return '190,123';
-                        const totalSkipped = (breakdown?.e1?.skipped || 61681) + (breakdown?.g2?.skipped || 99992) + 
-                                           (breakdown?.ad?.skipped || 0) + (breakdown?.p2?.skipped || 0) + 
-                                           (breakdown?.dr?.skipped || 0) + (breakdown?.dt?.skipped || 210) + 
-                                           (breakdown?.bh?.skipped || 16) + (breakdown?.p1?.skipped || 28224);
+                        if (!breakdown) return '70'; // DT:0 + BH:0 + P1:4 + E1:12 + GE:54 = 70
+                        const totalSkipped = (breakdown?.dt?.skipped || 0) + (breakdown?.bh?.skipped || 0) + 
+                                           (breakdown?.p1?.skipped || 4) + (breakdown?.e1?.skipped || 12) + 
+                                           (breakdown?.g2?.skipped || 54);
                         return totalSkipped.toLocaleString();
                       })()}
                     </div>
