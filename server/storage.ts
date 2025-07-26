@@ -10132,15 +10132,18 @@ export class DatabaseStorage implements IStorage {
         const dtRate = Math.max(0, ((row.dt_processed || 0) - (row.prev_dt_processed || 0)) / timeDiffMinutes);
         const bhRate = Math.max(0, ((row.bh_processed || 0) - (row.prev_bh_processed || 0)) / timeDiffMinutes);
         const p1Rate = Math.max(0, ((row.p1_processed || 0) - (row.prev_p1_processed || 0)) / timeDiffMinutes);
+        const p2Rate = Math.max(0, ((row.p2_processed || 0) - (row.prev_p2_processed || 0)) / timeDiffMinutes);
         
-        // Calculate "otherRecords" as sum of all other types (matching chart calculation)
+        // Combine P1 and P2 rates (matching chart calculation)
+        const combinedP1P2Rate = p1Rate + p2Rate;
+        
+        // Calculate "otherRecords" as sum of all other types EXCLUDING P2 (matching chart calculation)
         const e1Rate = Math.max(0, ((row.e1_processed || 0) - (row.prev_e1_processed || 0)) / timeDiffMinutes);
         const g2Rate = Math.max(0, ((row.g2_processed || 0) - (row.prev_g2_processed || 0)) / timeDiffMinutes);
         const adRate = Math.max(0, ((row.ad_processed || 0) - (row.prev_ad_processed || 0)) / timeDiffMinutes);
         const drRate = Math.max(0, ((row.dr_processed || 0) - (row.prev_dr_processed || 0)) / timeDiffMinutes);
-        const p2Rate = Math.max(0, ((row.p2_processed || 0) - (row.prev_p2_processed || 0)) / timeDiffMinutes);
         const otherProcessedRate = Math.max(0, ((row.other_processed || 0) - (row.prev_other_processed || 0)) / timeDiffMinutes);
-        const otherRecords = e1Rate + g2Rate + adRate + drRate + p2Rate + otherProcessedRate;
+        const otherRecords = e1Rate + g2Rate + adRate + drRate + otherProcessedRate;
         
         // Calculate total skipped rate
         const currentTotalSkipped = (row.dt_skipped || 0) + (row.bh_skipped || 0) + (row.p1_skipped || 0) + 
@@ -10148,13 +10151,13 @@ export class DatabaseStorage implements IStorage {
                                   (row.dr_skipped || 0) + (row.p2_skipped || 0) + (row.other_skipped || 0);
         const skippedRate = Math.max(0, (currentTotalSkipped - (row.prev_total_skipped || 0)) / timeDiffMinutes);
         
-        const totalRate = dtRate + bhRate + p1Rate + otherRecords + skippedRate;
+        const totalRate = dtRate + bhRate + combinedP1P2Rate + otherRecords + skippedRate;
         
         return {
           timestamp: row.timestamp,
           dtRecords: Math.round(dtRate),
           bhRecords: Math.round(bhRate),
-          p1Records: Math.round(p1Rate),
+          p1Records: Math.round(combinedP1P2Rate),
           otherRecords: Math.round(otherRecords),
           skippedRecords: Math.round(skippedRate),
           totalRate: Math.round(totalRate)
@@ -10171,7 +10174,7 @@ export class DatabaseStorage implements IStorage {
       }));
       
       console.log(`[RECORDS PEAK] Rate-based calculation (matching chart):`, rateData.slice(-3).map(s => 
-        `${s.timestamp}: DT:${s.dtRecords}, BH:${s.bhRecords}, P1:${s.p1Records}, Other:${s.otherRecords}, Skip:${s.skippedRecords}, Total:${s.totalRate}/min`));
+        `${s.timestamp}: DT:${s.dtRecords}, BH:${s.bhRecords}, P1/P2:${s.p1Records}, Other:${s.otherRecords}, Skip:${s.skippedRecords}, Total:${s.totalRate}/min`));
       console.log(`[RECORDS PEAK] Peak rate value: ${peakRecords} records/min (matching chart calculation)`);
       
       return { peakRecords, allSamples };

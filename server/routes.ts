@@ -5849,17 +5849,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                    (row.dr_skipped || 0) + (row.p2_skipped || 0) + (row.other_skipped || 0);
         const skippedRate = timeDiffMinutes > 0 ? (currentTotalSkipped - (row.prev_total_skipped || 0)) / timeDiffMinutes : 0;
         
-        // Combine gray record types (E1, G2, AD, DR, P2, other)
-        const combinedOtherRate = e1Rate + g2Rate + adRate + drRate + p2Rate + otherRate;
+        // Combine P1 and P2 into single p1Records for chart display (purchasing card extensions)
+        const combinedP1P2Rate = p1Rate + p2Rate;
+        
+        // Combine gray record types (E1, G2, AD, DR, other) - P2 now grouped with P1
+        const combinedOtherRate = e1Rate + g2Rate + adRate + drRate + otherRate;
         
         return {
           timestamp: row.timestamp,
           dtRecords: Math.max(0, Math.round(dtRate)),
           bhRecords: Math.max(0, Math.round(bhRate)),
-          p1Records: Math.max(0, Math.round(p1Rate)),
-          otherRecords: Math.max(0, Math.round(combinedOtherRate)), // Combined gray categories
+          p1Records: Math.max(0, Math.round(combinedP1P2Rate)), // Combined P1/P2 purchasing extensions
+          otherRecords: Math.max(0, Math.round(combinedOtherRate)), // Combined gray categories (excluding P2)
           skippedRecords: Math.max(0, Math.round(skippedRate)), // Red for all skipped
-          rawLines: Math.max(0, Math.round(dtRate + bhRate + p1Rate + combinedOtherRate + skippedRate)),
+          rawLines: Math.max(0, Math.round(dtRate + bhRate + combinedP1P2Rate + combinedOtherRate + skippedRate)),
           colorMapping: {
             dtRecords: '#3b82f6',      // blue
             bhRecords: '#10b981',      // green
