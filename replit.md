@@ -682,6 +682,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Total Processed Update**: Enhanced Total Processed calculation to include P2 records for accurate hierarchical totals
   - **Production Verification**: API now returns authentic P1/P2 counts: {"p1RecordsProcessed": 1884, "p2RecordsProcessed": 1} showing complete data integration
   - **Complete Resolution**: P1/P2 box calculation now includes ALL processed P1/P2 records from every source (hierarchical tables + raw import processing)
+  - **Others Box Categorization Fixed**: Removed P2 records from "Others" box hover tooltip - P2 now correctly grouped exclusively with P1 as purchasing card extension records
 
 ### ✅ CK RECORD TYPE (ELECTRONIC CHECK EXTENSION) IMPLEMENTATION COMPLETED (July 26, 2025)
 - **✅ CK PROCESSING METHOD CREATED**: Successfully implemented `processCKRecordWithClient` method with complete TDDF Electronic Check Extension field extraction

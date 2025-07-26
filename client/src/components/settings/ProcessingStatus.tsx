@@ -996,7 +996,7 @@ export default function ProcessingStatus() {
                       const breakdown = performanceKpis?.colorBreakdown;
                       if (!breakdown) {
                         // Fallback with realistic values based on current database
-                        return "E1: 2,224 records\nG2: 5,825 records\nAD: 21 records\nDR: 42 records\nP2: 0 records\nCK: 0 records\nLG: 0 records\nGE: 0 records\n\nOthers Total: 8,112 records";
+                        return "E1: 2,224 records\nG2: 5,825 records\nAD: 21 records\nDR: 42 records\nCK: 0 records\nLG: 0 records\nGE: 0 records\n\nOthers Total: 8,112 records";
                       }
                       
                       // Get current counts from breakdown data
@@ -1004,14 +1004,13 @@ export default function ProcessingStatus() {
                       const g2Count = breakdown?.g2?.processed || 5825;
                       const adCount = breakdown?.ad?.processed || 21;
                       const drCount = breakdown?.dr?.processed || 42;
-                      const p2Count = breakdown?.p2?.processed || 0;
                       const ckCount = breakdown?.ck?.processed || 0;
                       const lgCount = breakdown?.lg?.processed || 0;
                       const geCount = breakdown?.ge?.processed || 0;
                       
-                      const totalOthers = e1Count + g2Count + adCount + drCount + p2Count + ckCount + lgCount + geCount;
+                      const totalOthers = e1Count + g2Count + adCount + drCount + ckCount + lgCount + geCount;
                       
-                      return `E1: ${e1Count.toLocaleString()} records\nG2: ${g2Count.toLocaleString()} records\nAD: ${adCount.toLocaleString()} records\nDR: ${drCount.toLocaleString()} records\nP2: ${p2Count.toLocaleString()} records\nCK: ${ckCount.toLocaleString()} records\nLG: ${lgCount.toLocaleString()} records\nGE: ${geCount.toLocaleString()} records\n\nOthers Total: ${totalOthers.toLocaleString()} records`;
+                      return `E1: ${e1Count.toLocaleString()} records\nG2: ${g2Count.toLocaleString()} records\nAD: ${adCount.toLocaleString()} records\nDR: ${drCount.toLocaleString()} records\nCK: ${ckCount.toLocaleString()} records\nLG: ${lgCount.toLocaleString()} records\nGE: ${geCount.toLocaleString()} records\n\nOthers Total: ${totalOthers.toLocaleString()} records`;
                     })()}
                   >
                     <div className="font-semibold text-gray-700">
@@ -1023,12 +1022,11 @@ export default function ProcessingStatus() {
                         const g2Count = breakdown?.g2?.processed || 5825;
                         const adCount = breakdown?.ad?.processed || 21;
                         const drCount = breakdown?.dr?.processed || 42;
-                        const p2Count = breakdown?.p2?.processed || 0;
                         const ckCount = breakdown?.ck?.processed || 0;
                         const lgCount = breakdown?.lg?.processed || 0;
                         const geCount = breakdown?.ge?.processed || 0;
                         
-                        const totalOthers = e1Count + g2Count + adCount + drCount + p2Count + ckCount + lgCount + geCount;
+                        const totalOthers = e1Count + g2Count + adCount + drCount + ckCount + lgCount + geCount;
                         return totalOthers.toLocaleString();
                       })()}
                     </div>
