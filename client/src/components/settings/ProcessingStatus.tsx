@@ -956,11 +956,11 @@ export default function ProcessingStatus() {
                     </div>
                     <div className="text-amber-600">P1</div>
                   </div>
-                  <div className="text-center p-2 bg-red-50 rounded border">
-                    <div className="font-semibold text-red-700">
+                  <div className="text-center p-2 bg-gray-50 rounded border">
+                    <div className="font-semibold text-gray-700">
                       {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
                     </div>
-                    <div className="text-red-600">Other</div>
+                    <div className="text-gray-600">Other</div>
                   </div>
                   <div className="text-center p-2 bg-orange-50 rounded border">
                     <div className="font-semibold text-orange-700">
