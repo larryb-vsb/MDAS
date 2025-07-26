@@ -9022,27 +9022,105 @@ export class DatabaseStorage implements IStorage {
   async getRecordsPeakFromDatabase(): Promise<{peakRecords: number, allSamples: Array<{timestamp: string, totalRecords: number}>}> {
     try {
       const tableName = getTableName('processing_metrics');
+      
+      // Get data with LAG calculation to match chart's rate calculation method
       const result = await pool.query(`
         SELECT 
           timestamp,
-          COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
-          COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
-          COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0) as total_records
+          dt_processed, bh_processed, p1_processed, e1_processed, g2_processed, 
+          ad_processed, dr_processed, p2_processed, other_processed,
+          dt_skipped, bh_skipped, p1_skipped, e1_skipped, g2_skipped,
+          ad_skipped, dr_skipped, p2_skipped, other_skipped,
+          LAG(dt_processed) OVER (ORDER BY timestamp) as prev_dt_processed,
+          LAG(bh_processed) OVER (ORDER BY timestamp) as prev_bh_processed,
+          LAG(p1_processed) OVER (ORDER BY timestamp) as prev_p1_processed,
+          LAG(e1_processed) OVER (ORDER BY timestamp) as prev_e1_processed,
+          LAG(g2_processed) OVER (ORDER BY timestamp) as prev_g2_processed,
+          LAG(ad_processed) OVER (ORDER BY timestamp) as prev_ad_processed,
+          LAG(dr_processed) OVER (ORDER BY timestamp) as prev_dr_processed,
+          LAG(p2_processed) OVER (ORDER BY timestamp) as prev_p2_processed,
+          LAG(other_processed) OVER (ORDER BY timestamp) as prev_other_processed,
+          LAG(dt_skipped + bh_skipped + p1_skipped + e1_skipped + g2_skipped + ad_skipped + dr_skipped + p2_skipped + other_skipped) OVER (ORDER BY timestamp) as prev_total_skipped,
+          LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
         FROM "${tableName}"
         WHERE timestamp >= NOW() - INTERVAL '10 minutes'
           AND metric_type = 'scanly_watcher_snapshot'
-        ORDER BY timestamp DESC
+        ORDER BY timestamp ASC
       `);
       
-      const allSamples = result.rows.map(row => ({
-        timestamp: row.timestamp,
-        totalRecords: parseInt(row.total_records) || 0
+      const rateData = result.rows.map((row, index) => {
+        if (index === 0 || !row.prev_timestamp) {
+          // First row - no rate calculation possible
+          return {
+            timestamp: row.timestamp,
+            dtRecords: 0,
+            bhRecords: 0,
+            p1Records: 0,
+            otherRecords: 0,
+            skippedRecords: 0,
+            totalRate: 0
+          };
+        }
+        
+        // Calculate rates based on difference from previous data point (same as chart)
+        const timeDiffMinutes = (new Date(row.timestamp) - new Date(row.prev_timestamp)) / (1000 * 60);
+        
+        if (timeDiffMinutes <= 0) {
+          return {
+            timestamp: row.timestamp,
+            dtRecords: 0,
+            bhRecords: 0,
+            p1Records: 0,
+            otherRecords: 0,
+            skippedRecords: 0,
+            totalRate: 0
+          };
+        }
+        
+        const dtRate = Math.max(0, ((row.dt_processed || 0) - (row.prev_dt_processed || 0)) / timeDiffMinutes);
+        const bhRate = Math.max(0, ((row.bh_processed || 0) - (row.prev_bh_processed || 0)) / timeDiffMinutes);
+        const p1Rate = Math.max(0, ((row.p1_processed || 0) - (row.prev_p1_processed || 0)) / timeDiffMinutes);
+        
+        // Calculate "otherRecords" as sum of all other types (matching chart calculation)
+        const e1Rate = Math.max(0, ((row.e1_processed || 0) - (row.prev_e1_processed || 0)) / timeDiffMinutes);
+        const g2Rate = Math.max(0, ((row.g2_processed || 0) - (row.prev_g2_processed || 0)) / timeDiffMinutes);
+        const adRate = Math.max(0, ((row.ad_processed || 0) - (row.prev_ad_processed || 0)) / timeDiffMinutes);
+        const drRate = Math.max(0, ((row.dr_processed || 0) - (row.prev_dr_processed || 0)) / timeDiffMinutes);
+        const p2Rate = Math.max(0, ((row.p2_processed || 0) - (row.prev_p2_processed || 0)) / timeDiffMinutes);
+        const otherProcessedRate = Math.max(0, ((row.other_processed || 0) - (row.prev_other_processed || 0)) / timeDiffMinutes);
+        const otherRecords = e1Rate + g2Rate + adRate + drRate + p2Rate + otherProcessedRate;
+        
+        // Calculate total skipped rate
+        const currentTotalSkipped = (row.dt_skipped || 0) + (row.bh_skipped || 0) + (row.p1_skipped || 0) + 
+                                  (row.e1_skipped || 0) + (row.g2_skipped || 0) + (row.ad_skipped || 0) + 
+                                  (row.dr_skipped || 0) + (row.p2_skipped || 0) + (row.other_skipped || 0);
+        const skippedRate = Math.max(0, (currentTotalSkipped - (row.prev_total_skipped || 0)) / timeDiffMinutes);
+        
+        const totalRate = dtRate + bhRate + p1Rate + otherRecords + skippedRate;
+        
+        return {
+          timestamp: row.timestamp,
+          dtRecords: Math.round(dtRate),
+          bhRecords: Math.round(bhRate),
+          p1Records: Math.round(p1Rate),
+          otherRecords: Math.round(otherRecords),
+          skippedRecords: Math.round(skippedRate),
+          totalRate: Math.round(totalRate)
+        };
+      }).filter(item => item.totalRate > 0); // Filter out zero rates (like chart does)
+      
+      // Calculate peak the same way as chart: max of (dtRecords + bhRecords + p1Records + otherRecords + skippedRecords)
+      const peakRecords = rateData.length > 0 ? 
+        Math.max(...rateData.map(d => d.dtRecords + d.bhRecords + d.p1Records + d.otherRecords + d.skippedRecords)) : 0;
+      
+      const allSamples = rateData.map(item => ({
+        timestamp: item.timestamp,
+        totalRecords: item.totalRate
       }));
       
-      const peakRecords = Math.max(...allSamples.map(s => s.totalRecords), 0);
-      
-      console.log(`[RECORDS PEAK] All samples in last 10 minutes:`, allSamples.map(s => `${s.timestamp}: ${s.totalRecords}`));
-      console.log(`[RECORDS PEAK] Peak value: ${peakRecords} records - PEAK SAMPLE VALUE`);
+      console.log(`[RECORDS PEAK] Rate-based calculation (matching chart):`, rateData.slice(-3).map(s => 
+        `${s.timestamp}: DT:${s.dtRecords}, BH:${s.bhRecords}, P1:${s.p1Records}, Other:${s.otherRecords}, Skip:${s.skippedRecords}, Total:${s.totalRate}/min`));
+      console.log(`[RECORDS PEAK] Peak rate value: ${peakRecords} records/min (matching chart calculation)`);
       
       return { peakRecords, allSamples };
     } catch (error: any) {
