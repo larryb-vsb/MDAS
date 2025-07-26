@@ -273,6 +273,33 @@ export interface IStorage {
   getTddfRecordById(recordId: number): Promise<TddfRecord | undefined>;
   createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord>;
   deleteTddfRecords(recordIds: number[]): Promise<void>;
+
+  // TDDF merchant aggregation
+  getTddfMerchants(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{
+    data: Array<{
+      merchantName: string;
+      merchantAccountNumber: string;
+      mccCode: string;
+      transactionTypeIdentifier: string;
+      terminalCount: number;
+      totalTransactions: number;
+      totalAmount: number;
+      lastTransactionDate: string;
+      posRelativeCode?: string; // First 5 digits for terminal linking
+    }>;
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
   
   // TDDF Raw Import operations
   createTddfRawImportRecords(records: InsertTddfRawImport[]): Promise<TddfRawImport[]>;
@@ -6296,6 +6323,197 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting TDDF records:', error);
+      throw error;
+    }
+  }
+
+  async getTddfMerchants(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{
+    data: Array<{
+      merchantName: string;
+      merchantAccountNumber: string;
+      mccCode: string;
+      transactionTypeIdentifier: string;
+      terminalCount: number;
+      totalTransactions: number;
+      totalAmount: number;
+      lastTransactionDate: string;
+      posRelativeCode?: string;
+    }>;
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = options.limit || 20;
+      const offset = (page - 1) * limit;
+
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const terminalsTableName = getTableName('terminals');
+
+      // Build search condition
+      let searchCondition = '';
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (options.search && options.search.trim() !== '') {
+        const searchTerm = `%${options.search.trim().toLowerCase()}%`;
+        searchCondition = `
+          WHERE (
+            LOWER(merchant_name) LIKE $${paramIndex} OR 
+            LOWER(mcc_code) LIKE $${paramIndex} OR 
+            LOWER(merchant_account_number) LIKE $${paramIndex}
+          )
+        `;
+        params.push(searchTerm);
+        paramIndex++;
+      }
+
+      // Build sort condition
+      let sortCondition = 'ORDER BY total_transactions DESC';
+      if (options.sortBy) {
+        const sortDirection = options.sortOrder === 'asc' ? 'ASC' : 'DESC';
+        switch (options.sortBy) {
+          case 'merchantName':
+            sortCondition = `ORDER BY merchant_name ${sortDirection}`;
+            break;
+          case 'merchantAccountNumber':
+            sortCondition = `ORDER BY merchant_account_number ${sortDirection}`;
+            break;
+          case 'mccCode':
+            sortCondition = `ORDER BY mcc_code ${sortDirection}`;
+            break;
+          case 'totalTransactions':
+            sortCondition = `ORDER BY total_transactions ${sortDirection}`;
+            break;
+          case 'totalAmount':
+            sortCondition = `ORDER BY total_amount ${sortDirection}`;
+            break;
+          case 'lastTransactionDate':
+            sortCondition = `ORDER BY last_transaction_date ${sortDirection}`;
+            break;
+          default:
+            sortCondition = 'ORDER BY total_transactions DESC';
+        }
+      }
+
+      // Query to aggregate merchant data from TDDF records with terminal count
+      const dataQuery = `
+        WITH merchant_aggregates AS (
+          SELECT 
+            merchant_name,
+            merchant_account_number,
+            mcc_code,
+            transaction_type_identifier,
+            COUNT(*) as total_transactions,
+            SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+            MAX(transaction_date) as last_transaction_date,
+            -- Extract first 5 digits from merchant account number for terminal linking
+            SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
+          FROM "${tddfRecordsTableName}"
+          WHERE merchant_name IS NOT NULL 
+            AND merchant_account_number IS NOT NULL
+          GROUP BY 
+            merchant_name, 
+            merchant_account_number, 
+            mcc_code, 
+            transaction_type_identifier,
+            SUBSTRING(merchant_account_number, 1, 5)
+        ),
+        terminal_counts AS (
+          SELECT 
+            SUBSTRING(pos_merchant_number, 1, 5) as pos_code,
+            COUNT(*) as terminal_count
+          FROM "${terminalsTableName}"
+          WHERE pos_merchant_number IS NOT NULL
+          GROUP BY SUBSTRING(pos_merchant_number, 1, 5)
+        )
+        SELECT 
+          ma.merchant_name,
+          ma.merchant_account_number,
+          ma.mcc_code,
+          ma.transaction_type_identifier,
+          COALESCE(tc.terminal_count, 0) as terminal_count,
+          ma.total_transactions,
+          ma.total_amount,
+          ma.last_transaction_date,
+          ma.pos_relative_code
+        FROM merchant_aggregates ma
+        LEFT JOIN terminal_counts tc ON ma.pos_relative_code = tc.pos_code
+        ${searchCondition}
+        ${sortCondition}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+
+      params.push(limit, offset);
+
+      // Count query for pagination
+      const countQuery = `
+        WITH merchant_aggregates AS (
+          SELECT 
+            merchant_name,
+            merchant_account_number,
+            mcc_code,
+            transaction_type_identifier,
+            SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
+          FROM "${tddfRecordsTableName}"
+          WHERE merchant_name IS NOT NULL 
+            AND merchant_account_number IS NOT NULL
+          GROUP BY 
+            merchant_name, 
+            merchant_account_number, 
+            mcc_code, 
+            transaction_type_identifier,
+            SUBSTRING(merchant_account_number, 1, 5)
+        )
+        SELECT COUNT(*) as total
+        FROM merchant_aggregates ma
+        ${searchCondition}
+      `;
+
+      const countParams = options.search && options.search.trim() !== '' ? [options.search.trim().toLowerCase()] : [];
+
+      // Execute queries
+      const [dataResult, countResult] = await Promise.all([
+        pool.query(dataQuery, params),
+        pool.query(countQuery, countParams)
+      ]);
+
+      const totalItems = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(totalItems / limit);
+
+      const merchants = dataResult.rows.map(row => ({
+        merchantName: row.merchant_name || '',
+        merchantAccountNumber: row.merchant_account_number || '',
+        mccCode: row.mcc_code || '',
+        transactionTypeIdentifier: row.transaction_type_identifier || '',
+        terminalCount: parseInt(row.terminal_count) || 0,
+        totalTransactions: parseInt(row.total_transactions) || 0,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        lastTransactionDate: row.last_transaction_date || '',
+        posRelativeCode: row.pos_relative_code || ''
+      }));
+
+      return {
+        data: merchants,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF merchants:', error);
       throw error;
     }
   }

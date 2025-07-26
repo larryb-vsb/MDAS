@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import UnifiedPurchasingExtensionsTable from "@/components/tddf/UnifiedPurchasingExtensionsTable";
+import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
 import {
   Dialog,
   DialogContent,
@@ -2657,8 +2658,8 @@ export default function TddfPage() {
       {/* Records Table with Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex flex-wrap gap-2 items-center border-b">
-              {/* Keep DT and BH as tab buttons */}
-              <TabsList className="grid grid-cols-2">
+              {/* Keep DT, BH, and Merchants as tab buttons */}
+              <TabsList className="grid grid-cols-3">
                 <TabsTrigger value="dt" className="flex items-center gap-1 text-xs sm:text-sm">
                   <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></span>
                   <span className="hidden sm:inline">DT Records</span>
@@ -2668,6 +2669,11 @@ export default function TddfPage() {
                   <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></span>
                   <span className="hidden sm:inline">BH Records</span>
                   <span className="sm:hidden">BH</span>
+                </TabsTrigger>
+                <TabsTrigger value="merchants" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-purple-500"></span>
+                  <span className="hidden sm:inline">Merchants</span>
+                  <span className="sm:hidden">Merchants</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -2889,6 +2895,10 @@ export default function TddfPage() {
 
         <TabsContent value="bh" className="mt-6">
           <BHRecordsTable />
+        </TabsContent>
+
+        <TabsContent value="merchants" className="mt-6">
+          <TddfMerchantsTable />
         </TabsContent>
 
         <TabsContent value="p1" className="mt-6">
