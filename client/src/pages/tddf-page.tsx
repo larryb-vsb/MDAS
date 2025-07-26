@@ -2248,7 +2248,7 @@ function E1RecordsTable() {
                     <div className="space-y-2 text-sm">
                       <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
                       <div><span className="font-medium">Source Row Number:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
-                      <div><span className="font-medium">Transaction Date:</span> {formatDate(detailsRecord.transactionDate)}</div>
+                      <div><span className="font-medium">EMV Transaction Date:</span> {detailsRecord.recordData?.emvTermTranDate || 'N/A'}</div>
                       <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
                       <div><span className="font-medium">Created At:</span> {detailsRecord.createdAt ? formatTableDate(detailsRecord.createdAt) : 'N/A'}</div>
                     </div>
