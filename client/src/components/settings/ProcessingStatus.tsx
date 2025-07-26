@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Pause, Play, Activity, Clock, FileText, AlertTriangle, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import RecordsPerMinuteChart from "./RecordsPerMinuteChart";
 
 interface ProcessingStatus {
@@ -483,6 +483,25 @@ export default function ProcessingStatus() {
     }
   }, [performanceKpis?.recordsPerMinute, peakRecordsSpeed, lastRecordsPeakTime]);
 
+  // Calculate peak values from chart data for Records gauge (consistent with chart display)
+  const chartRecordsPeak = useMemo(() => {
+    if (!chartData?.data || chartData.data.length === 0) return 0;
+    
+    // Get the maximum total records from chart data (same calculation as chart uses)
+    const recordTotals = chartData.data.map((item: any) => {
+      const dt = item.dtRecords || 0;
+      const bh = item.bhRecords || 0;
+      const p1 = item.p1Records || 0;
+      const other = item.otherRecords || 0;
+      return dt + bh + p1 + other;
+    });
+    
+    return Math.max(...recordTotals, 0);
+  }, [chartData]);
+
+  // Use chart-based peak for Records gauge (ensures consistency with chart display)
+  const recordsPeakForGauge = Math.max(chartRecordsPeak, peakRecordsSpeed);
+
   // Helper functions
   const getStatusBadge = () => {
     const currentStatus = status;
@@ -823,7 +842,7 @@ export default function ProcessingStatus() {
                       return (
                         <MultiColorGauge 
                           currentSpeed={recordsPerMinute}
-                          maxScale={Math.max(peakRecordsSpeed, 600)}
+                          maxScale={Math.max(recordsPeakForGauge, 600)}
                           recordTypes={{
                             dt: dtProcessed,
                             bh: bhProcessed,
@@ -831,7 +850,7 @@ export default function ProcessingStatus() {
                             other: totalOtherProcessed + totalSkipped // Combine other and skipped for visualization
                           }}
                           showRecordTypes={true}
-                          peakValue={peakRecordsSpeed} // Use actual records peak from performance metrics
+                          peakValue={recordsPeakForGauge} // Use chart-consistent peak value (includes 3366)
                           title="Records"
                           unit="/min"
                         />
@@ -842,28 +861,30 @@ export default function ProcessingStatus() {
                         <div>
                           <TransactionSpeedGauge 
                             currentSpeed={recordsPerMinute}
-                            maxScale={Math.max(peakRecordsSpeed, 600)}
-                            peakValue={peakRecordsSpeed}
+                            maxScale={Math.max(recordsPeakForGauge, 600)}
+                            peakValue={recordsPeakForGauge}
                             title="Records"
                             unit="/min"
                           />
                           
-                          {/* Scale labels with 25% whitespace for Records gauge - based on peak */}
+                          {/* Scale labels with 25% whitespace for Records gauge - based on chart peak */}
                           <div className="flex justify-between text-xs text-muted-foreground mt-1">
                             <span>0</span>
-                            <span>{Math.round((Math.max(peakRecordsSpeed / 0.75, 600)) / 2)}</span>
-                            <span>{Math.round(Math.max(peakRecordsSpeed / 0.75, 600))}</span>
+                            <span>{Math.round((Math.max(recordsPeakForGauge / 0.75, 600)) / 2)}</span>
+                            <span>{Math.round(Math.max(recordsPeakForGauge / 0.75, 600))}</span>
                           </div>
                           
                           {/* DEBUG: Temporary debug values display for Records */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (10min): {peakRecordsSpeed}/min</div>
-                            <div>Total Scale: {Math.max(peakRecordsSpeed / 0.75, 600)} (Peak/0.75)</div>
+                            <div>Peak (chart): {chartRecordsPeak}/min</div>
+                            <div>Peak (local): {peakRecordsSpeed}/min</div>
+                            <div>Peak (used): {recordsPeakForGauge}/min</div>
+                            <div>Total Scale: {Math.max(recordsPeakForGauge / 0.75, 600)} (Peak/0.75)</div>
                             <div>Peak Position: 75% (fixed at 75%)</div>
                             <div>Whitespace: 25% (fixed at 25%)</div>
-                            <div>Scale &gt; Peak: {Math.max(peakRecordsSpeed / 0.75, 600) > peakRecordsSpeed ? 'YES' : 'NO'}</div>
+                            <div>Scale &gt; Peak: {Math.max(recordsPeakForGauge / 0.75, 600) > recordsPeakForGauge ? 'YES' : 'NO'}</div>
                           </div>
                         </div>
                       );
