@@ -953,8 +953,9 @@ export default function ProcessingStatus() {
                         const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
                         const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                         const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                        const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
                         const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
-                        const totalProcessed = dtProcessed + bhProcessed + p1Processed + otherProcessed;
+                        const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                         return ((tddfRawStatus as any)?.processed || totalProcessed).toLocaleString();
                       })()}
                     </div>

@@ -883,13 +883,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${tddfRawImportTableName}
       `);
       
-      // Get actual hierarchical record counts from their respective tables instead of raw import processing attempts
-      const hierarchicalStatsResult = await pool.query(`
-        SELECT 
-          (SELECT COUNT(*) FROM ${getTableName('tddf_batch_headers')}) as bh_records_processed,
-          (SELECT COUNT(*) FROM ${getTableName('tddf_purchasing_extensions')}) as p1_records_processed,
-          (SELECT COUNT(*) FROM ${getTableName('tddf_other_records')}) as other_records_processed
-      `);
+      // Get hierarchical record counts using separate simple queries to avoid subquery issues
+      const bhCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_batch_headers')}`);
+      const p1TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions')}`);
+      const p2TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions_2')}`);
+      const p1RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P1' AND processing_status = 'processed'`);
+      const p2RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P2' AND processing_status = 'processed'`);
+      const otherCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_other_records')}`);
+      
+      // Combine the results
+      const hierarchicalStats = {
+        bh_records_processed: parseInt(bhCountResult.rows[0]?.count || '0'),
+        p1_total_processed: parseInt(p1TableResult.rows[0]?.count || '0') + parseInt(p1RawResult.rows[0]?.count || '0'),
+        p2_total_processed: parseInt(p2TableResult.rows[0]?.count || '0') + parseInt(p2RawResult.rows[0]?.count || '0'),
+        other_records_processed: parseInt(otherCountResult.rows[0]?.count || '0')
+      };
 
       const stats = result.rows[0];
       const recentTransactions = parseInt(transactionSpeedResult.rows[0]?.recent_transactions || '0');
@@ -901,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tddfStats = tddfStatsResult.rows[0];
       const tddfRawStats = tddfRawStatsResult.rows[0];
-      const hierarchicalStats = hierarchicalStatsResult.rows[0];
+      // hierarchicalStats is already constructed above
       
       // Store metrics in database for persistent tracking
       const metricsTableName = getTableName('processing_metrics');
@@ -924,7 +932,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
           dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
           bhRecordsProcessed: parseInt(hierarchicalStats.bh_records_processed) || 0,
-          p1RecordsProcessed: parseInt(hierarchicalStats.p1_records_processed) || 0,
+          p1RecordsProcessed: parseInt(hierarchicalStats.p1_total_processed) || 0,
+          p2RecordsProcessed: parseInt(hierarchicalStats.p2_total_processed) || 0,
           otherRecordsProcessed: parseInt(hierarchicalStats.other_records_processed) || 0,
           nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
           otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
