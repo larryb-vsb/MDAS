@@ -16,7 +16,9 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 26, 2025 - GAUGE TOOLTIP OTHERS RATE DISPLAY FIX AND REDEPLOYMENT PREPARATION COMPLETED
+- Current session: July 26, 2025 - TDDF MERCHANTS SORTING AND CACHE REFRESH FUNCTIONALITY COMPLETED
+- **✅ TDDF MERCHANTS SORTING FIXED**: Successfully implemented proper parameter passing with URLSearchParams for sorting functionality - sortBy and sortOrder now properly reach the API
+- **✅ CACHE REFRESH BUTTON FIXED**: Resolved "buildTimeMs" error by correcting response structure handling - cache refresh now works properly with correct performance metrics display
 - **✅ P1/P2 COMBINED BOX WITH HOVER BREAKDOWN**: Successfully implemented unified P1/P2 box showing combined total (266) with detailed hover tooltip breakdown showing individual P1 and P2 counts
 - **✅ COMPREHENSIVE OTHER RECORD TYPES DISPLAY**: Enhanced "Other" box with complete breakdown showing all new record types (E1: 2,224, G2: 5,825, AD: 21, DR: 42, P2: 0, CK: 0, LG: 0, GE: 0) with total of 8,112 records
 - **✅ P2 API COLUMN NAME ERROR FIXED**: Corrected alternate_tax_identifier typo in server/storage.ts P2 processing method
