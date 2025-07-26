@@ -4999,6 +4999,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Switch-based TDDF processing endpoint for specific record types
+  app.post("/api/tddf/process-pending-switch", isAuthenticated, async (req, res) => {
+    try {
+      const { batchSize = 50, recordTypes = ["E1"], fileId } = req.body;
+      
+      console.log(`[SWITCH-API] Processing request for record types: ${recordTypes.join(', ')}, batch size: ${batchSize}`);
+      
+      // Use the switch-based processing method
+      const result = await storage.processPendingTddfRecordsSwitchBased(fileId, batchSize);
+      
+      res.json({
+        success: true,
+        message: `Switch-based processing completed: ${result.totalProcessed} processed, ${result.totalSkipped} skipped, ${result.totalErrors} errors`,
+        totalProcessed: result.totalProcessed,
+        totalSkipped: result.totalSkipped,
+        totalErrors: result.totalErrors,
+        breakdown: result.breakdown,
+        processingTimeMs: result.processingTime
+      });
+    } catch (error: any) {
+      console.error("Error in switch-based TDDF processing:", error);
+      res.status(500).json({ 
+        error: "Failed to process pending TDDF records", 
+        details: error.message 
+      });
+    }
+  });
+
   // Get TDDF activity data for heat map (DT records only)
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {

@@ -1,0 +1,498 @@
+Merchant General Data 2
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The record contains information about the merchant EMV data record.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+The value identifies the type of record.
+
+Constant value is "E1"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+A Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-57
+
+EMV Tran Type
+
+2
+
+CH
+
+ 
+
+ 
+
+58-63
+
+EMV Term Cap Profile
+
+6
+
+CH
+
+ 
+
+ 
+
+64-67
+
+EMV App Tran Counter
+
+4
+
+CH
+
+ 
+
+ 
+
+68-82
+
+EMV Cryptogram Amount
+
+15
+
+N
+
+ 
+
+Format:
+-99999999999.99
+
+83-132
+
+EMV ISS Script Results
+
+50
+
+CH
+
+ 
+
+ 
+
+133-196
+
+EMV ISS App Data
+
+64
+
+CH
+
+ 
+
+ 
+
+197-200
+
+EMV Card Sequence Number
+
+4
+
+CH
+
+ 
+
+ 
+
+201-204
+
+EMV Term Country Code
+
+4
+
+CH
+
+ 
+
+ 
+
+205-208
+
+EMV App Interchange Profile
+
+4
+
+CH
+
+ 
+
+ 
+
+209-218
+
+EMV Term Verify Results
+
+10
+
+CH
+
+ 
+
+ 
+
+219-224
+
+EMV Term Tran Date
+
+6
+
+CH
+
+ 
+
+ 
+
+225-232
+
+EMV Unpredictable Number
+
+8
+
+CH
+
+ 
+
+ 
+
+233-248
+
+EMV Cryptogram
+
+16
+
+CH
+
+ 
+
+ 
+
+249-256
+
+EMV Form Factor Indicator
+
+8
+
+CH
+
+ 
+
+ 
+
+257-260
+
+EMV Tran Currency Code
+
+4
+
+CH
+
+ 
+
+ 
+
+261-292
+
+EMV DED File Name
+
+32
+
+CH
+
+ 
+
+ 
+
+293-324
+
+EMVISS Auth Data
+
+32
+
+CH
+
+ 
+
+ 
+
+325-326
+
+EMV Tran CAT Code
+
+2
+
+CH
+
+ 
+
+ 
+
+327-330
+
+EMV Crypt Info Data
+
+4
+
+CH
+
+ 
+
+ 
+
+331-332
+
+EMV Term type
+
+2
+
+CH
+
+ 
+
+ 
+
+333-340
+
+EMV Transaction Sequence Number
+
+8
+
+CH
+
+ 
+
+ 
+
+341-353
+
+EMV Amount Authorized
+
+13
+
+N
+
+ 
+
+Format:
+-999999999.99
+
+354-366
+
+EMV Amount Other
+
+13
+
+N
+
+ 
+
+Format:
+-999999999.99
+
+367-372
+
+EMV CVM Result
+
+6
+
+CH
+
+ 
+
+ 
+
+373-388
+
+EMV Interface Dev Serial
+
+16
+
+CH
+
+ 
+
+ 
+
+389-392
+
+EMV Terminal Application Version
+
+4
+
+CH
+
+ 
+
+ 
+
+393-394
+
+EMV Cryptogram Information
+
+2
+
+CH
+
+ 
+
+ 
+
+395-700
+
+Reserved for future use
+
+306
+
+CH
+
+ 
+
+ 
+

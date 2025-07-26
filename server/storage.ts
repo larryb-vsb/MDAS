@@ -7348,6 +7348,12 @@ export class DatabaseStorage implements IStorage {
               totalProcessed++;
               break;
               
+            case 'E1':
+              await this.processE1RecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
             default:
               // Skip unknown record types
               await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
@@ -7604,6 +7610,123 @@ export class DatabaseStorage implements IStorage {
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processE1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const merchantGeneralData2TableName = getTableName('tddf_merchant_general_data_2');
+
+    // Parse E1 record from TDDF fixed-width format based on specification
+    const e1Record = {
+      // Core TDDF header fields (positions 1-23)
+      sequence_number: line.substring(0, 7).trim() || null, // Positions 1-7
+      entry_run_number: line.substring(7, 13).trim() || null, // Positions 8-13  
+      sequence_within_run: line.substring(13, 17).trim() || null, // Positions 14-17
+      record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19: "E1"
+      bank_number: line.substring(19, 23).trim() || null, // Positions 20-23
+
+      // Merchant identification (positions 24-51)
+      merchant_account_number: line.substring(23, 39).trim() || null, // Positions 24-39
+      association_number: line.substring(39, 45).trim() || null, // Positions 40-45
+      group_number: line.substring(45, 51).trim() || null, // Positions 46-51
+      transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55
+
+      // EMV Transaction Data (positions 56-82)
+      emv_tran_type: line.substring(55, 57).trim() || null, // Positions 56-57
+      emv_term_cap_profile: line.substring(57, 63).trim() || null, // Positions 58-63
+      emv_app_tran_counter: line.substring(63, 67).trim() || null, // Positions 64-67
+      emv_cryptogram_amount: this.parseAmount(line.substring(67, 82).trim()) || null, // Positions 68-82
+
+      // EMV Script and Application Data (positions 83-196)
+      emv_iss_script_results: line.substring(82, 132).trim() || null, // Positions 83-132
+      emv_iss_app_data: line.substring(132, 196).trim() || null, // Positions 133-196
+
+      // EMV Card and Terminal Data (positions 197-232)
+      emv_card_sequence_number: line.substring(196, 200).trim() || null, // Positions 197-200
+      emv_term_country_code: line.substring(200, 204).trim() || null, // Positions 201-204
+      emv_app_interchange_profile: line.substring(204, 208).trim() || null, // Positions 205-208
+      emv_term_verify_results: line.substring(208, 218).trim() || null, // Positions 209-218
+      emv_term_tran_date: line.substring(218, 224).trim() || null, // Positions 219-224
+      emv_unpredictable_number: line.substring(224, 232).trim() || null, // Positions 225-232
+
+      // EMV Cryptogram and Form Factor (positions 233-256)
+      emv_cryptogram: line.substring(232, 248).trim() || null, // Positions 233-248
+      emv_form_factor_indicator: line.substring(248, 256).trim() || null, // Positions 249-256
+
+      // EMV Currency and Files (positions 257-292)
+      emv_tran_currency_code: line.substring(256, 260).trim() || null, // Positions 257-260
+      emv_ded_file_name: line.substring(260, 292).trim() || null, // Positions 261-292
+
+      // EMV Authorization and Processing Data (positions 293-340)
+      emv_iss_auth_data: line.substring(292, 324).trim() || null, // Positions 293-324
+      emv_tran_cat_code: line.substring(324, 326).trim() || null, // Positions 325-326
+      emv_crypt_info_data: line.substring(326, 330).trim() || null, // Positions 327-330
+      emv_term_type: line.substring(330, 332).trim() || null, // Positions 331-332
+      emv_transaction_sequence_number: line.substring(332, 340).trim() || null, // Positions 333-340
+
+      // EMV Amount Fields (positions 341-366)
+      emv_amount_authorized: this.parseAmount(line.substring(340, 353).trim()) || null, // Positions 341-353
+      emv_amount_other: this.parseAmount(line.substring(353, 366).trim()) || null, // Positions 354-366
+
+      // EMV CVM and Interface Data (positions 367-392)
+      emv_cvm_result: line.substring(366, 372).trim() || null, // Positions 367-372
+      emv_interface_dev_serial: line.substring(372, 388).trim() || null, // Positions 373-388
+      emv_terminal_application_version: line.substring(388, 392).trim() || null, // Positions 389-392
+
+      // EMV Final Fields and Reserved (positions 393-700)
+      emv_cryptogram_information: line.substring(392, 394).trim() || null, // Positions 393-394
+      reserved_future_use: line.substring(394, 700).trim() || null, // Positions 395-700
+
+      // System and audit fields
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line }),
+      mms_raw_line: line
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${merchantGeneralData2TableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+        merchant_account_number, association_number, group_number, transaction_code,
+        emv_tran_type, emv_term_cap_profile, emv_app_tran_counter, emv_cryptogram_amount,
+        emv_iss_script_results, emv_iss_app_data,
+        emv_card_sequence_number, emv_term_country_code, emv_app_interchange_profile,
+        emv_term_verify_results, emv_term_tran_date, emv_unpredictable_number,
+        emv_cryptogram, emv_form_factor_indicator,
+        emv_tran_currency_code, emv_ded_file_name,
+        emv_iss_auth_data, emv_tran_cat_code, emv_crypt_info_data, emv_term_type, emv_transaction_sequence_number,
+        emv_amount_authorized, emv_amount_other,
+        emv_cvm_result, emv_interface_dev_serial, emv_terminal_application_version,
+        emv_cryptogram_information, reserved_future_use,
+        source_file_id, source_row_number, raw_data, mms_raw_line
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+      )
+      RETURNING id
+    `, [
+      e1Record.sequence_number, e1Record.entry_run_number, e1Record.sequence_within_run, e1Record.record_identifier, e1Record.bank_number,
+      e1Record.merchant_account_number, e1Record.association_number, e1Record.group_number, e1Record.transaction_code,
+      e1Record.emv_tran_type, e1Record.emv_term_cap_profile, e1Record.emv_app_tran_counter, e1Record.emv_cryptogram_amount,
+      e1Record.emv_iss_script_results, e1Record.emv_iss_app_data,
+      e1Record.emv_card_sequence_number, e1Record.emv_term_country_code, e1Record.emv_app_interchange_profile,
+      e1Record.emv_term_verify_results, e1Record.emv_term_tran_date, e1Record.emv_unpredictable_number,
+      e1Record.emv_cryptogram, e1Record.emv_form_factor_indicator,
+      e1Record.emv_tran_currency_code, e1Record.emv_ded_file_name,
+      e1Record.emv_iss_auth_data, e1Record.emv_tran_cat_code, e1Record.emv_crypt_info_data, e1Record.emv_term_type, e1Record.emv_transaction_sequence_number,
+      e1Record.emv_amount_authorized, e1Record.emv_amount_other,
+      e1Record.emv_cvm_result, e1Record.emv_interface_dev_serial, e1Record.emv_terminal_application_version,
+      e1Record.emv_cryptogram_information, e1Record.reserved_future_use,
+      e1Record.source_file_id, e1Record.source_row_number, e1Record.raw_data, e1Record.mms_raw_line
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [merchantGeneralData2TableName, insertResult.rows[0].id.toString(), rawRecord.id]);
   }
 
   private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {

@@ -418,6 +418,84 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   recordIdentifierIndex: index("tddf_pe_record_identifier_idx").on(table.recordIdentifier)
 }));
 
+// TDDF Merchant General Data 2 (E1) - EMV merchant data records
+export const tddfMerchantGeneralData2 = pgTable(getTableName("tddf_merchant_general_data_2"), {
+  id: serial("id").primaryKey(),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "E1"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Merchant identification (positions 24-51)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number (16 chars N)
+  associationNumber: text("association_number"), // Positions 40-45: Association ID (6 chars AN)
+  groupNumber: text("group_number"), // Positions 46-51: Group number (6 chars AN)
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code (4 chars N)
+  
+  // EMV Transaction Data (positions 56-82)
+  emvTranType: text("emv_tran_type"), // Positions 56-57: EMV Transaction Type (2 chars CH)
+  emvTermCapProfile: text("emv_term_cap_profile"), // Positions 58-63: EMV Terminal Capability Profile (6 chars CH)
+  emvAppTranCounter: text("emv_app_tran_counter"), // Positions 64-67: EMV Application Transaction Counter (4 chars CH)
+  emvCryptogramAmount: numeric("emv_cryptogram_amount", { precision: 15, scale: 2 }), // Positions 68-82: EMV Cryptogram Amount (15 chars N)
+  
+  // EMV Script and Application Data (positions 83-196)
+  emvIssScriptResults: text("emv_iss_script_results"), // Positions 83-132: EMV Issuer Script Results (50 chars CH)
+  emvIssAppData: text("emv_iss_app_data"), // Positions 133-196: EMV Issuer Application Data (64 chars CH)
+  
+  // EMV Card and Terminal Data (positions 197-232)
+  emvCardSequenceNumber: text("emv_card_sequence_number"), // Positions 197-200: EMV Card Sequence Number (4 chars CH)
+  emvTermCountryCode: text("emv_term_country_code"), // Positions 201-204: EMV Terminal Country Code (4 chars CH)
+  emvAppInterchangeProfile: text("emv_app_interchange_profile"), // Positions 205-208: EMV Application Interchange Profile (4 chars CH)
+  emvTermVerifyResults: text("emv_term_verify_results"), // Positions 209-218: EMV Terminal Verify Results (10 chars CH)
+  emvTermTranDate: text("emv_term_tran_date"), // Positions 219-224: EMV Terminal Transaction Date (6 chars CH)
+  emvUnpredictableNumber: text("emv_unpredictable_number"), // Positions 225-232: EMV Unpredictable Number (8 chars CH)
+  
+  // EMV Cryptogram and Form Factor (positions 233-256)
+  emvCryptogram: text("emv_cryptogram"), // Positions 233-248: EMV Cryptogram (16 chars CH)
+  emvFormFactorIndicator: text("emv_form_factor_indicator"), // Positions 249-256: EMV Form Factor Indicator (8 chars CH)
+  
+  // EMV Currency and Files (positions 257-292)
+  emvTranCurrencyCode: text("emv_tran_currency_code"), // Positions 257-260: EMV Transaction Currency Code (4 chars CH)
+  emvDedFileName: text("emv_ded_file_name"), // Positions 261-292: EMV DED File Name (32 chars CH)
+  
+  // EMV Authorization and Processing Data (positions 293-340)
+  emvIssAuthData: text("emv_iss_auth_data"), // Positions 293-324: EMV Issuer Authorization Data (32 chars CH)
+  emvTranCatCode: text("emv_tran_cat_code"), // Positions 325-326: EMV Transaction CAT Code (2 chars CH)
+  emvCryptInfoData: text("emv_crypt_info_data"), // Positions 327-330: EMV Cryptogram Information Data (4 chars CH)
+  emvTermType: text("emv_term_type"), // Positions 331-332: EMV Terminal Type (2 chars CH)
+  emvTransactionSequenceNumber: text("emv_transaction_sequence_number"), // Positions 333-340: EMV Transaction Sequence Number (8 chars CH)
+  
+  // EMV Amount Fields (positions 341-366)
+  emvAmountAuthorized: numeric("emv_amount_authorized", { precision: 13, scale: 2 }), // Positions 341-353: EMV Amount Authorized (13 chars N)
+  emvAmountOther: numeric("emv_amount_other", { precision: 13, scale: 2 }), // Positions 354-366: EMV Amount Other (13 chars N)
+  
+  // EMV CVM and Interface Data (positions 367-392)
+  emvCvmResult: text("emv_cvm_result"), // Positions 367-372: EMV CVM Result (6 chars CH)
+  emvInterfaceDevSerial: text("emv_interface_dev_serial"), // Positions 373-388: EMV Interface Device Serial (16 chars CH)
+  emvTerminalApplicationVersion: text("emv_terminal_application_version"), // Positions 389-392: EMV Terminal Application Version (4 chars CH)
+  
+  // EMV Final Fields and Reserved (positions 393-700)
+  emvCryptogramInformation: text("emv_cryptogram_information"), // Positions 393-394: EMV Cryptogram Information (2 chars CH)
+  reservedFutureUse: text("reserved_future_use"), // Positions 395-700: Reserved for future use (306 chars CH)
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  mmsRawLine: text("mms_raw_line"), // Custom MMS-RAW-Line field to store original line before processing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  merchantAccountIndex: index("tddf_mgd2_merchant_account_idx").on(table.merchantAccountNumber),
+  recordIdentifierIndex: index("tddf_mgd2_record_identifier_idx").on(table.recordIdentifier),
+  associationNumberIndex: index("tddf_mgd2_association_number_idx").on(table.associationNumber),
+  transactionCodeIndex: index("tddf_mgd2_transaction_code_idx").on(table.transactionCode)
+}));
+
 // TDDF Other Records (AD, DR, G2, CT, LG, FT, F2, CK, HD, TR) - Catch-all table for other record types
 export const tddfOtherRecords = pgTable(getTableName("tddf_other_records"), {
   id: serial("id").primaryKey(),
@@ -641,6 +719,10 @@ export const insertTddfTransactionRecordSchema = tddfTransactionRecordsSchema.om
 export const tddfPurchasingExtensionsSchema = createInsertSchema(tddfPurchasingExtensions);
 export const insertTddfPurchasingExtensionSchema = tddfPurchasingExtensionsSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
+// Zod schemas for TDDF Merchant General Data 2
+export const tddfMerchantGeneralData2Schema = createInsertSchema(tddfMerchantGeneralData2);
+export const insertTddfMerchantGeneralData2Schema = tddfMerchantGeneralData2Schema.omit({ id: true, createdAt: true, updatedAt: true });
+
 // Zod schemas for TDDF Other Records
 export const tddfOtherRecordsSchema = createInsertSchema(tddfOtherRecords);
 export const insertTddfOtherRecordSchema = tddfOtherRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
@@ -753,6 +835,8 @@ export type TddfTransactionRecord = typeof tddfTransactionRecords.$inferSelect;
 export type InsertTddfTransactionRecord = typeof tddfTransactionRecords.$inferInsert;
 export type TddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferSelect;
 export type InsertTddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferInsert;
+export type TddfMerchantGeneralData2 = typeof tddfMerchantGeneralData2.$inferSelect;
+export type InsertTddfMerchantGeneralData2 = typeof tddfMerchantGeneralData2.$inferInsert;
 export type TddfOtherRecord = typeof tddfOtherRecords.$inferSelect;
 export type InsertTddfOtherRecord = typeof tddfOtherRecords.$inferInsert;
 
