@@ -1164,7 +1164,7 @@ export class ScanlyWatcher {
       console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records processed`);
 
       // PHASE 4: Process remaining record types using switch-based processing
-      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Processing remaining record types (E1, G2, GE, AD, DR, P2, CK) using switch-based processing');
+      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Processing remaining record types (E1, G2, GE, AD, DR, P2, CK, LG) using switch-based processing');
       
       // Get pending other records for actual processing
       const pendingOtherResult = await db.execute(sql`

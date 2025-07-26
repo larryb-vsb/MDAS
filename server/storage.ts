@@ -7561,6 +7561,12 @@ export class DatabaseStorage implements IStorage {
               totalProcessed++;
               break;
               
+            case 'LG':
+              await this.processLGRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
             default:
               // Skip unknown record types
               await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
@@ -8394,6 +8400,121 @@ export class DatabaseStorage implements IStorage {
     `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
     
     console.log(`✅ CK Record (Electronic Check Extension) processed successfully (ID: ${insertResult.rows[0].id})`);
+  }
+
+  private async processLGRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    // Extract key fields from TDDF fixed-width format based on LG specification
+    const hotelFolioNumber = line.substring(55, 80).trim() || null; // Positions 56-80: Hotel Folio Number (AN)
+    const customerServiceNumber = line.substring(80, 90).trim() || null; // Positions 81-90: Customer Service Number (N)
+    const checkInDate = line.substring(97, 103).trim() || null; // Positions 98-103: Check-in Date (N)
+    const checkOutDate = line.substring(126, 132).trim() || null; // Positions 127-132: Check Out Date (N)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (N)
+    const propertyTelephone = line.substring(116, 126).trim() || null; // Positions 117-126: Property Telephone Number (N)
+    const roomNights = line.substring(263, 265).trim() || null; // Positions 264-265: Room Nights (N)
+
+    // Parse monetary amounts (12-digit fields, right-justified)
+    const dailyRoomRate = this.parseLodgingAmount(line.substring(134, 146).trim()); // Positions 135-146
+    const totalTax = this.parseLodgingAmount(line.substring(146, 158).trim()); // Positions 147-158
+    const callCharges = this.parseLodgingAmount(line.substring(158, 170).trim()); // Positions 159-170
+    const foodBeverageCharges = this.parseLodgingAmount(line.substring(170, 182).trim()); // Positions 171-182
+    const barMiniBarCharges = this.parseLodgingAmount(line.substring(182, 194).trim()); // Positions 183-194
+    const giftShopCharges = this.parseLodgingAmount(line.substring(194, 206).trim()); // Positions 195-206
+    const laundryCharges = this.parseLodgingAmount(line.substring(206, 218).trim()); // Positions 207-218
+    const otherServicesCharges = this.parseLodgingAmount(line.substring(221, 233).trim()); // Positions 222-233
+    const billingAdjustmentAmount = this.parseLodgingAmount(line.substring(234, 246).trim()); // Positions 235-246
+    const prepaidExpense = this.parseLodgingAmount(line.substring(246, 258).trim()); // Positions 247-258
+    const totalRoomTax = this.parseLodgingAmount(line.substring(265, 277).trim()); // Positions 266-277
+
+    // Build comprehensive LG (Lodge Extension) data for jsonb storage
+    const comprehensiveLGData = {
+      // Core TDDF header fields (positions 1-23)
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null, // Should be "LG"
+      bankNumber: line.substring(19, 23).trim() || null,
+      
+      // Account and merchant fields
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      associationNumber: line.substring(39, 45).trim() || null,
+      groupNumber: line.substring(45, 51).trim() || null,
+      transactionCode: line.substring(51, 55).trim() || null,
+      
+      // Lodge Extension specific fields
+      hotelFolioNumber: line.substring(55, 80).trim() || null,
+      customerServiceNumber: line.substring(80, 90).trim() || null,
+      vsNoShowIndicator: line.substring(90, 91).trim() || null, // Position 91: VS No Show Ind/AM Spec Prog Code
+      vsExtraCharges: line.substring(91, 97).trim() || null, // Positions 92-97: VS Extra Chgs/AM Room Rate
+      checkInDate: line.substring(97, 103).trim() || null, // Positions 98-103: Check-in Date
+      vsMarketSpecAuthInd: line.substring(103, 104).trim() || null, // Position 104: VS MKT SPEC AUTH DATA IND
+      vsTotalAuthAmount: line.substring(104, 116).trim() || null, // Positions 105-116: VS Total Auth AMT/AM Tax Amount
+      propertyTelephone: line.substring(116, 126).trim() || null,
+      checkOutDate: line.substring(126, 132).trim() || null,
+      mcProgCode: line.substring(132, 134).trim() || null, // Positions 133-134: MC Prog Code/AM Approval Code
+      dailyRoomRate: dailyRoomRate,
+      totalTax: totalTax,
+      callCharges: callCharges,
+      foodBeverageCharges: foodBeverageCharges,
+      barMiniBarCharges: barMiniBarCharges,
+      giftShopCharges: giftShopCharges,
+      laundryCharges: laundryCharges,
+      otherServicesCode: line.substring(218, 221).trim() || null, // Positions 219-221: Other Services Code
+      otherServicesCharges: otherServicesCharges,
+      billingAdjustmentIndicator: line.substring(233, 234).trim() || null, // Position 234: Billing Adjustment Indicator
+      billingAdjustmentAmount: billingAdjustmentAmount,
+      prepaidExpense: prepaidExpense,
+      extensionRecordIndicator: line.substring(258, 263).trim() || null, // Positions 259-263: Extension Record Indicator
+      roomNights: roomNights,
+      totalRoomTax: totalRoomTax,
+      reservedFutureUse: line.substring(277, 700).trim() || null, // Positions 278-700: Reserved for future use
+      rawLine: line
+    };
+
+    // Calculate total lodge charges for description
+    const totalCharges = (dailyRoomRate || 0) + (totalTax || 0) + (callCharges || 0) + 
+                        (foodBeverageCharges || 0) + (barMiniBarCharges || 0) + (giftShopCharges || 0) + 
+                        (laundryCharges || 0) + (otherServicesCharges || 0);
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id
+    `, [
+      'LG',
+      hotelFolioNumber, // Use hotel folio number as reference
+      merchantAccount,
+      null, // LG records don't have standard transaction date
+      totalCharges > 0 ? totalCharges : null, // Sum of all lodge charges
+      `Lodge Extension - ${roomNights ? roomNights + ' nights' : 'Lodging charges'}`,
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveLGData)
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+    
+    console.log(`✅ LG Record (Lodge Extension) processed successfully (ID: ${insertResult.rows[0].id}) - ${roomNights || 'Unknown'} nights, Total: $${totalCharges || 0}`);
+  }
+
+  // Helper method to parse lodging monetary amounts (12-digit fields, right-justified)
+  private parseLodgingAmount(value: string): number | null {
+    if (!value || value.trim() === '') return null;
+    const cleaned = value.replace(/[^\d]/g, '');
+    if (cleaned === '') return null;
+    const parsed = parseInt(cleaned);
+    return isNaN(parsed) ? null : parsed / 100; // Convert cents to dollars
   }
 
   private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
