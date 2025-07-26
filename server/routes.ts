@@ -5659,6 +5659,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Records gauge peak value from performance metrics database (direct access)
+  app.get("/api/processing/records-peak", async (req, res) => {
+    try {
+      const peakData = await storage.getRecordsPeakFromDatabase();
+      res.json(peakData);
+    } catch (error) {
+      console.error('Error fetching records peak:', error);
+      res.status(500).json({ 
+        error: "Failed to fetch records peak",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Historical Performance Chart Data from Scanly-Watcher Metrics
   app.get("/api/processing/performance-chart-history", isAuthenticated, async (req, res) => {
     try {

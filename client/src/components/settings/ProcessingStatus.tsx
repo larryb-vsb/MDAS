@@ -259,12 +259,12 @@ export default function ProcessingStatus() {
     staleTime: 1000,
   });
 
-  // Fetch recent chart data for TDDF gauge from performance metrics database
-  const { data: chartData } = useQuery<{data: any[]}>({
-    queryKey: ['/api/processing/performance-chart-history'],
+  // Fetch Records gauge peak value directly from performance metrics database
+  const { data: recordsPeakData } = useQuery<{peakRecords: number}>({
+    queryKey: ['/api/processing/records-peak'],
     queryFn: async () => {
-      const response = await fetch('/api/processing/performance-chart-history?hours=1');
-      if (!response.ok) throw new Error('Failed to fetch chart data');
+      const response = await fetch('/api/processing/records-peak');
+      if (!response.ok) throw new Error('Failed to fetch records peak');
       return response.json();
     },
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
@@ -488,32 +488,8 @@ export default function ProcessingStatus() {
     }
   }, [performanceKpis?.recordsPerMinute, peakRecordsSpeed, lastRecordsPeakTime]);
 
-  // Get peak value directly from performance metrics database (no calculations)
-  const recordsPeakFromDatabase = useMemo(() => {
-    // Ensure chartData and data array exist
-    if (!chartData?.data || !Array.isArray(chartData.data) || chartData.data.length === 0) {
-      return 0;
-    }
-    
-    // Find the maximum total records value directly from performance database
-    const recordTotals = chartData.data.map((item: any) => {
-      const dt = parseInt(item.dtRecords) || 0;
-      const bh = parseInt(item.bhRecords) || 0;
-      const p1 = parseInt(item.p1Records) || 0;
-      const other = parseInt(item.otherRecords) || 0;
-      return dt + bh + p1 + other;
-    });
-    
-    const maxValue = Math.max(...recordTotals, 0);
-    console.log('[RECORDS GAUGE] Peak calculation from database:', {
-      dataPoints: chartData.data.length,
-      recordTotals: recordTotals.slice(-5), // Last 5 values for debugging
-      maxValue,
-      sampleData: chartData.data.slice(-2) // Last 2 data points for debugging
-    });
-    
-    return maxValue;
-  }, [chartData]);
+  // Get peak value directly from database (no chart data calculations)
+  const recordsPeakFromDatabase = recordsPeakData?.peakRecords || 0;
 
   // Helper functions
   const getStatusBadge = () => {
@@ -887,14 +863,12 @@ export default function ProcessingStatus() {
                             <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 600))}</span>
                           </div>
                           
-                          {/* DEBUG: Chart peak verification */}
+                          {/* DEBUG: Records peak verification */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (10min): {recordsPeakFromDatabase} (verify)</div>
-                            <div>Chart Data Loaded: {chartData ? 'YES' : 'NO'}</div>
-                            <div>Chart Data Points: {Array.isArray(chartData?.data) ? chartData.data.length : 'Not Array'}</div>
-                            <div>Chart Data Structure: {chartData ? JSON.stringify(Object.keys(chartData)) : 'null'}</div>
+                            <div>Peak (10min): {recordsPeakFromDatabase} (direct DB)</div>
+                            <div>Database Peak Loaded: {recordsPeakData ? 'YES' : 'NO'}</div>
                             <div>Local Peak (old): {peakRecordsSpeed}</div>
                           </div>
                         </div>

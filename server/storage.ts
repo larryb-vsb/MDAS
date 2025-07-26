@@ -318,6 +318,9 @@ export interface IStorage {
   
   // File operations
   getFileById(fileId: string): Promise<any>;
+  
+  // Records gauge peak value from database (direct access)
+  getRecordsPeakFromDatabase(): Promise<{peakRecords: number}>;
 }
 
 // Database storage implementation
@@ -9013,6 +9016,31 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('Error getting legacy TDDF count:', error);
       return 0;
+    }
+  }
+
+  async getRecordsPeakFromDatabase(): Promise<{peakRecords: number}> {
+    try {
+      const tableName = getTableName('processing_metrics');
+      const result = await pool.query(`
+        SELECT 
+          COALESCE(MAX(
+            COALESCE(dt_processed, 0) + 
+            COALESCE(bh_processed, 0) + 
+            COALESCE(p1_processed, 0) + 
+            COALESCE(other_processed, 0)
+          ), 0) as peak_records
+        FROM "${tableName}"
+        WHERE timestamp >= NOW() - INTERVAL '10 minutes'
+      `);
+      
+      const peakRecords = parseInt(result.rows[0].peak_records) || 0;
+      console.log(`[RECORDS PEAK] Database query result: ${peakRecords} records (last 10 minutes)`);
+      
+      return { peakRecords };
+    } catch (error: any) {
+      console.error('Error getting records peak from database:', error);
+      return { peakRecords: 0 };
     }
   }
 
