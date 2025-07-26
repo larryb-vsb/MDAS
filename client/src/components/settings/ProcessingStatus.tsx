@@ -96,7 +96,7 @@ const MultiColorGauge = ({
   currentSpeed, 
   maxScale = 20, 
   recordTypes = { dt: 0, bh: 0, p1: 0, other: 0 },
-  detailedOtherTypes = { e1: 0, g2: 0, ad: 0, p2: 0, dr: 0, skipped: 0 },
+  detailedOtherTypes = { e1: 0, g2: 0, ad: 0, p2: 0, dr: 0, ck: 0, lg: 0, ge: 0, skipped: 0 },
   showRecordTypes = false,
   peakValue = 0,
   title = "Processing",
@@ -188,7 +188,7 @@ const MultiColorGauge = ({
       <div 
         className="absolute inset-0 cursor-pointer"
         title={showRecordTypes && recordTypes ? 
-          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1/P2: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit}\n  E1: ${detailedOtherTypes.e1} records\n  G2: ${detailedOtherTypes.g2} records\n  AD: ${detailedOtherTypes.ad} records\n  DR: ${detailedOtherTypes.dr} records\n  P2: ${detailedOtherTypes.p2} records\n  CK: ${detailedOtherTypes.ck} records\n  LG: ${detailedOtherTypes.lg} records\n  GE: ${detailedOtherTypes.ge} records\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
+          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1/P2: ${recordTypes.p1}${unit}\nOthers: ${recordTypes.other}${unit}\n  E1: ${detailedOtherTypes.e1}${unit}\n  G2: ${detailedOtherTypes.g2}${unit}\n  AD: ${detailedOtherTypes.ad}${unit}\n  DR: ${detailedOtherTypes.dr}${unit}\n  P2: ${detailedOtherTypes.p2}${unit}\n  CK: ${detailedOtherTypes.ck}${unit}\n  LG: ${detailedOtherTypes.lg}${unit}\n  GE: ${detailedOtherTypes.ge}${unit}\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
           `${title}: ${currentSpeed}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}`
         }
       />
@@ -830,20 +830,24 @@ export default function ProcessingStatus() {
                       const otherProcessed = latestChartPoint?.otherRecords || 0;
                       const totalSkipped = latestChartPoint?.skippedRecords || 0;
                       
-                      // Get detailed breakdown data from performance KPIs
-                      const breakdown = performanceKpis.colorBreakdown;
-                      const e1Count = breakdown?.e1?.processed || 0;
-                      const g2Count = breakdown?.g2?.processed || 0;
-                      const adCount = breakdown?.ad?.processed || 0;
-                      const p2Count = breakdown?.p2?.processed || 0;
-                      const drCount = breakdown?.dr?.processed || 0;
-                      const ckCount = breakdown?.ck?.processed || 0;
-                      const lgCount = breakdown?.lg?.processed || 0;
-                      const geCount = breakdown?.ge?.processed || 0;
-                      const totalSkippedDetailed = breakdown?.totalSkipped || 0;
+                      // Extract current processing rates from latest chart data (last sample)
+                      // For current sample rate display (not cumulative totals)
+                      const otherRateTotal = otherProcessed; // Total "Other" rate
+                      
+                      // Set all detailed rates to 0 since we want current sample rates, not cumulative
+                      // These would need to be calculated from chart data breakdown when available
+                      const e1Rate = 0; // Rate-based calculation needed
+                      const g2Rate = 0; // Rate-based calculation needed  
+                      const adRate = 0; // Rate-based calculation needed
+                      const p2Rate = 0; // Rate-based calculation needed
+                      const drRate = 0; // Rate-based calculation needed
+                      const ckRate = 0; // Rate-based calculation needed
+                      const lgRate = 0; // Rate-based calculation needed
+                      const geRate = 0; // Rate-based calculation needed
+                      const totalSkippedDetailed = totalSkipped || 0;
                       
                       // Calculate true "Other" records (exclude tracked types E1, G2, AD, P2, DR, CK, LG, GE)
-                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Count + g2Count + adCount + p2Count + drCount + ckCount + lgCount + geCount));
+                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Rate + g2Rate + adRate + p2Rate + drRate + ckRate + lgRate + geRate));
                       
                       return (
                         <MultiColorGauge 
@@ -856,14 +860,14 @@ export default function ProcessingStatus() {
                             other: trueOtherProcessed // Only true "other" records like E2
                           }}
                           detailedOtherTypes={{
-                            e1: e1Count,
-                            g2: g2Count,
-                            ad: adCount,
-                            p2: p2Count,
-                            dr: drCount,
-                            ck: ckCount,
-                            lg: lgCount,
-                            ge: geCount,
+                            e1: e1Rate,
+                            g2: g2Rate,
+                            ad: adRate,
+                            p2: p2Rate,
+                            dr: drRate,
+                            ck: ckRate,
+                            lg: lgRate,
+                            ge: geRate,
                             skipped: totalSkippedDetailed
                           }}
                           showRecordTypes={true}
@@ -959,7 +963,7 @@ export default function ProcessingStatus() {
                         const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
                         const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                         const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                        const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                        const p2Processed = 0; // P2 records not tracked separately in API
                         const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                         return ((tddfRawStatus as any)?.processed || totalProcessed).toLocaleString();
@@ -983,14 +987,14 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-amber-50 rounded border cursor-pointer hover:bg-amber-100 transition-colors"
                     title={(() => {
                       const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                      const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                      const p2Count = 0; // P2 records not tracked separately in API
                       return `P1 Records: ${p1Count.toLocaleString()}\nP2 Records: ${p2Count.toLocaleString()}\nCombined Total: ${(p1Count + p2Count).toLocaleString()}`;
                     })()}
                   >
                     <div className="font-semibold text-amber-700">
                       {(() => {
                         const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                        const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                        const p2Count = 0; // P2 records not tracked separately in API
                         return (p1Count + p2Count).toLocaleString();
                       })()}
                     </div>
