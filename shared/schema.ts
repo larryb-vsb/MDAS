@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.5.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
- * Last Updated: July 25, 2025
+ * Version: 2.6.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Last Updated: July 26, 2025
  * 
- * MINOR VERSION: Emergency Processing Recovery & Zero Backlog Achievement
- * New Features: Emergency SQL batch processing for system overload recovery, intelligent load management with authentication bypass, comprehensive duplicate processing conflict resolution, optimized P1 record handling, and production-ready emergency recovery protocols
+ * MINOR VERSION: Complete AD/DR Record Type Frontend Implementation
+ * New Features: Complete tabbed interface implementation for AD (Merchant Adjustment Extension) and DR (Direct Marketing Extension) records with comprehensive table display, pagination, detailed view modals, and professional styling matching other record type tabs
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -19,6 +19,7 @@
  * - 2.3.0: MINOR FEATURE - Hidden millisecond sort values implementation for performance-optimized precise sorting with preserved user-friendly display
  * - 2.4.0: MINOR FEATURE - Hierarchical TDDF Record Architecture with separate tables for each TDDF record type and comprehensive raw line processing data preservation
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
+ * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
