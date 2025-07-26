@@ -9023,36 +9023,19 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('processing_metrics');
       const result = await pool.query(`
-        WITH rate_calculations AS (
-          SELECT 
-            timestamp,
-            COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
-            COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
-            COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0) as total_records,
-            LAG(COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
-                COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
-                COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0)) 
-                OVER (ORDER BY timestamp) as prev_total_records,
-            LAG(timestamp) OVER (ORDER BY timestamp) as prev_timestamp
-          FROM "${tableName}"
-          WHERE timestamp >= NOW() - INTERVAL '10 minutes'
-            AND metric_type = 'scanly_watcher_snapshot'
-          ORDER BY timestamp ASC
-        )
         SELECT 
           COALESCE(MAX(
-            CASE 
-              WHEN prev_timestamp IS NOT NULL 
-              THEN (total_records - COALESCE(prev_total_records, 0)) / 
-                   GREATEST(EXTRACT(EPOCH FROM (timestamp - prev_timestamp)) / 60.0, 0.01)
-              ELSE 0 
-            END
-          ), 0) as peak_records_per_minute
-        FROM rate_calculations
+            COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
+            COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
+            COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0)
+          ), 0) as peak_records
+        FROM "${tableName}"
+        WHERE timestamp >= NOW() - INTERVAL '10 minutes'
+          AND metric_type = 'scanly_watcher_snapshot'
       `);
       
-      const peakRecords = Math.round(parseFloat(result.rows[0].peak_records_per_minute) || 0);
-      console.log(`[RECORDS PEAK] Database query result: ${peakRecords} records/minute (last 10 minutes) - NEW RATE CALCULATION`);
+      const peakRecords = parseInt(result.rows[0].peak_records) || 0;
+      console.log(`[RECORDS PEAK] Database query result: ${peakRecords} records (highest sample in last 10 minutes) - PEAK SAMPLE VALUE`);
       
       return { peakRecords };
     } catch (error: any) {
