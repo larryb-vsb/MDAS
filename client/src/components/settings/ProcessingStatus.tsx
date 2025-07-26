@@ -616,16 +616,17 @@ export default function ProcessingStatus() {
                   const colorBreakdown = performanceKpis?.colorBreakdown;
                   
                   // Calculate total processed records for gauge display
-                  const dtProcessed = colorBreakdown?.dt?.processed || 0;
-                  const bhProcessed = colorBreakdown?.bh?.processed || 0;
-                  const p1Processed = colorBreakdown?.p1?.processed || 0;
-                  const e1Processed = colorBreakdown?.e1?.processed || 0;
-                  const g2Processed = colorBreakdown?.g2?.processed || 0;
-                  const adProcessed = colorBreakdown?.ad?.processed || 0;
-                  const drProcessed = colorBreakdown?.dr?.processed || 0;
-                  const p2Processed = colorBreakdown?.p2?.processed || 0;
-                  const otherProcessed = colorBreakdown?.other?.processed || 0;
-                  const totalSkipped = colorBreakdown?.totalSkipped || 0;
+                  // If current sample is zero, show zero values instead of historical data
+                  const dtProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.dt?.processed || 0);
+                  const bhProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.bh?.processed || 0);
+                  const p1Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.p1?.processed || 0);
+                  const e1Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.e1?.processed || 0);
+                  const g2Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.g2?.processed || 0);
+                  const adProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.ad?.processed || 0);
+                  const drProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.dr?.processed || 0);
+                  const p2Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.p2?.processed || 0);
+                  const otherProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.other?.processed || 0);
+                  const totalSkipped = tddfPerMinute === 0 ? 0 : (colorBreakdown?.totalSkipped || 0);
                   
                   // Combine gray categories (E1, G2, AD, DR, P2, other)
                   const combinedOtherProcessed = e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed;
@@ -723,10 +724,10 @@ export default function ProcessingStatus() {
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">TDDF Debug Values:</div>
                             <div>Current: {tddfPerMinute}/min</div>
-                            <div>Peak (10min): {peakTddfSpeed}/min</div>
+                            <div>Peak (10min): {tddfPerMinute === 0 ? 0 : peakTddfSpeed}/min</div>
                             <div>Base Scale: {Math.max(tddfPerMinute, 125)}</div>
                             <div>Scale + 25%: {Math.round(Math.max(tddfPerMinute, 125) * 1.25)}</div>
-                            <div>Peak Position: {peakTddfSpeed > 0 ? Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.25)) * 100) : 0}%</div>
+                            <div>Peak Position: {(tddfPerMinute === 0 || peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(tddfPerMinute, 125) * 1.25)) * 100)}%</div>
                           </div>
                         </div>
                       </div>
@@ -770,16 +771,17 @@ export default function ProcessingStatus() {
                     
                     if (colorBreakdown) {
                       // Use enhanced color-coded gauge for records/min
-                      const dtProcessed = colorBreakdown.dt?.processed || 0;
-                      const bhProcessed = colorBreakdown.bh?.processed || 0;
-                      const p1Processed = colorBreakdown.p1?.processed || 0;
-                      const totalOtherProcessed = (colorBreakdown.e1?.processed || 0) + 
+                      // If current sample is zero, show zero values instead of historical data
+                      const dtProcessed = recordsPerMinute === 0 ? 0 : (colorBreakdown.dt?.processed || 0);
+                      const bhProcessed = recordsPerMinute === 0 ? 0 : (colorBreakdown.bh?.processed || 0);
+                      const p1Processed = recordsPerMinute === 0 ? 0 : (colorBreakdown.p1?.processed || 0);
+                      const totalOtherProcessed = recordsPerMinute === 0 ? 0 : ((colorBreakdown.e1?.processed || 0) + 
                                                  (colorBreakdown.g2?.processed || 0) + 
                                                  (colorBreakdown.ad?.processed || 0) + 
                                                  (colorBreakdown.dr?.processed || 0) + 
                                                  (colorBreakdown.p2?.processed || 0) + 
-                                                 (colorBreakdown.other?.processed || 0);
-                      const totalSkipped = colorBreakdown.totalSkipped || 0;
+                                                 (colorBreakdown.other?.processed || 0));
+                      const totalSkipped = recordsPerMinute === 0 ? 0 : (colorBreakdown.totalSkipped || 0);
                       
                       return (
                         <MultiColorGauge 
@@ -820,10 +822,10 @@ export default function ProcessingStatus() {
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (10min): {peakTxnSpeed * 60}/min</div>
+                            <div>Peak (10min): {recordsPerMinute === 0 ? 0 : (peakTxnSpeed * 60)}/min</div>
                             <div>Base Scale: {Math.max(recordsPerMinute, 600)}</div>
                             <div>Scale + 25%: {Math.round(Math.max(recordsPerMinute, 600) * 1.25)}</div>
-                            <div>Peak Position: {peakTxnSpeed > 0 ? Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.25)) * 100) : 0}%</div>
+                            <div>Peak Position: {(recordsPerMinute === 0 || peakTxnSpeed === 0) ? 0 : Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.25)) * 100)}%</div>
                           </div>
                         </div>
                       );
