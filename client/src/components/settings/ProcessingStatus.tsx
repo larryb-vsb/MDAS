@@ -977,8 +977,7 @@ export default function ProcessingStatus() {
                   </div>
                   <div 
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
-                    title="E2: 44/min
-Others Total: 44/min"
+                    title="TEST-TEST"
                   >
                     <div className="font-semibold text-gray-700">
                       {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
