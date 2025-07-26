@@ -693,7 +693,7 @@ export default function ProcessingStatus() {
                               />
                             )}
                             
-                            {/* Peak indicator bar for TDDF gauge */}
+                            {/* Peak indicator bar for TDDF gauge with 10% headroom */}
                             {peakTddfSpeed > 0 && (
                               <div 
                                 className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
@@ -712,12 +712,11 @@ export default function ProcessingStatus() {
                             />
                           </div>
                           
-                          {/* Record Type Counts Display */}
+                          {/* Scale labels with 10% headroom */}
                           <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>DT: {dtProcessed.toLocaleString()}</span>
-                            <span>BH: {bhProcessed.toLocaleString()}</span>
-                            <span>P1: {p1Processed.toLocaleString()}</span>
-                            <span>Skip: {totalSkipped.toLocaleString()}</span>
+                            <span>0</span>
+                            <span>{Math.round((Math.max(tddfPerMinute, 125) * 1.1) / 2)}</span>
+                            <span>{Math.round(Math.max(tddfPerMinute, 125) * 1.1)}</span>
                           </div>
                         </div>
                       </div>
