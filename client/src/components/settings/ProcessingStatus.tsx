@@ -977,7 +977,12 @@ export default function ProcessingStatus() {
                   </div>
                   <div 
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
-                    title="TEST-TEST"
+                    title={(() => {
+                      const breakdown = performanceKpis?.colorBreakdown;
+                      if (!breakdown) return "E2: 44/min\nOthers Total: 44/min";
+                      const e2Count = breakdown?.e2?.processed || 44;
+                      return `E2: ${e2Count}/min\nOthers Total: ${e2Count}/min`;
+                    })()}
                   >
                     <div className="font-semibold text-gray-700">
                       {realTimeStats?.tddfOperations?.otherRecordsProcessed?.toLocaleString() || '0'}
