@@ -418,6 +418,74 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   recordIdentifierIndex: index("tddf_pe_record_identifier_idx").on(table.recordIdentifier)
 }));
 
+// TDDF Purchasing Card 2 Extensions (P2) - Item-level purchasing card data with VAT and discount details
+export const tddfPurchasingExtensions2 = pgTable(getTableName("tddf_purchasing_extensions_2"), {
+  id: serial("id").primaryKey(),
+  
+  // Link to parent transaction
+  transactionRecordId: integer("transaction_record_id").references(() => tddfTransactionRecords.id),
+  
+  // Core TDDF header fields (positions 1-23) - shared with all record types
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "P2"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
+  
+  // Account and merchant fields (positions 24-55)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number (16 chars N)
+  associationNumber: text("association_number"), // Positions 40-45: Association ID (6 chars AN)
+  groupNumber: text("group_number"), // Positions 46-51: Group number (6 chars AN)
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code (4 chars N)
+  
+  // Reserved area (positions 56-74)
+  reservedFutureUse1: text("reserved_future_use_1"), // Positions 56-74: Reserved for future use (19 chars AN)
+  
+  // Discount information (positions 75-84)
+  discountAmountIndicator: text("discount_amount_indicator"), // Position 75: Discount applicable indicator (1 char N)
+  discountAmount: numeric("discount_amount", { precision: 9, scale: 2 }), // Positions 76-84: Discount amount (9 chars N, format: 999999999)
+  
+  // Tax and identification (positions 85-114)
+  alternateTaxIdentifier: text("alternate_tax_identifier"), // Positions 85-99: Alternate tax identifier (15 chars AN)
+  productCode: text("product_code"), // Positions 100-111: Product code for VS/MC (12 chars AN)
+  reservedFutureUse2: text("reserved_future_use_2"), // Positions 112-114: Reserved for future use (3 chars AN)
+  
+  // Item details (positions 115-185)
+  itemDescription: text("item_description"), // Positions 115-149: Item description (35 chars AN)
+  itemQuantity: numeric("item_quantity", { precision: 12, scale: 0 }), // Positions 150-161: Item quantity (12 chars N, format: 999999999999)
+  itemUnitOfMeasure: numeric("item_unit_of_measure", { precision: 12, scale: 0 }), // Positions 162-173: Unit of measure (12 chars N, format: 999999999999)
+  unitCost: numeric("unit_cost", { precision: 12, scale: 2 }), // Positions 174-185: Unit cost (12 chars N, format: 999999999999)
+  
+  // VAT and financial details (positions 186-235)
+  netGrossIndicator: text("net_gross_indicator"), // Position 186: Net/Gross indicator for extended amount (1 char N)
+  vatRateApplied: numeric("vat_rate_applied", { precision: 5, scale: 4 }), // Positions 187-191: VAT rate applied (5 chars N, format: 9999)
+  vatTypeApplied: text("vat_type_applied"), // Positions 192-195: VAT type applied/rating (4 chars AN)
+  vatAmount: numeric("vat_amount", { precision: 12, scale: 2 }), // Positions 196-207: VAT amount MC/VS (12 chars N, format: 999999999999)
+  debitCreditIndicator: text("debit_credit_indicator"), // Position 208: Debit/Credit indicator (1 char AN) - D=Debit, C=Credit
+  typeOfSupply: text("type_of_supply"), // Positions 209-210: Type of supply (2 chars AN)
+  extensionRecordIndicator: text("extension_record_indicator"), // Position 211: Extension record indicator (1 char AN)
+  itemCommodityCode: numeric("item_commodity_code", { precision: 12, scale: 0 }), // Positions 212-223: Item commodity code (12 chars N)
+  lineItemTotal: numeric("line_item_total", { precision: 12, scale: 2 }), // Positions 224-235: Line item total (12 chars N, format: 999999999999)
+  
+  // Item descriptor and reserved area (positions 236-700)
+  itemDescriptor: text("item_descriptor"), // Positions 236-261: Item descriptor (26 chars AN)
+  reservedFutureUse3: text("reserved_future_use_3"), // Positions 262-700: Reserved for future use (439 chars AN)
+  
+  // System and audit fields
+  sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
+  sourceRowNumber: integer("source_row_number"),
+  recordedAt: timestamp("recorded_at").defaultNow().notNull(),
+  rawData: jsonb("raw_data"), // Store the complete fixed-width record for reference
+  mmsRawLine: text("mms_raw_line"), // Custom MMS-RAW-Line field to store original line before processing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  transactionRecordIndex: index("tddf_pe2_transaction_record_idx").on(table.transactionRecordId),
+  merchantAccountIndex: index("tddf_pe2_merchant_account_idx").on(table.merchantAccountNumber),
+  recordIdentifierIndex: index("tddf_pe2_record_identifier_idx").on(table.recordIdentifier),
+  itemDescriptionIndex: index("tddf_pe2_item_description_idx").on(table.itemDescription)
+}));
+
 // TDDF Merchant General Data 2 (E1) - EMV merchant data records
 export const tddfMerchantGeneralData2 = pgTable(getTableName("tddf_merchant_general_data_2"), {
   id: serial("id").primaryKey(),
@@ -715,9 +783,13 @@ export const insertTddfBatchHeaderSchema = tddfBatchHeadersSchema.omit({ id: tru
 export const tddfTransactionRecordsSchema = createInsertSchema(tddfTransactionRecords);
 export const insertTddfTransactionRecordSchema = tddfTransactionRecordsSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
-// Zod schemas for TDDF Purchasing Extensions
+// Zod schemas for TDDF Purchasing Extensions (P1)
 export const tddfPurchasingExtensionsSchema = createInsertSchema(tddfPurchasingExtensions);
 export const insertTddfPurchasingExtensionSchema = tddfPurchasingExtensionsSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+// Zod schemas for TDDF Purchasing Extensions 2 (P2)
+export const tddfPurchasingExtensions2Schema = createInsertSchema(tddfPurchasingExtensions2);
+export const insertTddfPurchasingExtension2Schema = tddfPurchasingExtensions2Schema.omit({ id: true, createdAt: true, updatedAt: true });
 
 // Zod schemas for TDDF Merchant General Data 2
 export const tddfMerchantGeneralData2Schema = createInsertSchema(tddfMerchantGeneralData2);
@@ -835,6 +907,8 @@ export type TddfTransactionRecord = typeof tddfTransactionRecords.$inferSelect;
 export type InsertTddfTransactionRecord = typeof tddfTransactionRecords.$inferInsert;
 export type TddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferSelect;
 export type InsertTddfPurchasingExtension = typeof tddfPurchasingExtensions.$inferInsert;
+export type TddfPurchasingExtension2 = typeof tddfPurchasingExtensions2.$inferSelect;
+export type InsertTddfPurchasingExtension2 = typeof tddfPurchasingExtensions2.$inferInsert;
 export type TddfMerchantGeneralData2 = typeof tddfMerchantGeneralData2.$inferSelect;
 export type InsertTddfMerchantGeneralData2 = typeof tddfMerchantGeneralData2.$inferInsert;
 export type TddfOtherRecord = typeof tddfOtherRecords.$inferSelect;

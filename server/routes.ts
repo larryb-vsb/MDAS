@@ -4416,6 +4416,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF purchasing extensions (P1 records) with pagination
+  app.get("/api/tddf/purchasing-extensions", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[P1 API] P1 purchasing extensions request received');
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const result = await storage.getTddfPurchasingExtensions({
+        page,
+        limit
+      });
+      
+      console.log('[P1 API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching P1 records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch P1 records" 
+      });
+    }
+  });
+
+  // Get TDDF purchasing extensions 2 (P2 records) with pagination
+  app.get("/api/tddf/purchasing-extensions-2", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[P2 API] P2 purchasing extensions request received');
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const result = await storage.getTddfPurchasingExtensions2({
+        page,
+        limit
+      });
+      
+      console.log('[P2 API] Storage returned:', result.data.length, 'records out of', result.pagination.totalItems, 'total');
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching P2 records:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch P2 records" 
+      });
+    }
+  });
+
   // Delete TDDF batch headers (bulk)
   app.delete("/api/tddf/batch-headers", isAuthenticated, async (req, res) => {
     try {

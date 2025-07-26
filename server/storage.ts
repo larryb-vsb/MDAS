@@ -315,6 +315,34 @@ export interface IStorage {
       itemsPerPage: number;
     };
   }>;
+
+  // P1 Purchasing Extensions
+  getTddfPurchasingExtensions(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
+
+  // P2 Purchasing Extensions 2
+  getTddfPurchasingExtensions2(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
   
   // File operations
   getFileById(fileId: string): Promise<any>;
@@ -7190,6 +7218,161 @@ export class DatabaseStorage implements IStorage {
     console.log(`✅ P1 Record ${p1Record.record_identifier} (seq: ${p1Record.sequence_number}) processed successfully (ID: ${p1Id})`);
   }
 
+  // Helper method to process P2 (Purchasing Card 2 Extension) records
+  private async processP2RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const purchasingExtensions2TableName = getTableName('tddf_purchasing_extensions_2');
+    
+    // Parse P2 fields from TDDF specification positions
+    const p2Record = {
+      sequence_number: line.substring(0, 7).trim() || null, // Positions 1-7
+      entry_run_number: line.substring(7, 13).trim() || null, // Positions 8-13
+      sequence_within_run: line.substring(13, 17).trim() || null, // Positions 14-17
+      record_identifier: line.substring(17, 19).trim() || null, // Positions 18-19: "P2"
+      bank_number: line.substring(19, 23).trim() || null, // Positions 20-23
+      merchant_account_number: line.substring(23, 39).trim() || null, // Positions 24-39
+      association_number: line.substring(39, 45).trim() || null, // Positions 40-45
+      group_number: line.substring(45, 51).trim() || null, // Positions 46-51
+      transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55
+      reserved_future_use_1: line.substring(55, 74).trim() || null, // Positions 56-74
+      discount_amount_indicator: line.substring(74, 75).trim() || null, // Position 75
+      discount_amount: this.parseAuthAmount(line.substring(75, 84).trim()) || null, // Positions 76-84
+      alternate_tax_identifier: line.substring(84, 99).trim() || null, // Positions 85-99
+      product_code: line.substring(99, 111).trim() || null, // Positions 100-111
+      reserved_future_use_2: line.substring(111, 114).trim() || null, // Positions 112-114
+      item_description: line.substring(114, 149).trim() || null, // Positions 115-149
+      item_quantity: this.parseNumeric(line.substring(149, 161).trim()) || null, // Positions 150-161
+      item_unit_of_measure: this.parseNumeric(line.substring(161, 173).trim()) || null, // Positions 162-173
+      unit_cost: this.parseAuthAmount(line.substring(173, 185).trim()) || null, // Positions 174-185
+      net_gross_indicator: line.substring(185, 186).trim() || null, // Position 186
+      vat_rate_applied: this.parseVatRate(line.substring(186, 191).trim()) || null, // Positions 187-191
+      vat_type_applied: line.substring(191, 195).trim() || null, // Positions 192-195
+      vat_amount: this.parseAuthAmount(line.substring(195, 207).trim()) || null, // Positions 196-207
+      debit_credit_indicator: line.substring(207, 208).trim() || null, // Position 208
+      type_of_supply: line.substring(208, 210).trim() || null, // Positions 209-210
+      extension_record_indicator: line.substring(210, 211).trim() || null, // Position 211
+      item_commodity_code: this.parseNumeric(line.substring(211, 223).trim()) || null, // Positions 212-223
+      line_item_total: this.parseAuthAmount(line.substring(223, 235).trim()) || null, // Positions 224-235
+      item_descriptor: line.substring(235, 261).trim() || null, // Positions 236-261
+      reserved_future_use_3: line.substring(261, 700).trim() || null, // Positions 262-700
+      source_file_id: rawRecord.source_file_id,
+      source_row_number: rawRecord.line_number,
+      raw_data: JSON.stringify({ rawLine: line }),
+      mms_raw_line: line,
+      recorded_at: new Date()
+    };
+
+    // Insert P2 record into purchasing extensions 2 table
+    const insertResult = await client.query(`
+      INSERT INTO "${purchasingExtensions2TableName}" (
+        sequence_number,
+        entry_run_number,
+        sequence_within_run,
+        record_identifier,
+        bank_number,
+        merchant_account_number,
+        association_number,
+        group_number,
+        transaction_code,
+        reserved_future_use_1,
+        discount_amount_indicator,
+        discount_amount,
+        alternate_tax_identifier,
+        product_code,
+        reserved_future_use_2,
+        item_description,
+        item_quantity,
+        item_unit_of_measure,
+        unit_cost,
+        net_gross_indicator,
+        vat_rate_applied,
+        vat_type_applied,
+        vat_amount,
+        debit_credit_indicator,
+        type_of_supply,
+        extension_record_indicator,
+        item_commodity_code,
+        line_item_total,
+        item_descriptor,
+        reserved_future_use_3,
+        source_file_id,
+        source_row_number,
+        raw_data,
+        mms_raw_line,
+        recorded_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+      RETURNING id
+    `, [
+      p2Record.sequence_number,
+      p2Record.entry_run_number,
+      p2Record.sequence_within_run,
+      p2Record.record_identifier,
+      p2Record.bank_number,
+      p2Record.merchant_account_number,
+      p2Record.association_number,
+      p2Record.group_number,
+      p2Record.transaction_code,
+      p2Record.reserved_future_use_1,
+      p2Record.discount_amount_indicator,
+      p2Record.discount_amount,
+      p2Record.alternate_tax_identifier,
+      p2Record.product_code,
+      p2Record.reserved_future_use_2,
+      p2Record.item_description,
+      p2Record.item_quantity,
+      p2Record.item_unit_of_measure,
+      p2Record.unit_cost,
+      p2Record.net_gross_indicator,
+      p2Record.vat_rate_applied,
+      p2Record.vat_type_applied,
+      p2Record.vat_amount,
+      p2Record.debit_credit_indicator,
+      p2Record.type_of_supply,
+      p2Record.extension_record_indicator,
+      p2Record.item_commodity_code,
+      p2Record.line_item_total,
+      p2Record.item_descriptor,
+      p2Record.reserved_future_use_3,
+      p2Record.source_file_id,
+      p2Record.source_row_number,
+      p2Record.raw_data,
+      p2Record.mms_raw_line,
+      p2Record.recorded_at
+    ]);
+    
+    const p2Id = insertResult.rows[0].id;
+    
+    // Update raw import line status within same transaction
+    await client.query(`
+      UPDATE "${tableName}"
+      SET processing_status = 'processed',
+          processed_into_table = '${purchasingExtensions2TableName}',
+          processed_record_id = $1,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [p2Id.toString(), rawRecord.id]);
+    
+    console.log(`✅ P2 Record ${p2Record.record_identifier} (seq: ${p2Record.sequence_number}) processed successfully (ID: ${p2Id})`);
+  }
+
+  // Helper method to parse VAT rate (4 decimal places)
+  private parseVatRate(value: string): number | null {
+    if (!value || value.trim() === '') return null;
+    const cleaned = value.replace(/[^\d.]/g, '');
+    if (cleaned === '') return null;
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed / 10000; // Convert from format 9999 to decimal
+  }
+
+  // Helper method to parse numeric values without decimal places
+  private parseNumeric(value: string): number | null {
+    if (!value || value.trim() === '') return null;
+    const cleaned = value.replace(/[^\d]/g, '');
+    if (cleaned === '') return null;
+    const parsed = parseInt(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  }
+
   // Helper method to process a single BH line from raw data
   private processBhLineFromRawData(rawLine: string, sourceFileId: string, sourceRowNumber: number): InsertTddfBatchHeader | null {
     try {
@@ -8437,6 +8620,140 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting TDDF batch headers:', error);
+      throw error;
+    }
+  }
+
+  // Get TDDF purchasing extensions (P1 records) with pagination
+  async getTddfPurchasingExtensions(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = Math.min(options.limit || 50, 500);
+      const offset = (page - 1) * limit;
+
+      const tableName = getTableName("tddf_purchasing_extensions");
+      
+      // Get total count using raw SQL
+      const countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+      const countResult = await pool.query(countQuery);
+      const count = parseInt(countResult.rows[0]?.count || '0');
+
+      // Get records using raw SQL
+      const dataQuery = `
+        SELECT id, p1_record_number as "sequenceNumber", record_identifier as "recordIdentifier", 
+               tax_amount as "taxAmount", tax_rate as "taxRate", tax_type as "taxType",
+               purchase_identifier as "purchaseIdentifier", customer_code as "customerCode",
+               sales_tax as "salesTax", freight_amount as "freightAmount", 
+               destination_zip as "destinationZip", merchant_type as "merchantType",
+               duty_amount as "dutyAmount", merchant_tax_id as "merchantTaxId",
+               ship_from_zip_code as "shipFromZipCode", discount_amount as "discountAmount",
+               source_file_id as "sourceFileId", source_row_number as "sourceRowNumber",
+               recorded_at as "recordedAt", created_at as "createdAt", updated_at as "updatedAt"
+        FROM ${tableName} 
+        ORDER BY created_at DESC 
+        LIMIT $1 OFFSET $2
+      `;
+      
+      console.log(`[P1 QUERY] Executing: ${dataQuery}`);
+      console.log(`[P1 QUERY] Params:`, [limit, offset]);
+      
+      const dataResult = await pool.query(dataQuery, [limit, offset]);
+      const data = dataResult.rows;
+
+      console.log(`[P1 QUERY] Found ${data.length} P1 records out of ${count} total`);
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        data,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF purchasing extensions (P1):', error);
+      throw error;
+    }
+  }
+
+  // Get TDDF purchasing extensions 2 (P2 records) with pagination
+  async getTddfPurchasingExtensions2(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = Math.min(options.limit || 50, 500);
+      const offset = (page - 1) * limit;
+
+      const tableName = getTableName("tddf_purchasing_extensions_2");
+      
+      // Get total count using raw SQL
+      const countQuery = `SELECT COUNT(*) as count FROM ${tableName}`;
+      const countResult = await pool.query(countQuery);
+      const count = parseInt(countResult.rows[0]?.count || '0');
+
+      // Get records using raw SQL
+      const dataQuery = `
+        SELECT id, sequence_number as "sequenceNumber", entry_run_number as "entryRunNumber", 
+               sequence_within_run as "sequenceWithinRun", record_identifier as "recordIdentifier", 
+               discount_amount as "discountAmount", alterna_tax_identifier as "alternaTaxIdentifier",
+               product_code as "productCode", item_description as "itemDescription",
+               item_quantity as "itemQuantity", item_unit_of_measure as "itemUnitOfMeasure",
+               unit_cost as "unitCost", net_gross_indicator as "netGrossIndicator",
+               vat_rate_applied as "vatRateApplied", vat_type_applied as "vatTypeApplied",
+               vat_amount as "vatAmount", item_commodity_code as "itemCommodityCode",
+               line_item_total as "lineItemTotal", item_descriptor as "itemDescriptor",
+               source_file_id as "sourceFileId", source_row_number as "sourceRowNumber",
+               recorded_at as "recordedAt", created_at as "createdAt", updated_at as "updatedAt"
+        FROM ${tableName} 
+        ORDER BY created_at DESC 
+        LIMIT $1 OFFSET $2
+      `;
+      
+      console.log(`[P2 QUERY] Executing: ${dataQuery}`);
+      console.log(`[P2 QUERY] Params:`, [limit, offset]);
+      
+      const dataResult = await pool.query(dataQuery, [limit, offset]);
+      const data = dataResult.rows;
+
+      console.log(`[P2 QUERY] Found ${data.length} P2 records out of ${count} total`);
+
+      const totalPages = Math.ceil(count / limit);
+
+      return {
+        data,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF purchasing extensions 2 (P2):', error);
       throw error;
     }
   }

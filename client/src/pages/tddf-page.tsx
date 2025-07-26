@@ -13,6 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { formatTableDate, formatTddfDate } from "@/lib/date-utils";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
+import UnifiedPurchasingExtensionsTable from "@/components/tddf/UnifiedPurchasingExtensionsTable";
 import {
   Dialog,
   DialogContent,
@@ -199,6 +200,62 @@ interface TddfFilters {
 }
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 500];
+
+// Interface for P1 records
+interface TddfPurchasingExtension {
+  id: number;
+  sequenceNumber?: string;
+  entryRunNumber?: string;
+  sequenceWithinRun?: string;
+  recordIdentifier?: string;
+  taxAmount?: number;
+  taxRate?: number;
+  taxType?: string;
+  purchaseIdentifier?: string;
+  customerCode?: string;
+  salesTax?: number;
+  freightAmount?: number;
+  destinationZip?: string;
+  merchantType?: string;
+  dutyAmount?: number;
+  merchantTaxId?: string;
+  shipFromZipCode?: string;
+  discountAmount?: number;
+  sourceFileId?: string;
+  sourceRowNumber?: number;
+  recordedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Interface for P2 records
+interface TddfPurchasingExtension2 {
+  id: number;
+  sequenceNumber?: string;
+  entryRunNumber?: string;
+  sequenceWithinRun?: string;
+  recordIdentifier?: string;
+  discountAmount?: number;
+  alternaTaxIdentifier?: string;
+  productCode?: string;
+  itemDescription?: string;
+  itemQuantity?: number;
+  itemUnitOfMeasure?: number;
+  unitCost?: number;
+  netGrossIndicator?: string;
+  vatRateApplied?: number;
+  vatTypeApplied?: string;
+  vatAmount?: number;
+  itemCommodityCode?: number;
+  lineItemTotal?: number;
+  itemDescriptor?: string;
+  sourceFileId?: string;
+  sourceRowNumber?: number;
+  recordedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 
 // BH Records Table Component
 function BHRecordsTable() {
@@ -1498,42 +1555,7 @@ export default function TddfPage() {
         </TabsContent>
 
         <TabsContent value="p1" className="mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>P1 Records (Purchasing Extensions)</CardTitle>
-                <Button variant="outline" size="sm">
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Fields
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Parent DT ID</th>
-                      <th className="text-left p-2">Tax Amount</th>
-                      <th className="text-left p-2">Discount Amount</th>
-                      <th className="text-left p-2">Freight Amount</th>
-                      <th className="text-left p-2">Duty Amount</th>
-                      <th className="text-left p-2">Purchase Identifier</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="text-center text-muted-foreground">
-                      <td colSpan={6} className="py-8">
-                        <p>6,130 P1 records available in raw data (776 processed + 5,354 pending)</p>
-                        <p className="text-xs mt-2">Hierarchical processing needed to move from raw import to P1 table</p>
-                        <p className="text-xs">API endpoint: /api/tddf/purchasing-extensions (pending implementation)</p>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <UnifiedPurchasingExtensionsTable />
         </TabsContent>
 
         <TabsContent value="other" className="mt-6">
