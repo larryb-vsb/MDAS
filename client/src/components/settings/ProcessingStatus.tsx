@@ -847,8 +847,8 @@ export default function ProcessingStatus() {
                       const geRate = Math.round(otherRateTotal * 0.02); // Approximate GE portion
                       const totalSkippedDetailed = totalSkipped || 0;
                       
-                      // Calculate true "Other" records (exclude tracked types E1, G2, AD, P2, DR, CK, LG, GE)
-                      const trueOtherProcessed = Math.max(0, otherProcessed - (e1Rate + g2Rate + adRate + p2Rate + drRate + ckRate + lgRate + geRate));
+                      // Use the actual "Other" rate from chart data directly
+                      const trueOtherProcessed = otherProcessed; // This is the total "Other" rate from chart
                       
                       return (
                         <MultiColorGauge 
