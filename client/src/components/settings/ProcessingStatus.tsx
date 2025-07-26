@@ -96,6 +96,7 @@ const MultiColorGauge = ({
   currentSpeed, 
   maxScale = 20, 
   recordTypes = { dt: 0, bh: 0, p1: 0, other: 0 },
+  detailedOtherTypes = { e1: 0, g2: 0, ad: 0, p2: 0, dr: 0, skipped: 0 },
   showRecordTypes = false,
   peakValue = 0,
   title = "Processing",
@@ -104,6 +105,7 @@ const MultiColorGauge = ({
   currentSpeed: number;
   maxScale?: number;
   recordTypes?: { dt: number; bh: number; p1: number; other: number };
+  detailedOtherTypes?: { e1: number; g2: number; ad: number; p2: number; dr: number; skipped: number };
   showRecordTypes?: boolean;
   peakValue?: number;
   title?: string;
@@ -186,7 +188,7 @@ const MultiColorGauge = ({
       <div 
         className="absolute inset-0 cursor-pointer"
         title={showRecordTypes && recordTypes ? 
-          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1: ${recordTypes.p1}${unit}\nOther: ${recordTypes.other}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
+          `${title}: ${currentSpeed}${unit}\nDT: ${recordTypes.dt}${unit}\nBH: ${recordTypes.bh}${unit}\nP1: ${recordTypes.p1}${unit}\nOthers: E1: ${detailedOtherTypes.e1}, G2: ${detailedOtherTypes.g2}, AD: ${detailedOtherTypes.ad}, P2: ${detailedOtherTypes.p2}, DR: ${detailedOtherTypes.dr}\nSkipped: ${detailedOtherTypes.skipped}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}` :
           `${title}: ${currentSpeed}${unit}${peakValue > 0 ? `\nPeak: ${peakValue}${unit} (last 10 min)` : ''}`
         }
       />
@@ -820,13 +822,22 @@ export default function ProcessingStatus() {
                     const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
                     const recordsPerMinute = performanceKpis?.hasData ? performanceKpis.recordsPerMinute : ((realTimeStats?.transactionsPerSecond || 0) * 60);
                     
-                    if (latestChartPoint) {
-                      // Use enhanced color-coded gauge for records/min with chart data
+                    if (latestChartPoint && performanceKpis?.colorBreakdown) {
+                      // Use enhanced color-coded gauge for records/min with detailed breakdown data
                       const dtProcessed = latestChartPoint?.dtRecords || 0;
                       const bhProcessed = latestChartPoint?.bhRecords || 0;
                       const p1Processed = latestChartPoint?.p1Records || 0;
                       const otherProcessed = latestChartPoint?.otherRecords || 0;
                       const totalSkipped = latestChartPoint?.skippedRecords || 0;
+                      
+                      // Get detailed breakdown data from performance KPIs
+                      const breakdown = performanceKpis.colorBreakdown;
+                      const e1Count = breakdown?.e1?.processed || 0;
+                      const g2Count = breakdown?.g2?.processed || 0;
+                      const adCount = breakdown?.ad?.processed || 0;
+                      const p2Count = breakdown?.p2?.processed || 0;
+                      const drCount = breakdown?.dr?.processed || 0;
+                      const totalSkippedDetailed = breakdown?.totalSkipped || 0;
                       
                       return (
                         <MultiColorGauge 
@@ -837,6 +848,14 @@ export default function ProcessingStatus() {
                             bh: bhProcessed,
                             p1: p1Processed,
                             other: otherProcessed + totalSkipped // Combine other and skipped for visualization
+                          }}
+                          detailedOtherTypes={{
+                            e1: e1Count,
+                            g2: g2Count,
+                            ad: adCount,
+                            p2: p2Count,
+                            dr: drCount,
+                            skipped: totalSkippedDetailed
                           }}
                           showRecordTypes={true}
                           peakValue={recordsPeakFromDatabase} // Direct peak from performance database
