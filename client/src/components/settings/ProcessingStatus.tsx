@@ -725,7 +725,7 @@ export default function ProcessingStatus() {
                   const g2Processed = 0;
                   const adProcessed = 0;
                   const drProcessed = 0;
-                  const p2Processed = 0;
+                  const p2Processed = showColorBreakdown ? (latestChartPoint?.p2Records || 0) : 0;
                   const otherProcessed = showColorBreakdown ? rawOtherProcessed : 0;
                   const totalSkipped = showColorBreakdown ? rawTotalSkipped : 0;
                   
@@ -749,7 +749,7 @@ export default function ProcessingStatus() {
                               // Always show main categories (matching chart display)
                               lines.push(`DT: ${dtProcessed.toLocaleString()}/min`);
                               lines.push(`BH: ${bhProcessed.toLocaleString()}/min`); 
-                              lines.push(`P1/P2: ${p1Processed.toLocaleString()}/min`);
+                              lines.push(`P1/P2: ${(p1Processed + p2Processed).toLocaleString()}/min`);
                               
                               // Enhanced Others breakdown - distribute the "Other" rate across record types
                               // Use same proportional breakdown as dashboard boxes
