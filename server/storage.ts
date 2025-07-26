@@ -9027,11 +9027,11 @@ export class DatabaseStorage implements IStorage {
       // Get records using raw SQL
       const dataQuery = `
         SELECT id, record_type as "recordType", 
-               merchant_account_number as "merchantAccount",
+               merchant_account as "merchantAccount",
                reference_number as "referenceNumber",
                transaction_date as "transactionDate",
                amount, description,
-               record_data as "recordData",
+               raw_data as "recordData",
                source_file_id as "sourceFileId", 
                source_row_number as "sourceRowNumber",
                recorded_at as "recordedAt",
