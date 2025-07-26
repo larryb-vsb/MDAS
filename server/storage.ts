@@ -7555,6 +7555,12 @@ export class DatabaseStorage implements IStorage {
               totalProcessed++;
               break;
               
+            case 'CK':
+              await this.processCKRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
             default:
               // Skip unknown record types
               await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
@@ -8307,6 +8313,87 @@ export class DatabaseStorage implements IStorage {
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processCKRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    // Extract key fields from TDDF fixed-width format based on CK specification
+    const checkingAccountNumber = line.substring(55, 74).trim() || null; // Positions 56-74: Checking Account Number (N)
+    const abaRoutingNumber = line.substring(74, 83).trim() || null; // Positions 75-83: ABA/Routing Number (N)
+    const checkNumber = line.substring(83, 98).trim() || null; // Positions 84-98: Check Number (N)
+    const merchantAccount = line.substring(23, 39).trim() || null; // Positions 24-39: Merchant Account Number (N)
+    const phoneNumber = line.substring(147, 157).trim() || null; // Positions 148-157: Phone Number (AN)
+    const individualName = line.substring(157, 179).trim() || null; // Positions 158-179: Individual Name (AN)
+    const paymentType = line.substring(179, 180).trim() || null; // Position 180: Payment Type (AN)
+    const terminalCity = line.substring(180, 193).trim() || null; // Positions 181-193: Terminal City (AN)
+    const terminalState = line.substring(193, 195).trim() || null; // Positions 194-195: Terminal State (AN)
+
+    // Build comprehensive CK (Electronic Check Extension) data for jsonb storage
+    const comprehensiveCKData = {
+      // Core TDDF header fields (positions 1-23)
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null, // Should be "CK"
+      bankNumber: line.substring(19, 23).trim() || null,
+      
+      // Account and merchant fields
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      associationNumber: line.substring(39, 45).trim() || null,
+      groupNumber: line.substring(45, 51).trim() || null,
+      transactionCode: line.substring(51, 55).trim() || null,
+      
+      // Electronic Check specific fields (CK record)
+      checkingAccountNumber: line.substring(55, 74).trim() || null,
+      abaRoutingNumber: line.substring(74, 83).trim() || null,
+      checkNumber: line.substring(83, 98).trim() || null,
+      checkServiceOption: line.substring(98, 100).trim() || null,
+      checkServiceProgram: line.substring(100, 105).trim() || null,
+      receivingInstitutionId: line.substring(105, 111).trim() || null,
+      internalMerchantBatchKey: line.substring(111, 124).trim() || null,
+      extensionRecordIndicator: line.substring(124, 129).trim() || null,
+      individualId: line.substring(129, 144).trim() || null,
+      secCode: line.substring(144, 147).trim() || null, // Standard Entry Class codes
+      phoneNumber: line.substring(147, 157).trim() || null,
+      individualName: line.substring(157, 179).trim() || null,
+      paymentType: line.substring(179, 180).trim() || null,
+      terminalCity: line.substring(180, 193).trim() || null,
+      terminalState: line.substring(193, 195).trim() || null,
+      discretionaryData: line.substring(195, 197).trim() || null,
+      reservedFutureUse: line.substring(197, 700).trim() || null,
+      rawLine: line
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        record_type, reference_number, merchant_account, transaction_date, amount, description,
+        source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id
+    `, [
+      'CK',
+      checkNumber, // Use check number as reference
+      merchantAccount,
+      null, // CK records don't have transaction date
+      null, // No standard amount field for CK extension records
+      `Electronic Check Extension - ${individualName || 'Unknown Cardholder'}`,
+      rawRecord.source_file_id,
+      rawRecord.line_number,
+      JSON.stringify(comprehensiveCKData)
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+    
+    console.log(`✅ CK Record (Electronic Check Extension) processed successfully (ID: ${insertResult.rows[0].id})`);
   }
 
   private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
