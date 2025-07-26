@@ -1230,6 +1230,284 @@ function G2RecordsTable() {
   );
 }
 
+// P2 Records Table Component
+function P2RecordsTable() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [detailsRecord, setDetailsRecord] = useState<any>(null);
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/tddf/purchasing-extensions-2", currentPage, itemsPerPage],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
+
+      const response = await fetch(`/api/tddf/purchasing-extensions-2?${params}`, {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch P2 records");
+      }
+      return response.json();
+    },
+  });
+
+  const records = data?.data || [];
+  const totalRecords = data?.pagination?.totalItems || 0;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  const formatCurrency = (amount?: string | number) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(numAmount);
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return 'N/A';
+    try {
+      return format(new Date(date), 'MMM dd, yyyy');
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const toggleRecordSelection = (recordId: number) => {
+    const newSelected = new Set(selectedRecords);
+    if (newSelected.has(recordId)) {
+      newSelected.delete(recordId);
+    } else {
+      newSelected.add(recordId);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const toggleAllRecords = () => {
+    if (selectedRecords.size === records.length) {
+      setSelectedRecords(new Set());
+    } else {
+      setSelectedRecords(new Set(records.map(r => r.id)));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle>
+            P2 Records ({totalRecords}) - Purchasing Card Extension 2
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100, 200].map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="text-muted-foreground">Loading P2 records...</div>
+          </div>
+        ) : records.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No P2 records found
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Records Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left p-3 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecords.size === records.length && records.length > 0}
+                        onChange={toggleAllRecords}
+                        className="rounded border-border"
+                      />
+                    </th>
+                    <th className="text-left p-3">ID</th>
+                    <th className="text-left p-3">Sequence Number</th>
+                    <th className="text-left p-3">Product Code</th>
+                    <th className="text-left p-3">Item Description</th>
+                    <th className="text-left p-3">Quantity</th>
+                    <th className="text-left p-3">Unit Cost</th>
+                    <th className="text-left p-3">Line Total</th>
+                    <th className="text-left p-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((record: any) => (
+                    <tr key={record.id} className="border-b hover:bg-muted/20">
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRecords.has(record.id)}
+                          onChange={() => toggleRecordSelection(record.id)}
+                          className="rounded border-border"
+                        />
+                      </td>
+                      <td className="p-3 font-mono text-xs">{record.id}</td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.sequenceNumber || 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.productCode || 'N/A'}
+                      </td>
+                      <td className="p-3 text-xs max-w-32 truncate">
+                        {record.itemDescription || 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.itemQuantity || 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.unitCost ? formatCurrency(record.unitCost) : 'N/A'}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {record.lineItemTotal ? formatCurrency(record.lineItemTotal) : 'N/A'}
+                      </td>
+                      <td className="p-3">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setDetailsRecord(record)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, totalRecords)} of {totalRecords} records
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-3 text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* P2 Record Details Dialog */}
+        <Dialog open={!!detailsRecord} onOpenChange={(open) => !open && setDetailsRecord(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>P2 Record Details - ID: {detailsRecord?.id}</DialogTitle>
+            </DialogHeader>
+            {detailsRecord && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="font-medium mb-2">P2 Record Identifier</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Record Type:</span> P2</div>
+                      <div><span className="font-medium">Record ID:</span> {detailsRecord.id}</div>
+                      <div><span className="font-medium">Sequence Number:</span> {detailsRecord.sequenceNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Product Code:</span> {detailsRecord.productCode || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">P2 Item Data</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Item Description:</span> {detailsRecord.itemDescription || 'N/A'}</div>
+                      <div><span className="font-medium">Item Quantity:</span> {detailsRecord.itemQuantity || 'N/A'}</div>
+                      <div><span className="font-medium">Unit Cost:</span> {detailsRecord.unitCost ? formatCurrency(detailsRecord.unitCost) : 'N/A'}</div>
+                      <div><span className="font-medium">Line Item Total:</span> {detailsRecord.lineItemTotal ? formatCurrency(detailsRecord.lineItemTotal) : 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">System & Audit Fields</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Source File ID:</span> {detailsRecord.sourceFileId || 'N/A'}</div>
+                      <div><span className="font-medium">Source Row Number:</span> {detailsRecord.sourceRowNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Recorded At:</span> {detailsRecord.recordedAt ? formatTableDate(detailsRecord.recordedAt) : 'N/A'}</div>
+                      <div><span className="font-medium">Created At:</span> {detailsRecord.createdAt ? formatTableDate(detailsRecord.createdAt) : 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium mb-2">Additional P2 Extension Fields</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div><span className="font-medium">Entry Run Number:</span> {detailsRecord.entryRunNumber || 'N/A'}</div>
+                      <div><span className="font-medium">Sequence Within Run:</span> {detailsRecord.sequenceWithinRun || 'N/A'}</div>
+                      <div><span className="font-medium">Discount Amount:</span> {detailsRecord.discountAmount ? formatCurrency(detailsRecord.discountAmount) : 'N/A'}</div>
+                      <div><span className="font-medium">Alternate Tax ID:</span> {detailsRecord.alternateTaxIdentifier || 'N/A'}</div>
+                      <div><span className="font-medium">Unit of Measure:</span> {detailsRecord.itemUnitOfMeasure || 'N/A'}</div>
+                      <div><span className="font-medium">Net/Gross Indicator:</span> {detailsRecord.netGrossIndicator || 'N/A'}</div>
+                      <div><span className="font-medium">VAT Rate Applied:</span> {detailsRecord.vatRateApplied || 'N/A'}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div><span className="font-medium">VAT Type Applied:</span> {detailsRecord.vatTypeApplied || 'N/A'}</div>
+                      <div><span className="font-medium">VAT Amount:</span> {detailsRecord.vatAmount ? formatCurrency(detailsRecord.vatAmount) : 'N/A'}</div>
+                      <div><span className="font-medium">Item Commodity Code:</span> {detailsRecord.itemCommodityCode || 'N/A'}</div>
+                      <div><span className="font-medium">Item Descriptor:</span> {detailsRecord.itemDescriptor || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 // E1 Records Table Component
 function E1RecordsTable() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -2124,16 +2402,7 @@ export default function TddfPage() {
         </TabsContent>
 
         <TabsContent value="p2" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>P2 Records (Coming Soon)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                P2 Purchasing Card Extension records functionality will be implemented here
-              </div>
-            </CardContent>
-          </Card>
+          <P2RecordsTable />
         </TabsContent>
 
         <TabsContent value="e1" className="mt-6">
