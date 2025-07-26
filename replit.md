@@ -683,6 +683,16 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ UNIFIED MERCHANT MANAGEMENT INTERFACE COMPLETED (July 26, 2025)
+- **✅ TABBED MERCHANT INTERFACE IMPLEMENTED**: Successfully added unified merchant interface with "ACH Merchants" and "TDDF Merchants" tabs
+  - **ACH Merchants Tab**: Renamed existing merchant view to "ACH Merchants" with Building2 icon and full original functionality
+  - **TDDF Merchants Tab**: Added new TDDF merchant view tab with CreditCard icon integrating TddfMerchantsTable component
+  - **Conditional UI Elements**: "Add Merchant" button only appears on ACH tab since TDDF merchants are derived from transaction data
+  - **Professional Tab Design**: Clean tab structure with icons, proper spacing, and consistent styling
+  - **Complete Integration**: Both tabs fully operational with search, pagination, sorting, and detailed merchant analytics
+  - **Navigation Consistency**: Maintained existing merchant page functionality while adding TDDF merchant access
+  - **Production Ready**: Complete merchant management solution with separate views for ACH and TDDF merchant data
+
 ### ✅ COMPLETE AD AND DR RECORD TYPE TABS IMPLEMENTATION COMPLETED (July 26, 2025)
 - **✅ AD RECORDS TAB FULLY OPERATIONAL**: Successfully implemented comprehensive AD (Merchant Adjustment Extension) records tab with complete functionality
   - **Professional Table Interface**: Complete table component with pagination (20 records per page) displaying ID, Reference Number, Merchant Account, Transaction Date, Amount, and Source File

@@ -3,11 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
+import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Building2, CreditCard } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -24,6 +26,9 @@ export default function Merchants() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("ach");
   
   // State for filters and pagination
   const [statusFilter, setStatusFilter] = useState("All");
@@ -153,7 +158,7 @@ export default function Merchants() {
   return (
     <MainLayout>
       <div className="container py-6 mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <h1 className="text-3xl font-bold">Merchants</h1>
           <div className="flex space-x-2">
             <Button 
@@ -165,44 +170,65 @@ export default function Merchants() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button 
-              onClick={() => setLocation('/merchants/new')}
-              className="bg-gradient-to-r from-blue-500 to-blue-700"
-            >
-              Add Merchant
-            </Button>
+            {activeTab === "ach" && (
+              <Button 
+                onClick={() => setLocation('/merchants/new')}
+                className="bg-gradient-to-r from-blue-500 to-blue-700"
+              >
+                Add Merchant
+              </Button>
+            )}
           </div>
         </div>
         
-        <MerchantFilters
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          uploadFilter={uploadFilter}
-          setUploadFilter={setUploadFilter}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-        />
-        
-        <MerchantList
-          merchants={data?.merchants || []}
-          pagination={data?.pagination || {
-            currentPage: 1,
-            totalPages: 1,
-            totalItems: 0,
-            itemsPerPage: itemsPerPage
-          }}
-          isLoading={isLoading}
-          error={error}
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-          itemsPerPage={itemsPerPage}
-          onItemsPerPageChange={handleItemsPerPageChange}
-          selectedMerchants={selectedMerchants}
-          setSelectedMerchants={setSelectedMerchants}
-          onDeleteSelected={handleDeleteSelected}
-          deleteMutation={deleteMutation}
-          mergeMutation={mergeMutation}
-        />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="ach" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              ACH Merchants
+            </TabsTrigger>
+            <TabsTrigger value="tddf" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              TDDF Merchants
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="ach" className="mt-6">
+            <MerchantFilters
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              uploadFilter={uploadFilter}
+              setUploadFilter={setUploadFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+            
+            <MerchantList
+              merchants={data?.merchants || []}
+              pagination={data?.pagination || {
+                currentPage: 1,
+                totalPages: 1,
+                totalItems: 0,
+                itemsPerPage: itemsPerPage
+              }}
+              isLoading={isLoading}
+              error={error}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              selectedMerchants={selectedMerchants}
+              setSelectedMerchants={setSelectedMerchants}
+              onDeleteSelected={handleDeleteSelected}
+              deleteMutation={deleteMutation}
+              mergeMutation={mergeMutation}
+            />
+          </TabsContent>
+          
+          <TabsContent value="tddf" className="mt-6">
+            <TddfMerchantsTable />
+          </TabsContent>
+        </Tabs>
       </div>
     </MainLayout>
   );
