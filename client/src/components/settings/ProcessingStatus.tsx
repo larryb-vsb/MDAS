@@ -260,8 +260,13 @@ export default function ProcessingStatus() {
   });
 
   // Fetch recent chart data for TDDF gauge from performance metrics database
-  const { data: chartData } = useQuery({
-    queryKey: ['/api/processing/performance-chart-history', { hours: 1 }],
+  const { data: chartData } = useQuery<{data: any[]}>({
+    queryKey: ['/api/processing/performance-chart-history'],
+    queryFn: async () => {
+      const response = await fetch('/api/processing/performance-chart-history?hours=1');
+      if (!response.ok) throw new Error('Failed to fetch chart data');
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
     staleTime: 25000,
   });
@@ -485,18 +490,29 @@ export default function ProcessingStatus() {
 
   // Get peak value directly from performance metrics database (no calculations)
   const recordsPeakFromDatabase = useMemo(() => {
-    if (!chartData || !Array.isArray(chartData.data) || chartData.data.length === 0) return 0;
+    // Ensure chartData and data array exist
+    if (!chartData?.data || !Array.isArray(chartData.data) || chartData.data.length === 0) {
+      return 0;
+    }
     
     // Find the maximum total records value directly from performance database
     const recordTotals = chartData.data.map((item: any) => {
-      const dt = item.dtRecords || 0;
-      const bh = item.bhRecords || 0;
-      const p1 = item.p1Records || 0;
-      const other = item.otherRecords || 0;
+      const dt = parseInt(item.dtRecords) || 0;
+      const bh = parseInt(item.bhRecords) || 0;
+      const p1 = parseInt(item.p1Records) || 0;
+      const other = parseInt(item.otherRecords) || 0;
       return dt + bh + p1 + other;
     });
     
-    return Math.max(...recordTotals, 0);
+    const maxValue = Math.max(...recordTotals, 0);
+    console.log('[RECORDS GAUGE] Peak calculation from database:', {
+      dataPoints: chartData.data.length,
+      recordTotals: recordTotals.slice(-5), // Last 5 values for debugging
+      maxValue,
+      sampleData: chartData.data.slice(-2) // Last 2 data points for debugging
+    });
+    
+    return maxValue;
   }, [chartData]);
 
   // Helper functions
