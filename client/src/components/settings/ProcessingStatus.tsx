@@ -1272,20 +1272,43 @@ export default function ProcessingStatus() {
                               const hourlyRate = Math.round(peakRate * 0.8);
                               const dailyRate = Math.round(peakRate * 0.6);
                               
+                              // RED DEBUG: Log all calculation values
+                              console.log('%c[RED DEBUG] Blue Box Calculation:', 'color: red; font-weight: bold', {
+                                pending,
+                                chartRate,
+                                peakRate,
+                                hourlyRate,
+                                dailyRate,
+                                latestChartPoint
+                              });
+                              
                               // Use best available rate (fallback to peak if others are 0)
                               let averageRate = 0;
                               if (chartRate > 0 && peakRate > 0) {
                                 averageRate = Math.round((chartRate + hourlyRate + dailyRate) / 3);
+                                console.log('%c[RED DEBUG] Using average rate:', 'color: red; font-weight: bold', averageRate);
                               } else if (peakRate > 0) {
                                 averageRate = peakRate; // Use peak if chart data unavailable
+                                console.log('%c[RED DEBUG] Using peak rate:', 'color: red; font-weight: bold', averageRate);
                               } else if (chartRate > 0) {
                                 averageRate = chartRate; // Use chart if peak unavailable
+                                console.log('%c[RED DEBUG] Using chart rate:', 'color: red; font-weight: bold', averageRate);
                               } else {
+                                console.log('%c[RED DEBUG] No data available yet', 'color: red; font-weight: bold');
                                 return 'calculating...'; // No data available yet
                               }
                               
                               const estimatedMinutes = Math.ceil(pending / averageRate);
-                              return estimatedMinutes < 60 ? `${estimatedMinutes} min` : `${Math.round(estimatedMinutes / 60 * 10) / 10}h`;
+                              const result = estimatedMinutes < 60 ? `${estimatedMinutes} min` : `${Math.round(estimatedMinutes / 60 * 10) / 10}h`;
+                              
+                              console.log('%c[RED DEBUG] Final calculation:', 'color: red; font-weight: bold', {
+                                pending,
+                                averageRate,
+                                estimatedMinutes,
+                                result
+                              });
+                              
+                              return result;
                             })()}
                           </div>
                         </div>
