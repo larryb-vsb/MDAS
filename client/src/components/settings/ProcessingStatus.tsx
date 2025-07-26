@@ -112,7 +112,8 @@ const MultiColorGauge = ({
   // Calculate scale to ensure 25% whitespace: X = peak / 0.75
   const adjustedMaxScale = Math.max(peakValue / 0.75, maxScale);
   const currentPercentage = Math.min((currentSpeed / adjustedMaxScale) * 100, 100);
-  const peakPercentage = Math.min((peakValue / adjustedMaxScale) * 100, 100);
+  // Ensure peak is exactly at 75% by using consistent calculation
+  const peakPercentage = peakValue > 0 ? 75 : 0;
   
   // Calculate percentages for each record type when showing types
   const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
