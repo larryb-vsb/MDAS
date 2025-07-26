@@ -106,16 +106,19 @@ export default function Dashboard() {
   // Merge merchants mutation
   const mergeMutation = useMutation({
     mutationFn: async ({ targetMerchantId, sourceMerchantIds }: { targetMerchantId: string; sourceMerchantIds: string[] }) => {
-      const response = await apiRequest('POST', `/api/merchants/merge`, {
-        targetMerchantId, 
-        sourceMerchantIds
+      const response = await apiRequest(`/api/merchants/merge`, {
+        method: 'POST',
+        body: {
+          targetMerchantId, 
+          sourceMerchantIds
+        }
       });
-      return await response.json();
+      return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Merchants merged successfully",
-        description: `Merged ${data.merchantsRemoved} merchants into ${data.targetMerchant?.name || 'target merchant'}. Transferred ${data.transactionsTransferred} transactions.`,
+        description: `Merged ${data.merchantsRemoved || 0} merchants into ${data.targetMerchant?.name || 'target merchant'}. Transferred ${data.transactionsTransferred || 0} transactions.`,
       });
       setSelectedMerchants([]);
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });

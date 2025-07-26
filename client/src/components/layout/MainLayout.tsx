@@ -105,10 +105,17 @@ const navItems = [
 ];
 
 function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    console.log(`[NAV] Clicking ${label} -> ${href}`, e);
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <Link 
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
         isActive ? "text-white bg-gray-700" : "text-gray-300 hover:bg-gray-700 hover:text-white"
