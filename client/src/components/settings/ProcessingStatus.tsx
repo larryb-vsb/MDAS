@@ -733,23 +733,6 @@ export default function ProcessingStatus() {
                       <div className="text-xs text-muted-foreground mt-1">
                         {performanceKpis?.hasData ? `(${performanceKpis.timePeriod})` : '(no data)'}
                       </div>
-                      
-                      {/* Scale labels with 10% headroom for Records gauge */}
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>0</span>
-                        <span>{Math.round((Math.max(recordsPerMinute, 125) * 1.1) / 2)}</span>
-                        <span>{Math.round(Math.max(recordsPerMinute, 125) * 1.1)}</span>
-                      </div>
-                      
-                      {/* DEBUG: Temporary debug values display for Records */}
-                      <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
-                        <div className="font-semibold">Records Debug Values:</div>
-                        <div>Current: {recordsPerMinute}/min</div>
-                        <div>Peak (10min): {peakRecordsSpeed}/min</div>
-                        <div>Base Scale: {Math.max(recordsPerMinute, 125)}</div>
-                        <div>Scale + 10%: {Math.round(Math.max(recordsPerMinute, 125) * 1.1)}</div>
-                        <div>Peak Position: {peakRecordsSpeed > 0 ? Math.round((peakRecordsSpeed / (Math.max(recordsPerMinute, 125) * 1.1)) * 100) : 0}%</div>
-                      </div>
                     </>
                   );
                 })()}
@@ -817,13 +800,32 @@ export default function ProcessingStatus() {
                     } else {
                       // Fallback to single color gauge
                       return (
-                        <TransactionSpeedGauge 
-                          currentSpeed={recordsPerMinute}
-                          maxScale={Math.max(recordsPerMinute, 600)}
-                          peakValue={peakTxnSpeed * 60}
-                          title="Records"
-                          unit="/min"
-                        />
+                        <div>
+                          <TransactionSpeedGauge 
+                            currentSpeed={recordsPerMinute}
+                            maxScale={Math.max(recordsPerMinute, 600)}
+                            peakValue={peakTxnSpeed * 60}
+                            title="Records"
+                            unit="/min"
+                          />
+                          
+                          {/* Scale labels with 10% headroom for Records gauge */}
+                          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>0</span>
+                            <span>{Math.round((Math.max(recordsPerMinute, 600) * 1.1) / 2)}</span>
+                            <span>{Math.round(Math.max(recordsPerMinute, 600) * 1.1)}</span>
+                          </div>
+                          
+                          {/* DEBUG: Temporary debug values display for Records */}
+                          <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
+                            <div className="font-semibold">Records Debug Values:</div>
+                            <div>Current: {recordsPerMinute}/min</div>
+                            <div>Peak (10min): {peakTxnSpeed * 60}/min</div>
+                            <div>Base Scale: {Math.max(recordsPerMinute, 600)}</div>
+                            <div>Scale + 10%: {Math.round(Math.max(recordsPerMinute, 600) * 1.1)}</div>
+                            <div>Peak Position: {peakTxnSpeed > 0 ? Math.round(((peakTxnSpeed * 60) / (Math.max(recordsPerMinute, 600) * 1.1)) * 100) : 0}%</div>
+                          </div>
+                        </div>
                       );
                     }
                   })()}
