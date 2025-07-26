@@ -1352,28 +1352,61 @@ export default function TddfPage() {
 
       {/* Records Table with Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-              <TabsTrigger value="dt" className="flex items-center gap-1 text-xs sm:text-sm">
-                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></span>
-                <span className="hidden sm:inline">DT Records</span>
-                <span className="sm:hidden">DT</span>
-              </TabsTrigger>
-              <TabsTrigger value="bh" className="flex items-center gap-1 text-xs sm:text-sm">
-                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></span>
-                <span className="hidden sm:inline">BH Records</span>
-                <span className="sm:hidden">BH</span>
-              </TabsTrigger>
-              <TabsTrigger value="p1" className="flex items-center gap-1 text-xs sm:text-sm">
+            <div className="flex flex-wrap gap-2 items-center border-b">
+              {/* Keep DT and BH as tab buttons */}
+              <TabsList className="grid grid-cols-2">
+                <TabsTrigger value="dt" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></span>
+                  <span className="hidden sm:inline">DT Records</span>
+                  <span className="sm:hidden">DT</span>
+                </TabsTrigger>
+                <TabsTrigger value="bh" className="flex items-center gap-1 text-xs sm:text-sm">
+                  <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></span>
+                  <span className="hidden sm:inline">BH Records</span>
+                  <span className="sm:hidden">BH</span>
+                </TabsTrigger>
+              </TabsList>
+
+              {/* P1/P2 Pulldown with orange dot */}
+              <div className="flex items-center gap-1">
                 <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-orange-500"></span>
-                <span className="hidden sm:inline">P1 Records</span>
-                <span className="sm:hidden">P1</span>
-              </TabsTrigger>
-              <TabsTrigger value="other" className="flex items-center gap-1 text-xs sm:text-sm">
-                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-500"></span>
-                <span className="hidden sm:inline">Other</span>
-                <span className="sm:hidden">Oth</span>
-              </TabsTrigger>
-            </TabsList>
+                <Select 
+                  value={activeTab.startsWith('p') ? activeTab : "p1"} 
+                  onValueChange={setActiveTab}
+                >
+                  <SelectTrigger className="w-32 h-9 text-xs sm:text-sm">
+                    <SelectValue placeholder="P1/P2" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="p1">P1 Records</SelectItem>
+                    <SelectItem value="p2">P2 Records</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Others Pulldown with gray dot */}
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-500"></span>
+                <Select 
+                  value={activeTab.startsWith('other') || ['e1', 'g2', 'ad', 'dr', 'ck', 'lg', 'ge'].includes(activeTab) ? activeTab : "other"} 
+                  onValueChange={setActiveTab}
+                >
+                  <SelectTrigger className="w-32 h-9 text-xs sm:text-sm">
+                    <SelectValue placeholder="Others" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="other">All Others</SelectItem>
+                    <SelectItem value="e1">E1 Records</SelectItem>
+                    <SelectItem value="g2">G2 Records</SelectItem>
+                    <SelectItem value="ad">AD Records</SelectItem>
+                    <SelectItem value="dr">DR Records</SelectItem>
+                    <SelectItem value="ck">CK Records</SelectItem>
+                    <SelectItem value="lg">LG Records</SelectItem>
+                    <SelectItem value="ge">GE Records</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
         <TabsContent value="dt" className="mt-6">
           <Card>
@@ -1556,6 +1589,110 @@ export default function TddfPage() {
 
         <TabsContent value="p1" className="mt-6">
           <UnifiedPurchasingExtensionsTable />
+        </TabsContent>
+
+        <TabsContent value="p2" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>P2 Records (Coming Soon)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                P2 Purchasing Card Extension records functionality will be implemented here
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="e1" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>E1 Records ({2224})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                E1 Merchant General Data 2 Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="g2" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>G2 Records ({5825})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                G2 Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ad" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>AD Records ({21})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                AD Merchant Adjustment Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="dr" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>DR Records ({42})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                DR Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ck" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>CK Records ({0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                CK Electronic Check Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="lg" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>LG Records ({0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                LG Lodge Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ge" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>GE Records ({0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                GE Extension records display coming soon
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="other" className="mt-6">
