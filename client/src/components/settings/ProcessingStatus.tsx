@@ -736,38 +736,38 @@ export default function ProcessingStatus() {
                               />
                             )}
                             
-                            {/* Peak indicator bar for TDDF gauge with 25% whitespace - always visible */}
+                            {/* Peak indicator bar for TDDF gauge with 25% whitespace - using database peak */}
                             <div 
                               className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-                              style={{ left: `${Math.min((peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100, 100)}%` }}
-                              title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
+                              style={{ left: `${Math.min((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100, 100)}%` }}
+                              title={`Peak: ${recordsPeakFromDatabase} records/min over last 10 min (database)`}
                             />
                             
                             {/* Hover tooltip for TDDF gauge */}
                             <div 
                               className="absolute inset-0 cursor-pointer"
                               title={colorBreakdown ? 
-                                `TDDF: ${tddfPerMinute}/min\nDT: ${dtProcessed}/min\nBH: ${bhProcessed}/min\nP1: ${p1Processed}/min\nOther: ${combinedOtherProcessed}/min\nSkip: ${totalSkipped}/min${peakTddfSpeed > 0 ? `\nPeak: ${peakTddfSpeed}/min (last 10 min)` : ''}` :
-                                `TDDF: ${tddfPerMinute}/min${peakTddfSpeed > 0 ? `\nPeak: ${peakTddfSpeed}/min (last 10 min)` : ''}`
+                                `TDDF: ${tddfPerMinute}/min\nDT: ${dtProcessed}/min\nBH: ${bhProcessed}/min\nP1: ${p1Processed}/min\nOther: ${combinedOtherProcessed}/min\nSkip: ${totalSkipped}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}` :
+                                `TDDF: ${tddfPerMinute}/min${recordsPeakFromDatabase > 0 ? `\nPeak: ${recordsPeakFromDatabase}/min (last 10 min)` : ''}`
                               }
                             />
                           </div>
                           
-                          {/* Scale labels with 25% whitespace based on peak */}
+                          {/* Scale labels with 25% whitespace based on database peak */}
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>0</span>
-                            <span>{Math.round((Math.max(peakTddfSpeed / 0.75, 125)) / 2)}</span>
-                            <span>{Math.round(Math.max(peakTddfSpeed / 0.75, 125))}</span>
+                            <span>{Math.round((Math.max(recordsPeakFromDatabase / 0.75, 125)) / 2)}</span>
+                            <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 125))}</span>
                           </div>
                           
-                          {/* DEBUG: Temporary debug values display */}
+                          {/* DEBUG: TDDF gauge debug using database peak */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">TDDF Debug Values:</div>
                             <div>Current: {tddfPerMinute}/min</div>
-                            <div>Peak (10min): {peakTddfSpeed}/min</div>
-                            <div>Total Scale: {Math.max(peakTddfSpeed / 0.75, 125)} (Peak/0.75)</div>
-                            <div>Peak Position: {peakTddfSpeed === 0 ? 0 : Math.round((peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100)}% (should be 75%)</div>
-                            <div>Whitespace: {peakTddfSpeed === 0 ? 0 : Math.round(100 - (peakTddfSpeed / Math.max(peakTddfSpeed / 0.75, 125)) * 100)}% (should be 25%)</div>
+                            <div>Peak (10min): {recordsPeakFromDatabase}/min (direct DB)</div>
+                            <div>Total Scale: {Math.max(recordsPeakFromDatabase / 0.75, 125)} (Peak/0.75)</div>
+                            <div>Peak Position: {recordsPeakFromDatabase === 0 ? 0 : Math.round((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 75%)</div>
+                            <div>Whitespace: {recordsPeakFromDatabase === 0 ? 0 : Math.round(100 - (recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 25%)</div>
                           </div>
                         </div>
                       </div>
