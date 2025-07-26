@@ -41,8 +41,13 @@ export default function OrphanTerminalViewPage() {
   const [detailsRecord, setDetailsRecord] = useState<TddfTransaction | null>(null);
   
   // Get referrer from URL params to handle back navigation
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const urlParams = new URLSearchParams(window.location.search);
   const referrer = urlParams.get('referrer');
+  
+  // Debug logging
+  console.log('[BACK NAV DEBUG] Current location:', location);
+  console.log('[BACK NAV DEBUG] window.location.search:', window.location.search);
+  console.log('[BACK NAV DEBUG] Referrer:', referrer);
   
   const getBackUrl = () => {
     switch (referrer) {
