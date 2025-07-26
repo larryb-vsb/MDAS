@@ -107,19 +107,27 @@ export default function TddfMerchantsTable() {
   });
 
   const { data, isLoading, error, refetch } = useQuery<TddfMerchantsResponse>({
-    queryKey: ["/api/tddf/merchants", { 
-      page: currentPage, 
-      limit: itemsPerPage, 
-      search, 
-      sortBy, 
-      sortOrder,
-      minAmount,
-      maxAmount,
-      minTransactions,
-      maxTransactions,
-      minTerminals,
-      maxTerminals
-    }],
+    queryKey: ["/api/tddf/merchants", currentPage, itemsPerPage, search, sortBy, sortOrder, minAmount, maxAmount, minTransactions, maxTransactions, minTerminals, maxTerminals],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
+      if (search) params.append('search', search);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+      if (minAmount) params.append('minAmount', minAmount);
+      if (maxAmount) params.append('maxAmount', maxAmount);
+      if (minTransactions) params.append('minTransactions', minTransactions);
+      if (maxTransactions) params.append('maxTransactions', maxTransactions);
+      if (minTerminals) params.append('minTerminals', minTerminals);
+      if (maxTerminals) params.append('maxTerminals', maxTerminals);
+      
+      const response = await fetch(`/api/tddf/merchants?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch TDDF merchants');
+      }
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

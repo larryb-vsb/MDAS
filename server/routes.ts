@@ -5166,7 +5166,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit,
         search: req.query.search,
         sortBy: req.query.sortBy,
-        sortOrder: req.query.sortOrder
+        sortOrder: req.query.sortOrder,
+        minAmount: req.query.minAmount,
+        maxAmount: req.query.maxAmount,
+        minTransactions: req.query.minTransactions,
+        maxTransactions: req.query.maxTransactions,
+        minTerminals: req.query.minTerminals,
+        maxTerminals: req.query.maxTerminals
       });
       
       const result = await storage.getTddfMerchants({
@@ -5174,7 +5180,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit,
         search: req.query.search as string,
         sortBy: req.query.sortBy as string,
-        sortOrder: req.query.sortOrder as string
+        sortOrder: req.query.sortOrder as string,
+        minAmount: req.query.minAmount as string,
+        maxAmount: req.query.maxAmount as string,
+        minTransactions: req.query.minTransactions as string,
+        maxTransactions: req.query.maxTransactions as string,
+        minTerminals: req.query.minTerminals as string,
+        maxTerminals: req.query.maxTerminals as string
       });
       
       res.json(result);
