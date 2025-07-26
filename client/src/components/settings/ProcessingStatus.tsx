@@ -485,7 +485,7 @@ export default function ProcessingStatus() {
 
   // Get peak value directly from performance metrics database (no calculations)
   const recordsPeakFromDatabase = useMemo(() => {
-    if (!chartData?.data || chartData.data.length === 0) return 0;
+    if (!chartData || !Array.isArray(chartData.data) || chartData.data.length === 0) return 0;
     
     // Find the maximum total records value directly from performance database
     const recordTotals = chartData.data.map((item: any) => {
@@ -876,8 +876,10 @@ export default function ProcessingStatus() {
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
                             <div>Peak (10min): {recordsPeakFromDatabase} (verify)</div>
-                            <div>Chart Data Points: {chartData?.data?.length || 0}</div>
-                            <div>Using Chart Peak: {recordsPeakFromDatabase === 3292 ? 'YES' : 'NO'}</div>
+                            <div>Chart Data Loaded: {chartData ? 'YES' : 'NO'}</div>
+                            <div>Chart Data Points: {Array.isArray(chartData?.data) ? chartData.data.length : 'Not Array'}</div>
+                            <div>Chart Data Structure: {chartData ? JSON.stringify(Object.keys(chartData)) : 'null'}</div>
+                            <div>Local Peak (old): {peakRecordsSpeed}</div>
                           </div>
                         </div>
                       );
