@@ -112,7 +112,7 @@ const MultiColorGauge = ({
   // Add 25% headroom to maxScale
   const adjustedMaxScale = maxScale * 1.25;
   const currentPercentage = Math.min((currentSpeed / adjustedMaxScale) * 100, 100);
-  const peakPercentage = Math.min((Math.max(peakValue, 1) / adjustedMaxScale) * 100, 100); // Always show at least 1% for visibility
+  const peakPercentage = Math.min((peakValue / adjustedMaxScale) * 100, 100);
   
   // Calculate percentages for each record type when showing types
   const totalRecords = recordTypes.dt + recordTypes.bh + recordTypes.p1 + recordTypes.other;
@@ -695,7 +695,7 @@ export default function ProcessingStatus() {
                             {/* Peak indicator bar for TDDF gauge with 25% headroom - always visible */}
                             <div 
                               className="absolute top-0 h-full w-0.5 bg-black opacity-80 z-10"
-                              style={{ left: `${Math.min((Math.max(peakTddfSpeed, 1) / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100, 100)}%` }}
+                              style={{ left: `${Math.min((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100, 100)}%` }}
                               title={`Peak: ${peakTddfSpeed} TDDF/min over last 10 min`}
                             />
                             
@@ -723,7 +723,7 @@ export default function ProcessingStatus() {
                             <div>Peak (10min): {tddfPerMinute === 0 ? 0 : peakTddfSpeed}/min</div>
                             <div>Base Scale: {Math.max(peakTddfSpeed, 125)}</div>
                             <div>Scale + 25%: {Math.round(Math.max(peakTddfSpeed, 125) * 1.25)}</div>
-                            <div>Peak Position: {(tddfPerMinute === 0 || peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100)}%</div>
+                            <div>Peak Position: {(peakTddfSpeed === 0) ? 0 : Math.round((peakTddfSpeed / (Math.max(peakTddfSpeed, 125) * 1.25)) * 100)}%</div>
                           </div>
                         </div>
                       </div>
