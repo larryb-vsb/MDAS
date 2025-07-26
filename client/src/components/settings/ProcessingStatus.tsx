@@ -871,11 +871,13 @@ export default function ProcessingStatus() {
                             <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 600))}</span>
                           </div>
                           
-                          {/* DEBUG: Temporary debug values display for Records */}
+                          {/* DEBUG: Chart peak verification */}
                           <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
                             <div className="font-semibold">Records Debug Values:</div>
                             <div>Current: {recordsPerMinute}/min</div>
                             <div>Peak (10min): {recordsPeakFromDatabase} (verify)</div>
+                            <div>Chart Data Points: {chartData?.data?.length || 0}</div>
+                            <div>Using Chart Peak: {recordsPeakFromDatabase === 3292 ? 'YES' : 'NO'}</div>
                           </div>
                         </div>
                       );
