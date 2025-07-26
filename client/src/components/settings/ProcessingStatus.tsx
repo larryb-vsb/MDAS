@@ -1228,9 +1228,28 @@ export default function ProcessingStatus() {
                         <div className="font-semibold text-purple-700">
                           {(() => {
                             const pending = (tddfRawStatus as any)?.pending || 0;
-                            if ((realTimeStats?.tddfRecordsPerSecond || 0) <= 0 || pending <= 0) return '0s';
-                            const estimatedSeconds = pending / (realTimeStats?.tddfRecordsPerSecond || 1);
-                            return formatQueueEstimate(estimatedSeconds);
+                            if (pending <= 0) return '0 min';
+                            
+                            // Use same averaging method as brown box
+                            const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
+                            const chartRate = latestChartPoint ? 
+                              (latestChartPoint.dtRecords + latestChartPoint.bhRecords + latestChartPoint.p1Records + latestChartPoint.otherRecords + latestChartPoint.skippedRecords) : 0;
+                            const peakRate = recordsPeakFromDatabase || 0;
+                            const hourlyRate = Math.round(peakRate * 0.8);
+                            const dailyRate = Math.round(peakRate * 0.6);
+                            
+                            // Average of chart rate, hourly rate, and daily rate for best estimate
+                            const averageRate = Math.round((chartRate + hourlyRate + dailyRate) / 3);
+                            
+                            if (averageRate <= 0) return '0 min';
+                            
+                            const estimatedMinutes = pending / averageRate;
+                            if (estimatedMinutes < 60) {
+                              return `${Math.round(estimatedMinutes)} min`;
+                            } else {
+                              const hours = estimatedMinutes / 60;
+                              return `${hours.toFixed(1)}h`;
+                            }
                           })()}
                         </div>
                         <div className="text-purple-600">Est. Time</div>
