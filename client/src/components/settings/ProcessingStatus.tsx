@@ -778,27 +778,7 @@ export default function ProcessingStatus() {
                             <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 125))}</span>
                           </div>
                           
-                          {/* DEBUG: TDDF gauge debug using database peak */}
-                          <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
-                            <div className="font-semibold">TDDF Debug Values:</div>
-                            <div>Current: {tddfPerMinute}/min</div>
-                            <div>Peak (10min): {recordsPeakFromDatabase}/min (direct DB)</div>
-                            <div>Total Scale: {Math.max(recordsPeakFromDatabase / 0.75, 125)} (Peak/0.75)</div>
-                            <div>Peak Position: {recordsPeakFromDatabase === 0 ? 0 : Math.round((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 75%)</div>
-                            <div>Whitespace: {recordsPeakFromDatabase === 0 ? 0 : Math.round(100 - (recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 25%)</div>
-                            <div className="text-xs text-gray-600">
-                              Total Processing Rate: {totalProcessingRate}/min (from chart)
-                            </div>
-                            <div className={`font-semibold ${showColorBreakdown ? 'text-green-600' : 'text-red-600'}`}>
-                              Gauge Display: {showColorBreakdown ? 'ACTIVE (≥ 10/min chart data)' : 'ZERO (< 10/min threshold)'}
-                            </div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              Chart Sync: DT:{rawDtProcessed}, BH:{rawBhProcessed}, P1:{rawP1Processed}, Other:{rawOtherProcessed}, Skip:{rawTotalSkipped}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Data Source: Same as chart below (performance-chart-history)
-                            </div>
-                          </div>
+
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
@@ -883,14 +863,7 @@ export default function ProcessingStatus() {
                             <span>{Math.round(Math.max(recordsPeakFromDatabase / 0.75, 600))}</span>
                           </div>
                           
-                          {/* DEBUG: Records peak verification */}
-                          <div className="text-xs bg-gray-100 p-2 mt-1 rounded border">
-                            <div className="font-semibold">Records Debug Values:</div>
-                            <div>Current: {recordsPerMinute}/min</div>
-                            <div>Peak (10min): {recordsPeakFromDatabase} (direct DB)</div>
-                            <div>Database Peak Loaded: {recordsPeakData ? 'YES' : 'NO'}</div>
-                            <div>Local Peak (old): {peakRecordsSpeed}</div>
-                          </div>
+
                         </div>
                       );
                     }
