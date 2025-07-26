@@ -6367,6 +6367,12 @@ export class DatabaseStorage implements IStorage {
     search?: string;
     sortBy?: string;
     sortOrder?: string;
+    minAmount?: string;
+    maxAmount?: string;
+    minTransactions?: string;
+    maxTransactions?: string;
+    minTerminals?: string;
+    maxTerminals?: string;
   }): Promise<{
     data: Array<{
       merchantName: string;
@@ -6394,24 +6400,61 @@ export class DatabaseStorage implements IStorage {
       const tddfRecordsTableName = getTableName('tddf_records');
       const terminalsTableName = getTableName('terminals');
 
-      // Build search condition
-      let searchCondition = '';
+      // Build search and filter conditions
+      const conditions: string[] = [];
       const params: any[] = [];
       let paramIndex = 1;
 
       if (options.search && options.search.trim() !== '') {
         const searchTerm = `%${options.search.trim().toLowerCase()}%`;
         console.log('[SEARCH DEBUG] Search term:', options.search, '-> SQL term:', searchTerm);
-        searchCondition = `
-          WHERE (
-            LOWER(merchant_name) LIKE $${paramIndex} OR 
-            LOWER(mcc_code) LIKE $${paramIndex} OR 
-            LOWER(merchant_account_number) LIKE $${paramIndex}
-          )
-        `;
+        conditions.push(`(
+          LOWER(merchant_name) LIKE $${paramIndex} OR 
+          LOWER(mcc_code) LIKE $${paramIndex} OR 
+          LOWER(merchant_account_number) LIKE $${paramIndex}
+        )`);
         params.push(searchTerm);
         paramIndex++;
       }
+
+      // Add advanced filtering conditions
+      if (options.minAmount && options.minAmount.trim() !== '') {
+        conditions.push(`total_amount >= $${paramIndex}`);
+        params.push(parseFloat(options.minAmount));
+        paramIndex++;
+      }
+
+      if (options.maxAmount && options.maxAmount.trim() !== '') {
+        conditions.push(`total_amount <= $${paramIndex}`);
+        params.push(parseFloat(options.maxAmount));
+        paramIndex++;
+      }
+
+      if (options.minTransactions && options.minTransactions.trim() !== '') {
+        conditions.push(`total_transactions >= $${paramIndex}`);
+        params.push(parseInt(options.minTransactions));
+        paramIndex++;
+      }
+
+      if (options.maxTransactions && options.maxTransactions.trim() !== '') {
+        conditions.push(`total_transactions <= $${paramIndex}`);
+        params.push(parseInt(options.maxTransactions));
+        paramIndex++;
+      }
+
+      if (options.minTerminals && options.minTerminals.trim() !== '') {
+        conditions.push(`terminal_count >= $${paramIndex}`);
+        params.push(parseInt(options.minTerminals));
+        paramIndex++;
+      }
+
+      if (options.maxTerminals && options.maxTerminals.trim() !== '') {
+        conditions.push(`terminal_count <= $${paramIndex}`);
+        params.push(parseInt(options.maxTerminals));
+        paramIndex++;
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       // Build sort condition
       let sortCondition = 'ORDER BY total_transactions DESC';
@@ -6479,14 +6522,14 @@ export class DatabaseStorage implements IStorage {
           ma.last_transaction_date,
           ma.pos_relative_code
         FROM merchant_aggregates ma
-        ${searchCondition}
+        ${whereClause}
         ${sortCondition}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `;
 
       params.push(limit, offset);
 
-      // Count query for pagination
+      // Count query for pagination - must match the same structure as data query for filtering
       const countQuery = `
         WITH merchant_aggregates AS (
           SELECT 
@@ -6494,10 +6537,16 @@ export class DatabaseStorage implements IStorage {
             merchant_account_number,
             mcc_code,
             transaction_type_identifier,
+            COUNT(*) as total_transactions,
+            SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+            MAX(transaction_date) as last_transaction_date,
+            COUNT(DISTINCT terminal_id) as terminal_count,
             SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
           FROM "${tddfRecordsTableName}"
           WHERE merchant_name IS NOT NULL 
             AND merchant_account_number IS NOT NULL
+            AND terminal_id IS NOT NULL 
+            AND terminal_id != ''
           GROUP BY 
             merchant_name, 
             merchant_account_number, 
@@ -6507,10 +6556,11 @@ export class DatabaseStorage implements IStorage {
         )
         SELECT COUNT(*) as total
         FROM merchant_aggregates ma
-        ${searchCondition}
+        ${whereClause}
       `;
 
-      const countParams = options.search && options.search.trim() !== '' ? [`%${options.search.trim().toLowerCase()}%`] : [];
+      // Use the same parameters for count query as data query (excluding LIMIT/OFFSET)
+      const countParams = params.slice(0, -2);
 
       // Execute queries
       const [dataResult, countResult] = await Promise.all([

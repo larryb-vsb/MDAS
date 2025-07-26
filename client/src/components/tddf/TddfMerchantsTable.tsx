@@ -70,6 +70,15 @@ export default function TddfMerchantsTable() {
   const [sortBy, setSortBy] = useState("totalTransactions");
   const [sortOrder, setSortOrder] = useState("desc");
   const [detailsRecord, setDetailsRecord] = useState<TddfMerchant | null>(null);
+  
+  // Advanced filtering states
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [minTransactions, setMinTransactions] = useState("");
+  const [maxTransactions, setMaxTransactions] = useState("");
+  const [minTerminals, setMinTerminals] = useState("");
+  const [maxTerminals, setMaxTerminals] = useState("");
 
   const { data, isLoading, error, refetch } = useQuery<TddfMerchantsResponse>({
     queryKey: ["/api/tddf/merchants", { 
@@ -77,7 +86,13 @@ export default function TddfMerchantsTable() {
       limit: itemsPerPage, 
       search, 
       sortBy, 
-      sortOrder 
+      sortOrder,
+      minAmount,
+      maxAmount,
+      minTransactions,
+      maxTransactions,
+      minTerminals,
+      maxTerminals
     }],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -146,42 +161,232 @@ export default function TddfMerchantsTable() {
       </CardHeader>
       <CardContent>
         {/* Search and Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search merchants, MCC code, account number..."
-                value={search}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10"
-              />
+        <div className="flex flex-col gap-4 mb-6">
+          {/* Primary Search Bar */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search merchants, MCC code, account number..."
+                  value={search}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant={showAdvancedFilters ? "default" : "outline"}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="whitespace-nowrap"
+              >
+                Advanced Filters
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearch("");
+                  setSortBy("totalTransactions");
+                  setSortOrder("desc");
+                  setCurrentPage(1);
+                  setMinAmount("");
+                  setMaxAmount("");
+                  setMinTransactions("");
+                  setMaxTransactions("");
+                  setMinTerminals("");
+                  setMaxTerminals("");
+                  setShowAdvancedFilters(false);
+                }}
+                className="whitespace-nowrap"
+              >
+                Clear All
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="merchantName">Merchant Name</SelectItem>
-                <SelectItem value="merchantAccountNumber">Account Number</SelectItem>
-                <SelectItem value="mccCode">MCC Code</SelectItem>
-                <SelectItem value="totalTransactions">Total Transactions</SelectItem>
-                <SelectItem value="totalAmount">Total Amount</SelectItem>
-                <SelectItem value="lastTransactionDate">Last Transaction</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asc">Asc</SelectItem>
-                <SelectItem value="desc">Desc</SelectItem>
-              </SelectContent>
-            </Select>
+          
+          {/* Sorting Controls */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex gap-2 flex-wrap">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="merchantName">Merchant Name</SelectItem>
+                  <SelectItem value="merchantAccountNumber">Account Number</SelectItem>
+                  <SelectItem value="mccCode">MCC Code</SelectItem>
+                  <SelectItem value="transactionTypeIdentifier">Transaction Type</SelectItem>
+                  <SelectItem value="terminalCount">Terminal Count</SelectItem>
+                  <SelectItem value="totalTransactions">Total Transactions</SelectItem>
+                  <SelectItem value="totalAmount">Total Amount</SelectItem>
+                  <SelectItem value="lastTransactionDate">Last Transaction</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">
+                    {sortBy === 'merchantName' || sortBy === 'merchantAccountNumber' || sortBy === 'mccCode' || sortBy === 'transactionTypeIdentifier' 
+                      ? 'A to Z' 
+                      : sortBy === 'lastTransactionDate' 
+                      ? 'Oldest First' 
+                      : 'Lowest First'}
+                  </SelectItem>
+                  <SelectItem value="desc">
+                    {sortBy === 'merchantName' || sortBy === 'merchantAccountNumber' || sortBy === 'mccCode' || sortBy === 'transactionTypeIdentifier' 
+                      ? 'Z to A' 
+                      : sortBy === 'lastTransactionDate' 
+                      ? 'Newest First' 
+                      : 'Highest First'}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Quick Sort Buttons */}
+            <div className="flex gap-1 flex-wrap">
+              <Button 
+                variant={sortBy === 'merchantName' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setSortBy('merchantName');
+                  setSortOrder(sortBy === 'merchantName' && sortOrder === 'asc' ? 'desc' : 'asc');
+                }}
+              >
+                Name {sortBy === 'merchantName' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </Button>
+              <Button 
+                variant={sortBy === 'totalTransactions' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setSortBy('totalTransactions');
+                  setSortOrder(sortBy === 'totalTransactions' && sortOrder === 'desc' ? 'asc' : 'desc');
+                }}
+              >
+                Transactions {sortBy === 'totalTransactions' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </Button>
+              <Button 
+                variant={sortBy === 'totalAmount' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setSortBy('totalAmount');
+                  setSortOrder(sortBy === 'totalAmount' && sortOrder === 'desc' ? 'asc' : 'desc');
+                }}
+              >
+                Amount {sortBy === 'totalAmount' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </Button>
+              <Button 
+                variant={sortBy === 'terminalCount' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setSortBy('terminalCount');
+                  setSortOrder(sortBy === 'terminalCount' && sortOrder === 'desc' ? 'asc' : 'desc');
+                }}
+              >
+                Terminals {sortBy === 'terminalCount' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </Button>
+            </div>
           </div>
+          
+          {/* Advanced Filters Panel */}
+          {showAdvancedFilters && (
+            <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground">Advanced Filtering Options</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Amount Range Filter */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Total Amount Range</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Min $"
+                      value={minAmount}
+                      onChange={(e) => setMinAmount(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                    <Input
+                      placeholder="Max $"
+                      value={maxAmount}
+                      onChange={(e) => setMaxAmount(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                  </div>
+                </div>
+                
+                {/* Transaction Count Range Filter */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Transaction Count Range</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Min"
+                      value={minTransactions}
+                      onChange={(e) => setMinTransactions(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                    <Input
+                      placeholder="Max"
+                      value={maxTransactions}
+                      onChange={(e) => setMaxTransactions(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                  </div>
+                </div>
+                
+                {/* Terminal Count Range Filter */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Terminal Count Range</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Min"
+                      value={minTerminals}
+                      onChange={(e) => setMinTerminals(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                    <Input
+                      placeholder="Max"
+                      value={maxTerminals}
+                      onChange={(e) => setMaxTerminals(e.target.value)}
+                      className="text-xs"
+                      type="number"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Apply Advanced Filters Button */}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMinAmount("");
+                    setMaxAmount("");
+                    setMinTransactions("");
+                    setMaxTransactions("");
+                    setMinTerminals("");
+                    setMaxTerminals("");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setCurrentPage(1); // Reset to first page when applying filters
+                  }}
+                >
+                  Apply Filters
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -203,14 +408,118 @@ export default function TddfMerchantsTable() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    <th className="text-left p-3">Merchant Name</th>
-                    <th className="text-left p-3">Account Number</th>
-                    <th className="text-left p-3">MCC Code</th>
-                    <th className="text-left p-3">Transaction Type</th>
-                    <th className="text-left p-3">Terminal Count</th>
-                    <th className="text-left p-3">Total Transactions</th>
-                    <th className="text-left p-3">Total Amount</th>
-                    <th className="text-left p-3">Last Transaction</th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('merchantName');
+                          setSortOrder(sortBy === 'merchantName' && sortOrder === 'asc' ? 'desc' : 'asc');
+                        }}
+                      >
+                        Merchant Name
+                        {sortBy === 'merchantName' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('merchantAccountNumber');
+                          setSortOrder(sortBy === 'merchantAccountNumber' && sortOrder === 'asc' ? 'desc' : 'asc');
+                        }}
+                      >
+                        Account Number
+                        {sortBy === 'merchantAccountNumber' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('mccCode');
+                          setSortOrder(sortBy === 'mccCode' && sortOrder === 'asc' ? 'desc' : 'asc');
+                        }}
+                      >
+                        MCC Code
+                        {sortBy === 'mccCode' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('transactionTypeIdentifier');
+                          setSortOrder(sortBy === 'transactionTypeIdentifier' && sortOrder === 'asc' ? 'desc' : 'asc');
+                        }}
+                      >
+                        Transaction Type
+                        {sortBy === 'transactionTypeIdentifier' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('terminalCount');
+                          setSortOrder(sortBy === 'terminalCount' && sortOrder === 'desc' ? 'asc' : 'desc');
+                        }}
+                      >
+                        Terminal Count
+                        {sortBy === 'terminalCount' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('totalTransactions');
+                          setSortOrder(sortBy === 'totalTransactions' && sortOrder === 'desc' ? 'asc' : 'desc');
+                        }}
+                      >
+                        Total Transactions
+                        {sortBy === 'totalTransactions' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('totalAmount');
+                          setSortOrder(sortBy === 'totalAmount' && sortOrder === 'desc' ? 'asc' : 'desc');
+                        }}
+                      >
+                        Total Amount
+                        {sortBy === 'totalAmount' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button 
+                        className="flex items-center gap-1 hover:text-primary font-medium"
+                        onClick={() => {
+                          setSortBy('lastTransactionDate');
+                          setSortOrder(sortBy === 'lastTransactionDate' && sortOrder === 'desc' ? 'asc' : 'desc');
+                        }}
+                      >
+                        Last Transaction
+                        {sortBy === 'lastTransactionDate' && (
+                          <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </button>
+                    </th>
                     <th className="text-left p-3">Actions</th>
                   </tr>
                 </thead>
