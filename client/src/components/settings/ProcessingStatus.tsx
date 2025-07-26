@@ -742,20 +742,29 @@ export default function ProcessingStatus() {
                           <div 
                             className="relative h-3 bg-gray-200 rounded-full overflow-hidden cursor-pointer"
                             title={(() => {
-                              // Create tooltip matching chart breakdown with detailed Others expansion
-                              const lines = [`TDDF: ${tddfPerMinute.toLocaleString()}/min`];
+                              // Get current time for tooltip header
+                              const now = new Date();
+                              const timeStr = now.toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit',
+                                hour12: true,
+                                timeZone: 'America/Chicago'
+                              });
+                              
+                              // Create tooltip with time header and detailed breakdown
+                              const lines = [`${timeStr} - Current Average`];
+                              lines.push(`Total TDDF: ${tddfPerMinute.toLocaleString()} records/min`);
                               lines.push(''); // Empty line for breakdown
                               
-                              // Always show main categories (matching chart display)
-                              lines.push(`DT: ${dtProcessed.toLocaleString()}/min`);
-                              lines.push(`BH: ${bhProcessed.toLocaleString()}/min`); 
-                              lines.push(`P1/P2: ${(p1Processed + p2Processed).toLocaleString()}/min`);
+                              // Main categories with enhanced formatting
+                              lines.push(`🔵 DT: ${dtProcessed.toLocaleString()} records/min`);
+                              lines.push(`🟢 BH: ${bhProcessed.toLocaleString()} records/min`); 
+                              lines.push(`🟠 P1/P2: ${(p1Processed + p2Processed).toLocaleString()} records/min`);
                               
-                              // Enhanced Others breakdown - distribute the "Other" rate across record types
-                              // Use same proportional breakdown as dashboard boxes
+                              // Enhanced Others breakdown with color coding
                               const otherRateTotal = combinedOtherProcessed;
                               if (otherRateTotal > 0) {
-                                lines.push(`Other: ${otherRateTotal.toLocaleString()}/min`);
+                                lines.push(`⚫ Other: ${otherRateTotal.toLocaleString()} records/min`);
                                 
                                 // Add detailed breakdown under Others (indented)
                                 const e1Rate = Math.round(otherRateTotal * 0.5);  // E1 typically dominant
@@ -766,20 +775,20 @@ export default function ProcessingStatus() {
                                 const lgRate = Math.round(otherRateTotal * 0.01); // LG records 
                                 const geRate = 0; // GE rarely processed
                                 
-                                lines.push(`  E1: ${e1Rate}/min`);
-                                lines.push(`  G2: ${g2Rate}/min`);
-                                if (adRate > 0) lines.push(`  AD: ${adRate}/min`);
-                                if (drRate > 0) lines.push(`  DR: ${drRate}/min`);
-                                if (ckRate > 0) lines.push(`  CK: ${ckRate}/min`);
-                                if (lgRate > 0) lines.push(`  LG: ${lgRate}/min`);
-                                if (geRate > 0) lines.push(`  GE: ${geRate}/min`);
+                                lines.push(`  E1: ${e1Rate.toLocaleString()} records/min`);
+                                lines.push(`  G2: ${g2Rate.toLocaleString()} records/min`);
+                                if (adRate > 0) lines.push(`  AD: ${adRate.toLocaleString()} records/min`);
+                                if (drRate > 0) lines.push(`  DR: ${drRate.toLocaleString()} records/min`);
+                                if (ckRate > 0) lines.push(`  CK: ${ckRate.toLocaleString()} records/min`);
+                                if (lgRate > 0) lines.push(`  LG: ${lgRate.toLocaleString()} records/min`);
+                                if (geRate > 0) lines.push(`  GE: ${geRate.toLocaleString()} records/min`);
                               } else {
-                                lines.push(`Other: 0/min`);
+                                lines.push(`⚫ Other: 0 records/min`);
                               }
                               
-                              // Keep Skipped as requested
+                              // Enhanced Skipped section
                               if (totalSkipped > 0) {
-                                lines.push(`Skipped: ${totalSkipped.toLocaleString()}/min`);
+                                lines.push(`🔴 Skipped: ${totalSkipped.toLocaleString()} records/min`);
                               }
                               
                               return lines.join('\n');
