@@ -657,20 +657,34 @@ export default function ProcessingStatus() {
                   const tddfPerMinute = performanceKpis?.hasData ? performanceKpis.tddfPerMinute : 0;
                   const colorBreakdown = performanceKpis?.colorBreakdown;
                   
-                  // Always display last sample color breakdown regardless of processing rate
-                  const dtProcessed = colorBreakdown?.dt?.processed || 0;
-                  const bhProcessed = colorBreakdown?.bh?.processed || 0;
-                  const p1Processed = colorBreakdown?.p1?.processed || 0;
-                  const e1Processed = colorBreakdown?.e1?.processed || 0;
-                  const g2Processed = colorBreakdown?.g2?.processed || 0;
-                  const adProcessed = colorBreakdown?.ad?.processed || 0;
-                  const drProcessed = colorBreakdown?.dr?.processed || 0;
-                  const p2Processed = colorBreakdown?.p2?.processed || 0;
-                  const otherProcessed = colorBreakdown?.other?.processed || 0;
-                  const totalSkipped = colorBreakdown?.totalSkipped || 0;
+                  // Use current sample values but only show colors when there's significant activity
+                  const rawDtProcessed = colorBreakdown?.dt?.processed || 0;
+                  const rawBhProcessed = colorBreakdown?.bh?.processed || 0;
+                  const rawP1Processed = colorBreakdown?.p1?.processed || 0;
+                  const rawE1Processed = colorBreakdown?.e1?.processed || 0;
+                  const rawG2Processed = colorBreakdown?.g2?.processed || 0;
+                  const rawAdProcessed = colorBreakdown?.ad?.processed || 0;
+                  const rawDrProcessed = colorBreakdown?.dr?.processed || 0;
+                  const rawP2Processed = colorBreakdown?.p2?.processed || 0;
+                  const rawOtherProcessed = colorBreakdown?.other?.processed || 0;
+                  const rawTotalSkipped = colorBreakdown?.totalSkipped || 0;
                   
-                  // Calculate total for reference
-                  const totalProcessingRate = dtProcessed + bhProcessed + p1Processed + e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed + totalSkipped;
+                  // Calculate total processing rate from current sample
+                  const totalProcessingRate = rawDtProcessed + rawBhProcessed + rawP1Processed + rawE1Processed + rawG2Processed + rawAdProcessed + rawDrProcessed + rawP2Processed + rawOtherProcessed + rawTotalSkipped;
+                  
+                  // Only show colors when current total processing rate is significant (>= 1000/min)
+                  // When processing is low, show empty gauge (zero values)
+                  const showColorBreakdown = totalProcessingRate >= 1000;
+                  const dtProcessed = showColorBreakdown ? rawDtProcessed : 0;
+                  const bhProcessed = showColorBreakdown ? rawBhProcessed : 0;
+                  const p1Processed = showColorBreakdown ? rawP1Processed : 0;
+                  const e1Processed = showColorBreakdown ? rawE1Processed : 0;
+                  const g2Processed = showColorBreakdown ? rawG2Processed : 0;
+                  const adProcessed = showColorBreakdown ? rawAdProcessed : 0;
+                  const drProcessed = showColorBreakdown ? rawDrProcessed : 0;
+                  const p2Processed = showColorBreakdown ? rawP2Processed : 0;
+                  const otherProcessed = showColorBreakdown ? rawOtherProcessed : 0;
+                  const totalSkipped = showColorBreakdown ? rawTotalSkipped : 0;
                   
                   // Combine gray categories (E1, G2, AD, DR, P2, other)
                   const combinedOtherProcessed = e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed;
@@ -768,12 +782,12 @@ export default function ProcessingStatus() {
                             <div className="text-xs text-gray-600">
                               Total Processing Rate: {totalProcessingRate}/min
                             </div>
-                            <div className="font-semibold text-green-600">
-                              Gauge Display: ACTIVE (Last Sample Values)
+                            <div className={`font-semibold ${showColorBreakdown ? 'text-green-600' : 'text-red-600'}`}>
+                              Gauge Display: {showColorBreakdown ? 'ACTIVE (≥ 1000/min)' : 'ZERO (< 1000/min threshold)'}
                             </div>
-                            {colorBreakdown && (
+                            {showColorBreakdown && colorBreakdown && (
                               <div className="text-xs text-gray-600 mt-1">
-                                Color Breakdown: DT:{colorBreakdown.dt?.processed || 0}, BH:{colorBreakdown.bh?.processed || 0}, P1:{colorBreakdown.p1?.processed || 0}, Other:{combinedOtherProcessed}, Skip:{colorBreakdown.totalSkipped || 0}
+                                Color Breakdown: DT:{rawDtProcessed}, BH:{rawBhProcessed}, P1:{rawP1Processed}, Other:{rawE1Processed + rawG2Processed + rawAdProcessed + rawDrProcessed + rawP2Processed + rawOtherProcessed}, Skip:{rawTotalSkipped}
                               </div>
                             )}
                           </div>
