@@ -320,7 +320,7 @@ export interface IStorage {
   getFileById(fileId: string): Promise<any>;
   
   // Records gauge peak value from database (direct access)
-  getRecordsPeakFromDatabase(): Promise<{peakRecords: number}>;
+  getRecordsPeakFromDatabase(): Promise<{peakRecords: number, allSamples: Array<{timestamp: string, totalRecords: number}>}>;
 }
 
 // Database storage implementation
@@ -9019,28 +9019,35 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRecordsPeakFromDatabase(): Promise<{peakRecords: number}> {
+  async getRecordsPeakFromDatabase(): Promise<{peakRecords: number, allSamples: Array<{timestamp: string, totalRecords: number}>}> {
     try {
       const tableName = getTableName('processing_metrics');
       const result = await pool.query(`
         SELECT 
-          COALESCE(MAX(
-            COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
-            COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
-            COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0)
-          ), 0) as peak_records
+          timestamp,
+          COALESCE(dt_processed, 0) + COALESCE(bh_processed, 0) + COALESCE(p1_processed, 0) + 
+          COALESCE(e1_processed, 0) + COALESCE(g2_processed, 0) + COALESCE(ad_processed, 0) + 
+          COALESCE(dr_processed, 0) + COALESCE(p2_processed, 0) + COALESCE(other_processed, 0) as total_records
         FROM "${tableName}"
         WHERE timestamp >= NOW() - INTERVAL '10 minutes'
           AND metric_type = 'scanly_watcher_snapshot'
+        ORDER BY timestamp DESC
       `);
       
-      const peakRecords = parseInt(result.rows[0].peak_records) || 0;
-      console.log(`[RECORDS PEAK] Database query result: ${peakRecords} records (highest sample in last 10 minutes) - PEAK SAMPLE VALUE`);
+      const allSamples = result.rows.map(row => ({
+        timestamp: row.timestamp,
+        totalRecords: parseInt(row.total_records) || 0
+      }));
       
-      return { peakRecords };
+      const peakRecords = Math.max(...allSamples.map(s => s.totalRecords), 0);
+      
+      console.log(`[RECORDS PEAK] All samples in last 10 minutes:`, allSamples.map(s => `${s.timestamp}: ${s.totalRecords}`));
+      console.log(`[RECORDS PEAK] Peak value: ${peakRecords} records - PEAK SAMPLE VALUE`);
+      
+      return { peakRecords, allSamples };
     } catch (error: any) {
       console.error('Error getting records peak from database:', error);
-      return { peakRecords: 0 };
+      return { peakRecords: 0, allSamples: [] };
     }
   }
 
