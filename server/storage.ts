@@ -8927,7 +8927,7 @@ export class DatabaseStorage implements IStorage {
       const dataQuery = `
         SELECT id, sequence_number as "sequenceNumber", entry_run_number as "entryRunNumber", 
                sequence_within_run as "sequenceWithinRun", record_identifier as "recordIdentifier", 
-               discount_amount as "discountAmount", alterna_tax_identifier as "alternaTaxIdentifier",
+               discount_amount as "discountAmount", alternate_tax_identifier as "alternateTaxIdentifier",
                product_code as "productCode", item_description as "itemDescription",
                item_quantity as "itemQuantity", item_unit_of_measure as "itemUnitOfMeasure",
                unit_cost as "unitCost", net_gross_indicator as "netGrossIndicator",

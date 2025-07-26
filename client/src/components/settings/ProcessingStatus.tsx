@@ -972,11 +972,22 @@ export default function ProcessingStatus() {
                     </div>
                     <div className="text-emerald-600">BH</div>
                   </div>
-                  <div className="text-center p-2 bg-amber-50 rounded border pointer-events-none">
+                  <div 
+                    className="text-center p-2 bg-amber-50 rounded border cursor-pointer hover:bg-amber-100 transition-colors"
+                    title={(() => {
+                      const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                      const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                      return `P1 Records: ${p1Count.toLocaleString()}\nP2 Records: ${p2Count.toLocaleString()}\nCombined Total: ${(p1Count + p2Count).toLocaleString()}`;
+                    })()}
+                  >
                     <div className="font-semibold text-amber-700">
-                      {realTimeStats?.tddfOperations?.p1RecordsProcessed?.toLocaleString() || '0'}
+                      {(() => {
+                        const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                        const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                        return (p1Count + p2Count).toLocaleString();
+                      })()}
                     </div>
-                    <div className="text-amber-600">P1</div>
+                    <div className="text-amber-600">P1/P2</div>
                   </div>
                   <div 
                     className="text-center p-2 bg-gray-50 rounded border cursor-pointer hover:bg-gray-100 transition-colors"
