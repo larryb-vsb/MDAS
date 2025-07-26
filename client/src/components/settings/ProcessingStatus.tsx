@@ -1241,10 +1241,10 @@ export default function ProcessingStatus() {
                     <div className="space-y-2 border-t pt-3">
                       <div className="text-xs font-medium text-muted-foreground">Processing Rates & Estimates</div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                        <div className="p-2 bg-blue-50 rounded border">
+                        <div className="p-2 bg-amber-50 rounded border">
                           <div className="flex justify-between items-center">
-                            <span className="text-blue-600 font-medium">Current avg:</span>
-                            <span className="text-blue-700 font-semibold">
+                            <span className="text-amber-700 font-medium">Current avg:</span>
+                            <span className="text-amber-800 font-semibold">
                               {(() => {
                                 // Use average of all three calculations for most accurate estimate
                                 const latestChartPoint = chartData?.data?.[chartData.data.length - 1];
@@ -1260,7 +1260,7 @@ export default function ProcessingStatus() {
                               })()}
                             </span>
                           </div>
-                          <div className="text-blue-600 text-xs mt-1">
+                          <div className="text-amber-700 text-xs mt-1">
                             Est: {(() => {
                               const pending = (tddfRawStatus as any)?.pending || 0;
                               if (pending <= 0) return '0 min';
