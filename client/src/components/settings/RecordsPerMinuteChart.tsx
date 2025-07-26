@@ -492,7 +492,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
             {currentDate}
           </div>
           
-          {/* Status indicator with record type legend */}
+          {/* Status indicator with record type legend - P1/P2 combined */}
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <span>
               {timeRange <= 6 ? 'Real-time' : 'Historical'} • 
