@@ -7354,6 +7354,24 @@ export class DatabaseStorage implements IStorage {
               totalProcessed++;
               break;
               
+            case 'G2':
+              await this.processG2RecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            case 'AD':
+              await this.processADRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
+            case 'DR':
+              await this.processDRRecordWithClient(client, rawRecord, tableName);
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              break;
+              
             default:
               // Skip unknown record types
               await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
@@ -7786,6 +7804,153 @@ export class DatabaseStorage implements IStorage {
       geRecord.recordDescription, geRecord.merchantAccountNumber, geRecord.referenceNumber,
       JSON.stringify(geRecord.recordData), geRecord.sourceFileId, 
       geRecord.sourceRowNumber, geRecord.rawData
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processG2RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    const g2Record = {
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null,
+      bankNumber: line.substring(19, 23).trim() || null,
+      recordType: 'G2',
+      recordDescription: 'Merchant General Data 2 Record',
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      recordData: {
+        associationNumber: line.substring(39, 45).trim() || null,
+        groupNumber: line.substring(45, 51).trim() || null,
+        transactionCode: line.substring(51, 55).trim() || null,
+        rawLine: line
+      },
+      sourceFileId: rawRecord.source_file_id,
+      sourceRowNumber: rawRecord.line_number,
+      rawData: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+        record_type, record_description, merchant_account_number, reference_number,
+        record_data, source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id
+    `, [
+      g2Record.sequenceNumber, g2Record.entryRunNumber, g2Record.sequenceWithinRun, 
+      g2Record.recordIdentifier, g2Record.bankNumber, g2Record.recordType, 
+      g2Record.recordDescription, g2Record.merchantAccountNumber, null,
+      JSON.stringify(g2Record.recordData), g2Record.sourceFileId, 
+      g2Record.sourceRowNumber, g2Record.rawData
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processADRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    const adRecord = {
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null,
+      bankNumber: line.substring(19, 23).trim() || null,
+      recordType: 'AD',
+      recordDescription: 'Adjustment Record',
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      recordData: {
+        associationNumber: line.substring(39, 45).trim() || null,
+        groupNumber: line.substring(45, 51).trim() || null,
+        transactionCode: line.substring(51, 55).trim() || null,
+        rawLine: line
+      },
+      sourceFileId: rawRecord.source_file_id,
+      sourceRowNumber: rawRecord.line_number,
+      rawData: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+        record_type, record_description, merchant_account_number, reference_number,
+        record_data, source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id
+    `, [
+      adRecord.sequenceNumber, adRecord.entryRunNumber, adRecord.sequenceWithinRun, 
+      adRecord.recordIdentifier, adRecord.bankNumber, adRecord.recordType, 
+      adRecord.recordDescription, adRecord.merchantAccountNumber, null,
+      JSON.stringify(adRecord.recordData), adRecord.sourceFileId, 
+      adRecord.sourceRowNumber, adRecord.rawData
+    ]);
+
+    await client.query(`
+      UPDATE "${tableName}" 
+      SET processing_status = 'processed',
+          processed_into_table = $1,
+          processed_record_id = $2,
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [otherRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+  }
+
+  private async processDRRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    const line = rawRecord.raw_line;
+    const otherRecordsTableName = getTableName('tddf_other_records');
+
+    const drRecord = {
+      sequenceNumber: line.substring(0, 7).trim() || null,
+      entryRunNumber: line.substring(7, 13).trim() || null,
+      sequenceWithinRun: line.substring(13, 17).trim() || null,
+      recordIdentifier: line.substring(17, 19).trim() || null,
+      bankNumber: line.substring(19, 23).trim() || null,
+      recordType: 'DR',
+      recordDescription: 'Detail Record (Non-DT)',
+      merchantAccountNumber: line.substring(23, 39).trim() || null,
+      recordData: {
+        associationNumber: line.substring(39, 45).trim() || null,
+        groupNumber: line.substring(45, 51).trim() || null,
+        transactionCode: line.substring(51, 55).trim() || null,
+        rawLine: line
+      },
+      sourceFileId: rawRecord.source_file_id,
+      sourceRowNumber: rawRecord.line_number,
+      rawData: JSON.stringify({ rawLine: line })
+    };
+
+    const insertResult = await client.query(`
+      INSERT INTO "${otherRecordsTableName}" (
+        sequence_number, entry_run_number, sequence_within_run, record_identifier, bank_number,
+        record_type, record_description, merchant_account_number, reference_number,
+        record_data, source_file_id, source_row_number, raw_data
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id
+    `, [
+      drRecord.sequenceNumber, drRecord.entryRunNumber, drRecord.sequenceWithinRun, 
+      drRecord.recordIdentifier, drRecord.bankNumber, drRecord.recordType, 
+      drRecord.recordDescription, drRecord.merchantAccountNumber, null,
+      JSON.stringify(drRecord.recordData), drRecord.sourceFileId, 
+      drRecord.sourceRowNumber, drRecord.rawData
     ]);
 
     await client.query(`

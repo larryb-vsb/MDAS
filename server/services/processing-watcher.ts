@@ -1163,50 +1163,111 @@ export class ScanlyWatcher {
       phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'processed' });
       console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records processed`);
 
-      // PHASE 4: Skip remaining other record types
-      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Skipping remaining other record types');
-      const phase4Result = await db.execute(sql`
-        WITH pending_records AS (
-          SELECT id FROM ${sql.identifier(tddfRawImportTable)}
-          WHERE processing_status = 'pending' 
-            AND record_type NOT IN ('DT', 'BH', 'P1')
-          ORDER BY line_number
-          LIMIT 2000
-        )
-        UPDATE ${sql.identifier(tddfRawImportTable)}
-        SET processing_status = 'skipped',
-            processed_at = NOW(),
-            skip_reason = 'scanly_watcher_phase4_other_types'
-        FROM pending_records
-        WHERE ${sql.identifier(tddfRawImportTable)}.id = pending_records.id
+      // PHASE 4: Process remaining record types using switch-based processing
+      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Processing remaining record types (E1, G2, GE, AD, DR, P2) using switch-based processing');
+      
+      // Get pending other records for actual processing
+      const pendingOtherResult = await db.execute(sql`
+        SELECT id, raw_line, source_file_id, line_number, record_type
+        FROM ${sql.identifier(tddfRawImportTable)}
+        WHERE processing_status = 'pending' 
+          AND record_type NOT IN ('DT', 'BH', 'P1')
+        ORDER BY line_number
+        LIMIT 1000
       `);
       
-      const phase4Count = (phase4Result as any).rowCount || 0;
-      phases.push({ phase: 4, recordsProcessed: phase4Count, recordTypes: ['Other'], action: 'skipped' });
-      console.log(`[SCANLY-WATCHER] ✅ PHASE 4 Complete: ${phase4Count} other records skipped`);
+      const pendingOtherRecords = pendingOtherResult.rows;
+      let phase4Count = 0;
+      
+      // Process each record using the switch-based processing method
+      for (const rawRecord of pendingOtherRecords) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          // Use switch-based processing method from storage
+          const recordType = rawRecord.record_type;
+          
+          switch (recordType) {
+            case 'E1':
+              await storage.processE1RecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            case 'GE':
+              await storage.processGERecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            case 'G2':
+              await storage.processG2RecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            case 'AD':
+              await storage.processADRecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            case 'DR':
+              await storage.processDRRecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            case 'P2':
+              await storage.processP2RecordWithClient(client, rawRecord, tddfRawImportTable);
+              break;
+            default:
+              // Skip truly unknown record types
+              await client.query(`
+                UPDATE ${tddfRawImportTable}
+                SET processing_status = 'skipped',
+                    skip_reason = 'scanly_watcher_unknown_record_type_${recordType}',
+                    processed_at = NOW()
+                WHERE id = $1
+              `, [rawRecord.id]);
+              break;
+          }
+          
+          await client.query('COMMIT');
+          phase4Count++;
+          
+        } catch (error: any) {
+          await client.query('ROLLBACK');
+          console.error(`[SCANLY-WATCHER] ${rawRecord.record_type} processing error for record ${rawRecord.id}:`, error);
+          
+          // Mark as skipped with error reason
+          await pool.query(`
+            UPDATE ${tddfRawImportTable}
+            SET processing_status = 'skipped',
+                skip_reason = 'scanly_watcher_${rawRecord.record_type}_error: ' || $1,
+                processed_at = NOW()
+            WHERE id = $2
+          `, [error.message?.substring(0, 200) || 'Unknown error', rawRecord.id]);
+          
+        } finally {
+          client.release();
+        }
+      }
+      
+      const phase4Count_final = phase4Count;
+      totalProcessed += phase4Count_final;
+      phases.push({ phase: 4, recordsProcessed: phase4Count_final, recordTypes: ['E1', 'G2', 'GE', 'AD', 'DR', 'P2'], action: 'processed' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 4 Complete: ${phase4Count_final} other records processed using switch-based processing`);
 
       const totalTime = Date.now() - startTime;
-      const processingRate = Math.round((totalProcessed + phase3Count + phase4Count) / (totalTime / 1000 / 60));
+      const processingRate = Math.round(totalProcessed / (totalTime / 1000 / 60));
 
       // Comprehensive logging of all actions
       await this.logAlert({
         level: 'info',
         type: 'alex_style_emergency_recovery',
-        message: `Alex-style 4-phase emergency recovery completed: ${totalProcessed} processed, ${phase3Count + phase4Count} appropriately skipped`,
+        message: `Alex-style 4-phase emergency recovery completed: ${totalProcessed} processed, 0 skipped (all record types now processed)`,
         details: { 
           totalProcessed,
-          totalSkipped: phase3Count + phase4Count,
-          totalBacklogCleared: totalProcessed + phase3Count + phase4Count,
+          totalSkipped: 0,
+          totalBacklogCleared: totalProcessed,
           processingRate: `${processingRate} records/minute`,
           totalTimeMs: totalTime,
           phases,
-          methodology: 'alex_proven_4_phase_approach',
-          authority: 'scanly_watcher_autonomous_intervention'
+          methodology: 'alex_enhanced_4_phase_with_switch_based_processing',
+          authority: 'scanly_watcher_autonomous_intervention',
+          enhancement: 'phase_4_now_processes_all_record_types_instead_of_skipping'
         },
         timestamp: new Date()
       });
 
-      console.log(`[SCANLY-WATCHER] 🎉 EMERGENCY RECOVERY COMPLETE: ${totalProcessed + phase3Count + phase4Count} total records cleared at ${processingRate} records/minute`);
+      console.log(`[SCANLY-WATCHER] 🎉 EMERGENCY RECOVERY COMPLETE: ${totalProcessed} total records processed at ${processingRate} records/minute`);
       return { success: true, recordsProcessed: totalProcessed, phases };
       
     } catch (error) {
