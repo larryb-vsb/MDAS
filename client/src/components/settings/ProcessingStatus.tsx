@@ -658,17 +658,18 @@ export default function ProcessingStatus() {
                   const colorBreakdown = performanceKpis?.colorBreakdown;
                   
                   // Calculate total processed records for gauge display
-                  // If current sample is zero, show zero values instead of historical data
-                  const dtProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.dt?.processed || 0);
-                  const bhProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.bh?.processed || 0);
-                  const p1Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.p1?.processed || 0);
-                  const e1Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.e1?.processed || 0);
-                  const g2Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.g2?.processed || 0);
-                  const adProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.ad?.processed || 0);
-                  const drProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.dr?.processed || 0);
-                  const p2Processed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.p2?.processed || 0);
-                  const otherProcessed = tddfPerMinute === 0 ? 0 : (colorBreakdown?.other?.processed || 0);
-                  const totalSkipped = tddfPerMinute === 0 ? 0 : (colorBreakdown?.totalSkipped || 0);
+                  // If current sample is very low (less than 1000/min), show zero values to indicate no significant processing activity
+                  const showZeroValues = tddfPerMinute < 1000;
+                  const dtProcessed = showZeroValues ? 0 : (colorBreakdown?.dt?.processed || 0);
+                  const bhProcessed = showZeroValues ? 0 : (colorBreakdown?.bh?.processed || 0);
+                  const p1Processed = showZeroValues ? 0 : (colorBreakdown?.p1?.processed || 0);
+                  const e1Processed = showZeroValues ? 0 : (colorBreakdown?.e1?.processed || 0);
+                  const g2Processed = showZeroValues ? 0 : (colorBreakdown?.g2?.processed || 0);
+                  const adProcessed = showZeroValues ? 0 : (colorBreakdown?.ad?.processed || 0);
+                  const drProcessed = showZeroValues ? 0 : (colorBreakdown?.dr?.processed || 0);
+                  const p2Processed = showZeroValues ? 0 : (colorBreakdown?.p2?.processed || 0);
+                  const otherProcessed = showZeroValues ? 0 : (colorBreakdown?.other?.processed || 0);
+                  const totalSkipped = showZeroValues ? 0 : (colorBreakdown?.totalSkipped || 0);
                   
                   // Combine gray categories (E1, G2, AD, DR, P2, other)
                   const combinedOtherProcessed = e1Processed + g2Processed + adProcessed + drProcessed + p2Processed + otherProcessed;
@@ -768,6 +769,9 @@ export default function ProcessingStatus() {
                             <div>Total Scale: {Math.max(recordsPeakFromDatabase / 0.75, 125)} (Peak/0.75)</div>
                             <div>Peak Position: {recordsPeakFromDatabase === 0 ? 0 : Math.round((recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 75%)</div>
                             <div>Whitespace: {recordsPeakFromDatabase === 0 ? 0 : Math.round(100 - (recordsPeakFromDatabase / Math.max(recordsPeakFromDatabase / 0.75, 125)) * 100)}% (should be 25%)</div>
+                            <div className={`font-semibold ${showZeroValues ? 'text-red-600' : 'text-green-600'}`}>
+                              Gauge Display: {showZeroValues ? 'ZERO (< 1000/min threshold)' : 'ACTIVE (≥ 1000/min)'}
+                            </div>
                           </div>
                         </div>
                       </div>
