@@ -107,6 +107,40 @@ export interface IStorage {
   processPendingTddfRecordsUnified(fileId?: string, maxRecords?: number): Promise<{ processed: number; skipped: number; errors: number }>;
   processPendingRawTddfLines(batchSize?: number): Promise<{ processed: number; skipped: number; errors: number }>;
 
+  // TDDF merchant operations
+  getTddfMerchants(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{
+    data: Array<{
+      merchantName: string;
+      merchantAccountNumber: string;
+      mccCode: string;
+      transactionTypeIdentifier: string;
+      terminalCount: number;
+      totalTransactions: number;
+      totalAmount: number;
+      lastTransactionDate: string;
+      posRelativeCode?: string;
+    }>;
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
+
+  getTddfMerchantTerminals(merchantAccountNumber: string): Promise<Array<{
+    terminalId: string;
+    transactionCount: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  }>>;
+
   // Reprocessing skipped records operations
   getSkippedRecordsSummary(): Promise<{ skipReasons: Array<{ skipReason: string; recordType: string; count: number }>, totalSkipped: number }>;
   reprocessSkippedRecordsByReason(skipReason: string, recordType?: string, maxRecords?: number): Promise<{ processed: number; errors: number; details: string[] }>;
@@ -6406,7 +6440,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Query to aggregate merchant data from TDDF records with terminal count
+      // Query to aggregate merchant data from TDDF records with terminal count from DT records
       const dataQuery = `
         WITH merchant_aggregates AS (
           SELECT 
@@ -6417,38 +6451,33 @@ export class DatabaseStorage implements IStorage {
             COUNT(*) as total_transactions,
             SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
             MAX(transaction_date) as last_transaction_date,
+            -- Count unique Terminal IDs (277-284) from DT records for this merchant
+            COUNT(DISTINCT terminal_id) as terminal_count,
             -- Extract first 5 digits from merchant account number for terminal linking
             SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
           FROM "${tddfRecordsTableName}"
           WHERE merchant_name IS NOT NULL 
             AND merchant_account_number IS NOT NULL
+            AND terminal_id IS NOT NULL 
+            AND terminal_id != ''
           GROUP BY 
             merchant_name, 
             merchant_account_number, 
             mcc_code, 
             transaction_type_identifier,
             SUBSTRING(merchant_account_number, 1, 5)
-        ),
-        terminal_counts AS (
-          SELECT 
-            SUBSTRING(pos_merchant_number, 1, 5) as pos_code,
-            COUNT(*) as terminal_count
-          FROM "${terminalsTableName}"
-          WHERE pos_merchant_number IS NOT NULL
-          GROUP BY SUBSTRING(pos_merchant_number, 1, 5)
         )
         SELECT 
           ma.merchant_name,
           ma.merchant_account_number,
           ma.mcc_code,
           ma.transaction_type_identifier,
-          COALESCE(tc.terminal_count, 0) as terminal_count,
+          ma.terminal_count,
           ma.total_transactions,
           ma.total_amount,
           ma.last_transaction_date,
           ma.pos_relative_code
         FROM merchant_aggregates ma
-        LEFT JOIN terminal_counts tc ON ma.pos_relative_code = tc.pos_code
         ${searchCondition}
         ${sortCondition}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -6514,6 +6543,43 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error('Error getting TDDF merchants:', error);
+      throw error;
+    }
+  }
+
+  async getTddfMerchantTerminals(merchantAccountNumber: string): Promise<Array<{
+    terminalId: string;
+    transactionCount: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  }>> {
+    try {
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      const query = `
+        SELECT 
+          terminal_id,
+          COUNT(*) as transaction_count,
+          SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+          MAX(transaction_date) as last_transaction_date
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_account_number = $1
+          AND terminal_id IS NOT NULL 
+          AND terminal_id != ''
+        GROUP BY terminal_id
+        ORDER BY transaction_count DESC
+      `;
+      
+      const result = await pool.query(query, [merchantAccountNumber]);
+      
+      return result.rows.map(row => ({
+        terminalId: row.terminal_id || '',
+        transactionCount: parseInt(row.transaction_count) || 0,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        lastTransactionDate: row.last_transaction_date || ''
+      }));
+    } catch (error) {
+      console.error('Error getting TDDF merchant terminals:', error);
       throw error;
     }
   }

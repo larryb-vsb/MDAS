@@ -5178,6 +5178,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get terminals for a specific TDDF merchant account number
+  app.get("/api/tddf/merchants/:merchantAccountNumber/terminals", isAuthenticated, async (req, res) => {
+    try {
+      const merchantAccountNumber = req.params.merchantAccountNumber;
+      const terminals = await storage.getTddfMerchantTerminals(merchantAccountNumber);
+      
+      res.json(terminals);
+    } catch (error) {
+      console.error('Error fetching TDDF merchant terminals:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant terminals" 
+      });
+    }
+  });
+
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {

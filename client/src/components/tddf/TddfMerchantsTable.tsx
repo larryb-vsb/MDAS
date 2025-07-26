@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, Search, ExternalLink } from "lucide-react";
+import { Eye, Search, ExternalLink, Monitor } from "lucide-react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -18,6 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatTableDate } from "@/lib/date-utils";
 
 interface TddfMerchant {
@@ -30,6 +44,13 @@ interface TddfMerchant {
   totalAmount: number;
   lastTransactionDate: string;
   posRelativeCode?: string;
+}
+
+interface TddfTerminal {
+  terminalId: string;
+  transactionCount: number;
+  totalAmount: number;
+  lastTransactionDate: string;
 }
 
 interface TddfMerchantsResponse {
@@ -59,6 +80,12 @@ export default function TddfMerchantsTable() {
       sortOrder 
     }],
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Query for terminals of selected merchant
+  const { data: terminalsData, isLoading: terminalsLoading } = useQuery<TddfTerminal[]>({
+    queryKey: ["/api/tddf/merchants", detailsRecord?.merchantAccountNumber, "terminals"],
+    enabled: !!detailsRecord?.merchantAccountNumber,
   });
 
   const formatCurrency = (amount: number) => {
@@ -275,72 +302,133 @@ export default function TddfMerchantsTable() {
               <DialogTitle>TDDF Merchant Details</DialogTitle>
             </DialogHeader>
             {detailsRecord && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Merchant Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Merchant Name:</span>
-                        <p className="font-medium">{detailsRecord.merchantName || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Account Number:</span>
-                        <p className="font-mono text-sm">{detailsRecord.merchantAccountNumber || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">MCC Code:</span>
-                        <p className="font-mono text-sm">{detailsRecord.mccCode || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Transaction Type Identifier:</span>
-                        <p className="font-mono text-sm">{detailsRecord.transactionTypeIdentifier || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Terminal Count:</span>
-                        <p className="font-mono">{detailsRecord.terminalCount}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Total Transactions:</span>
-                        <p className="font-mono">{detailsRecord.totalTransactions.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
-                        <p className="font-mono text-lg">{formatCurrency(detailsRecord.totalAmount)}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-muted-foreground">Last Transaction Date:</span>
-                        <p className="text-sm">{formatDate(detailsRecord.lastTransactionDate)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <Tabs defaultValue="merchant" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="merchant">Merchant Information</TabsTrigger>
+                  <TabsTrigger value="terminals">
+                    <Monitor className="h-4 w-4 mr-2" />
+                    Terminals ({detailsRecord.terminalCount})
+                  </TabsTrigger>
+                </TabsList>
 
-                {detailsRecord.posRelativeCode && (
+                <TabsContent value="merchant" className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Terminal Integration</h3>
-                    <div className="bg-muted/30 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold mb-3">Merchant Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
                         <div>
-                          <p className="text-sm font-medium">POS Relative Code:</p>
-                          <p className="font-mono text-sm">{detailsRecord.posRelativeCode}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Used for linking with terminal records via POS Merchant Number
-                          </p>
+                          <span className="text-sm font-medium text-muted-foreground">Merchant Name:</span>
+                          <p className="font-medium">{detailsRecord.merchantName || 'N/A'}</p>
                         </div>
-                        <Link href={`/terminals?search=${detailsRecord.posRelativeCode}`}>
-                          <Button variant="outline">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View Terminals
-                          </Button>
-                        </Link>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Account Number:</span>
+                          <p className="font-mono text-sm">{detailsRecord.merchantAccountNumber || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">MCC Code:</span>
+                          <p className="font-mono text-sm">{detailsRecord.mccCode || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Transaction Type Identifier:</span>
+                          <p className="font-mono text-sm">{detailsRecord.transactionTypeIdentifier || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Terminal Count:</span>
+                          <p className="font-mono">{detailsRecord.terminalCount}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Total Transactions:</span>
+                          <p className="font-mono">{detailsRecord.totalTransactions.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Total Amount:</span>
+                          <p className="font-mono text-lg">{formatCurrency(detailsRecord.totalAmount)}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-muted-foreground">Last Transaction Date:</span>
+                          <p className="text-sm">{formatDate(detailsRecord.lastTransactionDate)}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {detailsRecord.posRelativeCode && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">Terminal Integration</h3>
+                      <div className="bg-muted/30 p-4 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">POS Relative Code:</p>
+                            <p className="font-mono text-sm">{detailsRecord.posRelativeCode}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Used for linking with terminal records via POS Merchant Number
+                            </p>
+                          </div>
+                          <Link href={`/terminals?search=${detailsRecord.posRelativeCode}`}>
+                            <Button variant="outline">
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Terminals
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="terminals" className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">
+                      Terminal List ({detailsRecord.terminalCount} unique terminals)
+                    </h3>
+                    {terminalsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-sm text-muted-foreground">Loading terminals...</div>
+                      </div>
+                    ) : terminalsData && terminalsData.length > 0 ? (
+                      <div className="border rounded-lg">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Terminal ID</TableHead>
+                              <TableHead>Transaction Count</TableHead>
+                              <TableHead>Total Amount</TableHead>
+                              <TableHead>Last Transaction</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {terminalsData.map((terminal) => (
+                              <TableRow key={terminal.terminalId}>
+                                <TableCell className="font-mono text-sm">
+                                  {terminal.terminalId}
+                                </TableCell>
+                                <TableCell className="font-mono">
+                                  {terminal.transactionCount.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="font-mono">
+                                  {formatCurrency(terminal.totalAmount)}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {formatDate(terminal.lastTransactionDate)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                          <Monitor className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">No terminals found for this merchant</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>
