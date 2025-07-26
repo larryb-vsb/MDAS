@@ -107,14 +107,25 @@ const navItems = [
 function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
   const handleClick = (e: React.MouseEvent) => {
     console.log(`[NAV] Clicking ${label} -> ${href}`, e);
+    
+    // Force the navigation by preventing any event bubbling issues
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Navigate manually using window.location if wouter fails
+    try {
+      window.location.href = href;
+    } catch (err) {
+      console.error(`[NAV] Navigation failed for ${href}:`, err);
+    }
+    
     if (onClick) {
       onClick();
     }
   };
 
   return (
-    <Link 
-      href={href}
+    <div
       onClick={handleClick}
       className={cn(
         "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation",
@@ -123,7 +134,7 @@ function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
     >
       {icon}
       <span>{label}</span>
-    </Link>
+    </div>
   );
 }
 
