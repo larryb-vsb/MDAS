@@ -54,6 +54,7 @@ interface RealTimeStats {
     nonDtRecordsSkipped: number;
     bhRecordsProcessed?: number;
     p1RecordsProcessed?: number;
+    p2RecordsProcessed?: number;
     otherRecordsProcessed?: number;
     otherSkipped: number;
     pendingRawLines: number;
@@ -1035,7 +1036,7 @@ export default function ProcessingStatus() {
                         const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
                         const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                         const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                        const p2Processed = 0; // P2 records not tracked separately in API
+                        const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
                         const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
                         const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                         return ((tddfRawStatus as any)?.processed || totalProcessed).toLocaleString();
@@ -1059,14 +1060,14 @@ export default function ProcessingStatus() {
                     className="text-center p-2 bg-amber-50 rounded border cursor-pointer hover:bg-amber-100 transition-colors"
                     title={(() => {
                       const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                      const p2Count = 0; // P2 records not tracked separately in API
+                      const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
                       return `P1 Records: ${p1Count.toLocaleString()}\nP2 Records: ${p2Count.toLocaleString()}\nCombined Total: ${(p1Count + p2Count).toLocaleString()}`;
                     })()}
                   >
                     <div className="font-semibold text-amber-700">
                       {(() => {
                         const p1Count = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
-                        const p2Count = 0; // P2 records not tracked separately in API
+                        const p2Count = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
                         return (p1Count + p2Count).toLocaleString();
                       })()}
                     </div>
