@@ -239,15 +239,15 @@ export default function DevUpload() {
           <div className="flex justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Zap className="h-4 w-4" />
-              12-25x Performance
+              Auto Detection
             </div>
             <div className="flex items-center gap-1">
               <Database className="h-4 w-4" />
-              Compressed Storage
+              500MB Limit
             </div>
             <div className="flex items-center gap-1">
               <FileText className="h-4 w-4" />
-              Dynamic Schema
+              All File Types
             </div>
           </div>
         </div>
@@ -298,9 +298,90 @@ export default function DevUpload() {
                         Automatic file type detection with user classification for unknown types
                       </p>
                     </div>
-                    <Button variant="outline" className="mt-4">
-                      Choose File
-                    </Button>
+                    <div className="space-y-3 mt-4">
+                      <Button variant="outline">
+                        Choose File
+                      </Button>
+                      
+                      {/* Quick File Type Selection Buttons */}
+                      <div className="text-sm text-muted-foreground">
+                        Quick Select:
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.tsyso,.TSYSO';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          TDDF
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.csv';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          CSV
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.json';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          JSON
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.xlsx,.xls';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          Excel
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -336,6 +417,9 @@ export default function DevUpload() {
                         </CardTitle>
                         <CardDescription>
                           {formatBytes(upload.fileSize)} • {formatNumber(upload.lineCount)} lines
+                          {upload.detectedType && (
+                            <> • Type: {upload.detectedType}</>
+                          )}
                           {upload.processingTime && (
                             <> • Processed in {upload.processingTime}ms</>
                           )}
@@ -438,24 +522,97 @@ export default function DevUpload() {
             </DialogHeader>
             
             <div className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="file-type">Select File Type</Label>
-                <Select value={selectedFileType} onValueChange={setSelectedFileType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose file type..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tddf">TDDF/Financial Data</SelectItem>
-                    <SelectItem value="merchant">Merchant Data</SelectItem>
-                    <SelectItem value="transaction">Transaction Data</SelectItem>
-                    <SelectItem value="terminal">Terminal/POS Data</SelectItem>
-                    <SelectItem value="csv">CSV/Spreadsheet</SelectItem>
-                    <SelectItem value="text">Text/Log File</SelectItem>
-                    <SelectItem value="json">JSON Data</SelectItem>
-                    <SelectItem value="excel">Excel/Worksheet</SelectItem>
-                    <SelectItem value="other">Other/Custom Type</SelectItem>
-                  </SelectContent>
-                </Select>
+                
+                {/* Auto Detect Button */}
+                <div className="flex justify-center">
+                  <Button 
+                    variant="outline" 
+                    className="w-full max-w-xs"
+                    onClick={() => {
+                      if (pendingUpload) {
+                        const detectedType = detectFileType(pendingUpload.file.name);
+                        if (detectedType !== 'unknown') {
+                          setSelectedFileType(detectedType);
+                        }
+                      }
+                    }}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Try Auto Detect Again
+                  </Button>
+                </div>
+                
+                {/* File Type Buttons Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant={selectedFileType === 'tddf' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('tddf')}
+                  >
+                    TDDF/Financial
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'merchant' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('merchant')}
+                  >
+                    Merchant Data
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'transaction' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('transaction')}
+                  >
+                    Transaction Data
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'terminal' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('terminal')}
+                  >
+                    Terminal/POS
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'csv' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('csv')}
+                  >
+                    CSV/Spreadsheet
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'json' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('json')}
+                  >
+                    JSON Data
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'text' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('text')}
+                  >
+                    Text/Log File
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'excel' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('excel')}
+                  >
+                    Excel/Worksheet
+                  </Button>
+                </div>
+                
+                {/* Other/Custom Type as separate button */}
+                <Button 
+                  variant={selectedFileType === 'other' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setSelectedFileType('other')}
+                >
+                  Other/Custom Type
+                </Button>
               </div>
               
               {pendingUpload && (
