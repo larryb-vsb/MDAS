@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { usePageVisibility } from '@/hooks/use-page-visibility';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -294,26 +295,32 @@ const MetricCard: React.FC<{
 
 export const NextGenProcessingWidget: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const isPageVisible = usePageVisibility();
 
+  // 🚀 PAGE FOCUS OPTIMIZATION: Pause updates when page not visible  
   // Fetch processing metrics
   const { data: performanceData } = useQuery({
     queryKey: ['/api/processing/performance-kpis'],
-    refetchInterval: 2000,
+    refetchInterval: isPageVisible ? 2000 : false,
+    enabled: isPageVisible,
   });
 
   const { data: rawStatusData } = useQuery({
     queryKey: ['/api/tddf/raw-status'],
-    refetchInterval: 3000,
+    refetchInterval: isPageVisible ? 3000 : false,
+    enabled: isPageVisible,
   });
 
   const { data: peakData } = useQuery({
     queryKey: ['/api/processing/records-peak'],
-    refetchInterval: 5000,
+    refetchInterval: isPageVisible ? 5000 : false,
+    enabled: isPageVisible,
   });
 
   const { data: realTimeData } = useQuery({
     queryKey: ['/api/processing/real-time-stats'],
-    refetchInterval: 4000,
+    refetchInterval: isPageVisible ? 4000 : false,
+    enabled: isPageVisible,
   });
 
   // Update current time
@@ -579,8 +586,8 @@ export const NextGenProcessingWidget: React.FC = () => {
             </Badge>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>Live Updates Active</span>
+            <div className={`w-2 h-2 rounded-full ${isPageVisible ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+            <span>{isPageVisible ? 'Live Updates Active' : 'Updates Paused (Page Not Focused)'}</span>
           </div>
         </div>
       </CardContent>

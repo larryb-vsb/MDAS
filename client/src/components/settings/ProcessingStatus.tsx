@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useState, useEffect, useMemo } from "react";
 import RecordsPerMinuteChart from "./RecordsPerMinuteChart";
+import { usePageVisibility } from "@/hooks/use-page-visibility";
 
 interface ProcessingStatus {
   isRunning: boolean;
@@ -259,6 +260,7 @@ const TransactionSpeedGauge = ({ currentSpeed, maxScale = 20, peakValue = 0, tit
 
 export default function ProcessingStatus() {
   const queryClient = useQueryClient();
+  const isPageVisible = usePageVisibility();
   
   // ALL HOOKS MUST BE AT THE TOP LEVEL - NO CONDITIONAL HOOKS
   
@@ -273,17 +275,20 @@ export default function ProcessingStatus() {
   const [lastTddfPeakTime, setLastTddfPeakTime] = useState<Date | null>(null);
   const [lastRecordsPeakTime, setLastRecordsPeakTime] = useState<Date | null>(null);
 
+  // 🚀 PAGE FOCUS OPTIMIZATION: Pause updates when page not visible
   // Fetch processing status with real-time updates
   const { data: status, isLoading } = useQuery<ProcessingStatus>({
     queryKey: ["/api/file-processor/status"],
-    refetchInterval: 2000,
+    refetchInterval: isPageVisible ? 2000 : false,
+    enabled: isPageVisible,
     staleTime: 1000,
   });
 
-  // Fetch real-time database statistics
+  // Fetch real-time database statistics - HEAVY QUERY (1.3-1.6s response time)
   const { data: realTimeStats, isLoading: isStatsLoading } = useQuery<RealTimeStats>({
     queryKey: ["/api/processing/real-time-stats"],
-    refetchInterval: 2000,
+    refetchInterval: isPageVisible ? 2000 : false,
+    enabled: isPageVisible,
     staleTime: 0,
     gcTime: 0,
   });
@@ -291,21 +296,24 @@ export default function ProcessingStatus() {
   // Fetch concurrency control statistics
   const { data: concurrencyStats, isLoading: isConcurrencyLoading } = useQuery<ConcurrencyStats>({
     queryKey: ["/api/processing/concurrency-stats"],
-    refetchInterval: 3000,
+    refetchInterval: isPageVisible ? 3000 : false,
+    enabled: isPageVisible,
     staleTime: 1000,
   });
 
   // Fetch Records gauge peak value directly from performance metrics database
   const { data: recordsPeakData } = useQuery<{peakRecords: number}>({
     queryKey: ['/api/processing/records-peak'],
-    refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
+    refetchInterval: isPageVisible ? 30000 : false,
+    enabled: isPageVisible,
     staleTime: 25000,
   });
 
   // Fetch TDDF raw processing status for accurate hierarchical counts
   const { data: tddfRawStatus } = useQuery({
     queryKey: ['/api/tddf/raw-status'],
-    refetchInterval: 5000, // Refresh every 5 seconds for real-time monitoring  
+    refetchInterval: isPageVisible ? 5000 : false,
+    enabled: isPageVisible,
     staleTime: 2000,
     retry: 1, // Retry only once on failure
   });
