@@ -5153,7 +5153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Switch-based TDDF processing endpoint for specific record types
   app.post("/api/tddf/process-pending-switch", isAuthenticated, async (req, res) => {
     try {
-      const { batchSize = 50, recordTypes = ["E1"], fileId } = req.body;
+      const { batchSize = 2000, recordTypes = ["E1"], fileId } = req.body;
       
       console.log(`[SWITCH-API] Processing request for record types: ${recordTypes.join(', ')}, batch size: ${batchSize}`);
       
@@ -5535,7 +5535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Process pending raw TDDF lines (manual processing endpoint)
   app.post("/api/tddf/process-backlog", isAuthenticated, async (req, res) => {
     try {
-      const batchSize = parseInt(req.query.batchSize as string) || 100;
+      const batchSize = parseInt(req.query.batchSize as string) || 2000;
       const result = await storage.processPendingRawTddfLines(batchSize);
       
       res.json({
@@ -5621,7 +5621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return isAuthenticated(req, res, next);
   }, async (req, res) => {
     try {
-      const { fileId, batchSize = 100 } = req.body;
+      const { fileId, batchSize = 2000 } = req.body;
       
       console.log(`[SWITCH-BASED API] Processing ${batchSize} records using switch logic${fileId ? ` for file ${fileId}` : ''}`);
       

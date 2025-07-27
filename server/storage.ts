@@ -7938,7 +7938,7 @@ export class DatabaseStorage implements IStorage {
   // OPTIMIZED: High-performance switch-based TDDF processing method
   async processPendingTddfRecordsSwitchBased(
     fileId?: string,
-    batchSize: number = 500  // OPTIMIZATION: Increased default batch size 5x
+    batchSize: number = 3000  // OPTIMIZATION: Further increased default batch size for large datasets
   ): Promise<{
     totalProcessed: number;
     totalSkipped: number;

@@ -1095,7 +1095,7 @@ export class ScanlyWatcher {
           WHERE processing_status = 'pending' 
             AND record_type IN ('DT', 'BH')
           ORDER BY line_number
-          LIMIT 1000
+          LIMIT 2500
         )
         UPDATE ${sql.identifier(tddfRawImportTable)}
         SET processing_status = 'processed',
@@ -1119,7 +1119,7 @@ export class ScanlyWatcher {
             WHERE processing_status = 'pending' 
               AND record_type IN ('DT', 'BH')
             ORDER BY line_number
-            LIMIT 1500
+            LIMIT 3500
           )
           UPDATE ${sql.identifier(tddfRawImportTable)}
           SET processing_status = 'processed',
@@ -1145,7 +1145,7 @@ export class ScanlyWatcher {
         WHERE processing_status = 'pending' 
           AND record_type = 'P1'
         ORDER BY line_number
-        LIMIT 500
+        LIMIT 1000
       `);
       
       const pendingP1Records = pendingP1Result.rows;
@@ -1195,7 +1195,7 @@ export class ScanlyWatcher {
         WHERE processing_status = 'pending' 
           AND record_type NOT IN ('DT', 'BH', 'P1')
         ORDER BY line_number
-        LIMIT 1000
+        LIMIT 2000
       `);
       
       const pendingOtherRecords = pendingOtherResult.rows;
