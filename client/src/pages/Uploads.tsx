@@ -144,17 +144,26 @@ export default function Uploads() {
         if (!response.ok) {
           let errorMessage = "Failed to delete file";
           try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-          } catch (parseError) {
-            const errorText = await response.text();
-            if (errorText) {
-              if (errorText.includes('<!DOCTYPE html>')) {
-                errorMessage = "Server error - received HTML instead of JSON";
-              } else {
-                errorMessage = errorText;
+            // Read the response text once
+            const responseText = await response.text();
+            
+            // Try to parse as JSON first
+            try {
+              const errorData = JSON.parse(responseText);
+              errorMessage = errorData.error || errorMessage;
+            } catch (jsonParseError) {
+              // If JSON parsing fails, use the text response
+              if (responseText) {
+                // Check if the error is an HTML response
+                if (responseText.includes('<!DOCTYPE html>')) {
+                  errorMessage = "Server error - received HTML instead of JSON";
+                } else {
+                  errorMessage = responseText;
+                }
               }
             }
+          } catch (readError) {
+            errorMessage = "Failed to read error response";
           }
           throw new Error(errorMessage);
         }
