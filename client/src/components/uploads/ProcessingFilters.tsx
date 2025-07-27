@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X } from "lucide-react";
+import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X, BarChart3 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow } from "date-fns";
 import { formatUploadTime, formatRelativeTime, formatTableDate } from "@/lib/date-utils";
 import { useToast } from "@/hooks/use-toast";
@@ -513,6 +514,7 @@ export default function ProcessingFilters() {
                               <TableHead>File Name</TableHead>
                               <TableHead>File Type</TableHead>
                               <TableHead>Status</TableHead>
+                              <TableHead>Progress</TableHead>
                               <TableHead>Upload Date</TableHead>
                               <TableHead>Processed Time</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
@@ -562,6 +564,95 @@ export default function ProcessingFilters() {
                                     {getStatusIcon(file.processingStatus)}
                                     {file.processingStatus || 'queued'}
                                   </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {/* Progress indicators for upload and processing */}
+                                  {(() => {
+                                    // Calculate upload progress (always 100% for uploaded files)
+                                    const uploadProgress = 100;
+                                    
+                                    // Calculate raw line processing progress
+                                    const rawLinesCount = file.rawLinesCount || 0;
+                                    const totalProcessed = (file.recordsProcessed || 0) + (file.recordsSkipped || 0) + (file.recordsWithErrors || 0);
+                                    const rawProcessingProgress = rawLinesCount > 0 ? Math.round((totalProcessed / rawLinesCount) * 100) : 0;
+                                    
+                                    // For files that are currently uploading or queued
+                                    if (file.processingStatus === 'queued') {
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <Upload className="h-3 w-3 text-blue-500" />
+                                            <span className="text-xs text-muted-foreground">Uploaded</span>
+                                            <span className="text-xs font-medium text-green-600">100%</span>
+                                          </div>
+                                          <Progress value={100} className="h-1.5" />
+                                          <div className="text-xs text-muted-foreground">Ready for processing</div>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // For files that are currently processing
+                                    if (file.processingStatus === 'processing') {
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <BarChart3 className="h-3 w-3 text-blue-500 animate-pulse" />
+                                            <span className="text-xs text-muted-foreground">Processing</span>
+                                            <span className="text-xs font-medium text-blue-600">{rawProcessingProgress}%</span>
+                                          </div>
+                                          <Progress value={rawProcessingProgress} className="h-1.5" />
+                                          <div className="text-xs text-muted-foreground">
+                                            {totalProcessed} of {rawLinesCount} lines
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // For completed files
+                                    if (file.processingStatus === 'completed') {
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <CheckCircle className="h-3 w-3 text-green-500" />
+                                            <span className="text-xs text-muted-foreground">Complete</span>
+                                            <span className="text-xs font-medium text-green-600">100%</span>
+                                          </div>
+                                          <Progress value={100} className="h-1.5" />
+                                          <div className="text-xs text-muted-foreground">
+                                            {file.recordsProcessed || 0} processed, {file.recordsSkipped || 0} skipped
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // For error files
+                                    if (file.processingStatus === 'error' || file.processingStatus === 'failed') {
+                                      return (
+                                        <div className="space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <AlertCircle className="h-3 w-3 text-red-500" />
+                                            <span className="text-xs text-muted-foreground">Error</span>
+                                            <span className="text-xs font-medium text-red-600">{rawProcessingProgress}%</span>
+                                          </div>
+                                          <Progress value={rawProcessingProgress} className="h-1.5" />
+                                          <div className="text-xs text-red-500">
+                                            {file.processingErrors || 'Processing failed'}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Default fallback
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <Clock className="h-3 w-3 text-gray-500" />
+                                          <span className="text-xs text-muted-foreground">Pending</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Awaiting processing</div>
+                                      </div>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   <div className="font-medium">
