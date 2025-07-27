@@ -23,6 +23,7 @@ import {
 import { Search, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
+import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
 
 interface TddfMerchant {
   merchantName: string;
@@ -559,15 +560,19 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
   const transactions = Array.isArray(data) ? data : data?.data || [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>TDDF Transactions</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          All DT transactions for merchant account {merchantAccountNumber}
-        </p>
-      </CardHeader>
-      <CardContent>
-        {transactions.length === 0 ? (
+    <div className="space-y-6">
+      {/* Transaction Activity Heat Map */}
+      <MerchantActivityHeatMap merchantAccountNumber={merchantAccountNumber} />
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>TDDF Transactions</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            All DT transactions for merchant account {merchantAccountNumber}
+          </p>
+        </CardHeader>
+        <CardContent>
+          {transactions.length === 0 ? (
           <div className="text-center py-12">
             <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500">No transactions found for this merchant</p>
@@ -607,8 +612,9 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
             </Table>
           </div>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

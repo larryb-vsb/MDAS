@@ -5155,6 +5155,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get merchant-specific activity data for heat map
+  app.get("/api/tddf/merchant-activity-heatmap/:merchantAccountNumber", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      console.log(`[MERCHANT ACTIVITY HEATMAP] Getting activity data for merchant: ${merchantAccountNumber}, year: ${year}`);
+      
+      // Query for merchant-specific transaction activity
+      const activityData = await pool.query(`
+        SELECT 
+          DATE(transaction_date) as date,
+          COUNT(*) as "transactionCount"
+        FROM ${tddfRecordsTableName}
+        WHERE merchant_account_number = $1
+          AND EXTRACT(YEAR FROM transaction_date) = $2
+          AND transaction_date IS NOT NULL
+        GROUP BY DATE(transaction_date)
+        ORDER BY DATE(transaction_date)
+      `, [merchantAccountNumber, year]);
+      
+      console.log(`[MERCHANT ACTIVITY HEATMAP] Found ${activityData.rows.length} days with activity for merchant ${merchantAccountNumber} in year ${year}`);
+      res.json(activityData.rows);
+    } catch (error) {
+      console.error('Error fetching merchant activity heatmap data:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant activity data" 
+      });
+    }
+  });
+
   // Get TDDF merchants aggregated from DT records
   app.get("/api/tddf/merchants", isAuthenticated, async (req, res) => {
     try {
