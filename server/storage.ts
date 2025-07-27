@@ -8217,6 +8217,40 @@ export class DatabaseStorage implements IStorage {
       mms_raw_line: line
     };
 
+    // Check for existing record with same reference number
+    if (tddfRecord.reference_number) {
+      const existingCheck = await client.query(`
+        SELECT id, source_file_id, created_at FROM "${tddfRecordsTableName}"
+        WHERE reference_number = $1
+        LIMIT 1
+      `, [tddfRecord.reference_number]);
+
+      if (existingCheck.rows.length > 0) {
+        const existingRecord = existingCheck.rows[0];
+        console.log(`[DT-DUPLICATE-LOG] Reference ${tddfRecord.reference_number} already exists (ID: ${existingRecord.id}, File: ${existingRecord.source_file_id}, Created: ${existingRecord.created_at}). Logging update and proceeding...`);
+        
+        // Log the duplicate as processed but with duplicate tracking
+        await client.query(`
+          UPDATE "${tableName}" 
+          SET processing_status = 'processed',
+              processed_into_table = $1,
+              processed_record_id = $2,
+              processed_at = CURRENT_TIMESTAMP,
+              skip_reason = $3
+          WHERE id = $4
+        `, [
+          tddfRecordsTableName, 
+          existingRecord.id.toString(), 
+          `duplicate_reference_logged: ${tddfRecord.reference_number} (original_id: ${existingRecord.id})`,
+          rawRecord.id
+        ]);
+        
+        console.log(`✅ DT Record duplicate logged: $${tddfRecord.transaction_amount} - ${tddfRecord.reference_number} (pointing to existing ID: ${existingRecord.id})`);
+        return; // Exit without inserting duplicate
+      }
+    }
+
+    // No duplicate found - proceed with normal insertion
     const insertResult = await client.query(`
       INSERT INTO "${tddfRecordsTableName}" (
         sequence_number, entry_run_number, sequence_within_run, record_identifier,
@@ -8246,6 +8280,8 @@ export class DatabaseStorage implements IStorage {
           processed_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [tddfRecordsTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
+    
+    console.log(`✅ DT Record inserted: $${tddfRecord.transaction_amount} - ${tddfRecord.reference_number} (ID: ${insertResult.rows[0].id})`);
   }
 
   private async processP1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
