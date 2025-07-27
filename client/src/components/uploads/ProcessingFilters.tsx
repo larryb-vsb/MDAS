@@ -67,7 +67,7 @@ export default function ProcessingFilters() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Fetch processing status with filters
-  const { data: processingData, isLoading, refetch: refetchProcessingData } = useQuery<ProcessingStatusData>({
+  const { data: processingData, isLoading, refetch } = useQuery<ProcessingStatusData>({
     queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter, sortBy, sortOrder, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -90,7 +90,7 @@ export default function ProcessingFilters() {
   });
 
   // Fetch queue status
-  const { data: queueData } = useQuery<QueueStatusData>({
+  const { data: queueData, refetch: refetchQueueData } = useQuery<QueueStatusData>({
     queryKey: ["/api/uploads/queue-status"],
     refetchInterval: 2000, // Update every 2 seconds for real-time queue info
   });
@@ -355,9 +355,12 @@ export default function ProcessingFilters() {
               <Filter className="mr-2 h-5 w-5" />
               Processing Filters
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => refetchProcessingData()}>
+            <Button variant="outline" size="sm" onClick={() => {
+              refetch();
+              refetchQueueData();
+            }}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh {activeStatusFilter === 'all' ? 'All Files' : activeStatusFilter.charAt(0).toUpperCase() + activeStatusFilter.slice(1)}
+              Refresh
             </Button>
           </div>
         </CardHeader>
