@@ -1190,7 +1190,9 @@ export default function ProcessingStatus() {
                             const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
                             const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                             const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
-                            return (totalProcessed / totalRawLines * 100).toFixed(1);
+                            // Cap at 100% when processed exceeds raw lines (after file cleanup)
+                            const percentage = Math.min(100, totalProcessed / totalRawLines * 100);
+                            return percentage.toFixed(1);
                           })()}% Complete
                         </span>
                       </div>
@@ -1204,7 +1206,8 @@ export default function ProcessingStatus() {
                           const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
                           const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                           const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
-                          return totalProcessed / totalRawLines * 100;
+                          // Cap at 100% when processed exceeds raw lines (after file cleanup)
+                          return Math.min(100, totalProcessed / totalRawLines * 100);
                         })()} 
                         className="h-2"
                       />
