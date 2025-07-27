@@ -1193,4 +1193,34 @@ export const insertTerminalSchema = createInsertSchema(terminals).omit({
     return val;
   })
 });
+
+// New DevUpload table for testing compressed storage architecture
+export const devUploads = pgTable(getTableName("dev_uploads"), {
+  id: text("id").primaryKey(),
+  original_filename: text("original_filename").notNull(),
+  file_size: numeric("file_size", { precision: 15, scale: 0 }).notNull(),
+  upload_date: timestamp("upload_date").defaultNow().notNull(),
+  compressed_payload: text("compressed_payload").notNull(), // GZIP compressed base64
+  upload_status: text("upload_status").notNull().default("uploaded"), // uploaded, processing, completed, failed
+  created_by: text("created_by").notNull(),
+  
+  // File analysis metadata (JSON)
+  line_count: integer("line_count").notNull(),
+  record_type_breakdown: jsonb("record_type_breakdown").notNull(), // {"DT": 1234, "BH": 56, "P1": 78}
+  
+  // Processing metadata
+  processing_started_at: timestamp("processing_started_at"),
+  processing_completed_at: timestamp("processing_completed_at"),
+  processing_time_ms: integer("processing_time_ms"),
+  processing_errors: text("processing_errors"),
+  
+  // Dynamic JSON schema detection results
+  schema_detected: jsonb("schema_detected"), // Dynamic schema based on actual content
+  records_created: jsonb("records_created"), // {"DT": 1234, "BH": 56} - actual records created
+});
+
+export const DevUpload = typeof devUploads.$inferSelect;
+export const insertDevUploadSchema = createInsertSchema(devUploads);
+export type InsertDevUpload = z.infer<typeof insertDevUploadSchema>;
+
 // Remove duplicate Terminal type declarations - they are defined below

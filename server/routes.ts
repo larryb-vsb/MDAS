@@ -6385,6 +6385,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dev Upload routes for compressed storage testing
+  app.post("/api/dev-uploads", isAuthenticated, async (req, res) => {
+    try {
+      const { filename, compressed_payload, schema_info } = req.body;
+      
+      if (!filename || !compressed_payload || !schema_info) {
+        return res.status(400).json({ 
+          error: "Missing required fields: filename, compressed_payload, schema_info" 
+        });
+      }
+
+      const devUpload = await storage.createDevUpload({
+        id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        filename,
+        compressed_payload,
+        schema_info,
+        upload_date: new Date(),
+        status: 'uploaded'
+      });
+
+      res.json({ success: true, upload: devUpload });
+    } catch (error: any) {
+      console.error('Dev upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/dev-uploads", isAuthenticated, async (req, res) => {
+    try {
+      const uploads = await storage.getDevUploads();
+      res.json(uploads);
+    } catch (error: any) {
+      console.error('Get dev uploads error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/dev-uploads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const upload = await storage.getDevUploadById(req.params.id);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      res.json(upload);
+    } catch (error: any) {
+      console.error('Get dev upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

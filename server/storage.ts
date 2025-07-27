@@ -41,7 +41,10 @@ import {
   InsertSystemLog,
   SecurityLog,
   InsertSecurityLog,
-  insertSchemaContentSchema
+  insertSchemaContentSchema,
+  DevUpload,
+  InsertDevUpload,
+  devUploads
 } from "@shared/schema";
 import { db, batchDb, sessionPool, pool } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
@@ -79,6 +82,11 @@ export interface IStorage {
   
   // Session store for authentication
   sessionStore: session.Store;
+
+  // Dev Upload operations for compressed storage testing
+  createDevUpload(insertDevUpload: any): Promise<any>;
+  getDevUploads(): Promise<any[]>;
+  getDevUploadById(id: string): Promise<any | undefined>;
 
   // Terminal operations
   getTerminals(): Promise<Terminal[]>;
@@ -11782,6 +11790,21 @@ export class DatabaseStorage implements IStorage {
       console.error('[TDDF CACHE] Error getting cache stats:', error);
       throw error;
     }
+  }
+
+  // Dev Upload operations for compressed storage testing
+  async createDevUpload(insertDevUpload: InsertDevUpload): Promise<DevUpload> {
+    const result = await db.insert(devUploads).values(insertDevUpload).returning();
+    return result[0];
+  }
+
+  async getDevUploads(): Promise<DevUpload[]> {
+    return await db.select().from(devUploads).orderBy(desc(devUploads.upload_date));
+  }
+
+  async getDevUploadById(id: string): Promise<DevUpload | undefined> {
+    const results = await db.select().from(devUploads).where(eq(devUploads.id, id));
+    return results[0];
   }
 }
 

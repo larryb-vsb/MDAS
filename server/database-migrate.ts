@@ -54,6 +54,7 @@ async function checkTablesExist() {
     { name: getTableName('terminals'), createFunction: createTerminalsTable },
     { name: getTableName('api_users'), createFunction: createApiUsersTable },
     { name: getTableName('processing_metrics'), createFunction: createProcessingMetricsTable },
+    { name: getTableName('dev_uploads'), createFunction: createDevUploadsTable },
     
     // TDDF Processing Infrastructure (Schema 2.5.0)
     { name: getTableName('tddf_records'), createFunction: createTddfRecordsTable },
@@ -716,5 +717,24 @@ async function createSchemaContentTable() {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_schema_content_version 
     ON schema_content (version)
+  `);
+}
+
+// Dev uploads table for compressed storage testing
+async function createDevUploadsTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_dev_uploads' : 'dev_uploads';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+      id TEXT PRIMARY KEY,
+      filename TEXT NOT NULL,
+      compressed_payload JSONB NOT NULL,
+      schema_info JSONB NOT NULL,
+      upload_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      status TEXT DEFAULT 'uploaded' NOT NULL,
+      processed_at TIMESTAMP WITH TIME ZONE,
+      record_count INTEGER,
+      processing_time_ms INTEGER,
+      notes TEXT
+    )
   `);
 }

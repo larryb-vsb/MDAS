@@ -18,7 +18,8 @@ import {
   Loader2,
   Info,
   ScrollText,
-  ArchiveRestore
+  ArchiveRestore,
+  Zap
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,11 @@ const navItems = [
     icon: <UploadCloud className="h-5 w-5 text-gray-300" />,
     label: "Uploads",
     href: "/uploads"
+  },
+  {
+    icon: <Zap className="h-5 w-5 text-orange-400" />,
+    label: "Dev Upload",
+    href: "/dev-upload"
   },
   {
     icon: <FileText className="h-5 w-5 text-gray-300" />,
