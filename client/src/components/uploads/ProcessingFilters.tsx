@@ -573,7 +573,10 @@ export default function ProcessingFilters() {
                                     
                                     // Calculate raw line processing progress
                                     const rawLinesCount = file.rawLinesCount || 0;
-                                    const totalProcessed = (file.recordsProcessed || 0) + (file.recordsSkipped || 0) + (file.recordsWithErrors || 0);
+                                    const recordsProcessed = file.recordsProcessed || 0;
+                                    const recordsSkipped = file.recordsSkipped || 0;
+                                    const recordsWithErrors = file.recordsWithErrors || 0;
+                                    const totalProcessed = recordsProcessed + recordsSkipped + recordsWithErrors;
                                     const rawProcessingProgress = rawLinesCount > 0 ? Math.round((totalProcessed / rawLinesCount) * 100) : 0;
                                     
                                     // For files that are currently uploading or queued
@@ -602,7 +605,13 @@ export default function ProcessingFilters() {
                                           </div>
                                           <Progress value={rawProcessingProgress} className="h-1.5" />
                                           <div className="text-xs text-muted-foreground">
-                                            {totalProcessed} of {rawLinesCount} lines
+                                            {recordsProcessed} processed, {recordsSkipped} skipped
+                                            {recordsWithErrors > 0 && `, ${recordsWithErrors} errors`}
+                                            {rawLinesCount > 0 && (
+                                              <div className="text-xs text-muted-foreground mt-0.5">
+                                                {totalProcessed} of {rawLinesCount} total lines
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       );
@@ -619,7 +628,8 @@ export default function ProcessingFilters() {
                                           </div>
                                           <Progress value={100} className="h-1.5" />
                                           <div className="text-xs text-muted-foreground">
-                                            {file.recordsProcessed || 0} processed, {file.recordsSkipped || 0} skipped
+                                            {recordsProcessed} processed, {recordsSkipped} skipped
+                                            {recordsWithErrors > 0 && `, ${recordsWithErrors} errors`}
                                           </div>
                                         </div>
                                       );
