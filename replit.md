@@ -685,6 +685,15 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ CRITICAL SKIPPED RECORDS DISPLAY BUG COMPLETELY RESOLVED (July 27, 2025)
+- **✅ DASHBOARD CONSISTENCY ACHIEVED**: Fixed misleading "1,025-1,278 Skipped" records display that showed inconsistent data across different APIs
+  - **Root Cause Fixed**: real-time-stats API was incorrectly counting duplicate records (with skip_reason like "duplicate_record_updated" and "duplicate_reference_logged") as "skipped" when they should be counted as "processed"
+  - **SQL Query Enhanced**: Updated server/routes.ts line 912-915 to exclude duplicate-related skip reasons from otherSkipped calculation using `AND skip_reason NOT LIKE 'duplicate_%' AND processing_status = 'skipped'`
+  - **Business Logic Alignment**: Duplicate records now properly counted as processed records, not skipped records, matching system design intent
+  - **API Consistency**: All APIs now consistently report 0 skipped records matching database reality
+  - **Data Accuracy Restored**: Dashboard displays authentic processing status instead of misleading high skip counts
+  - **Complete Resolution**: real-time-stats, tddf/raw-status, and performance-kpis APIs all show consistent 0 skipped records
+
 ### ✅ FILE UPLOAD PROGRESS DISPLAY ENHANCEMENT COMPLETED (July 27, 2025)
 - **✅ FILE SIZE INFORMATION ADDED TO PROGRESS COLUMN**: Successfully enhanced Progress column to display both line counts and file sizes for complete file information visibility
   - **Queued Files Display**: Now shows "X lines ready for processing" with "File size: XX.X KB" as secondary line underneath

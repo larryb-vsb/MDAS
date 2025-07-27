@@ -906,7 +906,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(*) as total_raw_lines,
           COUNT(CASE WHEN processed_into_table = '${tddfRecordsTableName}' THEN 1 END) as dt_records_processed,
           COUNT(CASE WHEN skip_reason = 'non_dt_record' THEN 1 END) as non_dt_records_skipped,
-          COUNT(CASE WHEN skip_reason IS NOT NULL AND skip_reason != 'non_dt_record' THEN 1 END) as other_skipped
+          COUNT(CASE WHEN skip_reason IS NOT NULL 
+                  AND skip_reason != 'non_dt_record' 
+                  AND skip_reason NOT LIKE 'duplicate_%' 
+                  AND processing_status = 'skipped' THEN 1 END) as other_skipped
         FROM ${tddfRawImportTableName}
       `);
       
