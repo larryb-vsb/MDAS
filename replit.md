@@ -16,7 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 27, 2025 - CRITICAL PERFORMANCE BREAKTHROUGH COMPLETED - 6X SPEED IMPROVEMENT ACHIEVED
+- Current session: July 27, 2025 - CLEAN ARCHITECTURE IMPLEMENTATION COMPLETED - ENHANCED SCANLY-WATCHER WITH NEW PROCESSING METHODS
+- **✅ CLEAN ARCHITECTURE IMPLEMENTATION COMPLETED (July 27, 2025)**: Successfully implemented unified clean bulk processing architecture with enhanced Scanly-Watcher capabilities
+  - **Clean Bulk Processing Integration**: Updated Scanly-Watcher to use new `processAllPendingTddfRecordsBulk()` method replacing legacy Alex-style emergency processing
+  - **Performance Monitoring Enhanced**: Added real-time processing rate calculation with SYS001 error code integration for sub-1000 records/min threshold detection
+  - **Emergency R1 Processing**: Implemented separate thread single-line processing for troubleshooting critical performance issues
+  - **API Endpoints Added**: Created `/api/tddf/process-bulk-clean` and `/api/tddf/emergency-r1-processing` endpoints with clean architecture integration
+  - **Legacy Redirect System**: Updated existing endpoints to redirect to new clean bulk processing methods maintaining backward compatibility
+  - **Error Code Integration**: Comprehensive error tracking with bulk warning system and performance degradation alerts
+  - **Scanly-Watcher Authority**: Enhanced system monitoring with automatic clean bulk processing triggers and performance intervention capabilities
 - **✅ CRITICAL PERFORMANCE BREAKTHROUGH COMPLETED (July 27, 2025)**: Successfully unified processing architecture achieving 6x speed improvement for regular file uploads
   - **Performance Bottleneck Eliminated**: Replaced slow `processTddfFileFromContent` (180 records/min) with fast `processPendingTddfRecordsSwitchBased` (1,164+ records/min) in regular file processing
   - **Architecture Unification**: Both emergency processing and regular file uploads now use identical HIGH-PERFORMANCE bulk switch-based processing with 2000 records/batch

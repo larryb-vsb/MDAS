@@ -456,38 +456,75 @@ export class ScanlyWatcher {
         }
       }
       
-      // Auto-trigger emergency processing if backlog is critical (and not paused)
+      // 🚀 CLEAN BULK PROCESSING: Auto-trigger clean bulk processing if backlog exists (and not paused)
       if (this.THRESHOLDS.AUTO_RECOVERY_ENABLED && 
           metrics.tddfBacklog >= this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD) {
         // Check if processing is globally paused
         try {
           const { isProcessingPaused } = await import("../routes");
           if (isProcessingPaused()) {
-            console.log(`[SCANLY-WATCHER] 🛑 Emergency processing skipped - system is paused by user`);
+            console.log(`[SCANLY-WATCHER] 🛑 Clean bulk processing skipped - system is paused by user`);
           } else {
-            console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
-            const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
-            if (emergencyResult.success) {
+            console.log(`🚀 [SCANLY-WATCHER] Auto-triggering CLEAN BULK PROCESSING for ${metrics.tddfBacklog} pending records`);
+            const bulkResult = await this.performCleanBulkProcessing(metrics.tddfBacklog);
+            if (bulkResult.success) {
               alerts.push({
                 level: 'info',
-                type: 'auto_emergency_recovery',
-                message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
-                details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
+                type: 'auto_bulk_recovery',
+                message: `Automatic clean bulk processing completed: ${bulkResult.recordsProcessed} records processed, ${bulkResult.bulkWarnings} warnings`,
+                details: { 
+                  recordsProcessed: bulkResult.recordsProcessed, 
+                  bulkWarnings: bulkResult.bulkWarnings,
+                  autoTriggered: true, 
+                  methodology: 'clean_single_path_bulk_processing',
+                  processingTime: bulkResult.processingTime
+                },
                 timestamp: new Date()
               });
             }
           }
         } catch (error) {
           console.error(`[SCANLY-WATCHER] Error checking pause state:`, error);
-          // Continue with emergency processing if we can't check pause state
-          console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
-          const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
-          if (emergencyResult.success) {
+          // Continue with clean bulk processing if we can't check pause state
+          console.log(`🚀 [SCANLY-WATCHER] Auto-triggering CLEAN BULK PROCESSING for ${metrics.tddfBacklog} pending records`);
+          const bulkResult = await this.performCleanBulkProcessing(metrics.tddfBacklog);
+          if (bulkResult.success) {
             alerts.push({
               level: 'info',
-              type: 'auto_emergency_recovery',
-              message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
-              details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
+              type: 'auto_bulk_recovery',
+              message: `Automatic clean bulk processing completed: ${bulkResult.recordsProcessed} records processed, ${bulkResult.bulkWarnings} warnings`,
+              details: { 
+                recordsProcessed: bulkResult.recordsProcessed, 
+                bulkWarnings: bulkResult.bulkWarnings,
+                autoTriggered: true, 
+                methodology: 'clean_single_path_bulk_processing',
+                processingTime: bulkResult.processingTime
+              },
+              timestamp: new Date()
+            });
+          }
+        }
+      }
+
+      // 🆘 PERFORMANCE MONITORING: Check if processing rate is below 1000 records/min threshold
+      if (metrics.tddfBacklog > 0) {
+        const currentRate = await this.calculateCurrentProcessingRate();
+        if (currentRate < 1000) {
+          console.log(`⚠️  [SCANLY-WATCHER] Processing rate ${currentRate} records/min below SYS001 threshold (1000/min)`);
+          
+          // Consider emergency R1 processing for troubleshooting if rate is critically low
+          if (currentRate < 200) {
+            console.log(`🆘 [SCANLY-WATCHER] CRITICAL: Processing rate ${currentRate}/min triggers emergency R1 troubleshooting`);
+            alerts.push({
+              level: 'critical',
+              type: 'performance_degradation',
+              message: `Processing rate critically low: ${currentRate} records/min`,
+              details: { 
+                currentRate,
+                threshold: 1000,
+                errorCode: 'SYS001',
+                recommendedAction: 'emergency_r1_troubleshooting'
+              },
               timestamp: new Date()
             });
           }
@@ -801,6 +838,69 @@ export class ScanlyWatcher {
       
     } catch (error) {
       console.error('[SCANLY-WATCHER] Error during stuck file cleanup:', error);
+    }
+  }
+
+  // 🚀 CLEAN BULK PROCESSING METHOD - New single-path architecture
+  private async performCleanBulkProcessing(backlogCount: number): Promise<{ success: boolean; recordsProcessed: number; bulkWarnings: number; processingTime: number }> {
+    try {
+      console.log(`🚀 [SCANLY-WATCHER] Starting clean bulk processing for ${backlogCount} pending records`);
+      const startTime = Date.now();
+      
+      // Use new clean bulk processing method from storage
+      const { storage } = await import("../storage");
+      const result = await storage.processAllPendingTddfRecordsBulk(2000);
+      
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`✅ [SCANLY-WATCHER] Clean bulk processing completed:`);
+      console.log(`   • Records Processed: ${result.processed} (bulk rate)`);
+      console.log(`   • Bulk Warnings: ${result.bulkWarnings} (problematic batches)`);
+      console.log(`   • Critical Errors: ${result.errors} (emergency R1 candidates)`);
+      console.log(`   • Processing Time: ${processingTime}ms`);
+      
+      return {
+        success: true,
+        recordsProcessed: result.processed,
+        bulkWarnings: result.bulkWarnings,
+        processingTime
+      };
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error in clean bulk processing:', error);
+      return {
+        success: false,
+        recordsProcessed: 0,
+        bulkWarnings: 0,
+        processingTime: 0
+      };
+    }
+  }
+
+  // 🆘 PERFORMANCE MONITORING - Calculate current processing rate
+  private async calculateCurrentProcessingRate(): Promise<number> {
+    try {
+      const tddfRawImportTable = getTableName('tddf_raw_import');
+      
+      // Get processed count from last 10 minutes
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as recent_processed
+        FROM ${sql.identifier(tddfRawImportTable)}
+        WHERE processing_status = 'processed'
+          AND processed_at >= ${tenMinutesAgo.toISOString()}
+      `);
+      
+      const recentProcessed = Number(result.rows[0]?.recent_processed || 0);
+      const rate = (recentProcessed / 10) * 60; // Convert to records per minute
+      
+      console.log(`📊 [SCANLY-WATCHER] Current processing rate: ${rate} records/min (${recentProcessed} in last 10 min)`);
+      return rate;
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error calculating processing rate:', error);
+      return 0;
     }
   }
 

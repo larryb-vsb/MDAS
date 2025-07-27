@@ -5532,16 +5532,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Process pending raw TDDF lines (manual processing endpoint)
-  app.post("/api/tddf/process-backlog", isAuthenticated, async (req, res) => {
+  // 🚀 CLEAN BULK PROCESSING - Single-path switch architecture (primary endpoint)
+  app.post("/api/tddf/process-bulk-clean", isAuthenticated, async (req, res) => {
     try {
-      const batchSize = parseInt(req.query.batchSize as string) || 2000;
-      const result = await storage.processPendingRawTddfLines(batchSize);
+      const batchSize = parseInt(req.body.batchSize) || 2000;
+      console.log(`🚀 API request for CLEAN BULK PROCESSING with single-path architecture (batch size: ${batchSize})`);
+      
+      const result = await storage.processAllPendingTddfRecordsBulk(batchSize);
       
       res.json({
         success: true,
-        message: `Processed ${result.processed} pending raw TDDF lines`,
-        details: result
+        message: "Clean bulk processing completed using single-path switch architecture",
+        processed: result.processed,
+        bulkWarnings: result.bulkWarnings,
+        errors: result.errors,
+        breakdown: result.breakdown,
+        methodology: "clean_single_path_bulk_processing"
+      });
+    } catch (error) {
+      console.error("Error in clean bulk processing:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Failed to execute clean bulk processing"
+      });
+    }
+  });
+
+  // 🆘 EMERGENCY R1 SINGLE-LINE PROCESSING - Separate thread troubleshooting
+  app.post("/api/tddf/emergency-r1-processing", isAuthenticated, async (req, res) => {
+    try {
+      const { recordId, recordType } = req.body;
+      
+      if (!recordId || !recordType) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required parameters: recordId and recordType"
+        });
+      }
+
+      console.log(`🆘 API request for emergency R1 single-line processing: ${recordType} record ${recordId}`);
+      
+      const result = await storage.emergencyR1SingleLineProcessing(recordId, recordType);
+      
+      res.json({
+        success: result.success,
+        errorCode: result.errorCode,
+        details: result.details,
+        methodology: "emergency_r1_single_line_troubleshooting"
+      });
+    } catch (error) {
+      console.error("Error in emergency R1 processing:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error",
+        errorCode: "SYS001",
+        message: "Failed to execute emergency R1 processing"
+      });
+    }
+  });
+
+  // LEGACY: Process pending raw TDDF lines (redirects to clean bulk processing)
+  app.post("/api/tddf/process-backlog", isAuthenticated, async (req, res) => {
+    try {
+      const batchSize = parseInt(req.query.batchSize as string) || 2000;
+      console.log(`⚠️  LEGACY: Redirecting backlog processing to clean bulk processing architecture`);
+      
+      const result = await storage.processAllPendingTddfRecordsBulk(batchSize);
+      
+      res.json({
+        success: true,
+        message: `Processed ${result.processed} pending raw TDDF lines (redirected to clean bulk processing)`,
+        processed: result.processed,
+        bulkWarnings: result.bulkWarnings,
+        errors: result.errors,
+        methodology: "clean_single_path_bulk_processing_via_legacy_redirect"
       });
     } catch (error) {
       console.error('Error processing TDDF backlog:', error);

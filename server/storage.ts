@@ -7136,31 +7136,152 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // 🚀 PERFORMANCE BREAKTHROUGH: Replace slow skip-based processing with HIGH-PERFORMANCE switch-based processing
-  async processNonDtPendingLines(batchSize: number = 2000): Promise<{ skipped: number; errors: number }> {
+  // 🚀 CLEAN SINGLE-PATH BULK PROCESSING - All TDDF record types processed at bulk rate on first pass
+  async processAllPendingTddfRecordsBulk(batchSize: number = 2000): Promise<{ processed: number; bulkWarnings: number; errors: number; breakdown: Record<string, any> }> {
     try {
-      console.log(`🚀 [PERFORMANCE FIX] Redirecting to HIGH-PERFORMANCE switch-based processing instead of slow skip method`);
-      console.log(`[SWITCH-REDIRECT] Processing up to ${batchSize} pending records using 6x faster method...`);
+      console.log(`🚀 [BULK-FIRST] Single-path bulk processing for ALL record types (${batchSize} records/batch)`);
+      console.log(`[CLEAN-ARCH] No fallback logic - bulk processing only, emergency R1 on separate thread`);
       
-      // CRITICAL FIX: Use the same high-performance method that achieved 1,164+ records/min breakthrough
+      // SINGLE PATH: Use high-performance switch-based method for ALL record types
       const switchResult = await this.processPendingTddfRecordsSwitchBased(undefined, batchSize);
       
-      console.log(`✅ [PERFORMANCE FIX] HIGH-PERFORMANCE processing completed:`);
-      console.log(`   • Total Processed: ${switchResult.totalProcessed} (using switch-based method)`);
-      console.log(`   • Total Skipped: ${switchResult.totalSkipped}`);
-      console.log(`   • Total Errors: ${switchResult.totalErrors}`);
+      console.log(`✅ [BULK-FIRST] Clean bulk processing completed:`);
+      console.log(`   • Total Processed: ${switchResult.totalProcessed} (bulk rate)`);
+      console.log(`   • Bulk Warnings: ${switchResult.totalSkipped} (problematic batches)`);
+      console.log(`   • Critical Errors: ${switchResult.totalErrors} (emergency R1 candidates)`);
       console.log(`   • Processing Time: ${switchResult.processingTime}ms`);
-      console.log(`🚀 [PERFORMANCE FIX] All background processing now uses 6x faster switch-based method!`);
+      console.log(`🚀 [CLEAN-ARCH] Single-path bulk processing ensures consistent high performance!`);
       
-      // Return in the expected format for backward compatibility
+      // Mark problematic records with bulk processing warnings
+      if (switchResult.totalSkipped > 0) {
+        await this.markBulkProcessingWarnings(switchResult.breakdown);
+      }
+      
+      // Return clean format for single-path architecture
       return { 
-        skipped: switchResult.totalSkipped, 
-        errors: switchResult.totalErrors 
+        processed: switchResult.totalProcessed,
+        bulkWarnings: switchResult.totalSkipped, 
+        errors: switchResult.totalErrors,
+        breakdown: switchResult.breakdown
       };
       
     } catch (error) {
-      console.error('Error in high-performance switch-based processing:', error);
+      console.error('Error in clean bulk processing:', error);
       throw error;
+    }
+  }
+
+  // DEPRECATED: Old method redirected to clean bulk processing
+  async processNonDtPendingLines(batchSize: number = 2000): Promise<{ skipped: number; errors: number }> {
+    console.log(`⚠️  [DEPRECATED] Redirecting to clean bulk processing architecture`);
+    const result = await this.processAllPendingTddfRecordsBulk(batchSize);
+    return { skipped: result.bulkWarnings, errors: result.errors };
+  }
+
+  // 🚀 BULK PROCESSING WARNING SYSTEM - Mark problematic batches for review
+  async markBulkProcessingWarnings(breakdown: Record<string, { processed: number; skipped: number; errors: number }>): Promise<void> {
+    try {
+      console.log(`⚠️  [BULK-WARNING] Marking problematic records with bulk processing warnings`);
+      const tableName = getTableName('tddf_raw_import');
+      
+      for (const [recordType, stats] of Object.entries(breakdown)) {
+        if (stats.skipped > 0 || stats.errors > 0) {
+          await pool.query(`
+            UPDATE "${tableName}"
+            SET skip_reason = CASE 
+              WHEN skip_reason IS NULL THEN 'BWN001_bulk_processing_warning'
+              ELSE skip_reason || '_BWN001_bulk_processing_warning'
+            END,
+            processing_status = CASE 
+              WHEN processing_status = 'pending' THEN 'bulk_warning'
+              ELSE processing_status
+            END
+            WHERE record_type = $1 
+              AND processing_status IN ('pending', 'skipped') 
+              AND (skip_reason IS NULL OR skip_reason NOT LIKE '%BWN001%')
+            LIMIT $2
+          `, [recordType, stats.skipped + stats.errors]);
+          
+          console.log(`⚠️  [BULK-WARNING] Marked ${stats.skipped + stats.errors} ${recordType} records with bulk processing warnings`);
+        }
+      }
+    } catch (error) {
+      console.error('Error marking bulk processing warnings:', error);
+    }
+  }
+
+  // 🆘 EMERGENCY R1 SINGLE-LINE PROCESSING - Separate thread for troubleshooting
+  async emergencyR1SingleLineProcessing(recordId: string, recordType: string): Promise<{ success: boolean; errorCode?: string; details?: string }> {
+    try {
+      console.log(`🆘 [EMERGENCY-R1] Single-line troubleshooting for ${recordType} record ${recordId}`);
+      const tableName = getTableName('tddf_raw_import');
+      
+      // Get the specific record for detailed analysis
+      const result = await pool.query(`
+        SELECT * FROM "${tableName}" WHERE id = $1
+      `, [recordId]);
+      
+      if (result.rows.length === 0) {
+        return { success: false, errorCode: 'REC001', details: 'Record not found' };
+      }
+      
+      const record = result.rows[0];
+      
+      // Single-threaded detailed processing with error code tracking
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // Attempt processing with detailed error tracking
+        switch (recordType) {
+          case 'DT':
+            await this.processDTRecordWithClient(client, record, tableName);
+            break;
+          case 'BH':
+            await this.processBHRecordWithClient(client, record, tableName);
+            break;
+          case 'P1':
+            await this.processP1RecordWithClient(client, record, tableName);
+            break;
+          case 'E1':
+            await this.processE1RecordWithClient(client, record, tableName);
+            break;
+          case 'G2':
+            await this.processG2RecordWithClient(client, record, tableName);
+            break;
+          default:
+            throw new Error(`Unknown record type: ${recordType}`);
+        }
+        
+        await client.query('COMMIT');
+        console.log(`✅ [EMERGENCY-R1] Successfully processed ${recordType} record ${recordId}`);
+        return { success: true };
+        
+      } catch (error: any) {
+        await client.query('ROLLBACK');
+        
+        // Classify error and assign error code
+        let errorCode = 'SYS002'; // Default system error
+        if (error.message.includes('column') && error.message.includes('does not exist')) {
+          errorCode = 'SCH001';
+        } else if (error.message.includes('invalid input syntax')) {
+          errorCode = 'FLD002';
+        } else if (error.message.includes('timeout')) {
+          errorCode = 'SYS002';
+        }
+        
+        console.log(`🆘 [EMERGENCY-R1] Failed to process ${recordType} record ${recordId}: ${error.message}`);
+        console.log(`🆘 [EMERGENCY-R1] Assigned error code: ${errorCode}`);
+        
+        return { success: false, errorCode, details: error.message };
+        
+      } finally {
+        client.release();
+      }
+      
+    } catch (error: any) {
+      console.error(`🆘 [EMERGENCY-R1] Critical error in single-line processing:`, error);
+      return { success: false, errorCode: 'SYS001', details: error.message };
     }
   }
 
@@ -7930,10 +8051,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // OPTIMIZED: High-performance switch-based TDDF processing method
+  // 🚀 CLEAN SINGLE-PATH SWITCH PROCESSING - Bulk processing for all record types
   async processPendingTddfRecordsSwitchBased(
     fileId?: string,
-    batchSize: number = 3000  // OPTIMIZATION: Further increased default batch size for large datasets
+    batchSize: number = 2000  // CLEAN ARCHITECTURE: Standardized bulk batch size
   ): Promise<{
     totalProcessed: number;
     totalSkipped: number;
@@ -7942,8 +8063,8 @@ export class DatabaseStorage implements IStorage {
     processingTime: number;
   }> {
     const startTime = Date.now();
-    console.log(`=================== TDDF OPTIMIZED SWITCH-BASED PROCESSING ===================`);
-    console.log(`High-performance batch processing (${batchSize} records/batch, ALL record types)`);
+    console.log(`=================== CLEAN SINGLE-PATH BULK PROCESSING ===================`);
+    console.log(`🚀 BULK-FIRST: Processing ALL record types at bulk rate (${batchSize} records/batch)`);
     
     let totalProcessed = 0;
     let totalSkipped = 0;
