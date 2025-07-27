@@ -66,8 +66,8 @@ export default function DevUpload() {
     }
     
     // ACH files
-    if (name.includes('ach') && (name.includes('dem') || name.includes('demand'))) {
-      return 'ach_demand';
+    if (name.includes('ach') && (name.includes('dem') || name.includes('demand') || name.includes('demographic'))) {
+      return 'ach_demographics';
     }
     
     if (name.includes('ach') && (name.includes('trans') || name.includes('transaction'))) {
@@ -164,7 +164,7 @@ export default function DevUpload() {
         lineFormat: lines.length > 0 ? (lines[0].includes(',') ? 'csv' : 'fixed-width') : 'unknown'
       };
 
-      const response = await apiRequest('POST', '/api/dev-uploads', {
+      await apiRequest('POST', '/api/dev-uploads', {
         filename: file.name,
         compressed_payload: compressedPayload,
         schema_info: schemaInfo
@@ -174,7 +174,7 @@ export default function DevUpload() {
       
       setTimeout(() => {
         const result: UploadResult = {
-          id: response.upload.id,
+          id: Date.now().toString(), // Generate a simple ID as string
           filename: file.name,
           fileSize: file.size,
           lineCount: lines.length,
@@ -574,7 +574,7 @@ export default function DevUpload() {
                 <div className="flex justify-center">
                   <Button 
                     variant="outline" 
-                    className="w-full max-w-xs"
+                    className="w-full max-w-xs bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
                     onClick={() => {
                       if (pendingUpload) {
                         const detectedType = detectFileType(pendingUpload.file.name);
@@ -585,7 +585,7 @@ export default function DevUpload() {
                     }}
                   >
                     <Zap className="h-4 w-4 mr-2" />
-                    Try Auto Detect Again
+                    Auto
                   </Button>
                 </div>
                 
@@ -595,6 +595,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'tddf' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('tddf')}
+                    className={selectedFileType === 'tddf' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     TDDF/Financial
                   </Button>
@@ -602,6 +603,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'merchant' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('merchant')}
+                    className={selectedFileType === 'merchant' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Merchant Data
                   </Button>
@@ -609,6 +611,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'transaction' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('transaction')}
+                    className={selectedFileType === 'transaction' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Transaction Data
                   </Button>
@@ -616,6 +619,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'terminal' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('terminal')}
+                    className={selectedFileType === 'terminal' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Terminal/POS
                   </Button>
@@ -623,6 +627,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'csv' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('csv')}
+                    className={selectedFileType === 'csv' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     CSV/Spreadsheet
                   </Button>
@@ -630,6 +635,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'json' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('json')}
+                    className={selectedFileType === 'json' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     JSON Data
                   </Button>
@@ -637,6 +643,7 @@ export default function DevUpload() {
                     variant={selectedFileType === 'text' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('text')}
+                    className={selectedFileType === 'text' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Text/Log File
                   </Button>
@@ -644,22 +651,27 @@ export default function DevUpload() {
                     variant={selectedFileType === 'excel' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('excel')}
+                    className={selectedFileType === 'excel' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     Excel/Worksheet
                   </Button>
                   <Button 
-                    variant={selectedFileType === 'ach_demand' ? 'default' : 'outline'}
+                    variant={selectedFileType === 'ach_demographics' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setSelectedFileType('ach_demand')}
+                    onClick={() => setSelectedFileType('ach_demographics')}
+                    title="ACH Demographics"
+                    className={selectedFileType === 'ach_demographics' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
-                    ACH Demand
+                    ACH Dem
                   </Button>
                   <Button 
                     variant={selectedFileType === 'ach_transaction' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedFileType('ach_transaction')}
+                    title="ACH Transactions"
+                    className={selectedFileType === 'ach_transaction' ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
-                    ACH Transaction
+                    ACH Trans
                   </Button>
                 </div>
                 
@@ -667,7 +679,7 @@ export default function DevUpload() {
                 <Button 
                   variant={selectedFileType === 'other' ? 'default' : 'outline'}
                   size="sm"
-                  className="w-full"
+                  className={selectedFileType === 'other' ? 'w-full bg-green-600 hover:bg-green-700' : 'w-full'}
                   onClick={() => setSelectedFileType('other')}
                 >
                   Other/Custom Type
