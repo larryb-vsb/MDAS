@@ -18,6 +18,7 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
+import RecordsPerMinuteChart from '@/components/settings/RecordsPerMinuteChart';
 
 interface ProcessingMetrics {
   tddfPerMinute: number;
@@ -562,6 +563,11 @@ export const NextGenProcessingWidget: React.FC = () => {
               )}
             </div>
           </Card>
+        </div>
+
+        {/* Records Processing Chart */}
+        <div className="mt-6">
+          <RecordsPerMinuteChart className="bg-white/80 backdrop-blur-sm" />
         </div>
 
         {/* Footer Info */}
