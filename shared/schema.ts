@@ -21,6 +21,7 @@
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
  * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
  * - 2.7.0: MINOR FEATURE - Production Deployment Schema Synchronization with complete P1 purchasing extension fields (34 total fields), missing production tables creation, and comprehensive schema alignment for seamless deployment
+ * - 2.7.1: PATCH - MMSUploader Integration with uploads table definition for compressed JSON payload storage and parallel testing architecture support
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
