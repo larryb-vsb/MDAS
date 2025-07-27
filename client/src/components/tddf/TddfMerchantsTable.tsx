@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,6 +183,12 @@ export default function TddfMerchantsTable() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Terminal pagination and sorting state
+  const [terminalPage, setTerminalPage] = useState(1);
+  const [terminalItemsPerPage, setTerminalItemsPerPage] = useState(10);
+  const [terminalSortBy, setTerminalSortBy] = useState('transactionCount');
+  const [terminalSortOrder, setTerminalSortOrder] = useState('desc');
+
   // Query for terminals when details modal is open
   const { data: terminalsData, isLoading: terminalsLoading } = useQuery<TddfTerminal[]>({
     queryKey: ["/api/tddf/merchants", detailsRecord?.merchantAccountNumber, "terminals"],
@@ -205,6 +211,53 @@ export default function TddfMerchantsTable() {
     },
     enabled: !!detailsRecord?.merchantAccountNumber, // Only run when modal is open with merchant data
   });
+
+  // Client-side sorting and pagination for terminals
+  const sortedTerminals = terminalsData ? [...terminalsData].sort((a, b) => {
+    let aValue = a[terminalSortBy as keyof TddfTerminal];
+    let bValue = b[terminalSortBy as keyof TddfTerminal];
+    
+    // Handle different data types
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+    
+    if (aValue < bValue) return terminalSortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return terminalSortOrder === 'asc' ? 1 : -1;
+    return 0;
+  }) : [];
+
+  // Paginated terminals
+  const totalTerminals = sortedTerminals.length;
+  const terminalTotalPages = Math.ceil(totalTerminals / terminalItemsPerPage);
+  const terminalStartIndex = (terminalPage - 1) * terminalItemsPerPage;
+  const paginatedTerminals = sortedTerminals.slice(terminalStartIndex, terminalStartIndex + terminalItemsPerPage);
+
+  // Handle terminal sorting
+  const handleTerminalSort = (field: string) => {
+    if (terminalSortBy === field) {
+      setTerminalSortOrder(terminalSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTerminalSortBy(field);
+      setTerminalSortOrder('desc');
+    }
+    setTerminalPage(1); // Reset to first page when sorting
+  };
+
+  // Reset terminal pagination when modal opens with new merchant
+  const resetTerminalPagination = () => {
+    setTerminalPage(1);
+    setTerminalSortBy('transactionCount');
+    setTerminalSortOrder('desc');
+  };
+
+  // Reset terminal pagination when opening a new merchant modal
+  useEffect(() => {
+    if (detailsRecord) {
+      resetTerminalPagination();
+    }
+  }, [detailsRecord?.merchantAccountNumber]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -814,17 +867,68 @@ export default function TddfMerchantsTable() {
                         </div>
                       ) : terminalsData && terminalsData.length > 0 ? (
                         <div className="rounded-lg overflow-hidden border border-gray-200">
+                          {/* Terminal Controls */}
+                          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Show:</span>
+                              <Select
+                                value={terminalItemsPerPage.toString()}
+                                onValueChange={(value) => {
+                                  setTerminalItemsPerPage(parseInt(value));
+                                  setTerminalPage(1);
+                                }}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[10, 25, 50, 100].map((option) => (
+                                    <SelectItem key={option} value={option.toString()}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <span className="text-sm text-muted-foreground">
+                                terminals per page
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Showing {terminalStartIndex + 1}-{Math.min(terminalStartIndex + terminalItemsPerPage, totalTerminals)} of {totalTerminals} terminals
+                            </div>
+                          </div>
+
                           <Table>
                             <TableHeader className="bg-gray-50">
                               <TableRow>
-                                <TableHead>Terminal</TableHead>
-                                <TableHead className="text-right">Transaction Count</TableHead>
-                                <TableHead className="text-right">Total Amount</TableHead>
-                                <TableHead>Last Transaction</TableHead>
+                                <TableHead 
+                                  className="cursor-pointer hover:bg-gray-100"
+                                  onClick={() => handleTerminalSort('terminalId')}
+                                >
+                                  Terminal {terminalSortBy === 'terminalId' && (terminalSortOrder === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead 
+                                  className="text-right cursor-pointer hover:bg-gray-100"
+                                  onClick={() => handleTerminalSort('transactionCount')}
+                                >
+                                  Transaction Count {terminalSortBy === 'transactionCount' && (terminalSortOrder === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead 
+                                  className="text-right cursor-pointer hover:bg-gray-100"
+                                  onClick={() => handleTerminalSort('totalAmount')}
+                                >
+                                  Total Amount {terminalSortBy === 'totalAmount' && (terminalSortOrder === 'asc' ? '↑' : '↓')}
+                                </TableHead>
+                                <TableHead 
+                                  className="cursor-pointer hover:bg-gray-100"
+                                  onClick={() => handleTerminalSort('lastTransactionDate')}
+                                >
+                                  Last Transaction {terminalSortBy === 'lastTransactionDate' && (terminalSortOrder === 'asc' ? '↑' : '↓')}
+                                </TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {terminalsData.map((terminal, index) => (
+                              {paginatedTerminals.map((terminal, index) => (
                                 <TableRow key={`${terminal.terminalId}-${index}`}>
                                   <TableCell>
                                     <TerminalIdDisplay terminalId={terminal.terminalId} />
@@ -836,6 +940,51 @@ export default function TddfMerchantsTable() {
                               ))}
                             </TableBody>
                           </Table>
+
+                          {/* Terminal Pagination */}
+                          {terminalTotalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setTerminalPage(Math.max(1, terminalPage - 1))}
+                                  disabled={terminalPage === 1}
+                                >
+                                  Previous
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                  Page {terminalPage} of {terminalTotalPages}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setTerminalPage(Math.min(terminalTotalPages, terminalPage + 1))}
+                                  disabled={terminalPage === terminalTotalPages}
+                                >
+                                  Next
+                                </Button>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                {/* Page numbers */}
+                                {Array.from({ length: Math.min(5, terminalTotalPages) }, (_, i) => {
+                                  const pageNum = terminalPage <= 3 ? i + 1 : terminalPage - 2 + i;
+                                  if (pageNum > terminalTotalPages) return null;
+                                  return (
+                                    <Button
+                                      key={pageNum}
+                                      variant={pageNum === terminalPage ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => setTerminalPage(pageNum)}
+                                      className="w-8 h-8 p-0"
+                                    >
+                                      {pageNum}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-12">
