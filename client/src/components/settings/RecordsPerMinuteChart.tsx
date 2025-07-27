@@ -35,7 +35,7 @@ interface RecordsPerMinuteChartProps {
 }
 
 export default function RecordsPerMinuteChart({ hours = 1, className = "" }: RecordsPerMinuteChartProps) {
-  const [timeRange, setTimeRange] = useState(10/60); // Default to 10 minutes (10/60 hours)
+  const [timeRange, setTimeRange] = useState(5/60); // Default to 5 minutes (5/60 hours)
   
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
     queryKey: ['/api/processing/performance-chart-history', timeRange],
