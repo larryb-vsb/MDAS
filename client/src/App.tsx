@@ -25,6 +25,7 @@ import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
 import MMSUploader from "@/pages/MMSUploader";
+import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 
 function Router() {
   return (
@@ -43,6 +44,7 @@ function Router() {
       <ProtectedRoute path="/tddf" component={TddfPage} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
+      <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/dev-upload" component={MMSUploader} />

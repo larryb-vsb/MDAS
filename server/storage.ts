@@ -8047,7 +8047,7 @@ export class DatabaseStorage implements IStorage {
               await client.query('COMMIT');
               breakdown[recordType].processed++;
               totalProcessed++;
-              client.release();
+              // ✅ CRITICAL FIX: Remove client.release() here since finally block handles it
               continue;
             }
             
