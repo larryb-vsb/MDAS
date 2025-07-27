@@ -211,7 +211,6 @@ export default function MMSUploader() {
     setShowClassificationDialog(false);
     await processUpload(pendingUpload.file, selectedFileType);
     setPendingUpload(null);
-    setSelectedFileType("");
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -248,7 +247,14 @@ export default function MMSUploader() {
           <div className="flex justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Zap className="h-4 w-4" />
-              Auto Detection
+              {selectedFileType === 'auto' ? 'Auto Detection' : 
+               selectedFileType === 'tddf' ? 'TDDF' :
+               selectedFileType === 'csv' ? 'CSV' :
+               selectedFileType === 'json' ? 'JSON' :
+               selectedFileType === 'excel' ? 'Excel' :
+               selectedFileType === 'terminal' ? 'Terminal' :
+               selectedFileType === 'ach_transaction' ? 'ACH Files' :
+               selectedFileType.toUpperCase()}
             </div>
             <div className="flex items-center gap-1">
               <Database className="h-4 w-4" />
