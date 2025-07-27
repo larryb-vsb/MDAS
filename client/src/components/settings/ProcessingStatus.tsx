@@ -200,11 +200,11 @@ const MultiColorGauge = ({
                 style={{ left: `${dtPercentage + bhPercentage}%`, width: `${p1Percentage}%`, backgroundColor: '#f59e0b' }}
               />
             )}
-            {/* Other Records - Red */}
+            {/* Other Records - Gray */}
             {otherPercentage > 0 && (
               <div 
                 className="absolute top-0 h-full rounded-r-full transition-all duration-300 ease-out"
-                style={{ left: `${dtPercentage + bhPercentage + p1Percentage}%`, width: `${otherPercentage}%`, backgroundColor: '#ef4444' }}
+                style={{ left: `${dtPercentage + bhPercentage + p1Percentage}%`, width: `${otherPercentage}%`, backgroundColor: '#6b7280' }}
               />
             )}
           </>
