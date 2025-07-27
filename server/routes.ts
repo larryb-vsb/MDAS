@@ -5966,8 +5966,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Historical Performance Chart Data from Scanly-Watcher Metrics
   app.get("/api/processing/performance-chart-history", isAuthenticated, async (req, res) => {
     try {
-      const hoursParam = parseInt(req.query.hours as string) || 1;
-      const hours = Math.min(Math.max(hoursParam, 1), 24); // Limit between 1-24 hours
+      const hoursParam = parseFloat(req.query.hours as string) || 1;
+      const hours = Math.min(Math.max(hoursParam, 1/60), 24); // Allow as low as 1 minute (1/60 hours), max 24 hours
       
       const metricsTableName = getTableName('processing_metrics');
       
