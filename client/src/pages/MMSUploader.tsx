@@ -37,7 +37,7 @@ export default function MMSUploader() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
   const [showClassificationDialog, setShowClassificationDialog] = useState(false);
-  const [selectedFileType, setSelectedFileType] = useState<string>("");
+  const [selectedFileType, setSelectedFileType] = useState<string>("auto");
   const { toast } = useToast();
 
   // File type detection based on filename and extension
@@ -570,12 +570,15 @@ export default function MMSUploader() {
               <div className="space-y-3">
                 <Label htmlFor="file-type">Select File Type</Label>
                 
-                {/* Auto Detect Button */}
-                <div className="flex justify-center">
-                  <Button 
-                    variant="outline" 
-                    className="w-full max-w-xs bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-                    onClick={() => {
+                {/* Auto Detection Radio Button */}
+                <div className="flex items-center space-x-3 p-3 border rounded-lg bg-green-50 border-green-200">
+                  <input
+                    type="radio"
+                    id="auto-detect"
+                    name="file-type"
+                    checked={selectedFileType === 'auto'}
+                    onChange={() => {
+                      setSelectedFileType('auto');
                       if (pendingUpload) {
                         const detectedType = detectFileType(pendingUpload.file.name);
                         if (detectedType !== 'unknown') {
@@ -583,107 +586,160 @@ export default function MMSUploader() {
                         }
                       }
                     }}
-                  >
+                    className="text-green-600 focus:ring-green-500"
+                  />
+                  <label htmlFor="auto-detect" className="flex items-center cursor-pointer text-green-700 font-medium">
                     <Zap className="h-4 w-4 mr-2" />
-                    Auto
-                  </Button>
+                    Auto Detection
+                  </label>
                 </div>
                 
-                {/* File Type Buttons Grid */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant={selectedFileType === 'tddf' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('tddf')}
-                    className={selectedFileType === 'tddf' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    TDDF/Financial
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'merchant' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('merchant')}
-                    className={selectedFileType === 'merchant' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Merchant Data
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'transaction' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('transaction')}
-                    className={selectedFileType === 'transaction' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Transaction Data
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'terminal' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('terminal')}
-                    className={selectedFileType === 'terminal' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Terminal/POS
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'csv' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('csv')}
-                    className={selectedFileType === 'csv' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    CSV/Spreadsheet
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'json' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('json')}
-                    className={selectedFileType === 'json' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    JSON Data
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'text' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('text')}
-                    className={selectedFileType === 'text' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Text/Log File
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'excel' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('excel')}
-                    className={selectedFileType === 'excel' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    Excel/Worksheet
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'ach_demographics' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('ach_demographics')}
-                    title="ACH Demographics"
-                    className={selectedFileType === 'ach_demographics' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    ACH Dem
-                  </Button>
-                  <Button 
-                    variant={selectedFileType === 'ach_transaction' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedFileType('ach_transaction')}
-                    title="ACH Transactions"
-                    className={selectedFileType === 'ach_transaction' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  >
-                    ACH Trans
-                  </Button>
+                {/* File Type Radio Buttons Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'tddf' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="tddf"
+                      name="file-type"
+                      checked={selectedFileType === 'tddf'}
+                      onChange={() => setSelectedFileType('tddf')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="tddf" className="cursor-pointer text-sm font-medium">TDDF/Financial</label>
+                    {selectedFileType === 'tddf' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'merchant' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="merchant"
+                      name="file-type"
+                      checked={selectedFileType === 'merchant'}
+                      onChange={() => setSelectedFileType('merchant')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="merchant" className="cursor-pointer text-sm font-medium">Merchant Data</label>
+                    {selectedFileType === 'merchant' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'transaction' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="transaction"
+                      name="file-type"
+                      checked={selectedFileType === 'transaction'}
+                      onChange={() => setSelectedFileType('transaction')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="transaction" className="cursor-pointer text-sm font-medium">Transaction Data</label>
+                    {selectedFileType === 'transaction' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'terminal' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="terminal"
+                      name="file-type"
+                      checked={selectedFileType === 'terminal'}
+                      onChange={() => setSelectedFileType('terminal')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="terminal" className="cursor-pointer text-sm font-medium">Terminal/POS</label>
+                    {selectedFileType === 'terminal' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'csv' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="csv"
+                      name="file-type"
+                      checked={selectedFileType === 'csv'}
+                      onChange={() => setSelectedFileType('csv')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="csv" className="cursor-pointer text-sm font-medium">CSV/Spreadsheet</label>
+                    {selectedFileType === 'csv' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'json' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="json"
+                      name="file-type"
+                      checked={selectedFileType === 'json'}
+                      onChange={() => setSelectedFileType('json')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="json" className="cursor-pointer text-sm font-medium">JSON Data</label>
+                    {selectedFileType === 'json' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'text' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="text"
+                      name="file-type"
+                      checked={selectedFileType === 'text'}
+                      onChange={() => setSelectedFileType('text')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="text" className="cursor-pointer text-sm font-medium">Text/Log File</label>
+                    {selectedFileType === 'text' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'excel' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      id="excel"
+                      name="file-type"
+                      checked={selectedFileType === 'excel'}
+                      onChange={() => setSelectedFileType('excel')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="excel" className="cursor-pointer text-sm font-medium">Excel/Worksheet</label>
+                    {selectedFileType === 'excel' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'ach_demographics' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`} title="ACH Demographics">
+                    <input
+                      type="radio"
+                      id="ach_demographics"
+                      name="file-type"
+                      checked={selectedFileType === 'ach_demographics'}
+                      onChange={() => setSelectedFileType('ach_demographics')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="ach_demographics" className="cursor-pointer text-sm font-medium">ACH Dem</label>
+                    {selectedFileType === 'ach_demographics' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
+                  
+                  <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'ach_transaction' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`} title="ACH Transactions">
+                    <input
+                      type="radio"
+                      id="ach_transaction"
+                      name="file-type"
+                      checked={selectedFileType === 'ach_transaction'}
+                      onChange={() => setSelectedFileType('ach_transaction')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <label htmlFor="ach_transaction" className="cursor-pointer text-sm font-medium">ACH Trans</label>
+                    {selectedFileType === 'ach_transaction' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                  </div>
                 </div>
                 
-                {/* Other/Custom Type as separate button */}
-                <Button 
-                  variant={selectedFileType === 'other' ? 'default' : 'outline'}
-                  size="sm"
-                  className={selectedFileType === 'other' ? 'w-full bg-green-600 hover:bg-green-700' : 'w-full'}
-                  onClick={() => setSelectedFileType('other')}
-                >
-                  Other/Custom Type
-                </Button>
+                {/* Other/Custom Type as separate radio button */}
+                <div className={`flex items-center space-x-2 p-2 border rounded-lg cursor-pointer ${selectedFileType === 'other' ? 'bg-green-50 border-green-500' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input
+                    type="radio"
+                    id="other"
+                    name="file-type"
+                    checked={selectedFileType === 'other'}
+                    onChange={() => setSelectedFileType('other')}
+                    className="text-green-600 focus:ring-green-500"
+                  />
+                  <label htmlFor="other" className="cursor-pointer text-sm font-medium">Other/Custom Type</label>
+                  {selectedFileType === 'other' && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                </div>
               </div>
               
               {pendingUpload && (
