@@ -312,118 +312,71 @@ export default function MMSUploader() {
                         Choose File
                       </Button>
                       
+                      {/* Auto Detection Button */}
+                      <div className="flex justify-center mb-3">
+                        <Button 
+                          variant={selectedFileType === 'auto' ? 'default' : 'outline'}
+                          size="sm"
+                          className={selectedFileType === 'auto' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('auto')}
+                        >
+                          <Zap className="h-4 w-4 mr-2" />
+                          {selectedFileType === 'auto' ? '🟢' : '⚫'} Auto Detection
+                        </Button>
+                      </div>
+                      
                       {/* Quick File Type Selection Buttons */}
                       <div className="text-sm text-muted-foreground">
                         Quick Select:
                       </div>
                       <div className="flex flex-wrap justify-center gap-2">
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'tddf' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.tsyso,.TSYSO';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'tddf' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('tddf')}
                         >
-                          TDDF
+                          {selectedFileType === 'tddf' ? '🟢' : '⚫'} TDDF
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'csv' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.csv';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'csv' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('csv')}
                         >
-                          CSV
+                          {selectedFileType === 'csv' ? '🟢' : '⚫'} CSV
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'json' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.json';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'json' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('json')}
                         >
-                          JSON
+                          {selectedFileType === 'json' ? '🟢' : '⚫'} JSON
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'excel' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.xlsx,.xls';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'excel' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('excel')}
                         >
-                          Excel
+                          {selectedFileType === 'excel' ? '🟢' : '⚫'} Excel
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'terminal' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.txt,.dat,.ach';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'terminal' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('terminal')}
                         >
-                          Terminal
+                          {selectedFileType === 'terminal' ? '🟢' : '⚫'} Terminal
                         </Button>
                         <Button 
-                          variant="outline" 
+                          variant={selectedFileType === 'ach_transaction' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.ach,.txt,.dat';
-                            input.onchange = (e) => {
-                              const files = (e.target as HTMLInputElement).files;
-                              if (files && files.length > 0) {
-                                onDrop([files[0]]);
-                              }
-                            };
-                            input.click();
-                          }}
+                          className={selectedFileType === 'ach_transaction' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                          onClick={() => setSelectedFileType('ach_transaction')}
                         >
-                          ACH Files
+                          {selectedFileType === 'ach_transaction' ? '🟢' : '⚫'} ACH Files
                         </Button>
                       </div>
                     </div>

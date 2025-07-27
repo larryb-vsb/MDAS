@@ -698,6 +698,15 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 - **✅ Enhanced Description**: Updated page subtitle to "Advanced file processing with smart file type detection" for better user context
 - **Complete Branding Consistency**: Page now properly branded as "MMS Uploader" throughout interface and codebase
 
+### ✅ RADIO BUTTON FILE TYPE SELECTION WITH GREEN LIGHTS COMPLETED (July 27, 2025)
+- **✅ Green Light Indicators**: Added visual green/grey light system - 🟢 for selected file types, ⚫ for unselected
+- **✅ Auto Detection Button**: Made Auto Detection button prominent and visible at top with green styling when selected (default)
+- **✅ Removed File Dialogs**: Quick Select buttons now only set file type selection instead of opening file dialogs
+- **✅ Visual Feedback System**: Each button shows green background and white text when selected, grey when not selected
+- **✅ Comprehensive File Types**: All file types (TDDF, CSV, JSON, Excel, Terminal, ACH Files) now have consistent green/grey light indicators
+- **✅ Default Auto Selection**: Auto Detection is selected by default with prominent green styling and lightning bolt icon
+- **Complete Visual Consistency**: Radio button-style selection with clear visual feedback for selected file types
+
 ### ✅ MAJOR BATCH PROCESSING OPTIMIZATION FOR LARGE DATASETS COMPLETED (July 27, 2025)
 - **✅ EMERGENCY PROCESSING BATCH SIZES SIGNIFICANTLY INCREASED**: Enhanced Scanly-Watcher emergency processing capabilities with substantially larger batch sizes for improved throughput
   - **Phase 1 Processing**: Increased from 1,000 to 2,500 records for priority DT/BH processing (150% increase)
