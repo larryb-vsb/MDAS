@@ -1046,6 +1046,12 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
 
 // Terminals tab component
 function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: string }) {
+  // Terminal pagination and sorting state
+  const [terminalPage, setTerminalPage] = useState(1);
+  const [terminalItemsPerPage, setTerminalItemsPerPage] = useState(10);
+  const [terminalSortBy, setTerminalSortBy] = useState('transactionCount');
+  const [terminalSortOrder, setTerminalSortOrder] = useState('desc');
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tddf/merchants', merchantAccountNumber, 'terminals'],
     queryFn: async () => {
@@ -1088,6 +1094,46 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
 
   const terminals = Array.isArray(data) ? data : [];
 
+  // Client-side sorting and pagination for terminals
+  const sortedTerminals = terminals ? [...terminals].sort((a, b) => {
+    let aValue = a[terminalSortBy as keyof typeof a];
+    let bValue = b[terminalSortBy as keyof typeof b];
+    
+    // Handle different data types
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+    
+    if (aValue < bValue) return terminalSortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return terminalSortOrder === 'asc' ? 1 : -1;
+    return 0;
+  }) : [];
+
+  // Paginated terminals
+  const totalTerminals = sortedTerminals.length;
+  const terminalTotalPages = Math.ceil(totalTerminals / terminalItemsPerPage);
+  const terminalStartIndex = (terminalPage - 1) * terminalItemsPerPage;
+  const paginatedTerminals = sortedTerminals.slice(terminalStartIndex, terminalStartIndex + terminalItemsPerPage);
+
+  // Handle terminal sorting
+  const handleTerminalSort = (field: string) => {
+    if (terminalSortBy === field) {
+      setTerminalSortOrder(terminalSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTerminalSortBy(field);
+      setTerminalSortOrder('desc');
+    }
+    setTerminalPage(1); // Reset to first page when sorting
+  };
+
+  // Reset terminal pagination when merchant changes
+  useEffect(() => {
+    setTerminalPage(1);
+    setTerminalSortBy('transactionCount');
+    setTerminalSortOrder('desc');
+  }, [merchantAccountNumber]);
+
   return (
     <Card>
       <CardHeader>
@@ -1104,17 +1150,72 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-gray-200">
+            {/* Terminal Controls */}
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Show:</span>
+                <Select
+                  value={terminalItemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setTerminalItemsPerPage(parseInt(value));
+                    setTerminalPage(1); // Reset to first page
+                  }}
+                >
+                  <SelectTrigger className="w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  terminals per page
+                </span>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                Showing {terminalStartIndex + 1}-{Math.min(terminalStartIndex + terminalItemsPerPage, totalTerminals)} of {totalTerminals} terminals
+              </div>
+            </div>
+
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Terminal</TableHead>
-                  <TableHead className="text-right">Transaction Count</TableHead>
-                  <TableHead className="text-right">Total Amount</TableHead>
-                  <TableHead>Last Transaction</TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleTerminalSort('transactionCount')}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Transaction Count
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="text-right cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleTerminalSort('totalAmount')}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Total Amount
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleTerminalSort('lastTransactionDate')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Last Transaction
+                      <ArrowUpDown className="h-3 w-3" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {terminals.map((terminal: any, index: number) => (
+                {paginatedTerminals.map((terminal: any, index: number) => (
                   <TableRow key={`${terminal.terminalId}-${index}`}>
                     <TableCell>
                       <TerminalIdDisplay terminalId={terminal.terminalId} />
@@ -1131,6 +1232,48 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
                 ))}
               </TableBody>
             </Table>
+
+            {/* Pagination Controls */}
+            {terminalTotalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 py-4 border-t bg-gray-50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTerminalPage(terminalPage - 1)}
+                  disabled={terminalPage === 1}
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, terminalTotalPages) }, (_, i) => {
+                    const pageNum = terminalPage <= 3 ? i + 1 : terminalPage - 2 + i;
+                    if (pageNum > terminalTotalPages) return null;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === terminalPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setTerminalPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTerminalPage(terminalPage + 1)}
+                  disabled={terminalPage === terminalTotalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
