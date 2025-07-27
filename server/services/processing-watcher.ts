@@ -1185,87 +1185,17 @@ export class ScanlyWatcher {
       phases.push({ phase: 3, recordsProcessed: phase3Count, recordTypes: ['P1'], action: 'processed' });
       console.log(`[SCANLY-WATCHER] ✅ PHASE 3 Complete: ${phase3Count} P1 records processed`);
 
-      // PHASE 4: Process remaining record types using switch-based processing
-      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Processing remaining record types (E1, G2, GE, AD, DR, P2, CK, LG) using switch-based processing');
+      // PHASE 4: Process remaining record types using HIGH-PERFORMANCE bulk switch-based processing
+      console.log('[SCANLY-WATCHER] 📊 PHASE 4: Processing remaining record types (E1, G2, GE, AD, DR, P2, CK, LG) using HIGH-PERFORMANCE bulk switch-based processing');
       
-      // Get pending other records for actual processing
-      const pendingOtherResult = await db.execute(sql`
-        SELECT id, raw_line, source_file_id, line_number, record_type
-        FROM ${sql.identifier(tddfRawImportTable)}
-        WHERE processing_status = 'pending' 
-          AND record_type NOT IN ('DT', 'BH', 'P1')
-        ORDER BY line_number
-        LIMIT 2000
-      `);
-      
-      const pendingOtherRecords = pendingOtherResult.rows;
-      let phase4Count = 0;
-      
-      // Process each record using the switch-based processing method
-      for (const rawRecord of pendingOtherRecords) {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          
-          // Use switch-based processing method from storage
-          const recordType = rawRecord.record_type;
-          
-          switch (recordType) {
-            case 'E1':
-              await storage.processE1RecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            case 'GE':
-              await storage.processGERecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            case 'G2':
-              await storage.processG2RecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            case 'AD':
-              await storage.processADRecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            case 'DR':
-              await storage.processDRRecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            case 'P2':
-              await storage.processP2RecordWithClient(client, rawRecord, tddfRawImportTable);
-              break;
-            default:
-              // Skip truly unknown record types
-              await client.query(`
-                UPDATE ${tddfRawImportTable}
-                SET processing_status = 'skipped',
-                    skip_reason = 'scanly_watcher_unknown_record_type_${recordType}',
-                    processed_at = NOW()
-                WHERE id = $1
-              `, [rawRecord.id]);
-              break;
-          }
-          
-          await client.query('COMMIT');
-          phase4Count++;
-          
-        } catch (error: any) {
-          await client.query('ROLLBACK');
-          console.error(`[SCANLY-WATCHER] ${rawRecord.record_type} processing error for record ${rawRecord.id}:`, error);
-          
-          // Mark as skipped with error reason
-          await pool.query(`
-            UPDATE ${tddfRawImportTable}
-            SET processing_status = 'skipped',
-                skip_reason = 'scanly_watcher_${rawRecord.record_type}_error: ' || $1,
-                processed_at = NOW()
-            WHERE id = $2
-          `, [error.message?.substring(0, 200) || 'Unknown error', rawRecord.id]);
-          
-        } finally {
-          client.release();
-        }
-      }
+      // Use the optimized bulk processing method instead of individual record processing
+      const phase4Result = await storage.processPendingTddfRecordsSwitchBased(undefined, 2000);
+      const phase4Count = phase4Result.totalProcessed;
       
       const phase4Count_final = phase4Count;
       totalProcessed += phase4Count_final;
-      phases.push({ phase: 4, recordsProcessed: phase4Count_final, recordTypes: ['E1', 'G2', 'GE', 'AD', 'DR', 'P2'], action: 'processed' });
-      console.log(`[SCANLY-WATCHER] ✅ PHASE 4 Complete: ${phase4Count_final} other records processed using switch-based processing`);
+      phases.push({ phase: 4, recordsProcessed: phase4Count_final, recordTypes: ['E1', 'G2', 'GE', 'AD', 'DR', 'P2', 'CK', 'LG'], action: 'processed', method: 'bulk_switch_processing' });
+      console.log(`[SCANLY-WATCHER] ✅ PHASE 4 Complete: ${phase4Count_final} other records processed using HIGH-PERFORMANCE bulk switch-based processing`);
 
       const totalTime = Date.now() - startTime;
       const processingRate = Math.round(totalProcessed / (totalTime / 1000 / 60));
