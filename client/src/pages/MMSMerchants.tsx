@@ -645,7 +645,9 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
       params.append('page', currentPage.toString());
       params.append('limit', itemsPerPage.toString());
       
-      const response = await fetch(`/api/tddf/merchant/${merchantAccountNumber}?${params.toString()}`);
+      const response = await fetch(`/api/tddf/merchant/${merchantAccountNumber}?${params.toString()}`, {
+        credentials: "include"
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch merchant transactions');
       }
