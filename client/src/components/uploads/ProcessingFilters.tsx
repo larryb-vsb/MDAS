@@ -67,7 +67,7 @@ export default function ProcessingFilters() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   // Fetch processing status with filters
-  const { data: processingData, isLoading, refetch } = useQuery<ProcessingStatusData>({
+  const { data: processingData, isLoading, refetch: refetchProcessingData } = useQuery<ProcessingStatusData>({
     queryKey: ["/api/uploads/processing-status", activeStatusFilter, activeFileTypeFilter, sortBy, sortOrder, currentPage, itemsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -355,9 +355,9 @@ export default function ProcessingFilters() {
               <Filter className="mr-2 h-5 w-5" />
               Processing Filters
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <Button variant="outline" size="sm" onClick={() => refetchProcessingData()}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              Refresh {activeStatusFilter === 'all' ? 'All Files' : activeStatusFilter.charAt(0).toUpperCase() + activeStatusFilter.slice(1)}
             </Button>
           </div>
         </CardHeader>
@@ -575,26 +575,23 @@ export default function ProcessingFilters() {
                                         <TooltipContent side="right" className="max-w-64">
                                           <div className="space-y-1">
                                             <div className="font-semibold">File Information</div>
-                                            {file.fileSize && (
-                                              <div className="text-sm">
-                                                <span className="text-muted-foreground">Size:</span> {formatFileSize(file.fileSize)}
-                                              </div>
-                                            )}
-                                            {file.rawLinesCount && (
-                                              <div className="text-sm">
-                                                <span className="text-muted-foreground">Lines:</span> {file.rawLinesCount.toLocaleString()}
-                                              </div>
-                                            )}
-                                            {file.uploadedAt && (
-                                              <div className="text-sm">
-                                                <span className="text-muted-foreground">Uploaded:</span> {formatTableDate(file.uploadedAt)}
-                                              </div>
-                                            )}
+                                            <div className="text-sm">
+                                              <span className="text-muted-foreground">Size:</span> {file.fileSize ? formatFileSize(file.fileSize) : 'Unknown'}
+                                            </div>
+                                            <div className="text-sm">
+                                              <span className="text-muted-foreground">Lines:</span> {file.rawLinesCount ? file.rawLinesCount.toLocaleString() : 'Unknown'}
+                                            </div>
+                                            <div className="text-sm">
+                                              <span className="text-muted-foreground">Uploaded:</span> {formatTableDate(file.uploadedAt)}
+                                            </div>
                                             {file.processingNotes && (
                                               <div className="text-sm">
                                                 <span className="text-muted-foreground">Notes:</span> {file.processingNotes}
                                               </div>
                                             )}
+                                            <div className="text-sm">
+                                              <span className="text-muted-foreground">ID:</span> {file.id}
+                                            </div>
                                           </div>
                                         </TooltipContent>
                                       </Tooltip>
