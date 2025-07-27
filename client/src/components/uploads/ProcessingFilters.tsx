@@ -736,7 +736,16 @@ export default function ProcessingFilters() {
                                           <div className="flex items-center gap-2">
                                             <Clock className="h-3 w-3 text-yellow-500 animate-pulse" />
                                             <div className="text-xs text-muted-foreground">
-                                              {rawLinesCount > 0 ? `${rawLinesCount} lines ready for processing` : 'Queued for processing'}
+                                              {rawLinesCount > 0 ? (
+                                                <>
+                                                  {rawLinesCount} lines ready for processing
+                                                  {file.fileSize && (
+                                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                                      File size: {formatFileSize(file.fileSize)}
+                                                    </div>
+                                                  )}
+                                                </>
+                                              ) : 'Queued for processing'}
                                             </div>
                                           </div>
                                         </div>
@@ -767,6 +776,11 @@ export default function ProcessingFilters() {
                                                 {totalProcessed} of {rawLinesCount} total lines
                                               </div>
                                             )}
+                                            {file.fileSize && (
+                                              <div className="text-xs text-muted-foreground mt-0.5">
+                                                File size: {formatFileSize(file.fileSize)}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       );
@@ -790,6 +804,11 @@ export default function ProcessingFilters() {
                                               </>
                                             ) : (
                                               `All ${rawLinesCount} lines processed successfully`
+                                            )}
+                                            {file.fileSize && (
+                                              <div className="text-xs text-muted-foreground mt-0.5">
+                                                File size: {formatFileSize(file.fileSize)}
+                                              </div>
                                             )}
                                           </div>
                                         </div>
