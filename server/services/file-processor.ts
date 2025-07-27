@@ -325,8 +325,19 @@ class FileProcessorService {
     }
     
     if (this.isPaused) {
-      console.log(`[${serverId}] File processor is paused, skipping this run`);
+      console.log(`[${serverId}] File processor is paused locally, skipping this run`);
       return;
+    }
+    
+    // Check if processing is globally paused by user
+    try {
+      const { isProcessingPaused } = await import("../routes");
+      if (isProcessingPaused()) {
+        console.log(`[${serverId}] 🛑 Processing is globally paused by user - skipping this run`);
+        return;
+      }
+    } catch (error) {
+      console.error(`[${serverId}] Error checking global pause state:`, error);
     }
     
     try {

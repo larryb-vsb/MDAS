@@ -456,12 +456,33 @@ export class ScanlyWatcher {
         }
       }
       
-      // Auto-trigger emergency processing if backlog is critical
+      // Auto-trigger emergency processing if backlog is critical (and not paused)
       if (this.THRESHOLDS.AUTO_RECOVERY_ENABLED && 
           metrics.tddfBacklog >= this.THRESHOLDS.EMERGENCY_PROCESSING_THRESHOLD) {
-        console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
-        const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
-        if (emergencyResult.success) {
+        // Check if processing is globally paused
+        try {
+          const { isProcessingPaused } = await import("../routes");
+          if (isProcessingPaused()) {
+            console.log(`[SCANLY-WATCHER] 🛑 Emergency processing skipped - system is paused by user`);
+          } else {
+            console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
+            const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
+            if (emergencyResult.success) {
+              alerts.push({
+                level: 'info',
+                type: 'auto_emergency_recovery',
+                message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
+                details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
+                timestamp: new Date()
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`[SCANLY-WATCHER] Error checking pause state:`, error);
+          // Continue with emergency processing if we can't check pause state
+          console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
+          const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
+          if (emergencyResult.success) {
           alerts.push({
             level: 'info',
             type: 'auto_emergency_recovery',
