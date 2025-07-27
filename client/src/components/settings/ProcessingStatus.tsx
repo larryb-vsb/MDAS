@@ -1132,13 +1132,13 @@ export default function ProcessingStatus() {
                     title={(() => {
                       const breakdown = performanceKpis?.colorBreakdown;
                       if (!breakdown) {
-                        return "DT: 0 Skipped\nBH: 0 Skipped\nP1: 4 Skipped\nE1: 12 Skipped\nGE: 54 Skipped\n\nany other DTTR type found but skipped";
+                        return "DT: 0 Skipped\nBH: 0 Skipped\nP1: 0 Skipped\nE1: 0 Skipped\nGE: 0 Skipped\n\nNo skipped records - all processing successful";
                       }
-                      const e1Skipped = breakdown?.e1?.skipped || 12;
-                      const geSkipped = breakdown?.g2?.skipped || 54; // GE instead of G2
+                      const e1Skipped = breakdown?.e1?.skipped || 0;
+                      const geSkipped = breakdown?.g2?.skipped || 0; // GE instead of G2
                       const dtSkipped = breakdown?.dt?.skipped || 0;
                       const bhSkipped = breakdown?.bh?.skipped || 0;
-                      const p1Skipped = breakdown?.p1?.skipped || 4;
+                      const p1Skipped = breakdown?.p1?.skipped || 0;
                       
                       let tooltip = "";
                       tooltip += `DT: ${dtSkipped} Skipped\n`;
@@ -1154,10 +1154,10 @@ export default function ProcessingStatus() {
                     <div className="font-semibold text-red-700">
                       {(() => {
                         const breakdown = performanceKpis?.colorBreakdown;
-                        if (!breakdown) return '70'; // DT:0 + BH:0 + P1:4 + E1:12 + GE:54 = 70
+                        if (!breakdown) return '0'; // No fallback values - show actual zero when no breakdown available
                         const totalSkipped = (breakdown?.dt?.skipped || 0) + (breakdown?.bh?.skipped || 0) + 
-                                           (breakdown?.p1?.skipped || 4) + (breakdown?.e1?.skipped || 12) + 
-                                           (breakdown?.g2?.skipped || 54);
+                                           (breakdown?.p1?.skipped || 0) + (breakdown?.e1?.skipped || 0) + 
+                                           (breakdown?.g2?.skipped || 0);
                         return totalSkipped.toLocaleString();
                       })()}
                     </div>
