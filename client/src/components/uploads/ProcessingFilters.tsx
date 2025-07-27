@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X, BarChart3, Info } from "lucide-react";
+import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X, BarChart3, Info, Pause, Play } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow } from "date-fns";
 import { formatUploadTime, formatRelativeTime, formatTableDate } from "@/lib/date-utils";
@@ -93,6 +93,61 @@ export default function ProcessingFilters() {
   const { data: queueData, refetch: refetchQueueData } = useQuery<QueueStatusData>({
     queryKey: ["/api/uploads/queue-status"],
     refetchInterval: 2000, // Update every 2 seconds for real-time queue info
+  });
+
+  // Fetch system processing status
+  const { data: systemStatus, refetch: refetchSystemStatus } = useQuery<{paused: boolean, status: string}>({
+    queryKey: ["/api/system/processing-status"],
+    refetchInterval: 3000, // Check every 3 seconds
+  });
+
+  // Pause/Resume processing mutations
+  const pauseProcessingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/system/pause-processing', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to pause processing');
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchSystemStatus();
+      toast({
+        title: "Processing Paused",
+        description: "All background processing has been paused",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to pause processing",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const resumeProcessingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/system/resume-processing', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to resume processing');
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchSystemStatus();
+      toast({
+        title: "Processing Resumed",
+        description: "Background processing has been resumed",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to resume processing",
+        variant: "destructive",
+      });
+    }
   });
 
   const getStatusColor = (status: string) => {
@@ -355,13 +410,40 @@ export default function ProcessingFilters() {
               <Filter className="mr-2 h-5 w-5" />
               Processing Filters
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={() => {
-              refetch();
-              refetchQueueData();
-            }}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => {
+                refetch();
+                refetchQueueData();
+              }}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              
+              {/* Pause/Resume Button */}
+              {systemStatus?.paused ? (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => resumeProcessingMutation.mutate()}
+                  disabled={resumeProcessingMutation.isPending}
+                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Resume Processing
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => pauseProcessingMutation.mutate()}
+                  disabled={pauseProcessingMutation.isPending}
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
+                >
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pause Processing
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

@@ -126,6 +126,13 @@ const upload = multer({
   limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for large TDDF files
 });
 
+// Global processing pause state
+let processingPaused = false;
+
+export function isProcessingPaused(): boolean {
+  return processingPaused;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize authentication system
   setupAuth(app);
@@ -148,6 +155,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
+
+  // Global pause/resume controls for processing
+  app.post("/api/system/pause-processing", isAuthenticated, (req, res) => {
+    processingPaused = true;
+    console.log("[SYSTEM] 🛑 PROCESSING PAUSED by user request");
+    res.json({ status: "paused", message: "All processing activities have been paused" });
+  });
+
+  app.post("/api/system/resume-processing", isAuthenticated, (req, res) => {
+    processingPaused = false;
+    console.log("[SYSTEM] ▶️ PROCESSING RESUMED by user request");
+    res.json({ status: "resumed", message: "Processing activities have been resumed" });
+  });
+
+  app.get("/api/system/processing-status", isAuthenticated, (req, res) => {
+    res.json({ 
+      paused: processingPaused,
+      status: processingPaused ? "paused" : "running"
+    });
+  });
   
   // Upload and restore backup endpoint that works even in fallback mode
   app.post("/api/settings/backup/restore-upload", upload.single('backupFile'), async (req, res) => {
