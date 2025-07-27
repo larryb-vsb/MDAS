@@ -861,42 +861,181 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
 
         {/* Transaction Details Modal */}
         <Dialog open={!!detailsRecord} onOpenChange={(open) => !open && setDetailsRecord(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden">
             <DialogHeader>
-              <DialogTitle>Transaction Details - ID: {detailsRecord?.id}</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                TDDF Transaction Detail
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Complete transaction information from TDDF processing
+              </p>
             </DialogHeader>
             {detailsRecord && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Transaction Information</h4>
-                    <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">ID:</span> {detailsRecord.id}</div>
-                      <div><span className="font-medium">Reference:</span> {detailsRecord.referenceNumber}</div>
-                      <div><span className="font-medium">Date:</span> {formatTableDate(detailsRecord.transactionDate)}</div>
-                      <div><span className="font-medium">Amount:</span> {formatCurrency(detailsRecord.transactionAmount)}</div>
+              <Tabs defaultValue="summary" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="summary">Summary</TabsTrigger>
+                  <TabsTrigger value="raw">Raw Details</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="summary" className="mt-4 space-y-6 overflow-y-auto max-h-[60vh]">
+                  {/* Transaction Summary */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-semibold mb-3 text-blue-900">Transaction Summary</h3>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <div className="text-muted-foreground">Reference Date</div>
+                        <div className="font-medium">{formatTableDate(detailsRecord.transactionDate)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Amount</div>
+                        <div className="font-medium text-green-600">{formatCurrency(detailsRecord.transactionAmount)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Card Type</div>
+                        <div className="flex items-center gap-1">
+                          {getCardTypeBadges(detailsRecord).map((badge, index) => (
+                            <span 
+                              key={index}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${badge.className}`}
+                            >
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Authorization #</div>
+                        <div className="font-medium font-mono">{detailsRecord.authorizationNumber || 'N/A'}</div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Card & Terminal</h4>
-                    <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Card Type:</span> {detailsRecord.cardType || 'N/A'}</div>
-                      <div><span className="font-medium">Terminal ID:</span> {detailsRecord.terminalId || 'N/A'}</div>
-                      <div><span className="font-medium">Auth Number:</span> {detailsRecord.authorizationNumber || 'N/A'}</div>
-                      <div><span className="font-medium">D/C Indicator:</span> {detailsRecord.debitCreditIndicator || 'N/A'}</div>
+
+                  {/* Merchant Information */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-3">Merchant Information</h4>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Name:</span>
+                          <div className="font-medium">{detailsRecord.merchantName || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Account:</span>
+                          <div className="font-medium font-mono">{detailsRecord.merchantAccountNumber}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">MCC Code:</span>
+                          <div className="font-medium">{detailsRecord.mccCode || 'N/A'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-3">Terminal Information</h4>
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Terminal ID:</span>
+                          <div className="font-medium font-mono">{detailsRecord.terminalId || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">VAR Number:</span>
+                          <div className="font-medium font-mono">V{detailsRecord.terminalId || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Transaction Type:</span>
+                          <div className="font-medium">{detailsRecord.transactionTypeIdentifier || 'N/A'}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Merchant Data</h4>
-                    <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Account:</span> {detailsRecord.merchantAccountNumber}</div>
-                      <div><span className="font-medium">Name:</span> {detailsRecord.merchantName || 'N/A'}</div>
-                      <div><span className="font-medium">MCC Code:</span> {detailsRecord.mccCode || 'N/A'}</div>
-                      <div><span className="font-medium">Transaction Code:</span> {detailsRecord.transactionCode || 'N/A'}</div>
+
+                  {/* TDDF Record Details */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-semibold mb-3">TDDF Record Details</h4>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Reference Number:</span>
+                        <div className="font-medium font-mono text-xs break-all">{detailsRecord.referenceNumber}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Record ID:</span>
+                        <div className="font-medium">{detailsRecord.id}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Recorded At:</span>
+                        <div className="font-medium">{formatTableDate(detailsRecord.recordedAt)}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Processing Status:</span>
+                        <div className="font-medium">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 border border-green-200">
+                            Processed
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Transaction Code:</span>
+                        <div className="font-medium font-mono">{detailsRecord.transactionCode || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">D/C Indicator:</span>
+                        <div className="font-medium">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                            detailsRecord.debitCreditIndicator === 'D' 
+                              ? 'bg-purple-100 text-purple-800 border-purple-200' 
+                              : 'bg-blue-100 text-blue-800 border-blue-200'
+                          }`}>
+                            {detailsRecord.debitCreditIndicator === 'D' ? 'Debit' : detailsRecord.debitCreditIndicator === 'C' ? 'Credit' : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+
+                <TabsContent value="raw" className="mt-4 space-y-4 overflow-y-auto max-h-[60vh]">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-600 text-white font-medium">
+                        RAW
+                      </span>
+                      <span className="text-sm font-medium text-blue-900">Raw Line Data</span>
+                    </div>
+                    <p className="text-xs text-blue-700">Original fixed-width TDDF record data from source file</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Fixed-width TDDF record - {detailsRecord.mmsRawLine?.length || 0} characters
+                    </div>
+                    <div className="bg-white p-3 rounded border font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
+                      {detailsRecord.mmsRawLine || 'Raw line data not available'}
+                    </div>
+                  </div>
+
+                  {/* Field Position Reference */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-semibold mb-3 text-sm">Key Field Positions (TDDF Specification)</h4>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <div><span className="font-medium">Reference Number:</span> 62-84</div>
+                        <div><span className="font-medium">Transaction Amount:</span> 85-96</div>
+                        <div><span className="font-medium">Merchant Name:</span> 218-242</div>
+                        <div><span className="font-medium">Card Type:</span> 253-254</div>
+                        <div><span className="font-medium">Authorization Number:</span> 243-250</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div><span className="font-medium">Terminal ID:</span> 277-284</div>
+                        <div><span className="font-medium">MCC Code:</span> 273-276</div>
+                        <div><span className="font-medium">Transaction Date:</span> 71-76</div>
+                        <div><span className="font-medium">D/C Indicator:</span> 216</div>
+                        <div><span className="font-medium">Transaction Type ID:</span> 335-338</div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>
