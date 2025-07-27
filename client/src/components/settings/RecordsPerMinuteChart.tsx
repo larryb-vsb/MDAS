@@ -50,6 +50,9 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
 
   // Time range options
   const timeRangeOptions = [
+    { value: 1/60, label: '1 Minute', shortLabel: '1m' },
+    { value: 2/60, label: '2 Minutes', shortLabel: '2m' },
+    { value: 5/60, label: '5 Minutes', shortLabel: '5m' },
     { value: 10/60, label: '10 Minutes', shortLabel: '10m' },
     { value: 30/60, label: '30 Minutes', shortLabel: '30m' },
     { value: 1, label: '1 Hour', shortLabel: '1h' },
