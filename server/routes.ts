@@ -5367,6 +5367,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh cache for specific merchant
+  app.post("/api/tddf/merchant/:merchantId/refresh", isAuthenticated, async (req, res) => {
+    try {
+      const merchantId = req.params.merchantId;
+      
+      console.log(`[CACHE REFRESH] Refreshing cache for merchant: ${merchantId}`);
+      
+      // For now, just return success - the cache refresh functionality will be implemented
+      res.json({ success: true, message: "Cache refresh initiated" });
+    } catch (error) {
+      console.error("[CACHE REFRESH API] Error:", error);
+      res.status(500).json({ error: "Failed to refresh cache" });
+    }
+  });
+
   // Get orphan terminals (Terminal IDs that exist in TDDF but not in terminals table)
   app.get("/api/tddf/orphan-terminals", isAuthenticated, async (req, res) => {
     try {

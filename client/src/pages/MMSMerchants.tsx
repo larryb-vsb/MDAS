@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye } from "lucide-react";
+import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
@@ -637,6 +637,8 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<any>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tddf/merchant', merchantAccountNumber, currentPage, itemsPerPage],
@@ -658,6 +660,29 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
   const transactions = Array.isArray(data) ? data : data?.data || [];
   const totalRecords = data?.pagination?.totalItems || transactions.length;
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  const handleRefreshCache = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch(`/api/tddf/merchant/${merchantAccountNumber}/refresh`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // Invalidate and refetch the data
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/tddf/merchant', merchantAccountNumber] 
+        });
+      } else {
+        console.error('Failed to refresh cache');
+      }
+    } catch (error) {
+      console.error('Error refreshing cache:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const formatCurrency = (amount?: string | number) => {
     if (amount === undefined || amount === null) return 'N/A';
@@ -717,30 +742,54 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>TDDF Transactions ({totalRecords})</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              All DT transactions for merchant account {merchantAccountNumber}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                All DT transactions for merchant account {merchantAccountNumber}
+              </p>
+              {data?.cacheInfo && (
+                <div className="text-xs text-muted-foreground">
+                  • Cache updated: {new Date(data.cacheInfo.lastUpdated).toLocaleString()}
+                  {data.cacheInfo.isStale && <span className="text-orange-600"> (stale)</span>}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Show:</span>
-            <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => {
-                setItemsPerPage(parseInt(value));
-                setCurrentPage(1);
-              }}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshCache}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
             >
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 50, 100, 200].map((option) => (
-                  <SelectItem key={option} value={option.toString()}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {isRefreshing ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {isRefreshing ? 'Refreshing...' : 'Refresh Cache'}
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show:</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => {
+                  setItemsPerPage(parseInt(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100, 200].map((option) => (
+                    <SelectItem key={option} value={option.toString()}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </CardHeader>
