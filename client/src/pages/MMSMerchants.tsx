@@ -20,7 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Search, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
@@ -516,10 +522,121 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   );
 }
 
+// Card Type Detection Function - Returns single badge per transaction using Card Type field (251-256)
+function getCardTypeBadges(record: any) {
+  const isDebit = record.debitCreditIndicator === 'D';
+  const cardType = record.cardType?.trim();
+  
+  // Priority 1: Check cardType field (positions 251-256) - most accurate identification
+  if (cardType) {
+    // Mastercard identification (MC, MD, MB)
+    if (cardType === 'MC') {
+      return [{ label: 'MC', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    if (cardType === 'MD') {
+      return [{ label: 'MC-D', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    if (cardType === 'MB') {
+      return [{ label: 'MC-B', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+    
+    // Visa identification (VS, VD, VB, etc.)
+    if (cardType === 'VS') {
+      return [{ label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType === 'VD') {
+      return [{ label: 'VISA-D', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType === 'VB') {
+      return [{ label: 'VISA-B', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    if (cardType.startsWith('V')) {
+      return [{ label: 'VISA', className: 'bg-blue-100 text-blue-800 border-blue-200' }];
+    }
+    
+    // American Express identification (AM, AX, etc.)
+    if (cardType === 'AM' || cardType.startsWith('AX')) {
+      return [{ label: 'AMEX', className: 'bg-green-100 text-green-800 border-green-200' }];
+    }
+    
+    // Discover identification (DS, DC, etc.)
+    if (cardType === 'DS' || cardType.startsWith('DC')) {
+      return [{ label: 'DISC', className: 'bg-purple-100 text-purple-800 border-purple-200' }];
+    }
+    
+    // Other specific card types
+    if (cardType.startsWith('MC') || cardType.startsWith('M')) {
+      return [{ label: 'MC', className: 'bg-red-100 text-red-800 border-red-200' }];
+    }
+  }
+  
+  // Priority 2: Check for AMEX data fields (fallback)
+  if (record.amexMerchantSellerPostalCode) {
+    return [{
+      label: 'AMEX',
+      className: 'bg-green-100 text-green-800 border-green-200'
+    }];
+  }
+  
+  // Priority 3: Check for Visa-specific fields
+  if (record.visaIntegrityFee || record.visaFeeProgramIndicator || record.visaSpecialConditionIndicator) {
+    return [{
+      label: isDebit ? 'VISA-D' : 'VISA',
+      className: 'bg-blue-100 text-blue-800 border-blue-200'
+    }];
+  }
+  
+  // Priority 4: Check for Mastercard-specific fields
+  if (record.mastercardTransactionIntegrityClass || record.mastercardWalletIdentifier || record.mcCashBackFee) {
+    return [{
+      label: isDebit ? 'MC-D' : 'MC',
+      className: 'bg-red-100 text-red-800 border-red-200'
+    }];
+  }
+  
+  // Priority 5: Check for Discover-specific fields
+  if (record.discoverTransactionType || record.discoverProcessingCode) {
+    return [{
+      label: 'DISC',
+      className: 'bg-purple-100 text-purple-800 border-purple-200'
+    }];
+  }
+  
+  // Priority 6: Fallback to transaction code analysis
+  const transactionCode = record.transactionCode;
+  
+  if (transactionCode === '0330') {
+    // Network-specific transaction with network identifier
+    const networkId = record.networkIdentifierDebit;
+    if (networkId === 'IL' || networkId === 'ME') {
+      return [{
+        label: 'DEBIT',
+        className: 'bg-purple-100 text-purple-800 border-purple-200'
+      }];
+    }
+  }
+  
+  // Priority 7: Generic fallback for standard transactions
+  if (transactionCode === '0101') {
+    return [{
+      label: isDebit ? 'DEBIT' : 'CREDIT',
+      className: 'bg-gray-100 text-gray-800 border-gray-200'
+    }];
+  }
+  
+  // Default fallback
+  return [{
+    label: isDebit ? 'DEBIT' : 'CREDIT',
+    className: 'bg-gray-100 text-gray-800 border-gray-200'
+  }];
+}
+
 // Transactions tab component
 function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
+  const [detailsRecord, setDetailsRecord] = useState<any>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tddf/merchant', merchantAccountNumber, currentPage, itemsPerPage],
@@ -535,6 +652,38 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
       return response.json();
     }
   });
+
+  const transactions = Array.isArray(data) ? data : data?.data || [];
+  const totalRecords = data?.pagination?.totalItems || transactions.length;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  const formatCurrency = (amount?: string | number) => {
+    if (amount === undefined || amount === null) return 'N/A';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(numAmount);
+  };
+
+  const handleSelectRecord = (recordId: number, checked: boolean) => {
+    const newSelected = new Set(selectedRecords);
+    if (checked) {
+      newSelected.add(recordId);
+    } else {
+      newSelected.delete(recordId);
+    }
+    setSelectedRecords(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && transactions) {
+      setSelectedRecords(new Set(transactions.map((record: any) => record.id)));
+    } else {
+      setSelectedRecords(new Set());
+    }
+  };
 
   if (isLoading) {
     return (
@@ -560,59 +709,199 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
     );
   }
 
-  const transactions = Array.isArray(data) ? data : data?.data || [];
-
   return (
     <Card>
-        <CardHeader>
-          <CardTitle>TDDF Transactions</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            All DT transactions for merchant account {merchantAccountNumber}
-          </p>
-        </CardHeader>
-        <CardContent>
-          {transactions.length === 0 ? (
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>TDDF Transactions ({totalRecords})</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              All DT transactions for merchant account {merchantAccountNumber}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => {
+                setItemsPerPage(parseInt(value));
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100, 200].map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {transactions.length === 0 ? (
           <div className="text-center py-12">
             <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500">No transactions found for this merchant</p>
           </div>
         ) : (
-          <div className="rounded-lg overflow-hidden border border-gray-200">
-            <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Terminal</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Card Type</TableHead>
-                  <TableHead>Auth #</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {transactions.map((transaction: any, index: number) => (
-                  <TableRow key={`${transaction.id}-${index}`}>
-                    <TableCell>{formatTableDate(transaction.transactionDate)}</TableCell>
-                    <TableCell className="font-mono text-sm">{transaction.referenceNumber}</TableCell>
-                    <TableCell>
-                      <TerminalIdDisplay terminalId={transaction.terminalId} />
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      }).format(parseFloat(transaction.transactionAmount) || 0)}
-                    </TableCell>
-                    <TableCell>{transaction.cardType || 'N/A'}</TableCell>
-                    <TableCell className="font-mono text-sm">{transaction.authorizationNumber || 'N/A'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="space-y-4">
+            {/* Transaction Records Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left p-3 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecords.size === transactions.length && transactions.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                    </th>
+                    <th className="text-left p-3">Date</th>
+                    <th className="text-left p-3">Reference</th>
+                    <th className="text-left p-3">Terminal</th>
+                    <th className="text-right p-3">Amount</th>
+                    <th className="text-left p-3">Card Type</th>
+                    <th className="text-left p-3">Auth #</th>
+                    <th className="text-center p-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction: any) => (
+                    <tr key={transaction.id} className="border-b hover:bg-muted/20">
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRecords.has(transaction.id)}
+                          onChange={(e) => handleSelectRecord(transaction.id, e.target.checked)}
+                          className="rounded border-border"
+                        />
+                      </td>
+                      <td className="p-3 text-sm">
+                        {formatTableDate(transaction.transactionDate)}
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {transaction.referenceNumber}
+                      </td>
+                      <td className="p-3">
+                        <TerminalIdDisplay terminalId={transaction.terminalId} />
+                      </td>
+                      <td className="p-3 text-right font-mono text-sm font-medium text-green-600">
+                        {formatCurrency(transaction.transactionAmount)}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          {getCardTypeBadges(transaction).map((badge, index) => (
+                            <span 
+                              key={index}
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border ${badge.className} flex-shrink-0`}
+                            >
+                              <CreditCard className="h-3 w-3" />
+                              {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-3 font-mono text-xs">
+                        {transaction.authorizationNumber || 'N/A'}
+                      </td>
+                      <td className="p-3 text-center">
+                        <Button
+                          onClick={() => setDetailsRecord(transaction)}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, totalRecords)} of {totalRecords} records
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Previous
+                  </Button>
+                  <span className="flex items-center px-3 text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
-        </CardContent>
-      </Card>
+
+        {/* Transaction Details Modal */}
+        <Dialog open={!!detailsRecord} onOpenChange={(open) => !open && setDetailsRecord(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Transaction Details - ID: {detailsRecord?.id}</DialogTitle>
+            </DialogHeader>
+            {detailsRecord && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Transaction Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">ID:</span> {detailsRecord.id}</div>
+                      <div><span className="font-medium">Reference:</span> {detailsRecord.referenceNumber}</div>
+                      <div><span className="font-medium">Date:</span> {formatTableDate(detailsRecord.transactionDate)}</div>
+                      <div><span className="font-medium">Amount:</span> {formatCurrency(detailsRecord.transactionAmount)}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Card & Terminal</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Card Type:</span> {detailsRecord.cardType || 'N/A'}</div>
+                      <div><span className="font-medium">Terminal ID:</span> {detailsRecord.terminalId || 'N/A'}</div>
+                      <div><span className="font-medium">Auth Number:</span> {detailsRecord.authorizationNumber || 'N/A'}</div>
+                      <div><span className="font-medium">D/C Indicator:</span> {detailsRecord.debitCreditIndicator || 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Merchant Data</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><span className="font-medium">Account:</span> {detailsRecord.merchantAccountNumber}</div>
+                      <div><span className="font-medium">Name:</span> {detailsRecord.merchantName || 'N/A'}</div>
+                      <div><span className="font-medium">MCC Code:</span> {detailsRecord.mccCode || 'N/A'}</div>
+                      <div><span className="font-medium">Transaction Code:</span> {detailsRecord.transactionCode || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 }
 
