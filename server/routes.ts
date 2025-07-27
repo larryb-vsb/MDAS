@@ -6355,6 +6355,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF Switch-Based Processing Route
+  app.post('/api/tddf/process-pending-switch-based', isAuthenticated, async (req, res) => {
+    try {
+      const { batchSize, fileId } = req.body;
+      
+      console.log(`[SWITCH-API] Starting switch-based processing: batchSize=${batchSize || 'default'}, fileId=${fileId || 'all files'}`);
+      
+      const result = await storage.processPendingTddfRecordsSwitchBased(fileId, batchSize);
+      
+      console.log(`[SWITCH-API] ✅ Processing complete: ${result.totalProcessed} processed, ${result.totalSkipped} skipped, ${result.totalErrors} errors in ${result.processingTime}ms`);
+      
+      res.json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[SWITCH-API] Error in switch-based processing:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // TDDF Merchants Cache Management Routes
   app.post('/api/tddf-merchants/refresh-cache', isAuthenticated, async (req, res) => {
     try {

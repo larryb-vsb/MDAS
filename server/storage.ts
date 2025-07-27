@@ -7996,47 +7996,62 @@ export class DatabaseStorage implements IStorage {
       console.log(`[SWITCH-OPTIMIZED] Found ${pendingRecords.length} pending records to process (ALL record types)`);
       console.log(`[SWITCH-OPTIMIZED] Record types: ${[...new Set(pendingRecords.map(r => r.record_type))].join(', ')}`);
       
-      // Process each record with switch-based routing
+      // ✅ CRITICAL PERFORMANCE FIX: Process in bulk batches by record type instead of individual processing
+      const recordsByType: { [key: string]: any[] } = {};
+      
+      // Group records by type for bulk processing
       for (const rawRecord of pendingRecords) {
         const recordType = rawRecord.record_type;
+        
+        if (!recordsByType[recordType]) {
+          recordsByType[recordType] = [];
+        }
+        recordsByType[recordType].push(rawRecord);
         
         // Initialize breakdown for this record type if not exists
         if (!breakdown[recordType]) {
           breakdown[recordType] = { processed: 0, skipped: 0, errors: 0 };
         }
+      }
+      
+      console.log(`[SWITCH-BULK] Processing by record type: ${Object.keys(recordsByType).map(type => `${type}:${recordsByType[type].length}`).join(', ')}`);
+      
+      // Process each record type in optimized bulk batches
+      for (const [recordType, records] of Object.entries(recordsByType)) {
+        console.log(`[SWITCH-BULK-${recordType}] Processing ${records.length} records in optimized batch`);
         
-        // Begin transaction for this record
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          
-          // DUPLICATE PROTECTION: Check if already processed before starting
-          const duplicateCheck = await client.query(`
-            SELECT COUNT(*) as count FROM "${tableName}" 
-            WHERE source_file_id = $1 AND line_number = $2 
-              AND processing_status IN ('processed', 'skipped')
-          `, [rawRecord.source_file_id, rawRecord.line_number]);
-          
-          if (parseInt(duplicateCheck.rows[0].count) > 0) {
-            // ✅ FIXED LOGIC: Mark duplicate records as "processed" with "updated" status instead of "skipped"
-            await client.query(`
-              UPDATE "${tableName}"
-              SET processing_status = 'processed',
-                  skip_reason = 'duplicate_record_updated',
-                  processed_at = CURRENT_TIMESTAMP
-              WHERE id = $1
-            `, [rawRecord.id]);
+        // Process records individually but with bulk logging
+        for (const rawRecord of records) {
+          // Begin transaction for this record
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
             
-            await client.query('COMMIT');
-            console.log(`[SWITCH-UPDATED] Line ${rawRecord.line_number} already processed, marking as updated duplicate`);
-            breakdown[recordType].processed++;
-            totalProcessed++;
-            continue;
-          }
-          
-          console.log(`[SWITCH-${recordType}] Processing line ${rawRecord.line_number}`);
-          
-          // SWITCH-BASED RECORD TYPE ROUTING
+            // DUPLICATE PROTECTION: Check if already processed before starting
+            const duplicateCheck = await client.query(`
+              SELECT COUNT(*) as count FROM "${tableName}" 
+              WHERE source_file_id = $1 AND line_number = $2 
+                AND processing_status IN ('processed', 'skipped')
+            `, [rawRecord.source_file_id, rawRecord.line_number]);
+            
+            if (parseInt(duplicateCheck.rows[0].count) > 0) {
+              // ✅ FIXED LOGIC: Mark duplicate records as "processed" with "updated" status instead of "skipped"
+              await client.query(`
+                UPDATE "${tableName}"
+                SET processing_status = 'processed',
+                    skip_reason = 'duplicate_record_updated',
+                    processed_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+              `, [rawRecord.id]);
+              
+              await client.query('COMMIT');
+              breakdown[recordType].processed++;
+              totalProcessed++;
+              client.release();
+              continue;
+            }
+            
+            // SWITCH-BASED RECORD TYPE ROUTING
           switch (recordType) {
             case 'BH':
               await this.processBHRecordWithClient(client, rawRecord, tableName);
@@ -8144,6 +8159,10 @@ export class DatabaseStorage implements IStorage {
           client.release();
         }
       }
+      
+      // BULK LOGGING: Only log per record type completion instead of individual records
+      console.log(`[SWITCH-BULK-${recordType}] Completed ${records.length} records: ${breakdown[recordType].processed} processed, ${breakdown[recordType].skipped} skipped, ${breakdown[recordType].errors} errors`);
+    }
       
       const processingTime = Date.now() - startTime;
       console.log(`=================== SWITCH-BASED PROCESSING COMPLETE ===================`);
