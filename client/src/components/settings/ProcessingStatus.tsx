@@ -1187,11 +1187,8 @@ export default function ProcessingStatus() {
                             const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                             const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
                             const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
-                            const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
-                            const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
-                            const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
-                            const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
-                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
+                            const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
+                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                             const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
                             return (totalProcessed / totalRawLines * 100).toFixed(1);
                           })()}% Complete
@@ -1204,11 +1201,8 @@ export default function ProcessingStatus() {
                           const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                           const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
                           const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
-                          const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
-                          const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
-                          const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
-                          const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
-                          const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
+                          const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
+                          const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                           const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
                           return totalProcessed / totalRawLines * 100;
                         })()} 
@@ -1232,11 +1226,8 @@ export default function ProcessingStatus() {
                             const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
                             const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
                             const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
-                            const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
-                            const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
-                            const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
-                            const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
-                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
+                            const otherProcessed = realTimeStats?.tddfOperations?.otherRecordsProcessed || 0;
+                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + otherProcessed;
                             return totalProcessed.toLocaleString();
                           })()}
                         </div>
