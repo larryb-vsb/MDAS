@@ -65,6 +65,15 @@ export default function DevUpload() {
       return 'terminal';
     }
     
+    // ACH files
+    if (name.includes('ach') && (name.includes('dem') || name.includes('demand'))) {
+      return 'ach_demand';
+    }
+    
+    if (name.includes('ach') && (name.includes('trans') || name.includes('transaction'))) {
+      return 'ach_transaction';
+    }
+    
     // CSV files (general)
     if (extension === 'csv') {
       return 'csv';
@@ -380,6 +389,42 @@ export default function DevUpload() {
                         >
                           Excel
                         </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.txt,.dat,.ach';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          Terminal
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = '.ach,.txt,.dat';
+                            input.onchange = (e) => {
+                              const files = (e.target as HTMLInputElement).files;
+                              if (files && files.length > 0) {
+                                onDrop([files[0]]);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          ACH Files
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -601,6 +646,20 @@ export default function DevUpload() {
                     onClick={() => setSelectedFileType('excel')}
                   >
                     Excel/Worksheet
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'ach_demand' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('ach_demand')}
+                  >
+                    ACH Demand
+                  </Button>
+                  <Button 
+                    variant={selectedFileType === 'ach_transaction' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedFileType('ach_transaction')}
+                  >
+                    ACH Transaction
                   </Button>
                 </div>
                 
