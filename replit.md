@@ -548,6 +548,9 @@ To add a new record type (e.g., "A1" Authorization records):
 - Switch-based processing easily accommodates new record types with dedicated processing methods
 - Emergency processing phases must include new record types to prevent backlog accumulation
 - Each record type needs proper field position mapping from TDDF specification
+- **CRITICAL**: Schema synchronization between dev and production environments essential for P1 processing
+- Missing database columns cause immediate processing failures ("column does not exist" errors)
+- Production deployment requires identical table schemas across all environments
 
 **From BH Records Implementation**:
 - Simple record types can be implemented with minimal fields initially
@@ -558,6 +561,13 @@ To add a new record type (e.g., "A1" Authorization records):
 - Alex-style 4-phase emergency processing can handle any record type through switch logic
 - Performance monitoring by record type enables granular processing analysis
 - Manual SQL batch processing provides fallback for any record type during emergencies
+
+**From Production Deployment Preparation**:
+- Deep schema comparison between environments critical before deployment
+- Missing production tables can cause MMSUploader and other features to fail
+- Environment detection must be verified and NODE_ENV properly set in production
+- Schema versioning and documentation prevents deployment-blocking schema mismatches
+- Complete table structure synchronization required for seamless environment transitions
 
 #### Architecture Benefits for New Record Types
 - **Minimal Code Changes**: Adding new record type requires only database schema, processing method, and switch case
