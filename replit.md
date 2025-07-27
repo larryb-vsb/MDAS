@@ -685,7 +685,7 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
-### ✅ MMS MERCHANT RISK REPORT SCHEMA EXPANSION COMPLETED (July 27, 2025)
+### ✅ COMPLETE TSYS MERCHANT RISK PROCESSING INFRASTRUCTURE OPERATIONAL (July 27, 2025)
 - **✅ COMPREHENSIVE TSYS RISK FIELDS ADDED**: Successfully expanded MMS Merchant table schema with complete TSYS merchant risk report fields for enhanced risk assessment capabilities
   - **Schema Version Updated**: Updated to v2.7.0 with comprehensive merchant risk report field integration
   - **27 New Risk Fields Added**: Bank identifier, associate merchant number, DBA name CWOB, CWOB debit risk, VWOB EBT return, bypass controls (EA, Co, Force, Ex), merchant record status, board date, financial amounts (sale, credit, negative), threshold controls, daily auth limits, fee structures, and Visa MCC
@@ -693,7 +693,16 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
   - **Database Migration Executed**: Successfully applied migration adding all 27 new fields to dev_merchants table with proper data types and constraints
   - **Performance Indexes Created**: Added specialized indexes for risk_level, risk_score, review_required, compliance_status, associate_merchant_number, and bank fields for optimized risk assessment queries
   - **Environment Support**: Migration supports both development (dev_merchants) and production (merchants) table environments
-  - **Production Ready**: Complete TSYS merchant risk report import capability with comprehensive field mapping and database optimization
+- **✅ COMPLETE BACKEND PROCESSING IMPLEMENTATION**: Successfully implemented comprehensive TSYS merchant risk file processing infrastructure
+  - **File Type Integration**: Added "merchant-risk" file type support to main file processing switch statement in storage.ts
+  - **Complete Processing Method**: Implemented `processMerchantRiskFileFromContent()` method with comprehensive CSV parsing, field mapping, and database integration
+  - **Advanced Field Parsing**: Added helper methods for parsing boolean fields, decimals, dates, risk levels (Low/Medium/High/Critical), and array fields with proper validation
+  - **Dynamic Database Updates**: Intelligent SQL query building updates only non-null risk fields for existing merchants with proper error handling
+  - **Comprehensive Field Mapping**: Supports flexible CSV column naming (both human-readable and snake_case formats) for maximum compatibility
+  - **Progress Tracking**: Complete processing metrics with rows processed, merchants updated, and error counts for monitoring and reporting
+  - **Production Ready**: Complete end-to-end TSYS merchant risk import capability with comprehensive error handling and logging
+- **Frontend Upload Support**: FileUploadModal.tsx includes "merchant-risk" tab for complete 5-file-type support (merchant, transaction, terminal, tddf, merchant-risk)
+- **Complete Infrastructure**: All components operational - frontend upload interface, backend processing pipeline, database schema, and performance optimization ready for production use
 
 ### ✅ COMPREHENSIVE DATABASE PERFORMANCE INDEXES IMPLEMENTATION COMPLETED (July 26, 2025)
 - **✅ LARGE TRANSACTION VIEWS OPTIMIZATION**: Successfully implemented comprehensive database indexes to optimize performance for large transaction views and complex queries

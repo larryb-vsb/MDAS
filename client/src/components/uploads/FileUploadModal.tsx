@@ -15,7 +15,7 @@ interface UploadedFile {
   size: number;
   progress: number;
   status: "uploading" | "uploaded" | "error";
-  type: "merchant" | "transaction" | "terminal" | "tddf";
+  type: "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk";
 }
 
 interface FileUploadModalProps {
@@ -24,7 +24,7 @@ interface FileUploadModalProps {
 
 export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf">("transaction");
+  const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk">("transaction");
   const [files, setFiles] = useState<UploadedFile[]>([]);
 
   const handleFilesSelected = (acceptedFiles: File[]) => {
@@ -261,18 +261,19 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           </div>
           <DialogTitle className="text-center mt-4">Upload Merchant Data</DialogTitle>
           <DialogDescription className="text-center">
-            Select the files you want to upload. You can upload Merchant Demographics, Transaction, Terminal, or TDDF files.
+            Select the files you want to upload. You can upload Merchant Demographics, Transaction, Terminal, TDDF, or TSYS Merchant Risk files.
           </DialogDescription>
         </DialogHeader>
         
         <FileUploader onFilesSelected={handleFilesSelected} />
         
-        <Tabs defaultValue="transaction" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction" | "terminal" | "tddf")}>
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="transaction" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk")}>
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="merchant">Merchant Demographics</TabsTrigger>
             <TabsTrigger value="transaction">Transactions</TabsTrigger>
             <TabsTrigger value="terminal">Terminals</TabsTrigger>
             <TabsTrigger value="tddf">TDDF Files</TabsTrigger>
+            <TabsTrigger value="merchant-risk">TSYS Merchant-R</TabsTrigger>
           </TabsList>
         </Tabs>
         

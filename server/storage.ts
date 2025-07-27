@@ -3090,6 +3090,91 @@ export class DatabaseStorage implements IStorage {
               
               console.log(`⏱️ FAILED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
             }
+          } else if (file.fileType === 'merchant-risk') {
+            try {
+              // Process TSYS Merchant Risk report files
+              console.log(`[TRACE] Processing merchant-risk file ${file.id} (${file.originalFilename})`);
+              let dbContent = null;
+              try {
+                console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
+                const dbContentResults = await db.execute(sql`
+                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
+                `);
+                dbContent = dbContentResults.rows[0]?.file_content;
+                console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
+                if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                  console.log(`[TRACE] Content is migration placeholder: ${dbContent.substring(0, 50)}...`);
+                }
+              } catch (error) {
+                console.log(`[TRACE] Database content error for ${file.id}:`, error);
+              }
+              
+              if (dbContent && !dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
+                console.log(`[TRACE] Processing merchant-risk file from database content: ${file.id}`);
+                const processingStartTime = new Date();
+                const processingMetrics = await this.processMerchantRiskFileFromContent(dbContent, file.id, file.originalFilename);
+                
+                // Calculate processing time in milliseconds
+                const processingCompletedTime = new Date();
+                const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+                
+                // Update database with processing metrics and completion status using environment-specific table
+                await db.execute(sql`
+                  UPDATE ${sql.identifier(uploadedFilesTableName)}
+                  SET records_processed = ${processingMetrics.rowsProcessed},
+                      records_skipped = ${processingMetrics.rowsProcessed - processingMetrics.merchantsUpdated},
+                      records_with_errors = ${processingMetrics.errors},
+                      processing_time_ms = ${processingTimeMs},
+                      processing_details = ${JSON.stringify({
+                        totalRows: processingMetrics.rowsProcessed,
+                        merchantsUpdated: processingMetrics.merchantsUpdated,
+                        errors: processingMetrics.errors,
+                        processingTimeSeconds: (processingTimeMs / 1000).toFixed(2)
+                      })},
+                      processing_status = 'completed',
+                      processing_completed_at = ${processingCompletedTime.toISOString()},
+                      processed_at = ${processingCompletedTime.toISOString()},
+                      processed = true,
+                      processing_errors = null
+                  WHERE id = ${file.id}
+                `);
+                
+                console.log(`📊 METRICS: Processed ${processingMetrics.rowsProcessed} rows, updated ${processingMetrics.merchantsUpdated} merchants with risk data, ${processingMetrics.errors} errors in ${(processingTimeMs / 1000).toFixed(2)}s`);
+                console.log(`⏱️ COMPLETED: ${file.originalFilename} in ${(processingTimeMs / 1000).toFixed(2)} seconds`);
+              } else {
+                console.error(`[TRACE] FALLBACK ERROR - File ${file.id} (${file.originalFilename}): Database content not available or is placeholder`);
+                console.error(`[TRACE] dbContent exists: ${!!dbContent}`);
+                console.error(`[TRACE] dbContent length: ${dbContent ? dbContent.length : 0}`);
+                console.error(`[TRACE] Is placeholder: ${dbContent ? dbContent.startsWith('MIGRATED_PLACEHOLDER_') : 'N/A'}`);
+                console.error(`[TRACE] Storage path: ${file.storagePath}`);
+                throw new Error(`File not found: ${file.storagePath}. The temporary file may have been removed by the system.`);
+              }
+                
+              console.log(`Merchant risk file ${file.id} successfully processed`);
+            } catch (error) {
+              console.error(`Error processing merchant-risk file ${file.id}:`, error);
+              
+              // Enhanced error message for merchant risk processing
+              let errorMessage = error instanceof Error ? error.message : "Unknown error during processing";
+              
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_errors = ${errorMessage},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
+            }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
@@ -11388,6 +11473,239 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('[TDDF CACHE] Error rebuilding cache:', error);
       throw error;
+    }
+  }
+
+  // Process TSYS Merchant Risk report files
+  async processMerchantRiskFileFromContent(
+    base64Content: string, 
+    fileId: string, 
+    originalFilename: string
+  ): Promise<{ rowsProcessed: number; merchantsUpdated: number; errors: number }> {
+    console.log(`=================== MERCHANT RISK FILE PROCESSING (TSYS) ===================`);
+    console.log(`Processing TSYS Merchant Risk file: ${originalFilename} (${fileId})`);
+    
+    // Decode base64 content
+    const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
+    
+    return new Promise((resolve, reject) => {
+      console.log("Starting TSYS Merchant Risk CSV parsing...");
+      
+      // Parse CSV content with proper header detection
+      const parser = parseCSV({
+        columns: true,
+        skip_empty_lines: true,
+        relax_column_count: true,
+        relax_quotes: true,
+        relax: true,
+        skip_records_with_empty_values: false
+      });
+      
+      const riskUpdates: any[] = [];
+      let rowCount = 0;
+      let errorCount = 0;
+      let merchantsUpdated = 0;
+      
+      parser.on("data", (row) => {
+        rowCount++;
+        try {
+          console.log(`\n--- Processing TSYS Risk row ${rowCount} ---`);
+          console.log(`Row data: ${JSON.stringify(row)}`);
+          
+          // Map TSYS Merchant Risk fields to database schema
+          const riskData = {
+            // Core merchant identifier (required)
+            merchant_id: row['MID'] || row['Merchant ID'] || row['merchant_id'] || null,
+            
+            // TSYS Merchant Risk fields
+            bank: row['Bank'] || row['bank'] || null,
+            associate_merchant_number: row['Associate Merchant Number'] || row['associate_merchant_number'] || null,
+            dba_name_cwob: row['DBA Name CWOB'] || row['dba_name_cwob'] || null,
+            cwob_debit_risk: row['CWOB Debit Risk'] || row['cwob_debit_risk'] || null,
+            vwob_ebt_return: row['VWOB EBT Return'] || row['vwob_ebt_return'] || null,
+            
+            // Bypass controls
+            bypass_ea: this.parseBooleanField(row['Bypass EA'] || row['bypass_ea']),
+            bypass_co: this.parseBooleanField(row['Bypass Co'] || row['bypass_co']),
+            bypass_force: this.parseBooleanField(row['Bypass Force'] || row['bypass_force']),
+            bypass_ex: this.parseBooleanField(row['Bypass Ex'] || row['bypass_ex']),
+            
+            // Status and dates
+            merchant_record_status: row['Merchant Record Status'] || row['merchant_record_status'] || null,
+            board_date: this.parseDate(row['Board Date'] || row['board_date']),
+            
+            // Financial amounts
+            daily_sale_amount: this.parseDecimal(row['Daily Sale Amount'] || row['daily_sale_amount']),
+            daily_credit_amount: this.parseDecimal(row['Daily Credit Amount'] || row['daily_credit_amount']),
+            daily_negative_amount: this.parseDecimal(row['Daily Negative Amount'] || row['daily_negative_amount']),
+            
+            // Threshold and limit controls
+            threshold_control_1: this.parseDecimal(row['Threshold Control 1'] || row['threshold_control_1']),
+            threshold_control_2: this.parseDecimal(row['Threshold Control 2'] || row['threshold_control_2']),
+            daily_auth_limit: this.parseDecimal(row['Daily Auth Limit'] || row['daily_auth_limit']),
+            
+            // Fee structures
+            discount_rate: this.parseDecimal(row['Discount Rate'] || row['discount_rate']),
+            transaction_fee: this.parseDecimal(row['Transaction Fee'] || row['transaction_fee']),
+            monthly_fee: this.parseDecimal(row['Monthly Fee'] || row['monthly_fee']),
+            
+            // Risk assessment fields
+            visa_mcc: row['Visa MCC'] || row['visa_mcc'] || null,
+            risk_score: this.parseDecimal(row['Risk Score'] || row['risk_score']),
+            risk_level: this.parseRiskLevel(row['Risk Level'] || row['risk_level']),
+            last_risk_assessment: this.parseDate(row['Last Risk Assessment'] || row['last_risk_assessment']),
+            risk_flags: this.parseArrayField(row['Risk Flags'] || row['risk_flags']),
+            compliance_status: row['Compliance Status'] || row['compliance_status'] || null,
+            review_required: this.parseBooleanField(row['Review Required'] || row['review_required']),
+            risk_notes: row['Risk Notes'] || row['risk_notes'] || null
+          };
+          
+          // Validate required merchant identifier
+          if (!riskData.merchant_id) {
+            console.log(`[SKIP] Row ${rowCount}: Missing merchant ID`);
+            errorCount++;
+            return;
+          }
+          
+          console.log(`[RISK DATA] MID: ${riskData.merchant_id}, Risk Level: ${riskData.risk_level}, Risk Score: ${riskData.risk_score}`);
+          riskUpdates.push(riskData);
+          
+        } catch (rowError) {
+          console.error(`Error processing risk row ${rowCount}:`, rowError);
+          errorCount++;
+        }
+      });
+      
+      parser.on("error", (error) => {
+        console.error("CSV parsing error:", error);
+        reject(new Error(`CSV parsing failed: ${error.message}`));
+      });
+      
+      parser.on("end", async () => {
+        try {
+          console.log(`\n=================== TSYS RISK DATA PROCESSING ===================`);
+          console.log(`Parsed ${riskUpdates.length} risk records for merchant updates`);
+          
+          // Get environment-specific table name
+          const merchantsTableName = getTableName('merchants');
+          
+          // Process each risk update
+          for (const riskData of riskUpdates) {
+            try {
+              // Find existing merchant by ID
+              const existingMerchant = await db.execute(sql`
+                SELECT id FROM ${sql.identifier(merchantsTableName)} 
+                WHERE id = ${riskData.merchant_id}
+              `);
+              
+              if (existingMerchant.rows.length === 0) {
+                console.log(`[SKIP] Merchant ${riskData.merchant_id} not found in database`);
+                errorCount++;
+                continue;
+              }
+              
+              // Update merchant with risk data
+              const updateFields: string[] = [];
+              const updateValues: any[] = [];
+              let paramIndex = 1;
+              
+              // Build dynamic update query with only non-null values
+              Object.entries(riskData).forEach(([key, value]) => {
+                if (key !== 'merchant_id' && value !== null && value !== undefined) {
+                  updateFields.push(`${key} = $${paramIndex}`);
+                  updateValues.push(value);
+                  paramIndex++;
+                }
+              });
+              
+              if (updateFields.length === 0) {
+                console.log(`[SKIP] No risk data to update for merchant ${riskData.merchant_id}`);
+                continue;
+              }
+              
+              // Add merchant ID for WHERE clause
+              updateValues.push(riskData.merchant_id);
+              
+              // Execute update
+              await db.execute(sql.raw(`
+                UPDATE "${merchantsTableName}" 
+                SET ${updateFields.join(', ')}, 
+                    last_risk_assessment = NOW()
+                WHERE id = $${paramIndex}
+              `), updateValues);
+              
+              console.log(`[SUCCESS] Updated merchant ${riskData.merchant_id} with ${updateFields.length} risk fields`);
+              merchantsUpdated++;
+              
+            } catch (updateError) {
+              console.error(`Error updating merchant ${riskData.merchant_id}:`, updateError);
+              errorCount++;
+            }
+          }
+          
+          console.log(`\n=================== TSYS RISK PROCESSING COMPLETE ===================`);
+          console.log(`Successfully updated ${merchantsUpdated} merchants with risk data`);
+          console.log(`Errors: ${errorCount}`);
+          
+          resolve({ 
+            rowsProcessed: rowCount, 
+            merchantsUpdated, 
+            errors: errorCount 
+          });
+          
+        } catch (processingError) {
+          console.error("Risk data processing error:", processingError);
+          reject(processingError);
+        }
+      });
+      
+      // Start parsing
+      parser.write(csvContent);
+      parser.end();
+    });
+  }
+  
+  // Helper methods for TSYS risk data parsing
+  private parseBooleanField(value: any): boolean | null {
+    if (value === null || value === undefined || value === '') return null;
+    const str = String(value).toLowerCase().trim();
+    return str === 'true' || str === 'yes' || str === '1' || str === 'y';
+  }
+  
+  private parseDecimal(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const num = parseFloat(String(value));
+    return isNaN(num) ? null : num;
+  }
+  
+  private parseDate(value: any): string | null {
+    if (value === null || value === undefined || value === '') return null;
+    try {
+      const date = new Date(String(value));
+      return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+    } catch {
+      return null;
+    }
+  }
+  
+  private parseRiskLevel(value: any): string | null {
+    if (value === null || value === undefined || value === '') return null;
+    const level = String(value).toLowerCase().trim();
+    const validLevels = ['low', 'medium', 'high', 'critical'];
+    return validLevels.includes(level) ? level : null;
+  }
+  
+  private parseArrayField(value: any): string[] | null {
+    if (value === null || value === undefined || value === '') return null;
+    try {
+      // Handle JSON array format
+      if (String(value).startsWith('[')) {
+        return JSON.parse(String(value));
+      }
+      // Handle comma-separated format
+      return String(value).split(',').map(s => s.trim()).filter(s => s.length > 0);
+    } catch {
+      return null;
     }
   }
 
