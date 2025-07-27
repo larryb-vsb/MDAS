@@ -604,7 +604,12 @@ export default function ProcessingFilters() {
                                             <span className="text-xs font-medium text-green-600">100%</span>
                                           </div>
                                           <Progress value={100} className="h-1.5" />
-                                          <div className="text-xs text-muted-foreground">Ready for processing</div>
+                                          <div className="flex items-center gap-2">
+                                            <Clock className="h-3 w-3 text-yellow-500 animate-pulse" />
+                                            <div className="text-xs text-muted-foreground">
+                                              {rawLinesCount > 0 ? `${rawLinesCount} lines ready for processing` : 'Queued for processing'}
+                                            </div>
+                                          </div>
                                         </div>
                                       );
                                     }
