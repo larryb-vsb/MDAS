@@ -33,22 +33,22 @@ const getPoolConfig = (poolType: 'app' | 'batch' | 'session') => {
   
   const configs = {
     app: {
-      max: isDev ? 8 : 15,              // Regular app operations
-      min: isDev ? 2 : 4,
+      max: isDev ? 25 : 40,             // INCREASED: Regular app operations + heavy monitoring
+      min: isDev ? 5 : 8,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
       acquireTimeoutMillis: 30000,
     },
     batch: {
-      max: isDev ? 5 : 12,              // Heavy TDDF batch processing
-      min: isDev ? 1 : 3,
+      max: isDev ? 20 : 30,             // INCREASED: Heavy TDDF batch processing  
+      min: isDev ? 3 : 5,
       idleTimeoutMillis: 60000,         // Longer idle time for batch jobs
       connectionTimeoutMillis: 15000,
       acquireTimeoutMillis: 60000,      // Longer wait for batch operations
     },
     session: {
-      max: isDev ? 3 : 6,               // Session storage
-      min: isDev ? 1 : 2,
+      max: isDev ? 8 : 12,              // INCREASED: Session storage
+      min: isDev ? 2 : 3,
       idleTimeoutMillis: 120000,        // Sessions can be idle longer
       connectionTimeoutMillis: 8000,
       acquireTimeoutMillis: 20000,
