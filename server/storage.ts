@@ -8002,8 +8002,19 @@ export class DatabaseStorage implements IStorage {
           `, [rawRecord.source_file_id, rawRecord.line_number]);
           
           if (parseInt(duplicateCheck.rows[0].count) > 0) {
-            await client.query('ROLLBACK');
-            console.log(`[SWITCH-SKIP] Line ${rawRecord.line_number} already processed, skipping duplicate`);
+            // ✅ FIX: Mark the raw import record as skipped for duplicates
+            await client.query(`
+              UPDATE "${tableName}"
+              SET processing_status = 'skipped',
+                  skip_reason = 'duplicate_record_already_processed',
+                  processed_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+            `, [rawRecord.id]);
+            
+            await client.query('COMMIT');
+            console.log(`[SWITCH-SKIP] Line ${rawRecord.line_number} already processed, marking as skipped duplicate`);
+            breakdown[recordType].skipped++;
+            totalSkipped++;
             continue;
           }
           
