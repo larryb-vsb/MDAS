@@ -1,11 +1,14 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, FileText, Zap, Database, CheckCircle, XCircle } from "lucide-react";
+import { Upload, FileText, Zap, Database, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import MainLayout from "@/components/layout/MainLayout";
@@ -19,29 +22,102 @@ interface UploadResult {
   status: 'uploaded' | 'processing' | 'completed' | 'failed';
   processingTime?: number;
   error?: string;
+  detectedType?: string;
+  userClassifiedType?: string;
+}
+
+interface PendingUpload {
+  file: File;
+  detectedType: string;
 }
 
 export default function DevUpload() {
   const [uploads, setUploads] = useState<UploadResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
+  const [showClassificationDialog, setShowClassificationDialog] = useState(false);
+  const [selectedFileType, setSelectedFileType] = useState<string>("");
   const { toast } = useToast();
+
+  // File type detection based on filename and extension
+  const detectFileType = (filename: string): string => {
+    const name = filename.toLowerCase();
+    const extension = name.split('.').pop() || '';
+    
+    // TDDF files
+    if (name.includes('tddf') || extension === 'tsyso') {
+      return 'tddf';
+    }
+    
+    // Merchant files
+    if (name.includes('merchant') || name.includes('merch')) {
+      return 'merchant';
+    }
+    
+    // Transaction files
+    if (name.includes('transaction') || name.includes('trans') || name.includes('txn')) {
+      return 'transaction';
+    }
+    
+    // Terminal files
+    if (name.includes('terminal') || name.includes('term') || name.includes('pos')) {
+      return 'terminal';
+    }
+    
+    // CSV files (general)
+    if (extension === 'csv') {
+      return 'csv';
+    }
+    
+    // Text files
+    if (['txt', 'log', 'dat'].includes(extension)) {
+      return 'text';
+    }
+    
+    // JSON files
+    if (extension === 'json') {
+      return 'json';
+    }
+    
+    // Excel files
+    if (['xlsx', 'xls'].includes(extension)) {
+      return 'excel';
+    }
+    
+    return 'unknown';
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     
     if (!file) return;
     
-    // Only accept TDDF files
-    if (!file.name.toLowerCase().includes('tddf') && !file.name.endsWith('.TSYSO')) {
+    // Check file size (500MB limit)
+    if (file.size > 500 * 1024 * 1024) {
       toast({
-        title: "Invalid File Type",
-        description: "Only TDDF files (.TSYSO) are accepted for testing",
+        title: "File Too Large",
+        description: "Files must be smaller than 500MB",
         variant: "destructive",
       });
       return;
     }
+    
+    const detectedType = detectFileType(file.name);
+    
+    // If unknown type, prompt user for classification
+    if (detectedType === 'unknown') {
+      setPendingUpload({ file, detectedType });
+      setShowClassificationDialog(true);
+      return;
+    }
+    
+    // Process file with detected type
+    await processUpload(file, detectedType);
 
+  }, [toast]);
+
+  const processUpload = async (file: File, fileType: string) => {
     setIsUploading(true);
     setUploadProgress(0);
     
@@ -57,27 +133,54 @@ export default function DevUpload() {
         });
       }, 200);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileType', 'tddf');
+      // Read file content and convert to JSON
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      const compressedPayload = {
+        content: text,
+        lines: lines,
+        metadata: {
+          originalSize: file.size,
+          lineCount: lines.length,
+          encoding: 'utf-8',
+          uploadTimestamp: new Date().toISOString()
+        }
+      };
 
-      const response = await fetch('/api/dev-upload', {
-        method: 'POST',
-        body: formData,
+      const schemaInfo = {
+        detectedType: fileType,
+        fileExtension: file.name.split('.').pop(),
+        hasHeaders: lines.length > 0 && /^[a-zA-Z]/.test(lines[0]),
+        lineFormat: lines.length > 0 ? (lines[0].includes(',') ? 'csv' : 'fixed-width') : 'unknown'
+      };
+
+      const response = await apiRequest('POST', '/api/dev-uploads', {
+        filename: file.name,
+        compressed_payload: compressedPayload,
+        schema_info: schemaInfo
       });
 
-      const result = await response.json();
-      
       setUploadProgress(100);
       
       setTimeout(() => {
+        const result: UploadResult = {
+          id: response.upload.id,
+          filename: file.name,
+          fileSize: file.size,
+          lineCount: lines.length,
+          recordTypeBreakdown: { [fileType]: lines.length },
+          status: 'uploaded',
+          detectedType: fileType
+        };
+        
         setUploads(prev => [result, ...prev]);
         setIsUploading(false);
         setUploadProgress(0);
         
         toast({
           title: "Upload Successful",
-          description: `${file.name} uploaded with compressed storage architecture`,
+          description: `${file.name} uploaded (${fileType} type detected)`,
         });
       }, 500);
 
@@ -91,15 +194,24 @@ export default function DevUpload() {
         variant: "destructive",
       });
     }
-  }, [toast]);
+  };
+
+  const handleUserClassification = async () => {
+    if (!pendingUpload || !selectedFileType) return;
+    
+    setShowClassificationDialog(false);
+    await processUpload(pendingUpload.file, selectedFileType);
+    setPendingUpload(null);
+    setSelectedFileType("");
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/octet-stream': ['.TSYSO'],
-      'text/plain': ['.TSYSO']
+      '*/*': [] // Accept any file type
     },
     maxFiles: 1,
+    maxSize: 500 * 1024 * 1024, // 500MB limit
     disabled: isUploading
   });
 
@@ -122,7 +234,7 @@ export default function DevUpload() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Dev Upload Testing</h1>
           <p className="text-muted-foreground">
-            Test new compressed storage architecture with dynamic JSON schema detection
+            Test compressed storage with smart file type detection (accepts any file up to 500MB)
           </p>
           <div className="flex justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
@@ -165,7 +277,7 @@ export default function DevUpload() {
                       <Upload className="h-12 w-12 mx-auto text-blue-500" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-lg font-medium">Processing TDDF File...</p>
+                      <p className="text-lg font-medium">Processing File...</p>
                       <Progress value={uploadProgress} className="w-64 mx-auto" />
                       <p className="text-sm text-muted-foreground">
                         Compressing and analyzing content
@@ -177,13 +289,13 @@ export default function DevUpload() {
                     <Upload className="h-12 w-12 mx-auto text-gray-400" />
                     <div>
                       <p className="text-xl font-medium">
-                        {isDragActive ? "Drop TDDF file here..." : "Upload TDDF File"}
+                        {isDragActive ? "Drop any file here..." : "Upload Any File"}
                       </p>
                       <p className="text-muted-foreground mt-2">
-                        Drag and drop a .TSYSO file, or click to browse
+                        Drag and drop any file up to 500MB, or click to browse
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Only TDDF files accepted for architecture testing
+                        Automatic file type detection with user classification for unknown types
                       </p>
                     </div>
                     <Button variant="outline" className="mt-4">
@@ -306,6 +418,78 @@ export default function DevUpload() {
             </div>
           </CardContent>
         </Card>
+
+        {/* File Classification Dialog */}
+        <Dialog open={showClassificationDialog} onOpenChange={setShowClassificationDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-orange-500" />
+                Unknown File Type Detected
+              </DialogTitle>
+              <DialogDescription>
+                {pendingUpload && (
+                  <>
+                    We couldn't automatically detect the type for <strong>{pendingUpload.file.name}</strong>.
+                    Please help us classify this file to proceed with upload.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="file-type">Select File Type</Label>
+                <Select value={selectedFileType} onValueChange={setSelectedFileType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose file type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tddf">TDDF/Financial Data</SelectItem>
+                    <SelectItem value="merchant">Merchant Data</SelectItem>
+                    <SelectItem value="transaction">Transaction Data</SelectItem>
+                    <SelectItem value="terminal">Terminal/POS Data</SelectItem>
+                    <SelectItem value="csv">CSV/Spreadsheet</SelectItem>
+                    <SelectItem value="text">Text/Log File</SelectItem>
+                    <SelectItem value="json">JSON Data</SelectItem>
+                    <SelectItem value="excel">Excel/Worksheet</SelectItem>
+                    <SelectItem value="other">Other/Custom Type</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {pendingUpload && (
+                <div className="bg-muted p-3 rounded-md text-sm">
+                  <div className="font-medium">File Details:</div>
+                  <div className="text-muted-foreground">
+                    Name: {pendingUpload.file.name}<br/>
+                    Size: {formatBytes(pendingUpload.file.size)}<br/>
+                    Type: {pendingUpload.file.type || 'Unknown'}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowClassificationDialog(false);
+                  setPendingUpload(null);
+                  setSelectedFileType("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUserClassification}
+                disabled={!selectedFileType}
+              >
+                Upload File
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
