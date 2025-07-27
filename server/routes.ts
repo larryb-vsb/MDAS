@@ -5340,16 +5340,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get TDDF records by merchant ID
+  // Get TDDF records by merchant ID with pagination and performance optimization
   app.get("/api/tddf/merchant/:merchantId", isAuthenticated, async (req, res) => {
     try {
       const merchantId = req.params.merchantId;
-      const records = await db.select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.merchantAccountNumber, merchantId))
-        .orderBy(desc(tddfRecordsTable.transactionDate));
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50; // Optimized default page size
       
-      res.json(records);
+      console.log(`[TDDF MERCHANT TRANSACTIONS] Query params:`, {
+        merchantId,
+        page,
+        limit
+      });
+      
+      const result = await storage.getTddfTransactionsByMerchant(merchantId, {
+        page,
+        limit
+      });
+      
+      res.json(result);
     } catch (error) {
       console.error('Error fetching TDDF records by merchant:', error);
       res.status(500).json({ 

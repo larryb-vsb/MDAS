@@ -445,6 +445,35 @@ export interface IStorage {
     };
   }>;
   
+  // TDDF merchant transaction operations
+  getTddfMerchantTerminals(merchantAccountNumber: string): Promise<Array<{
+    terminalId: string;
+    transactionCount: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  }>>;
+  
+  getTddfTransactionsByMerchant(merchantAccountNumber: string, options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }>;
+  
+  getTddfMerchantDetails(merchantAccountNumber: string): Promise<{
+    merchantName: string;
+    merchantAccountNumber: string;  
+    totalTransactions: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  } | null>;
+  
   // File operations
   getFileById(fileId: string): Promise<any>;
   
@@ -6749,6 +6778,79 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error('Error getting TDDF merchant terminals:', error);
+      throw error;
+    }
+  }
+
+  async getTddfTransactionsByMerchant(merchantAccountNumber: string, options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = options.limit || 50;
+      const offset = (page - 1) * limit;
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      console.log(`[TDDF MERCHANT TRANSACTIONS] Fetching paginated transactions for merchant: ${merchantAccountNumber}`);
+      console.log(`[TDDF MERCHANT TRANSACTIONS] Page: ${page}, Limit: ${limit}, Offset: ${offset}`);
+      
+      // Get total count for pagination - using optimized count query
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_account_number = $1
+      `;
+      
+      const countResult = await pool.query(countQuery, [merchantAccountNumber]);
+      const totalItems = parseInt(countResult.rows[0].total) || 0;
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      // Get paginated data with performance optimization
+      const dataQuery = `
+        SELECT 
+          id,
+          reference_number,
+          merchant_name,
+          transaction_amount,
+          transaction_date,
+          terminal_id,
+          card_type,
+          authorization_number,
+          merchant_account_number,
+          mcc_code,
+          transaction_type_identifier,
+          recorded_at,
+          mms_raw_line
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_account_number = $1
+        ORDER BY transaction_date DESC, id DESC
+        LIMIT $2 OFFSET $3
+      `;
+      
+      const dataResult = await pool.query(dataQuery, [merchantAccountNumber, limit, offset]);
+      
+      console.log(`[TDDF MERCHANT TRANSACTIONS] Retrieved ${dataResult.rows.length} transactions (page ${page}/${totalPages}, total: ${totalItems})`);
+      
+      return {
+        data: dataResult.rows,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('Error getting TDDF transactions by merchant:', error);
       throw error;
     }
   }
