@@ -20,7 +20,7 @@
  * - 2.4.0: MINOR FEATURE - Hierarchical TDDF Record Architecture with separate tables for each TDDF record type and comprehensive raw line processing data preservation
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
  * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
- * - 2.7.0: MINOR FEATURE - MMS Merchant Risk Report Schema Expansion with comprehensive TSYS risk assessment fields, bypass controls, amount thresholds, compliance tracking, and enhanced merchant risk management capabilities
+ * - 2.7.0: MINOR FEATURE - Production Deployment Schema Synchronization with complete P1 purchasing extension fields (34 total fields), missing production tables creation, and comprehensive schema alignment for seamless deployment
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -433,6 +433,31 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   vatInvoiceReferenceNumber: text("vat_invoice_reference_number"), // Positions 266-280: VAT invoice reference number
   orderDate: text("order_date"), // Positions 281-286: Order date (MMDDYY)
   detailRecordToFollow: text("detail_record_to_follow"), // Position 287: Detail record to follow
+  
+  // Additional fields added for production deployment schema synchronization
+  destinationPostalCode: text("destination_postal_code"), // Destination postal code
+  shipFromPostalCode: text("ship_from_postal_code"), // Ship from postal code
+  uniqueInvoiceIdentifier: text("unique_invoice_identifier"), // Unique invoice identifier
+  commodityCode: text("commodity_code"), // Commodity code
+  unitOfMeasure: text("unit_of_measure"), // Unit of measure
+  unitCost: text("unit_cost"), // Unit cost
+  discountIndicator: text("discount_indicator"), // Discount indicator
+  discountAmountCurrencyCode: text("discount_amount_currency_code"), // Discount amount currency code
+  discountRate: text("discount_rate"), // Discount rate
+  freightAmountCurrencyCode: text("freight_amount_currency_code"), // Freight amount currency code
+  dutyAmountCurrencyCode: text("duty_amount_currency_code"), // Duty amount currency code
+  destinationCountrySubdivisionCode: text("destination_country_subdivision_code"), // Destination country subdivision code
+  shipFromCountrySubdivisionCode: text("ship_from_country_subdivision_code"), // Ship from country subdivision code
+  itemDescription: text("item_description"), // Item description
+  productCode: text("product_code"), // Product code
+  quantity: text("quantity"), // Quantity
+  
+  // Core TDDF header fields for complete schema synchronization
+  bankNumber: text("bank_number"), // Bank number
+  merchantAccountNumber: text("merchant_account_number"), // Merchant account number
+  associationNumber: text("association_number"), // Association number
+  groupNumber: text("group_number"), // Group number
+  transactionCode: text("transaction_code"), // Transaction code
   
   // Reserved for future use (positions 288-700)
   reservedFutureUse: text("reserved_future_use"), // Positions 288-700: Reserved for future use
@@ -1021,6 +1046,24 @@ export const insertAuditLogSchema = auditLogsSchema.omit({ id: true });
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
 
+// MMSUploader uploads table for compressed JSON uploads and dynamic schema testing
+export const uploads = pgTable("uploads", {
+  id: text("id").primaryKey(), // String ID for upload identification
+  filename: text("filename").notNull(), // Original filename
+  compressedPayload: jsonb("compressed_payload").notNull(), // Compressed JSON data
+  schemaInfo: jsonb("schema_info"), // Schema information for validation
+  uploadDate: timestamp("upload_date").defaultNow().notNull(), // Upload timestamp
+  status: text("status").default("pending").notNull(), // Processing status
+  processedAt: timestamp("processed_at"), // Processing completion timestamp
+  recordCount: integer("record_count"), // Number of records processed
+  processingTimeMs: integer("processing_time_ms"), // Processing time in milliseconds
+  notes: text("notes") // Additional processing notes
+}, (table) => ({
+  statusIdx: index("uploads_status_idx").on(table.status),
+  uploadDateIdx: index("uploads_upload_date_idx").on(table.uploadDate),
+  filenameIdx: index("uploads_filename_idx").on(table.filename)
+}));
+
 // System log table for technical operational events
 export const systemLogs = pgTable("system_logs", {
   id: serial("id").primaryKey(),
@@ -1050,6 +1093,14 @@ export const insertSystemLogSchema = systemLogsSchema.omit({ id: true });
 // Export system log types
 export type SystemLog = typeof systemLogs.$inferSelect;
 export type InsertSystemLog = typeof systemLogs.$inferInsert;
+
+// Zod schemas for uploads table
+export const uploadsSchema = createInsertSchema(uploads);
+export const insertUploadSchema = uploadsSchema.omit({ id: true, uploadDate: true });
+
+// Export upload types
+export type Upload = typeof uploads.$inferSelect;
+export type InsertUpload = typeof uploads.$inferInsert;
 
 // Security log table for authentication and access events
 export const securityLogs = pgTable("security_logs", {
