@@ -8002,19 +8002,19 @@ export class DatabaseStorage implements IStorage {
           `, [rawRecord.source_file_id, rawRecord.line_number]);
           
           if (parseInt(duplicateCheck.rows[0].count) > 0) {
-            // ✅ FIX: Mark the raw import record as skipped for duplicates
+            // ✅ FIXED LOGIC: Mark duplicate records as "processed" with "updated" status instead of "skipped"
             await client.query(`
               UPDATE "${tableName}"
-              SET processing_status = 'skipped',
-                  skip_reason = 'duplicate_record_already_processed',
+              SET processing_status = 'processed',
+                  skip_reason = 'duplicate_record_updated',
                   processed_at = CURRENT_TIMESTAMP
               WHERE id = $1
             `, [rawRecord.id]);
             
             await client.query('COMMIT');
-            console.log(`[SWITCH-SKIP] Line ${rawRecord.line_number} already processed, marking as skipped duplicate`);
-            breakdown[recordType].skipped++;
-            totalSkipped++;
+            console.log(`[SWITCH-UPDATED] Line ${rawRecord.line_number} already processed, marking as updated duplicate`);
+            breakdown[recordType].processed++;
+            totalProcessed++;
             continue;
           }
           
