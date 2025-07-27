@@ -135,10 +135,27 @@ export default function TddfMerchantsTable() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Query for terminals of selected merchant
+  // Query for terminals when details modal is open
   const { data: terminalsData, isLoading: terminalsLoading } = useQuery<TddfTerminal[]>({
     queryKey: ["/api/tddf/merchants", detailsRecord?.merchantAccountNumber, "terminals"],
-    enabled: !!detailsRecord?.merchantAccountNumber,
+    queryFn: async () => {
+      if (!detailsRecord?.merchantAccountNumber) return [];
+      
+      console.log('[TDDF TERMINALS] Fetching terminals for merchant:', detailsRecord.merchantAccountNumber);
+      
+      const response = await fetch(`/api/tddf/merchants/${detailsRecord.merchantAccountNumber}/terminals`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch merchant terminals');
+      }
+      
+      const result = await response.json();
+      console.log('[TDDF TERMINALS] Terminal response:', result);
+      return result;
+    },
+    enabled: !!detailsRecord?.merchantAccountNumber, // Only run when modal is open with merchant data
   });
 
   const formatCurrency = (amount: number) => {
