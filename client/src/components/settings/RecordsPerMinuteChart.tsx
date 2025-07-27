@@ -40,9 +40,13 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
     queryKey: ['/api/processing/performance-chart-history', timeRange],
     queryFn: async () => {
+      console.log(`[CHART DEBUG] Fetching data for timeRange: ${timeRange} hours (${timeRange * 60} minutes)`);
       const response = await fetch(`/api/processing/performance-chart-history?hours=${timeRange}`);
       if (!response.ok) throw new Error('Failed to fetch data');
-      return response.json();
+      const data = await response.json();
+      console.log(`[CHART DEBUG] Received ${data.data?.length || 0} data points for ${timeRange} hours`);
+      console.log(`[CHART DEBUG] API period response: ${data.period}`);
+      return data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds to match Scanly-Watcher recording
     staleTime: 25000, // Match KPI refresh timing

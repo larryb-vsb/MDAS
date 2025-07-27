@@ -6074,9 +6074,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
+      // Format period based on duration
+      let periodText = '';
+      if (hours < 1) {
+        const minutes = Math.round(hours * 60);
+        periodText = `${minutes} minute${minutes > 1 ? 's' : ''}`;
+      } else {
+        periodText = `${hours} hour${hours > 1 ? 's' : ''}`;
+      }
+      
       res.json({
         data: chartData,
-        period: `${hours} hour${hours > 1 ? 's' : ''}`,
+        period: periodText,
         dataSource: 'scanly_watcher_performance_metrics',
         lastUpdate: chartData.length > 0 ? chartData[chartData.length - 1].timestamp : null
       });
