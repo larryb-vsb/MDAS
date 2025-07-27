@@ -113,13 +113,46 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     });
   };
 
-  // Add short time format to data
+  // Group samples by minute and aggregate the data
   const getDataWithShortTime = () => {
     if (!historyData?.data.length) return [];
-    return historyData.data.map(item => ({
+    
+    // Group data by minute
+    const groupedByMinute = historyData.data.reduce((acc, item) => {
+      const date = new Date(item.timestamp);
+      const minuteKey = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes()).toISOString();
+      
+      if (!acc[minuteKey]) {
+        acc[minuteKey] = {
+          timestamp: minuteKey,
+          dtRecords: 0,
+          bhRecords: 0,
+          p1Records: 0,
+          otherRecords: 0,
+          skippedRecords: 0,
+          rawLines: 0,
+          count: 0
+        };
+      }
+      
+      // Sum up all records for this minute
+      acc[minuteKey].dtRecords += item.dtRecords || 0;
+      acc[minuteKey].bhRecords += item.bhRecords || 0;
+      acc[minuteKey].p1Records += item.p1Records || 0;
+      acc[minuteKey].otherRecords += item.otherRecords || 0;
+      acc[minuteKey].skippedRecords += item.skippedRecords || 0;
+      acc[minuteKey].rawLines += item.rawLines || 0;
+      acc[minuteKey].count += 1;
+      
+      return acc;
+    }, {} as Record<string, any>);
+    
+    // Convert back to array and add formatted time
+    return Object.values(groupedByMinute).map((item: any) => ({
       ...item,
-      shortTime: formatTimeOnly(item.timestamp)
-    }));
+      shortTime: formatTimeOnly(item.timestamp),
+      recordsPerMinute: item.dtRecords + item.bhRecords + item.p1Records + item.otherRecords + item.skippedRecords
+    })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
