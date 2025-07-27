@@ -8303,49 +8303,6 @@ export class DatabaseStorage implements IStorage {
     console.log(`✅ DT Record inserted: $${tddfRecord.transaction_amount} - ${tddfRecord.reference_number} (ID: ${insertResult.rows[0].id})`);
   }
 
-  private async processP1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
-    const line = rawRecord.raw_line;
-    const purchasingTableName = getTableName('tddf_purchasing_extensions');
-
-    const p1Record = {
-      p1_record_number: `P1_${rawRecord.source_file_id}_${rawRecord.line_number}`,
-      record_identifier: line.substring(17, 19).trim() || null,
-      parent_dt_reference: line.substring(61, 84).trim() || null,
-      tax_amount: this.parseAmount(line.substring(150, 162).trim()) || null,
-      discount_amount: this.parseAmount(line.substring(162, 174).trim()) || null,
-      freight_amount: this.parseAmount(line.substring(174, 186).trim()) || null,
-      duty_amount: this.parseAmount(line.substring(186, 198).trim()) || null,
-      purchase_identifier: line.substring(198, 225).trim() || null,
-      source_file_id: rawRecord.source_file_id,
-      source_row_number: rawRecord.line_number,
-      raw_data: JSON.stringify({ rawLine: line })
-    };
-
-    const insertResult = await client.query(`
-      INSERT INTO "${purchasingTableName}" (
-        p1_record_number, record_identifier, parent_dt_reference,
-        tax_amount, discount_amount, freight_amount, duty_amount, purchase_identifier,
-        source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      ON CONFLICT (p1_record_number) DO UPDATE SET recorded_at = CURRENT_TIMESTAMP
-      RETURNING id
-    `, [
-      p1Record.p1_record_number, p1Record.record_identifier, p1Record.parent_dt_reference,
-      p1Record.tax_amount, p1Record.discount_amount, p1Record.freight_amount,
-      p1Record.duty_amount, p1Record.purchase_identifier, p1Record.source_file_id,
-      p1Record.source_row_number, p1Record.raw_data
-    ]);
-
-    await client.query(`
-      UPDATE "${tableName}" 
-      SET processing_status = 'processed',
-          processed_into_table = $1,
-          processed_record_id = $2,
-          processed_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-    `, [purchasingTableName, insertResult.rows[0].id.toString(), rawRecord.id]);
-  }
-
 
 
   private async processE1RecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
@@ -10346,41 +10303,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Parse TDDF date format (MMDDCCYY) to Date object
-  private parseTddfDate(dateStr: string): Date | null {
-    if (!dateStr || dateStr.trim().length !== 8) {
-      return null;
-    }
-
-    try {
-      const trimmed = dateStr.trim();
-      const month = parseInt(trimmed.substring(0, 2), 10);
-      const day = parseInt(trimmed.substring(2, 4), 10);
-      const century = parseInt(trimmed.substring(4, 6), 10);
-      const year = parseInt(trimmed.substring(6, 8), 10);
-
-      // Convert century and year to full year (e.g., 20 + 24 = 2024)
-      const fullYear = (century * 100) + year;
-
-      // Create date object (month is 0-based in JavaScript)
-      const date = new Date(fullYear, month - 1, day);
-
-      // Validate the date
-      if (isNaN(date.getTime()) || 
-          date.getFullYear() !== fullYear ||
-          date.getMonth() !== (month - 1) ||
-          date.getDate() !== day) {
-        console.warn(`Invalid TDDF date: ${dateStr}`);
-        return null;
-      }
-
-      return date;
-    } catch (error) {
-      console.error(`Error parsing TDDF date ${dateStr}:`, error);
-      return null;
-    }
-  }
-
   // Helper method to get file by ID
   async getFileById(fileId: string): Promise<any> {
     try {
@@ -11000,91 +10922,6 @@ export class DatabaseStorage implements IStorage {
     } catch (error: any) {
       console.error('Error processing hierarchical TDDF migration:', error);
       throw error;
-    }
-  }
-
-  // TDDF retry methods
-  async retryFailedTddfFile(fileId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const uploadsTableName = getTableName('uploaded_files');
-      
-      // Check if file exists and is failed
-      const fileResult = await pool.query(`
-        SELECT id, original_filename, processing_status, file_content
-        FROM "${uploadsTableName}"
-        WHERE id = $1 AND file_type = 'tddf' AND processing_status = 'failed'
-      `, [fileId]);
-      
-      if (fileResult.rows.length === 0) {
-        return { success: false, message: 'File not found or not in failed status' };
-      }
-      
-      const file = fileResult.rows[0];
-      console.log(`Retrying TDDF file: ${file.original_filename} (${fileId})`);
-      
-      // Update status to processing and reset file to queued state
-      await pool.query(`
-        UPDATE "${uploadsTableName}"
-        SET processing_status = 'queued',
-            processed = false,
-            processing_errors = null,
-            processing_completed_at = null,
-            processing_time_ms = null
-        WHERE id = $1
-      `, [fileId]);
-      
-      return { success: true, message: `Successfully queued ${file.original_filename} for retry` };
-    } catch (error: any) {
-      console.error('Error retrying TDDF file:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-  async retryAllFailedTddfFiles(): Promise<{ filesRetried: number; errors: string[] }> {
-    try {
-      const uploadsTableName = getTableName('uploaded_files');
-      
-      // Get all failed TDDF files
-      const failedFilesResult = await pool.query(`
-        SELECT id, original_filename
-        FROM "${uploadsTableName}"
-        WHERE file_type = 'tddf' AND processing_status = 'failed'
-      `);
-      
-      const failedFiles = failedFilesResult.rows;
-      console.log(`Found ${failedFiles.length} failed TDDF files to retry`);
-      
-      if (failedFiles.length === 0) {
-        return { filesRetried: 0, errors: [] };
-      }
-      
-      let filesRetried = 0;
-      const errors: string[] = [];
-      
-      // Reset all failed files to queued status
-      for (const file of failedFiles) {
-        try {
-          await pool.query(`
-            UPDATE "${uploadsTableName}"
-            SET processing_status = 'queued',
-                processed = false,
-                processing_errors = null,
-                processing_completed_at = null,
-                processing_time_ms = null
-            WHERE id = $1
-          `, [file.id]);
-          
-          filesRetried++;
-          console.log(`Queued ${file.original_filename} for retry`);
-        } catch (fileError: any) {
-          errors.push(`Failed to retry ${file.original_filename}: ${fileError.message}`);
-        }
-      }
-      
-      return { filesRetried, errors };
-    } catch (error: any) {
-      console.error('Error retrying all failed TDDF files:', error);
-      return { filesRetried: 0, errors: [error.message] };
     }
   }
 
@@ -11731,16 +11568,6 @@ export class DatabaseStorage implements IStorage {
     if (value === null || value === undefined || value === '') return null;
     const num = parseFloat(String(value));
     return isNaN(num) ? null : num;
-  }
-  
-  private parseDate(value: any): string | null {
-    if (value === null || value === undefined || value === '') return null;
-    try {
-      const date = new Date(String(value));
-      return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
-    } catch {
-      return null;
-    }
   }
   
   private parseRiskLevel(value: any): string | null {
