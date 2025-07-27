@@ -31,7 +31,7 @@ interface PendingUpload {
   detectedType: string;
 }
 
-export default function DevUpload() {
+export default function MMSUploader() {
   const [uploads, setUploads] = useState<UploadResult[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -241,9 +241,9 @@ export default function DevUpload() {
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Dev Upload Testing</h1>
+          <h1 className="text-3xl font-bold tracking-tight">MMS Uploader</h1>
           <p className="text-muted-foreground">
-            Test compressed storage with smart file type detection (accepts any file up to 500MB)
+            Advanced file processing with smart file type detection (accepts any file up to 500MB)
           </p>
           <div className="flex justify-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">

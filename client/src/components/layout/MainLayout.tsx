@@ -92,7 +92,7 @@ const navItems = [
   },
   {
     icon: <Zap className="h-5 w-5 text-orange-400" />,
-    label: "Dev Upload",
+    label: "MMS Uploader",
     href: "/dev-upload"
   },
   {

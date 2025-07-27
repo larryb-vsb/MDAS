@@ -24,7 +24,7 @@ import MMSMerchants from "@/pages/MMSMerchants";
 import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
-import DevUpload from "@/pages/DevUpload";
+import MMSUploader from "@/pages/MMSUploader";
 
 function Router() {
   return (
@@ -45,7 +45,7 @@ function Router() {
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
-      <ProtectedRoute path="/dev-upload" component={DevUpload} />
+      <ProtectedRoute path="/dev-upload" component={MMSUploader} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
