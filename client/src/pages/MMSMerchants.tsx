@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye } from "lucide-react";
+import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye, Search } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
