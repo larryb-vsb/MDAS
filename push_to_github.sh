@@ -49,12 +49,16 @@ REPO_NAME="MMS"
 
 echo "Using repository: $REPO_OWNER/$REPO_NAME"
 
-# Configure token authentication for this session
+# Configure token authentication for this session using the token directly in the URL
 git remote add origin "https://${GITHUB_TOKEN}@github.com/$REPO_OWNER/$REPO_NAME.git"
+
+# Disable interactive prompts
+export GIT_ASKPASS="true"
+export GIT_TERMINAL_PROMPT=0
 
 # Test connection by getting remote info
 echo "Testing GitHub connection..."
-REMOTE_INFO=$(git ls-remote --get-url origin 2>&1)
+REMOTE_INFO=$(git ls-remote origin 2>&1)
 if [[ $REMOTE_INFO == *"not found"* || $REMOTE_INFO == *"Repository not found"* || $REMOTE_INFO == *"Authentication failed"* ]]; then
   echo "Error: Unable to access repository. Please check your token and repository name."
   echo "Detailed error: $REMOTE_INFO"
