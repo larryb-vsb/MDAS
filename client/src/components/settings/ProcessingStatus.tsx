@@ -1182,28 +1182,42 @@ export default function ProcessingStatus() {
                         <span className="text-muted-foreground">Processing Progress</span>
                         <span className="font-medium">
                           {(() => {
+                            // Fix: Only count actually processed records, not skipped ones
                             const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
-                            const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
-                            const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
+                            const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
+                            const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                            const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                            const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
+                            const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
+                            const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
+                            const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
+                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
                             const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
-                            return ((dtProcessed + nonDtSkipped + otherSkipped) / totalRawLines * 100).toFixed(1);
+                            return (totalProcessed / totalRawLines * 100).toFixed(1);
                           })()}% Complete
                         </span>
                       </div>
                       <Progress 
                         value={(() => {
+                          // Fix: Only count actually processed records, not skipped ones
                           const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
-                          const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
-                          const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
+                          const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
+                          const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                          const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                          const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
+                          const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
+                          const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
+                          const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
+                          const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
                           const totalRawLines = realTimeStats?.tddfOperations?.totalRawLines || 1;
-                          return (dtProcessed + nonDtSkipped + otherSkipped) / totalRawLines * 100;
+                          return totalProcessed / totalRawLines * 100;
                         })()} 
                         className="h-2"
                       />
                     </div>
                     
                     {/* Raw Line Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                       <div className="text-center p-2 bg-slate-50 rounded border">
                         <div className="font-semibold text-slate-700">
                           {realTimeStats?.tddfOperations?.totalRawLines?.toLocaleString() || '0'}
@@ -1213,13 +1227,30 @@ export default function ProcessingStatus() {
                       <div className="text-center p-2 bg-green-50 rounded border">
                         <div className="font-semibold text-green-700">
                           {(() => {
+                            // Fix: Only count actually processed records, not skipped ones
                             const dtProcessed = realTimeStats?.tddfOperations?.dtRecordsProcessed || 0;
-                            const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
-                            const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
-                            return (dtProcessed + nonDtSkipped + otherSkipped).toLocaleString();
+                            const bhProcessed = realTimeStats?.tddfOperations?.bhRecordsProcessed || 0;
+                            const p1Processed = realTimeStats?.tddfOperations?.p1RecordsProcessed || 0;
+                            const p2Processed = realTimeStats?.tddfOperations?.p2RecordsProcessed || 0;
+                            const e1Processed = realTimeStats?.tddfOperations?.e1RecordsProcessed || 0;
+                            const g2Processed = realTimeStats?.tddfOperations?.g2RecordsProcessed || 0;
+                            const adProcessed = realTimeStats?.tddfOperations?.adRecordsProcessed || 0;
+                            const drProcessed = realTimeStats?.tddfOperations?.drRecordsProcessed || 0;
+                            const totalProcessed = dtProcessed + bhProcessed + p1Processed + p2Processed + e1Processed + g2Processed + adProcessed + drProcessed;
+                            return totalProcessed.toLocaleString();
                           })()}
                         </div>
-                        <div className="text-green-600">Completed</div>
+                        <div className="text-green-600">Processed</div>
+                      </div>
+                      <div className="text-center p-2 bg-red-50 rounded border">
+                        <div className="font-semibold text-red-700">
+                          {(() => {
+                            const nonDtSkipped = realTimeStats?.tddfOperations?.nonDtRecordsSkipped || 0;
+                            const otherSkipped = realTimeStats?.tddfOperations?.otherSkipped || 0;
+                            return (nonDtSkipped + otherSkipped).toLocaleString();
+                          })()}
+                        </div>
+                        <div className="text-red-600">Skipped</div>
                       </div>
                       <div className="text-center p-2 bg-amber-50 rounded border">
                         <div className="font-semibold text-amber-700">
