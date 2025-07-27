@@ -156,7 +156,7 @@ const SpeedGauge: React.FC<{
           })}
           
           {/* Needle */}
-          <g transform={`translate(96, 80) rotate(${angle - 180})`}>
+          <g transform={`translate(96, 80) rotate(${angle - 90})`}>
             <line
               x1="0"
               y1="0"
