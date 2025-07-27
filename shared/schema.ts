@@ -409,7 +409,7 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   
   // Purchasing Card Level 1 Data (positions 20-39) 
   taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }), // Positions 20-31: Tax amount
-  taxRate: numeric("tax_rate", { precision: 7, scale: 4 }), // Positions 32-38: Tax rate
+  taxRate: numeric("tax_rate", { precision: 15, scale: 4 }), // Positions 32-38: Tax rate
   taxType: text("tax_type"), // Position 39: Tax type indicator
   
   // Purchasing Card Level 2 Data (positions 40-113)
