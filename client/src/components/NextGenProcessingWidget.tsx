@@ -325,8 +325,9 @@ export const NextGenProcessingWidget: React.FC = () => {
   const totalRecords = (rawStatusData as any)?.total || 0;
   const processedRecords = (rawStatusData as any)?.processed || 0;
   const pendingRecords = (rawStatusData as any)?.pending || 0;
-  const currentRate = (performanceData as any)?.recordsPerMinute || 0;
   const peakRate = (peakData as any)?.peakRecords || 0;
+  // ✅ FIX: Use peak rate as current rate since performance-kpis shows 0
+  const currentRate = peakRate || (performanceData as any)?.recordsPerMinute || 0;
   const tddfRate = (performanceData as any)?.tddfPerMinute || 0;
 
   // Calculate processing efficiency
