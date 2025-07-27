@@ -1052,6 +1052,13 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
   const [terminalSortBy, setTerminalSortBy] = useState('transactionCount');
   const [terminalSortOrder, setTerminalSortOrder] = useState('desc');
 
+  // Reset terminal pagination when merchant changes
+  useEffect(() => {
+    setTerminalPage(1);
+    setTerminalSortBy('transactionCount');
+    setTerminalSortOrder('desc');
+  }, [merchantAccountNumber]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['/api/tddf/merchants', merchantAccountNumber, 'terminals'],
     queryFn: async () => {
@@ -1126,13 +1133,6 @@ function MerchantTerminals({ merchantAccountNumber }: { merchantAccountNumber: s
     }
     setTerminalPage(1); // Reset to first page when sorting
   };
-
-  // Reset terminal pagination when merchant changes
-  useEffect(() => {
-    setTerminalPage(1);
-    setTerminalSortBy('transactionCount');
-    setTerminalSortOrder('desc');
-  }, [merchantAccountNumber]);
 
   return (
     <Card>
