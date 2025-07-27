@@ -1,10 +1,10 @@
 /**
  * MMS Database Schema
- * Version: 2.6.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
- * Last Updated: July 26, 2025
+ * Version: 2.7.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Last Updated: July 27, 2025
  * 
- * MINOR VERSION: Complete AD/DR Record Type Frontend Implementation
- * New Features: Complete tabbed interface implementation for AD (Merchant Adjustment Extension) and DR (Direct Marketing Extension) records with comprehensive table display, pagination, detailed view modals, and professional styling matching other record type tabs
+ * MINOR VERSION: MMS Merchant Risk Report Schema Expansion
+ * New Features: Comprehensive TSYS merchant risk report fields integration including bank identifiers, risk assessment metrics, bypass controls, amount thresholds, compliance status, and enhanced risk management capabilities
  * 
  * Version History:
  * - 1.0.0: Initial schema with core merchant and transaction tables
@@ -20,6 +20,7 @@
  * - 2.4.0: MINOR FEATURE - Hierarchical TDDF Record Architecture with separate tables for each TDDF record type and comprehensive raw line processing data preservation
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
  * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
+ * - 2.7.0: MINOR FEATURE - MMS Merchant Risk Report Schema Expansion with comprehensive TSYS risk assessment fields, bypass controls, amount thresholds, compliance tracking, and enhanced merchant risk management capabilities
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -56,7 +57,38 @@ export const merchants = pgTable(getTableName("merchants"), {
   lastUploadDate: timestamp("last_upload_date"),
   asOfDate: timestamp("as_of_date"), // Date from demographic import
   editDate: timestamp("edit_date").defaultNow(), // System-controlled last edit date
-  updatedBy: text("updated_by") // System-controlled field for tracking who made changes
+  updatedBy: text("updated_by"), // System-controlled field for tracking who made changes
+  
+  // TSYS Merchant Risk Report Fields
+  bank: text("bank"), // Bank identifier
+  associateMerchantNumber: text("associate_merchant_number"), // Associate merchant number
+  dbaNameCwob: text("dba_name_cwob"), // DBA Name CWOB
+  cwobDebitRisk: text("cwob_debit_risk"), // CWOB Debit Risk
+  vwobEbtReturn: text("vwob_ebt_return"), // VWOB EBT Return
+  bypassEa: text("bypass_ea"), // Bypass EA
+  bypassCo: text("bypass_co"), // Bypass Co
+  merchantRecordSt: text("merchant_record_st"), // Merchant Record Status
+  boardDt: timestamp("board_dt"), // Board Date
+  saleAmt: numeric("sale_amt", { precision: 15, scale: 2 }), // Sale Amount
+  creditAmt: numeric("credit_amt", { precision: 15, scale: 2 }), // Credit Amount
+  negativeAmount: numeric("negative_amount", { precision: 15, scale: 2 }), // Negative Amount
+  numberO: text("number_o"), // Number O field
+  bypassForce: text("bypass_force"), // Bypass Force
+  feeVisa: numeric("fee_visa", { precision: 15, scale: 2 }), // Fee Visa
+  visaMcc: text("visa_mcc"), // Visa MCC
+  dailyAuthLimit: numeric("daily_auth_limit", { precision: 15, scale: 2 }), // Daily Auth Limit
+  bypassEx: text("bypass_ex"), // Bypass Ex
+  excessiveDepositAmount: numeric("excessive_deposit_amount", { precision: 15, scale: 2 }), // Excessive Deposit Amount
+  threshold: numeric("threshold", { precision: 15, scale: 2 }), // Threshold amount
+  
+  // Additional risk assessment fields
+  riskScore: numeric("risk_score", { precision: 5, scale: 2 }), // Overall risk score
+  riskLevel: text("risk_level"), // Low, Medium, High, Critical
+  lastRiskAssessment: timestamp("last_risk_assessment"), // Last risk assessment date
+  riskFlags: text("risk_flags").array(), // Array of risk flag indicators
+  complianceStatus: text("compliance_status"), // Compliance status
+  reviewRequired: boolean("review_required").default(false), // Manual review flag
+  riskNotes: text("risk_notes") // Risk assessment notes
 });
 
 // Terminals table - based on TSYS Merchant Export structure

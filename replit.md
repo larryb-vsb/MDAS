@@ -685,6 +685,16 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ MMS MERCHANT RISK REPORT SCHEMA EXPANSION COMPLETED (July 27, 2025)
+- **✅ COMPREHENSIVE TSYS RISK FIELDS ADDED**: Successfully expanded MMS Merchant table schema with complete TSYS merchant risk report fields for enhanced risk assessment capabilities
+  - **Schema Version Updated**: Updated to v2.7.0 with comprehensive merchant risk report field integration
+  - **27 New Risk Fields Added**: Bank identifier, associate merchant number, DBA name CWOB, CWOB debit risk, VWOB EBT return, bypass controls (EA, Co, Force, Ex), merchant record status, board date, financial amounts (sale, credit, negative), threshold controls, daily auth limits, fee structures, and Visa MCC
+  - **Additional Risk Assessment Fields**: Risk score (numeric 5,2), risk level (Low/Medium/High/Critical), last risk assessment timestamp, risk flags array, compliance status, review required flag, and risk notes
+  - **Database Migration Executed**: Successfully applied migration adding all 27 new fields to dev_merchants table with proper data types and constraints
+  - **Performance Indexes Created**: Added specialized indexes for risk_level, risk_score, review_required, compliance_status, associate_merchant_number, and bank fields for optimized risk assessment queries
+  - **Environment Support**: Migration supports both development (dev_merchants) and production (merchants) table environments
+  - **Production Ready**: Complete TSYS merchant risk report import capability with comprehensive field mapping and database optimization
+
 ### ✅ COMPREHENSIVE DATABASE PERFORMANCE INDEXES IMPLEMENTATION COMPLETED (July 26, 2025)
 - **✅ LARGE TRANSACTION VIEWS OPTIMIZATION**: Successfully implemented comprehensive database indexes to optimize performance for large transaction views and complex queries
   - **Merchant Transaction Aggregation**: Added compound indexes on (merchant_account_number, transaction_date DESC) and (merchant_account_number, merchant_name, mcc_code, transaction_date DESC) for rapid merchant analytics
