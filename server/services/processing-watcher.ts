@@ -483,13 +483,14 @@ export class ScanlyWatcher {
           console.log(`[SCANLY-WATCHER] ⚡ Auto-triggering emergency processing for ${metrics.tddfBacklog} pending records`);
           const emergencyResult = await this.performAlexStyleEmergencyProcessing(metrics.tddfBacklog);
           if (emergencyResult.success) {
-          alerts.push({
-            level: 'info',
-            type: 'auto_emergency_recovery',
-            message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
-            details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
-            timestamp: new Date()
-          });
+            alerts.push({
+              level: 'info',
+              type: 'auto_emergency_recovery',
+              message: `Automatic emergency recovery completed: ${emergencyResult.recordsProcessed} records processed using Alex's proven methodology`,
+              details: { recordsProcessed: emergencyResult.recordsProcessed, autoTriggered: true, methodology: 'alex_4_phase_approach' },
+              timestamp: new Date()
+            });
+          }
         }
       }
       
