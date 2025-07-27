@@ -16,7 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 26, 2025 - TDDF MERCHANTS SORTING AND CACHE REFRESH FUNCTIONALITY COMPLETED
+- Current session: July 27, 2025 - RECORDS PROCESSING CHART SHORT DURATION FILTERS COMPLETELY FIXED
+- **✅ COMPLETE SHORT DURATION FILTER FIX SUCCESSFUL (July 27, 2025)**: Successfully resolved all issues with minute-level chart filters
+  - **API Backend Fixed**: Changed parseInt to parseFloat to accept fractional hour values (0.0167 for 1 minute)
+  - **Minimum Constraint Removed**: Updated from 1-hour minimum to 1/60 hours (1 minute) minimum for granular data
+  - **Period Response Corrected**: Fixed backend to return "5 minutes" instead of "1 hour" for short duration requests
+  - **Debug Verification Added**: Console logging confirms proper API parameter passing and response handling
+  - **All Time Ranges Functional**: 1m, 2m, 5m, 10m, 30m, 1h, 2h, 6h, 12h, 24h filters all working correctly
+  - **Real-time Data**: Chart shows authentic minute-by-minute processing activity with 30-second refresh intervals
+  - **Production Verified**: Active Scanly-Watcher processing (12,000+ pending records) visible in granular detail
 - **✅ TDDF MERCHANTS SORTING FIXED**: Successfully implemented proper parameter passing with URLSearchParams for sorting functionality - sortBy and sortOrder now properly reach the API
 - **✅ CACHE REFRESH BUTTON FIXED**: Resolved "buildTimeMs" error by correcting response structure handling - cache refresh now works properly with correct performance metrics display
 - **✅ P1/P2 COMBINED BOX WITH HOVER BREAKDOWN**: Successfully implemented unified P1/P2 box showing combined total (266) with detailed hover tooltip breakdown showing individual P1 and P2 counts
