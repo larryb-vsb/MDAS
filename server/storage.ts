@@ -8160,8 +8160,19 @@ export class DatabaseStorage implements IStorage {
         ).join(', ')
       );
       
-      // Process each record type using advanced data structures with optimal batching
-      for (const recordType of sortedRecordTypes) {
+      // 🚀 CRITICAL OPTIMIZATION: Only process record types with actual pending records
+      // This eliminates Promise.all waiting for empty record type arrays
+      const recordTypesWithData = sortedRecordTypes.filter(recordType => {
+        const records = recordTypeMap.get(recordType)!;
+        return records.length > 0;
+      });
+      
+      console.log(`[DYNAMIC-FILTER] ⚡ PERFORMANCE BOOST: Processing only ${recordTypesWithData.length}/${sortedRecordTypes.length} record types with data`);
+      console.log(`[DYNAMIC-FILTER] ⚡ Skipping empty arrays: ${sortedRecordTypes.filter(t => !recordTypesWithData.includes(t)).join(', ') || 'none'}`);
+      console.log(`[DYNAMIC-FILTER] ⚡ Active processing: ${recordTypesWithData.join(' → ')}`);
+
+      // Process only record types with actual pending records
+      for (const recordType of recordTypesWithData) {
         const records = recordTypeMap.get(recordType)!;
         const batchInfo = optimizedBatches.get(recordType)!;
         
