@@ -2299,6 +2299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           records_with_errors,
           processing_time_ms,
           processing_details,
+          file_size,
           raw_lines_count,
           processing_notes
         FROM ${sql.identifier(tableName)}
@@ -2353,6 +2354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordsWithErrors: row.records_with_errors,
         processingTimeMs: row.processing_time_ms,
         processingDetails: row.processing_details,
+        fileSize: row.file_size,
         rawLinesCount: row.raw_lines_count,
         processingNotes: row.processing_notes
       }));
@@ -2402,7 +2404,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_status,
           processing_started_at,
           processing_completed_at,
-          processing_server_id
+          processing_server_id,
+          file_size,
+          raw_lines_count,
+          processing_notes
         FROM ${sql.identifier(uploadsTableName)}
         WHERE deleted = false
       `;
@@ -2472,7 +2477,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processingStatus: row.processing_status || (row.processed ? 'completed' : 'queued'),
         processingStartedAt: row.processing_started_at,
         processingCompletedAt: row.processing_completed_at,
-        processingServerId: row.processing_server_id
+        processingServerId: row.processing_server_id,
+        fileSize: row.file_size,
+        rawLinesCount: row.raw_lines_count,
+        processingNotes: row.processing_notes
       }));
 
       const processorStatus = {
