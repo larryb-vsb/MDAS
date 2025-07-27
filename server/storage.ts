@@ -141,6 +141,14 @@ export interface IStorage {
     lastTransactionDate: string;
   }>>;
 
+  getTddfMerchantDetails(merchantAccountNumber: string): Promise<{
+    merchantName: string;
+    merchantAccountNumber: string;
+    totalTransactions: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  } | null>;
+
   // Reprocessing skipped records operations
   getSkippedRecordsSummary(): Promise<{ skipReasons: Array<{ skipReason: string; recordType: string; count: number }>, totalSkipped: number }>;
   reprocessSkippedRecordsByReason(skipReason: string, recordType?: string, maxRecords?: number): Promise<{ processed: number; errors: number; details: string[] }>;
@@ -6640,6 +6648,59 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error('Error getting TDDF merchant terminals:', error);
+      throw error;
+    }
+  }
+
+  async getTddfMerchantDetails(merchantAccountNumber: string): Promise<{
+    merchantName: string;
+    merchantAccountNumber: string;
+    totalTransactions: number;
+    totalAmount: number;
+    lastTransactionDate: string;
+  } | null> {
+    try {
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      console.log(`[MERCHANT DETAILS] Fetching details for merchant: ${merchantAccountNumber} from table: ${tddfRecordsTableName}`);
+      
+      const query = `
+        SELECT 
+          merchant_name,
+          merchant_account_number,
+          COUNT(*) as total_transactions,
+          SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+          MAX(transaction_date) as last_transaction_date
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_account_number = $1
+        GROUP BY merchant_name, merchant_account_number
+      `;
+      
+      const result = await pool.query(query, [merchantAccountNumber]);
+      
+      if (result.rows.length === 0) {
+        console.log(`[MERCHANT DETAILS] No merchant found for account number: ${merchantAccountNumber}`);
+        return null;
+      }
+      
+      const row = result.rows[0];
+      
+      console.log(`[MERCHANT DETAILS] Found merchant details:`, {
+        merchantName: row.merchant_name,
+        totalTransactions: row.total_transactions,
+        totalAmount: row.total_amount,
+        lastTransactionDate: row.last_transaction_date
+      });
+      
+      return {
+        merchantName: row.merchant_name || '',
+        merchantAccountNumber: row.merchant_account_number || '',
+        totalTransactions: parseInt(row.total_transactions) || 0,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        lastTransactionDate: row.last_transaction_date || ''
+      };
+    } catch (error) {
+      console.error('Error getting TDDF merchant details:', error);
       throw error;
     }
   }

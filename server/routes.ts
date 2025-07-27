@@ -5266,6 +5266,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single TDDF merchant details for heat map
+  app.get("/api/tddf/merchants/details/:merchantAccountNumber", isAuthenticated, async (req, res) => {
+    try {
+      const merchantAccountNumber = req.params.merchantAccountNumber;
+      console.log('[MERCHANT DETAILS API] Getting details for merchant:', merchantAccountNumber);
+      
+      const merchant = await storage.getTddfMerchantDetails(merchantAccountNumber);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      res.json(merchant);
+    } catch (error) {
+      console.error('Error fetching TDDF merchant details:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch merchant details" 
+      });
+    }
+  });
+
   // Get TDDF records by merchant ID
   app.get("/api/tddf/merchant/:merchantId", isAuthenticated, async (req, res) => {
     try {

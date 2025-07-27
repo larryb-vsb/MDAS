@@ -361,6 +361,9 @@ function MerchantDetailView({ merchant, onBack }: MerchantDetailViewProps) {
         </div>
       </div>
 
+      {/* Transaction Activity Heat Map - Visible on all tabs */}
+      <MerchantActivityHeatMap merchantAccountNumber={merchant.merchantAccountNumber} />
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
@@ -560,11 +563,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
   const transactions = Array.isArray(data) ? data : data?.data || [];
 
   return (
-    <div className="space-y-6">
-      {/* Transaction Activity Heat Map */}
-      <MerchantActivityHeatMap merchantAccountNumber={merchantAccountNumber} />
-      
-      <Card>
+    <Card>
         <CardHeader>
           <CardTitle>TDDF Transactions</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -614,7 +613,6 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
         )}
         </CardContent>
       </Card>
-    </div>
   );
 }
 

@@ -76,6 +76,24 @@ interface MerchantActivityHeatMapProps {
 
 const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({ merchantAccountNumber }) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  
+  // Fetch merchant info to get last transaction year
+  const { data: merchantInfo } = useQuery({
+    queryKey: ['/api/tddf/merchants/single', merchantAccountNumber],
+    queryFn: async () => {
+      const response = await fetch(`/api/tddf/merchants/details/${merchantAccountNumber}`);
+      if (!response.ok) throw new Error('Failed to fetch merchant info');
+      return response.json();
+    },
+  });
+
+  // Set initial year to last transaction year when merchant data loads
+  React.useEffect(() => {
+    if (merchantInfo && merchantInfo.lastTransactionDate) {
+      const lastTxnYear = new Date(merchantInfo.lastTransactionDate).getFullYear();
+      setCurrentYear(lastTxnYear);
+    }
+  }, [merchantInfo]);
 
   const { data: activityData, isLoading, error } = useQuery<MerchantActivityData[]>({
     queryKey: ['/api/tddf/merchant-activity-heatmap', merchantAccountNumber, currentYear],
@@ -181,9 +199,25 @@ const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({ merch
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Transaction Activity Heat Map</h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Daily transaction volume over time - darker squares indicate more transactions
-          </p>
+          <div className="flex items-center gap-4 mt-1">
+            <p className="text-sm text-gray-600">
+              Daily transaction volume over time - darker squares indicate more transactions
+            </p>
+            {merchantInfo && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500">Total Transactions:</span>
+                <span className="font-semibold text-blue-600">
+                  {merchantInfo.totalTransactions?.toLocaleString() || 'N/A'}
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-500">Last Transaction Year:</span>
+                <span className="font-semibold text-green-600">
+                  {merchantInfo.lastTransactionDate ? 
+                    new Date(merchantInfo.lastTransactionDate).getFullYear() : 'N/A'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
