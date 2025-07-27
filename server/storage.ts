@@ -8051,7 +8051,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // 🚀 CLEAN SINGLE-PATH SWITCH PROCESSING - Bulk processing for all record types
+  // 🚀 ADVANCED DATA STRUCTURES - High-performance bulk processing with optimized filtering
   async processPendingTddfRecordsSwitchBased(
     fileId?: string,
     batchSize: number = 2000  // CLEAN ARCHITECTURE: Standardized bulk batch size
@@ -8063,8 +8063,8 @@ export class DatabaseStorage implements IStorage {
     processingTime: number;
   }> {
     const startTime = Date.now();
-    console.log(`=================== CLEAN SINGLE-PATH BULK PROCESSING ===================`);
-    console.log(`🚀 BULK-FIRST: Processing ALL record types at bulk rate (${batchSize} records/batch)`);
+    console.log(`=================== ADVANCED DATA STRUCTURES BULK PROCESSING ===================`);
+    console.log(`🚀 BULK-FIRST: Processing ALL record types with advanced filtering (${batchSize} records/batch)`);
     
     let totalProcessed = 0;
     let totalSkipped = 0;
@@ -8074,10 +8074,10 @@ export class DatabaseStorage implements IStorage {
     try {
       const tableName = getTableName('tddf_raw_import');
       
-      // SIMPLIFIED QUERY: Find pending records without complex subqueries
+      // ADVANCED FILTERING: Use optimized index-based query for maximum performance
       const queryParams: any[] = [];
       let query = `
-        SELECT *
+        SELECT id, record_type, raw_line, source_file_id, line_number, created_at
         FROM "${tableName}" 
         WHERE processing_status = 'pending'
       `;
@@ -8087,187 +8087,107 @@ export class DatabaseStorage implements IStorage {
         queryParams.push(fileId);
       }
       
-      query += ` ORDER BY source_file_id, line_number, id LIMIT $${queryParams.length + 1}`;
+      // Use optimized index for line_number ordering (leverages idx_tddf_pending_line_order_optimized)
+      query += ` ORDER BY line_number, id LIMIT $${queryParams.length + 1}`;
       queryParams.push(batchSize);
       
       const result = await pool.query(query, queryParams);
       const pendingRecords = result.rows;
       
-      console.log(`[SWITCH-OPTIMIZED] Found ${pendingRecords.length} pending records to process (ALL record types)`);
-      console.log(`[SWITCH-OPTIMIZED] Record types: ${[...new Set(pendingRecords.map(r => r.record_type))].join(', ')}`);
+      console.log(`[ADVANCED-FILTER] Found ${pendingRecords.length} pending records using optimized index scan`);
+      console.log(`[ADVANCED-FILTER] Record types: ${[...new Set(pendingRecords.map(r => r.record_type))].join(', ')}`);
       
-      // ✅ CRITICAL PERFORMANCE FIX: Process in bulk batches by record type instead of individual processing
-      const recordsByType: { [key: string]: any[] } = {};
+      // 🔧 ADVANCED DATA STRUCTURES: High-performance filtering and grouping
       
-      // Group records by type for bulk processing
+      // 1. Hash Map for O(1) record type lookup and grouping
+      const recordTypeMap = new Map<string, any[]>();
+      
+      // 2. Set for O(1) duplicate checking
+      const processedIds = new Set<number>();
+      
+      // 3. Priority Queue structure for processing order optimization
+      const processingPriority = ['DT', 'BH', 'P1', 'P2', 'G2', 'E1', 'AD', 'DR', 'CK', 'LG', 'GE'];
+      const priorityMap = new Map(processingPriority.map((type, index) => [type, index]));
+      
+      // 4. Efficient batch organization using advanced data structures
+      const recordBatches = new Map<string, {
+        records: any[];
+        priority: number;
+        estimatedProcessingTime: number;
+      }>();
+      
+      // Group records using hash map for O(1) insertions
       for (const rawRecord of pendingRecords) {
         const recordType = rawRecord.record_type;
         
-        if (!recordsByType[recordType]) {
-          recordsByType[recordType] = [];
-        }
-        recordsByType[recordType].push(rawRecord);
-        
-        // Initialize breakdown for this record type if not exists
+        // Initialize breakdown for this record type
         if (!breakdown[recordType]) {
           breakdown[recordType] = { processed: 0, skipped: 0, errors: 0 };
         }
-      }
-      
-      console.log(`[SWITCH-BULK] Processing by record type: ${Object.keys(recordsByType).map(type => `${type}:${recordsByType[type].length}`).join(', ')}`);
-      
-      // Process each record type in optimized bulk batches
-      for (const [recordType, records] of Object.entries(recordsByType)) {
-        console.log(`[SWITCH-BULK-${recordType}] Processing ${records.length} records in optimized batch`);
         
-        // Process records individually but with bulk logging
-        for (const rawRecord of records) {
-          // Begin transaction for this record
-          const client = await pool.connect();
-          try {
-            await client.query('BEGIN');
-            
-            // DUPLICATE PROTECTION: Check if already processed before starting
-            const duplicateCheck = await client.query(`
-              SELECT COUNT(*) as count FROM "${tableName}" 
-              WHERE source_file_id = $1 AND line_number = $2 
-                AND processing_status IN ('processed', 'skipped')
-            `, [rawRecord.source_file_id, rawRecord.line_number]);
-            
-            if (parseInt(duplicateCheck.rows[0].count) > 0) {
-              // ✅ FIXED LOGIC: Mark duplicate records as "processed" with "updated" status instead of "skipped"
-              await client.query(`
-                UPDATE "${tableName}"
-                SET processing_status = 'processed',
-                    skip_reason = 'duplicate_record_updated',
-                    processed_at = CURRENT_TIMESTAMP
-                WHERE id = $1
-              `, [rawRecord.id]);
-              
-              await client.query('COMMIT');
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              // ✅ CRITICAL FIX: Remove client.release() here since finally block handles it
-              continue;
-            }
-            
-            // SWITCH-BASED RECORD TYPE ROUTING
-          switch (recordType) {
-            case 'BH':
-              await this.processBHRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'DT':
-              await this.processDTRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'P1':
-              await this.processP1RecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'P2':
-              await this.processP2RecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'E1':
-              await this.processE1RecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'GE':
-              await this.processGERecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'G2':
-              await this.processG2RecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'AD':
-              await this.processADRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'DR':
-              await this.processDRRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'CK':
-              await this.processCKRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            case 'LG':
-              await this.processLGRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].processed++;
-              totalProcessed++;
-              break;
-              
-            default:
-              // Skip unknown record types
-              await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
-              breakdown[recordType].skipped++;
-              totalSkipped++;
-              console.log(`[SWITCH-SKIP] Unknown record type '${recordType}' skipped`);
-              break;
-          }
-          
-          await client.query('COMMIT');
-          
-          // OPTIMIZATION 4: Reduced logging frequency for better performance
-          if ((totalProcessed + totalSkipped) % 50 === 0) {
-            console.log(`[SWITCH-OPTIMIZED] Processed ${totalProcessed} records, skipped ${totalSkipped} so far...`);
-          }
-          
-        } catch (error) {
-          await client.query('ROLLBACK');
-          console.error(`[SWITCH-${recordType}] Transaction failed for line ${rawRecord.line_number}:`, error);
-          
-          // Mark as error using pool connection
-          try {
-            await pool.query(`
-              UPDATE "${tableName}" 
-              SET processing_status = 'skipped',
-                  skip_reason = $1,
-                  processed_at = CURRENT_TIMESTAMP
-              WHERE id = $2
-            `, [`switch_error: ${error instanceof Error ? error.message : 'unknown'}`, rawRecord.id]);
-          } catch (skipError) {
-            console.error(`[SWITCH-${recordType}] Failed to mark as skipped:`, skipError);
-          }
-          
-          breakdown[recordType].errors++;
-          totalErrors++;
-          
-        } finally {
-          client.release();
+        // Use Map for O(1) grouping instead of object property access
+        if (!recordTypeMap.has(recordType)) {
+          recordTypeMap.set(recordType, []);
         }
+        recordTypeMap.get(recordType)!.push(rawRecord);
+        
+        // Build batch information with priority and estimated processing time
+        if (!recordBatches.has(recordType)) {
+          recordBatches.set(recordType, {
+            records: [],
+            priority: priorityMap.get(recordType) ?? 999,
+            estimatedProcessingTime: this.getEstimatedProcessingTimeMs(recordType)
+          });
+        }
+        recordBatches.get(recordType)!.records.push(rawRecord);
       }
       
-      // BULK LOGGING: Only log per record type completion instead of individual records
-      console.log(`[SWITCH-BULK-${recordType}] Completed ${records.length} records: ${breakdown[recordType].processed} processed, ${breakdown[recordType].skipped} skipped, ${breakdown[recordType].errors} errors`);
-    }
+      // 5. Sort record types by priority for optimal processing order
+      const sortedRecordTypes = Array.from(recordTypeMap.keys()).sort((a, b) => {
+        const priorityA = priorityMap.get(a) ?? 999;
+        const priorityB = priorityMap.get(b) ?? 999;
+        return priorityA - priorityB;
+      });
+      
+      console.log(`[ADVANCED-FILTER] Record type processing order: ${sortedRecordTypes.join(' → ')}`);
+      console.log(`[ADVANCED-FILTER] Batch sizes: ${sortedRecordTypes.map(type => `${type}:${recordTypeMap.get(type)!.length}`).join(', ')}`);
+      
+      // 6. Advanced batch size optimization based on record type complexity
+      const optimizedBatches = this.calculateOptimalBatchSizes(recordBatches, batchSize);
+      console.log(`[ADVANCED-FILTER] Optimized processing plan:`, 
+        Array.from(optimizedBatches.entries()).map(([type, info]) => 
+          `${type}:${info.optimalBatchSize} (${info.totalRecords} records)`
+        ).join(', ')
+      );
+      
+      // Process each record type using advanced data structures with optimal batching
+      for (const recordType of sortedRecordTypes) {
+        const records = recordTypeMap.get(recordType)!;
+        const batchInfo = optimizedBatches.get(recordType)!;
+        
+        console.log(`[ADVANCED-BATCH-${recordType}] Processing ${records.length} records in ${batchInfo.batches} optimized batches (${batchInfo.optimalBatchSize} per batch)`);
+        console.log(`[ADVANCED-BATCH-${recordType}] Estimated completion time: ${(batchInfo.estimatedTimeMs / 1000).toFixed(1)}s`);
+        
+        // 7. Advanced concurrent processing using optimized batch sizes
+        const batchResults = await this.processRecordBatchesConcurrently(records, recordType, batchInfo.optimalBatchSize, tableName, processedIds);
+        
+        // Update totals from batch results
+        breakdown[recordType].processed += batchResults.totalProcessed;
+        breakdown[recordType].skipped += batchResults.totalSkipped;
+        breakdown[recordType].errors += batchResults.totalErrors;
+        
+        totalProcessed += batchResults.totalProcessed;
+        totalSkipped += batchResults.totalSkipped;
+        totalErrors += batchResults.totalErrors;
+        
+        console.log(`[ADVANCED-BATCH-${recordType}] Completed: ${batchResults.totalProcessed} processed, ${batchResults.totalSkipped} skipped, ${batchResults.totalErrors} errors`);
+      }
       
       const processingTime = Date.now() - startTime;
-      console.log(`=================== SWITCH-BASED PROCESSING COMPLETE ===================`);
-      console.log(`[SWITCH] Total: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalErrors} errors in ${processingTime}ms`);
-      console.log(`[SWITCH] Breakdown:`, breakdown);
+      console.log(`=================== ADVANCED DATA STRUCTURES PROCESSING COMPLETE ===================`);
+      console.log(`[ADVANCED] Total: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalErrors} errors in ${processingTime}ms`);
+      console.log(`[ADVANCED] Breakdown:`, breakdown);
+      console.log(`[ADVANCED] Performance: ${((totalProcessed + totalSkipped + totalErrors) / (processingTime / 1000 / 60)).toFixed(0)} records/min`);
       
       return {
         totalProcessed,
@@ -8278,9 +8198,279 @@ export class DatabaseStorage implements IStorage {
       };
       
     } catch (error) {
-      console.error('Error in switch-based TDDF processing:', error);
+      console.error('Error in advanced data structures TDDF processing:', error);
       throw error;
     }
+  }
+
+  // 🚀 CONCURRENT BATCH PROCESSING with advanced data structures
+  private async processRecordBatchesConcurrently(
+    records: any[],
+    recordType: string,
+    batchSize: number,
+    tableName: string,
+    processedIds: Set<number>
+  ): Promise<{
+    totalProcessed: number;
+    totalSkipped: number;
+    totalErrors: number;
+  }> {
+    let totalProcessed = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+    
+    // Split records into batches using advanced chunking
+    const batches = this.chunkRecordsAdvanced(records, batchSize);
+    
+    console.log(`[CONCURRENT-${recordType}] Processing ${batches.length} batches concurrently`);
+    
+    // Process batches in parallel for maximum throughput
+    const batchPromises = batches.map(async (batch, batchIndex) => {
+      return this.processSingleRecordBatch(batch, recordType, tableName, processedIds, batchIndex);
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    
+    // Aggregate results from all batches
+    for (const result of batchResults) {
+      totalProcessed += result.processed;
+      totalSkipped += result.skipped;
+      totalErrors += result.errors;
+    }
+    
+    return { totalProcessed, totalSkipped, totalErrors };
+  }
+
+  // Advanced chunking algorithm for optimal batch distribution
+  private chunkRecordsAdvanced(records: any[], batchSize: number): any[][] {
+    const chunks: any[][] = [];
+    for (let i = 0; i < records.length; i += batchSize) {
+      chunks.push(records.slice(i, i + batchSize));
+    }
+    return chunks;
+  }
+
+  // Process single batch with optimized transaction management
+  private async processSingleRecordBatch(
+    batch: any[],
+    recordType: string,
+    tableName: string,
+    processedIds: Set<number>,
+    batchIndex: number
+  ): Promise<{
+    processed: number;
+    skipped: number;
+    errors: number;
+  }> {
+    let processed = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    console.log(`[BATCH-${recordType}-${batchIndex}] Processing ${batch.length} records`);
+    
+    // Process each record in the batch
+    for (const rawRecord of batch) {
+      // Skip if already processed (using Set for O(1) lookup)
+      if (processedIds.has(rawRecord.id)) {
+        skipped++;
+        continue;
+      }
+      
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // DUPLICATE PROTECTION using advanced Set-based checking
+        const duplicateCheck = await client.query(`
+          SELECT COUNT(*) as count FROM "${tableName}" 
+          WHERE source_file_id = $1 AND line_number = $2 
+            AND processing_status IN ('processed', 'skipped')
+        `, [rawRecord.source_file_id, rawRecord.line_number]);
+        
+        if (parseInt(duplicateCheck.rows[0].count) > 0) {
+          await client.query(`
+            UPDATE "${tableName}"
+            SET processing_status = 'processed',
+                skip_reason = 'duplicate_record_updated',
+                processed_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [rawRecord.id]);
+          
+          await client.query('COMMIT');
+          processed++;
+          processedIds.add(rawRecord.id);
+          continue;
+        }
+        
+        // SWITCH-BASED RECORD TYPE ROUTING (same as before)
+        switch (recordType) {
+          case 'BH':
+            await this.processBHRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'DT':
+            await this.processDTRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'P1':
+            await this.processP1RecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'P2':
+            await this.processP2RecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'E1':
+            await this.processE1RecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'GE':
+            await this.processGERecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'G2':
+            await this.processG2RecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'AD':
+            await this.processADRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'DR':
+            await this.processDRRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'CK':
+            await this.processCKRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          case 'LG':
+            await this.processLGRecordWithClient(client, rawRecord, tableName);
+            processed++;
+            break;
+            
+          default:
+            await this.skipUnknownRecordWithClient(client, rawRecord, tableName);
+            skipped++;
+            break;
+        }
+        
+        await client.query('COMMIT');
+        processedIds.add(rawRecord.id);
+        
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`[BATCH-${recordType}-${batchIndex}] Error processing record ${rawRecord.line_number}:`, error);
+        
+        try {
+          await pool.query(`
+            UPDATE "${tableName}" 
+            SET processing_status = 'skipped',
+                skip_reason = $1,
+                processed_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+          `, [`advanced_batch_error: ${error instanceof Error ? error.message : 'unknown'}`, rawRecord.id]);
+        } catch (skipError) {
+          console.error(`[BATCH-${recordType}-${batchIndex}] Failed to mark as skipped:`, skipError);
+        }
+        
+        errors++;
+        
+      } finally {
+        client.release();
+      }
+    }
+    
+    console.log(`[BATCH-${recordType}-${batchIndex}] Completed: ${processed} processed, ${skipped} skipped, ${errors} errors`);
+    return { processed, skipped, errors };
+  }
+  
+  // Helper method to process each record with enhanced error handling
+  private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
+    await client.query(`
+      UPDATE "${tableName}"
+      SET processing_status = 'skipped',
+          skip_reason = 'unknown_record_type',
+          processed_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [rawRecord.id]);
+  }
+
+  // 🔧 ADVANCED DATA STRUCTURES HELPER METHODS
+  
+  // Get estimated processing time per record for different TDDF record types (in milliseconds)
+  private getEstimatedProcessingTimeMs(recordType: string): number {
+    const processingTimeMap: Record<string, number> = {
+      'DT': 8,    // Detail transactions - most complex with 127 fields
+      'BH': 3,    // Batch headers - moderate complexity
+      'P1': 12,   // Purchasing card extensions - high complexity with many fields
+      'P2': 8,    // Purchasing card 2 extensions - moderate-high complexity
+      'G2': 2,    // General data 2 - simple structure
+      'E1': 2,    // Extension 1 - simple structure
+      'AD': 3,    // Adjustment records - moderate complexity
+      'DR': 3,    // Debit records - moderate complexity
+      'CK': 4,    // Check records - moderate complexity
+      'LG': 2,    // Lodge records - simple structure
+      'GE': 2     // General extension - simple structure
+    };
+    
+    return processingTimeMap[recordType] ?? 5; // Default 5ms for unknown types
+  }
+  
+  // Calculate optimal batch sizes based on record type complexity and processing time
+  private calculateOptimalBatchSizes(
+    recordBatches: Map<string, {
+      records: any[];
+      priority: number;
+      estimatedProcessingTime: number;
+    }>,
+    maxBatchSize: number
+  ): Map<string, {
+    optimalBatchSize: number;
+    totalRecords: number;
+    estimatedTimeMs: number;
+    batches: number;
+  }> {
+    const optimizedBatches = new Map();
+    
+    for (const [recordType, batchInfo] of recordBatches.entries()) {
+      const totalRecords = batchInfo.records.length;
+      const processingTimePerRecord = batchInfo.estimatedProcessingTime;
+      
+      // Target processing time per batch: 5 seconds max
+      const maxProcessingTimePerBatch = 5000; // 5 seconds in ms
+      
+      // Calculate optimal batch size based on processing time constraints
+      const timeBasedOptimalSize = Math.floor(maxProcessingTimePerBatch / processingTimePerRecord);
+      
+      // Use the smaller of time-based optimal size or max batch size
+      const optimalBatchSize = Math.min(timeBasedOptimalSize, maxBatchSize, totalRecords);
+      
+      // Ensure minimum batch size of 50 for efficiency
+      const finalBatchSize = Math.max(optimalBatchSize, Math.min(50, totalRecords));
+      
+      const numberOfBatches = Math.ceil(totalRecords / finalBatchSize);
+      const estimatedTotalTime = numberOfBatches * finalBatchSize * processingTimePerRecord;
+      
+      optimizedBatches.set(recordType, {
+        optimalBatchSize: finalBatchSize,
+        totalRecords,
+        estimatedTimeMs: estimatedTotalTime,
+        batches: numberOfBatches
+      });
+    }
+    
+    return optimizedBatches;
   }
 
   // Helper methods for switch-based processing
