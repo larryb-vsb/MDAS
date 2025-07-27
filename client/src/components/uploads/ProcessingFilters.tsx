@@ -9,11 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X, BarChart3 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Clock, FileText, Filter, RefreshCw, Activity, CheckCircle, AlertCircle, Upload, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreVertical, Eye, Download, RotateCcw, Trash2, CheckSquare, X, BarChart3, Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { formatDistanceToNow } from "date-fns";
 import { formatUploadTime, formatRelativeTime, formatTableDate } from "@/lib/date-utils";
 import { useToast } from "@/hooks/use-toast";
+
+// Utility function to format file size
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 interface ProcessingStatusData {
   uploads: any[];
@@ -549,9 +559,46 @@ export default function ProcessingFilters() {
                                   </TableCell>
                                 )}
                                 <TableCell>
-                                  <div className="font-medium">{file.originalFilename}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    ID: {file.id}
+                                  <div className="flex items-center gap-2">
+                                    <div>
+                                      <div className="font-medium">{file.originalFilename}</div>
+                                      <div className="text-sm text-muted-foreground">
+                                        ID: {file.id}
+                                      </div>
+                                    </div>
+                                    {/* File Info Tooltip */}
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-64">
+                                          <div className="space-y-1">
+                                            <div className="font-semibold">File Information</div>
+                                            {file.fileSize && (
+                                              <div className="text-sm">
+                                                <span className="text-muted-foreground">Size:</span> {formatFileSize(file.fileSize)}
+                                              </div>
+                                            )}
+                                            {file.rawLinesCount && (
+                                              <div className="text-sm">
+                                                <span className="text-muted-foreground">Lines:</span> {file.rawLinesCount.toLocaleString()}
+                                              </div>
+                                            )}
+                                            {file.uploadedAt && (
+                                              <div className="text-sm">
+                                                <span className="text-muted-foreground">Uploaded:</span> {formatTableDate(file.uploadedAt)}
+                                              </div>
+                                            )}
+                                            {file.processingNotes && (
+                                              <div className="text-sm">
+                                                <span className="text-muted-foreground">Notes:</span> {file.processingNotes}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
                                 </TableCell>
                                 <TableCell>

@@ -1796,6 +1796,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`[UPLOAD] Using table: ${uploadedFilesTableName} for file: ${fileId}, environment: ${currentEnvironment}`);
         
+        // Get file size and line count information
+        const fileStats = fs.statSync(file.path);
+        const fileSize = fileStats.size;
+        const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+        const rawLinesCount = lines.length;
+        
+        console.log(`[UPLOAD] File ${fileId}: ${fileSize} bytes, ${rawLinesCount} lines`);
+        
         // Direct SQL insertion using environment-specific table with environment tracking
         try {
           await pool.query(`
@@ -1808,9 +1816,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               processed, 
               deleted,
               file_content,
+              file_size,
+              raw_lines_count,
               upload_environment,
               processing_status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           `, [
             fileId,
             file.originalname,
@@ -1820,6 +1830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             false,
             false,
             fileContentBase64,
+            fileSize,
+            rawLinesCount,
             currentEnvironment,
             'queued'
           ]);
@@ -1837,8 +1849,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 processed, 
                 deleted,
                 file_content,
+                file_size,
+                raw_lines_count,
                 processing_status
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             `, [
               fileId,
               file.originalname,
@@ -1848,6 +1862,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               false,
               false,
               fileContentBase64,
+              fileSize,
+              rawLinesCount,
               'queued'
             ]);
           } else {
@@ -1861,9 +1877,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           console.log(`[RAW DATA] Processing raw data for ${type} file: ${fileId}`);
           
-          // Count lines and get basic file info for all file types
-          const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
-          const lineCount = lines.length;
+          // Use already calculated line count from upload
+          const lineCount = rawLinesCount;
           let processingNotes = '';
           let processingResult = null;
           
