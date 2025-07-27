@@ -1,9 +1,8 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, Clock, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 interface RecordsPerMinuteData {
@@ -37,13 +36,11 @@ interface RecordsPerMinuteChartProps {
 
 export default function RecordsPerMinuteChart({ hours = 1, className = "" }: RecordsPerMinuteChartProps) {
   const [timeRange, setTimeRange] = useState(10/60); // Default to 10 minutes (10/60 hours)
-  const [zoomLevel, setZoomLevel] = useState(4); // Default to 4x zoom
-  const [timeOffset, setTimeOffset] = useState(0); // Hours to offset from current time
   
   const { data: historyData, isLoading, error } = useQuery<RecordsPerMinuteHistoryResponse>({
-    queryKey: ['/api/processing/performance-chart-history', timeRange, timeOffset],
+    queryKey: ['/api/processing/performance-chart-history', timeRange],
     queryFn: async () => {
-      const response = await fetch(`/api/processing/performance-chart-history?hours=${timeRange}&timeOffset=${timeOffset}`);
+      const response = await fetch(`/api/processing/performance-chart-history?hours=${timeRange}`);
       if (!response.ok) throw new Error('Failed to fetch data');
       return response.json();
     },
@@ -54,34 +51,13 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   // Time range options
   const timeRangeOptions = [
     { value: 10/60, label: '10 Minutes', shortLabel: '10m' },
+    { value: 30/60, label: '30 Minutes', shortLabel: '30m' },
     { value: 1, label: '1 Hour', shortLabel: '1h' },
-    { value: 3, label: '3 Hours', shortLabel: '3h' },
+    { value: 2, label: '2 Hours', shortLabel: '2h' },
     { value: 6, label: '6 Hours', shortLabel: '6h' },
     { value: 12, label: '12 Hours', shortLabel: '12h' },
-    { value: 24, label: '24 Hours', shortLabel: '24h' },
-    { value: 72, label: '3 Days', shortLabel: '3d' }
+    { value: 24, label: '24 Hours', shortLabel: '24h' }
   ];
-
-  // Calculate zoom levels based on data
-  const getZoomLevels = () => {
-    if (!historyData?.data.length) return [1];
-    const dataPoints = historyData.data.length;
-    const levels = [1];
-    if (dataPoints > 10) levels.push(2);
-    if (dataPoints > 20) levels.push(4);
-    if (dataPoints > 40) levels.push(8);
-    return levels;
-  };
-
-  // Apply zoom to data
-  const getZoomedData = () => {
-    if (!historyData?.data.length) return [];
-    const data = historyData.data;
-    const totalPoints = data.length;
-    const pointsToShow = Math.max(Math.floor(totalPoints / zoomLevel), 2);
-    const startIndex = Math.max(0, totalPoints - pointsToShow);
-    return data.slice(startIndex);
-  };
 
   // Enhanced Y-axis formatting with better scale labels
   const formatYAxis = (value: number) => {
@@ -101,7 +77,6 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
   const getYAxisTicks = () => {
     if (!historyData?.data.length) return [0, 50, 100];
     const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
-    const minValue = Math.min(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
     
     if (maxValue <= 10) return [0, 2, 4, 6, 8, 10];
     if (maxValue <= 50) return [0, 10, 20, 30, 40, 50];
@@ -110,35 +85,6 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     
     const step = Math.ceil(maxValue / 5 / 10) * 10;
     return Array.from({ length: 6 }, (_, i) => i * step);
-  };
-
-  // Navigation handlers
-  const handleZoomIn = () => {
-    const levels = getZoomLevels();
-    const currentIndex = levels.indexOf(zoomLevel);
-    if (currentIndex > 0) {
-      setZoomLevel(levels[currentIndex - 1]);
-    }
-  };
-
-  const handleZoomOut = () => {
-    const levels = getZoomLevels();
-    const currentIndex = levels.indexOf(zoomLevel);
-    if (currentIndex < levels.length - 1) {
-      setZoomLevel(levels[currentIndex + 1]);
-    }
-  };
-
-  const handleTimeLeft = () => {
-    // Left arrow = go forward toward live data (decrease timeOffset)
-    const step = Math.max(1, Math.floor(timeRange / 4));
-    setTimeOffset(prev => Math.max(0, prev - step));
-  };
-
-  const handleTimeRight = () => {
-    // Right arrow = go back in time (increase timeOffset to go further back)
-    const step = Math.max(1, Math.floor(timeRange / 4));
-    setTimeOffset(prev => prev + step);
   };
 
   // Format time for X-axis (short format with AM/PM)
@@ -164,19 +110,10 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     });
   };
 
-  // Add short time format to data - keep latest time slots on left when zooming
+  // Add short time format to data
   const getDataWithShortTime = () => {
     if (!historyData?.data.length) return [];
-    const data = historyData.data;
-    const totalPoints = data.length;
-    const pointsToShow = Math.max(Math.floor(totalPoints / zoomLevel), 2);
-    
-    // Take the most recent data points and reverse them to show latest time on left
-    const startIndex = Math.max(0, totalPoints - pointsToShow);
-    const recentData = data.slice(startIndex);
-    
-    // Reverse the data so latest time appears on the left side of chart
-    return recentData.reverse().map(item => ({
+    return historyData.data.map(item => ({
       ...item,
       shortTime: formatTimeOnly(item.timestamp)
     }));
@@ -242,9 +179,25 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Records Processed per Minute
+          <CardTitle className="text-sm font-medium flex items-center justify-between">
+            <div className="flex items-center">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Records Processed per Minute
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={timeRange.toString()} onValueChange={(value) => setTimeRange(Number(value))}>
+                <SelectTrigger className="w-16 h-6 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeRangeOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.shortLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -256,7 +209,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     );
   }
 
-  if (error || !historyData || historyData.data.length === 0) {
+  if (error || !historyData?.data || historyData.data.length === 0) {
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
@@ -267,7 +220,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
             </div>
             <div className="flex items-center gap-2">
               <Select value={timeRange.toString()} onValueChange={(value) => setTimeRange(Number(value))}>
-                <SelectTrigger className="w-20 h-6 text-xs">
+                <SelectTrigger className="w-16 h-6 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -290,15 +243,10 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     );
   }
 
-  const zoomedData = getDataWithShortTime();
+  const chartData = getDataWithShortTime();
   const maxValue = Math.max(...historyData.data.map(d => (d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)));
   const avgValue = historyData.data.reduce((sum, d) => sum + ((d.dtRecords || 0) + (d.bhRecords || 0) + (d.p1Records || 0) + (d.otherRecords || 0) + (d.skippedRecords || 0)), 0) / historyData.data.length;
   const currentDate = getCurrentDate();
-  const zoomLevels = getZoomLevels();
-  const canZoomIn = zoomLevel < Math.max(...zoomLevels);
-  const canZoomOut = zoomLevel > Math.min(...zoomLevels);
-  const canGoLeft = timeOffset > 0; // Left arrow: can go forward toward live data (timeOffset = 0)
-  const canGoRight = timeOffset < 168; // Right arrow: can go back in time (max 1 week back)
 
   return (
     <Card className={className}>
@@ -322,75 +270,13 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 ))}
               </SelectContent>
             </Select>
-            
-            {/* Navigation Controls */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleTimeLeft}
-                disabled={!canGoLeft}
-                title={`Go forward ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} toward live data`}
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleTimeRight}
-                disabled={!canGoRight}
-                title={`Go back ${Math.max(1, Math.floor(timeRange / 4))} hour${Math.max(1, Math.floor(timeRange / 4)) > 1 ? 's' : ''} in time`}
-              >
-                <ChevronRight className="h-3 w-3" />
-              </Button>
-              {timeOffset > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => setTimeOffset(0)}
-                  title="Jump to live data"
-                >
-                  Live
-                </Button>
-              )}
-              <div className="w-px h-4 bg-border mx-1" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleZoomOut}
-                disabled={!canZoomOut}
-                title="Zoom out"
-              >
-                <ZoomOut className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={handleZoomIn}
-                disabled={!canZoomIn}
-                title="Zoom in"
-              >
-                <ZoomIn className="h-3 w-3" />
-              </Button>
-            </div>
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2">
-          {/* Zoom Level Indicator */}
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <span>Zoom: {zoomLevel}x</span>  
-            {timeOffset > 0 && <span>• {timeOffset}h ago</span>}
-            <span>• {zoomedData.length} samples</span>
-          </div>
-          {/* Enhanced Summary Stats */}
-          <div className="grid grid-cols-4 gap-3 text-xs">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-3 text-xs">
             <div className="text-center">
               <div className="font-semibold text-orange-600">{maxValue.toLocaleString()}</div>
               <div className="text-muted-foreground">Peak</div>
@@ -400,14 +286,8 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
               <div className="text-muted-foreground">Average</div>
             </div>
             <div className="text-center">
-              <div className="font-semibold text-green-600">{zoomedData.length}</div>
-              <div className="text-muted-foreground">Points {zoomLevel > 1 ? `(${zoomLevel}x)` : ''}</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-purple-600">
-                {timeOffset > 0 ? `-${timeOffset}h` : 'Live'}
-              </div>
-              <div className="text-muted-foreground">Time</div>
+              <div className="font-semibold text-green-600">{chartData.length}</div>
+              <div className="text-muted-foreground">Samples</div>
             </div>
           </div>
 
@@ -415,7 +295,7 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={zoomedData}
+                data={chartData}
                 margin={{
                   top: 10,
                   right: 10,
@@ -427,78 +307,34 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
                 <XAxis 
                   dataKey="shortTime"
                   tick={{ fontSize: 9, textAnchor: 'middle' }}
-                  interval="preserveStartEnd"
-                  axisLine={{ stroke: '#e0e0e0' }}
-                  tickLine={{ stroke: '#e0e0e0' }}
-                  height={25}
+                  angle={0}
+                  textAnchor="middle"
+                  interval={Math.max(Math.floor(chartData.length / 8), 0)}
                 />
                 <YAxis 
-                  domain={[0, 125]}
-                  ticks={[0, 25, 50, 75, 100, 125]}
                   tickFormatter={formatYAxis}
-                  tick={{ fontSize: 9 }}
-                  axisLine={{ stroke: '#e0e0e0' }}
-                  tickLine={{ stroke: '#e0e0e0' }}
-                  width={30}
-                  label={{ 
-                    value: 'Records/min', 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle', fontSize: '10px', fill: '#666' }
-                  }}
+                  tick={{ fontSize: 10 }}
+                  ticks={getYAxisTicks()}
+                  domain={[0, 'dataMax']}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="skippedRecords" 
-                  stackId="records"
-                  fill="#ef4444"
-                  radius={[0, 0, 0, 0]}
-                  name="Skipped Records"
-                />
-                <Bar 
-                  dataKey="otherRecords" 
-                  stackId="records"
-                  fill="#6b7280"
-                  radius={[0, 0, 0, 0]}
-                  name="Other Records"
-                />
-                <Bar 
-                  dataKey="p1Records" 
-                  stackId="records"
-                  fill="#f59e0b"
-                  radius={[0, 0, 0, 0]}
-                  name="P1/P2 Records"
-                />
-                <Bar 
-                  dataKey="bhRecords" 
-                  stackId="records"
-                  fill="#10b981"
-                  radius={[0, 0, 0, 0]}
-                  name="BH Records"
-                />
-                <Bar 
-                  dataKey="dtRecords" 
-                  stackId="records"
-                  fill="#3b82f6"
-                  radius={[2, 2, 0, 0]}
-                  name="DT Records"
-                />
+                
+                {/* Stacked bars */}
+                <Bar dataKey="dtRecords" stackId="records" fill="#3b82f6" name="DT Records" />
+                <Bar dataKey="bhRecords" stackId="records" fill="#10b981" name="BH Records" />
+                <Bar dataKey="p1Records" stackId="records" fill="#f59e0b" name="P1/P2 Records" />
+                <Bar dataKey="otherRecords" stackId="records" fill="#6b7280" name="Other Records" />
+                <Bar dataKey="skippedRecords" stackId="records" fill="#ef4444" name="Skipped Records" />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
-          {/* Date display centered */}
-          <div className="text-center text-sm font-medium text-muted-foreground py-1">
-            {currentDate}
-          </div>
-          
-          {/* Status indicator with record type legend - P1/P2 combined */}
-          <div className="flex justify-between items-center text-xs text-muted-foreground">
-            <span>
-              {timeRange <= 6 ? 'Real-time' : 'Historical'} • 
-              {zoomLevel > 1 ? ` ${zoomLevel}x zoom` : ' Overview'} • 
-              Last updated: {historyData.lastUpdated}
-            </span>
+
+          {/* Chart Footer */}
+          <div className="flex items-center justify-between border-t pt-2">
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Real-time • 4s zoom • Last updated: {new Date().toLocaleTimeString()}
+            </div>
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-blue-500 rounded-full" />
