@@ -36,6 +36,54 @@ import {
 } from "@/components/ui/table";
 import { formatTableDate } from "@/lib/date-utils";
 
+// TerminalIdDisplay component for linking terminals
+function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
+  const { data: terminals } = useQuery({
+    queryKey: ['/api/terminals'],
+    queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
+  });
+
+  if (!terminalId) {
+    return (
+      <span className="text-xs text-muted-foreground font-mono">
+        N/A
+      </span>
+    );
+  }
+
+  // Find terminal by VAR mapping pattern: V8912064 → 78912064
+  const terminal = terminals?.find((t: any) => {
+    if (!terminalId) return false;
+    // Extract numeric part from V Number and add "7" prefix for comparison
+    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const expectedTerminalId = '7' + vNumberNumeric;
+    return expectedTerminalId === terminalId;
+  });
+
+  // If terminal found and V Number matches Terminal ID
+  if (terminal) {
+    return (
+      <Link href={`/terminals/${terminal.id}?referrer=tddf-merchants`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          {terminal.vNumber}
+        </Button>
+      </Link>
+    );
+  }
+
+  // If no matching terminal found, show terminal ID only
+  return (
+    <span className="text-xs font-mono text-muted-foreground">
+      {terminalId}
+    </span>
+  );
+}
+
 interface TddfMerchant {
   merchantName: string;
   merchantAccountNumber: string;
@@ -752,54 +800,51 @@ export default function TddfMerchantsTable() {
                 </TabsContent>
 
                 <TabsContent value="terminals" className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">
-                      Terminal List ({detailsRecord.terminalCount} unique terminals)
-                    </h3>
-                    {terminalsLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-sm text-muted-foreground">Loading terminals...</div>
-                      </div>
-                    ) : terminalsData && terminalsData.length > 0 ? (
-                      <div className="border rounded-lg">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Terminal ID</TableHead>
-                              <TableHead>Transaction Count</TableHead>
-                              <TableHead>Total Amount</TableHead>
-                              <TableHead>Last Transaction</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {terminalsData.map((terminal) => (
-                              <TableRow key={terminal.terminalId}>
-                                <TableCell className="font-mono text-sm">
-                                  {terminal.terminalId}
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {terminal.transactionCount.toLocaleString()}
-                                </TableCell>
-                                <TableCell className="font-mono">
-                                  {formatCurrency(terminal.totalAmount)}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {formatDate(terminal.lastTransactionDate)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="text-center">
-                          <Monitor className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">No terminals found for this merchant</p>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Associated Terminals</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Terminals linked to merchant account {detailsRecord.merchantAccountNumber}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {terminalsLoading ? (
+                        <div className="flex items-center justify-center h-64">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      ) : terminalsData && terminalsData.length > 0 ? (
+                        <div className="rounded-lg overflow-hidden border border-gray-200">
+                          <Table>
+                            <TableHeader className="bg-gray-50">
+                              <TableRow>
+                                <TableHead>Terminal</TableHead>
+                                <TableHead className="text-right">Transaction Count</TableHead>
+                                <TableHead className="text-right">Total Amount</TableHead>
+                                <TableHead>Last Transaction</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {terminalsData.map((terminal, index) => (
+                                <TableRow key={`${terminal.terminalId}-${index}`}>
+                                  <TableCell>
+                                    <TerminalIdDisplay terminalId={terminal.terminalId} />
+                                  </TableCell>
+                                  <TableCell className="text-right">{terminal.transactionCount?.toLocaleString() || 0}</TableCell>
+                                  <TableCell className="text-right">{formatCurrency(terminal.totalAmount || 0)}</TableCell>
+                                  <TableCell>{formatDate(terminal.lastTransactionDate)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Monitor className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                          <p className="text-gray-500">No terminals found for this merchant</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             )}
