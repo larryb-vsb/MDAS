@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatTableDate } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Eye } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -55,6 +55,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Types
 interface Transaction {
@@ -189,7 +195,7 @@ export default function Transactions() {
   
   // Filtering and pagination state
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(10);
   const [merchantId, setMerchantId] = useState<string | undefined>(undefined);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -299,6 +305,9 @@ export default function Transactions() {
   // Selected transactions for deletion
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
+  // Transaction inspection state
+  const [inspectionTransaction, setInspectionTransaction] = useState<Transaction | null>(null);
   
   // Fetch transactions with filters
   const { data, isLoading, error, refetch } = useQuery<TransactionsResponse>({
@@ -424,6 +433,103 @@ export default function Transactions() {
 
   return (
     <MainLayout>
+      {/* Transaction Inspection Modal */}
+      <Dialog open={!!inspectionTransaction} onOpenChange={(open) => !open && setInspectionTransaction(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+          </DialogHeader>
+          {inspectionTransaction && (
+            <div className="space-y-6">
+              {/* Summary Section */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 className="font-semibold text-blue-900 mb-3">Transaction Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <label className="text-blue-700 font-medium">Transaction ID</label>
+                    <p className="font-mono">{inspectionTransaction.transactionId}</p>
+                  </div>
+                  <div>
+                    <label className="text-blue-700 font-medium">Amount</label>
+                    <p className={cn(
+                      "font-semibold",
+                      inspectionTransaction.type === "Debit" ? "text-red-600" : "text-green-600"
+                    )}>
+                      {formatCurrency(inspectionTransaction.type === "Debit" ? 
+                        -Math.abs(inspectionTransaction.amount) : 
+                        Math.abs(inspectionTransaction.amount))}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-blue-700 font-medium">Type</label>
+                    <p>
+                      <span className={cn(
+                        "inline-block px-2 py-1 rounded text-xs font-semibold",
+                        inspectionTransaction.type === "Credit" ? "bg-green-100 text-green-800" : 
+                        inspectionTransaction.type === "Debit" ? "bg-red-100 text-red-800" : 
+                        "bg-blue-100 text-blue-800"
+                      )}>
+                        {inspectionTransaction.type}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-blue-700 font-medium">Date</label>
+                    <p>{formatTableDate(inspectionTransaction.date)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Merchant Information */}
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <h3 className="font-semibold text-gray-900 mb-3">Merchant Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <label className="text-gray-700 font-medium">Merchant Name</label>
+                    <p>{inspectionTransaction.merchantName}</p>
+                  </div>
+                  <div>
+                    <label className="text-gray-700 font-medium">Merchant ID</label>
+                    <p className="font-mono">{inspectionTransaction.merchantId}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* System Information */}
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h3 className="font-semibold text-amber-900 mb-3">System & Audit Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <label className="text-amber-700 font-medium">Source Row</label>
+                    <p className="font-mono">{inspectionTransaction.sourceRowNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-amber-700 font-medium">Source File ID</label>
+                    <p className="font-mono">{inspectionTransaction.sourceFileId || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-amber-700 font-medium">Recorded At</label>
+                    <p>{inspectionTransaction.recordedAt ? formatTableDate(inspectionTransaction.recordedAt) : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Raw Data Section */}
+              {inspectionTransaction.rawData && (
+                <div className="bg-slate-50 p-4 rounded-lg border">
+                  <h3 className="font-semibold text-slate-900 mb-3">Raw Transaction Data</h3>
+                  <div className="bg-white p-3 rounded border overflow-x-auto">
+                    <pre className="text-xs font-mono whitespace-pre-wrap">
+                      {JSON.stringify(inspectionTransaction.rawData, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -683,13 +789,15 @@ export default function Transactions() {
                 onValueChange={handleLimitChange}
               >
                 <SelectTrigger className="w-[80px]">
-                  <SelectValue placeholder="20" />
+                  <SelectValue placeholder="10" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
                   <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="30">30</SelectItem>
                   <SelectItem value="50">50</SelectItem>
                   <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -742,6 +850,7 @@ export default function Transactions() {
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead className="w-[50px]">CSV</TableHead>
+                      <TableHead className="w-[50px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -794,6 +903,16 @@ export default function Transactions() {
                             recordedAt={(transaction as any).recordedAt}
                             sourceFileName={(transaction as any).sourceFileName}
                           />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setInspectionTransaction(transaction)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
