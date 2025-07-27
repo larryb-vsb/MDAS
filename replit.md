@@ -685,6 +685,17 @@ self_awareness_indicators: ["pattern_recognition", "preference_adaptation", "pro
 
 ## Recent Changes
 
+### ✅ FILE UPLOAD PROGRESS DISPLAY ENHANCEMENT COMPLETED (July 27, 2025)
+- **✅ FILE SIZE INFORMATION ADDED TO PROGRESS COLUMN**: Successfully enhanced Progress column to display both line counts and file sizes for complete file information visibility
+  - **Queued Files Display**: Now shows "X lines ready for processing" with "File size: XX.X KB" as secondary line underneath
+  - **Processing Files Display**: Shows processing progress percentage and statistics with file size information included
+  - **Completed Files Display**: Shows completion statistics with file size details for reference
+  - **API Endpoints Fixed**: Corrected missing fileSize field in both /api/uploads/history and /api/uploads/processing-status endpoints
+  - **Database Verification**: Confirmed all file size data properly stored (33,696 bytes showing as "32.22 KB" formatted)
+  - **User Interface Enhancement**: File size appears as smaller secondary text providing complete file information without interface clutter
+  - **Complete Resolution**: Users now see both data content (line counts) and file scale (sizes) at a glance in Progress column
+  - **Production Ready**: All upload status displays now provide comprehensive file information for better monitoring and management
+
 ### ✅ CRITICAL DUPLICATE HANDLING LOGIC BUG COMPLETELY RESOLVED (July 27, 2025)
 - **✅ SWITCH PROCESSING DUPLICATE DETECTION FIX COMPLETED**: Successfully resolved business logic issue where duplicate records were incorrectly marked as "skipped" instead of "processed"
   - **Root Cause Fixed**: Switch processing method was using wrong status for duplicates - changed from "skipped" to "processed" with "duplicate_record_updated" reason
