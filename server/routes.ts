@@ -7233,10 +7233,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const upload = await storage.createUploaderUpload({
         filename,
-        file_size: fileSize,
-        created_by: (req.user as any)?.username || 'unknown',
-        session_id: sessionId,
-        server_id: process.env.HOSTNAME || 'unknown'
+        fileSize: fileSize,
+        createdBy: (req.user as any)?.username || 'unknown',
+        sessionId: sessionId,
+        serverId: process.env.HOSTNAME || 'unknown'
       });
       
       console.log(`[UPLOADER API] Started upload: ${upload.id} for ${filename}`);
@@ -7305,10 +7305,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/uploader/auto-process", isAuthenticated, async (req, res) => {
     try {
+      console.log('[AUTO-PROCESS] Starting auto-process request');
+      
       // Get all uploads that can be auto-processed
       const uploads = await storage.getUploaderUploads({
         phase: 'started'
       });
+      
+      console.log(`[AUTO-PROCESS] Found ${uploads.length} uploads to process`);
       
       let processedCount = 0;
       const results = [];
@@ -7320,8 +7324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           for (const phase of phases) {
             const updatedUpload = await storage.updateUploaderPhase(upload.id, phase, {
-              processedAt: new Date(),
-              autoProcessed: true
+              processingNotes: `Auto-processed on ${new Date().toISOString()}`
             });
             
             // Add small delay between phases to simulate processing

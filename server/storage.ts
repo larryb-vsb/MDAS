@@ -13214,23 +13214,64 @@ export class DatabaseStorage implements IStorage {
     try {
       const uploaderTableName = getTableName('uploader_uploads');
       
+      // Map camelCase field names to snake_case database column names
+      const fieldNameMap: Record<string, string> = {
+        currentPhase: 'current_phase',
+        lastUpdated: 'last_updated',
+        uploadStartedAt: 'upload_started_at',
+        uploadStatus: 'upload_status',
+        uploadProgress: 'upload_progress',
+        chunkedUpload: 'chunked_upload',
+        chunkCount: 'chunk_count',
+        chunksUploaded: 'chunks_uploaded',
+        uploadedAt: 'uploaded_at',
+        storagePath: 'storage_path',
+        fileSize: 'file_size',
+        identifiedAt: 'identified_at',
+        detectedFileType: 'detected_file_type',
+        userClassifiedType: 'user_classified_type',
+        finalFileType: 'final_file_type',
+        lineCount: 'line_count',
+        dataSize: 'data_size',
+        hasHeaders: 'has_headers',
+        fileFormat: 'file_format',
+        compressionUsed: 'compression_used',
+        encodingDetected: 'encoding_detected',
+        validationErrors: 'validation_errors',
+        processingNotes: 'processing_notes',
+        createdBy: 'created_by',
+        serverId: 'server_id',
+        sessionId: 'session_id'
+      };
+      
       // Build dynamic update query
       const fields = Object.keys(updates).filter(key => key !== 'id');
-      const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+      const setClause = fields.map((field, index) => {
+        const dbFieldName = fieldNameMap[field] || field;
+        return `${dbFieldName} = $${index + 2}`;
+      }).join(', ');
       
       if (fields.length === 0) {
         throw new Error('No fields to update');
       }
       
-      // Always update last_updated timestamp
+      // Debug logging to identify field mapping
+      console.log(`[UPLOADER-DEBUG] Update fields for ${id}:`, fields);
+      console.log(`[UPLOADER-DEBUG] SET clause: ${setClause}`);
+      console.log(`[UPLOADER-DEBUG] Updates object:`, JSON.stringify(updates, null, 2));
+      
+      // Update query - last_updated is included in updates object if needed
       const query = `
         UPDATE ${uploaderTableName} 
-        SET ${setClause}, last_updated = CURRENT_TIMESTAMP
+        SET ${setClause}
         WHERE id = $1
         RETURNING *
       `;
       
       const values = [id, ...fields.map(field => updates[field as keyof UploaderUpload])];
+      console.log(`[UPLOADER-DEBUG] Full query: ${query}`);
+      console.log(`[UPLOADER-DEBUG] Values:`, values);
+      
       const result = await pool.query(query, values);
       
       if (result.rows.length === 0) {
@@ -13251,37 +13292,37 @@ export class DatabaseStorage implements IStorage {
       console.log(`[UPLOADER] Transitioning upload ${id} to phase: ${phase}`);
       
       const updates: Partial<UploaderUpload> = {
-        current_phase: phase,
-        last_updated: new Date()
+        currentPhase: phase,
+        lastUpdated: new Date()
       };
       
       // Add phase-specific timestamp and data
       switch (phase) {
         case 'uploading':
-          updates.upload_started_at = new Date();
-          updates.upload_status = 'uploading';
-          if (phaseData?.progress) updates.upload_progress = phaseData.progress;
-          if (phaseData?.chunked_upload) updates.chunked_upload = phaseData.chunked_upload;
-          if (phaseData?.chunk_count) updates.chunk_count = phaseData.chunk_count;
+          updates.uploadStartedAt = new Date();
+          updates.uploadStatus = 'uploading';
+          if (phaseData?.progress) updates.uploadProgress = phaseData.progress;
+          if (phaseData?.chunkedUpload) updates.chunkedUpload = phaseData.chunkedUpload;
+          if (phaseData?.chunkCount) updates.chunkCount = phaseData.chunkCount;
           break;
           
         case 'uploaded':
-          updates.uploaded_at = new Date();
-          updates.upload_status = 'uploaded';
-          if (phaseData?.storage_path) updates.storage_path = phaseData.storage_path;
-          if (phaseData?.file_size) updates.file_size = phaseData.file_size;
+          updates.uploadedAt = new Date();
+          updates.uploadStatus = 'uploaded';
+          if (phaseData?.storagePath) updates.storagePath = phaseData.storagePath;
+          if (phaseData?.fileSize) updates.fileSize = phaseData.fileSize;
           break;
           
         case 'identified':
-          updates.identified_at = new Date();
-          if (phaseData?.detected_file_type) updates.detected_file_type = phaseData.detected_file_type;
-          if (phaseData?.final_file_type) updates.final_file_type = phaseData.final_file_type;
-          if (phaseData?.line_count) updates.line_count = phaseData.line_count;
-          if (phaseData?.has_headers !== undefined) updates.has_headers = phaseData.has_headers;
-          if (phaseData?.file_format) updates.file_format = phaseData.file_format;
-          if (phaseData?.encoding_detected) updates.encoding_detected = phaseData.encoding_detected;
-          if (phaseData?.validation_errors) updates.validation_errors = phaseData.validation_errors;
-          if (phaseData?.processing_notes) updates.processing_notes = phaseData.processing_notes;
+          updates.identifiedAt = new Date();
+          if (phaseData?.detectedFileType) updates.detectedFileType = phaseData.detectedFileType;
+          if (phaseData?.finalFileType) updates.finalFileType = phaseData.finalFileType;
+          if (phaseData?.lineCount) updates.lineCount = phaseData.lineCount;
+          if (phaseData?.hasHeaders !== undefined) updates.hasHeaders = phaseData.hasHeaders;
+          if (phaseData?.fileFormat) updates.fileFormat = phaseData.fileFormat;
+          if (phaseData?.encodingDetected) updates.encodingDetected = phaseData.encodingDetected;
+          if (phaseData?.validationErrors) updates.validationErrors = phaseData.validationErrors;
+          if (phaseData?.processingNotes) updates.processingNotes = phaseData.processingNotes;
           break;
       }
       
