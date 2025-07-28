@@ -2563,8 +2563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get enhanced processing status with filters
-  app.get("/api/uploads/processing-status", isAuthenticated, async (req, res) => {
+  // Get enhanced processing status with filters (no auth required for upload dialog)
+  app.get("/api/uploads/processing-status", async (req, res) => {
     try {
       const { 
         status = 'all', 
@@ -2615,8 +2615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baseQuery = sql`${baseQuery} AND processing_status = 'processing'`;
       } else if (status === 'queued') {
         baseQuery = sql`${baseQuery} AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))`;
-      } else if (status === 'error') {
-        baseQuery = sql`${baseQuery} AND processing_errors IS NOT NULL`;
+      } else if (status === 'errors') {
+        baseQuery = sql`${baseQuery} AND (processing_errors IS NOT NULL OR records_with_errors > 0)`;
       } else if (status === 'uploading') {
         // Enhanced uploading status handling with recent files fallback
         if (includeRecentFiles) {
@@ -2648,8 +2648,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         countQuery = sql`${countQuery} AND processing_status = 'processing'`;
       } else if (status === 'queued') {
         countQuery = sql`${countQuery} AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))`;
-      } else if (status === 'error') {
-        countQuery = sql`${countQuery} AND processing_errors IS NOT NULL`;
+      } else if (status === 'errors') {
+        countQuery = sql`${countQuery} AND (processing_errors IS NOT NULL OR records_with_errors > 0)`;
       } else if (status === 'uploading') {
         if (includeRecentFiles) {
           countQuery = sql`${countQuery} AND (
@@ -2726,7 +2726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         processorStatus,
         filters: {
-          status: ['all', 'uploading', 'queued', 'processing', 'completed', 'error'],
+          status: ['all', 'uploading', 'queued', 'processing', 'completed', 'errors'],
           fileType: ['all', 'merchant', 'transaction', 'terminal', 'tddf'],
           sortBy: ['uploadDate', 'processingTime', 'filename']
         }
