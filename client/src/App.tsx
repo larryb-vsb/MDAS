@@ -50,7 +50,6 @@ function Router() {
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />
-      <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
