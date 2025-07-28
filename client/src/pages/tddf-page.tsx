@@ -647,18 +647,18 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   const allFields = [
     // Core TDDF header fields (positions 1-23)
     { label: 'ID', value: record.id },
-    { label: 'Sequence Number (1-7)', value: record.sequenceNumber, mono: true },
-    { label: 'Entry Run Number (8-13)', value: record.entryRunNumber, mono: true },
-    { label: 'Sequence Within Run (14-17)', value: record.sequenceWithinRun, mono: true },
-    { label: 'Record Identifier (18-19)', value: record.recordIdentifier, mono: true },
-    { label: 'Bank Number (20-23)', value: record.bankNumber, mono: true },
+    { label: 'Sequence Number (1-7)', value: record.sequence_number || record.sequenceNumber, mono: true },
+    { label: 'Entry Run Number (8-13)', value: record.entry_run_number || record.entryRunNumber, mono: true },
+    { label: 'Sequence Within Run (14-17)', value: record.sequence_within_run || record.sequenceWithinRun, mono: true },
+    { label: 'Record Identifier (18-19)', value: record.record_identifier || record.recordIdentifier, mono: true },
+    { label: 'Bank Number (20-23)', value: record.bank_number || record.bankNumber, mono: true },
     
     // Account and merchant fields (positions 24-61)
     { label: 'Merchant Account Number (24-39)', value: record.merchant_account_number || record.merchantAccountNumber, mono: true },
-    { label: 'Association Number 1 (40-45)', value: record.associationNumber1, mono: true },
-    { label: 'Group Number (46-51)', value: record.groupNumber, mono: true },
-    { label: 'Transaction Code (52-55)', value: record.transactionCode, mono: true },
-    { label: 'Association Number 2 (56-61)', value: record.associationNumber2, mono: true },
+    { label: 'Association Number 1 (40-45)', value: record.association_number_1 || record.associationNumber1, mono: true },
+    { label: 'Group Number (46-51)', value: record.group_number || record.groupNumber, mono: true },
+    { label: 'Transaction Code (52-55)', value: record.transaction_code || record.transactionCode, mono: true },
+    { label: 'Association Number 2 (56-61)', value: record.association_number_2 || record.associationNumber2, mono: true },
     
     // Core transaction fields (positions 62-142)
     { label: 'Reference Number (62-84)', value: record.reference_number, mono: true },
@@ -772,11 +772,11 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     
     // System and audit fields
     { label: 'Source File ID', value: record.sourceFileId, mono: true },
-    { label: 'Source Row Number', value: record.sourceRowNumber },
-    { label: 'Recorded At', value: record.recordedAt ? formatTableDate(record.recordedAt.toString()) : 'N/A' },
-    { label: 'Created At', value: record.createdAt ? formatTableDate(record.createdAt.toString()) : 'N/A' },
-    { label: 'Updated At', value: record.updatedAt ? formatTableDate(record.updatedAt.toString()) : 'N/A' },
-    { label: 'Raw Data Available', value: record.rawData ? 'Yes' : 'No' },
+    { label: 'Source Row Number', value: record.source_row_number || record.sourceRowNumber },
+    { label: 'Recorded At', value: (record.recorded_at || record.recordedAt) ? formatTableDate((record.recorded_at || record.recordedAt).toString()) : 'N/A' },
+    { label: 'Created At', value: (record.created_at || record.createdAt) ? formatTableDate((record.created_at || record.createdAt).toString()) : 'N/A' },
+    { label: 'Updated At', value: (record.updated_at || record.updatedAt) ? formatTableDate((record.updated_at || record.updatedAt).toString()) : 'N/A' },
+    { label: 'Raw Data Available', value: (record.mms_raw_line || record.rawData) ? 'Yes' : 'No' },
   ];
 
   return (
@@ -811,11 +811,11 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
       </div>
 
       {/* Always show raw data in summary, and also in detail view */}
-      {record.mmsRawLine && (
+      {(record.mms_raw_line || record.mmsRawLine) && (
         <div className="mt-6 space-y-2">
           <label className="text-sm font-medium text-muted-foreground">Raw Line Data</label>
           <div className="font-mono text-xs bg-gray-100 p-3 rounded max-h-24 overflow-y-auto break-all">
-            {record.mmsRawLine}
+            {record.mms_raw_line || record.mmsRawLine}
           </div>
         </div>
       )}
