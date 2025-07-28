@@ -70,6 +70,14 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Robust Date Handling**: Added null/undefined/invalid date checks using `isNaN(date.getTime())` in terminal activity metrics to prevent crashes when processing transaction dates
   - **Direct Conversion Logic**: Terminal ID 77565296 → V Number V7565296 (remove first "7", add "V" prefix) for orphan terminals
   - **Production Ready**: Terminal navigation now works flawlessly from MMS Merchants → Transactions/Terminals tabs without any crashes
+- **✅ TDDF MERCHANTS TERMINAL LINKING FIXED (July 28, 2025)**: Successfully resolved terminal linking issues in TDDF Merchants Details modal
+  - **Root Cause Fixed**: Updated TerminalIdDisplay component to use correct database field name `v_number` instead of `vNumber` (camelCase vs snake_case)
+  - **Field Consistency Applied**: Aligned TDDF merchants table with other components using proper snake_case field naming for database compatibility
+  - **Orphan Terminal Support Added**: Implemented missing orphan terminal fallback logic for terminals without matching V Numbers
+  - **Terminal Conversion Logic**: Terminal ID (78422634) → V Number (V8422634) conversion with orange styling for orphan terminals
+  - **Component Standardization**: All TerminalIdDisplay components now use identical logic across MMS Merchants, TDDF Pages, and TDDF Merchants table
+  - **API Request Fixed**: Corrected cache refresh mutation to properly handle JSON response structure
+  - **Production Verified**: Terminal links now work correctly showing blue buttons for real terminals, orange buttons for orphan terminals
 - **✅ TDDF MERCHANTS API OPTIMIZATION COMPLETED (July 28, 2025)**: Successfully simplified and enhanced TDDF merchants aggregation API for production reliability
   - **API Simplification**: Replaced complex filtering logic with robust direct SQL aggregation approach
   - **Production Database Verified**: Confirmed production has 50,462 TDDF records with 152 unique merchants and API query compatibility

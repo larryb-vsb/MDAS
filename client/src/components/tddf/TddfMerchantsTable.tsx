@@ -55,7 +55,7 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   const terminal = terminals?.find((t: any) => {
     if (!terminalId) return false;
     // Extract numeric part from V Number and add "7" prefix for comparison
-    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const vNumberNumeric = t.v_number?.replace('V', '');
     const expectedTerminalId = '7' + vNumberNumeric;
     return expectedTerminalId === terminalId;
   });
@@ -70,17 +70,29 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
           className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
         >
           <ExternalLink className="h-3 w-3 mr-1" />
-          {terminal.vNumber}
+          {terminal.v_number}
         </Button>
       </Link>
     );
   }
 
-  // If no matching terminal found, show terminal ID only
+  // If no matching V Number found - convert Terminal ID to V Number and link to orphan terminal
+  let displayValue = terminalId;
+  if (terminalId.startsWith('7') && terminalId.length >= 8) {
+    displayValue = 'V' + terminalId.substring(1);
+  }
+
   return (
-    <span className="text-xs font-mono text-muted-foreground">
-      {terminalId}
-    </span>
+    <Link href={`/orphan-terminals/${terminalId}?referrer=tddf-merchants`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 p-1 text-xs font-mono text-orange-600 bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:text-orange-800"
+      >
+        <ExternalLink className="h-3 w-3 mr-1" />
+        {displayValue}
+      </Button>
+    </Link>
   );
 }
 
@@ -134,8 +146,9 @@ export default function TddfMerchantsTable() {
   // Cache refresh mutation
   const refreshCacheMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/tddf-merchants/refresh-cache");
-      return response;
+      const response = await apiRequest("POST", "/api/tddf-merchants/refresh-cache", {});
+      const data = await response.json();
+      return data;
     },
     onSuccess: (data) => {
       // Handle the response structure correctly
