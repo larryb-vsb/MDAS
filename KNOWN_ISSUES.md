@@ -3,26 +3,61 @@
 
 ## Active Issues
 
-### Issue #001: Merchant Display Not Loading
-**Status**: Open  
+### Issue #001: Merchant Display Not Loading  
+**Status**: Resolved  
 **Priority**: High  
 **Date Reported**: 2025-01-27  
+**Date Resolved**: 2025-07-28  
 **Reported By**: Larry  
 
 **Description**: 
 Merchant table/list is not displaying data in the MMS interface, despite API calls returning successful responses.
 
+**Resolution**: 
+Issue was related to React component state. Fixed through component debugging and state management improvements.
+
+---
+
+### Issue #002: Production Environment Configuration Error
+**Status**: Open  
+**Priority**: Critical  
+**Date Reported**: 2025-07-28  
+**Reported By**: Alex (System Analysis)  
+
+**Description**: 
+Production deployment is showing development data instead of production data due to NODE_ENV environment variable not being set.
+
 **Technical Details**:
-- API endpoint `/api/merchants` returns 304 status with 679ms response time
-- Data is being fetched successfully from the backend
-- Issue appears to be in React component rendering
-- No compilation errors in Problems tab
-- Runtime issue not caught by static analysis
+- NODE_ENV is undefined/empty in production deployment
+- System defaults to 'development' mode when NODE_ENV is not set
+- Production queries incorrect tables (dev_uploaded_files, dev_transactions, dev_tddf_records)
+- Shows 42,028 development records instead of 34 production records
+- Environment detection code in `server/env-config.ts` uses fallback: `process.env.NODE_ENV || 'development'`
 
 **Environment**:
-- Development environment
-- React/TypeScript frontend
-- Working API backend
+- Production deployment environment
+- Environment detection code fallback issue
+
+**Reproduction Steps**:
+1. Deploy to production without setting NODE_ENV
+2. Check system logs - shows development mode
+3. API returns development data instead of production data
+4. Dashboard shows incorrect record counts
+
+**Expected Behavior**: 
+Production should use production tables and show production data (34 records)
+
+**Current Behavior**: 
+Production defaults to development mode and shows development data (42,028 records)
+
+**Fix Required**:
+Set NODE_ENV=production in production deployment environment variables
+
+**Investigation Notes**:
+- PRODUCTION_ENVIRONMENT_FIX.md contains detailed fix instructions
+- Environment detection works correctly when NODE_ENV is set
+- Development/production table separation working as designed
+- Issue is deployment configuration, not code
 
 **Reproduction Steps**:
 1. Navigate to merchant management page
