@@ -7069,9 +7069,25 @@ export class DatabaseStorage implements IStorage {
       let queryParams: any[] = [];
       let paramIndex = 1;
       
+      // Add date filtering to raw SQL
+      if (options.startDate) {
+        const connector = whereClause ? ' AND' : ' WHERE';
+        whereClause += `${connector} transaction_date >= $${paramIndex}`;
+        queryParams.push(new Date(options.startDate));
+        paramIndex++;
+      }
+      
+      if (options.endDate) {
+        const connector = whereClause ? ' AND' : ' WHERE';
+        whereClause += `${connector} transaction_date <= $${paramIndex}`;
+        queryParams.push(new Date(options.endDate));
+        paramIndex++;
+      }
+      
       if (options.search && options.search.trim() !== '') {
         const searchTerm = `%${options.search.trim().toLowerCase()}%`;
-        whereClause += ` WHERE (LOWER(merchant_name) LIKE $${paramIndex} OR LOWER(mcc_code) LIKE $${paramIndex+1} OR LOWER(reference_number) LIKE $${paramIndex+2})`;
+        const connector = whereClause ? ' AND' : ' WHERE';
+        whereClause += `${connector} (LOWER(merchant_name) LIKE $${paramIndex} OR LOWER(mcc_code) LIKE $${paramIndex+1} OR LOWER(reference_number) LIKE $${paramIndex+2})`;
         queryParams.push(searchTerm, searchTerm, searchTerm);
         paramIndex += 3;
       }
