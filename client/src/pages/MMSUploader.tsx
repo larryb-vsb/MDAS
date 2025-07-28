@@ -69,16 +69,10 @@ export default function MMSUploader() {
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  // Query for MMS uploads
-  const { data: mmsUploads = [], isLoading: isMmsLoading } = useQuery<UploaderUpload[]>({
+  // Query for MMS uploads only (separate system from /uploads)
+  const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
     queryKey: ['/api/uploader'],
     refetchInterval: 3000 // Refresh every 3 seconds for real-time updates
-  });
-
-  // Query for regular uploads to show comprehensive view
-  const { data: regularUploads = [], isLoading: isRegularLoading } = useQuery<any[]>({
-    queryKey: ['/api/uploads/history'],
-    refetchInterval: 5000 // Refresh every 5 seconds
   });
 
   // Start upload mutation
@@ -166,49 +160,19 @@ export default function MMSUploader() {
     autoProcessMutation.mutate();
   };
 
-  // Convert regular uploads to unified format and combine with MMS uploads
-  const allUploads = [
-    // MMS uploads
-    ...mmsUploads.map(upload => ({
-      ...upload,
-      system: 'MMS',
-      currentPhase: upload.currentPhase || 'started'
-    })),
-    // Regular uploads converted to unified format
-    ...regularUploads.map(upload => ({
-      id: upload.id,
-      filename: upload.original_filename || upload.filename,
-      fileSize: upload.file_size,
-      startTime: upload.uploaded_at,
-      system: 'Regular',
-      currentPhase: (() => {
-        if (upload.processing_status === 'uploading' && !upload.processed) return 'uploading';
-        if (upload.processing_status === 'queued') return 'started';
-        if (upload.processing_status === 'processing') return 'processing';
-        if (upload.processing_status === 'completed' && upload.processed) return 'completed';
-        if (upload.processing_status === 'failed' || upload.processing_errors) return 'warning';
-        return 'started';
-      })(),
-      uploadProgress: upload.processing_status === 'processing' ? 50 : 
-                      upload.processing_status === 'completed' ? 100 : 0
-    }))
-  ];
-
-  // Group all uploads by phase
-  const uploadsByPhase = allUploads.reduce((acc, upload) => {
+  // Group MMS uploads by phase
+  const uploadsByPhase = uploads.reduce((acc, upload) => {
     const phase = upload.currentPhase || 'started';
     if (!acc[phase]) acc[phase] = [];
     acc[phase].push(upload);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, UploaderUpload[]>);
 
-  // Calculate overall statistics
-  const totalUploads = allUploads.length;
+  // Calculate overall statistics for MMS uploads only
+  const totalUploads = uploads.length;
   const completedUploads = uploadsByPhase.completed?.length || 0;
   const warningUploads = uploadsByPhase.warning?.length || 0;
   const activeUploads = totalUploads - completedUploads - warningUploads;
-
-  const isLoading = isMmsLoading || isRegularLoading;
 
   return (
     <MainLayout>
@@ -217,7 +181,7 @@ export default function MMSUploader() {
         <div>
           <h1 className="text-3xl font-bold">MMS Uploader</h1>
           <p className="text-muted-foreground">
-            Parallel file processing system with 8-state workflow tracking
+            Advanced 8-phase file processing system (separate from main /uploads page)
           </p>
         </div>
         
@@ -489,13 +453,13 @@ export default function MMSUploader() {
                 <div className="text-center py-8">
                   <div className="text-muted-foreground">Loading uploads...</div>
                 </div>
-              ) : allUploads.length === 0 ? (
+              ) : uploads.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-muted-foreground">No uploads found</div>
+                  <div className="text-muted-foreground">No MMS uploads found. Use the upload form above to start processing files through the 8-phase workflow.</div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {allUploads.slice(0, 20).map((upload) => {
+                  {uploads.slice(0, 20).map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
                     
