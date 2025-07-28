@@ -131,7 +131,41 @@ The file upload module allows users to import merchant and transaction data thro
 - "Process All" button for manually triggering queued file processing
 - Automatic refreshing of file processing status
 
-### 3.5 Analytics
+#### 3.4.3 File Processing States
+Files progress through the following states during processing:
+1. **Started**: File name and metadata captured with start time
+2. **Uploading**: File transfer in progress
+3. **Uploaded**: File successfully transferred to server
+4. **Identified**: File analyzed, lines counted, final data size recorded
+5. **Encoding**: JSON processing to new JSON table, including field separation, raw line data, processing times, errors, source file name, and other metadata from previous steps
+6. **Processing**: JSON to database - Merchant or TDDF record, terminals, Risk Files, MasterCard Data Integrity records
+7. **Completed**: All processing finished successfully
+8. **Warning State**: Unidentified file - user will need to fix on upload screen
+
+### 3.5 MMS Uploader Feature
+
+#### 3.5.1 Overview
+The MMS Uploader provides a dedicated interface for uploading and processing various file types with enhanced processing capabilities and status tracking.
+
+#### 3.5.2 Requirements
+- Dedicated upload page separate from other system pages
+- Support for multiple file types with automatic detection
+- Real-time processing status updates
+- Enhanced error handling and user feedback
+- File classification and type detection
+- Batch upload capabilities
+- Processing queue management
+- Detailed upload history and tracking
+
+#### 3.5.3 Planned Tables
+All uploader processing tables use the prefix `uploader_`:
+
+- **uploader_uploads**: Main upload tracking table
+- **uploader_json**: JSON processing and field separation data
+- **uploader_tddf_jsonb_records**: TDDF records stored in JSONB format for flexible schema handling
+- **uploader_mastercard_di_edit_records**: MasterCard DI Edit Records stored in JSONB with variable length fields for edit numbers
+
+### 3.6 Analytics
 
 #### 3.5.1 Overview
 The analytics module provides business intelligence through data visualization and reports.
@@ -150,7 +184,7 @@ The analytics module provides business intelligence through data visualization a
 - First tab focused on high-level overview displaying key metrics
 - Transaction date-based analytics rather than upload date-based
 
-### 3.6 User Management
+### 3.7 User Management
 
 #### 3.6.1 Overview
 The user management module handles authentication, authorization, and user administration.
@@ -165,7 +199,7 @@ The user management module handles authentication, authorization, and user admin
 - Admin interface for user management (add, edit, delete users)
 - Password change functionality
 
-### 3.7 Settings and System Management
+### 3.8 Settings and System Management
 
 #### 3.7.1 Overview
 The settings module provides configuration options and system management tools.
@@ -245,6 +279,49 @@ The settings module provides configuration options and system management tools.
 - Role
 - Created At
 - Last Login
+
+#### 4.1.7 Uploader Tables
+
+##### 4.1.7.1 Uploader Uploads
+- ID (string, primary key)
+- Filename
+- Compressed Payload (JSONB)
+- Schema Info (JSONB)
+- Upload Date
+- Status
+- Processed At
+- Record Count
+- Processing Time (ms)
+- Notes
+
+##### 4.1.7.2 Uploader JSON
+- ID (primary key)
+- Upload ID (foreign key)
+- Raw Line Data
+- Processed JSON (JSONB)
+- Field Separation Data (JSONB)
+- Processing Time (ms)
+- Errors (JSONB)
+- Source File Name
+- Metadata (JSONB)
+
+##### 4.1.7.3 Uploader TDDF JSONB Records
+- ID (primary key)
+- Upload ID (foreign key)
+- Record Type
+- Record Data (JSONB)
+- Processing Status
+- Created At
+- Updated At
+
+##### 4.1.7.4 Uploader MasterCard DI Edit Records
+- ID (primary key)
+- Upload ID (foreign key)
+- Edit Data (JSONB with variable length fields)
+- Edit Numbers (JSONB array)
+- Processing Status
+- Created At
+- Updated At
 
 ### 4.2 Data Formats
 
