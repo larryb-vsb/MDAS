@@ -7,7 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -217,24 +216,45 @@ export default function MMSUploader() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                {/* File Type Selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">File Type</label>
-                  <Select value={selectedFileType} onValueChange={setSelectedFileType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select file type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FILE_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{type.label}</span>
-                            <span className="text-xs text-muted-foreground">{type.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* File Type Selection - Light Bulb Buttons */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">Quick Select:</label>
+                  <div className="flex flex-wrap gap-2">
+                    {FILE_TYPES.map((type) => (
+                      <button
+                        key={type.value}
+                        onClick={() => setSelectedFileType(type.value)}
+                        className={`
+                          relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
+                          ${selectedFileType === type.value 
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`
+                            w-2 h-2 rounded-full transition-all duration-300
+                            ${selectedFileType === type.value 
+                              ? 'bg-white animate-pulse' 
+                              : 'bg-gray-400'
+                            }
+                          `} />
+                          {type.label.replace(' Records', '').replace(' Files', '')}
+                        </div>
+                        
+                        {selectedFileType === type.value && (
+                          <div className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-20" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {selectedFileType && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded-md border-l-4 border-blue-500">
+                      {FILE_TYPES.find(t => t.value === selectedFileType)?.description}
+                    </div>
+                  )}
                 </div>
 
                 {/* File Selection */}
