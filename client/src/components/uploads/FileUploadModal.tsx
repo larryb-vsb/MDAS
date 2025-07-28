@@ -46,16 +46,32 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         prevFiles.map((file) => {
           const serverFile = (uploadStatusData as any).uploads.find((upload: any) => upload.id === file.id);
           if (serverFile) {
-            const newStatus = serverFile.processing_status === "uploading" ? "uploading" :
-                            serverFile.processing_status === "queued" ? "queued" :
-                            serverFile.processing_status === "processing" ? "processing" :
-                            serverFile.processing_status === "completed" ? "completed" :
-                            serverFile.processing_status === "failed" ? "error" : file.status;
+            console.log(`[UPLOAD DEBUG] File ${file.id} status update:`, {
+              processingStatus: serverFile.processingStatus,
+              processed: serverFile.processed,
+              fileSize: serverFile.fileSize,
+              rawLinesCount: serverFile.rawLinesCount
+            });
+            
+            let newStatus = file.status;
+            if (serverFile.processingStatus) {
+              newStatus = serverFile.processingStatus === "uploading" ? "uploading" :
+                         serverFile.processingStatus === "queued" ? "queued" :
+                         serverFile.processingStatus === "processing" ? "processing" :
+                         serverFile.processingStatus === "completed" ? "completed" :
+                         serverFile.processingStatus === "failed" ? "error" : file.status;
+            } else if (serverFile.processed) {
+              // If processed flag is true, mark as completed
+              newStatus = "completed";
+            } else if (serverFile.fileSize > 0) {
+              // If file has size but isn't processed yet, it's queued
+              newStatus = "queued";
+            }
             
             return {
               ...file,
               status: newStatus,
-              rawLinesCount: serverFile.raw_lines_count || file.rawLinesCount,
+              rawLinesCount: serverFile.rawLinesCount || serverFile.fileSize || file.rawLinesCount,
               progress: newStatus === "completed" ? 100 :
                        newStatus === "processing" ? 75 :
                        newStatus === "queued" ? 50 :
@@ -475,9 +491,9 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
                       }`}>
                         {file.status === "uploading" ? "Uploading..." :
                          file.status === "uploaded" ? "Uploaded - Ready to Process" :
-                         file.status === "queued" ? `Queued (${file.rawLinesCount || 0} lines)` :
+                         file.status === "queued" ? `Queued (${file.rawLinesCount ? file.rawLinesCount.toLocaleString() : 0} lines)` :
                          file.status === "processing" ? "Processing..." :
-                         file.status === "completed" ? `✅ Completed (${file.rawLinesCount || 0} lines)` :
+                         file.status === "completed" ? `✅ Completed (${file.rawLinesCount ? file.rawLinesCount.toLocaleString() : 0} lines)` :
                          file.status === "error" ? "❌ Failed" : "Unknown"}
                       </span>
                       <span className="text-xs font-medium text-gray-700">{file.progress}%</span>
