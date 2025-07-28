@@ -84,6 +84,37 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
     }
   }, [uploadStatusData, uploadedFileIds]);
 
+  // Auto-close modal when all files are completed or failed
+  useEffect(() => {
+    if (files.length > 0) {
+      const completedFiles = files.filter(f => f.status === "completed" || f.status === "error");
+      const allFilesFinished = completedFiles.length === files.length;
+      
+      console.log(`[FILE-MODAL] Status check: ${completedFiles.length}/${files.length} finished`);
+      
+      if (allFilesFinished && files.length > 0) {
+        const successCount = files.filter(f => f.status === "completed").length;
+        const errorCount = files.filter(f => f.status === "error").length;
+        
+        console.log(`[FILE-MODAL] All files finished: ${successCount} successful, ${errorCount} failed`);
+        
+        toast({
+          title: "Upload Complete",
+          description: successCount > 0 
+            ? `Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+            : `${errorCount} file${errorCount !== 1 ? 's' : ''} failed to upload`,
+          variant: errorCount > 0 && successCount === 0 ? "destructive" : "default",
+        });
+        
+        // Auto-close after showing completion message
+        setTimeout(() => {
+          console.log(`[FILE-MODAL] Auto-closing modal after completion`);
+          onClose();
+        }, 2000);
+      }
+    }
+  }, [files, onClose, toast]);
+
   const handleFilesSelected = (acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
