@@ -79,7 +79,7 @@ export default function TerminalViewPage() {
   // Debug logging
   console.log('[TERMINAL DEBUG] Terminal ID:', terminalId);
   console.log('[TERMINAL DEBUG] Terminal data:', terminal);
-  console.log('[TERMINAL DEBUG] VAR Number from data:', terminal?.vNumber);
+  console.log('[TERMINAL DEBUG] VAR Number from data:', terminal?.v_number);
 
   // Card Type Detection Function - Converts plain card type codes to formatted badges
   function getCardTypeBadges(cardType: string) {
@@ -137,7 +137,7 @@ export default function TerminalViewPage() {
 
   // Extract Terminal ID from VAR Number for TDDF linking
   // VAR V8357055 maps to Terminal ID 78357055 (add "7" prefix after removing "V")
-  const terminalIdFromVar = terminal?.vNumber ? '7' + terminal.vNumber.replace('V', '') : null;
+  const terminalIdFromVar = terminal?.v_number ? '7' + terminal.v_number.replace('V', '') : null;
   
   // Fetch TDDF transactions linked to this terminal via Terminal ID field
   const { data: tddfTransactions = [], isLoading: tddfLoading } = useQuery({
@@ -292,19 +292,19 @@ export default function TerminalViewPage() {
             </Button>
             <div>
               <div className="flex items-center gap-3">
-                {getTerminalTypeIcon(terminal.terminalType)}
+                {getTerminalTypeIcon(terminal.terminal_type)}
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-blue-600">VAR Number</span>
                   </div>
                   <h1 className="text-3xl font-bold tracking-tight text-blue-900">
-                    {terminal.vNumber || "Not specified"}
+                    {terminal.v_number || "Not specified"}
                   </h1>
                 </div>
                 {getStatusBadge(terminal.status)}
               </div>
               <p className="text-muted-foreground mt-1">
-                {terminal.dbaName || "Terminal Details & Analytics"}
+                {terminal.dba_name || "Terminal Details & Analytics"}
               </p>
             </div>
           </div>
@@ -544,20 +544,20 @@ export default function TerminalViewPage() {
                       <CreditCard className="h-5 w-5 text-blue-600" />
                       <div>
                         <p className="text-sm font-medium text-blue-800">VAR Number</p>
-                        <p className="text-lg font-bold text-blue-900">{terminal.vNumber || "Not specified"}</p>
+                        <p className="text-lg font-bold text-blue-900">{terminal.v_number || "Not specified"}</p>
                       </div>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <span className="font-medium">POS Merchant #:</span>
-                    <span>{terminal.posMerchantNumber}</span>
+                    <span>{terminal.pos_merchant_number}</span>
                     
                     <span className="font-medium">DBA Name:</span>
-                    <span>{terminal.dbaName || "Not specified"}</span>
+                    <span>{terminal.dba_name || "Not specified"}</span>
                     
                     <span className="font-medium">Terminal Type:</span>
-                    <span className="capitalize">{terminal.terminalType || "Not specified"}</span>
+                    <span className="capitalize">{terminal.terminal_type || "Not specified"}</span>
                     
                     <span className="font-medium">Status:</span>
                     <span>{getStatusBadge(terminal.status)}</span>
