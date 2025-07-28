@@ -71,9 +71,9 @@ interface TddfRecord {
   associationNumber2?: string;
   
   // Core transaction fields (positions 62-142)
-  referenceNumber?: string;
-  transactionDate?: string | Date;
-  transactionAmount?: string | number;
+  reference_number?: string;
+  transaction_date?: string | Date;
+  transaction_amount?: string | number;
   batchJulianDate?: string;
   netDeposit?: string | number;
   cardholderAccountNumber?: string;
@@ -103,21 +103,22 @@ interface TddfRecord {
   networkIdentifierDebit?: string;
   switchSettledIndicator?: string;
   posEntryMode?: string;
-  debitCreditIndicator?: string;
+  debit_credit_indicator?: string;
   reversalFlag?: string;
-  merchantName?: string;
+  merchant_name?: string;
   
   // Authorization and card details (positions 243-268)
-  authorizationNumber?: string;
+  authorization_number?: string;
   rejectReason?: string;
-  cardType?: string;
+  card_type?: string;
   currencyCode?: string;
   originalTransactionAmount?: string | number;
   
   // Additional flags and codes (positions 269-284)
-  foreignCardIndicator?: string;
-  carryoverIndicator?: string;
-  extensionRecordIndicator?: string;
+  terminal_id?: string;
+  foreign_card_indicator?: string;
+  carryover_indicator?: string;
+  extension_record_indicator?: string;
   mccCode?: string;
   terminalId?: string;
   
