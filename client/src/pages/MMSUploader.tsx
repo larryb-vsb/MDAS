@@ -25,11 +25,10 @@ const PROCESSING_PHASES = [
 
 // Supported file types
 const FILE_TYPES = [
-  { value: 'merchant', label: 'Merchant Records', description: 'Merchant account data and profiles' },
-  { value: 'tddf', label: 'TDDF Records', description: 'Transaction Detail Data Format files' },
-  { value: 'terminal', label: 'Terminal Records (.csv)', description: 'Terminal configuration and settings' },
-  { value: 'merchant_risk', label: 'Merchant Risk Files', description: 'Risk assessment and compliance data' },
-  { value: 'mastercard_integrity', label: 'MasterCard Data Integrity', description: 'MasterCard compliance and integrity records' }
+  { value: 'tddf', label: 'TDDF (.TSYSO)', description: 'TSYS Transaction Daily Detail File .TSYSO file 2400 or 0830 ex VERMNTSB.6759_TDDF_2400_07112025_003301.TSYSO' },
+  { value: 'ach_merchant', label: 'ACH Merchant (.csv)', description: 'Custom Merchant Demographics .csv file' },
+  { value: 'ach_transactions', label: 'ACH Transactions (.csv)', description: 'Horizon Core ACH Processing Detail File AH0314P1 .csv file' },
+  { value: 'mastercard_di', label: 'MasterCard DI Report (.xlms)', description: 'MasterCard Data Integrity Edit Report records .xlms file' }
 ];
 
 const getPhaseColor = (phase: string) => {
@@ -64,7 +63,7 @@ const formatDuration = (startTime: string, endTime?: string): string => {
 
 export default function MMSUploader() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [selectedFileType, setSelectedFileType] = useState<string>('');
+  const [selectedFileType, setSelectedFileType] = useState<string>('tddf');
   const [autoProcessing, setAutoProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
@@ -231,6 +230,7 @@ export default function MMSUploader() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }
                         `}
+                        title={type.description}
                       >
                         <div className="flex items-center gap-2">
                           <div className={`
@@ -240,7 +240,7 @@ export default function MMSUploader() {
                               : 'bg-gray-400'
                             }
                           `} />
-                          {type.label.replace(' Records', '').replace(' Files', '')}
+                          {type.label}
                         </div>
                         
                         {selectedFileType === type.value && (
@@ -305,10 +305,10 @@ export default function MMSUploader() {
                   onClick={handleAutoProcess}
                   disabled={autoProcessMutation.isPending || uploads.length === 0}
                   variant="outline"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
                 >
                   <Zap className="h-4 w-4" />
-                  {autoProcessMutation.isPending ? 'Processing...' : 'Auto Process'}
+                  Auto
                 </Button>
               </div>
               
