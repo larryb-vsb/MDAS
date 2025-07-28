@@ -17,6 +17,7 @@ import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, Ar
 import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
+import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 
 export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -306,6 +307,11 @@ export default function TerminalsPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* TDDF Activity Heat Map */}
+      <div className="mb-6">
+        <TddfActivityHeatMap />
       </div>
 
       {/* Filters */}

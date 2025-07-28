@@ -78,6 +78,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Component Standardization**: All TerminalIdDisplay components now use identical logic across MMS Merchants, TDDF Pages, and TDDF Merchants table
   - **API Request Fixed**: Corrected cache refresh mutation to properly handle JSON response structure
   - **Production Verified**: Terminal links now work correctly showing blue buttons for real terminals, orange buttons for orphan terminals
+- **✅ TDDF ACTIVITY HEAT MAP MOVED TO TERMINALS PAGE (July 28, 2025)**: Successfully relocated global TDDF activity heat map to common terminals list page
+  - **Layout Consistency**: Positioned heat map between summary cards and filters section matching MMS Merchants page structure
+  - **Component Integration**: Added TddfActivityHeatMap import and placement in TerminalsPage.tsx
+  - **User Experience Enhanced**: Heat map now visible on main terminals page instead of buried in individual terminal detail pages
+  - **Visual Hierarchy**: Maintains clean page flow with heat map as common area element above terminal management controls
+  - **Production Ready**: Heat map shows global TDDF transaction activity patterns accessible from main terminals navigation
 - **✅ TDDF MERCHANTS API OPTIMIZATION COMPLETED (July 28, 2025)**: Successfully simplified and enhanced TDDF merchants aggregation API for production reliability
   - **API Simplification**: Replaced complex filtering logic with robust direct SQL aggregation approach
   - **Production Database Verified**: Confirmed production has 50,462 TDDF records with 152 unique merchants and API query compatibility
