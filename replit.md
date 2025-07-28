@@ -16,9 +16,9 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION
+- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION - CODE CLEANUP
 - **✅ SHARED HEAT MAP COMPONENT LIBRARY COMPLETED (July 28, 2025)**: Successfully created centralized heat map component library eliminating React static flag errors and establishing consistent styling
-  - **Shared Component Architecture**: Created `client/src/components/shared/ActivityHeatMap.tsx` as universal heat map solution for all MMS pages
+  - **Shared Component Architecture**: Created `client/src/components/shared/SimpleActivityHeatMap.tsx` as universal heat map solution for terminal pages
   - **Enhanced Template Standard**: Multi-color gradient system (green-blue-purple progression) with larger 4x4 pixel squares and 9-level intensity mapping
   - **Component Replacement Success**: Replaced problematic `TerminalActivityHeatMap` in both `TerminalViewPage` and `OrphanTerminalViewPage` with shared component
   - **React Static Flag Error Resolution**: Eliminated persistent "Expected static flag was missing" errors at line 171 through component library approach
@@ -28,6 +28,7 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **TypeScript Compatibility**: Proper data transformation with flexible date field handling (transaction_date || transactionDate)
   - **Interactive Features**: Clickable day squares with date filtering, hover tooltips, and selected date highlighting with orange styling
   - **Production Ready**: Unified heat map visualization system operational across all terminal and TDDF pages with consistent user experience
+  - **Code Cleanup**: Removed unused `TerminalActivityHeatMap.tsx` component that was causing React static flag errors
 - **✅ GITHUB UPLOAD COMPLETELY RESOLVED (July 27, 2025)**: Successfully fixed GitHub authentication and uploaded complete MMS codebase to repository
   - **Root Cause Fixed**: Expired GITHUB_TOKEN replaced with fresh Personal Access Token from user
   - **Script Authentication Enhanced**: Updated push_to_github.sh with reliable token-in-URL Git authentication method
