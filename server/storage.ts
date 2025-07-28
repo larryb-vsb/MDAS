@@ -565,33 +565,60 @@ export class DatabaseStorage implements IStorage {
     return result.rows;
   }
   
+  // @ENVIRONMENT-CRITICAL - User update operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User> {
-    const [updatedUser] = await db
-      .update(usersTable)
-      .set({
-        ...userData,
-        // If role is not provided, keep the existing one
-        role: userData.role || undefined
-      })
-      .where(eq(usersTable.id, userId))
-      .returning();
+    const usersTableName = getTableName('users');
     
-    return updatedUser;
+    // Build dynamic SET clause based on provided userData
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (userData.username !== undefined) {
+      updates.push(`username = $${paramIndex++}`);
+      values.push(userData.username);
+    }
+    if (userData.role !== undefined) {
+      updates.push(`role = $${paramIndex++}`);
+      values.push(userData.role);
+    }
+    
+    // Add userId for WHERE clause
+    values.push(userId);
+    
+    const result = await pool.query(`
+      UPDATE ${usersTableName} 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `, values);
+    
+    return result.rows[0];
   }
   
+  // @ENVIRONMENT-CRITICAL - User password update operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    const usersTableName = getTableName('users');
     const hashedPassword = await this.hashPassword(newPassword);
     
-    await db
-      .update(usersTable)
-      .set({ password: hashedPassword })
-      .where(eq(usersTable.id, userId));
+    await pool.query(`
+      UPDATE ${usersTableName} 
+      SET password = $1
+      WHERE id = $2
+    `, [hashedPassword, userId]);
   }
   
+  // @ENVIRONMENT-CRITICAL - User deletion operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async deleteUser(userId: number): Promise<void> {
-    await db
-      .delete(usersTable)
-      .where(eq(usersTable.id, userId));
+    const usersTableName = getTableName('users');
+    
+    await pool.query(`
+      DELETE FROM ${usersTableName} 
+      WHERE id = $1
+    `, [userId]);
   }
   
   async hashPassword(password: string): Promise<string> {
@@ -605,64 +632,118 @@ export class DatabaseStorage implements IStorage {
     return await bcrypt.compare(supplied, stored);
   }
 
-  // API User operations
+  // @ENVIRONMENT-CRITICAL - API User operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getApiUsers(): Promise<ApiUser[]> {
-    return await db.select().from(apiUsersTable).orderBy(desc(apiUsersTable.createdAt));
+    const apiUsersTableName = getTableName('api_users');
+    const result = await pool.query(`
+      SELECT * FROM ${apiUsersTableName} 
+      ORDER BY created_at DESC
+    `);
+    return result.rows;
   }
 
+  // @ENVIRONMENT-CRITICAL - API User operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getApiUserById(id: number): Promise<ApiUser | undefined> {
-    const [apiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.id, id));
-    return apiUser || undefined;
+    const apiUsersTableName = getTableName('api_users');
+    const result = await pool.query(`
+      SELECT * FROM ${apiUsersTableName} 
+      WHERE id = $1
+    `, [id]);
+    return result.rows[0] || undefined;
   }
 
+  // @ENVIRONMENT-CRITICAL - API User operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getApiUserByKey(apiKey: string): Promise<ApiUser | undefined> {
-    const [apiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.apiKey, apiKey));
-    return apiUser || undefined;
+    const apiUsersTableName = getTableName('api_users');
+    const result = await pool.query(`
+      SELECT * FROM ${apiUsersTableName} 
+      WHERE api_key = $1
+    `, [apiKey]);
+    return result.rows[0] || undefined;
   }
 
+  // @ENVIRONMENT-CRITICAL - API User creation operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async createApiUser(insertApiUser: InsertApiUser): Promise<ApiUser> {
+    const apiUsersTableName = getTableName('api_users');
+    
     // Generate a unique API key
     const apiKey = `mms_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     
-    const apiUserData = {
-      ...insertApiUser,
-      apiKey,
-    };
-
-    const [apiUser] = await db
-      .insert(apiUsersTable)
-      .values(apiUserData)
-      .returning();
+    const result = await pool.query(`
+      INSERT INTO ${apiUsersTableName} (name, api_key, is_active, created_at)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [insertApiUser.name, apiKey, insertApiUser.isActive || true, new Date()]);
     
-    return apiUser;
+    return result.rows[0];
   }
 
+  // @ENVIRONMENT-CRITICAL - API User update operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateApiUser(id: number, userData: Partial<InsertApiUser>): Promise<ApiUser> {
-    await db.update(apiUsersTable)
-      .set({
-        ...userData,
-        lastUsed: userData.isActive === false ? new Date() : undefined, // Mark as used when deactivated
-      })
-      .where(eq(apiUsersTable.id, id));
+    const apiUsersTableName = getTableName('api_users');
     
-    const [updatedApiUser] = await db.select().from(apiUsersTable).where(eq(apiUsersTable.id, id));
+    // Build dynamic SET clause based on provided userData
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (userData.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(userData.name);
+    }
+    if (userData.isActive !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(userData.isActive);
+    }
+    if (userData.isActive === false) {
+      updates.push(`last_used = $${paramIndex++}`);
+      values.push(new Date());
+    }
+    
+    // Add id for WHERE clause
+    values.push(id);
+    
+    const result = await pool.query(`
+      UPDATE ${apiUsersTableName} 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `, values);
+    
+    const updatedApiUser = result.rows[0];
     if (!updatedApiUser) {
       throw new Error(`API user with ID ${id} not found after update`);
     }
     return updatedApiUser;
   }
 
+  // @ENVIRONMENT-CRITICAL - API User deletion operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async deleteApiUser(id: number): Promise<void> {
-    await db.delete(apiUsersTable).where(eq(apiUsersTable.id, id));
+    const apiUsersTableName = getTableName('api_users');
+    
+    await pool.query(`
+      DELETE FROM ${apiUsersTableName} 
+      WHERE id = $1
+    `, [id]);
   }
 
+  // @ENVIRONMENT-CRITICAL - API User usage tracking operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateApiUserUsage(apiKey: string): Promise<void> {
-    await db.update(apiUsersTable)
-      .set({
-        lastUsed: new Date(),
-        requestCount: sql`${apiUsersTable.requestCount} + 1`,
-      })
-      .where(eq(apiUsersTable.apiKey, apiKey));
+    const apiUsersTableName = getTableName('api_users');
+    
+    await pool.query(`
+      UPDATE ${apiUsersTableName} 
+      SET last_used = $1, 
+          request_count = COALESCE(request_count, 0) + 1
+      WHERE api_key = $2
+    `, [new Date(), apiKey]);
   }
   
   // Helper function to generate search index
@@ -783,9 +864,16 @@ export class DatabaseStorage implements IStorage {
         }
       ];
       
-      // Insert merchants into database
+      // @ENVIRONMENT-CRITICAL - Demo merchant insertion
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const merchantsTableName = getTableName('merchants');
+      
+      // Insert merchants into database using raw SQL for environment awareness
       for (const merchant of demoMerchants) {
-        await db.insert(merchantsTable).values(merchant);
+        await pool.query(`
+          INSERT INTO ${merchantsTableName} (id, name, status, address, city, state, zip_code, category, last_upload_date, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [merchant.id, merchant.name, merchant.status, merchant.address, merchant.city, merchant.state, merchant.zipCode, merchant.category, merchant.lastUploadDate, merchant.createdAt]);
       }
       
       // Generate random transactions for each merchant
@@ -812,7 +900,13 @@ export class DatabaseStorage implements IStorage {
           type: Math.random() > 0.2 ? "Sale" : "Refund"
         };
         
-        await db.insert(transactionsTable).values(transaction);
+        // @ENVIRONMENT-CRITICAL - Demo transaction insertion
+        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+        const transactionsTableName = getTableName('transactions');
+        await pool.query(`
+          INSERT INTO ${transactionsTableName} (id, merchant_id, amount, date, type)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [transaction.id, transaction.merchantId, transaction.amount, transaction.date, transaction.type]);
       }
     } catch (error) {
       console.error("Error initializing data:", error);
@@ -1487,8 +1581,15 @@ export class DatabaseStorage implements IStorage {
 
       try {
         console.log('[MERGE LOGGING] Creating system log entry:', systemLogData);
-        const [systemLogResult] = await tx.insert(systemLogs).values(systemLogData).returning();
-        console.log('[MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
+        // @ENVIRONMENT-CRITICAL - System log creation with environment-aware table naming
+        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+        const systemLogsTableName = getTableName('system_logs');
+        const systemLogResult = await pool.query(`
+          INSERT INTO ${systemLogsTableName} (message, level, context, timestamp)
+          VALUES ($1, $2, $3, $4)
+          RETURNING id
+        `, [systemLogData.message, systemLogData.level, JSON.stringify(systemLogData.context), systemLogData.timestamp]);
+        console.log('[MERGE LOGGING] System log created successfully with ID:', systemLogResult.rows[0]?.id);
       } catch (error) {
         console.error('[MERGE LOGGING] Failed to create system log:', error);
       }
@@ -1508,8 +1609,15 @@ export class DatabaseStorage implements IStorage {
       // Create upload log entry directly within the transaction
       try {
         console.log('[MERGE LOGGING] Creating upload log entry:', mergeLogData);
-        const [uploadLogResult] = await tx.insert(uploadedFilesTable).values(mergeLogData).returning();
-        console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
+        // @ENVIRONMENT-CRITICAL - Upload log creation with environment-aware table naming
+        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+        const uploadedFilesTableName = getTableName('uploaded_files');
+        const uploadLogResult = await pool.query(`
+          INSERT INTO ${uploadedFilesTableName} (id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING id
+        `, [mergeLogData.id, mergeLogData.originalFilename, mergeLogData.storagePath, mergeLogData.fileType, mergeLogData.uploadedAt, mergeLogData.processed, mergeLogData.processingErrors, mergeLogData.deleted]);
+        console.log('[MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult.rows[0]?.id);
       } catch (error) {
         console.error('[MERGE LOGGING] Failed to create upload log:', error);
         console.error('[MERGE LOGGING] Upload log data:', mergeLogData);
@@ -2761,15 +2869,15 @@ export class DatabaseStorage implements IStorage {
       // Generate a unique file ID
       const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // Store file info in database
-      await db.insert(uploadedFilesTable).values({
-        id: fileId,
-        originalFilename,
-        storagePath: filePath,
-        fileType: type,
-        uploadedAt: new Date(),
-        processed: false
-      });
+      // @ENVIRONMENT-CRITICAL - File upload record creation with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      // Store file info in database using raw SQL for environment awareness
+      await pool.query(`
+        INSERT INTO ${uploadedFilesTableName} (id, original_filename, storage_path, file_type, uploaded_at, processed)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [fileId, originalFilename, filePath, type, new Date(), false]);
       
       return fileId;
     } catch (error) {
@@ -2837,9 +2945,10 @@ export class DatabaseStorage implements IStorage {
                 console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
                 // @ENVIRONMENT-CRITICAL - File content retrieval
                 // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-                const dbContentResults = await db.execute(sql`
-                  SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
-                `);
+                const uploadedFilesTableName = getTableName('uploaded_files');
+                const dbContentResults = await pool.query(`
+                  SELECT file_content FROM ${uploadedFilesTableName} WHERE id = $1
+                `, [file.id]);
                 dbContent = dbContentResults.rows[0]?.file_content;
                 console.log(`[TRACE] Database content retrieval result: ${dbContent ? 'SUCCESS' : 'NULL'} (length: ${dbContent ? dbContent.length : 0})`);
                 if (dbContent && dbContent.startsWith('MIGRATED_PLACEHOLDER_')) {
@@ -5994,16 +6103,57 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute query
-      const result = await db
-        .select()
-        .from(auditLogs)
-        .where(whereClause)
-        .orderBy(desc(auditLogs.timestamp))
-        .limit(limit)
-        .offset(offset);
-        
-      return result;
+      // @ENVIRONMENT-CRITICAL - Audit logs query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const auditLogsTableName = getTableName('audit_logs');
+      
+      // Build SQL query conditions manually for environment awareness
+      let whereSQL = '';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (entityType) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}entity_type = $${paramIndex++}`;
+        queryParams.push(entityType);
+      }
+      
+      if (entityId) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}entity_id = $${paramIndex++}`;
+        queryParams.push(entityId);
+      }
+      
+      if (username) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}username = $${paramIndex++}`;
+        queryParams.push(username);
+      }
+      
+      if (action) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}action = $${paramIndex++}`;
+        queryParams.push(action);
+      }
+      
+      if (startDate && endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp >= $${paramIndex++}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp <= $${paramIndex++}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      // Execute main query with raw SQL for environment awareness
+      const auditQuery = `
+        SELECT * FROM ${auditLogsTableName}
+        ${whereSQL ? `WHERE ${whereSQL}` : ''}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+      queryParams.push(limit, offset);
+      
+      const result = await pool.query(auditQuery, queryParams);
+      return result.rows;
     } catch (error) {
       console.error('Error getting audit logs:', error);
       return [];
@@ -6054,13 +6204,53 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute count query
-      const [{ value: count }] = await db
-        .select({ value: count() })
-        .from(auditLogs)
-        .where(whereClause || sql`1=1`);
+      // @ENVIRONMENT-CRITICAL - Audit logs count query with environment-aware table naming  
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const auditLogsTableName = getTableName('audit_logs');
       
-      return count;
+      // Build SQL query conditions manually for environment awareness
+      let whereSQL = '';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (entityType) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}entity_type = $${paramIndex++}`;
+        queryParams.push(entityType);
+      }
+      
+      if (entityId) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}entity_id = $${paramIndex++}`;
+        queryParams.push(entityId);
+      }
+      
+      if (username) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}username = $${paramIndex++}`;
+        queryParams.push(username);
+      }
+      
+      if (action) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}action = $${paramIndex++}`;
+        queryParams.push(action);
+      }
+      
+      if (startDate && endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp >= $${paramIndex++}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp <= $${paramIndex++}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      const countQuery = `
+        SELECT COUNT(*) as count FROM ${auditLogsTableName}
+        ${whereSQL ? `WHERE ${whereSQL}` : ''}
+      `;
+      
+      const countResult = await pool.query(countQuery, queryParams);
+      return parseInt(countResult.rows[0].count);
     } catch (error) {
       console.error('Error getting audit logs count:', error);
       return 0;
@@ -6106,20 +6296,55 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute query
-      const logs = await db
-        .select()
-        .from(systemLogs)
-        .where(whereClause)
-        .orderBy(desc(systemLogs.timestamp))
-        .limit(limit)
-        .offset(offset);
+      // @ENVIRONMENT-CRITICAL - System logs query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const systemLogsTableName = getTableName('system_logs');
+      
+      // Build SQL query conditions manually for environment awareness
+      let whereSQL = '';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (level) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}level = $${paramIndex++}`;
+        queryParams.push(level);
+      }
+      
+      if (source) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}source = $${paramIndex++}`;
+        queryParams.push(source);
+      }
+      
+      if (startDate && endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp >= $${paramIndex++}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp <= $${paramIndex++}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      // Execute main query with raw SQL for environment awareness
+      const logsQuery = `
+        SELECT * FROM ${systemLogsTableName}
+        ${whereSQL ? `WHERE ${whereSQL}` : ''}
+        ORDER BY timestamp DESC
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+      queryParams.push(limit, offset);
+      
+      const logsResult = await pool.query(logsQuery, queryParams);
+      const logs = logsResult.rows;
       
       // Get total count for pagination
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(systemLogs)
-        .where(whereClause);
+      const countQuery = `
+        SELECT COUNT(*) as count FROM ${systemLogsTableName}
+        ${whereSQL ? `WHERE ${whereSQL}` : ''}
+      `;
+      const countResult = await pool.query(countQuery, queryParams.slice(0, -2)); // Remove limit/offset params
+      const count = parseInt(countResult.rows[0].count);
       
       // Return formatted response with pagination
       return {
@@ -6137,16 +6362,18 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Direct method to get system logs without complex filtering
+  // @ENVIRONMENT-CRITICAL - Direct method to get system logs without complex filtering
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getSystemLogsDirectly(): Promise<any[]> {
     try {
-      // Simple direct query to get system logs
-      const logs = await db
-        .select()
-        .from(systemLogs)
-        .orderBy(desc(systemLogs.timestamp))
-        .limit(20);
+      const systemLogsTableName = getTableName('system_logs');
+      const result = await pool.query(`
+        SELECT * FROM ${systemLogsTableName} 
+        ORDER BY timestamp DESC
+        LIMIT 20
+      `);
       
+      const logs = result.rows;
       console.log(`Found ${logs.length} system logs directly from database`);
       
       if (logs.length > 0) {
@@ -6194,13 +6421,32 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute count query
-      const [{ value: count }] = await db
-        .select({ value: count() })
-        .from(systemLogs)
-        .where(whereClause || sql`1=1`);
+      // @ENVIRONMENT-CRITICAL - System logs count query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const systemLogsTableName = getTableName('system_logs');
       
-      return count;
+      // Build WHERE clause for raw SQL count
+      let sqlWhereClause = '1=1';
+      const queryParams = [];
+      
+      if (startDate && endDate) {
+        sqlWhereClause += ` AND timestamp BETWEEN $${queryParams.length + 1} AND $${queryParams.length + 2}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        sqlWhereClause += ` AND timestamp >= $${queryParams.length + 1}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        sqlWhereClause += ` AND timestamp <= $${queryParams.length + 1}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      // Execute count query
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as count FROM ${systemLogsTableName}
+        WHERE ${sqlWhereClause}
+      `, queryParams);
+      
+      return parseInt(countResult.rows[0].count);
     } catch (error) {
       console.error('Error getting system logs count:', error);
       return 0;
@@ -6251,20 +6497,57 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute query
-      const logs = await db
-        .select()
-        .from(securityLogs)
-        .where(whereClause)
-        .orderBy(desc(securityLogs.timestamp))
-        .limit(limit)
-        .offset(offset);
+      // @ENVIRONMENT-CRITICAL - Security logs query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const securityLogsTableName = getTableName('security_logs');
+      
+      // Build WHERE clause for raw SQL
+      let sqlWhereClause = '1=1';
+      const queryParams = [];
+      
+      if (eventType) {
+        sqlWhereClause += ` AND event_type = $${queryParams.length + 1}`;
+        queryParams.push(eventType);
+      }
+      
+      if (username) {
+        sqlWhereClause += ` AND username = $${queryParams.length + 1}`;
+        queryParams.push(username);
+      }
+      
+      if (resultFilter) {
+        sqlWhereClause += ` AND result = $${queryParams.length + 1}`;
+        queryParams.push(resultFilter);
+      }
+      
+      if (startDate && endDate) {
+        sqlWhereClause += ` AND timestamp BETWEEN $${queryParams.length + 1} AND $${queryParams.length + 2}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        sqlWhereClause += ` AND timestamp >= $${queryParams.length + 1}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        sqlWhereClause += ` AND timestamp <= $${queryParams.length + 1}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      // Execute main query
+      const logsResult = await pool.query(`
+        SELECT * FROM ${securityLogsTableName}
+        WHERE ${sqlWhereClause}
+        ORDER BY timestamp DESC
+        LIMIT $${queryParams.length + 1}
+        OFFSET $${queryParams.length + 2}
+      `, [...queryParams, limit, offset]);
       
       // Get total count for pagination
-      const [{ count }] = await db
-        .select({ count: sql`count(*)` })
-        .from(securityLogs)
-        .where(whereClause || sql`1=1`);
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as count FROM ${securityLogsTableName}
+        WHERE ${sqlWhereClause}
+      `, queryParams);
+      
+      const logs = logsResult.rows;
+      const count = parseInt(countResult.rows[0].count);
       
       // Return formatted response with pagination
       return {
@@ -6321,13 +6604,48 @@ export class DatabaseStorage implements IStorage {
         ? and(...conditions)
         : undefined;
         
-      // Execute count query
-      const [{ value: count }] = await db
-        .select({ value: count() })
-        .from(securityLogs)
-        .where(whereClause || sql`1=1`);
+      // @ENVIRONMENT-CRITICAL - Security logs count query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation  
+      const securityLogsTableName = getTableName('security_logs');
       
-      return count;
+      // Build SQL query conditions manually for environment awareness
+      let whereSQL = '';
+      const queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (eventType) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}event_type = $${paramIndex++}`;
+        queryParams.push(eventType);
+      }
+      
+      if (username) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}username = $${paramIndex++}`;
+        queryParams.push(username);
+      }
+      
+      if (resultParam) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}result = $${paramIndex++}`;
+        queryParams.push(resultParam);
+      }
+      
+      if (startDate && endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp BETWEEN $${paramIndex++} AND $${paramIndex++}`;
+        queryParams.push(new Date(startDate), new Date(endDate));
+      } else if (startDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp >= $${paramIndex++}`;
+        queryParams.push(new Date(startDate));
+      } else if (endDate) {
+        whereSQL += `${whereSQL ? ' AND ' : ''}timestamp <= $${paramIndex++}`;
+        queryParams.push(new Date(endDate));
+      }
+      
+      const countQuery = `
+        SELECT COUNT(*) as count FROM ${securityLogsTableName}
+        ${whereSQL ? `WHERE ${whereSQL}` : ''}
+      `;
+      
+      const countResult = await pool.query(countQuery, queryParams);
+      return parseInt(countResult.rows[0].count);
     } catch (error) {
       console.error('Error getting security logs count:', error);
       return 0;
@@ -12456,19 +12774,38 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Dev Upload operations for compressed storage testing
+  // @ENVIRONMENT-CRITICAL - Dev Upload operations for compressed storage testing
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async createDevUpload(insertDevUpload: InsertDevUpload): Promise<DevUpload> {
-    const result = await db.insert(devUploads).values(insertDevUpload).returning();
-    return result[0];
+    const devUploadsTableName = getTableName('dev_uploads');
+    const result = await pool.query(`
+      INSERT INTO ${devUploadsTableName} (id, file_name, file_size, upload_date, content_type, compressed_data)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [insertDevUpload.id, insertDevUpload.fileName, insertDevUpload.fileSize, insertDevUpload.uploadDate, insertDevUpload.contentType, insertDevUpload.compressedData]);
+    return result.rows[0];
   }
 
+  // @ENVIRONMENT-CRITICAL - Dev Upload operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getDevUploads(): Promise<DevUpload[]> {
-    return await db.select().from(devUploads).orderBy(desc(devUploads.upload_date));
+    const devUploadsTableName = getTableName('dev_uploads');
+    const result = await pool.query(`
+      SELECT * FROM ${devUploadsTableName} 
+      ORDER BY upload_date DESC
+    `);
+    return result.rows;
   }
 
+  // @ENVIRONMENT-CRITICAL - Dev Upload operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getDevUploadById(id: string): Promise<DevUpload | undefined> {
-    const results = await db.select().from(devUploads).where(eq(devUploads.id, id));
-    return results[0];
+    const devUploadsTableName = getTableName('dev_uploads');
+    const result = await pool.query(`
+      SELECT * FROM ${devUploadsTableName} 
+      WHERE id = $1
+    `, [id]);
+    return result.rows[0] || undefined;
   }
 }
 

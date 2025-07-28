@@ -1523,23 +1523,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log the requested timeframe for debugging
       console.log(`Analytics request for timeframe: ${timeframe}`);
       
-      // Get transaction history data for the charts
-      const allTransactions = await db.select({
-        transaction: transactionsTable,
-        merchantName: merchantsTable.name
-      })
-      .from(transactionsTable)
-      .innerJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-      .orderBy(transactionsTable.date);
+      // @ENVIRONMENT-CRITICAL - Analytics data query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for environment awareness 
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
       
-      // Get unique merchant categories
-      const merchantCategories = await db.select({
-        category: merchantsTable.category, 
-        count: count()
-      })
-      .from(merchantsTable)
-      .where(isNotNull(merchantsTable.category))
-      .groupBy(merchantsTable.category);
+      // Get transaction history data for the charts using raw SQL
+      const transactionQuery = `
+        SELECT t.*, m.name as merchant_name 
+        FROM ${transactionsTableName} t
+        INNER JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        ORDER BY t.date
+      `;
+      const transactionsResult = await pool.query(transactionQuery);
+      const allTransactions = transactionsResult.rows.map(row => ({
+        transaction: row,
+        merchantName: row.merchant_name
+      }));
+      
+      // Get unique merchant categories using raw SQL
+      const categoriesQuery = `
+        SELECT category, COUNT(*) as count 
+        FROM ${merchantsTableName}
+        WHERE category IS NOT NULL
+        GROUP BY category
+      `;
+      const categoriesResult = await pool.query(categoriesQuery);
+      const merchantCategories = categoriesResult.rows;
       
       // Prepare category data
       const categoryData = merchantCategories.map(cat => ({
@@ -2827,12 +2837,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info
-      const result = await db.execute(sql`
+      // @ENVIRONMENT-CRITICAL - File reprocess query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      // Get file info using environment-aware table name
+      const result = await pool.query(`
         SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted
-        FROM uploaded_files 
-        WHERE id = ${fileId}
-      `);
+        FROM ${uploadedFilesTableName}
+        WHERE id = $1
+      `, [fileId]);
       const fileInfo = result.rows[0];
       
       if (!fileInfo) {
@@ -2841,24 +2855,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if the file still exists
       if (!fs.existsSync(fileInfo.storage_path)) {
-        // File doesn't exist anymore - update error in database
-        await db.execute(sql`
-          UPDATE uploaded_files 
+        // File doesn't exist anymore - update error in database using environment-aware table name
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName}
           SET processed = true, processing_errors = 'Original file has been removed from the temporary storage. Please re-upload the file.'
-          WHERE id = ${fileId}
-        `);
+          WHERE id = $1
+        `, [fileId]);
           
         return res.status(404).json({ 
           error: "File no longer exists in temporary storage. Please re-upload the file."
         });
       }
       
-      // Mark file as queued for reprocessing (not processed, no errors)
-      await db.execute(sql`
-        UPDATE uploaded_files 
+      // Mark file as queued for reprocessing (not processed, no errors) using environment-aware table name
+      await pool.query(`
+        UPDATE ${uploadedFilesTableName}
         SET processed = false, processing_errors = NULL, processed_at = NULL
-        WHERE id = ${fileId}
-      `);
+        WHERE id = $1
+      `, [fileId]);
       
       // Respond immediately that the file is queued
       res.json({ 
@@ -3625,8 +3639,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Create audit log entries for each merged merchant
       for (const sourceMerchantId of sourceMerchantIds) {
-        // Get the source merchant directly from database since it's been removed
-        const [sourceMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
+        // @ENVIRONMENT-CRITICAL - Merchant merge source lookup with environment-aware table naming
+        // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+        const merchantsTableName = getTableName('merchants'); 
+        
+        // Get the source merchant directly from database since it's been removed (using raw SQL)
+        const sourceMerchantResult = await pool.query(`
+          SELECT * FROM ${merchantsTableName} WHERE id = $1
+        `, [sourceMerchantId]);
+        const sourceMerchant = sourceMerchantResult.rows[0];
         if (sourceMerchant) {
           const auditLogData = {
             entityType: 'merchant',
@@ -3640,13 +3661,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${result.targetMerchant.name}" (${targetMerchantId}). Transferred ${result.transactionsTransferred} transactions.`
           };
           
-          console.log('[POST-MERGE LOGGING] Creating audit log entry:', auditLogData);
-          const [auditLog] = await db.insert(auditLogsTable).values(auditLogData).returning();
-          console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLog.id);
+          // @ENVIRONMENT-CRITICAL - Audit log creation with environment-aware table naming
+          // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+          const auditLogsTableName = getTableName('audit_logs');
           
-          // Verify the audit log was actually inserted
-          const verifyAudit = await db.select().from(auditLogsTable).where(eq(auditLogsTable.id, auditLog.id));
-          console.log('[POST-MERGE LOGGING] Audit log verification:', verifyAudit.length > 0 ? 'FOUND' : 'NOT FOUND');
+          console.log('[POST-MERGE LOGGING] Creating audit log entry:', auditLogData);
+          
+          // Create audit log using raw SQL with environment-aware table name
+          const auditLogColumns = Object.keys(auditLogData).join(', ');
+          const auditLogPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
+          const auditLogValues = Object.values(auditLogData).map(val => 
+            typeof val === 'object' ? JSON.stringify(val) : val
+          );
+          
+          const auditLogResult = await pool.query(`
+            INSERT INTO ${auditLogsTableName} (${auditLogColumns}) VALUES (${auditLogPlaceholders}) RETURNING id
+          `, auditLogValues);
+          console.log('[POST-MERGE LOGGING] Audit log created successfully with ID:', auditLogResult.rows[0]?.id);
+          
+          // Verify the audit log was actually inserted using environment-aware table name
+          const verifyAudit = await pool.query(`
+            SELECT id FROM ${auditLogsTableName} WHERE id = $1
+          `, [auditLogResult.rows[0]?.id]);
+          console.log('[POST-MERGE LOGGING] Audit log verification:', verifyAudit.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
         }
       }
       
@@ -3696,10 +3733,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const logId = uploadLogResult.rows[0]?.id;
       console.log('[POST-MERGE LOGGING] Upload log created successfully with ID:', uploadLogResult?.id);
       
-      // Verify the upload log was actually inserted
-      const verifyResult = await db.execute(sql`
-        SELECT id FROM uploaded_files WHERE id = ${logId}
-      `);
+      // @ENVIRONMENT-CRITICAL - Upload log verification with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      // Verify the upload log was actually inserted using environment-aware table name
+      const verifyResult = await pool.query(`
+        SELECT id FROM ${uploadedFilesTableName} WHERE id = $1
+      `, [logId]);
       console.log('[POST-MERGE LOGGING] Upload log verification:', verifyResult.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
       
       // Create system log entry for the merge operation
@@ -3717,13 +3758,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: new Date().toISOString()
         }
       };
-      console.log('[POST-MERGE LOGGING] Creating system log entry:', systemLogData);
-      const [systemLogResult] = await db.insert(systemLogsTable).values(systemLogData).returning();
-      console.log('[POST-MERGE LOGGING] System log created successfully with ID:', systemLogResult?.id);
+      // @ENVIRONMENT-CRITICAL - System log creation with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for dev/prod separation
+      const systemLogsTableName = getTableName('system_logs');
       
-      // Verify the system log was actually inserted
-      const verifySystem = await db.select().from(systemLogsTable).where(eq(systemLogsTable.id, systemLogResult.id));
-      console.log('[POST-MERGE LOGGING] System log verification:', verifySystem.length > 0 ? 'FOUND' : 'NOT FOUND');
+      console.log('[POST-MERGE LOGGING] Creating system log entry:', systemLogData);
+      
+      // Create system log using raw SQL with environment-aware table name
+      const systemLogColumns = Object.keys(systemLogData).join(', ');
+      const systemLogPlaceholders = Object.keys(systemLogData).map((_, i) => `$${i + 1}`).join(', ');
+      const systemLogValues = Object.values(systemLogData).map(val => 
+        typeof val === 'object' ? JSON.stringify(val) : val
+      );
+      
+      const systemLogResult = await pool.query(`
+        INSERT INTO ${systemLogsTableName} (${systemLogColumns}) VALUES (${systemLogPlaceholders}) RETURNING id
+      `, systemLogValues);
+      console.log('[POST-MERGE LOGGING] System log created successfully with ID:', systemLogResult.rows[0]?.id);
+      
+      // Verify the system log was actually inserted using environment-aware table name
+      const verifySystem = await pool.query(`
+        SELECT id FROM ${systemLogsTableName} WHERE id = $1
+      `, [systemLogResult.rows[0]?.id]);
+      console.log('[POST-MERGE LOGGING] System log verification:', verifySystem.rows.length > 0 ? 'FOUND' : 'NOT FOUND');
     } catch (error) {
       console.error('[POST-MERGE LOGGING] Failed to create logs:', error);
     }
@@ -5301,10 +5358,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get TDDF record by ID
   app.get("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
+      // @ENVIRONMENT-CRITICAL - TDDF record lookup with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const recordId = parseInt(req.params.id);
-      const [record] = await db.select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.id, recordId));
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      const recordResult = await pool.query(`
+        SELECT * FROM ${tddfRecordsTableName} WHERE id = $1
+      `, [recordId]);
+      const record = recordResult.rows[0];
       
       if (!record) {
         return res.status(404).json({ error: "TDDF record not found" });
@@ -5496,13 +5558,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const terminalId = req.params.terminalId;
       console.log(`[TDDF TERMINAL] Fetching TDDF records for Terminal ID: ${terminalId}`);
       
+      // @ENVIRONMENT-CRITICAL - TDDF terminal records with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
       // Query TDDF records where Terminal ID field matches the extracted terminal ID from VAR
-      // VAR V8357055 = Terminal ID 78357055 (remove V prefix)
-      const records = await db.select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.terminalId, terminalId))
-        .orderBy(desc(tddfRecordsTable.transactionDate))
-        .limit(100); // Limit to last 100 transactions for performance
+      // VAR V8357055 = Terminal ID 78357055 (remove V prefix) using raw SQL
+      const recordsResult = await pool.query(`
+        SELECT * FROM ${tddfRecordsTableName} 
+        WHERE terminal_id = $1 
+        ORDER BY transaction_date DESC 
+        LIMIT 100
+      `, [terminalId]);
+      const records = recordsResult.rows;
       
       console.log(`[TDDF TERMINAL] Found ${records.length} TDDF records for Terminal ID ${terminalId}`);
       
@@ -5541,11 +5609,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get TDDF records by batch ID
   app.get("/api/tddf/batch/:batchId", isAuthenticated, async (req, res) => {
     try {
+      // @ENVIRONMENT-CRITICAL - TDDF batch records with environment-aware table naming  
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const batchId = req.params.batchId;
-      const records = await db.select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.batchJulianDate, batchId))
-        .orderBy(desc(tddfRecordsTable.transactionDate));
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      const recordsResult = await pool.query(`
+        SELECT * FROM ${tddfRecordsTableName} 
+        WHERE batch_julian_date = $1 
+        ORDER BY transaction_date DESC
+      `, [batchId]);
+      const records = recordsResult.rows;
       
       res.json(records);
     } catch (error) {
@@ -6222,20 +6296,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete TDDF record
   app.delete("/api/tddf/:id", isAuthenticated, async (req, res) => {
     try {
+      // @ENVIRONMENT-CRITICAL - TDDF record deletion with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const recordId = parseInt(req.params.id);
+      const tddfRecordsTableName = getTableName('tddf_records');
       
-      // Check if record exists
-      const [existingRecord] = await db.select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.id, recordId));
+      // Check if record exists using raw SQL
+      const existingRecordResult = await pool.query(`
+        SELECT id FROM ${tddfRecordsTableName} WHERE id = $1
+      `, [recordId]);
       
-      if (!existingRecord) {
+      if (existingRecordResult.rows.length === 0) {
         return res.status(404).json({ error: "TDDF record not found" });
       }
       
-      // Delete the record
-      await db.delete(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.id, recordId));
+      // Delete the record using raw SQL
+      await pool.query(`
+        DELETE FROM ${tddfRecordsTableName} WHERE id = $1
+      `, [recordId]);
       
       res.json({ 
         success: true, 
@@ -6252,33 +6330,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export TDDF records to CSV
   app.get("/api/tddf/export", isAuthenticated, async (req, res) => {
     try {
+      // @ENVIRONMENT-CRITICAL - TDDF export query with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const startDate = req.query.startDate as string;
       const endDate = req.query.endDate as string;
       const batchId = req.query.batchId as string;
       const merchantId = req.query.merchantId as string;
+      const tddfRecordsTableName = getTableName('tddf_records');
       
-      let query = db.select().from(tddfRecordsTable);
+      // Build raw SQL query with environment-aware table name
+      let whereConditions = [];
+      let queryParams = [];
+      let paramIndex = 1;
       
-      // Apply filters
-      const conditions = [];
       if (startDate) {
-        conditions.push(gte(tddfRecordsTable.transactionDate, new Date(startDate)));
+        whereConditions.push(`transaction_date >= $${paramIndex}`);
+        queryParams.push(new Date(startDate));
+        paramIndex++;
       }
       if (endDate) {
-        conditions.push(lte(tddfRecordsTable.transactionDate, new Date(endDate)));
+        whereConditions.push(`transaction_date <= $${paramIndex}`);
+        queryParams.push(new Date(endDate));
+        paramIndex++;
       }
       if (batchId) {
-        conditions.push(eq(tddfRecordsTable.batchJulianDate, batchId));
+        whereConditions.push(`batch_julian_date = $${paramIndex}`);
+        queryParams.push(batchId);
+        paramIndex++;
       }
       if (merchantId) {
-        conditions.push(eq(tddfRecordsTable.merchantAccountNumber, merchantId));
+        whereConditions.push(`merchant_account_number = $${paramIndex}`);
+        queryParams.push(merchantId);
+        paramIndex++;
       }
       
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      const sqlQuery = `
+        SELECT * FROM ${tddfRecordsTableName} 
+        ${whereClause}
+        ORDER BY transaction_date DESC
+      `;
       
-      const records = await query.orderBy(desc(tddfRecordsTable.transactionDate));
+      const recordsResult = await pool.query(sqlQuery, queryParams);
+      const records = recordsResult.rows;
       
       // Convert to CSV format
       const csvData = records.map(record => ({
