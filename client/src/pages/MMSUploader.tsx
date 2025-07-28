@@ -173,41 +173,43 @@ export default function MMSUploader() {
     
     for (const file of Array.from(selectedFiles)) {
       try {
-        // Step 1: Create upload record in "started" state
+        console.log(`[REAL-UPLOAD-PHASE-1] Starting upload for: ${file.name}`);
+        
+        // Phase 1: Create temp file and database record
         const uploadResponse = await startUploadMutation.mutateAsync(file);
-        console.log(`[BROWSER-UPLOAD] Started upload: ${uploadResponse.id}`);
+        console.log(`[REAL-UPLOAD-PHASE-1] Created temp file and DB record: ${uploadResponse.id}`);
         
         if (uploadResponse?.id) {
-          // Step 2: Automatically transition to "uploading" state
-          await updatePhaseMutation.mutateAsync({ 
-            uploadId: uploadResponse.id, 
-            phase: 'uploading', 
-            phaseData: { fileType: selectedFileType, startedAt: new Date().toISOString() } 
-          });
-          console.log(`[BROWSER-UPLOAD] Upload ${uploadResponse.id}: started → uploading`);
+          // Phase 2: Upload actual file content to temp storage and database
+          const formData = new FormData();
+          formData.append('file', file);
           
-          // Step 3: Simulate browser upload progress and transition to "uploaded"
-          setTimeout(async () => {
-            try {
-              await updatePhaseMutation.mutateAsync({ 
-                uploadId: uploadResponse.id, 
-                phase: 'uploaded', 
-                phaseData: { 
-                  fileType: selectedFileType, 
-                  fileSize: file.size,
-                  uploadedAt: new Date().toISOString(),
-                  storagePath: `tmp_uploads/${file.name}` 
-                } 
-              });
-              console.log(`[BROWSER-UPLOAD] Upload ${uploadResponse.id}: uploading → uploaded`);
-              console.log(`[BROWSER-UPLOAD] File ready for watcher processing: ${file.name}`);
-            } catch (error) {
-              console.error(`[BROWSER-UPLOAD] Error transitioning to uploaded:`, error);
-            }
-          }, 2000 + Math.random() * 3000); // 2-5 seconds simulated upload
+          const uploadResponse2 = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+          
+          if (!uploadResponse2.ok) {
+            throw new Error(`Phase 2 failed: ${uploadResponse2.statusText}`);
+          }
+          
+          console.log(`[REAL-UPLOAD-PHASE-2] Uploaded content to temp file and database: ${uploadResponse.id}`);
+          
+          // Phase 3: Validate temp file vs database and finalize
+          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/finalize`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+          
+          if (!finalizeResponse.ok) {
+            throw new Error(`Phase 3 failed: ${finalizeResponse.statusText}`);
+          }
+          
+          console.log(`[REAL-UPLOAD-PHASE-3] Finalized upload - validated and marked as uploaded: ${uploadResponse.id}`);
         }
       } catch (error) {
-        console.error('Upload error:', error);
+        console.error('Real upload error:', error);
       }
     }
     

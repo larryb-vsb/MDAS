@@ -13227,6 +13227,7 @@ export class DatabaseStorage implements IStorage {
         chunksUploaded: 'chunks_uploaded',
         uploadedAt: 'uploaded_at',
         storagePath: 'storage_path',
+        fileContent: 'file_content',
         fileSize: 'file_size',
         identifiedAt: 'identified_at',
         detectedFileType: 'detected_file_type',

@@ -1127,6 +1127,7 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   // Phase 3: Uploaded  
   uploadedAt: timestamp("uploaded_at"), // When file upload completed
   storagePath: text("storage_path"), // Where file is stored temporarily
+  fileContent: text("file_content"), // Actual file content stored in database
   uploadStatus: text("upload_status").default("started").notNull(), // started, uploading, uploaded, failed
   
   // Phase 4: Identified

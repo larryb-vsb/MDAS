@@ -7234,18 +7234,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { filename, fileSize, sessionId } = req.body;
       
+      // Phase 1: Create temp file and database record
+      const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const tempFilePath = path.join(os.tmpdir(), `${uploadId}__${filename}`);
+      
+      // Create empty temp file
+      fs.writeFileSync(tempFilePath, '');
+      console.log(`[UPLOADER-PHASE-1] Created temp file: ${tempFilePath}`);
+      
       const upload = await storage.createUploaderUpload({
+        id: uploadId,
         filename,
         fileSize: fileSize,
+        storagePath: tempFilePath,
         createdBy: (req.user as any)?.username || 'unknown',
         sessionId: sessionId,
         serverId: process.env.HOSTNAME || 'unknown'
       });
       
-      console.log(`[UPLOADER API] Started upload: ${upload.id} for ${filename}`);
+      console.log(`[UPLOADER-PHASE-1] Started upload: ${upload.id} for ${filename} with temp file: ${tempFilePath}`);
       res.json(upload);
     } catch (error: any) {
       console.error('Start upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Phase 2: Upload file content to temp storage and database
+  app.post("/api/uploader/:id/upload", isAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const uploadRecord = await storage.getUploaderUploadById(id);
+      if (!uploadRecord) {
+        return res.status(404).json({ error: "Upload record not found" });
+      }
+      
+      // Write file content to temp file and database
+      const fileContent = req.file.buffer.toString('utf-8');
+      const tempFilePath = uploadRecord.storagePath!;
+      
+      // Write to temp file
+      fs.writeFileSync(tempFilePath, fileContent);
+      console.log(`[UPLOADER-PHASE-2] Wrote ${fileContent.length} chars to temp file: ${tempFilePath}`);
+      
+      // Store content in database
+      await storage.updateUploaderUpload(id, {
+        fileContent: fileContent,
+        currentPhase: 'uploading',
+        uploadProgress: 100,
+        dataSize: fileContent.length,
+        lineCount: fileContent.split('\n').length
+      });
+      
+      console.log(`[UPLOADER-PHASE-2] Uploaded content to database for: ${id}`);
+      res.json({ success: true, message: "File uploaded to temp storage and database" });
+    } catch (error: any) {
+      console.error('Upload content error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Phase 3: Validate temp file vs database and finalize
+  app.post("/api/uploader/:id/finalize", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const uploadRecord = await storage.getUploaderUploadById(id);
+      if (!uploadRecord) {
+        return res.status(404).json({ error: "Upload record not found" });
+      }
+      
+      const tempFilePath = uploadRecord.storagePath!;
+      
+      // Validate temp file exists and matches database content
+      if (!fs.existsSync(tempFilePath)) {
+        return res.status(400).json({ error: "Temp file not found" });
+      }
+      
+      const tempFileContent = fs.readFileSync(tempFilePath, 'utf-8');
+      const dbContent = uploadRecord.fileContent;
+      
+      if (tempFileContent !== dbContent) {
+        return res.status(400).json({ error: "Temp file content doesn't match database dump" });
+      }
+      
+      // Delete temp file and mark as uploaded
+      fs.unlinkSync(tempFilePath);
+      console.log(`[UPLOADER-PHASE-3] Deleted temp file: ${tempFilePath}`);
+      
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'uploaded',
+        uploadedAt: new Date(),
+        storagePath: null, // Clear temp path since file is deleted
+        processingNotes: 'File validation successful, temp file removed'
+      });
+      
+      console.log(`[UPLOADER-PHASE-3] Finalized upload: ${id} - marked as uploaded`);
+      res.json({ success: true, message: "File validated and marked as uploaded" });
+    } catch (error: any) {
+      console.error('Finalize upload error:', error);
       res.status(500).json({ error: error.message });
     }
   });
