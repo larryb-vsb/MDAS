@@ -472,23 +472,13 @@ export default function TerminalViewPage() {
           </Card>
         </div>
 
-        {/* Transaction Activity Heat Map - Common Area */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Transaction Activity Heat Map</CardTitle>
-            <CardDescription>
-              Daily transaction volume over time - darker squares indicate more transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TerminalActivityHeatMap 
-              transactions={tddfTransactions || []} 
-              timeRange={timeRange}
-              onDateClick={(date) => setSelectedDate(date)}
-              isLoading={tddfLoading}
-            />
-          </CardContent>
-        </Card>
+        {/* Terminal Activity Heat Map - Enhanced Component */}
+        <TerminalActivityHeatMap 
+          transactions={tddfTransactions || []} 
+          timeRange={timeRange}
+          onDateClick={(date) => setSelectedDate(date)}
+          isLoading={tddfLoading}
+        />
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="transactions" className="space-y-4">
