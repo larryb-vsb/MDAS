@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -16,8 +16,9 @@ interface UploadedFile {
   name: string;
   size: number;
   progress: number;
-  status: "uploading" | "uploaded" | "error";
+  status: "uploading" | "uploaded" | "queued" | "processing" | "completed" | "error";
   type: "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk";
+  rawLinesCount?: number;
 }
 
 interface FileUploadModalProps {
@@ -28,6 +29,42 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk">("tddf");
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
+
+  // Monitor upload progress for uploaded files
+  const { data: uploadStatusData } = useQuery({
+    queryKey: ["/api/uploads/processing-status", uploadedFileIds],
+    enabled: uploadedFileIds.length > 0,
+    refetchInterval: 2000, // Poll every 2 seconds
+    refetchIntervalInBackground: true,
+  });
+
+  // Update file statuses based on server data
+  useEffect(() => {
+    if (uploadStatusData && (uploadStatusData as any)?.uploads && uploadedFileIds.length > 0) {
+      setFiles((prevFiles) => 
+        prevFiles.map((file) => {
+          const serverFile = (uploadStatusData as any).uploads.find((upload: any) => upload.id === file.id);
+          if (serverFile) {
+            return {
+              ...file,
+              status: serverFile.processing_status === "uploading" ? "uploading" :
+                     serverFile.processing_status === "queued" ? "queued" :
+                     serverFile.processing_status === "processing" ? "processing" :
+                     serverFile.processing_status === "completed" ? "completed" :
+                     serverFile.processing_status === "failed" ? "error" : file.status,
+              rawLinesCount: serverFile.raw_lines_count || file.rawLinesCount,
+              progress: serverFile.processing_status === "completed" ? 100 :
+                       serverFile.processing_status === "processing" ? 75 :
+                       serverFile.processing_status === "queued" ? 50 :
+                       file.progress
+            };
+          }
+          return file;
+        })
+      );
+    }
+  }, [uploadStatusData, uploadedFileIds]);
 
   const handleFilesSelected = (acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
@@ -123,14 +160,18 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       setFiles((prev) =>
         prev.map((f) => {
           if (f.id === fileData.id) {
-            return { ...f, progress: 100, status: "uploaded", id: fileId };
+            return { ...f, progress: 50, status: "uploaded", id: fileId };
           }
           return f;
         })
       );
 
+      // Add to monitoring list
+      setUploadedFileIds((prev) => [...prev, fileId]);
+
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/processing-status"] });
 
       toast({
         title: "File Uploaded",
@@ -370,9 +411,14 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         />
         
         <div className="mt-4">
-          <h4 className="mb-2 text-sm font-medium text-gray-700">
-            Selected Files {files.length > 0 && `(${files.length})`}
-          </h4>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-gray-700">
+              Uploading {files.length} files
+            </h4>
+            <span className="text-sm text-gray-500">
+              {files.filter(f => f.status === "completed").length} / {files.length} completed
+            </span>
+          </div>
           
           {files.length === 0 ? (
             <div className="p-4 text-center border rounded-md border-gray-200">
@@ -409,11 +455,12 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
                     <Progress value={file.progress} className="h-1.5" />
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-xs text-gray-500">
-                        {file.status === "uploading"
-                          ? "Uploading..."
-                          : file.status === "uploaded"
-                          ? "Uploaded"
-                          : "Failed"}
+                        {file.status === "uploading" ? "Uploading..." :
+                         file.status === "uploaded" ? "Uploaded" :
+                         file.status === "queued" ? `Queued (${file.rawLinesCount || 0} lines)` :
+                         file.status === "processing" ? "Processing..." :
+                         file.status === "completed" ? `Completed (${file.rawLinesCount || 0} lines)` :
+                         file.status === "error" ? "Failed" : "Unknown"}
                       </span>
                       <span className="text-xs font-medium text-gray-700">{file.progress}%</span>
                     </div>
@@ -437,7 +484,8 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
             disabled={uploadMutation.isPending || files.length === 0 || files.some(f => f.status === "uploading")}
             className={files.length > 0 && files.every(f => f.status !== "uploading") && !uploadMutation.isPending ? "bg-green-600 hover:bg-green-700" : ""}
           >
-            {uploadMutation.isPending ? "Processing..." : "Continue"}
+            {uploadMutation.isPending ? "Processing..." : 
+             files.every(f => f.status === "completed") ? "Close" : "Continue"}
           </Button>
         </DialogFooter>
       </DialogContent>
