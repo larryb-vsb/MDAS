@@ -16,9 +16,9 @@ import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 
-// Extended type for UploaderUpload with presigned URL
+// Extended type for UploaderUpload with storage key
 interface UploaderUploadWithPresigned extends UploaderUpload {
-  presignedUrl?: string;
+  storageKey?: string;
 }
 
 // 8-State Processing Workflow
@@ -170,7 +170,13 @@ export default function MMSUploader() {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(event.target.files);
+    const files = event.target.files;
+    setSelectedFiles(files);
+    
+    // Auto-start upload if files are selected and file type is chosen
+    if (files && files.length > 0 && selectedFileType) {
+      setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+    }
   };
 
   const handleStartUpload = async () => {
@@ -318,7 +324,13 @@ export default function MMSUploader() {
                     {FILE_TYPES.map((type) => (
                       <button
                         key={type.value}
-                        onClick={() => setSelectedFileType(type.value)}
+                        onClick={() => {
+                          setSelectedFileType(type.value);
+                          // Auto-start upload if files are already selected
+                          if (selectedFiles && selectedFiles.length > 0) {
+                            setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                          }
+                        }}
                         className={`
                           relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
                           ${selectedFileType === type.value 
@@ -376,6 +388,10 @@ export default function MMSUploader() {
                         const files = e.dataTransfer?.files;
                         if (files) {
                           setSelectedFiles(files);
+                          // Auto-start upload if file type is already selected
+                          if (selectedFileType) {
+                            setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                          }
                         }
                       }}
                     >
