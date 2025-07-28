@@ -7,6 +7,7 @@ interface TerminalActivityHeatMapProps {
   transactions: any[]; // TDDF transactions with transactionDate field
   timeRange: string;
   onDateClick?: (date: string) => void;
+  isLoading?: boolean; // Add loading state prop
 }
 
 // Skeleton loader component matching final layout
@@ -95,11 +96,12 @@ function TerminalActivityHeatMapSkeleton() {
 export default function TerminalActivityHeatMap({ 
   transactions, 
   timeRange,
-  onDateClick 
+  onDateClick,
+  isLoading = false
 }: TerminalActivityHeatMapProps) {
   
-  // Show skeleton while transactions are loading
-  if (!transactions || transactions.length === 0) {
+  // Show skeleton only while actually loading
+  if (isLoading) {
     return <TerminalActivityHeatMapSkeleton />;
   }
   

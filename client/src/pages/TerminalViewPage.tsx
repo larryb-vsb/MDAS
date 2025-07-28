@@ -485,6 +485,7 @@ export default function TerminalViewPage() {
               transactions={tddfTransactions || []} 
               timeRange={timeRange}
               onDateClick={(date) => setSelectedDate(date)}
+              isLoading={tddfLoading}
             />
           </CardContent>
         </Card>

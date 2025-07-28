@@ -265,7 +265,11 @@ export default function OrphanTerminalViewPage() {
           </TabsList>
 
           <TabsContent value="activity" className="mt-6">
-            <TerminalActivityHeatMap transactions={transactions} timeRange="12months" />
+            <TerminalActivityHeatMap 
+              transactions={transactions} 
+              timeRange="12months" 
+              isLoading={transactionsLoading}
+            />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
