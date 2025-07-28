@@ -1126,8 +1126,11 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   
   // Phase 3: Uploaded  
   uploadedAt: timestamp("uploaded_at"), // When file upload completed
-  storagePath: text("storage_path"), // Where file is stored temporarily
-  fileContent: text("file_content"), // Actual file content stored in database
+  storagePath: text("storage_path"), // S3 object key/path where file is permanently stored
+  s3Bucket: text("s3_bucket"), // S3 bucket name where file is stored
+  s3Key: text("s3_key"), // S3 object key for file retrieval
+  s3Url: text("s3_url"), // Full S3 URL for file access
+  s3Etag: text("s3_etag"), // S3 ETag for file integrity verification
   uploadStatus: text("upload_status").default("started").notNull(), // started, uploading, uploaded, failed
   
   // Phase 4: Identified
