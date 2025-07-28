@@ -16,12 +16,12 @@ import MainLayout from '@/components/layout/MainLayout';
 const PROCESSING_PHASES = [
   { id: 'started', name: 'Started', icon: Play, color: 'blue', description: 'Upload initialized' },
   { id: 'uploading', name: 'Uploading', icon: Upload, color: 'purple', description: 'File transfer in progress' },
-  { id: 'uploaded', name: 'Uploaded', icon: FileText, color: 'green', description: 'File stored temporarily' },
+  { id: 'uploaded', name: 'Uploaded', icon: FileText, color: 'cyan', description: 'File stored temporarily' },
   { id: 'identified', name: 'Identified', icon: Search, color: 'orange', description: 'File type detected and analyzed' },
-  { id: 'queued', name: 'Queued', icon: Clock, color: 'yellow', description: 'Ready for processing' },
+  { id: 'encoding', name: 'Encoding', icon: Settings, color: 'pink', description: 'Data encoding and validation' },
   { id: 'processing', name: 'Processing', icon: Database, color: 'indigo', description: 'Data being processed' },
   { id: 'completed', name: 'Completed', icon: CheckCircle, color: 'green', description: 'Successfully processed' },
-  { id: 'failed', name: 'Failed', icon: AlertCircle, color: 'red', description: 'Processing failed' }
+  { id: 'warning', name: 'Warning State', icon: AlertCircle, color: 'red', description: 'Processing failed or has errors' }
 ];
 
 // Supported file types
@@ -69,10 +69,16 @@ export default function MMSUploader() {
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  // Query for all uploads
-  const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
+  // Query for MMS uploads
+  const { data: mmsUploads = [], isLoading: isMmsLoading } = useQuery<UploaderUpload[]>({
     queryKey: ['/api/uploader'],
     refetchInterval: 3000 // Refresh every 3 seconds for real-time updates
+  });
+
+  // Query for regular uploads to show comprehensive view
+  const { data: regularUploads = [], isLoading: isRegularLoading } = useQuery<any[]>({
+    queryKey: ['/api/uploads/history'],
+    refetchInterval: 5000 // Refresh every 5 seconds
   });
 
   // Start upload mutation
@@ -160,19 +166,49 @@ export default function MMSUploader() {
     autoProcessMutation.mutate();
   };
 
-  // Group uploads by phase
-  const uploadsByPhase = uploads.reduce((acc, upload) => {
+  // Convert regular uploads to unified format and combine with MMS uploads
+  const allUploads = [
+    // MMS uploads
+    ...mmsUploads.map(upload => ({
+      ...upload,
+      system: 'MMS',
+      currentPhase: upload.currentPhase || 'started'
+    })),
+    // Regular uploads converted to unified format
+    ...regularUploads.map(upload => ({
+      id: upload.id,
+      filename: upload.original_filename || upload.filename,
+      fileSize: upload.file_size,
+      startTime: upload.uploaded_at,
+      system: 'Regular',
+      currentPhase: (() => {
+        if (upload.processing_status === 'uploading' && !upload.processed) return 'uploading';
+        if (upload.processing_status === 'queued') return 'started';
+        if (upload.processing_status === 'processing') return 'processing';
+        if (upload.processing_status === 'completed' && upload.processed) return 'completed';
+        if (upload.processing_status === 'failed' || upload.processing_errors) return 'warning';
+        return 'started';
+      })(),
+      uploadProgress: upload.processing_status === 'processing' ? 50 : 
+                      upload.processing_status === 'completed' ? 100 : 0
+    }))
+  ];
+
+  // Group all uploads by phase
+  const uploadsByPhase = allUploads.reduce((acc, upload) => {
     const phase = upload.currentPhase || 'started';
     if (!acc[phase]) acc[phase] = [];
     acc[phase].push(upload);
     return acc;
-  }, {} as Record<string, UploaderUpload[]>);
+  }, {} as Record<string, any[]>);
 
   // Calculate overall statistics
-  const totalUploads = uploads.length;
+  const totalUploads = allUploads.length;
   const completedUploads = uploadsByPhase.completed?.length || 0;
-  const failedUploads = uploadsByPhase.failed?.length || 0;
-  const activeUploads = totalUploads - completedUploads - failedUploads;
+  const warningUploads = uploadsByPhase.warning?.length || 0;
+  const activeUploads = totalUploads - completedUploads - warningUploads;
+
+  const isLoading = isMmsLoading || isRegularLoading;
 
   return (
     <MainLayout>
@@ -195,8 +231,8 @@ export default function MMSUploader() {
             <div className="text-sm text-muted-foreground">Completed</div>
           </Card>
           <Card className="p-4">
-            <div className="text-2xl font-bold text-red-600">{failedUploads}</div>
-            <div className="text-sm text-muted-foreground">Failed</div>
+            <div className="text-2xl font-bold text-red-600">{warningUploads}</div>
+            <div className="text-sm text-muted-foreground">Warning/Failed</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-purple-600">{activeUploads}</div>
@@ -453,13 +489,13 @@ export default function MMSUploader() {
                 <div className="text-center py-8">
                   <div className="text-muted-foreground">Loading uploads...</div>
                 </div>
-              ) : uploads.length === 0 ? (
+              ) : allUploads.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-muted-foreground">No uploads found</div>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {uploads.slice(0, 20).map((upload) => {
+                  {allUploads.slice(0, 20).map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
                     
