@@ -2430,6 +2430,7 @@ export default function TddfPage() {
       sortBy: "transactionDate",
       sortOrder: "desc",
     });
+    setSelectedDate(null); // Clear heat map selection
     setCurrentPage(1);
   };
 
@@ -2461,7 +2462,7 @@ export default function TddfPage() {
 
   // Clear date filter
   const clearDateFilter = () => {
-    setSelectedDate(null);
+    setSelectedDate(null); // Clear heat map selection
     setFilters(prev => ({ ...prev, txnDateFrom: "", txnDateTo: "" }));
   };
 
