@@ -13,8 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye, Monitor, Activity, Settings } from "lucide-react";
+import { Search, Plus, Filter, Download, Wifi, CreditCard, Shield, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
@@ -31,7 +30,6 @@ export default function TerminalsPage() {
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [activeTab, setActiveTab] = useState("management");
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
@@ -250,108 +248,8 @@ export default function TerminalsPage() {
           </div>
         </div>
 
-        {/* TDDF Activity Heat Map - Visible on all tabs */}
+        {/* TDDF Activity Heat Map - Common area above Terminal Directory */}
         <TddfActivityHeatMap />
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Monitor className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Activity
-            </TabsTrigger>
-            <TabsTrigger value="management" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Management
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{terminals.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Across all merchants
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {terminals.filter(t => t.status === "Active").length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Currently operational
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Under Maintenance</CardTitle>
-                  <Wifi className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {terminals.filter(t => t.status === "Maintenance").length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Requiring attention
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {terminals.filter(t => t.lastUpdate && 
-                      new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                    ).length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Active in last 24h
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="activity">
-            <Card>
-              <CardHeader>
-                <CardTitle>Terminal Activity Overview</CardTitle>
-                <CardDescription>
-                  Monitor terminal transaction activity and performance metrics
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Activity monitoring features will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="management">
             {/* Filters */}
       <Card>
         <CardContent className="pt-6">
@@ -556,9 +454,7 @@ export default function TerminalsPage() {
             onItemsPerPageChange={setItemsPerPage}
           />
         )}
-            </Card>
-          </TabsContent>
-        </Tabs>
+        </Card>
 
         {/* Add Terminal Modal */}
         <AddTerminalModal 
