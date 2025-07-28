@@ -196,6 +196,62 @@ Merchant table fails to render/display data
 
 ---
 
+## Future Enhancements
+
+### Enhanced Database Safety Strategy - Dual Environment Protection
+**Priority**: Medium  
+**Type**: Infrastructure Enhancement  
+**Complexity**: Medium  
+
+**Description**:
+Implement comprehensive database-level and table-level environment separation to provide maximum protection against production/development data mixing and human error.
+
+**Current Implementation**:
+- **Table-Level Separation**: Development uses `dev_*` prefixed tables, production uses clean table names
+- **Single Database**: Both environments use same Neon database (`neondb`)
+- **Environment Detection**: Automatic via `getTableName()` helper function
+
+**Proposed Enhancement**:
+- **Database-Level Separation**: `neondb_PROD` for production, `neondb_DEV` for development
+- **Dual Visual Safety**: Database names + table prefixes provide multiple environment indicators
+- **Enhanced Safety**: Impossible to accidentally query wrong environment data
+
+**Implementation Strategy**:
+```
+Production Environment:
+  Database: neondb_PROD 🚨
+  Tables: merchants, transactions, uploaded_files
+
+Development Environment:  
+  Database: neondb_DEV 🛠️
+  Tables: dev_merchants, dev_transactions, dev_uploaded_files
+```
+
+**Benefits**:
+- **Developer Safety**: Database browser shows clear environment at both database and table levels
+- **Agent Protection**: AI agents get dual-level environment warnings in all contexts
+- **Human Error Prevention**: Multiple visual warnings prevent "stupid human" mistakes
+- **Query Safety**: SQL queries show environment context at both connection and table levels
+- **Backward Compatibility**: Maintains current table-level approach as fallback
+
+**Technical Requirements**:
+- Create `neondb_DEV` database with proper credentials
+- Configure separate `DEV_DATABASE_URL` environment variable
+- Enhance `getDatabaseUrl()` function to support dual-database strategy
+- Maintain table-level separation as emergency fallback
+- Update deployment documentation
+
+**Business Value**:
+- **Zero Risk**: Eliminates all possibility of production/development data accidents
+- **Developer Confidence**: Clear environment awareness at all interaction levels
+- **Operational Safety**: Multiple layers of protection against data mixing
+- **Audit Compliance**: Enhanced environment separation for regulatory requirements
+
+**Current Workaround**:
+Existing table-level separation provides complete data isolation and proven reliability. Enhancement would add additional safety layer without disrupting current operations.
+
+---
+
 ## Resolved Issues
 
 *(Resolved issues will be moved here with resolution details)*
