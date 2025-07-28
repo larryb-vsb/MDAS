@@ -70,7 +70,7 @@ export const getQueryFn: <T>(options: {
     
     // If response is empty or not JSON, return an empty object
     if (res.status === 204 || !contentType || !contentType.includes('application/json')) {
-      return {} as unknown as T;
+      return {} as any;
     }
     
     return await res.json();

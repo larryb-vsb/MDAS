@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { MainLayout } from '@/components/layout/MainLayout';
+import MainLayout from '@/components/layout/MainLayout';
 
 // 8-State Processing Workflow
 const PROCESSING_PHASES = [
@@ -49,7 +49,7 @@ const formatFileSize = (bytes: number | null | undefined): string => {
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 };
 
-const formatDuration = (startTime: string, endTime?: string): string => {
+const formatDuration = (startTime: string | Date, endTime?: string | Date): string => {
   const start = new Date(startTime);
   const end = endTime ? new Date(endTime) : new Date();
   const diffMs = end.getTime() - start.getTime();
@@ -78,10 +78,13 @@ export default function MMSUploader() {
   // Start upload mutation
   const startUploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const response = await apiRequest('POST', '/api/uploader/start', {
-        filename: file.name,
-        fileSize: file.size,
-        sessionId
+      const response = await apiRequest<UploaderUpload>('/api/uploader/start', {
+        method: 'POST',
+        body: {
+          filename: file.name,
+          fileSize: file.size,
+          sessionId
+        }
       });
       return response;
     },
@@ -97,7 +100,10 @@ export default function MMSUploader() {
       phase: string; 
       phaseData?: Record<string, any> 
     }) => {
-      const response = await apiRequest('POST', `/api/uploader/${uploadId}/phase/${phase}`, phaseData || {});
+      const response = await apiRequest<UploaderUpload>(`/api/uploader/${uploadId}/phase/${phase}`, {
+        method: 'POST',
+        body: phaseData || {}
+      });
       return response;
     },
     onSuccess: () => {
@@ -108,7 +114,10 @@ export default function MMSUploader() {
   // Auto processing mutation
   const autoProcessMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/uploader/auto-process', {});
+      const response = await apiRequest('/api/uploader/auto-process', {
+        method: 'POST',
+        body: {}
+      });
       return response;
     },
     onSuccess: () => {
@@ -533,5 +542,6 @@ export default function MMSUploader() {
         </TabsContent>
       </Tabs>
     </div>
+    </MainLayout>
   );
 }
