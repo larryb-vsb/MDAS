@@ -237,37 +237,39 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
             Daily transaction volume over time - darker squares indicate more transactions
           </p>
         </div>
-        
-        {/* Year Navigation */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentYear(currentYear - 1)}
-            className="p-1 h-8 w-8"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <span className="text-lg font-semibold text-gray-900 min-w-[60px] text-center">
-            {currentYear}
-          </span>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentYear(currentYear + 1)}
-            className="p-1 h-8 w-8"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
 
       {/* Heat Map Grid Container with Box */}
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
         <div className="overflow-x-auto">
           <div className="relative" style={{ minWidth: `${weeks.length * 14 + 60}px` }}>
+            {/* Year Navigation - Right aligned with heat map */}
+            <div className="flex justify-end mb-4" style={{ width: `${weeks.length * 15 + 32}px` }}>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentYear(currentYear - 1)}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <span className="text-lg font-semibold text-gray-900 min-w-[60px] text-center">
+                  {currentYear}
+                </span>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentYear(currentYear + 1)}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
             {/* Month labels - positioned to align with grid columns */}
             <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
               {monthLabels.map((label, index) => (
@@ -307,30 +309,32 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
                 ))}
               </div>
             </div>
+            
+            {/* Legend and Stats - Right aligned with heat map */}
+            <div className="flex justify-end mt-4" style={{ width: `${weeks.length * 15 + 32}px` }}>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">{yearStats.totalCount}</span> transactions in {currentYear}
+                </div>
+                <div>
+                  Peak day: <span className="font-medium">{peakDay}</span> transactions
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>Less</span>
+                  <div className="flex gap-1">
+                    <div className="w-3 h-3 bg-gray-100 rounded-sm" title="0 transactions"></div>
+                    <div className="w-3 h-3 bg-green-300 rounded-sm" title="1-1000 transactions"></div>
+                    <div className="w-3 h-3 bg-green-700 rounded-sm" title="High Green (750-1000)"></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm" title="1000-2000 transactions"></div>
+                    <div className="w-3 h-3 bg-blue-900 rounded-sm" title="High Blue (1750-2000)"></div>
+                    <div className="w-3 h-3 bg-purple-600 rounded-sm" title="2000-3000 transactions"></div>
+                    <div className="w-3 h-3 bg-purple-950 rounded-sm" title="3000+ transactions"></div>
+                  </div>
+                  <span>More</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Legend and Stats */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <div>
-          <span className="font-medium">{yearStats.totalCount}</span> transactions in {currentYear}
-        </div>
-        <div>
-          Peak day: <span className="font-medium">{peakDay}</span> transactions
-        </div>
-        <div className="flex items-center gap-2">
-          <span>Less</span>
-          <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded-sm" title="0 transactions"></div>
-            <div className="w-3 h-3 bg-green-300 rounded-sm" title="1-1000 transactions"></div>
-            <div className="w-3 h-3 bg-green-700 rounded-sm" title="High Green (750-1000)"></div>
-            <div className="w-3 h-3 bg-blue-500 rounded-sm" title="1000-2000 transactions"></div>
-            <div className="w-3 h-3 bg-blue-900 rounded-sm" title="High Blue (1750-2000)"></div>
-            <div className="w-3 h-3 bg-purple-600 rounded-sm" title="2000-3000 transactions"></div>
-            <div className="w-3 h-3 bg-purple-950 rounded-sm" title="3000+ transactions"></div>
-          </div>
-          <span>More</span>
         </div>
       </div>
     </div>
