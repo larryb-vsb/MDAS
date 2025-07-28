@@ -825,7 +825,7 @@ function TerminalIdDisplay({ terminalId, recordId }: { terminalId?: string; reco
   const terminal = terminals?.find((t: any) => {
     if (!terminalId) return false;
     // Extract numeric part from V Number and add "7" prefix for comparison
-    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const vNumberNumeric = t.v_number?.replace('V', '');
     const expectedTerminalId = '7' + vNumberNumeric;
     return expectedTerminalId === terminalId;
   });
@@ -840,7 +840,7 @@ function TerminalIdDisplay({ terminalId, recordId }: { terminalId?: string; reco
           className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
         >
           <ExternalLink className="h-3 w-3 mr-1" />
-          {terminal.vNumber}
+          {terminal.v_number}
         </Button>
       </Link>
     );
