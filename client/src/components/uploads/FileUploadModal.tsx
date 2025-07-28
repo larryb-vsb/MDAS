@@ -361,6 +361,10 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
               title: "Upload Complete",
               description: `Successfully uploaded ${fileIds.length} file(s)`,
             });
+            // Close modal after successful upload
+            setTimeout(() => {
+              onClose();
+            }, 1500);
           }}
         />
         

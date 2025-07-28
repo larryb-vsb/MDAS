@@ -236,7 +236,7 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
     onDrop: processFiles,
     accept: {
       'text/csv': ['.csv'],
-      'text/plain': ['.txt'],
+      'text/plain': ['.txt', '.TSYSO', '.tsyso'],
       'application/octet-stream': ['.TSYSO', '.tsyso']
     },
     disabled: uploading || disabled,
