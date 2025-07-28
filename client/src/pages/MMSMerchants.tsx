@@ -524,8 +524,8 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
 
 // Card Type Detection Function - Returns single badge per transaction using Card Type field (251-256)
 function getCardTypeBadges(record: any) {
-  const isDebit = record.debitCreditIndicator === 'D';
-  const cardType = record.cardType?.trim();
+  const isDebit = (record.debit_credit_indicator || record.debitCreditIndicator) === 'D';
+  const cardType = (record.card_type || record.cardType)?.trim();
   
   // Priority 1: Check cardType field (positions 251-256) - most accurate identification
   if (cardType) {
@@ -571,7 +571,7 @@ function getCardTypeBadges(record: any) {
   }
   
   // Priority 2: Check for AMEX data fields (fallback)
-  if (record.amexMerchantSellerPostalCode) {
+  if (record.amex_merchant_seller_postal_code || record.amexMerchantSellerPostalCode) {
     return [{
       label: 'AMEX',
       className: 'bg-green-100 text-green-800 border-green-200'
@@ -579,7 +579,7 @@ function getCardTypeBadges(record: any) {
   }
   
   // Priority 3: Check for Visa-specific fields
-  if (record.visaIntegrityFee || record.visaFeeProgramIndicator || record.visaSpecialConditionIndicator) {
+  if (record.visa_integrity_fee || record.visaIntegrityFee || record.visa_fee_program_indicator || record.visaFeeProgramIndicator || record.visa_special_condition_indicator || record.visaSpecialConditionIndicator) {
     return [{
       label: isDebit ? 'VISA-D' : 'VISA',
       className: 'bg-blue-100 text-blue-800 border-blue-200'
@@ -587,7 +587,7 @@ function getCardTypeBadges(record: any) {
   }
   
   // Priority 4: Check for Mastercard-specific fields
-  if (record.mastercardTransactionIntegrityClass || record.mastercardWalletIdentifier || record.mcCashBackFee) {
+  if (record.mastercard_transaction_integrity_class || record.mastercardTransactionIntegrityClass || record.mastercard_wallet_identifier || record.mastercardWalletIdentifier || record.mc_cash_back_fee || record.mcCashBackFee) {
     return [{
       label: isDebit ? 'MC-D' : 'MC',
       className: 'bg-red-100 text-red-800 border-red-200'
@@ -595,7 +595,7 @@ function getCardTypeBadges(record: any) {
   }
   
   // Priority 5: Check for Discover-specific fields
-  if (record.discoverTransactionType || record.discoverProcessingCode) {
+  if (record.discover_transaction_type || record.discoverTransactionType || record.discover_processing_code || record.discoverProcessingCode) {
     return [{
       label: 'DISC',
       className: 'bg-purple-100 text-purple-800 border-purple-200'
@@ -603,11 +603,11 @@ function getCardTypeBadges(record: any) {
   }
   
   // Priority 6: Fallback to transaction code analysis
-  const transactionCode = record.transactionCode;
+  const transactionCode = record.transaction_code || record.transactionCode;
   
   if (transactionCode === '0330') {
     // Network-specific transaction with network identifier
-    const networkId = record.networkIdentifierDebit;
+    const networkId = record.network_identifier_debit || record.networkIdentifierDebit;
     if (networkId === 'IL' || networkId === 'ME') {
       return [{
         label: 'DEBIT',
@@ -835,16 +835,16 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                         />
                       </td>
                       <td className="p-3 text-sm">
-                        {formatTableDate(transaction.transactionDate)}
+                        {formatTableDate(transaction.transaction_date || transaction.transactionDate)}
                       </td>
                       <td className="p-3 font-mono text-xs">
-                        {transaction.referenceNumber}
+                        {transaction.reference_number || transaction.referenceNumber}
                       </td>
                       <td className="p-3">
-                        <TerminalIdDisplay terminalId={transaction.terminalId} />
+                        <TerminalIdDisplay terminalId={transaction.terminal_id || transaction.terminalId} />
                       </td>
                       <td className="p-3 text-right font-mono text-sm font-medium text-green-600">
-                        {formatCurrency(transaction.transactionAmount)}
+                        {formatCurrency(transaction.transaction_amount || transaction.transactionAmount)}
                       </td>
                       <td className="p-3">
                         <div className="flex items-center gap-2">
@@ -860,7 +860,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                         </div>
                       </td>
                       <td className="p-3 font-mono text-xs">
-                        {transaction.authorizationNumber || 'N/A'}
+                        {transaction.authorization_number || transaction.authorizationNumber || 'N/A'}
                       </td>
                       <td className="p-3 text-center">
                         <Button
@@ -936,11 +936,11 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                     <div className="grid grid-cols-4 gap-4 text-sm">
                       <div>
                         <div className="text-muted-foreground">Reference Date</div>
-                        <div className="font-medium">{formatTableDate(detailsRecord.transactionDate)}</div>
+                        <div className="font-medium">{formatTableDate(detailsRecord.transaction_date || detailsRecord.transactionDate)}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground">Amount</div>
-                        <div className="font-medium text-green-600">{formatCurrency(detailsRecord.transactionAmount)}</div>
+                        <div className="font-medium text-green-600">{formatCurrency(detailsRecord.transaction_amount || detailsRecord.transactionAmount)}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground">Card Type</div>
@@ -957,7 +957,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                       </div>
                       <div>
                         <div className="text-muted-foreground">Authorization #</div>
-                        <div className="font-medium font-mono">{detailsRecord.authorizationNumber || 'N/A'}</div>
+                        <div className="font-medium font-mono">{detailsRecord.authorization_number || detailsRecord.authorizationNumber || 'N/A'}</div>
                       </div>
                     </div>
                   </div>
@@ -969,15 +969,15 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                       <div className="space-y-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Name:</span>
-                          <div className="font-medium">{detailsRecord.merchantName || 'N/A'}</div>
+                          <div className="font-medium">{detailsRecord.merchant_name || detailsRecord.merchantName || 'N/A'}</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Account:</span>
-                          <div className="font-medium font-mono">{detailsRecord.merchantAccountNumber}</div>
+                          <div className="font-medium font-mono">{detailsRecord.merchant_account_number || detailsRecord.merchantAccountNumber}</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">MCC Code:</span>
-                          <div className="font-medium">{detailsRecord.mccCode || 'N/A'}</div>
+                          <div className="font-medium">{detailsRecord.mcc_code || detailsRecord.mccCode || 'N/A'}</div>
                         </div>
                       </div>
                     </div>
@@ -987,15 +987,15 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                       <div className="space-y-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Terminal ID:</span>
-                          <div className="font-medium font-mono">{detailsRecord.terminalId || 'N/A'}</div>
+                          <div className="font-medium font-mono">{detailsRecord.terminal_id || detailsRecord.terminalId || 'N/A'}</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">VAR Number:</span>
-                          <div className="font-medium font-mono">V{detailsRecord.terminalId || 'N/A'}</div>
+                          <div className="font-medium font-mono">V{detailsRecord.terminal_id || detailsRecord.terminalId || 'N/A'}</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Transaction Type:</span>
-                          <div className="font-medium">{detailsRecord.transactionTypeIdentifier || 'N/A'}</div>
+                          <div className="font-medium">{detailsRecord.transaction_type_identifier || detailsRecord.transactionTypeIdentifier || 'N/A'}</div>
                         </div>
                       </div>
                     </div>
@@ -1007,7 +1007,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Reference Number:</span>
-                        <div className="font-medium font-mono text-xs break-all">{detailsRecord.referenceNumber}</div>
+                        <div className="font-medium font-mono text-xs break-all">{detailsRecord.reference_number || detailsRecord.referenceNumber}</div>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Record ID:</span>
@@ -1015,7 +1015,7 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                       </div>
                       <div>
                         <span className="text-muted-foreground">Recorded At:</span>
-                        <div className="font-medium">{formatTableDate(detailsRecord.recordedAt)}</div>
+                        <div className="font-medium">{formatTableDate(detailsRecord.recorded_at || detailsRecord.recordedAt)}</div>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Processing Status:</span>
@@ -1027,17 +1027,17 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                       </div>
                       <div>
                         <span className="text-muted-foreground">Transaction Code:</span>
-                        <div className="font-medium font-mono">{detailsRecord.transactionCode || 'N/A'}</div>
+                        <div className="font-medium font-mono">{detailsRecord.transaction_code || detailsRecord.transactionCode || 'N/A'}</div>
                       </div>
                       <div>
                         <span className="text-muted-foreground">D/C Indicator:</span>
                         <div className="font-medium">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
-                            detailsRecord.debitCreditIndicator === 'D' 
+                            (detailsRecord.debit_credit_indicator || detailsRecord.debitCreditIndicator) === 'D' 
                               ? 'bg-purple-100 text-purple-800 border-purple-200' 
                               : 'bg-blue-100 text-blue-800 border-blue-200'
                           }`}>
-                            {detailsRecord.debitCreditIndicator === 'D' ? 'Debit' : detailsRecord.debitCreditIndicator === 'C' ? 'Credit' : 'N/A'}
+                            {(detailsRecord.debit_credit_indicator || detailsRecord.debitCreditIndicator) === 'D' ? 'Debit' : (detailsRecord.debit_credit_indicator || detailsRecord.debitCreditIndicator) === 'C' ? 'Credit' : 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -1058,10 +1058,10 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                   
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="text-xs text-muted-foreground mb-2">
-                      Fixed-width TDDF record - {detailsRecord.mmsRawLine?.length || 0} characters
+                      Fixed-width TDDF record - {(detailsRecord.mms_raw_line || detailsRecord.mmsRawLine)?.length || 0} characters
                     </div>
                     <div className="bg-white p-3 rounded border font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">
-                      {detailsRecord.mmsRawLine || 'Raw line data not available'}
+                      {(detailsRecord.mms_raw_line || detailsRecord.mmsRawLine) || 'Raw line data not available'}
                     </div>
                   </div>
 
