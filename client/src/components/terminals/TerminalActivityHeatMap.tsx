@@ -6,11 +6,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface TerminalActivityHeatMapProps {
   transactions: any[]; // TDDF transactions with transactionDate field
   timeRange: string;
+  onDateClick?: (date: string) => void;
 }
 
 export default function TerminalActivityHeatMap({ 
   transactions, 
-  timeRange 
+  timeRange,
+  onDateClick 
 }: TerminalActivityHeatMapProps) {
   
   // Get available years from transactions
@@ -227,6 +229,7 @@ export default function TerminalActivityHeatMap({
                         day: 'numeric',
                         year: 'numeric'
                       })}`}
+                      onClick={() => onDateClick && onDateClick(day.date)}
                     />
                   ))}
                 </div>

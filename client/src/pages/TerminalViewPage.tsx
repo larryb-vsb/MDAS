@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TddfTransactionDetailModal } from "@/components/tddf/TddfTransactionDetailModal";
-import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye, FileText } from "lucide-react";
+import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, RefreshCw, Eye, FileText, ArrowUpDown } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
@@ -22,6 +22,9 @@ export default function TerminalViewPage() {
   const [timeRange, setTimeRange] = useState("12months");
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [showTransactionDetail, setShowTransactionDetail] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const terminalId = params.id ? parseInt(params.id) : null;
   
@@ -164,6 +167,56 @@ export default function TerminalViewPage() {
     queryKey: ["/api/transactions/by-merchant", terminal?.posMerchantNumber],
     enabled: !!terminal?.posMerchantNumber,
   });
+
+  // Filtered and sorted transactions
+  const filteredAndSortedTransactions = useMemo(() => {
+    let filtered = tddfTransactions || [];
+    
+    // Apply date filter if a date is selected
+    if (selectedDate) {
+      filtered = filtered.filter(transaction => {
+        const transactionDate = new Date(transaction.transactionDate);
+        const filterDate = new Date(selectedDate);
+        return transactionDate.toDateString() === filterDate.toDateString();
+      });
+    }
+    
+    // Apply sorting
+    if (sortField) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any = a[sortField];
+        let bValue: any = b[sortField];
+        
+        // Handle different field types
+        if (sortField === 'transactionAmount') {
+          aValue = parseFloat(aValue || 0);
+          bValue = parseFloat(bValue || 0);
+        } else if (sortField === 'transactionDate') {
+          aValue = new Date(aValue);
+          bValue = new Date(bValue);
+        } else {
+          aValue = String(aValue || '').toLowerCase();
+          bValue = String(bValue || '').toLowerCase();
+        }
+        
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    
+    return filtered;
+  }, [tddfTransactions, selectedDate, sortField, sortDirection]);
+
+  // Handle sort functionality
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
 
   // Calculate activity metrics including TDDF transactions
   const activityMetrics = useMemo(() => {
@@ -430,7 +483,8 @@ export default function TerminalViewPage() {
           <CardContent>
             <TerminalActivityHeatMap 
               transactions={tddfTransactions || []} 
-              timeRange={timeRange} 
+              timeRange={timeRange}
+              onDateClick={(date) => setSelectedDate(date)}
             />
           </CardContent>
         </Card>
@@ -458,25 +512,80 @@ export default function TerminalViewPage() {
                   </div>
                 ) : tddfTransactions.length > 0 ? (
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Found {tddfTransactions.length} TDDF transactions for Terminal ID {terminalIdFromVar}
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-muted-foreground">
+                        Found {tddfTransactions.length} TDDF transactions for Terminal ID {terminalIdFromVar}
+                        {selectedDate && ` (filtered to ${new Date(selectedDate).toLocaleDateString()})`}
+                        - Showing {filteredAndSortedTransactions.length} results
+                      </p>
+                      {selectedDate && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedDate(null)}
+                        >
+                          Clear Filter
+                        </Button>
+                      )}
+                    </div>
                     <div className="border rounded-lg">
                       <div className="max-h-96 overflow-y-auto">
                         <table className="w-full text-sm">
                           <thead className="bg-muted/50 sticky top-0">
                             <tr>
-                              <th className="text-left p-3 font-medium">Date</th>
-                              <th className="text-left p-3 font-medium">Reference</th>
-                              <th className="text-left p-3 font-medium">Merchant</th>
-                              <th className="text-right p-3 font-medium">Amount</th>
-                              <th className="text-left p-3 font-medium">Auth #</th>
-                              <th className="text-left p-3 font-medium">Card Type</th>
+                              <th className="text-left p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('transactionDate')}
+                                >
+                                  Date <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
+                              <th className="text-left p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('referenceNumber')}
+                                >
+                                  Reference <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
+                              <th className="text-left p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('merchantName')}
+                                >
+                                  Merchant <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
+                              <th className="text-right p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('transactionAmount')}
+                                >
+                                  Amount <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
+                              <th className="text-left p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('authorizationNumber')}
+                                >
+                                  Auth # <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
+                              <th className="text-left p-3 font-medium">
+                                <button 
+                                  className="flex items-center gap-1 hover:text-primary"
+                                  onClick={() => handleSort('cardType')}
+                                >
+                                  Card Type <ArrowUpDown className="h-3 w-3" />
+                                </button>
+                              </th>
                               <th className="text-center p-3 font-medium">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {tddfTransactions.map((transaction: any) => (
+                            {filteredAndSortedTransactions.map((transaction: any) => (
                               <tr key={transaction.id} className="border-t hover:bg-muted/25">
                                 <td className="p-3">
                                   {transaction.transactionDate 
