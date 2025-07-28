@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Zap, Database, FileText } from "lucide-react";
 import FileUploader from "./FileUploader";
 import SmartFileUploader from "./SmartFileUploader";
+import UploadNotificationSystem from "./UploadNotificationSystem";
+import { useUploadStatusPersistence } from "@/hooks/useUploadStatusPersistence";
 
 interface UploadedFile {
   id: string;
@@ -30,6 +32,16 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk">("tddf");
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
+  
+  // Persistent upload status tracking
+  const {
+    sessionId,
+    persistedStatus,
+    updatePersistedStatus,
+    markSessionInactive,
+    getCompletionStatus,
+    hasActiveUploads
+  } = useUploadStatusPersistence();
 
   // Monitor upload progress for uploaded files
   const { data: uploadStatusData } = useQuery({
@@ -121,6 +133,16 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
     }));
 
     setFiles((prev) => [...prev, ...newFiles]);
+    
+    // Add to persistent status tracking immediately
+    const persistedFiles = newFiles.map(file => ({
+      id: file.id,
+      fileName: file.name,
+      status: 'uploading' as any,
+      progress: 0,
+      uploadDate: new Date().toISOString(),
+    }));
+    updatePersistedStatus([...persistedStatus, ...persistedFiles]);
     
     // Start uploading files
     newFiles.forEach((fileData) => {
@@ -236,6 +258,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           return f;
         })
       );
+      
+      // Update persistent status to uploaded
+      updatePersistedStatus(persistedStatus.map(p =>
+        p.id === fileData.id
+          ? { ...p, status: 'queued', progress: 50, fileId }
+          : p
+      ));
 
       // Add to monitoring list
       setUploadedFileIds((prev) => [...prev, fileId]);
@@ -263,6 +292,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           return f;
         })
       );
+      
+      // Update persistent status to error
+      updatePersistedStatus(persistedStatus.map(p =>
+        p.id === fileData.id
+          ? { ...p, status: 'error', progress: 0 }
+          : p
+      ));
 
       toast({
         title: "Upload Failed",
@@ -555,10 +591,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           )}
         </div>
         
+        {/* Upload Notification System */}
+        <UploadNotificationSystem isActive={true} />
+        
         <DialogFooter className="sm:justify-between">
           {/* Status Summary */}
           <div className="flex items-center text-sm text-gray-600">
-            {files.length > 0 && (
+            {(files.length > 0 || hasActiveUploads) && (
               <span>
                 {files.filter(f => f.status === "completed").length} completed, {' '}
                 {files.filter(f => f.status === "processing" || f.status === "queued").length} processing, {' '}
@@ -570,7 +609,10 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           <div className="flex gap-2">
             <Button 
               variant="outline" 
-              onClick={onClose}
+              onClick={() => {
+                markSessionInactive();
+                onClose();
+              }}
             >
               Close
             </Button>

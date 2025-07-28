@@ -80,6 +80,10 @@ export interface IStorage {
   getSecurityLogs(params: any): Promise<any>;
   formatLogsToCSV(logs: any[]): string;
   
+  // Orphaned upload recovery
+  getOrphanedUploads(): Promise<any[]>;
+  recoverOrphanedUploads(fileIds: string[]): Promise<number>;
+
   // Session store for authentication
   sessionStore: session.Store;
 

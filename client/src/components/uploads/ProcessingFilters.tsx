@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import UploadNotificationSystem from "./UploadNotificationSystem";
+import OrphanedUploadRecovery from "./OrphanedUploadRecovery";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -349,6 +351,12 @@ export default function ProcessingFilters() {
 
   return (
     <div className="space-y-6">
+      {/* Upload Notification System */}
+      <UploadNotificationSystem isActive={true} />
+      
+      {/* Orphaned Upload Recovery */}
+      <OrphanedUploadRecovery />
+      
       {/* Real-time Processing Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
