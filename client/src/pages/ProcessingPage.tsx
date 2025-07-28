@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
+import MainLayout from "@/components/layout/MainLayout";
 
 // Processing Status Widget
 function ProcessingStatusWidget() {
@@ -432,29 +433,29 @@ function FileProcessorStatusWidget() {
 
 export default function ProcessingPage() {
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Processing Center</h1>
-          <p className="text-muted-foreground">
-            Monitor and manage system processing performance and status
-          </p>
+    <MainLayout>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Processing Center</h1>
+            <p className="text-muted-foreground">
+              Monitor and manage system processing performance and status
+            </p>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Main Processing Status Component - This includes the gauges and KPIs */}
+        <ProcessingStatus />
+
+        {/* Additional Processing Widgets */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ScanlyWatcherWidget />
+          <RealTimeStatsWidget />
+          <FileProcessorStatusWidget />
         </div>
       </div>
-
-      <Separator />
-
-      {/* Main Processing Status Component - This includes the gauges and KPIs */}
-      <ProcessingStatus />
-
-
-
-      {/* Additional Processing Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ScanlyWatcherWidget />
-        <RealTimeStatsWidget />
-        <FileProcessorStatusWidget />
-      </div>
-    </div>
+    </MainLayout>
   );
 }
