@@ -175,19 +175,27 @@ export default function TerminalActivityHeatMap({
     return { weeks, maxCount, totalDays: weeks.length * 7 };
   }, [transactions, selectedYear]);
 
-  // Get color intensity based on transaction count
+  // Get color intensity based on transaction count (enhanced multi-color gradient)
   const getIntensity = (count: number): string => {
     if (count === 0) return "bg-gray-100";
     
     const intensity = count / heatMapData.maxCount;
     
-    if (intensity <= 0.1) return "bg-green-100";
+    // Light green for low activity (0-25%)
+    if (intensity <= 0.125) return "bg-green-100";
     if (intensity <= 0.25) return "bg-green-200";
-    if (intensity <= 0.4) return "bg-green-300";
-    if (intensity <= 0.55) return "bg-green-400";
-    if (intensity <= 0.7) return "bg-green-500";
-    if (intensity <= 0.85) return "bg-green-600";
-    return "bg-green-700";
+    
+    // Medium green for moderate activity (25-50%) 
+    if (intensity <= 0.375) return "bg-green-400";
+    if (intensity <= 0.5) return "bg-green-600";
+    
+    // Blue for high activity (50-75%)
+    if (intensity <= 0.625) return "bg-blue-500";
+    if (intensity <= 0.75) return "bg-blue-700";
+    
+    // Purple for peak activity (75-100%)
+    if (intensity <= 0.875) return "bg-purple-600";
+    return "bg-purple-800";
   };
 
   // Get month labels for the timeline
@@ -345,11 +353,12 @@ export default function TerminalActivityHeatMap({
                     <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-                    <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
-                    <div className="w-3 h-3 bg-green-700 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-purple-800 rounded-sm"></div>
                   </div>
                   <span>More</span>
                 </div>
