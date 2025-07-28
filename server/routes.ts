@@ -5410,16 +5410,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const merchantId = req.params.merchantId;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50; // Optimized default page size
+      const sortBy = req.query.sortBy as string;
+      const sortOrder = req.query.sortOrder as string;
+      const dateFilter = req.query.dateFilter as string;
       
       console.log(`[TDDF MERCHANT TRANSACTIONS] Query params:`, {
         merchantId,
         page,
-        limit
+        limit,
+        sortBy,
+        sortOrder,
+        dateFilter
       });
       
       const result = await storage.getTddfTransactionsByMerchant(merchantId, {
         page,
-        limit
+        limit,
+        sortBy,
+        sortOrder,
+        dateFilter
       });
       
       res.json(result);

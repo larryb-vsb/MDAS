@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye, Search } from "lucide-react";
+import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye, Search, Calendar, X } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
@@ -349,6 +349,15 @@ interface MerchantDetailViewProps {
 
 function MerchantDetailView({ merchant, onBack }: MerchantDetailViewProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const handleDateFilter = (date: string | null) => {
+    setSelectedDate(date);
+    // Switch to transactions tab when date is selected
+    if (date) {
+      setActiveTab("transactions");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -368,7 +377,11 @@ function MerchantDetailView({ merchant, onBack }: MerchantDetailViewProps) {
       </div>
 
       {/* Transaction Activity Heat Map - Visible on all tabs */}
-      <MerchantActivityHeatMap merchantAccountNumber={merchant.merchantAccountNumber} />
+      <MerchantActivityHeatMap 
+        merchantAccountNumber={merchant.merchantAccountNumber} 
+        onDateFilter={handleDateFilter}
+        selectedDate={selectedDate}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -392,7 +405,11 @@ function MerchantDetailView({ merchant, onBack }: MerchantDetailViewProps) {
         </TabsContent>
 
         <TabsContent value="transactions">
-          <MerchantTransactions merchantAccountNumber={merchant.merchantAccountNumber} />
+          <MerchantTransactions 
+            merchantAccountNumber={merchant.merchantAccountNumber} 
+            selectedDate={selectedDate}
+            onClearFilter={() => setSelectedDate(null)}
+          />
         </TabsContent>
 
         <TabsContent value="terminals">
@@ -637,20 +654,33 @@ function getCardTypeBadges(record: any) {
 }
 
 // Transactions tab component
-function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber: string }) {
+interface MerchantTransactionsProps {
+  merchantAccountNumber: string;
+  selectedDate?: string | null;
+  onClearFilter?: () => void;
+}
+
+function MerchantTransactions({ merchantAccountNumber, selectedDate, onClearFilter }: MerchantTransactionsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('transaction_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['/api/tddf/merchant', merchantAccountNumber, currentPage, itemsPerPage],
+    queryKey: ['/api/tddf/merchant', merchantAccountNumber, currentPage, itemsPerPage, sortBy, sortOrder, selectedDate],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
       params.append('limit', itemsPerPage.toString());
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
+      if (selectedDate) {
+        params.append('dateFilter', selectedDate);
+      }
       
       const response = await fetch(`/api/tddf/merchant/${merchantAccountNumber}?${params.toString()}`, {
         credentials: "include"
@@ -665,6 +695,16 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
   const transactions = Array.isArray(data) ? data : data?.data || [];
   const totalRecords = data?.pagination?.totalItems || transactions.length;
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
 
   const handleRefreshCache = async () => {
     setIsRefreshing(true);
@@ -799,10 +839,36 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
         </div>
       </CardHeader>
       <CardContent>
+        {/* Filter Status Display */}
+        {selectedDate && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-blue-800">
+                Filtered by date: <strong>{new Date(selectedDate).toLocaleDateString()}</strong>
+                {transactions.length > 0 && (
+                  <span className="ml-2">({transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found)</span>
+                )}
+              </span>
+            </div>
+            <Button
+              onClick={onClearFilter}
+              size="sm"
+              variant="outline"
+              className="text-blue-600 border-blue-300 hover:bg-blue-100"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Clear Filter
+            </Button>
+          </div>
+        )}
+
         {transactions.length === 0 ? (
           <div className="text-center py-12">
             <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">No transactions found for this merchant</p>
+            <p className="text-gray-500">
+              {selectedDate ? 'No transactions found for the selected date' : 'No transactions found for this merchant'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -819,12 +885,60 @@ function MerchantTransactions({ merchantAccountNumber }: { merchantAccountNumber
                         className="rounded border-border"
                       />
                     </th>
-                    <th className="text-left p-3">Date</th>
-                    <th className="text-left p-3">Reference</th>
-                    <th className="text-left p-3">Terminal</th>
-                    <th className="text-right p-3">Amount</th>
-                    <th className="text-left p-3">Card Type</th>
-                    <th className="text-left p-3">Auth #</th>
+                    <th className="text-left p-3">
+                      <button
+                        onClick={() => handleSort('transaction_date')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors"
+                      >
+                        Date
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button
+                        onClick={() => handleSort('reference_number')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors"
+                      >
+                        Reference
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button
+                        onClick={() => handleSort('terminal_identification')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors"
+                      >
+                        Terminal
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
+                    <th className="text-right p-3">
+                      <button
+                        onClick={() => handleSort('transaction_amount')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors ml-auto"
+                      >
+                        Amount
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button
+                        onClick={() => handleSort('card_type')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors"
+                      >
+                        Card Type
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
+                    <th className="text-left p-3">
+                      <button
+                        onClick={() => handleSort('authorization_number')}
+                        className="flex items-center gap-1 hover:bg-gray-100 p-1 rounded transition-colors"
+                      >
+                        Auth #
+                        <ArrowUpDown className="h-4 w-4" />
+                      </button>
+                    </th>
                     <th className="text-center p-3">Actions</th>
                   </tr>
                 </thead>

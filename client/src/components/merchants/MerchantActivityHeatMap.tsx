@@ -12,9 +12,11 @@ interface DaySquareProps {
   date: Date;
   activity?: MerchantActivityData;
   isCurrentMonth?: boolean;
+  onClick?: (date: string) => void;
+  isSelected?: boolean;
 }
 
-const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true }) => {
+const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true, onClick, isSelected = false }) => {
   const count = activity?.transactionCount || 0;
   
   // Enhanced gradient mapping for merchant transactions: 0-50 Green, 50-100 Blue, 100+ Purple
@@ -55,10 +57,22 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
     });
   };
 
+  const handleClick = () => {
+    if (onClick && count > 0) {
+      const dateStr = date.toISOString().split('T')[0];
+      onClick(dateStr);
+    }
+  };
+
   return (
     <div
-      className={`w-3 h-3 rounded-sm cursor-help relative group transition-colors ${getBackgroundColor(count)} ${!isCurrentMonth ? 'opacity-30' : ''}`}
-      title={`${formatDate(date)}: ${count} transactions`}
+      className={`w-3 h-3 rounded-sm relative group transition-colors ${
+        count > 0 ? 'cursor-pointer' : 'cursor-help'
+      } ${getBackgroundColor(count)} ${!isCurrentMonth ? 'opacity-30' : ''} ${
+        isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''
+      }`}
+      title={`${formatDate(date)}: ${count} transactions${count > 0 ? ' (click to filter)' : ''}`}
+      onClick={handleClick}
     >
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
@@ -72,10 +86,24 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
 interface MerchantActivityHeatMapProps {
   merchantAccountNumber: string;
+  onDateFilter?: (date: string | null) => void;
+  selectedDate?: string | null;
 }
 
-const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({ merchantAccountNumber }) => {
+const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({ 
+  merchantAccountNumber, 
+  onDateFilter, 
+  selectedDate 
+}) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+  const handleDateClick = (dateStr: string) => {
+    if (onDateFilter) {
+      // If same date is clicked, clear filter; otherwise set new filter
+      const newFilter = selectedDate === dateStr ? null : dateStr;
+      onDateFilter(newFilter);
+    }
+  };
   
   // Fetch merchant info to get last transaction year
   const { data: merchantInfo } = useQuery({
@@ -284,6 +312,8 @@ const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({ merch
                     date={day.date}
                     activity={day.activity}
                     isCurrentMonth={day.isCurrentYear}
+                    onClick={handleDateClick}
+                    isSelected={selectedDate === day.dateStr}
                   />
                 ))}
               </div>

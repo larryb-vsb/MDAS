@@ -456,6 +456,9 @@ export interface IStorage {
   getTddfTransactionsByMerchant(merchantAccountNumber: string, options: {
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+    dateFilter?: string;
   }): Promise<{
     data: any[];
     pagination: {
@@ -7542,6 +7545,9 @@ export class DatabaseStorage implements IStorage {
   async getTddfTransactionsByMerchant(merchantAccountNumber: string, options: {
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+    dateFilter?: string;
   }): Promise<{
     data: any[];
     pagination: {
@@ -7555,23 +7561,56 @@ export class DatabaseStorage implements IStorage {
       const page = options.page || 1;
       const limit = options.limit || 50;
       const offset = (page - 1) * limit;
+      const sortBy = options.sortBy || 'transaction_date';
+      const sortOrder = options.sortOrder || 'desc';
+      const dateFilter = options.dateFilter;
       const tddfRecordsTableName = getTableName('tddf_records');
       
       console.log(`[TDDF MERCHANT TRANSACTIONS] Fetching paginated transactions for merchant: ${merchantAccountNumber}`);
-      console.log(`[TDDF MERCHANT TRANSACTIONS] Page: ${page}, Limit: ${limit}, Offset: ${offset}`);
+      console.log(`[TDDF MERCHANT TRANSACTIONS] Page: ${page}, Limit: ${limit}, Offset: ${offset}, Sort: ${sortBy} ${sortOrder}, Date Filter: ${dateFilter}`);
       
-      // Get total count for pagination - using optimized count query
+      // Build WHERE clause
+      let whereClause = 'WHERE merchant_account_number = $1';
+      const queryParams = [merchantAccountNumber];
+      let paramCount = 1;
+      
+      if (dateFilter) {
+        paramCount++;
+        whereClause += ` AND DATE(transaction_date) = $${paramCount}`;
+        queryParams.push(dateFilter);
+      }
+      
+      // Get total count for pagination
       const countQuery = `
         SELECT COUNT(*) as total
         FROM "${tddfRecordsTableName}"
-        WHERE merchant_account_number = $1
+        ${whereClause}
       `;
       
-      const countResult = await pool.query(countQuery, [merchantAccountNumber]);
+      const countResult = await pool.query(countQuery, queryParams);
       const totalItems = parseInt(countResult.rows[0].total) || 0;
       const totalPages = Math.ceil(totalItems / limit);
       
-      // Get paginated data with performance optimization
+      // Build ORDER BY clause
+      const validSortFields = {
+        'transaction_date': 'transaction_date',
+        'reference_number': 'reference_number',
+        'terminal_identification': 'terminal_id',
+        'transaction_amount': 'transaction_amount',
+        'card_type': 'card_type',
+        'authorization_number': 'authorization_number'
+      };
+      
+      const sortField = validSortFields[sortBy] || 'transaction_date';
+      const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      const orderClause = `ORDER BY ${sortField} ${sortDirection}, id DESC`;
+      
+      // Get paginated data
+      paramCount++;
+      const limitParam = paramCount;
+      paramCount++;
+      const offsetParam = paramCount;
+      
       const dataQuery = `
         SELECT 
           id,
@@ -7588,12 +7627,13 @@ export class DatabaseStorage implements IStorage {
           recorded_at,
           mms_raw_line
         FROM "${tddfRecordsTableName}"
-        WHERE merchant_account_number = $1
-        ORDER BY transaction_date DESC, id DESC
-        LIMIT $2 OFFSET $3
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${limitParam} OFFSET $${offsetParam}
       `;
       
-      const dataResult = await pool.query(dataQuery, [merchantAccountNumber, limit, offset]);
+      queryParams.push(limit, offset);
+      const dataResult = await pool.query(dataQuery, queryParams);
       
       console.log(`[TDDF MERCHANT TRANSACTIONS] Retrieved ${dataResult.rows.length} transactions (page ${page}/${totalPages}, total: ${totalItems})`);
       
