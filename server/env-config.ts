@@ -3,8 +3,38 @@
  * Centralized place for environment-specific settings
  */
 
-// Determine the current environment from process.env
-export const NODE_ENV = process.env.NODE_ENV || 'development';
+// Enhanced environment detection for production deployments
+function detectEnvironment(): string {
+  // First check explicit NODE_ENV
+  if (process.env.NODE_ENV) {
+    return process.env.NODE_ENV;
+  }
+  
+  // Production environment indicators
+  const productionIndicators = [
+    process.env.REPLIT_DEPLOYMENT === 'true',
+    process.env.REPL_DEPLOYMENT === 'true', 
+    process.env.REPLIT_PROD === 'true',
+    process.env.PRODUCTION === 'true',
+    process.env.ENV === 'production',
+    process.env.ENVIRONMENT === 'production',
+    // Check for common production domains
+    process.env.REPL_SLUG && process.env.REPL_SLUG.includes('.replit.app'),
+    process.env.REPLIT_DOMAINS && process.env.REPLIT_DOMAINS.includes('.replit.app')
+  ];
+  
+  // If any production indicators are present, use production mode
+  if (productionIndicators.some(indicator => indicator)) {
+    console.log('[ENV CONFIG] Production environment detected via deployment indicators');
+    return 'production';
+  }
+  
+  // Default to development for local development
+  return 'development';
+}
+
+// Determine the current environment from process.env with enhanced detection
+export const NODE_ENV = detectEnvironment();
 export const isProd = NODE_ENV === 'production';
 export const isDev = NODE_ENV === 'development';
 export const isTest = NODE_ENV === 'test';
@@ -15,6 +45,14 @@ export function getEnvironment() {
 }
 
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
+console.log(`[ENV CONFIG] Environment detection method: ${process.env.NODE_ENV ? 'explicit' : 'auto-detected'}`);
+if (!process.env.NODE_ENV) {
+  console.log(`[ENV CONFIG] Checking deployment indicators...`);
+  console.log(`[ENV CONFIG] REPLIT_DEPLOYMENT: ${process.env.REPLIT_DEPLOYMENT}`);
+  console.log(`[ENV CONFIG] REPL_DEPLOYMENT: ${process.env.REPL_DEPLOYMENT}`);
+  console.log(`[ENV CONFIG] REPL_SLUG: ${process.env.REPL_SLUG}`);
+  console.log(`[ENV CONFIG] REPLIT_DOMAINS: ${process.env.REPLIT_DOMAINS}`);
+}
 console.log(`[ENV CONFIG] Final NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
 
 // IMPLEMENTING TABLE-LEVEL DATABASE SEPARATION  
