@@ -419,30 +419,28 @@ export default function TerminalViewPage() {
           </Card>
         </div>
 
+        {/* Transaction Activity Heat Map - Common Area */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Transaction Activity Heat Map</CardTitle>
+            <CardDescription>
+              Daily transaction volume over time - darker squares indicate more transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TerminalActivityHeatMap 
+              transactions={tddfTransactions || []} 
+              timeRange={timeRange} 
+            />
+          </CardContent>
+        </Card>
+
         {/* Main Content Tabs */}
-        <Tabs defaultValue="activity" className="space-y-4">
+        <Tabs defaultValue="transactions" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="activity">Activity Heat Map</TabsTrigger>
             <TabsTrigger value="transactions">Transaction History</TabsTrigger>
             <TabsTrigger value="details">Terminal Details</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="activity" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Transaction Activity Heat Map</CardTitle>
-                <CardDescription>
-                  Daily transaction volume over time - darker squares indicate more transactions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <TerminalActivityHeatMap 
-                  transactions={tddfTransactions || []} 
-                  timeRange={timeRange} 
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
             {/* TDDF Transactions Section */}
