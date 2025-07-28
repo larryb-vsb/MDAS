@@ -123,9 +123,9 @@ if (!fs.existsSync(uploadDir)) {
   console.log(`Created upload directory: ${uploadDir}`);
 }
 
-// Set up multer for file uploads with persistent storage
+// Set up multer for file uploads with memory storage for buffer access
 const upload = multer({ 
-  dest: uploadDir,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for large TDDF files
 });
 
@@ -7295,12 +7295,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadDir = path.join(process.cwd(), 'tmp_uploads');
       await fs.promises.mkdir(uploadDir, { recursive: true });
       
+      // Use file buffer from memory storage
+      const fileBuffer = req.file.buffer;
+      console.log(`[UPLOADER-DEBUG] File buffer length: ${fileBuffer.length}, Original name: ${req.file.originalname}`);
+      
       // Save file locally with unique name
       const localPath = path.join(uploadDir, `${id}_${uploadRecord.filename}`);
-      await fs.promises.writeFile(localPath, req.file.buffer);
+      await fs.promises.writeFile(localPath, fileBuffer);
       
-      const fileSize = req.file.buffer.length;
-      const lineCount = req.file.buffer.toString('utf-8').split('\n').length;
+      const fileSize = fileBuffer.length;
+      const lineCount = fileBuffer.toString('utf-8').split('\n').length;
       
       // Update database with local storage information
       await storage.updateUploaderUpload(id, {
