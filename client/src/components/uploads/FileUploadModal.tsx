@@ -356,7 +356,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
       
-      onClose();
+      // Don't auto-close modal - let user control when to close
     },
     onError: (error) => {
       toast({
@@ -478,10 +478,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
               title: "Upload Complete",
               description: `Successfully uploaded ${fileIds.length} file(s)`,
             });
-            // Close modal after successful upload
-            setTimeout(() => {
-              onClose();
-            }, 1500);
+            // Don't auto-close modal - let user control when to close
           }}
         />
         
