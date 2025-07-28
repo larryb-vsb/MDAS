@@ -173,14 +173,32 @@ export default function MMSUploader() {
     const files = event.target.files;
     setSelectedFiles(files);
     
+    console.log(`[AUTO-UPLOAD-DEBUG] Files selected: ${files?.length || 0}, File type: ${selectedFileType}`);
+    
     // Auto-start upload if files are selected and file type is chosen
     if (files && files.length > 0 && selectedFileType) {
+      console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} files`);
       setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+      
+      // Backup trigger in case the first one doesn't work
+      setTimeout(() => {
+        if (selectedFiles && selectedFiles.length > 0 && selectedFileType) {
+          console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${selectedFiles.length} files`);
+          handleStartUpload();
+        }
+      }, 500);
+    } else {
+      console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - missing files or file type`);
     }
   };
 
   const handleStartUpload = async () => {
-    if (!selectedFiles || !selectedFileType) return;
+    if (!selectedFiles || !selectedFileType) {
+      console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload called but missing requirements - Files: ${selectedFiles?.length || 0}, Type: ${selectedFileType}`);
+      return;
+    }
+    
+    console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload starting for ${selectedFiles.length} files of type ${selectedFileType}`);
     
     for (const file of Array.from(selectedFiles)) {
       try {
@@ -325,10 +343,14 @@ export default function MMSUploader() {
                       <button
                         key={type.value}
                         onClick={() => {
+                          console.log(`[AUTO-UPLOAD-DEBUG] File type selected: ${type.value}, Files already selected: ${selectedFiles?.length || 0}`);
                           setSelectedFileType(type.value);
                           // Auto-start upload if files are already selected
                           if (selectedFiles && selectedFiles.length > 0) {
+                            console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${selectedFiles.length} files after file type selection`);
                             setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                          } else {
+                            console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - no files selected yet`);
                           }
                         }}
                         className={`
@@ -387,10 +409,22 @@ export default function MMSUploader() {
                         e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
                         const files = e.dataTransfer?.files;
                         if (files) {
+                          console.log(`[AUTO-UPLOAD-DEBUG] Files dropped: ${files.length}, File type: ${selectedFileType}`);
                           setSelectedFiles(files);
                           // Auto-start upload if file type is already selected
                           if (selectedFileType) {
+                            console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} dropped files`);
                             setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                            
+                            // Backup trigger in case the first one doesn't work
+                            setTimeout(() => {
+                              if (selectedFiles && selectedFiles.length > 0 && selectedFileType) {
+                                console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${selectedFiles.length} dropped files`);
+                                handleStartUpload();
+                              }
+                            }, 500);
+                          } else {
+                            console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - no file type selected`);
                           }
                         }
                       }}
