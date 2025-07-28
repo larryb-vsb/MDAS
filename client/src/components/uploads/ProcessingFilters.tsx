@@ -871,14 +871,27 @@ export default function ProcessingFilters() {
                                       );
                                     }
                                     
-                                    // Default fallback
+                                    // Default fallback - show raw line count if available
                                     return (
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                           <Clock className="h-3 w-3 text-gray-500" />
                                           <span className="text-xs text-muted-foreground">Pending</span>
                                         </div>
-                                        <div className="text-xs text-muted-foreground">Awaiting processing</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {rawLinesCount > 0 ? (
+                                            <>
+                                              {rawLinesCount.toLocaleString()} raw lines ready for processing
+                                              {file.fileSize && (
+                                                <div className="text-xs text-muted-foreground mt-0.5">
+                                                  File size: {formatFileSize(file.fileSize)}
+                                                </div>
+                                              )}
+                                            </>
+                                          ) : (
+                                            'Awaiting processing'
+                                          )}
+                                        </div>
                                       </div>
                                     );
                                   })()}
