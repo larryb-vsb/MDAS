@@ -78,6 +78,13 @@ export default function ProcessingFilters() {
         limit: itemsPerPage.toString(),
         page: currentPage.toString()
       });
+      
+      // For uploading status, include recent files to catch fast transitions
+      if (activeStatusFilter === 'uploading') {
+        params.append('includeRecent', 'true');
+        params.append('recentWindowMinutes', '2'); // Include files from last 2 minutes
+      }
+      
       const response = await fetch(`/api/uploads/processing-status?${params}`, {
         credentials: 'include'
       });
@@ -86,8 +93,10 @@ export default function ProcessingFilters() {
       }
       return response.json();
     },
-    // More aggressive refresh for uploading status to catch fast transitions
-    refetchInterval: activeStatusFilter === 'uploading' ? 1000 : 5000, // 1 second for uploading, 5 seconds for others
+    // Aggressive refresh intervals to catch status transitions
+    refetchInterval: activeStatusFilter === 'uploading' ? 500 : 
+                    activeStatusFilter === 'queued' ? 1000 : 
+                    activeStatusFilter === 'processing' ? 1500 : 5000,
   });
 
   // Fetch queue status

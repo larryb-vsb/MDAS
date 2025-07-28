@@ -2403,10 +2403,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get enhanced processing status with filters
   app.get("/api/uploads/processing-status", isAuthenticated, async (req, res) => {
     try {
-      const { status = 'all', fileType = 'all', sortBy = 'uploadDate', sortOrder = 'desc', limit = '20', page = '1' } = req.query;
+      const { 
+        status = 'all', 
+        fileType = 'all', 
+        sortBy = 'uploadDate', 
+        sortOrder = 'desc', 
+        limit = '20', 
+        page = '1',
+        includeRecent = 'false',
+        recentWindowMinutes = '2'
+      } = req.query;
       const limitNum = parseInt(limit as string) || 20;
       const pageNum = parseInt(page as string) || 1;
       const offset = (pageNum - 1) * limitNum;
+      const includeRecentFiles = includeRecent === 'true';
+      const recentWindow = parseInt(recentWindowMinutes as string) || 2;
       
       // Build query based on status filter to get relevant files
       const { getTableName } = await import("./table-config");
@@ -2444,8 +2455,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (status === 'error') {
         baseQuery = sql`${baseQuery} AND processing_errors IS NOT NULL`;
       } else if (status === 'uploading') {
-        // For files that are in the process of being uploaded (very transient state)
-        baseQuery = sql`${baseQuery} AND processing_status = 'uploading'`;
+        // Enhanced uploading status handling with recent files fallback
+        if (includeRecentFiles) {
+          // Include files uploaded in the last N minutes to catch fast transitions
+          baseQuery = sql`${baseQuery} AND (
+            processing_status = 'uploading' OR 
+            uploaded_at > NOW() - INTERVAL '${sql.raw(recentWindow.toString())} minutes'
+          )`;
+        } else {
+          baseQuery = sql`${baseQuery} AND processing_status = 'uploading'`;
+        }
       }
 
       // Add file type filter to query if needed
@@ -2454,17 +2473,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get total count first for pagination
-      const countQuery = sql`
+      let countQuery = sql`
         SELECT COUNT(*) as total 
         FROM ${sql.identifier(uploadsTableName)}
         WHERE deleted = false
-        ${status === 'completed' ? sql`AND (processing_status = 'completed' OR (processed = true AND processing_errors IS NULL))` : sql``}
-        ${status === 'processing' ? sql`AND processing_status = 'processing'` : sql``}
-        ${status === 'queued' ? sql`AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))` : sql``}
-        ${status === 'error' ? sql`AND processing_errors IS NOT NULL` : sql``}
-        ${status === 'uploading' ? sql`AND processing_status = 'uploading'` : sql``}
-        ${fileType !== 'all' ? sql`AND file_type = ${fileType}` : sql``}
       `;
+      
+      if (status === 'completed') {
+        countQuery = sql`${countQuery} AND (processing_status = 'completed' OR (processed = true AND processing_errors IS NULL))`;
+      } else if (status === 'processing') {
+        countQuery = sql`${countQuery} AND processing_status = 'processing'`;
+      } else if (status === 'queued') {
+        countQuery = sql`${countQuery} AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))`;
+      } else if (status === 'error') {
+        countQuery = sql`${countQuery} AND processing_errors IS NOT NULL`;
+      } else if (status === 'uploading') {
+        if (includeRecentFiles) {
+          countQuery = sql`${countQuery} AND (
+            processing_status = 'uploading' OR 
+            uploaded_at > NOW() - INTERVAL '${sql.raw(recentWindow.toString())} minutes'
+          )`;
+        } else {
+          countQuery = sql`${countQuery} AND processing_status = 'uploading'`;
+        }
+      }
+      
+      if (fileType !== 'all') {
+        countQuery = sql`${countQuery} AND file_type = ${fileType}`;
+      }
       
       const countResult = await db.execute(countQuery);
       const totalFiles = Number(countResult.rows[0]?.total || 0);
