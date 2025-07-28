@@ -467,13 +467,8 @@ function MerchantOverview({ merchant }: { merchant: TddfMerchant }) {
   );
 }
 
-// Terminal ID Display Component - same logic as TDDF page
+// Terminal ID Display Component - Direct V Number conversion like TDDF page
 function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
-  const { data: terminals } = useQuery({
-    queryKey: ['/api/terminals'],
-    queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
-  });
-
   if (!terminalId) {
     return (
       <span className="text-xs text-muted-foreground font-mono">
@@ -482,41 +477,21 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
     );
   }
 
-  // Find terminal by VAR mapping pattern: V7565296 → 77565296
-  const terminal = terminals?.find((t: any) => {
-    if (!terminalId || !t.vNumber) return false;
-    // Extract numeric part from V Number and add "7" prefix for comparison
-    const vNumberNumeric = t.vNumber.replace('V', '');
-    const expectedTerminalId = '7' + vNumberNumeric;
-    return expectedTerminalId === terminalId;
-  });
-
-  // If terminal found and V Number matches Terminal ID
-  if (terminal) {
-    return (
-      <Link href={`/terminals/${terminal.id}?referrer=mms-merchants`}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-        >
-          <ExternalLink className="h-3 w-3 mr-1" />
-          {terminal.vNumber}
-        </Button>
-      </Link>
-    );
+  // Convert Terminal ID to V Number: 77565296 → V7565296 (remove first "7", add "V")
+  let displayValue = terminalId;
+  if (terminalId.startsWith('7') && terminalId.length >= 8) {
+    displayValue = 'V' + terminalId.substring(1);
   }
 
-  // If no matching V Number found, display Terminal ID with light orange styling as link to orphan terminal
   return (
     <Link href={`/orphan-terminals/${terminalId}?referrer=mms-merchants`}>
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 p-1 text-xs font-mono text-orange-600 bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:text-orange-800"
+        className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
       >
         <ExternalLink className="h-3 w-3 mr-1" />
-        {terminalId}
+        {displayValue}
       </Button>
     </Link>
   );
