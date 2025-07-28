@@ -435,6 +435,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
             type="button"
             onClick={() => uploadMutation.mutate()}
             disabled={uploadMutation.isPending || files.length === 0 || files.some(f => f.status === "uploading")}
+            className={files.length > 0 && files.every(f => f.status !== "uploading") && !uploadMutation.isPending ? "bg-green-600 hover:bg-green-700" : ""}
           >
             {uploadMutation.isPending ? "Processing..." : "Continue"}
           </Button>
