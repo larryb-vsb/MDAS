@@ -96,6 +96,80 @@ Enhanced environment detection in `server/env-config.ts` to automatically detect
 - ✅ Backward compatibility maintained for explicit NODE_ENV
 - ✅ Ready for production deployment with automatic detection
 
+---
+
+### Issue #003: Environment Control Review - Missing @ENVIRONMENT-CRITICAL Tags
+**Status**: Active  
+**Priority**: High  
+**Date Reported**: 2025-07-28  
+**Reported By**: Morgan (Code Review Analysis)  
+
+**Description**: 
+Code review revealed multiple files with hardcoded table references and missing environment awareness controls that need @ENVIRONMENT-CRITICAL and @DEPLOYMENT-CHECK tags applied.
+
+**Files Requiring Environment Control Tags**:
+
+**Critical Files Found**:
+- `server/routes/log_test_routes.ts` - Contains database operations requiring environment awareness
+- `server/routes/logs_routes.ts` - Database query operations need environment controls  
+- `server/update_backup_table.ts` - Backup operations must be environment-aware
+- `server/update_backup_schedule_table.ts` - Schedule operations need environment controls
+- `server/restore-env-backup.ts` - Restore operations require environment safety checks
+- `server/database-helpers.ts` - Core database helper functions need environment awareness
+- `server/add_default_backup_schedule.ts` - Default operations must respect environment
+- `server/services/concurrency-cleanup.ts` - Cleanup operations need environment controls
+- `server/services/file-processor.ts` - File processing operations require environment awareness
+- `server/services/processing-watcher.ts` - Monitoring services need environment controls
+
+**Required Tagging Pattern**:
+```typescript
+// @ENVIRONMENT-CRITICAL - This code must be environment-aware
+// @DEPLOYMENT-CHECK - Verify environment handling before deployment
+```
+
+**Environment Safety Requirements**:
+1. All database table references must use `getTableName()` helper function
+2. All hardcoded table imports must be replaced with environment-aware patterns
+3. Production vs development logic must be clearly marked
+4. Deployment safety checks must verify environment awareness
+
+**Current Impact**:
+- 54+ instances of hardcoded table imports detected by Alex's deployment safety system
+- Risk of production/development data mixing
+- Potential deployment failures due to environment mismatches
+
+**Alex's Deployment Safety System Detection**:
+- Pre-deployment script `scripts/pre-deployment-check.js` identifies these patterns
+- High severity issues prevent production deployment until fixed
+- Systematic pattern analysis revealed environment-awareness gaps
+
+**Fix Required**:
+1. Apply @ENVIRONMENT-CRITICAL and @DEPLOYMENT-CHECK tags to all identified files
+2. Replace hardcoded table imports with environment-aware `getTableName()` calls
+3. Ensure all database operations respect environment separation
+4. Pass deployment safety checks before production deployment
+
+**Code Pattern Required**:
+```typescript
+// @ENVIRONMENT-CRITICAL - Database operations must be environment-aware
+// @DEPLOYMENT-CHECK - Verify table naming uses getTableName() helper
+import { getTableName } from '../table-config';
+
+// Instead of: sql`SELECT * FROM merchants`
+// Use: sql`SELECT * FROM ${sql.identifier(getTableName('merchants'))}`
+```
+
+**Prevention Measures**:
+- Deployment safety system blocks unsafe deployments
+- Code review process to verify environment awareness
+- Systematic replacement of hardcoded patterns
+- Documentation of environment-critical code sections
+
+**Related Issues**:
+- Linked to Issue #002 (Production Environment Configuration Error)
+- Part of Alex's deployment safety system implementation
+- Proactive infrastructure to prevent similar issues
+
 **Reproduction Steps**:
 1. Navigate to merchant management page
 2. Observe empty/non-loading merchant table
