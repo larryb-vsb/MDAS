@@ -2550,24 +2550,17 @@ export default function TddfPage() {
           {/* Active Date Filter Display */}
           {selectedDate && (
             <div className="mb-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-blue-800">
-                    Filtered by date: {format(new Date(selectedDate), 'PPP')}
-                  </span>
-                  <span className="text-sm text-blue-600">
-                    ({data?.pagination?.totalItems || 0} records)
-                  </span>
-                </div>
+              <p className="text-sm text-muted-foreground">
+                Found {data?.pagination?.totalItems || 0} TDDF transactions (filtered to {format(new Date(selectedDate), 'M/d/yyyy')}). Showing {data?.data?.length || 0} results
                 <Button
                   onClick={clearDateFilter}
-                  variant="outline"
+                  variant="link"
                   size="sm"
-                  className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                  className="h-auto p-0 ml-2 text-blue-600 hover:text-blue-800"
                 >
                   Clear Filter
                 </Button>
-              </div>
+              </p>
             </div>
           )}
 
