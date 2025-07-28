@@ -443,7 +443,7 @@ export default function MMSUploader() {
                     Automatic Processing Enabled
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
-                    Files will automatically progress through all 8 phases: Started → Uploading → Uploaded (browser) → Identified → Encoding → Processing → Completed (watcher)
+                    Files will automatically progress through 3 phases: Started → Uploading → Uploaded (browser). Files remain as raw-unprocessed data ready for viewing.
                   </div>
                 </div>
               </div>
@@ -473,11 +473,11 @@ export default function MMSUploader() {
           <Card>
             <CardHeader>
               <CardTitle>Processing Phases</CardTitle>
-              <CardDescription>8-state workflow for comprehensive file processing</CardDescription>
+              <CardDescription>3-phase workflow for file upload and storage</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-4">
-                {PROCESSING_PHASES.map((phase, index) => {
+              <div className="grid grid-cols-3 gap-6">
+                {PROCESSING_PHASES.slice(0, 3).map((phase, index) => {
                   const Icon = phase.icon;
                   const count = uploadsByPhase[phase.id]?.length || 0;
                   
@@ -493,7 +493,7 @@ export default function MMSUploader() {
                           {count} files
                         </Badge>
                       </div>
-                      {index < PROCESSING_PHASES.length - 1 && (
+                      {index < 2 && (
                         <div className="hidden lg:block absolute left-full top-1/2 w-4 h-px bg-gray-300" />
                       )}
                     </div>
@@ -512,7 +512,7 @@ export default function MMSUploader() {
                 MMS Uploader Files
               </CardTitle>
               <CardDescription>
-                View and manage files in the 8-phase processing system
+                View and manage files in the 3-phase upload system (Started → Uploading → Uploaded)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -636,9 +636,7 @@ export default function MMSUploader() {
                   paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    const canViewContent = upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified' || 
-                                         upload.currentPhase === 'encoding' || upload.currentPhase === 'processing' || 
-                                         upload.currentPhase === 'completed';
+                    const canViewContent = upload.currentPhase === 'uploaded';
                     
                     return (
                       <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">

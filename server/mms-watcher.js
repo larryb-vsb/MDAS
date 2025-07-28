@@ -17,14 +17,14 @@ class MMSWatcher {
     }
 
     this.isRunning = true;
-    console.log('[MMS-WATCHER] Starting automatic file processing service...');
+    console.log('[MMS-WATCHER] Starting monitoring service (phases 1-3 only)...');
     
-    // Check for uploaded files every 5 seconds
+    // Only monitor - don't auto-process beyond uploaded phase
     this.intervalId = setInterval(() => {
-      this.processUploadedFiles();
-    }, 5000);
+      this.monitorFiles();
+    }, 10000); // Check less frequently since we're just monitoring
     
-    console.log('[MMS-WATCHER] Service started - monitoring uploaded files every 5 seconds');
+    console.log('[MMS-WATCHER] Service started - monitoring files (no auto-processing beyond uploaded)');
   }
 
   stop() {
@@ -38,90 +38,24 @@ class MMSWatcher {
     console.log('[MMS-WATCHER] Service stopped');
   }
 
-  async processUploadedFiles() {
+  async monitorFiles() {
     try {
-      // Get all files in "uploaded" status ready for processing
+      // Just monitor uploaded files - don't auto-process them
       const uploadedFiles = await this.storage.getUploaderUploads({
         phase: 'uploaded'
       });
 
-      if (uploadedFiles.length === 0) {
-        return; // No files to process
-      }
-
-      console.log(`[MMS-WATCHER] Found ${uploadedFiles.length} uploaded files ready for processing`);
-
-      for (const file of uploadedFiles) {
-        await this.processFilePhases(file);
+      if (uploadedFiles.length > 0) {
+        console.log(`[MMS-WATCHER] Monitoring ${uploadedFiles.length} uploaded files (ready for manual processing)`);
       }
 
     } catch (error) {
-      console.error('[MMS-WATCHER] Error processing uploaded files:', error);
+      console.error('[MMS-WATCHER] Error monitoring files:', error);
     }
   }
 
-  async processFilePhases(file) {
-    try {
-      console.log(`[MMS-WATCHER] Starting processing for file: ${file.filename} (${file.id})`);
-
-      // Phase 4: Identified
-      await this.updatePhaseWithDelay(file.id, 'identified', {
-        identifiedAt: new Date().toISOString(),
-        fileType: file.finalFileType || 'unknown',
-        processingNotes: 'File identified and ready for encoding'
-      }, 1000);
-
-      // Phase 5: Encoding  
-      await this.updatePhaseWithDelay(file.id, 'encoding', {
-        encodingStartedAt: new Date().toISOString(),
-        processingNotes: 'File encoding in progress'
-      }, 2000);
-
-      // Phase 6: Processing
-      await this.updatePhaseWithDelay(file.id, 'processing', {
-        processingStartedAt: new Date().toISOString(),
-        processingNotes: 'File processing in progress - extracting data'
-      }, 3000);
-
-      // Phase 7: Completed
-      await this.updatePhaseWithDelay(file.id, 'completed', {
-        completedAt: new Date().toISOString(),
-        processingNotes: 'File processing completed successfully',
-        finalStatus: 'success'
-      }, 1500);
-
-      console.log(`[MMS-WATCHER] ✅ File processing completed: ${file.filename}`);
-
-    } catch (error) {
-      console.error(`[MMS-WATCHER] Error processing file ${file.filename}:`, error);
-      
-      // Mark file as failed if processing encounters errors
-      try {
-        await this.storage.updateUploaderPhase(file.id, 'failed', {
-          failedAt: new Date().toISOString(),
-          processingNotes: `Processing failed: ${error.message}`,
-          finalStatus: 'error'
-        });
-      } catch (updateError) {
-        console.error(`[MMS-WATCHER] Failed to update file status to failed:`, updateError);
-      }
-    }
-  }
-
-  async updatePhaseWithDelay(uploadId, phase, phaseData, delayMs) {
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        try {
-          await this.storage.updateUploaderPhase(uploadId, phase, phaseData);
-          console.log(`[MMS-WATCHER] ${uploadId}: → ${phase}`);
-          resolve();
-        } catch (error) {
-          console.error(`[MMS-WATCHER] Failed to update to ${phase}:`, error);
-          reject(error);
-        }
-      }, delayMs);
-    });
-  }
+  // Note: Automatic processing methods removed - system only handles phases 1-3
+  // Files remain in "uploaded" status as raw-unprocessed data for manual processing
 }
 
 export default MMSWatcher;
