@@ -86,7 +86,8 @@ export default function ProcessingFilters() {
       }
       return response.json();
     },
-    refetchInterval: 5000, // Update every 5 seconds
+    // More aggressive refresh for uploading status to catch fast transitions
+    refetchInterval: activeStatusFilter === 'uploading' ? 1000 : 5000, // 1 second for uploading, 5 seconds for others
   });
 
   // Fetch queue status
@@ -172,10 +173,15 @@ export default function ProcessingFilters() {
     }
   };
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change and trigger immediate refresh for uploading
   const handleStatusFilterChange = (value: string) => {
     setActiveStatusFilter(value);
     setCurrentPage(1);
+    
+    // Immediately refresh when switching to uploading tab to catch fast transitions
+    if (value === 'uploading') {
+      refetch();
+    }
   };
 
   const handleFileTypeFilterChange = (value: string) => {
