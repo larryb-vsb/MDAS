@@ -199,16 +199,72 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="flex gap-1">
-            {Array.from({ length: 53 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                {Array.from({ length: 7 }).map((_, j) => (
-                  <div key={j} className="w-3 h-3 bg-gray-200 rounded-sm"></div>
-                ))}
+        {/* Header - exact same structure as loaded state */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-6 bg-gray-200 rounded w-64 mb-1 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Heat Map Grid Container with Box - Same structure as loaded state */}
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+          <div className="overflow-x-auto">
+            <div className="relative" style={{ minWidth: `${53 * 20 + 60}px` }}>
+              {/* Year Navigation Placeholder - exact same positioning */}
+              <div className="flex justify-end mb-4" style={{ width: `${53 * 20 + 32}px` }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                </div>
               </div>
-            ))}
+              
+              {/* Month labels placeholder - exact same positioning */}
+              <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '0px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '200px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '400px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '600px' }}></div>
+              </div>
+              
+              <div className="flex">
+                {/* Day labels - exact same structure */}
+                <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '140px' }}>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                
+                {/* Grid skeleton - exact same size (4x4 pixels) */}
+                <div className="flex gap-1">
+                  {Array.from({ length: 53 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <div key={j} className="w-4 h-4 bg-gray-200 rounded-sm animate-pulse"></div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Legend placeholder - exact same positioning */}
+              <div className="flex justify-end mt-4" style={{ width: `${53 * 20 + 32}px` }}>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="flex gap-1">
+                      {Array.from({ length: 7 }).map((_, i) => (
+                        <div key={i} className="w-3 h-3 bg-gray-200 rounded-sm animate-pulse"></div>
+                      ))}
+                    </div>
+                    <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
