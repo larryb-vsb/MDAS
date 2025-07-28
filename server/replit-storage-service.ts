@@ -183,5 +183,55 @@ export class ReplitStorageService {
     }
   }
 
+  /**
+   * Get file content from Replit Object Storage
+   * @param key - Storage key/path of the file to read
+   * @returns Promise<string> - File content as string
+   */
+  static async getFileContent(key: string): Promise<string> {
+    try {
+      const client = this.getClient();
+      console.log(`[REPLIT-STORAGE] Reading file content: ${key}`);
+      
+      const result = await client.read(key);
+      
+      if (result.ok) {
+        const content = result.value.toString('utf8');
+        console.log(`[REPLIT-STORAGE] File content read successfully: ${key} (${content.length} chars)`);
+        return content;
+      } else {
+        console.error('[REPLIT-STORAGE] Read failed:', result.error);
+        throw new Error(`Failed to read file ${key}: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('[REPLIT-STORAGE] Read error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a file from Replit Object Storage
+   * @param key - Storage key/path of the file to delete
+   * @returns Promise<boolean> - Success status
+   */
+  static async deleteFile(key: string): Promise<boolean> {
+    try {
+      const client = this.getClient();
+      console.log(`[REPLIT-STORAGE] Deleting file: ${key}`);
+      
+      const result = await client.delete(key);
+      
+      if (result.ok) {
+        console.log(`[REPLIT-STORAGE] File deleted successfully: ${key}`);
+        return true;
+      } else {
+        console.error('[REPLIT-STORAGE] Delete failed:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('[REPLIT-STORAGE] Delete error:', error);
+      return false;
+    }
+  }
 
 }
