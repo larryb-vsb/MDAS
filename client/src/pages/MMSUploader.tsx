@@ -316,7 +316,15 @@ export default function MMSUploader() {
                   {storageConfig?.available ? '✅ Replit Storage' : '❌ Storage Offline'}
                 </div>
                 <div className="text-sm text-blue-600">
-                  Bucket: {storageConfig?.bucket || 'mms-uploader-files'}
+                  Bucket: {storageConfig?.bucket || 'default-replit-bucket'}
+                  {storageConfig?.environment && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs font-medium">
+                      {storageConfig.environment}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-blue-500">
+                  Folder: {storageConfig?.folderPrefix || 'dev-uploader'}/
                   {storageConfig?.fileCount !== undefined && (
                     <span className="ml-2">({storageConfig.fileCount} files)</span>
                   )}

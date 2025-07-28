@@ -7235,9 +7235,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ReplitStorageService } = await import('./replit-storage-service');
       const config = ReplitStorageService.getConfigStatus();
       
-      // Add file count if available
+      // Add environment-specific file count
       try {
-        const files = await ReplitStorageService.listFiles('uploads/');
+        const files = await ReplitStorageService.listFiles(); // Uses environment-aware prefix
         config.fileCount = files.length;
       } catch (error) {
         config.fileCount = 0;

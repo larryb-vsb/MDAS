@@ -40,17 +40,29 @@ export class ReplitStorageService {
   }
 
   static getConfigStatus() {
+    const environment = process.env.NODE_ENV || 'development';
+    const folderPrefix = environment === 'production' ? 'prod-uploader' : 'dev-uploader';
+    
     return {
       available: this.isConfigured(),
       service: 'Replit Object Storage',
-      bucket: 'default-replit-bucket' // Use default bucket
+      bucket: 'default-replit-bucket',
+      environment: environment,
+      folderPrefix: folderPrefix
     };
   }
 
-  // Generate storage key for uploads
+  // Generate storage key for uploads with environment-aware folder structure
   static generateUploadKey(filename: string, uploadId: string): string {
     const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    return `uploads/${timestamp}/${uploadId}/${filename}`;
+    const environment = process.env.NODE_ENV || 'development';
+    
+    // Create environment-specific folder structure
+    if (environment === 'production') {
+      return `prod-uploader/${timestamp}/${uploadId}/${filename}`;
+    } else {
+      return `dev-uploader/${timestamp}/${uploadId}/${filename}`;
+    }
   }
 
   // Upload file buffer to Replit Object Storage
@@ -67,7 +79,7 @@ export class ReplitStorageService {
     size: number;
   }> {
     const client = this.getClient();
-    const key = `uploads/${uploadId}/${originalFilename}`;
+    const key = this.generateUploadKey(originalFilename, uploadId);
     
     try {
       // Upload the file buffer
@@ -142,26 +154,34 @@ export class ReplitStorageService {
     }
   }
 
-  // List files in a prefix (for debugging/admin purposes)
+  // List files with optional prefix filter (environment-aware)
   static async listFiles(prefix?: string): Promise<string[]> {
     const client = this.getClient();
     
     try {
-      const result = await client.list({ prefix });
+      // If no prefix provided, use environment-specific prefix
+      let searchPrefix = prefix;
+      if (!searchPrefix) {
+        const environment = process.env.NODE_ENV || 'development';
+        searchPrefix = environment === 'production' ? 'prod-uploader/' : 'dev-uploader/';
+      }
+      
+      console.log(`[REPLIT-STORAGE] Listing files with prefix: ${searchPrefix}`);
+      
+      const result = await client.list({ prefix: searchPrefix });
       
       if (!result.ok) {
         throw new Error(`List failed: ${result.error.message}`);
       }
       
-      return result.value.map((obj: any) => obj.name);
+      const fileKeys = result.value.map((obj: any) => obj.name);
+      console.log(`[REPLIT-STORAGE] Found ${fileKeys.length} files in ${searchPrefix}`);
+      return fileKeys;
     } catch (error) {
       console.error('[REPLIT-STORAGE] List error:', error);
       throw new Error(`Failed to list files from Replit Object Storage: ${error}`);
     }
   }
 
-  // Generate a simple upload key for direct uploads (no presigned URLs needed)
-  static generateUploadKey(filename: string, uploadId: string): string {
-    return `uploads/${uploadId}/${filename}`;
-  }
+
 }
