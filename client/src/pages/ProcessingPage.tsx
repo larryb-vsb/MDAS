@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import RecordsPerMinuteChart from "@/components/settings/RecordsPerMinuteChart";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
 
 // Processing Status Widget
@@ -448,21 +447,7 @@ export default function ProcessingPage() {
       {/* Main Processing Status Component - This includes the gauges and KPIs */}
       <ProcessingStatus />
 
-      <Separator />
 
-      {/* Records Per Minute Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Records Processed per Minute
-          </CardTitle>
-          <CardDescription>Real-time processing performance over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RecordsPerMinuteChart hours={0.08333} className="h-64" />
-        </CardContent>
-      </Card>
 
       {/* Additional Processing Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
