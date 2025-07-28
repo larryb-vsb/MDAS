@@ -194,8 +194,13 @@ export default function TerminalViewPage() {
     const transactionsByDate = allTransactions.reduce((acc, transaction) => {
       // Handle both regular transactions and TDDF records
       const transactionDate = transaction.date || transaction.transactionDate || transaction.recordedAt;
-      const date = new Date(transactionDate).toDateString();
-      acc[date] = (acc[date] || 0) + 1;
+      if (!transactionDate) return acc;
+      
+      const date = new Date(transactionDate);
+      if (isNaN(date.getTime())) return acc; // Skip invalid dates
+      
+      const dateString = date.toDateString();
+      acc[dateString] = (acc[dateString] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
@@ -203,10 +208,18 @@ export default function TerminalViewPage() {
     const avgDailyTransactions = activeDays > 0 ? totalTransactions / activeDays : 0;
     
     const lastActivityDate = allTransactions.length > 0 
-      ? new Date(Math.max(...allTransactions.map(t => {
-          const transactionDate = t.date || t.transactionDate || t.recordedAt;
-          return new Date(transactionDate).getTime();
-        })))
+      ? (() => {
+          const validDates = allTransactions
+            .map(t => {
+              const transactionDate = t.date || t.transactionDate || t.recordedAt;
+              if (!transactionDate) return null;
+              const date = new Date(transactionDate);
+              return isNaN(date.getTime()) ? null : date.getTime();
+            })
+            .filter(Boolean);
+          
+          return validDates.length > 0 ? new Date(Math.max(...validDates)) : null;
+        })()
       : null;
 
     return {
@@ -390,13 +403,13 @@ export default function TerminalViewPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {activityMetrics.lastActivityDate 
+                {activityMetrics.lastActivityDate && !isNaN(activityMetrics.lastActivityDate.getTime())
                   ? formatTableDate(activityMetrics.lastActivityDate.toISOString()).split(' ')[0]
                   : "No Activity"
                 }
               </div>
               <p className="text-xs text-muted-foreground">
-                {activityMetrics.lastActivityDate 
+                {activityMetrics.lastActivityDate && !isNaN(activityMetrics.lastActivityDate.getTime())
                   ? formatTableDate(activityMetrics.lastActivityDate.toISOString()).split(' ')[1] + " " + 
                     formatTableDate(activityMetrics.lastActivityDate.toISOString()).split(' ')[2]
                   : "No transactions found"
