@@ -19,7 +19,8 @@ import {
   Info,
   ScrollText,
   ArchiveRestore,
-  Zap
+  Zap,
+  Activity
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,11 @@ const navItems = [
     icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
     label: "Analytics",
     href: "/analytics"
+  },
+  {
+    icon: <Activity className="h-5 w-5 text-blue-400" />,
+    label: "Processing",
+    href: "/processing"
   },
   {
     icon: <UploadCloud className="h-5 w-5 text-gray-300" />,

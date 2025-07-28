@@ -26,6 +26,7 @@ import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
 import MMSUploader from "@/pages/MMSUploader";
 import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
+import ProcessingPage from "@/pages/ProcessingPage";
 
 function Router() {
   return (
@@ -45,6 +46,7 @@ function Router() {
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
+      <ProtectedRoute path="/processing" component={ProcessingPage} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />
