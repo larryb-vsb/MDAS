@@ -371,6 +371,9 @@ export class ScanlyWatcher {
       // First, check for and fix placeholder upload errors
       await this.fixPlaceholderUploadErrors();
       
+      // Second, perform automatic orphaned upload recovery
+      await this.performOrphanedUploadRecovery();
+      
       // Find files locked by different server instances inactive for 5+ minutes
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
@@ -475,6 +478,59 @@ export class ScanlyWatcher {
       
     } catch (error) {
       console.error('[SCANLY-WATCHER] ❌ Error fixing placeholder upload errors:', error);
+    }
+  }
+
+  private async performOrphanedUploadRecovery(): Promise<void> {
+    try {
+      console.log('[SCANLY-WATCHER] 🔍 Running automatic orphaned upload recovery...');
+      
+      // Use the storage method to get orphaned uploads
+      const orphanedUploads = await storage.getOrphanedUploads();
+      
+      if (orphanedUploads.length > 0) {
+        console.log(`[SCANLY-WATCHER] 🚨 Found ${orphanedUploads.length} orphaned uploads - initiating automatic recovery`);
+        
+        // Extract just the IDs for recovery
+        const fileIds = orphanedUploads.map(upload => upload.id);
+        
+        // Perform automatic recovery
+        const recoveredCount = await storage.recoverOrphanedUploads(fileIds);
+        
+        console.log(`[SCANLY-WATCHER] ✅ Automatic recovery completed: ${recoveredCount} files recovered`);
+        
+        // Log the recovery activity
+        await this.logAlert({
+          level: 'info',
+          type: 'automatic_orphaned_recovery',
+          message: `Automatically recovered ${recoveredCount} orphaned uploads`,
+          details: { 
+            recoveredFiles: recoveredCount,
+            fileIds: fileIds,
+            trigger: 'scanly_watcher_automated_recovery',
+            orphanedFiles: orphanedUploads.map(upload => ({
+              id: upload.id,
+              fileName: upload.fileName,
+              uploadedAt: upload.uploadedAt,
+              processingStatus: upload.processingStatus,
+              rawLinesCount: upload.rawLinesCount
+            }))
+          },
+          timestamp: new Date()
+        });
+      } else {
+        console.log('[SCANLY-WATCHER] ✅ No orphaned uploads found - recovery not needed');
+      }
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] ❌ Error during automatic orphaned upload recovery:', error);
+      await this.logAlert({
+        level: 'error',
+        type: 'orphaned_recovery_error',
+        message: 'Failed to perform automatic orphaned upload recovery',
+        details: { error: error instanceof Error ? error.message : String(error) },
+        timestamp: new Date()
+      });
     }
   }
 
