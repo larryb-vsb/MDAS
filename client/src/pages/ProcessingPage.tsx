@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3 } from "lucide-react";
+import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import RecordsPerMinuteChart from "@/components/settings/RecordsPerMinuteChart";
+import ProcessingStatus from "@/components/settings/ProcessingStatus";
 
 // Processing Status Widget
 function ProcessingStatusWidget() {
@@ -443,38 +445,30 @@ export default function ProcessingPage() {
 
       <Separator />
 
-      {/* Processing Status and Performance Overview */}
+      {/* Main Processing Status Component - This includes the gauges and KPIs */}
+      <ProcessingStatus />
+
+      <Separator />
+
+      {/* Records Per Minute Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Records Processed per Minute
+          </CardTitle>
+          <CardDescription>Real-time processing performance over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RecordsPerMinuteChart hours={0.08333} className="h-64" />
+        </CardContent>
+      </Card>
+
+      {/* Additional Processing Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ProcessingStatusWidget />
-        <PerformanceKPIsWidget />
         <ScanlyWatcherWidget />
-      </div>
-
-      {/* Real-time Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <RealTimeStatsWidget />
-        <RawTddfStatusWidget />
-      </div>
-
-      {/* File Processing Services */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FileProcessorStatusWidget />
-        
-        {/* Placeholder for additional processing widgets */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gauge className="h-5 w-5" />
-              System Resources
-            </CardTitle>
-            <CardDescription>Memory, CPU, and database performance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-4">
-              <div className="text-muted-foreground">Resource monitoring coming soon</div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
