@@ -248,7 +248,7 @@ export default function MMSUploader() {
       });
       return response;
     },
-    enabled: !!selectedFileForView && selectedFileForView.currentPhase === 'uploaded',
+    enabled: !!selectedFileForView && ['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(selectedFileForView.currentPhase || ''),
     refetchOnWindowFocus: false
   });
 
