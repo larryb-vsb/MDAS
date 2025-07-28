@@ -499,16 +499,22 @@ export class DatabaseStorage implements IStorage {
     this.checkAndInitializeData();
   }
   
-  // User methods
+  // @ENVIRONMENT-CRITICAL - User authentication operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
-    return user || undefined;
+    const usersTableName = getTableName('users');
+    const result = await pool.query(`SELECT * FROM ${usersTableName} WHERE id = $1`, [id]);
+    return result.rows[0] || undefined;
   }
   
+  // @ENVIRONMENT-CRITICAL - User authentication lookup
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming  
   async getUserByUsername(username: string): Promise<User | undefined> {
     console.log(`[DEBUG storage] Looking up user by username: ${username}`);
     try {
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.username, username));
+      const usersTableName = getTableName('users');
+      const result = await pool.query(`SELECT * FROM ${usersTableName} WHERE username = $1`, [username]);
+      const user = result.rows[0];
       if (user) {
         console.log(`[DEBUG storage] Found user: ${JSON.stringify({
           id: user.id,
@@ -526,20 +532,37 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // @ENVIRONMENT-CRITICAL - User creation with environment awareness
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(usersTable).values(insertUser).returning();
-    return user;
+    const usersTableName = getTableName('users');
+    const columns = Object.keys(insertUser).join(', ');
+    const placeholders = Object.keys(insertUser).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(insertUser);
+    
+    const result = await pool.query(
+      `INSERT INTO ${usersTableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+    return result.rows[0];
   }
   
+  // @ENVIRONMENT-CRITICAL - User login tracking
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateUserLastLogin(userId: number): Promise<void> {
-    await db.update(usersTable)
-      .set({ lastLogin: new Date() })
-      .where(eq(usersTable.id, userId));
+    const usersTableName = getTableName('users');
+    await pool.query(
+      `UPDATE ${usersTableName} SET last_login = NOW() WHERE id = $1`,
+      [userId]
+    );
   }
   
-  // Additional user management methods
+  // @ENVIRONMENT-CRITICAL - User management operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getUsers(): Promise<User[]> {
-    return await db.select().from(usersTable).orderBy(usersTable.username);
+    const usersTableName = getTableName('users');
+    const result = await pool.query(`SELECT * FROM ${usersTableName} ORDER BY username`);
+    return result.rows;
   }
   
   async updateUser(userId: number, userData: Partial<Omit<InsertUser, 'password'>>): Promise<User> {
@@ -652,37 +675,39 @@ export class DatabaseStorage implements IStorage {
     return searchable.join(' ').toLowerCase();
   }
 
-  // Check if we need to initialize data
+  // @ENVIRONMENT-CRITICAL - Database initialization check
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   private async checkAndInitializeData() {
     try {
       // Check if merchants table is empty
-      const merchantCount = await db.select({ count: count() }).from(merchantsTable);
+      const merchantsTableName = getTableName('merchants');
+      const usersTableName = getTableName('users');
+      
+      const merchantResult = await pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`);
+      const merchantCount = parseInt(merchantResult.rows[0].count, 10);
       
       // Check if any users exist
-      const userCount = await db.select({ count: count() }).from(usersTable);
+      const userResult = await pool.query(`SELECT COUNT(*) as count FROM ${usersTableName}`);
+      const userCount = parseInt(userResult.rows[0].count, 10);
       
-      if (parseInt(merchantCount[0].count.toString(), 10) === 0) {
+      if (merchantCount === 0) {
         console.log("Database is empty, initializing with sample data...");
         await this.initializeData();
       }
       
       // Create default admin user if no users exist
-      if (parseInt(userCount[0].count.toString(), 10) === 0) {
+      if (userCount === 0) {
         console.log("No users found, creating default admin user...");
         
         // Create a hashed password for the admin user (password: "admin123")
         // Using a pre-generated bcrypt hash for "admin123" to avoid ESM/require issues
         const hashedPassword = "$2b$10$i2crE7gf8xhy0CDddFI6Y.U608XawvKYQ7FyDuGFJR/pM/lDNTTJe";
         
-        await db.insert(usersTable).values({
-          username: "admin",
-          password: hashedPassword,
-          firstName: "System",
-          lastName: "Administrator",
-          email: "admin@example.com",
-          role: "admin",
-          createdAt: new Date()
-        });
+        await pool.query(
+          `INSERT INTO ${usersTableName} (username, password, first_name, last_name, email, role, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          ["admin", hashedPassword, "System", "Administrator", "admin@example.com", "admin", new Date()]
+        );
         
         console.log("Default admin user created");
       }
