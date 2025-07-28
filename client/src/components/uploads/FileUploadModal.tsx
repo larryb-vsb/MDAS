@@ -4,9 +4,10 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Zap, Database, FileText } from "lucide-react";
 import FileUploader from "./FileUploader";
 import SmartFileUploader from "./SmartFileUploader";
 
@@ -25,7 +26,7 @@ interface FileUploadModalProps {
 
 export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk">("transaction");
+  const [activeTab, setActiveTab] = useState<"merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk">("tddf");
   const [files, setFiles] = useState<UploadedFile[]>([]);
 
   const handleFilesSelected = (acceptedFiles: File[]) => {
@@ -269,9 +270,87 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           </div>
           <DialogTitle className="text-center mt-4">Upload Merchant Data</DialogTitle>
           <DialogDescription className="text-center">
-            Select the files you want to upload. You can upload Merchant Demographics, Transaction, Terminal, TDDF, or TSYS Merchant Risk files.
+            Select the files you want to upload. Advanced file processing with smart file type detection.
           </DialogDescription>
+          <div className="flex justify-center gap-4 text-sm text-muted-foreground mt-2">
+            <div className="flex items-center gap-1">
+              <Zap className="h-4 w-4" />
+              {activeTab === 'tddf' ? 'TDDF' :
+               activeTab === 'merchant' ? 'Demographics' :
+               activeTab === 'transaction' ? 'ACH Processing' :
+               activeTab === 'terminal' ? 'Terminal Risk' :
+               activeTab === 'merchant-risk' ? 'Merchant Risk' :
+               'Unknown'}
+            </div>
+            <div className="flex items-center gap-1">
+              <Database className="h-4 w-4" />
+              500MB Limit
+            </div>
+            <div className="flex items-center gap-1">
+              <FileText className="h-4 w-4" />
+              All File Types
+            </div>
+          </div>
         </DialogHeader>
+        
+        {/* File Type Selection - MMS Uploader Style */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            {/* Quick File Type Selection Buttons */}
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground mb-3">
+                Quick Select:
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button 
+                  variant={activeTab === 'tddf' ? 'default' : 'outline'}
+                  size="sm"
+                  className={activeTab === 'tddf' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                  onClick={() => setActiveTab('tddf')}
+                  title="TSYS Transaction Daily Detail"
+                >
+                  {activeTab === 'tddf' ? '🟢' : '⚫'} TDDF
+                </Button>
+                <Button 
+                  variant={activeTab === 'merchant' ? 'default' : 'outline'}
+                  size="sm"
+                  className={activeTab === 'merchant' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                  onClick={() => setActiveTab('merchant')}
+                  title="Merchant Demographics"
+                >
+                  {activeTab === 'merchant' ? '🟢' : '⚫'} Dem
+                </Button>
+                <Button 
+                  variant={activeTab === 'transaction' ? 'default' : 'outline'}
+                  size="sm"
+                  className={activeTab === 'transaction' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                  onClick={() => setActiveTab('transaction')}
+                  title="ACH Processing Logs"
+                >
+                  {activeTab === 'transaction' ? '🟢' : '⚫'} ACH
+                </Button>
+                <Button 
+                  variant={activeTab === 'terminal' ? 'default' : 'outline'}
+                  size="sm"
+                  className={activeTab === 'terminal' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                  onClick={() => setActiveTab('terminal')}
+                  title="TSYS Terminal Risk Report"
+                >
+                  {activeTab === 'terminal' ? '🟢' : '⚫'} Terminals
+                </Button>
+                <Button 
+                  variant={activeTab === 'merchant-risk' ? 'default' : 'outline'}
+                  size="sm"
+                  className={activeTab === 'merchant-risk' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-gray-50'}
+                  onClick={() => setActiveTab('merchant-risk')}
+                  title="TSYS Merchant Risk File"
+                >
+                  {activeTab === 'merchant-risk' ? '🟢' : '⚫'} TMerch
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         
         <SmartFileUploader 
           fileType={activeTab} 
@@ -284,16 +363,6 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
             });
           }}
         />
-        
-        <Tabs defaultValue="transaction" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk")}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="merchant">Merchant Demographics</TabsTrigger>
-            <TabsTrigger value="transaction">Transactions</TabsTrigger>
-            <TabsTrigger value="terminal">Terminals</TabsTrigger>
-            <TabsTrigger value="tddf">TDDF Files</TabsTrigger>
-            <TabsTrigger value="merchant-risk">TSYS Merchant-R</TabsTrigger>
-          </TabsList>
-        </Tabs>
         
         <div className="mt-4">
           <h4 className="mb-2 text-sm font-medium text-gray-700">
