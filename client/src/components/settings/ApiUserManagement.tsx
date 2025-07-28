@@ -137,7 +137,8 @@ export function ApiUserManagement() {
     });
   };
 
-  const formatApiKey = (apiKey: string, isVisible: boolean) => {
+  const formatApiKey = (apiKey: string | null | undefined, isVisible: boolean) => {
+    if (!apiKey) return '••••••••••••••••••••••••';
     if (isVisible) return apiKey;
     return apiKey.substring(0, 8) + '••••••••••••••••' + apiKey.slice(-4);
   };
@@ -287,7 +288,8 @@ export function ApiUserManagement() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => copyToClipboard(apiUser.apiKey)}
+                              onClick={() => apiUser.apiKey && copyToClipboard(apiUser.apiKey)}
+                              disabled={!apiUser.apiKey}
                             >
                               Copy
                             </Button>
