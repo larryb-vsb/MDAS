@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Search, RotateCcw, Eye, CreditCard, ExternalLink } from "lucide-react";
+import { Trash2, Search, RotateCcw, Eye, CreditCard, ExternalLink, ArrowUpDown } from "lucide-react";
 import { Link } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -2296,6 +2296,7 @@ export default function TddfPage() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedRecords, setSelectedRecords] = useState<Set<number>>(new Set());
   const [detailsRecord, setDetailsRecord] = useState<TddfRecord | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filters, setFilters] = useState<TddfFilters>({
     search: "",
     txnDateFrom: "",
@@ -2310,21 +2311,38 @@ export default function TddfPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Derived filters including date filtering
+  const effectiveFilters = {
+    ...filters,
+    ...(selectedDate && {
+      txnDateFrom: selectedDate,
+      txnDateTo: selectedDate,
+    }),
+  };
+
+  // Handle date selection from heat map
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+
+
   // Fetch TDDF records with pagination and filters
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["/api/tddf", currentPage, itemsPerPage, filters],
+    queryKey: ["/api/tddf", currentPage, itemsPerPage, effectiveFilters, selectedDate],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.txnDateFrom && { txnDateFrom: filters.txnDateFrom }),
-        ...(filters.txnDateTo && { txnDateTo: filters.txnDateTo }),
-        ...(filters.merchantId && { merchantId: filters.merchantId }),
-        ...(filters.cardType && filters.cardType !== "all" && { cardType: filters.cardType }),
-        ...(filters.vNumber && { vNumber: filters.vNumber }),
-        ...(filters.sortBy && { sortBy: filters.sortBy }),
-        ...(filters.sortOrder && { sortOrder: filters.sortOrder }),
+        ...(effectiveFilters.search && { search: effectiveFilters.search }),
+        ...(effectiveFilters.txnDateFrom && { txnDateFrom: effectiveFilters.txnDateFrom }),
+        ...(effectiveFilters.txnDateTo && { txnDateTo: effectiveFilters.txnDateTo }),
+        ...(effectiveFilters.merchantId && { merchantId: effectiveFilters.merchantId }),
+        ...(effectiveFilters.cardType && effectiveFilters.cardType !== "all" && { cardType: effectiveFilters.cardType }),
+        ...(effectiveFilters.vNumber && { vNumber: effectiveFilters.vNumber }),
+        ...(effectiveFilters.sortBy && { sortBy: effectiveFilters.sortBy }),
+        ...(effectiveFilters.sortOrder && { sortOrder: effectiveFilters.sortOrder }),
       });
 
       const response = await fetch(`/api/tddf?${params}`, {
@@ -2411,6 +2429,38 @@ export default function TddfPage() {
     setCurrentPage(1);
   };
 
+  // Sort handler function
+  const handleSort = (field: string) => {
+    if (filters.sortBy === field) {
+      // Toggle sort order if clicking the same field
+      handleFilterChange("sortOrder", filters.sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // Set new field and default to descending
+      handleFilterChange("sortBy", field);
+      handleFilterChange("sortOrder", "desc");
+    }
+  };
+
+  // Helper to render sortable column header
+  const SortableHeader = ({ field, children, className = "" }: { field: string; children: React.ReactNode; className?: string }) => (
+    <th className={`text-left p-2 sm:p-3 font-medium text-xs sm:text-sm ${className}`}>
+      <Button
+        variant="ghost"
+        className="h-auto p-0 font-medium hover:bg-transparent text-xs sm:text-sm justify-start"
+        onClick={() => handleSort(field)}
+      >
+        {children}
+        <ArrowUpDown className="ml-1 h-3 w-3" />
+      </Button>
+    </th>
+  );
+
+  // Clear date filter
+  const clearDateFilter = () => {
+    setSelectedDate(null);
+    setFilters(prev => ({ ...prev, txnDateFrom: "", txnDateTo: "" }));
+  };
+
   // Date filter helpers
   const getDateString = (date: Date) => {
     return date.toISOString().split('T')[0];
@@ -2491,8 +2541,35 @@ export default function TddfPage() {
 
           {/* TDDF Activity Heat Map */}
           <div className="mb-4 sm:mb-6">
-            <TddfActivityHeatMap />
+            <TddfActivityHeatMap 
+              onDateSelect={handleDateSelect}
+              selectedDate={selectedDate}
+            />
           </div>
+
+          {/* Active Date Filter Display */}
+          {selectedDate && (
+            <div className="mb-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-blue-800">
+                    Filtered by date: {format(new Date(selectedDate), 'PPP')}
+                  </span>
+                  <span className="text-sm text-blue-600">
+                    ({data?.pagination?.totalItems || 0} records)
+                  </span>
+                </div>
+                <Button
+                  onClick={clearDateFilter}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                >
+                  Clear Filter
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Filters */}
           <Card>
@@ -2806,13 +2883,13 @@ export default function TddfPage() {
                           className="w-3 h-3 sm:w-4 sm:h-4"
                         />
                       </th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Date</th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden sm:table-cell">Reference</th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden md:table-cell">Merchant</th>
-                      <th className="text-right p-2 sm:p-3 font-medium text-xs sm:text-sm">Amount</th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden lg:table-cell">Auth #</th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm">Terminal ID</th>
-                      <th className="text-left p-2 sm:p-3 font-medium text-xs sm:text-sm hidden xl:table-cell">Card Type</th>
+                      <SortableHeader field="transactionDate">Date</SortableHeader>
+                      <SortableHeader field="referenceNumber" className="hidden sm:table-cell">Reference</SortableHeader>
+                      <SortableHeader field="merchantName" className="hidden md:table-cell">Merchant</SortableHeader>
+                      <SortableHeader field="transactionAmount" className="text-right">Amount</SortableHeader>
+                      <SortableHeader field="authorizationNumber" className="hidden lg:table-cell">Auth #</SortableHeader>
+                      <SortableHeader field="terminalId">Terminal ID</SortableHeader>
+                      <SortableHeader field="cardType" className="hidden xl:table-cell">Card Type</SortableHeader>
                       <th className="text-center p-2 sm:p-3 font-medium text-xs sm:text-sm">Actions</th>
                     </tr>
                   </thead>

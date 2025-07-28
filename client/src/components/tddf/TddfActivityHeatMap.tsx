@@ -12,13 +12,21 @@ interface DaySquareProps {
   date: Date;
   activity?: ActivityData;
   isCurrentMonth?: boolean;
+  onDateSelect?: (date: string) => void;
+  selectedDate?: string | null;
 }
 
-const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true }) => {
+const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true, onDateSelect, selectedDate }) => {
   const count = activity?.dtCount || 0;
+  const dateString = date.toISOString().split('T')[0];
+  const isSelected = selectedDate === dateString;
   
   // Enhanced gradient mapping: 0-1000 Green, 1000-2000 Blue, 2000-3000 Purple
-  const getBackgroundColor = (count: number) => {
+  const getBackgroundColor = (count: number, isSelected: boolean) => {
+    if (isSelected) {
+      return 'bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-600 ring-offset-1';
+    }
+    
     if (count === 0) {
       return 'bg-gray-100 hover:bg-gray-200';
     }
@@ -55,22 +63,35 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
     });
   };
 
+  const handleClick = () => {
+    if (onDateSelect && count > 0) {
+      onDateSelect(dateString);
+    }
+  };
+
   return (
     <div
-      className={`w-3 h-3 rounded-sm cursor-help relative group transition-colors ${getBackgroundColor(count)} ${!isCurrentMonth ? 'opacity-30' : ''}`}
-      title={`${formatDate(date)}: ${count} transactions`}
+      className={`w-3 h-3 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
+      title={`${formatDate(date)}: ${count} transactions${count > 0 ? ' (Click to filter)' : ''}`}
+      onClick={handleClick}
     >
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
         <div>{formatDate(date)}</div>
         <div>{count} transactions</div>
+        {count > 0 && <div className="text-gray-300">Click to filter</div>}
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black"></div>
       </div>
     </div>
   );
 };
 
-const TddfActivityHeatMap: React.FC = () => {
+interface TddfActivityHeatMapProps {
+  onDateSelect?: (date: string) => void;
+  selectedDate?: string | null;
+}
+
+const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const { data: activityData, isLoading, error } = useQuery<ActivityData[]>({
@@ -239,6 +260,8 @@ const TddfActivityHeatMap: React.FC = () => {
                     date={day.date}
                     activity={day.activity}
                     isCurrentMonth={day.isCurrentYear}
+                    onDateSelect={onDateSelect}
+                    selectedDate={selectedDate}
                   />
                 ))}
               </div>
