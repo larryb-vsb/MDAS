@@ -1748,6 +1748,7 @@ export class DatabaseStorage implements IStorage {
       itemsPerPage: number;
     };
   }> {
+    console.log('[TRANSACTIONS DEBUG] Method called with params:', { page, limit, merchantId, startDate, endDate, type, transactionId });
     try {
       const transactionsTableName = getTableName('transactions');
       const merchantsTableName = getTableName('merchants');
@@ -1801,7 +1802,12 @@ export class DatabaseStorage implements IStorage {
         ${whereClause}
       `;
       
+      const countResult = await pool.query(countQuery, params);
       const totalItems = parseInt(countResult.rows[0].count);
+      
+      console.log('[TRANSACTIONS DEBUG] Count query params:', params);
+      console.log('[TRANSACTIONS DEBUG] Count result:', countResult.rows[0]);
+      console.log('[TRANSACTIONS DEBUG] Total items:', totalItems);
       
       // Main query with pagination
       const offset = (page - 1) * limit;
