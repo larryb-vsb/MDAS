@@ -300,8 +300,8 @@ export default function TerminalsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {terminals.filter(t => t.lastUpdate && 
-                  new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                {terminals.filter(t => t.last_update && 
+                  new Date(t.last_update) > new Date(Date.now() - 24 * 60 * 60 * 1000)
                 ).length}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -460,27 +460,27 @@ export default function TerminalsPage() {
                         <Checkbox
                           checked={selectedTerminals.includes(terminal.id)}
                           onCheckedChange={() => handleSelectTerminal(terminal.id)}
-                          aria-label={`Select terminal ${terminal.vNumber}`}
+                          aria-label={`Select terminal ${terminal.v_number}`}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {getTerminalTypeIcon(terminal.terminalType)}
-                          {terminal.vNumber}
+                          {getTerminalTypeIcon(terminal.terminal_type)}
+                          {terminal.v_number}
                         </div>
                       </TableCell>
-                      <TableCell>{terminal.dbaName || "-"}</TableCell>
+                      <TableCell>{terminal.dba_name || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {terminal.posMerchantNumber || "-"}
+                        {terminal.pos_merchant_number || "-"}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastActivity?.toString() || null)}
+                        {formatTableDate(terminal.last_activity?.toString() || null)}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastUpdate?.toString() || null)}
+                        {formatTableDate(terminal.last_update?.toString() || null)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
