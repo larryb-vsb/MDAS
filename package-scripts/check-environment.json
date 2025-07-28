@@ -1,0 +1,7 @@
+{
+  "name": "check-environment",
+  "description": "Pre-deployment environment safety check",
+  "script": "node scripts/pre-deployment-check.js",
+  "when": "before-deployment",
+  "required": true
+}

@@ -794,6 +794,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // @ENVIRONMENT-CRITICAL: Uses getTableName() for dev/prod separation
   // Get merchants with pagination and filtering
   async getMerchants(
     page: number = 1, 
@@ -811,7 +812,7 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Use environment-aware table naming
+      // @DEPLOYMENT-CHECK: Verify table prefix in logs
       const merchantsTableName = getTableName('merchants');
       console.log(`[GET MERCHANTS] Using table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
       
