@@ -1,7 +1,7 @@
 /**
  * MMS Database Schema
- * Version: 2.7.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
- * Last Updated: July 27, 2025
+ * Version: 2.7.1 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Last Updated: July 28, 2025
  * 
  * MINOR VERSION: MMS Merchant Risk Report Schema Expansion
  * New Features: Comprehensive TSYS merchant risk report fields integration including bank identifiers, risk assessment metrics, bypass controls, amount thresholds, compliance status, and enhanced risk management capabilities
@@ -21,7 +21,7 @@
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
  * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
  * - 2.7.0: MINOR FEATURE - Production Deployment Schema Synchronization with complete P1 purchasing extension fields (34 total fields), missing production tables creation, and comprehensive schema alignment for seamless deployment
- * - 2.7.1: PATCH - MMSUploader Integration with uploads table definition for compressed JSON payload storage and parallel testing architecture support
+ * - 2.7.1: PATCH - Pre-deployment validation and schema synchronization fix for production readiness with comprehensive environment detection improvements
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
