@@ -152,11 +152,12 @@ export default function RecordsPerMinuteChart({ hours = 1, className = "" }: Rec
     }, {} as Record<string, any>);
     
     // Convert back to array and add formatted time
+    // Sort with most recent first (left side) for better chronological reading
     return Object.values(groupedByMinute).map((item: any) => ({
       ...item,
       shortTime: formatTimeOnly(item.timestamp),
       recordsPerMinute: item.dtRecords + item.bhRecords + item.p1Records + item.otherRecords + item.skippedRecords
-    })).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    })).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
