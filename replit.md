@@ -63,6 +63,13 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Backward Compatibility**: Maintains explicit NODE_ENV support while adding intelligent auto-detection
   - **Production Ready**: Next deployment will automatically use production tables (merchants, transactions) instead of dev_ tables
   - **Issue #002 Resolved**: Fixed Dashboard and Merchants ACH tab showing "No merchants found" in production due to environment detection bug
+- **✅ TERMINAL V NUMBER NAVIGATION COMPLETED (July 28, 2025)**: Successfully implemented proper two-step lookup hierarchy and fixed terminal page crashes
+  - **Two-Step Lookup Logic**: First check terminals database for real V Numbers, then fallback to direct conversion for orphan terminals
+  - **Color-Coded Terminal Routing**: Blue buttons for real terminals linking to terminal details page, orange buttons for orphan terminals linking to orphan terminals page
+  - **Terminal Page Crash Fixed**: Resolved "Invalid time value" error in TerminalViewPage by adding comprehensive date validation for activity metrics calculation
+  - **Robust Date Handling**: Added null/undefined/invalid date checks using `isNaN(date.getTime())` in terminal activity metrics to prevent crashes when processing transaction dates
+  - **Direct Conversion Logic**: Terminal ID 77565296 → V Number V7565296 (remove first "7", add "V" prefix) for orphan terminals
+  - **Production Ready**: Terminal navigation now works flawlessly from MMS Merchants → Transactions/Terminals tabs without any crashes
 - **✅ TDDF MERCHANTS API OPTIMIZATION COMPLETED (July 28, 2025)**: Successfully simplified and enhanced TDDF merchants aggregation API for production reliability
   - **API Simplification**: Replaced complex filtering logic with robust direct SQL aggregation approach
   - **Production Database Verified**: Confirmed production has 50,462 TDDF records with 152 unique merchants and API query compatibility
