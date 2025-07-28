@@ -2551,7 +2551,7 @@ export default function TddfPage() {
           {selectedDate && (
             <div className="mb-4">
               <p className="text-sm text-muted-foreground">
-                Found {data?.pagination?.totalItems || 0} TDDF transactions (filtered to {format(new Date(selectedDate), 'M/d/yyyy')}). Showing {data?.data?.length || 0} results
+                Found {data?.pagination?.totalItems || 0} DT Transactions on {format(new Date(selectedDate), 'M/d/yyyy')}. Showing {data?.data?.length || 0} results
                 <Button
                   onClick={clearDateFilter}
                   variant="link"
