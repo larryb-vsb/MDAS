@@ -227,7 +227,9 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
             {/* Main Container/Bucket */}
             <div className={`
               w-20 h-16 rounded-b-2xl border-4 transition-colors duration-300
-              ${isDragActive && isDragAccept
+              ${uploading
+                ? 'border-gray-400 bg-gray-100'
+                : isDragActive && isDragAccept
                 ? 'border-green-500 bg-green-100'
                 : isDragActive
                 ? 'border-red-500 bg-red-100'
@@ -237,7 +239,9 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
               {/* Bucket Handle */}
               <div className={`
                 absolute -top-2 left-1/2 transform -translate-x-1/2 w-8 h-4 rounded-t-lg border-4 border-b-0 transition-colors duration-300
-                ${isDragActive && isDragAccept
+                ${uploading
+                  ? 'border-gray-400'
+                  : isDragActive && isDragAccept
                   ? 'border-green-500'
                   : isDragActive
                   ? 'border-red-500'
@@ -247,26 +251,32 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
               
               {/* Files Icon Inside Bucket */}
               <div className="flex items-center justify-center h-full">
-                <Package className={`
-                  w-6 h-6 transition-colors duration-300
-                  ${isDragActive && isDragAccept
-                    ? 'text-green-600'
-                    : isDragActive
-                    ? 'text-red-600'
-                    : 'text-blue-600'
-                  }
-                `} />
+                {uploading ? (
+                  <Upload className="w-6 h-6 text-gray-600 animate-spin" />
+                ) : (
+                  <Package className={`
+                    w-6 h-6 transition-colors duration-300
+                    ${isDragActive && isDragAccept
+                      ? 'text-green-600'
+                      : isDragActive
+                      ? 'text-red-600'
+                      : 'text-blue-600'
+                    }
+                  `} />
+                )}
               </div>
             </div>
             
             {/* Cloud Above Bucket */}
             <div className={`
               absolute -top-8 left-1/2 transform -translate-x-1/2 transition-colors duration-300
-              ${isDragActive ? 'animate-pulse' : ''}
+              ${isDragActive || uploading ? 'animate-pulse' : ''}
             `}>
               <Cloud className={`
                 w-12 h-8 transition-colors duration-300
-                ${isDragActive && isDragAccept
+                ${uploading
+                  ? 'text-gray-400'
+                  : isDragActive && isDragAccept
                   ? 'text-green-400'
                   : isDragActive
                   ? 'text-red-400'
@@ -278,7 +288,9 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
             {/* Arrow from Cloud to Bucket */}
             <ArrowDown className={`
               absolute -top-1 left-1/2 transform -translate-x-1/2 w-4 h-4 transition-all duration-300
-              ${isDragActive && isDragAccept
+              ${uploading
+                ? 'text-gray-500 animate-bounce'
+                : isDragActive && isDragAccept
                 ? 'text-green-500 animate-bounce'
                 : isDragActive
                 ? 'text-red-500'
@@ -291,12 +303,12 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
           <div className="space-y-2">
             <h3 className={`
               text-lg font-semibold transition-colors duration-300
-              ${isDragActive && isDragAccept
+              ${uploading
+                ? 'text-gray-600'
+                : isDragActive && isDragAccept
                 ? 'text-green-600'
                 : isDragActive
                 ? 'text-red-600'
-                : uploading
-                ? 'text-blue-600'
                 : 'text-gray-700'
               }
             `}>
@@ -308,14 +320,19 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
             
             <p className={`
               text-sm transition-colors duration-300
-              ${isDragActive && isDragAccept
+              ${uploading
+                ? 'text-gray-500'
+                : isDragActive && isDragAccept
                 ? 'text-green-600'
                 : isDragActive
                 ? 'text-red-600'
                 : 'text-gray-500'
               }
             `}>
-              {getUploadDescription()}
+              {uploading ? "Uploading files..." : 
+               isDragActive && isDragAccept ? "Drop files here to upload!" :
+               isDragActive ? "Some files are not supported" :
+               "Drag & drop files here, or click to select"}
             </p>
           </div>
 
@@ -328,10 +345,10 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
             disabled={uploading || disabled}
             className={`
               transition-all duration-300
-              ${isDragActive && isDragAccept
+              ${uploading
+                ? 'bg-gray-500 cursor-not-allowed'
+                : isDragActive && isDragAccept
                 ? 'bg-green-600 hover:bg-green-700'
-                : uploading
-                ? 'bg-blue-600'
                 : 'bg-blue-600 hover:bg-blue-700'
               }
             `}
@@ -365,13 +382,7 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
         </div>
       )}
 
-      {/* File Type Indicator */}
-      <div className="text-center">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full text-xs text-gray-600">
-          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-          <span>Supports: CSV, TXT, TSYSO files</span>
-        </div>
-      </div>
+
     </div>
   );
 }
