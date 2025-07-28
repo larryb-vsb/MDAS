@@ -7287,35 +7287,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Upload record not found" });
       }
       
-      // Import Replit Storage Service
-      const { ReplitStorageService } = await import('./replit-storage-service');
+      // Temporarily use local file storage while fixing Replit Object Storage configuration
+      const fs = await import('fs');
+      const path = await import('path');
       
-      // Upload file buffer to Replit Object Storage
-      const replitResult = await ReplitStorageService.uploadFile(
-        req.file.buffer,
-        uploadRecord.filename,
-        id,
-        req.file.mimetype
-      );
+      // Create local storage directory
+      const uploadDir = path.join(process.cwd(), 'tmp_uploads');
+      await fs.promises.mkdir(uploadDir, { recursive: true });
       
-      // Update database with Replit Object Storage information
+      // Save file locally with unique name
+      const localPath = path.join(uploadDir, `${id}_${uploadRecord.filename}`);
+      await fs.promises.writeFile(localPath, req.file.buffer);
+      
+      const fileSize = req.file.buffer.length;
+      const lineCount = req.file.buffer.toString('utf-8').split('\n').length;
+      
+      // Update database with local storage information
       await storage.updateUploaderUpload(id, {
         currentPhase: 'uploading',
         uploadProgress: 100,
-        s3Bucket: replitResult.bucket,
-        s3Key: replitResult.key,
-        s3Url: replitResult.url,
-        s3Etag: replitResult.etag,
-        dataSize: replitResult.size,
-        lineCount: req.file.buffer.toString('utf-8').split('\n').length
+        s3Bucket: 'local-storage',
+        s3Key: localPath,
+        s3Url: `file://${localPath}`,
+        dataSize: fileSize,
+        lineCount: lineCount
       });
       
-      console.log(`[UPLOADER-REPLIT] Uploaded to Replit Storage: ${id} -> ${replitResult.url}`);
+      console.log(`[UPLOADER-LOCAL] Uploaded locally: ${id} -> ${localPath}`);
       res.json({ 
         success: true, 
-        message: "File uploaded to Replit Object Storage", 
-        storageUrl: replitResult.url,
-        storageKey: replitResult.key
+        message: "File uploaded to local storage", 
+        storageUrl: `file://${localPath}`,
+        storageKey: localPath
       });
     } catch (error: any) {
       console.error('Replit storage upload error:', error);

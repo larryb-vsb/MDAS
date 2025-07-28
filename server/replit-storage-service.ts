@@ -7,7 +7,13 @@ export class ReplitStorageService {
   private static getClient(): Client {
     if (!this.client) {
       // Replit Object Storage uses zero-configuration - no bucket name needed
-      this.client = new Client();
+      try {
+        this.client = new Client();
+        console.log('[REPLIT-STORAGE] Client initialized successfully');
+      } catch (error) {
+        console.error('[REPLIT-STORAGE] Client initialization failed:', error);
+        throw error;
+      }
     }
     return this.client;
   }
