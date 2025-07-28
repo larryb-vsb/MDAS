@@ -26,7 +26,7 @@ function setupProcessMonitoring() {
     // Log significant memory changes (indicating scaling events)
     if (memUsageMB.rss > 512 || memUsageMB.heapTotal > 256) {
       systemLogger.warn('Infrastructure', 'High memory usage detected - potential scaling event', {
-        memoryUsageMB,
+        memoryUsageMB: memUsageMB,
         uptime: process.uptime(),
         environment: process.env.NODE_ENV
       }).catch(console.error);
