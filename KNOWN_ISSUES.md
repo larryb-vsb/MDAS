@@ -48,16 +48,38 @@ Production deployment is showing development data instead of production data due
 Production should use production tables and show production data (34 records)
 
 **Current Behavior**: 
-Production defaults to development mode and shows development data (42,028 records)
+Production shows "No merchants found" on Dashboard and Merchants ACH tab because it queries empty dev_merchants table instead of production merchants table
+
+**Screenshots**: 
+- Dashboard Key Performance Indicators show wrong data
+- Merchants page ACH Merchants tab shows "No merchants found" 
+- Production has 236 merchants but interface shows empty state
 
 **Fix Required**:
-Set NODE_ENV=production in production deployment environment variables
+Set NODE_ENV=production in Replit deployment environment variables
+
+**Step-by-Step Fix Instructions**:
+1. Go to Replit project dashboard
+2. Navigate to "Settings" or "Environment" tab  
+3. Add environment variable:
+   - **Key**: NODE_ENV
+   - **Value**: production
+4. Redeploy the application
+5. Verify merchants display correctly
 
 **Investigation Notes**:
-- PRODUCTION_ENVIRONMENT_FIX.md contains detailed fix instructions
+- PRODUCTION_ENVIRONMENT_FIX.md contains detailed technical analysis
 - Environment detection works correctly when NODE_ENV is set
 - Development/production table separation working as designed
 - Issue is deployment configuration, not code
+- Production tables contain correct data (236 merchants)
+
+**Next Steps**:
+- [ ] Set NODE_ENV=production in deployment
+- [ ] Redeploy application  
+- [ ] Verify Dashboard shows 236 merchants
+- [ ] Verify ACH Merchants tab displays merchant list
+- [ ] Move to resolved issues when fixed
 
 **Reproduction Steps**:
 1. Navigate to merchant management page
