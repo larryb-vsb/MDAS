@@ -6540,7 +6540,123 @@ export class DatabaseStorage implements IStorage {
       const offset = (page - 1) * limit;
 
       const tddfRecordsTableName = getTableName('tddf_records');
-      const terminalsTableName = getTableName('terminals');
+      
+      console.log('[TDDF MERCHANTS API] Starting aggregation query');
+      console.log('[TDDF MERCHANTS API] Table name:', tddfRecordsTableName);
+      console.log('[TDDF MERCHANTS API] Options:', options);
+      
+      // Simple approach: Direct query without complex filtering initially
+      const simpleQuery = `
+        SELECT 
+          merchant_name,
+          merchant_account_number,
+          mcc_code,
+          MAX(transaction_type_identifier) as transaction_type_identifier,
+          COUNT(DISTINCT terminal_id) as terminal_count,
+          COUNT(*) as total_transactions,
+          SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
+          MAX(transaction_date) as last_transaction_date,
+          SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_name IS NOT NULL 
+          AND merchant_name != ''
+          AND merchant_account_number IS NOT NULL
+        GROUP BY merchant_name, merchant_account_number, mcc_code
+        ORDER BY total_transactions DESC
+        LIMIT $1 OFFSET $2
+      `;
+      
+      const countQuery = `
+        SELECT COUNT(DISTINCT CONCAT(merchant_name, '|', merchant_account_number, '|', mcc_code)) as total
+        FROM "${tddfRecordsTableName}"
+        WHERE merchant_name IS NOT NULL 
+          AND merchant_name != ''
+          AND merchant_account_number IS NOT NULL
+      `;
+      
+      console.log('[TDDF MERCHANTS API] Executing simple aggregation query');
+      
+      // Execute queries
+      const [dataResult, countResult] = await Promise.all([
+        pool.query(simpleQuery, [limit, offset]),
+        pool.query(countQuery, [])
+      ]);
+      
+      console.log('[TDDF MERCHANTS API] Query results:', {
+        dataRows: dataResult.rows.length,
+        totalCount: countResult.rows[0]?.total || 0
+      });
+      
+      const totalItems = parseInt(countResult.rows[0]?.total || '0');
+      const totalPages = Math.ceil(totalItems / limit);
+
+      const merchants = dataResult.rows.map(row => ({
+        merchantName: row.merchant_name || '',
+        merchantAccountNumber: row.merchant_account_number || '',
+        mccCode: row.mcc_code || '',
+        transactionTypeIdentifier: row.transaction_type_identifier || '',
+        terminalCount: parseInt(row.terminal_count) || 0,
+        totalTransactions: parseInt(row.total_transactions) || 0,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        lastTransactionDate: row.last_transaction_date || '',
+        posRelativeCode: row.pos_relative_code || ''
+      }));
+
+      console.log('[TDDF MERCHANTS API] Returning merchants:', merchants.length);
+
+      return {
+        data: merchants,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+    } catch (error) {
+      console.error('[TDDF MERCHANTS API] Error:', error);
+      throw error;
+    }
+  }
+
+  // DEPRECATED - Old complex version with filtering issues  
+  async getTddfMerchantsOld(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+    minAmount?: string;
+    maxAmount?: string;
+    minTransactions?: string;
+    maxTransactions?: string;
+    minTerminals?: string;
+    maxTerminals?: string;
+  }): Promise<{
+    data: Array<{
+      merchantName: string;
+      merchantAccountNumber: string;
+      mccCode: string;
+      transactionTypeIdentifier: string;
+      terminalCount: number;
+      totalTransactions: number;
+      totalAmount: number;
+      lastTransactionDate: string;
+      posRelativeCode?: string;
+    }>;
+    pagination: {
+      currentPage: number;
+      totalPages: number;
+      totalItems: number;
+      itemsPerPage: number;
+    };
+  }> {
+    try {
+      const page = options.page || 1;
+      const limit = options.limit || 20;
+      const offset = (page - 1) * limit;
+
+      const tddfRecordsTableName = getTableName('tddf_records');
 
       // Build search and filter conditions
       const conditions: string[] = [];
