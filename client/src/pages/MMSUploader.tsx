@@ -164,7 +164,7 @@ export default function MMSUploader() {
         lineFormat: lines.length > 0 ? (lines[0].includes(',') ? 'csv' : 'fixed-width') : 'unknown'
       };
 
-      await apiRequest('POST', '/api/dev-uploads', {
+      await apiRequest('POST', '/api/uploader', {
         filename: file.name,
         compressed_payload: compressedPayload,
         schema_info: schemaInfo

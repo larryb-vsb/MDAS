@@ -47,7 +47,7 @@ function Router() {
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
-      <ProtectedRoute path="/dev-upload" component={MMSUploader} />
+      <ProtectedRoute path="/uploader" component={MMSUploader} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />

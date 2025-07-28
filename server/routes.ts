@@ -7200,7 +7200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dev Upload routes for compressed storage testing
-  app.post("/api/dev-uploads", isAuthenticated, async (req, res) => {
+  app.post("/api/uploader", isAuthenticated, async (req, res) => {
     try {
       const { filename, compressed_payload, schema_info } = req.body;
       
@@ -7226,7 +7226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dev-uploads", isAuthenticated, async (req, res) => {
+  app.get("/api/uploader", isAuthenticated, async (req, res) => {
     try {
       const uploads = await storage.getDevUploads();
       res.json(uploads);
@@ -7236,7 +7236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dev-uploads/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/uploader/:id", isAuthenticated, async (req, res) => {
     try {
       const upload = await storage.getDevUploadById(req.params.id);
       if (!upload) {
