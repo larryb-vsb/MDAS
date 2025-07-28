@@ -2871,6 +2871,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get orphaned uploads (files stuck in uploading status or with 0 lines)
+  app.get("/api/uploads/orphaned", async (req, res) => {
+    try {
+      const orphanedUploads = await storage.getOrphanedUploads();
+      res.json(orphanedUploads);
+    } catch (error) {
+      console.error("[ORPHANED-API] Error fetching orphaned uploads:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch orphaned uploads" 
+      });
+    }
+  });
+
+  // Recover orphaned uploads (reset to queued status)
+  app.post("/api/uploads/recover-orphaned", async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      
+      if (!Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ error: "fileIds array is required" });
+      }
+
+      const recovered = await storage.recoverOrphanedUploads(fileIds);
+      res.json({ 
+        message: `Successfully recovered ${recovered} orphaned upload${recovered !== 1 ? 's' : ''}`,
+        recovered 
+      });
+    } catch (error) {
+      console.error("[ORPHANED-API] Error recovering orphaned uploads:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to recover orphaned uploads" 
+      });
+    }
+  });
+
   // Clean up orphaned file records (files that no longer exist on disk)
   app.post("/api/uploads/cleanup-orphaned", isAuthenticated, async (req, res) => {
     try {

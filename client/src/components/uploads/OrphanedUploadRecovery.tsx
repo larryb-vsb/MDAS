@@ -25,10 +25,13 @@ export default function OrphanedUploadRecovery() {
   const [recoveryMode, setRecoveryMode] = useState(false);
 
   // Fetch orphaned uploads (files with 0 lines or stuck in uploading status)
-  const { data: orphanedUploads = [], isLoading, refetch } = useQuery<OrphanedUpload[]>({
+  const { data: orphanedUploads = [], isLoading, refetch, error } = useQuery<OrphanedUpload[]>({
     queryKey: ["/api/uploads/orphaned"],
     refetchInterval: recoveryMode ? 5000 : false,
   });
+
+  // Ensure orphanedUploads is always an array
+  const safeOrphanedUploads = Array.isArray(orphanedUploads) ? orphanedUploads : [];
 
   // Recovery mutation to fix orphaned uploads
   const recoveryMutation = useMutation({
@@ -68,15 +71,15 @@ export default function OrphanedUploadRecovery() {
 
   // Auto-detect orphaned uploads
   useEffect(() => {
-    if (orphanedUploads && orphanedUploads.length > 0 && !recoveryMode) {
-      console.log(`[ORPHANED-RECOVERY] Detected ${orphanedUploads.length} orphaned uploads`);
+    if (safeOrphanedUploads && safeOrphanedUploads.length > 0 && !recoveryMode) {
+      console.log(`[ORPHANED-RECOVERY] Detected ${safeOrphanedUploads.length} orphaned uploads`);
     }
-  }, [orphanedUploads, recoveryMode]);
+  }, [safeOrphanedUploads, recoveryMode]);
 
   const handleRecoverAll = () => {
-    if (orphanedUploads.length === 0) return;
+    if (safeOrphanedUploads.length === 0) return;
     
-    const fileIds = orphanedUploads.map((upload) => upload.id);
+    const fileIds = safeOrphanedUploads.map((upload) => upload.id);
     setRecoveryMode(true);
     recoveryMutation.mutate(fileIds);
   };
@@ -123,7 +126,7 @@ export default function OrphanedUploadRecovery() {
     );
   }
 
-  if (orphanedUploads.length === 0) {
+  if (safeOrphanedUploads.length === 0) {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardHeader>
@@ -146,14 +149,14 @@ export default function OrphanedUploadRecovery() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-amber-700">
           <AlertTriangle className="h-4 w-4" />
-          Orphaned Upload Recovery ({orphanedUploads.length})
+          Orphaned Upload Recovery ({safeOrphanedUploads.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Found {orphanedUploads.length} orphaned upload{orphanedUploads.length !== 1 ? 's' : ''} with missing lines or stuck status. 
+            Found {safeOrphanedUploads.length} orphaned upload{safeOrphanedUploads.length !== 1 ? 's' : ''} with missing lines or stuck status. 
             These files may need recovery to resume processing.
           </AlertDescription>
         </Alert>
@@ -183,7 +186,7 @@ export default function OrphanedUploadRecovery() {
         </div>
 
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          {orphanedUploads.map((upload) => (
+          {safeOrphanedUploads.map((upload) => (
             <div key={upload.id} className="flex items-center justify-between p-3 bg-white rounded-md border">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">

@@ -12918,6 +12918,74 @@ export class DatabaseStorage implements IStorage {
     `, [id]);
     return result.rows[0] || undefined;
   }
+
+  // @ENVIRONMENT-CRITICAL - Orphaned upload recovery operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async getOrphanedUploads(): Promise<any[]> {
+    try {
+      const uploadsTableName = getTableName('uploaded_files');
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      console.log('[ORPHANED-RECOVERY] Searching for orphaned uploads...');
+      
+      const result = await pool.query(`
+        SELECT 
+          id,
+          original_filename as "fileName",
+          file_type as "fileType",
+          file_size as "fileSize",
+          uploaded_at as "uploadedAt",
+          processing_status as "processingStatus",
+          processing_errors as "processingErrors",
+          raw_lines_count as "rawLinesCount"
+        FROM ${uploadsTableName}
+        WHERE deleted = false 
+          AND (
+            (processing_status = 'uploading' AND uploaded_at < $1) OR
+            (raw_lines_count = 0 OR raw_lines_count IS NULL)
+          )
+        ORDER BY uploaded_at DESC
+        LIMIT 50
+      `, [fiveMinutesAgo]);
+
+      console.log(`[ORPHANED-RECOVERY] Found ${result.rows.length} orphaned uploads`);
+      return result.rows;
+    } catch (error) {
+      console.error('[ORPHANED-RECOVERY] Error fetching orphaned uploads:', error);
+      return [];
+    }
+  }
+
+  // @ENVIRONMENT-CRITICAL - Orphaned upload recovery operations  
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+  async recoverOrphanedUploads(fileIds: string[]): Promise<number> {
+    try {
+      const uploadsTableName = getTableName('uploaded_files');
+      console.log(`[ORPHANED-RECOVERY] Recovering ${fileIds.length} orphaned uploads...`);
+      
+      const result = await pool.query(`
+        UPDATE ${uploadsTableName}
+        SET 
+          processing_status = 'queued',
+          processing_errors = CASE 
+            WHEN processing_errors IS NOT NULL 
+            THEN processing_errors || ' [RECOVERED: Reset to queued status]'
+            ELSE '[RECOVERED: Reset from orphaned status to queued]'
+          END,
+          processing_server_id = NULL
+        WHERE id = ANY($1::text[])
+          AND deleted = false
+        RETURNING id
+      `, [fileIds]);
+
+      const recovered = result.rows.length;
+      console.log(`[ORPHANED-RECOVERY] Successfully recovered ${recovered} uploads`);
+      return recovered;
+    } catch (error) {
+      console.error('[ORPHANED-RECOVERY] Error recovering orphaned uploads:', error);
+      throw error;
+    }
+  }
 }
 
 // Default to database storage
