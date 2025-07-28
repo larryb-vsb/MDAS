@@ -355,8 +355,9 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         <SmartFileUploader 
           fileType={activeTab} 
           onUploadComplete={(fileIds) => {
-            // Refresh the upload list
+            // Refresh both upload list and processing status
             queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/uploads/processing-status"] });
             toast({
               title: "Upload Complete",
               description: `Successfully uploaded ${fileIds.length} file(s)`,
