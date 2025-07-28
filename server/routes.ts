@@ -7349,6 +7349,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get file content for uploaded files
+  app.get("/api/uploader/:id/content", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const upload = await storage.getUploaderUploadById(id);
+      
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+
+      // Only allow content viewing for uploaded files and beyond
+      if (!upload.storagePath || !['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+        return res.status(400).json({ error: "File content not available at this stage" });
+      }
+
+      // Check if file exists
+      if (!fs.existsSync(upload.storagePath)) {
+        return res.status(404).json({ error: "File not found on disk" });
+      }
+
+      // Read file content
+      const fileContent = fs.readFileSync(upload.storagePath, 'utf-8');
+      const lines = fileContent.split('\n');
+      
+      // Create preview (first 50 lines)
+      const preview = lines.slice(0, 50).join('\n');
+      
+      console.log(`[UPLOADER API] Retrieved content for upload ${id}: ${lines.length} lines`);
+      
+      res.json({
+        content: fileContent,
+        preview: preview,
+        lineCount: lines.length,
+        fileSize: Buffer.byteLength(fileContent, 'utf-8')
+      });
+    } catch (error: any) {
+      console.error('Get file content error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

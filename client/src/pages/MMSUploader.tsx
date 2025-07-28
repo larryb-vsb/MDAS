@@ -6,8 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -68,6 +71,11 @@ export default function MMSUploader() {
   const [autoProcessing, setAutoProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  // Files tab state
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fileTypeFilter, setFileTypeFilter] = useState('all');
+  const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
 
   // Query for MMS uploads only (separate system from /uploads)
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
@@ -174,6 +182,27 @@ export default function MMSUploader() {
   const warningUploads = uploadsByPhase.warning?.length || 0;
   const activeUploads = totalUploads - completedUploads - warningUploads;
 
+  // Filter uploads for Files tab
+  const filteredUploads = uploads.filter(upload => {
+    const matchesStatus = statusFilter === 'all' || (upload.currentPhase || 'started') === statusFilter;
+    const matchesFileType = fileTypeFilter === 'all' || (upload.finalFileType || 'unknown') === fileTypeFilter;
+    return matchesStatus && matchesFileType;
+  });
+
+  // View file contents query (only fetch when needed)
+  const { data: fileContent, isLoading: isLoadingContent } = useQuery({
+    queryKey: ['/api/uploader', selectedFileForView?.id, 'content'],
+    queryFn: async () => {
+      if (!selectedFileForView) return null;
+      const response = await apiRequest<{ content: string; preview: string }>(`/api/uploader/${selectedFileForView.id}/content`, {
+        method: 'GET'
+      });
+      return response;
+    },
+    enabled: !!selectedFileForView && selectedFileForView.currentPhase === 'uploaded',
+    refetchOnWindowFocus: false
+  });
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -206,8 +235,9 @@ export default function MMSUploader() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="monitor">Processing Monitor</TabsTrigger>
           <TabsTrigger value="phases">Phase Details</TabsTrigger>
         </TabsList>
@@ -437,6 +467,183 @@ export default function MMSUploader() {
                     </div>
                   );
                 })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="files" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                MMS Uploader Files
+              </CardTitle>
+              <CardDescription>
+                View and manage files in the 8-phase processing system
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <Label>Status:</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="started">Started</SelectItem>
+                      <SelectItem value="uploading">Uploading</SelectItem>
+                      <SelectItem value="uploaded">Uploaded</SelectItem>
+                      <SelectItem value="identified">Identified</SelectItem>
+                      <SelectItem value="encoding">Encoding</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="warning">Warning</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Label>File Type:</Label>
+                  <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="tddf">TDDF</SelectItem>
+                      <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                      <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                      <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Badge variant="outline" className="ml-auto">
+                  {filteredUploads.length} files
+                </Badge>
+              </div>
+
+              {/* Files List */}
+              <div className="space-y-3">
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">Loading files...</div>
+                  </div>
+                ) : filteredUploads.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-muted-foreground">
+                      {statusFilter === 'all' && fileTypeFilter === 'all' 
+                        ? 'No MMS uploads found. Upload files to start the 8-phase workflow.'
+                        : 'No files match the selected filters.'
+                      }
+                    </div>
+                  </div>
+                ) : (
+                  filteredUploads.map((upload) => {
+                    const Icon = getPhaseIcon(upload.currentPhase || 'started');
+                    const phaseColor = getPhaseColor(upload.currentPhase || 'started');
+                    const canViewContent = upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified' || 
+                                         upload.currentPhase === 'encoding' || upload.currentPhase === 'processing' || 
+                                         upload.currentPhase === 'completed';
+                    
+                    return (
+                      <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Icon className={`h-5 w-5 text-${phaseColor}-600`} />
+                          <div className="flex-1">
+                            <div className="font-medium">{upload.filename}</div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-4">
+                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || 'Unknown type'}</span>
+                              <span>Started {formatDuration(upload.startTime)}</span>
+                              {upload.lineCount && <span>{upload.lineCount.toLocaleString()} lines</span>}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          {/* Upload progress for uploading files */}
+                          {upload.currentPhase === 'uploading' && upload.uploadProgress && (
+                            <div className="flex items-center gap-2 min-w-[100px]">
+                              <Progress value={upload.uploadProgress} className="w-16" />
+                              <span className="text-sm">{upload.uploadProgress}%</span>
+                            </div>
+                          )}
+
+                          <Badge className={`bg-${phaseColor}-100 text-${phaseColor}-800`}>
+                            {upload.currentPhase || 'started'}
+                          </Badge>
+                          
+                          {/* View Content Button for uploaded files */}
+                          {canViewContent && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setSelectedFileForView(upload)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[80vh]">
+                                <DialogHeader>
+                                  <DialogTitle>File Contents: {upload.filename}</DialogTitle>
+                                  <DialogDescription>
+                                    Phase: {upload.currentPhase} • {formatFileSize(upload.fileSize)} • {upload.lineCount || 0} lines
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="mt-4">
+                                  {isLoadingContent ? (
+                                    <div className="text-center py-8">
+                                      <div className="text-muted-foreground">Loading file contents...</div>
+                                    </div>
+                                  ) : fileContent ? (
+                                    <div className="space-y-4">
+                                      {fileContent.preview && (
+                                        <div>
+                                          <h4 className="font-medium mb-2">File Preview (first 50 lines):</h4>
+                                          <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto max-h-96 font-mono">
+                                            {fileContent.preview}
+                                          </pre>
+                                        </div>
+                                      )}
+                                      
+                                      <div className="flex gap-2">
+                                        <Button 
+                                          variant="outline" 
+                                          onClick={() => {
+                                            const blob = new Blob([fileContent.content], { type: 'text/plain' });
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = upload.filename;
+                                            a.click();
+                                            URL.revokeObjectURL(url);
+                                          }}
+                                        >
+                                          Download Full File
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-8">
+                                      <div className="text-muted-foreground">File content not available</div>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>
