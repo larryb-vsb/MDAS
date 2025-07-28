@@ -33,7 +33,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
 
   // Monitor upload progress for uploaded files
   const { data: uploadStatusData } = useQuery({
-    queryKey: ["/api/uploads/processing-status", uploadedFileIds],
+    queryKey: ["/api/uploads/history"],
     enabled: uploadedFileIds.length > 0,
     refetchInterval: 2000, // Poll every 2 seconds
     refetchIntervalInBackground: true,
@@ -46,17 +46,19 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         prevFiles.map((file) => {
           const serverFile = (uploadStatusData as any).uploads.find((upload: any) => upload.id === file.id);
           if (serverFile) {
+            const newStatus = serverFile.processing_status === "uploading" ? "uploading" :
+                            serverFile.processing_status === "queued" ? "queued" :
+                            serverFile.processing_status === "processing" ? "processing" :
+                            serverFile.processing_status === "completed" ? "completed" :
+                            serverFile.processing_status === "failed" ? "error" : file.status;
+            
             return {
               ...file,
-              status: serverFile.processing_status === "uploading" ? "uploading" :
-                     serverFile.processing_status === "queued" ? "queued" :
-                     serverFile.processing_status === "processing" ? "processing" :
-                     serverFile.processing_status === "completed" ? "completed" :
-                     serverFile.processing_status === "failed" ? "error" : file.status,
+              status: newStatus,
               rawLinesCount: serverFile.raw_lines_count || file.rawLinesCount,
-              progress: serverFile.processing_status === "completed" ? 100 :
-                       serverFile.processing_status === "processing" ? 75 :
-                       serverFile.processing_status === "queued" ? 50 :
+              progress: newStatus === "completed" ? 100 :
+                       newStatus === "processing" ? 75 :
+                       newStatus === "queued" ? 50 :
                        file.progress
             };
           }
@@ -169,9 +171,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       // Add to monitoring list
       setUploadedFileIds((prev) => [...prev, fileId]);
 
+      // Start monitoring this file immediately by refreshing the history
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+      }, 1000);
+
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/uploads/processing-status"] });
 
       toast({
         title: "File Uploaded",
@@ -452,15 +458,27 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
                     </button>
                   </div>
                   <div className="mt-2">
-                    <Progress value={file.progress} className="h-1.5" />
+                    <Progress 
+                      value={file.progress} 
+                      className={`h-1.5 ${
+                        file.status === "completed" ? "bg-green-100" :
+                        file.status === "processing" ? "bg-blue-100" :
+                        file.status === "error" ? "bg-red-100" : ""
+                      }`} 
+                    />
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-gray-500">
+                      <span className={`text-xs ${
+                        file.status === "completed" ? "text-green-600 font-medium" :
+                        file.status === "processing" ? "text-blue-600 font-medium" :
+                        file.status === "queued" ? "text-yellow-600" :
+                        file.status === "error" ? "text-red-600" : "text-gray-500"
+                      }`}>
                         {file.status === "uploading" ? "Uploading..." :
-                         file.status === "uploaded" ? "Uploaded" :
+                         file.status === "uploaded" ? "Uploaded - Ready to Process" :
                          file.status === "queued" ? `Queued (${file.rawLinesCount || 0} lines)` :
                          file.status === "processing" ? "Processing..." :
-                         file.status === "completed" ? `Completed (${file.rawLinesCount || 0} lines)` :
-                         file.status === "error" ? "Failed" : "Unknown"}
+                         file.status === "completed" ? `✅ Completed (${file.rawLinesCount || 0} lines)` :
+                         file.status === "error" ? "❌ Failed" : "Unknown"}
                       </span>
                       <span className="text-xs font-medium text-gray-700">{file.progress}%</span>
                     </div>
@@ -480,7 +498,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           </Button>
           <Button
             type="button"
-            onClick={() => uploadMutation.mutate()}
+            onClick={() => {
+              if (files.every(f => f.status === "completed")) {
+                onClose();
+              } else {
+                uploadMutation.mutate();
+              }
+            }}
             disabled={uploadMutation.isPending || files.length === 0 || files.some(f => f.status === "uploading")}
             className={files.length > 0 && files.every(f => f.status !== "uploading") && !uploadMutation.isPending ? "bg-green-600 hover:bg-green-700" : ""}
           >
