@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, RefreshCw, Activity, CreditCard, Calendar, Eye } from "lucide-react";
 import { Link } from "wouter";
-import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
+import ActivityHeatMap from "@/components/shared/ActivityHeatMap";
 import { TddfTransactionDetailModal } from "@/components/tddf/TddfTransactionDetailModal";
 
 interface OrphanTerminalDetails {
@@ -265,10 +265,15 @@ export default function OrphanTerminalViewPage() {
           </TabsList>
 
           <TabsContent value="activity" className="mt-6">
-            <TerminalActivityHeatMap 
-              transactions={transactions} 
-              timeRange="12months" 
+            <ActivityHeatMap 
+              data={(transactions || []).map((t: any) => ({ 
+                date: t.transaction_date || t.transactionDate, 
+                count: 1 
+              }))}
+              title="Terminal Activity Heat Map"
+              description="Daily transaction volume over time - darker squares indicate more transactions"
               isLoading={transactionsLoading}
+              timeRange="12months"
             />
           </TabsContent>
 

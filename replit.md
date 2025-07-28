@@ -16,21 +16,18 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 28, 2025 - ENHANCED HEAT MAP VISUALIZATION TEMPLATE COMPLETED - RESPONSIVE CONTAINERIZATION WITH ALIGNMENT SYSTEM
-- **✅ ALL HEAT MAP VISUALIZATION TEMPLATES COMPLETED (July 28, 2025)**: Successfully standardized heat map template across all MMS components with professional styling and smooth loading experience
-  - **Gray Box Containerization**: Added professional gray container around heat map with proper visual separation and padding
-  - **Responsive Square Sizing**: Enhanced squares from 3x3 to 4x4 pixels (33% larger) with optimized 20px week spacing for better page width utilization
-  - **Precision Month Alignment**: Fixed month label positioning to align exactly with grid columns using calculated positioning system
-  - **Year Navigation Integration**: Positioned year controls inside container and right-aligned with heat map width boundaries
-  - **Legend Alignment System**: Moved legend inside container with proper right-alignment matching heat map width constraints
-  - **Loading Flash Elimination**: Created skeleton loader with identical structure and sizing to prevent visual flashing during render
-  - **Template Standardization**: Established reusable pattern for heat map components across MMS (TDDF ✓, Merchants ✓, Terminals ✓)
-  - **TypeScript Error Resolution**: Fixed type conversion issue in TerminalActivityHeatMap for Math.max function
-  - **Terminal View Pages Enhanced**: Added proper skeleton loading state for TerminalActivityHeatMap in both TerminalViewPage and OrphanTerminalViewPage
-  - **Multi-Color Gradient System Applied**: Updated terminal heat map from simple green to enhanced green-blue-purple progression matching enhanced template standard
-  - **Legend Synchronization Completed**: Updated legend to show complete 9-level gradient progression for better visual understanding
-  - **Component Caching Issues Resolved**: Fixed React hydration conflicts and static flag errors through server restart and component rebuild
-  - **Production Ready**: Complete heat map visualization system ready for deployment with consistent styling and smooth user experience across all pages
+- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION
+- **✅ SHARED HEAT MAP COMPONENT LIBRARY COMPLETED (July 28, 2025)**: Successfully created centralized heat map component library eliminating React static flag errors and establishing consistent styling
+  - **Shared Component Architecture**: Created `client/src/components/shared/ActivityHeatMap.tsx` as universal heat map solution for all MMS pages
+  - **Enhanced Template Standard**: Multi-color gradient system (green-blue-purple progression) with larger 4x4 pixel squares and 9-level intensity mapping
+  - **Component Replacement Success**: Replaced problematic `TerminalActivityHeatMap` in both `TerminalViewPage` and `OrphanTerminalViewPage` with shared component
+  - **React Static Flag Error Resolution**: Eliminated persistent "Expected static flag was missing" errors at line 171 through component library approach
+  - **Gray Container Styling**: Professional gray container with proper padding, month alignment, and legend positioning matching Terminal Directory reference
+  - **Skeleton Loading System**: Complete loading skeleton with identical structure to prevent visual flashing during data fetch
+  - **Responsive Grid Layout**: Calculated month positioning and week spacing optimized for different data volumes and time ranges
+  - **TypeScript Compatibility**: Proper data transformation with flexible date field handling (transaction_date || transactionDate)
+  - **Interactive Features**: Clickable day squares with date filtering, hover tooltips, and selected date highlighting with orange styling
+  - **Production Ready**: Unified heat map visualization system operational across all terminal and TDDF pages with consistent user experience
 - **✅ GITHUB UPLOAD COMPLETELY RESOLVED (July 27, 2025)**: Successfully fixed GitHub authentication and uploaded complete MMS codebase to repository
   - **Root Cause Fixed**: Expired GITHUB_TOKEN replaced with fresh Personal Access Token from user
   - **Script Authentication Enhanced**: Updated push_to_github.sh with reliable token-in-URL Git authentication method
