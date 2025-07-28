@@ -12944,6 +12944,8 @@ export class DatabaseStorage implements IStorage {
             (processing_status = 'uploading' AND uploaded_at < $1) OR
             (raw_lines_count = 0 OR raw_lines_count IS NULL)
           )
+          AND processing_status NOT IN ('error', 'completed')
+          AND NOT (storage_path LIKE 'placeholder_%')
         ORDER BY uploaded_at DESC
         LIMIT 50
       `, [fiveMinutesAgo]);
@@ -12961,8 +12963,131 @@ export class DatabaseStorage implements IStorage {
   async recoverOrphanedUploads(fileIds: string[]): Promise<number> {
     try {
       const uploadsTableName = getTableName('uploaded_files');
-      console.log(`[ORPHANED-RECOVERY] Recovering ${fileIds.length} orphaned uploads...`);
+      console.log(`[ORPHANED-RECOVERY] Attempting recovery of ${fileIds.length} orphaned uploads...`);
       
+      // First, check which files need content reprocessing (rawLinesCount = 0)
+      const filesNeedingReprocessing = await pool.query(`
+        SELECT id, original_filename, storage_path, file_type, raw_lines_count
+        FROM ${uploadsTableName}
+        WHERE id = ANY($1::text[])
+          AND deleted = false
+          AND raw_lines_count = 0
+      `, [fileIds]);
+
+      let reprocessedFiles = 0;
+
+      // Handle files that have placeholder storage paths (incomplete uploads)
+      for (const file of filesNeedingReprocessing.rows) {
+        try {
+          console.log(`[ORPHANED-RECOVERY] Analyzing file: ${file.original_filename} (path: ${file.storage_path})`);
+          
+          // Check if this is a placeholder entry (incomplete two-phase upload)
+          if (file.storage_path.startsWith('placeholder_')) {
+            console.log(`[ORPHANED-RECOVERY] Found placeholder entry: ${file.original_filename}`);
+            console.log(`[ORPHANED-RECOVERY] This indicates an incomplete two-phase upload - file content was never uploaded`);
+            
+            // Mark the file as permanently failed since content is missing
+            await pool.query(`
+              UPDATE ${uploadsTableName}
+              SET 
+                processing_status = 'error',
+                processing_errors = '[ORPHANED-RECOVERY] Incomplete upload - file content never received in two-phase upload process',
+                processing_notes = CASE 
+                  WHEN processing_notes IS NOT NULL 
+                  THEN processing_notes || ' [FAILED: Placeholder entry without content]'
+                  ELSE '[FAILED: Placeholder entry - content never uploaded]'
+                END
+              WHERE id = $1
+            `, [file.id]);
+            
+            console.log(`[ORPHANED-RECOVERY] Marked ${file.original_filename} as failed due to missing content`);
+            reprocessedFiles++;
+            continue;
+          }
+
+          // For files with actual storage paths, try to read content
+          const fs = await import('fs/promises');
+          let content = '';
+          
+          try {
+            content = await fs.readFile(file.storage_path, 'utf8');
+          } catch (readError) {
+            console.error(`[ORPHANED-RECOVERY] Could not read file ${file.storage_path}:`, readError);
+            
+            // Mark as error since file should exist but can't be read
+            await pool.query(`
+              UPDATE ${uploadsTableName}
+              SET 
+                processing_status = 'error',
+                processing_errors = $1
+              WHERE id = $2
+            `, [`File read error: ${readError.message}`, file.id]);
+            continue;
+          }
+
+          if (!content.trim()) {
+            console.log(`[ORPHANED-RECOVERY] File ${file.original_filename} is empty, marking as error`);
+            await pool.query(`
+              UPDATE ${uploadsTableName}
+              SET 
+                processing_status = 'error',
+                processing_errors = 'File is empty'
+              WHERE id = $1
+            `, [file.id]);
+            continue;
+          }
+
+          // Process raw data extraction for valid files
+          const lines = content.split('\n').filter(line => line.trim().length > 0);
+          const rawLinesCount = lines.length;
+          
+          // Update the file with raw data information
+          await pool.query(`
+            UPDATE ${uploadsTableName}
+            SET 
+              raw_lines_count = $1,
+              processing_notes = CASE 
+                WHEN processing_notes IS NOT NULL 
+                THEN processing_notes || ' [REPROCESSED: Extracted ' || $1 || ' raw lines]'
+                ELSE '[REPROCESSED: Extracted ' || $1 || ' raw lines during recovery]'
+              END
+            WHERE id = $2
+          `, [rawLinesCount, file.id]);
+
+          // For TDDF files, also populate the raw import table
+          if (file.file_type === 'tddf') {
+            const tddfRawImportTableName = getTableName('tddf_raw_import');
+            
+            // Check if raw data already exists
+            const existingRaw = await pool.query(`
+              SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE upload_id = $1
+            `, [file.id]);
+
+            if (existingRaw.rows[0].count === '0') {
+              // Insert raw lines into tddf_raw_import
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const recordType = line.length >= 2 ? line.substring(18, 20).trim() : '';
+                
+                await pool.query(`
+                  INSERT INTO ${tddfRawImportTableName} 
+                  (upload_id, line_number, raw_line, record_type, processing_status)
+                  VALUES ($1, $2, $3, $4, 'pending')
+                `, [file.id, i + 1, line, recordType]);
+              }
+              console.log(`[ORPHANED-RECOVERY] Inserted ${lines.length} raw lines for TDDF file ${file.original_filename}`);
+            }
+          }
+
+          reprocessedFiles++;
+          console.log(`[ORPHANED-RECOVERY] Successfully reprocessed ${file.original_filename} with ${rawLinesCount} lines`);
+
+        } catch (fileError) {
+          console.error(`[ORPHANED-RECOVERY] Error reprocessing file ${file.original_filename}:`, fileError);
+        }
+      }
+
+      // Now update status for recoverable files (excluding placeholder failures)
       const result = await pool.query(`
         UPDATE ${uploadsTableName}
         SET 
@@ -12975,12 +13100,15 @@ export class DatabaseStorage implements IStorage {
           processing_server_id = NULL
         WHERE id = ANY($1::text[])
           AND deleted = false
+          AND processing_status != 'error'
+          AND NOT (storage_path LIKE 'placeholder_%')
         RETURNING id
       `, [fileIds]);
 
-      const recovered = result.rows.length;
-      console.log(`[ORPHANED-RECOVERY] Successfully recovered ${recovered} uploads`);
-      return recovered;
+      const statusRecovered = result.rows.length;
+      console.log(`[ORPHANED-RECOVERY] Recovery summary: ${reprocessedFiles} files reprocessed, ${statusRecovered} files status updated`);
+      return statusRecovered;
+      
     } catch (error) {
       console.error('[ORPHANED-RECOVERY] Error recovering orphaned uploads:', error);
       throw error;

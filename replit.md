@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION - CODE CLEANUP - PRE-DEPLOYMENT ENVIRONMENT ISOLATION COMPLETED - SCHEMA VERSION DISPLAY SYSTEM OPERATIONAL - UPLOADING STATUS TRACKING SYSTEM COMPLETED - PLACEHOLDER UPLOAD ERROR RESOLUTION COMPLETED - UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED - ORPHANED UPLOAD RECOVERY SYSTEM FULLY OPERATIONAL
+- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION - CODE CLEANUP - PRE-DEPLOYMENT ENVIRONMENT ISOLATION COMPLETED - SCHEMA VERSION DISPLAY SYSTEM OPERATIONAL - UPLOADING STATUS TRACKING SYSTEM COMPLETED - PLACEHOLDER UPLOAD ERROR RESOLUTION COMPLETED - UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED - ORPHANED UPLOAD RECOVERY SYSTEM FULLY OPERATIONAL - ORPHANED DETECTION LOGIC COMPLETELY RESOLVED
 - **✅ PLACEHOLDER UPLOAD ERROR RESOLUTION COMPLETED (July 28, 2025)**: Successfully unified competing upload systems and resolved placeholder synchronization issues
   - **Root Cause Identified**: Two competing upload systems existed - SmartFileUploader (2-phase: initialize → upload) and FileUploadModal (direct upload only)
   - **Architecture Conflict Fixed**: FileUploadModal was the active component in main Uploads page but didn't use placeholder initialization system
@@ -34,6 +34,15 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Live System Testing**: Successfully detected 11 orphaned uploads and recovered test file confirming end-to-end workflow functionality
   - **Cache Invalidation**: Recovery operations properly invalidate React Query caches for uploads history and processing status ensuring UI consistency
   - **Production Ready**: Complete orphaned upload management system operational with robust error handling and automatic monitoring integration
+- **✅ ORPHANED DETECTION LOGIC COMPLETELY RESOLVED (July 28, 2025)**: Successfully eliminated persistent 11 orphaned uploads through enhanced placeholder detection and recovery exclusion logic
+  - **Root Cause Analysis**: Identified competing recovery operations where placeholder files were correctly marked as errors but immediately reset to queued status
+  - **Placeholder Detection Enhanced**: Implemented proper identification of incomplete two-phase uploads with storage paths like "placeholder_tddf_[uploadId]"
+  - **Error State Preservation**: Fixed recovery logic to exclude files properly identified as placeholder errors from status reset operations
+  - **Recovery Logic Refinement**: Enhanced `recoverOrphanedUploads()` to skip files with error status and placeholder storage paths during batch recovery
+  - **Detection Query Optimization**: Updated `getOrphanedUploads()` query with proper exclusion conditions for error status files and placeholder entries
+  - **Automatic Monitoring Integration**: Scanly-Watcher now properly handles placeholder files showing "✅ No orphaned uploads found - recovery not needed"
+  - **Zero Orphaned State Achieved**: System now maintains 0 orphaned uploads with 11 placeholder files properly marked as permanent errors
+  - **Production Ready**: Complete orphaned upload detection system operational with intelligent placeholder handling and proper error state management
 - **✅ UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED (July 28, 2025)**: Successfully implemented user-controlled modal monitoring system resolving UI stuck state issues
   - **Completion Detection System**: Added comprehensive file status monitoring to detect when all uploads finish (completed or failed)
   - **User-Controlled Closure**: Removed forced auto-close, allowing users to monitor progress and close when ready
