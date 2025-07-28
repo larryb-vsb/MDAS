@@ -2814,8 +2814,13 @@ export default function TddfPage() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>
+                <CardTitle className="flex items-center gap-2">
                   DT Records ({totalRecords})
+                  {(selectedDate || effectiveFilters.txnDateFrom || effectiveFilters.txnDateTo || effectiveFilters.search || effectiveFilters.merchantId || effectiveFilters.cardType !== "all" || effectiveFilters.vNumber) && (
+                    <span className="text-blue-600 text-sm font-medium px-2 py-1 bg-blue-50 rounded">
+                      Filtered
+                    </span>
+                  )}
                 </CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show:</span>
