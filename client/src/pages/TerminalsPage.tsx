@@ -248,10 +248,74 @@ export default function TerminalsPage() {
           </div>
         </div>
 
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{terminals.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Across all merchants
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Terminals</CardTitle>
+              <Shield className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {terminals.filter(t => t.status === "Active").length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Currently operational
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Under Maintenance</CardTitle>
+              <Wifi className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {terminals.filter(t => t.status === "Maintenance").length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Requiring attention
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {terminals.filter(t => t.lastUpdate && 
+                  new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                ).length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Active in last 24h
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* TDDF Activity Heat Map - Common area above Terminal Directory */}
         <TddfActivityHeatMap />
-            {/* Filters */}
-      <Card>
+
+        {/* Filters */}
+        <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
