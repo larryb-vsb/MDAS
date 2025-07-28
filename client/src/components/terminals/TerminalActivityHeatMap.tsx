@@ -221,7 +221,7 @@ export default function TerminalActivityHeatMap({
     return labels;
   }, [heatMapData.weeks]);
 
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
   // Navigation handlers
   const goToPreviousYear = () => {
@@ -242,7 +242,7 @@ export default function TerminalActivityHeatMap({
   const canGoToNext = availableYears.indexOf(selectedYear) > 0;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6" key="terminal-heatmap-enhanced">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
