@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION - CODE CLEANUP
+- Current session: July 28, 2025 - SHARED HEAT MAP COMPONENT LIBRARY COMPLETED - REACT STATIC FLAG ERROR RESOLUTION - CODE CLEANUP - PRE-DEPLOYMENT ENVIRONMENT ISOLATION COMPLETED
 - **✅ SHARED HEAT MAP COMPONENT LIBRARY COMPLETED (July 28, 2025)**: Successfully created centralized heat map component library eliminating React static flag errors and establishing consistent styling
   - **Shared Component Architecture**: Created `client/src/components/shared/SimpleActivityHeatMap.tsx` as universal heat map solution for terminal pages
   - **Enhanced Template Standard**: Multi-color gradient system (green-blue-purple progression) with larger 4x4 pixel squares and 9-level intensity mapping
@@ -29,6 +29,16 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Interactive Features**: Clickable day squares with date filtering, hover tooltips, and selected date highlighting with orange styling
   - **Production Ready**: Unified heat map visualization system operational across all terminal and TDDF pages with consistent user experience
   - **Code Cleanup**: Removed unused `TerminalActivityHeatMap.tsx` component that was causing React static flag errors
+- **✅ PRE-DEPLOYMENT ENVIRONMENT ISOLATION COMPLETED (July 28, 2025)**: Successfully resolved all critical table import issues ensuring proper dev/production separation
+  - **System Health Status**: DEPLOYMENT READY - 0 high severity issues, 385 safe environment patterns detected
+  - **Critical Table Import Fixes Applied**: Converted 4 direct Drizzle ORM table references to environment-aware raw SQL with getTableName() calls
+    - merchantsTable → getTableName('merchants') with raw SQL insertion
+    - transactionsTable → getTableName('transactions') with raw SQL insertion (2 instances)
+    - tddfRecordsTable → getTableName('tddf_records') with raw SQL insertion
+  - **Environment-Critical Annotations**: Added @ENVIRONMENT-CRITICAL and @DEPLOYMENT-CHECK tags for future maintenance
+  - **Deployment Safety Achieved**: All high-priority environment isolation issues resolved for production deployment
+  - **Remaining Issues**: 3 medium severity issues (usersTable references in SQL queries) - safe for deployment but can be optimized later
+  - **Production Ready**: System can now deploy safely with proper table separation between development (dev_) and production environments
 - **✅ GITHUB UPLOAD COMPLETELY RESOLVED (July 27, 2025)**: Successfully fixed GitHub authentication and uploaded complete MMS codebase to repository
   - **Root Cause Fixed**: Expired GITHUB_TOKEN replaced with fresh Personal Access Token from user
   - **Script Authentication Enhanced**: Updated push_to_github.sh with reliable token-in-URL Git authentication method

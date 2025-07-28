@@ -4525,7 +4525,12 @@ export class DatabaseStorage implements IStorage {
                   editDate: new Date()
                 };
                 
-                await db.insert(merchantsTable).values(newMerchant);
+                // @ENVIRONMENT-CRITICAL - Dynamic merchant creation with environment-aware table naming
+                // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
+                const merchantsTableName = getTableName('merchants');
+                const columns = Object.keys(newMerchant).join(', ');
+                const values = Object.values(newMerchant).map((_, index) => `$${index + 1}`).join(', ');
+                await pool.query(`INSERT INTO ${merchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
                 console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
               } else {
                 console.log(`[SKIP MERCHANT] No name available for ${merchantId}, will skip transactions for this merchant to avoid bad data`);
@@ -4552,7 +4557,12 @@ export class DatabaseStorage implements IStorage {
             while (insertAttempts < 100) {
               try {
                 // Attempt to insert transaction
-                await db.insert(transactionsTable).values(finalTransaction);
+                // @ENVIRONMENT-CRITICAL - Dynamic transaction insertion with environment-aware table naming
+                // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
+                const transactionsTableName = getTableName('transactions');
+                const columns = Object.keys(finalTransaction).join(', ');
+                const values = Object.values(finalTransaction).map((_, index) => `$${index + 1}`).join(', ');
+                await pool.query(`INSERT INTO ${transactionsTableName} (${columns}) VALUES (${values})`, Object.values(finalTransaction));
                 
                 insertedCount++;
                 insertedTransactionsList.push({
@@ -4818,7 +4828,12 @@ export class DatabaseStorage implements IStorage {
                         
                         try {
                           const incrementedTransaction = { ...updatedTransaction, id: finalTransactionId };
-                          await db.insert(transactionsTable).values(incrementedTransaction);
+                          // @ENVIRONMENT-CRITICAL - Dynamic incremented transaction insertion with environment-aware table naming
+                          // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
+                          const transactionsTableName = getTableName('transactions');
+                          const columns = Object.keys(incrementedTransaction).join(', ');
+                          const values = Object.values(incrementedTransaction).map((_, index) => `$${index + 1}`).join(', ');
+                          await pool.query(`INSERT INTO ${transactionsTableName} (${columns}) VALUES (${values})`, Object.values(incrementedTransaction));
                           console.log(`Successfully inserted transaction ${finalTransactionId} with incremented ID`);
                           insertSuccessful = true;
                         } catch (incrementError: any) {
@@ -7738,15 +7753,20 @@ export class DatabaseStorage implements IStorage {
   async createTddfRecord(recordData: InsertTddfRecord): Promise<TddfRecord> {
     try {
       const currentTime = new Date();
-      const records = await db
-        .insert(tddfRecordsTable)
-        .values({
-          ...recordData,
-          recordedAt: currentTime, // Explicitly set recorded_at to current time for metrics
-          createdAt: currentTime,
-          updatedAt: currentTime
-        })
-        .returning();
+      // @ENVIRONMENT-CRITICAL - TDDF record creation with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses getTableName() for proper dev/production separation
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const recordToInsert = {
+        ...recordData,
+        recordedAt: currentTime, // Explicitly set recorded_at to current time for metrics
+        createdAt: currentTime,
+        updatedAt: currentTime
+      };
+      
+      const columns = Object.keys(recordToInsert).join(', ');
+      const values = Object.values(recordToInsert).map((_, index) => `$${index + 1}`).join(', ');
+      const result = await pool.query(`INSERT INTO ${tddfRecordsTableName} (${columns}) VALUES (${values}) RETURNING *`, Object.values(recordToInsert));
+      const records = result.rows;
       
       return records[0];
     } catch (error) {
