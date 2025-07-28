@@ -7229,6 +7229,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Replit Object Storage configuration status
+  app.get("/api/uploader/storage-config", isAuthenticated, async (req, res) => {
+    try {
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const config = ReplitStorageService.getConfigStatus();
+      
+      // Add file count if available
+      try {
+        const files = await ReplitStorageService.listFiles('uploads/');
+        config.fileCount = files.length;
+      } catch (error) {
+        config.fileCount = 0;
+      }
+      
+      res.json(config);
+    } catch (error: any) {
+      console.error('Storage config error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // MMS Uploader API endpoints - Replit Object Storage
   app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
     try {

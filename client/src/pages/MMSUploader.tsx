@@ -95,6 +95,17 @@ export default function MMSUploader() {
     refetchInterval: 1000 // Refresh every 1 second for real-time upload feedback
   });
 
+  // Get storage configuration
+  const { data: storageConfig } = useQuery<{
+    available: boolean;
+    service: string;
+    bucket: string;
+    fileCount?: number;
+  }>({
+    queryKey: ['/api/uploader/storage-config'],
+    refetchInterval: 5000 // Check storage status every 5 seconds
+  });
+
   // Start upload mutation
   const startUploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -296,6 +307,24 @@ export default function MMSUploader() {
         </div>
         
         <div className="flex gap-4">
+          {/* Replit Object Storage Status */}
+          <Card className="p-4 border-2 border-blue-200 bg-blue-50">
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-blue-600" />
+              <div>
+                <div className="text-lg font-bold text-blue-700">
+                  {storageConfig?.available ? '✅ Replit Storage' : '❌ Storage Offline'}
+                </div>
+                <div className="text-sm text-blue-600">
+                  Bucket: {storageConfig?.bucket || 'mms-uploader-files'}
+                  {storageConfig?.fileCount !== undefined && (
+                    <span className="ml-2">({storageConfig.fileCount} files)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+          
           <Card className="p-4">
             <div className="text-2xl font-bold text-blue-600">{totalUploads}</div>
             <div className="text-sm text-muted-foreground">Total Uploads</div>
@@ -580,7 +609,7 @@ export default function MMSUploader() {
                 MMS Uploader Files
               </CardTitle>
               <CardDescription>
-                View and manage files in the 3-phase upload system (Started → Uploading → Uploaded)
+                Files stored in Replit Object Storage with automatic upload stream offloading (Started → Uploading → Uploaded)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -20,9 +20,12 @@ export class ReplitStorageService {
 
   static isConfigured(): boolean {
     try {
-      // In Replit environment, object storage is always available
+      // Test if we can create a client
+      this.getClient();
+      console.log('[REPLIT-STORAGE] Configuration check passed');
       return true;
     } catch (error) {
+      console.error('[REPLIT-STORAGE] Configuration check failed:', error);
       return false;
     }
   }
