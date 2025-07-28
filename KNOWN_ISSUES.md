@@ -1,4 +1,3 @@
-
 # Known Issues and Bug Reports
 
 ## Active Issues
@@ -321,6 +320,72 @@ Existing table-level separation provides complete data isolation and proven reli
 ## Resolved Issues
 
 *(Resolved issues will be moved here with resolution details)*
+
+---
+
+### Issue #006: Terminal Data Property Access Inconsistency
+**Status**: Active  
+**Priority**: High  
+**Date Reported**: 2025-01-28  
+**Reported By**: Morgan (Console Log Analysis)  
+
+**Description**: 
+Terminal detail pages experiencing inconsistent property access where some terminals load with camelCase properties and others with snake_case properties, causing undefined values and failed data displays.
+
+**Console Evidence**:
+```javascript
+// Working terminal (ID: 1738) - camelCase properties available:
+"vNumber":"V8422634","posMerchantNumber":"000000138461","dbaName":"verifyvend855-5539974"
+
+// Failing terminal (ID: 91) - snake_case properties only:
+"v_number":"V5076893","pos_merchant_number":"000000052266","dba_name":"Yoga Smokes"
+
+// Mixed state terminal (ID: 1744) - some properties missing:
+"v_number":"V0400119","pos_merchant_number":"000000000151","dba_name":"Vermont State B"
+```
+
+**Technical Analysis**:
+- **Pattern**: Different terminals return different property naming conventions
+- **Impact**: JavaScript expects camelCase but receives snake_case in some cases
+- **Root Cause**: Database query results not consistently transformed
+- **Frontend Code**: `terminal.vNumber`, `terminal.posMerchantNumber`, `terminal.dbaName`
+- **Database Schema**: `v_number`, `pos_merchant_number`, `dba_name`
+
+**Observable Symptoms**:
+- Terminal VAR numbers showing as `null` when data exists
+- Missing merchant information in terminal detail views
+- Inconsistent data loading across different terminal records
+- Frontend components rendering empty states despite backend data
+
+**Debug Logs Show**:
+```
+[TERMINAL DEBUG] VAR Number from data: null (should be V5076893)
+[TERMINAL DEBUG] VAR Number from data: "V8422634" (working correctly)
+```
+
+**Files Affected**:
+- `client/src/pages/TerminalViewPage.tsx` - Property access patterns
+- `server/routes/*` - Terminal data queries and transformations
+- Database queries returning inconsistent column naming
+
+**Immediate Impact**:
+- Users cannot view complete terminal information
+- Terminal transaction lookups failing
+- Data integrity appears compromised to end users
+
+**Related to Issue #005**: This is a specific manifestation of the broader camelCase/snake_case inconsistency problem affecting the terminal management system.
+
+**Priority Justification**: Core functionality failure affecting user experience and data accessibility.
+
+**Urgency**: High - affects core data display functionality
+
+**Estimated Fix Time**: 4-6 hours for comprehensive resolution
+
+**Testing Requirements**:
+- Verify all terminal data displays correctly
+- Test merchant information rendering  
+- Validate API response field mappings
+- Confirm database query result consistency
 
 ---
 
