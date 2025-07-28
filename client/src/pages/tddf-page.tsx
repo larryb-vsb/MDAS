@@ -184,11 +184,27 @@ interface TddfRecord {
   // System and audit fields
   sourceFileId?: string;
   sourceRowNumber?: number;
+  source_row_number?: number;
   recordedAt?: string | Date;
+  recorded_at?: string | Date;
   rawData?: any;
   mmsRawLine?: string;
+  mms_raw_line?: string;
   createdAt?: string | Date;
+  created_at?: string | Date;
   updatedAt?: string | Date;
+  updated_at?: string | Date;
+  
+  // API snake_case fields
+  merchant_account_number?: string;
+  batch_julian_date?: string;
+  cardholder_account_number?: string;
+  auth_source?: string;
+  auth_amount?: string | number;
+  reject_reason?: string;
+  mcc_code?: string;
+  transaction_type_identifier?: string;
+  cash_back_amount?: string | number;
 }
 
 interface TddfFilters {
@@ -620,12 +636,12 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Authorization Number (243-250)', value: record.authorization_number, mono: true },
     { label: 'Card Type (253-254)', value: record.card_type, mono: true },
     { label: 'Reject Reason (255-258)', value: record.reject_reason, mono: true },
-    { label: 'Cash Back Amount (312-322)', value: record.cashBackAmount ? formatCurrency(record.cashBackAmount) : 'N/A' },
-    { label: 'Source Row Number', value: record.sourceRowNumber },
-    { label: 'Recorded At', value: record.recordedAt ? formatTableDate(record.recordedAt.toString()) : 'N/A' },
-    { label: 'Created At', value: record.createdAt ? formatTableDate(record.createdAt.toString()) : 'N/A' },
-    { label: 'Updated At', value: record.updatedAt ? formatTableDate(record.updatedAt.toString()) : 'N/A' },
-    { label: 'Raw Data Available', value: record.mmsRawLine ? 'Yes' : 'No' },
+    { label: 'Cash Back Amount (312-322)', value: record.cash_back_amount ? formatCurrency(record.cash_back_amount) : 'N/A' },
+    { label: 'Source Row Number', value: record.source_row_number },
+    { label: 'Recorded At', value: record.recorded_at ? formatTableDate(record.recorded_at.toString()) : 'N/A' },
+    { label: 'Created At', value: record.created_at ? formatTableDate(record.created_at.toString()) : 'N/A' },
+    { label: 'Updated At', value: record.updated_at ? formatTableDate(record.updated_at.toString()) : 'N/A' },
+    { label: 'Raw Data Available', value: record.mms_raw_line ? 'Yes' : 'No' },
   ];
 
   const allFields = [
@@ -638,7 +654,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Bank Number (20-23)', value: record.bankNumber, mono: true },
     
     // Account and merchant fields (positions 24-61)
-    { label: 'Merchant Account Number (24-39)', value: record.merchantAccountNumber, mono: true },
+    { label: 'Merchant Account Number (24-39)', value: record.merchant_account_number || record.merchantAccountNumber, mono: true },
     { label: 'Association Number 1 (40-45)', value: record.associationNumber1, mono: true },
     { label: 'Group Number (46-51)', value: record.groupNumber, mono: true },
     { label: 'Transaction Code (52-55)', value: record.transactionCode, mono: true },
@@ -648,9 +664,9 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Reference Number (62-84)', value: record.reference_number, mono: true },
     { label: 'Transaction Date (85-92)', value: record.transaction_date ? formatTddfDate(record.transaction_date.toString()) : 'N/A' },
     { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transaction_amount), highlight: true },
-    { label: 'Batch Julian Date (104-108)', value: record.batchJulianDate, mono: true },
+    { label: 'Batch Julian Date (104-108)', value: record.batch_julian_date || record.batchJulianDate, mono: true },
     { label: 'Net Deposit (109-109)', value: record.netDeposit ? formatCurrency(record.netDeposit) : 'N/A' },
-    { label: 'Cardholder Account Number (109-142)', value: record.cardholderAccountNumber, mono: true },
+    { label: 'Cardholder Account Number (109-142)', value: record.cardholder_account_number, mono: true },
     
     // Transaction details (positions 143-187)
     { label: 'Best Interchange Eligible (143-143)', value: record.bestInterchangeEligible, mono: true },
@@ -660,7 +676,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Downgrade Reason 3 (152-153)', value: record.downgradeReason3, mono: true },
     { label: 'Online Entry (154-154)', value: record.onlineEntry, mono: true },
     { label: 'ACH Flag (155-155)', value: record.achFlag, mono: true },
-    { label: 'Auth Source (176-176)', value: record.authSource, mono: true },
+    { label: 'Auth Source (176-176)', value: record.auth_source, mono: true },
     { label: 'Cardholder ID Method (177-177)', value: record.cardholderIdMethod, mono: true },
     { label: 'CAT Indicator (178-178)', value: record.catIndicator, mono: true },
     { label: 'Reimbursement Attribute (179-179)', value: record.reimbursementAttribute, mono: true },
@@ -671,7 +687,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     // Additional transaction info (positions 188-242)
     { label: 'Draft A Flag (188-188)', value: record.draftAFlag, mono: true },
     { label: 'Auth Currency Code (189-191)', value: record.authCurrencyCode, mono: true },
-    { label: 'Auth Amount (192-203)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A', highlight: true },
+    { label: 'Auth Amount (192-203)', value: (record.auth_amount || record.authAmount) ? formatCurrency(record.auth_amount || record.authAmount) : 'N/A', highlight: true },
     { label: 'Validation Code (204-207)', value: record.validationCode, mono: true },
     { label: 'Auth Response Code (215-216)', value: record.authResponseCode, mono: true },
     { label: 'Network Identifier Debit (217-217)', value: record.networkIdentifierDebit, mono: true },
@@ -698,7 +714,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     // Extended fields (positions 285+)
     { label: 'Discover POS Entry Mode (285-287)', value: record.discoverPosEntryMode, mono: true },
     { label: 'Purchase ID (288-312)', value: record.purchaseId, mono: true },
-    { label: 'Cash Back Amount (313-321)', value: record.cashBackAmount ? formatCurrency(record.cashBackAmount) : 'N/A' },
+    { label: 'Cash Back Amount (313-321)', value: (record.cash_back_amount || record.cashBackAmount) ? formatCurrency(record.cash_back_amount || record.cashBackAmount) : 'N/A' },
     { label: 'Cash Back Amount Sign (322-322)', value: record.cashBackAmountSign, mono: true },
     { label: 'POS Data Code (323-335)', value: record.posDataCode, mono: true },
     { label: 'Transaction Type Identifier (336-338)', value: record.transactionTypeIdentifier, mono: true },
