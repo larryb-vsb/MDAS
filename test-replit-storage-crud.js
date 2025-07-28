@@ -19,18 +19,14 @@ async function runCrudTest() {
   try {
     // 1. CREATE - Upload a test file
     console.log('\n1️⃣ CREATE TEST - Uploading test file...');
-    const testContent = `CRUD Test File
-Upload ID: ${testUploadId}
-Timestamp: ${new Date().toISOString()}
-Test Data: This is a comprehensive CRUD test for Replit Object Storage
-Content Length: ${Math.random().toString(36)}`;
+    const testContent = `CRUD Test File - Upload ID: ${testUploadId} - Timestamp: ${new Date().toISOString()} - Test Data: This is a comprehensive CRUD test for Replit Object Storage - Content Length: ${Math.random().toString(36)}`;
     
     const testBuffer = Buffer.from(testContent, 'utf8');
     
     const uploadResult = await ReplitStorageService.uploadFile(
-      testUploadId,
+      testBuffer,
       testFilename,
-      testBuffer
+      testUploadId
     );
     
     console.log('✅ CREATE SUCCESS:', {
@@ -56,13 +52,13 @@ Content Length: ${Math.random().toString(36)}`;
 
     // 3. UPDATE - Upload updated version
     console.log('\n3️⃣ UPDATE TEST - Uploading updated version...');
-    const updatedContent = testContent + '\n\nUPDATED: ' + new Date().toISOString();
+    const updatedContent = testContent + ' - UPDATED: ' + new Date().toISOString();
     const updatedBuffer = Buffer.from(updatedContent, 'utf8');
     
     const updateResult = await ReplitStorageService.uploadFile(
-      testUploadId,
+      updatedBuffer,
       testFilename,
-      updatedBuffer
+      testUploadId
     );
     
     console.log('✅ UPDATE SUCCESS:', {
@@ -120,13 +116,13 @@ Content Length: ${Math.random().toString(36)}`;
     
     for (let i = 1; i <= 3; i++) {
       const bulkFilename = `bulk-test-${i}.txt`;
-      const bulkContent = `Bulk test file ${i}\nTimestamp: ${new Date().toISOString()}`;
+      const bulkContent = `Bulk test file ${i} - Timestamp: ${new Date().toISOString()}`;
       const bulkBuffer = Buffer.from(bulkContent, 'utf8');
       
       const bulkResult = await ReplitStorageService.uploadFile(
-        `bulk-${testUploadId}`,
+        bulkBuffer,
         bulkFilename,
-        bulkBuffer
+        `bulk-${testUploadId}`
       );
       
       bulkTestFiles.push(bulkResult.key);
