@@ -7,7 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 
@@ -21,6 +22,15 @@ const PROCESSING_PHASES = [
   { id: 'processing', name: 'Processing', icon: Database, color: 'indigo', description: 'Data being processed' },
   { id: 'completed', name: 'Completed', icon: CheckCircle, color: 'green', description: 'Successfully processed' },
   { id: 'failed', name: 'Failed', icon: AlertCircle, color: 'red', description: 'Processing failed' }
+];
+
+// Supported file types
+const FILE_TYPES = [
+  { value: 'merchant', label: 'Merchant Records', description: 'Merchant account data and profiles' },
+  { value: 'tddf', label: 'TDDF Records', description: 'Transaction Detail Data Format files' },
+  { value: 'terminal', label: 'Terminal Records (.csv)', description: 'Terminal configuration and settings' },
+  { value: 'merchant_risk', label: 'Merchant Risk Files', description: 'Risk assessment and compliance data' },
+  { value: 'mastercard_integrity', label: 'MasterCard Data Integrity', description: 'MasterCard compliance and integrity records' }
 ];
 
 const getPhaseColor = (phase: string) => {
@@ -55,6 +65,8 @@ const formatDuration = (startTime: string, endTime?: string): string => {
 
 export default function MMSUploader() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<string>('');
+  const [autoProcessing, setAutoProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
@@ -94,21 +106,51 @@ export default function MMSUploader() {
     }
   });
 
+  // Auto processing mutation
+  const autoProcessMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/uploader/auto-process', {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+    }
+  });
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(event.target.files);
   };
 
   const handleStartUpload = async () => {
-    if (!selectedFiles) return;
+    if (!selectedFiles || !selectedFileType) return;
     
     for (const file of Array.from(selectedFiles)) {
-      await startUploadMutation.mutateAsync(file);
+      const uploadResponse = await startUploadMutation.mutateAsync(file);
+      
+      // If auto processing is enabled, automatically progress through phases
+      if (autoProcessing && uploadResponse.id) {
+        try {
+          // Progress through the phases automatically
+          await updatePhaseMutation.mutateAsync({ 
+            uploadId: uploadResponse.id, 
+            phase: 'uploading', 
+            phaseData: { fileType: selectedFileType } 
+          });
+        } catch (error) {
+          console.error('Auto processing error:', error);
+        }
+      }
     }
     
     setSelectedFiles(null);
+    setSelectedFileType('');
     // Reset file input
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  const handleAutoProcess = () => {
+    autoProcessMutation.mutate();
   };
 
   // Group uploads by phase
@@ -174,28 +216,81 @@ export default function MMSUploader() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Input
-                  id="file-input"
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="cursor-pointer"
-                />
-                {selectedFiles && (
-                  <div className="text-sm text-muted-foreground">
-                    {selectedFiles.length} file(s) selected
+              <div className="space-y-4">
+                {/* File Type Selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">File Type</label>
+                  <Select value={selectedFileType} onValueChange={setSelectedFileType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select file type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FILE_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{type.label}</span>
+                            <span className="text-xs text-muted-foreground">{type.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* File Selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Files</label>
+                  <Input
+                    id="file-input"
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="cursor-pointer"
+                  />
+                  {selectedFiles && (
+                    <div className="text-sm text-muted-foreground">
+                      {selectedFiles.length} file(s) selected
+                    </div>
+                  )}
+                </div>
+
+                {/* Auto Processing Toggle */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="auto-processing"
+                    checked={autoProcessing}
+                    onChange={(e) => setAutoProcessing(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="auto-processing" className="text-sm font-medium">
+                    Enable Auto Processing
+                  </label>
+                  <div className="text-xs text-muted-foreground">
+                    Automatically progress through workflow phases
                   </div>
-                )}
+                </div>
               </div>
               
-              <Button 
-                onClick={handleStartUpload}
-                disabled={!selectedFiles || startUploadMutation.isPending}
-                className="w-full"
-              >
-                {startUploadMutation.isPending ? 'Starting...' : 'Start Upload'}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleStartUpload}
+                  disabled={!selectedFiles || !selectedFileType || startUploadMutation.isPending}
+                  className="flex-1"
+                >
+                  {startUploadMutation.isPending ? 'Starting...' : 'Start Upload'}
+                </Button>
+                
+                <Button 
+                  onClick={handleAutoProcess}
+                  disabled={autoProcessMutation.isPending || uploads.length === 0}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Zap className="h-4 w-4" />
+                  {autoProcessMutation.isPending ? 'Processing...' : 'Auto Process'}
+                </Button>
+              </div>
               
               {startUploadMutation.error && (
                 <Alert>

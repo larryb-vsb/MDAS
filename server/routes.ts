@@ -7303,6 +7303,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/uploader/auto-process", isAuthenticated, async (req, res) => {
+    try {
+      // Get all uploads that can be auto-processed
+      const uploads = await storage.getUploaderUploads({
+        phase: 'started'
+      });
+      
+      let processedCount = 0;
+      const results = [];
+      
+      for (const upload of uploads) {
+        try {
+          // Progress through phases automatically
+          const phases = ['uploading', 'uploaded', 'identified', 'queued', 'processing', 'completed'];
+          
+          for (const phase of phases) {
+            const updatedUpload = await storage.updateUploaderPhase(upload.id, phase, {
+              processedAt: new Date(),
+              autoProcessed: true
+            });
+            
+            // Add small delay between phases to simulate processing
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+          processedCount++;
+          results.push({ uploadId: upload.id, status: 'completed' });
+          console.log(`[UPLOADER API] Auto-processed upload: ${upload.id} (${upload.filename})`);
+        } catch (error) {
+          console.error(`Auto-process error for upload ${upload.id}:`, error);
+          results.push({ uploadId: upload.id, status: 'failed', error: (error as Error).message });
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        processedCount,
+        totalUploads: uploads.length,
+        results 
+      });
+    } catch (error: any) {
+      console.error('Auto process error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
