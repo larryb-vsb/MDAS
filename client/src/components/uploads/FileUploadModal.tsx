@@ -84,7 +84,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
     }
   }, [uploadStatusData, uploadedFileIds]);
 
-  // Auto-close modal when all files are completed or failed
+  // Show completion notification when all files are finished
   useEffect(() => {
     if (files.length > 0) {
       const completedFiles = files.filter(f => f.status === "completed" || f.status === "error");
@@ -101,16 +101,10 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         toast({
           title: "Upload Complete",
           description: successCount > 0 
-            ? `Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+            ? `Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}. You can monitor processing or close this dialog.`
             : `${errorCount} file${errorCount !== 1 ? 's' : ''} failed to upload`,
           variant: errorCount > 0 && successCount === 0 ? "destructive" : "default",
         });
-        
-        // Auto-close after showing completion message
-        setTimeout(() => {
-          console.log(`[FILE-MODAL] Auto-closing modal after completion`);
-          onClose();
-        }, 2000);
       }
     }
   }, [files, onClose, toast]);
@@ -564,28 +558,47 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           )}
         </div>
         
-        <DialogFooter className="sm:justify-end">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              if (files.every(f => f.status === "completed")) {
-                onClose();
-              } else {
-                uploadMutation.mutate();
-              }
-            }}
-            disabled={uploadMutation.isPending || files.length === 0 || files.some(f => f.status === "uploading")}
-            className={files.length > 0 && files.every(f => f.status !== "uploading") && !uploadMutation.isPending ? "bg-green-600 hover:bg-green-700" : ""}
-          >
-            {uploadMutation.isPending ? "Processing..." : 
-             files.every(f => f.status === "completed") ? "Close" : "Continue"}
-          </Button>
+        <DialogFooter className="sm:justify-between">
+          {/* Status Summary */}
+          <div className="flex items-center text-sm text-gray-600">
+            {files.length > 0 && (
+              <span>
+                {files.filter(f => f.status === "completed").length} completed, {' '}
+                {files.filter(f => f.status === "processing" || f.status === "queued").length} processing, {' '}
+                {files.filter(f => f.status === "uploading").length} uploading
+              </span>
+            )}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+            >
+              Close
+            </Button>
+            {files.length > 0 && files.some(f => f.status !== "completed" && f.status !== "error") && (
+              <Button
+                type="button"
+                onClick={() => {
+                  uploadMutation.mutate();
+                }}
+                disabled={uploadMutation.isPending || files.some(f => f.status === "uploading")}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {uploadMutation.isPending ? "Processing..." : "Refresh Status"}
+              </Button>
+            )}
+            {files.length > 0 && files.every(f => f.status === "completed" || f.status === "error") && (
+              <Button
+                type="button"
+                onClick={onClose}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                ✅ All Complete - Close
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

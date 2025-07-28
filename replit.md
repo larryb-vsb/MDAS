@@ -25,13 +25,14 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **TypeScript Fixes Applied**: Resolved rawDataError type handling issues in upload processing pipeline
   - **Workflow Verified**: Upload logs now show successful "Initializing X files with placeholder entries" → "Created X placeholder entries" sequence
   - **Production Ready**: All upload interfaces now use unified 2-phase system ensuring consistent placeholder creation and content updates
-- **✅ UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED (July 28, 2025)**: Successfully implemented automatic modal closure detection resolving UI stuck state issues
+- **✅ UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED (July 28, 2025)**: Successfully implemented user-controlled modal monitoring system resolving UI stuck state issues
   - **Completion Detection System**: Added comprehensive file status monitoring to detect when all uploads finish (completed or failed)
-  - **User Feedback Enhancement**: Implemented success/error counting with appropriate toast notifications showing upload results
-  - **Auto-Close Mechanism**: Modal automatically closes after 2 seconds once all files complete with proper completion messaging
-  - **Debug Logging Added**: Console logging tracks completion process for troubleshooting and verification
-  - **User Confirmed Working**: Testing confirmed modal shows green checkmarks for completed files then auto-closes as expected
-  - **Production Ready**: Upload modal now provides complete user feedback cycle without getting stuck in "uploading" state indefinitely
+  - **User-Controlled Closure**: Removed forced auto-close, allowing users to monitor progress and close when ready
+  - **Real-Time Status Summary**: Enhanced footer with live counts showing "X completed, Y processing, Z uploading"
+  - **Smart Button States**: Dynamic buttons - "Close" (always available), "Refresh Status" (during processing), "All Complete - Close" (when finished)
+  - **Enhanced Monitoring**: Users can keep modal open to watch real-time file processing progress through Scanly-Watcher system
+  - **User Confirmed Working**: Testing confirmed modal shows progress indicators and gives full user control over closure timing
+  - **Production Ready**: Upload modal provides complete monitoring capabilities without forced closure, allowing users to observe background processing
 - **✅ UPLOAD SYNCHRONIZATION ISSUE COMPLETELY RESOLVED (July 28, 2025)**: Successfully fixed persistent file upload synchronization where files showed "uploading" instead of proper status progression
   - **Root Cause**: Files were being processed successfully but database status wasn't updating from "uploading" to proper completion states
   - **Two-Phase Upload System**: Implemented immediate placeholder creation with initialization endpoint followed by content update during actual upload
