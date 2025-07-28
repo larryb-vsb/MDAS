@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, RefreshCw, Activity, CreditCard, Calendar, Eye } from "lucide-react";
 import { Link } from "wouter";
-import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
+import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMapNew";
 import { TddfTransactionDetailModal } from "@/components/tddf/TddfTransactionDetailModal";
 
 interface OrphanTerminalDetails {

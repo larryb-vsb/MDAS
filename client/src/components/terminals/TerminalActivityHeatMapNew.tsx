@@ -1,16 +1,18 @@
-import { useMemo, useState, useEffect } from "react";
-import { Transaction } from "@shared/schema";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useMemo, useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface TerminalActivityHeatMapProps {
-  transactions: any[]; // TDDF transactions with transactionDate field
-  timeRange: string;
+  transactions: Array<{
+    transactionDate?: string;
+    date?: string;
+    [key: string]: any;
+  }>;
+  timeRange?: string;
   onDateClick?: (date: string) => void;
-  isLoading?: boolean; // Add loading state prop
+  isLoading?: boolean;
 }
 
-// Skeleton loader component matching final layout
 function TerminalActivityHeatMapSkeleton() {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -55,7 +57,7 @@ function TerminalActivityHeatMapSkeleton() {
               </div>
               
               <div className="flex gap-1">
-                {Array.from({ length: 37 }, (_, weekIndex) => (
+                {Array.from({ length: 53 }, (_, weekIndex) => (
                   <div key={weekIndex} className="flex flex-col gap-1">
                     {Array.from({ length: 7 }, (_, dayIndex) => (
                       <div
@@ -67,25 +69,6 @@ function TerminalActivityHeatMapSkeleton() {
                 ))}
               </div>
             </div>
-            
-            {/* Legend Skeleton */}
-            <div className="flex justify-end mt-4" style={{ width: '740px' }}>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <div key={i} className="w-3 h-3 bg-gray-200 rounded-sm animate-pulse"></div>
-                    ))}
-                  </div>
-                  <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -93,7 +76,7 @@ function TerminalActivityHeatMapSkeleton() {
   );
 }
 
-function TerminalActivityHeatMapComponent({ 
+export default function TerminalActivityHeatMap({ 
   transactions, 
   timeRange,
   onDateClick,
@@ -109,9 +92,12 @@ function TerminalActivityHeatMapComponent({
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     transactions.forEach(t => {
-      const date = new Date(t.transactionDate || t.date);
-      if (!isNaN(date.getTime())) {
-        years.add(date.getFullYear());
+      const dateValue = t.transactionDate || t.date;
+      if (dateValue) {
+        const date = new Date(dateValue);
+        if (!isNaN(date.getTime())) {
+          years.add(date.getFullYear());
+        }
       }
     });
     return Array.from(years).sort((a, b) => b - a); // Most recent first
@@ -131,7 +117,9 @@ function TerminalActivityHeatMapComponent({
   const heatMapData = useMemo(() => {
     // Filter transactions for selected year
     const yearTransactions = transactions.filter(t => {
-      const date = new Date(t.transactionDate || t.date);
+      const dateValue = t.transactionDate || t.date;
+      if (!dateValue) return false;
+      const date = new Date(dateValue);
       return date.getFullYear() === selectedYear;
     });
 
@@ -143,10 +131,13 @@ function TerminalActivityHeatMapComponent({
 
     // Group transactions by date
     const transactionsByDate = yearTransactions.reduce((acc, transaction) => {
-      const transactionDate = new Date(transaction.transactionDate || transaction.date);
-      if (transactionDate >= startDate && transactionDate <= actualEndDate) {
-        const dateKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
-        acc[dateKey] = (acc[dateKey] || 0) + 1;
+      const dateValue = transaction.transactionDate || transaction.date;
+      if (dateValue) {
+        const transactionDate = new Date(dateValue);
+        if (transactionDate >= startDate && transactionDate <= actualEndDate) {
+          const dateKey = transactionDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+          acc[dateKey] = (acc[dateKey] || 0) + 1;
+        }
       }
       return acc;
     }, {} as Record<string, number>);
@@ -221,8 +212,6 @@ function TerminalActivityHeatMapComponent({
     return labels;
   }, [heatMapData.weeks]);
 
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-
   // Navigation handlers
   const goToPreviousYear = () => {
     const currentIndex = availableYears.indexOf(selectedYear);
@@ -242,7 +231,7 @@ function TerminalActivityHeatMapComponent({
   const canGoToNext = availableYears.indexOf(selectedYear) > 0;
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6" key="terminal-heatmap-enhanced">
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -338,7 +327,9 @@ function TerminalActivityHeatMapComponent({
               <div className="flex items-center gap-4 text-sm text-gray-600">
                 <div>
                   <span className="font-medium">{transactions.filter(t => {
-                    const transactionDate = new Date(t.transactionDate || t.date);
+                    const dateValue = t.transactionDate || t.date;
+                    if (!dateValue) return false;
+                    const transactionDate = new Date(dateValue);
                     return transactionDate.getFullYear() === selectedYear;
                   }).length}</span> transactions in {selectedYear}
                   <span className="mx-2">•</span>

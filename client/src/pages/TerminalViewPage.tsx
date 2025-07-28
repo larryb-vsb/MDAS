@@ -13,7 +13,7 @@ import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, Re
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
-import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
+import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMapNew";
 // import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
 
 export default function TerminalViewPage() {
