@@ -244,16 +244,37 @@ export default function ProcessingFilters() {
   const fetchFileContent = useMutation({
     mutationFn: async (fileId: string) => {
       const response = await fetch(`/api/uploads/${fileId}/content`, {
-        method: "GET",
+        method: "GET", 
         headers: { 'Accept': 'application/json' },
         credentials: "include",
       });
-      if (!response.ok) {
-        throw new Error("Failed to fetch file content");
+      
+      // Handle special cases for files still being processed
+      if (response.status === 202) {
+        // File is still being processed - return status info
+        const statusData = await response.json();
+        return statusData;
       }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Failed to fetch file content" }));
+        throw new Error(errorData.error || "Failed to fetch file content");
+      }
+      
       return response.json();
     },
     onSuccess: (data: any) => {
+      // Handle status responses for files still being processed
+      if (data.status === 'uploading' || data.status === 'processing') {
+        toast({
+          title: data.status === 'uploading' ? "File Still Uploading" : "File Being Processed",
+          description: data.details,
+          variant: "default",
+        });
+        return;
+      }
+      
+      // Regular file content
       setFileContent(data);
       setIsViewDialogOpen(true);
     },

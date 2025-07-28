@@ -2959,12 +2959,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = req.params.id;
       
-      // Get file info including content from database using environment-specific table
+      // Get file info including content and processing status from database using environment-specific table
       const { getTableName } = await import("./table-config");
       const uploadsTableName = getTableName('uploaded_files');
       
       const result = await pool.query(`
-        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content
+        SELECT id, original_filename, storage_path, file_type, uploaded_at, processed, processing_errors, deleted, file_content, processing_status, raw_lines_count
         FROM ${uploadsTableName}
         WHERE id = $1
       `, [fileId]);
@@ -2973,6 +2973,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!fileInfo) {
         return res.status(404).json({ error: "File not found" });
+      }
+      
+      // Handle files still in "uploading" status that don't have content yet
+      if (fileInfo.processing_status === 'uploading') {
+        // Check if raw data exists for this file
+        const tddfRawImportTableName = getTableName('tddf_raw_import');
+        const rawDataResult = await pool.query(`
+          SELECT COUNT(*) as raw_lines, 
+                 string_agg(DISTINCT record_type, ', ' ORDER BY record_type) as record_types
+          FROM ${tddfRawImportTableName}
+          WHERE source_file_id = $1
+        `, [fileId]);
+        
+        const rawData = rawDataResult.rows[0];
+        
+        if (rawData && parseInt(rawData.raw_lines) > 0) {
+          // Raw data exists - show processing status
+          return res.status(202).json({ 
+            status: "processing",
+            message: "File content is being processed",
+            details: `Raw data extracted: ${rawData.raw_lines} lines with record types: ${rawData.record_types}`,
+            rawLinesCount: parseInt(rawData.raw_lines),
+            recordTypes: rawData.record_types,
+            processingStatus: fileInfo.processing_status
+          });
+        } else {
+          // No raw data yet - file still uploading
+          return res.status(202).json({ 
+            status: "uploading",
+            message: "File is still being uploaded and processed",
+            details: "File content will be available once upload and initial processing completes",
+            processingStatus: fileInfo.processing_status,
+            rawLinesCount: fileInfo.raw_lines_count || 0
+          });
+        }
       }
       
       let csvContent = null;
