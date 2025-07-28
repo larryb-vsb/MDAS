@@ -482,11 +482,11 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
     );
   }
 
-  // Find terminal by VAR mapping pattern: V8912064 → 78912064
+  // Find terminal by VAR mapping pattern: V7565296 → 77565296
   const terminal = terminals?.find((t: any) => {
-    if (!terminalId) return false;
+    if (!terminalId || !t.vNumber) return false;
     // Extract numeric part from V Number and add "7" prefix for comparison
-    const vNumberNumeric = t.vNumber?.replace('V', '');
+    const vNumberNumeric = t.vNumber.replace('V', '');
     const expectedTerminalId = '7' + vNumberNumeric;
     return expectedTerminalId === terminalId;
   });
