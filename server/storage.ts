@@ -811,16 +811,18 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Create a base query
-      let query = db.select().from(merchantsTable);
-      let countQuery = db.select({ count: count() }).from(merchantsTable);
+      // Use environment-aware table naming
+      const merchantsTableName = getTableName('merchants');
+      console.log(`[GET MERCHANTS] Using table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
       
-      // Build conditions array for WHERE clause
+      // Build WHERE conditions for raw SQL
       const conditions = [];
+      const queryParams = [];
       
       // Apply status filter
       if (status !== "All") {
-        conditions.push(eq(merchantsTable.status, status));
+        conditions.push(`status = $${queryParams.length + 1}`);
+        queryParams.push(status);
       }
       
       // Apply last upload filter
@@ -831,77 +833,80 @@ export class DatabaseStorage implements IStorage {
         switch(lastUpload) {
           case "Last 24 hours":
             cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(`last_upload_date >= $${queryParams.length + 1}`);
+            queryParams.push(cutoffDate.toISOString());
             break;
           case "Last 7 days":
             cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(`last_upload_date >= $${queryParams.length + 1}`);
+            queryParams.push(cutoffDate.toISOString());
             break;
           case "Last 30 days":
             cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            conditions.push(gte(merchantsTable.lastUploadDate, cutoffDate));
+            conditions.push(`last_upload_date >= $${queryParams.length + 1}`);
+            queryParams.push(cutoffDate.toISOString());
             break;
           case "Never":
-            conditions.push(sql`${merchantsTable.lastUploadDate} IS NULL`);
+            conditions.push(`last_upload_date IS NULL`);
             break;
         }
       }
       
-      // Apply search filter using hybrid approach (full-text + ILIKE fallback)
+      // Apply search filter
       if (search && search.trim() !== "") {
         const searchTerm = search.trim();
-        console.log(`[SEARCH DEBUG] Using hybrid search for: "${searchTerm}"`);
+        console.log(`[SEARCH DEBUG] Using search for: "${searchTerm}"`);
         
-        // Hybrid approach: full-text search OR ILIKE fallback for short terms
-        const searchCondition = sql`(
-          to_tsvector('english', COALESCE(${merchantsTable.name}, '') || ' ' || COALESCE(${merchantsTable.id}, '') || ' ' || COALESCE(${merchantsTable.clientMID}, '')) @@ plainto_tsquery('english', ${searchTerm})
-          OR LOWER(${merchantsTable.name}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
-          OR LOWER(${merchantsTable.id}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
-          OR LOWER(${merchantsTable.clientMID}) LIKE ${'%' + searchTerm.toLowerCase() + '%'}
-        )`;
-        conditions.push(searchCondition);
-        console.log(`[SEARCH DEBUG] Added hybrid search condition (full-text + ILIKE fallback)`);
+        conditions.push(`(
+          LOWER(name) LIKE $${queryParams.length + 1}
+          OR LOWER(id) LIKE $${queryParams.length + 2}
+          OR LOWER(client_mid) LIKE $${queryParams.length + 3}
+        )`);
+        queryParams.push(`%${searchTerm.toLowerCase()}%`);
+        queryParams.push(`%${searchTerm.toLowerCase()}%`);
+        queryParams.push(`%${searchTerm.toLowerCase()}%`);
       }
       
-      // Apply all conditions to both queries
-      if (conditions.length > 0) {
-        console.log(`[SEARCH DEBUG] Applying ${conditions.length} conditions to query`);
-        console.log(`[SEARCH DEBUG] Conditions details:`, conditions.map((_, i) => `Condition ${i+1}`));
-        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
-        query = query.where(whereClause);
-        countQuery = countQuery.where(whereClause);
-      } else {
-        console.log(`[SEARCH DEBUG] No conditions to apply`);
-      }
+      // Build WHERE clause
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       
-      // Debug: Test the raw SQL that should work
-      if (search && search.trim() !== "") {
-        console.log(`[SEARCH DEBUG] Testing raw SQL query for comparison...`);
-        try {
-          const rawTestQuery = await db.execute(sql`
-            SELECT COUNT(*) as count FROM merchants 
-            WHERE LOWER(name) LIKE ${`%${search.trim().toLowerCase()}%`} 
-            OR LOWER(id) LIKE ${`%${search.trim().toLowerCase()}%`} 
-            OR LOWER(client_mid) LIKE ${`%${search.trim().toLowerCase()}%`}
-          `);
-          console.log(`[SEARCH DEBUG] Raw SQL found ${rawTestQuery[0]?.count || 0} matches`);
-        } catch (error) {
-          console.log(`[SEARCH DEBUG] Raw SQL error:`, error);
-        }
-      }
+      console.log(`[SEARCH DEBUG] Applying ${conditions.length} conditions to query`);
       
       // Get total count for pagination (with filters applied)
-      const countResult = await countQuery;
-      const totalItems = parseInt(countResult[0].count.toString(), 10);
-      const totalPages = Math.ceil(totalItems / limit);
-      const offset = (page - 1) * limit;
+      let countQuery, mainQuery;
+      if (queryParams.length > 0) {
+        countQuery = `SELECT COUNT(*) as count FROM ${merchantsTableName} ${whereClause}`;
+        mainQuery = `
+          SELECT * FROM ${merchantsTableName} 
+          ${whereClause}
+          ORDER BY name ASC
+          LIMIT ${limit} OFFSET ${(page - 1) * limit}
+        `;
+      } else {
+        // No parameters - use simple queries
+        countQuery = `SELECT COUNT(*) as count FROM ${merchantsTableName}`;
+        mainQuery = `
+          SELECT * FROM ${merchantsTableName}
+          ORDER BY name ASC
+          LIMIT ${limit} OFFSET ${(page - 1) * limit}
+        `;
+      }
       
-      // Apply pagination
-      query = query.limit(limit).offset(offset);
-      
-      // Execute query
       console.log(`[SEARCH DEBUG] Executing query with ${conditions.length} conditions`);
-      const merchants = await query;
+      console.log(`[SEARCH DEBUG] Count query:`, countQuery);
+      console.log(`[SEARCH DEBUG] Main query:`, mainQuery);
+      console.log(`[SEARCH DEBUG] Parameters:`, queryParams);
+      
+      const countResult = queryParams.length > 0 
+        ? await db.execute(sql.raw(countQuery, queryParams))
+        : await db.execute(sql.raw(countQuery));
+      const totalItems = parseInt(countResult.rows[0]?.count || '0', 10);
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      const result = queryParams.length > 0
+        ? await db.execute(sql.raw(mainQuery, queryParams))
+        : await db.execute(sql.raw(mainQuery));
+      const merchants = result.rows;
       console.log(`[SEARCH DEBUG] Query returned ${merchants.length} merchants`);
       
       // Calculate stats for each merchant and format lastUploadDate
@@ -910,8 +915,8 @@ export class DatabaseStorage implements IStorage {
         
         // Format last upload date
         let lastUpload = "Never";
-        if (merchant.lastUploadDate) {
-          const lastUploadDate = new Date(merchant.lastUploadDate);
+        if (merchant.last_upload_date) {
+          const lastUploadDate = new Date(merchant.last_upload_date);
           const now = new Date();
           const diffInHours = Math.floor((now.getTime() - lastUploadDate.getTime()) / (1000 * 60 * 60));
           
