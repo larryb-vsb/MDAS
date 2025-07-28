@@ -44,13 +44,13 @@ export default function TerminalsPage() {
   const { paginatedTerminals, pagination } = useMemo(() => {
     let filteredTerminals = terminals.filter((terminal) => {
       const matchesSearch = 
-        terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+        terminal.v_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.dba_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.pos_merchant_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
-      const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
+      const matchesType = terminalTypeFilter === "all" || terminal.terminal_type === terminalTypeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     });
