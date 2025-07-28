@@ -4194,23 +4194,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadsTableName = getTableName('uploaded_files');
       
       // Find files stuck in uploading status for more than 1 minute
-      const result = await db.execute(sql`
-        UPDATE ${sql.identifier(uploadsTableName)}
-        SET processing_status = 'queued',
-            raw_lines_count = COALESCE(raw_lines_count, 0)
+      const stuckFiles = await db.execute(sql`
+        SELECT id, original_filename, file_type, storage_path, file_content
+        FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'uploading' 
           AND uploaded_at < NOW() - INTERVAL '1 minute'
-        RETURNING id, original_filename, processing_status
       `);
+
+      const fixedFiles = [];
+      
+      for (const file of stuckFiles.rows) {
+        try {
+          let rawLinesCount = 0;
+          let fileContent = file.file_content;
+          
+          // If no file content, try to read from storage path
+          if (!fileContent && file.storage_path) {
+            try {
+              const fs = await import('fs');
+              if (fs.existsSync(file.storage_path)) {
+                fileContent = fs.readFileSync(file.storage_path, 'utf8');
+              }
+            } catch (err) {
+              console.log(`Could not read file content from ${file.storage_path}:`, err);
+            }
+          }
+          
+          // Calculate raw lines count if we have content
+          if (fileContent) {
+            const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+            rawLinesCount = lines.length;
+            
+            // Store file content in database if not already there
+            if (!file.file_content) {
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadsTableName)}
+                SET file_content = ${fileContent}
+                WHERE id = ${file.id}
+              `);
+            }
+          }
+          
+          // Update status to queued with proper raw lines count
+          await db.execute(sql`
+            UPDATE ${sql.identifier(uploadsTableName)}
+            SET processing_status = 'queued',
+                raw_lines_count = ${rawLinesCount}
+            WHERE id = ${file.id}
+          `);
+          
+          fixedFiles.push({
+            id: file.id,
+            filename: file.original_filename,
+            newStatus: 'queued',
+            rawLinesCount: rawLinesCount
+          });
+          
+        } catch (fileError) {
+          console.error(`Error processing stuck file ${file.id}:`, fileError);
+          // Still update to queued even if we can't calculate lines
+          await db.execute(sql`
+            UPDATE ${sql.identifier(uploadsTableName)}
+            SET processing_status = 'queued',
+                raw_lines_count = 0
+            WHERE id = ${file.id}
+          `);
+          
+          fixedFiles.push({
+            id: file.id,
+            filename: file.original_filename,
+            newStatus: 'queued',
+            rawLinesCount: 0,
+            error: 'Could not calculate raw lines count'
+          });
+        }
+      }
       
       res.json({
         success: true,
-        message: `Fixed ${result.rowCount || 0} stuck uploads`,
-        fixedFiles: result.rows.map((row: any) => ({
-          id: row.id,
-          filename: row.original_filename,
-          newStatus: row.processing_status
-        }))
+        message: `Fixed ${fixedFiles.length} stuck uploads with raw line processing`,
+        fixedFiles: fixedFiles
       });
     } catch (error) {
       console.error("Fix stuck uploads failed:", error);
