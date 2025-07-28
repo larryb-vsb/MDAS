@@ -5575,26 +5575,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TDDF TERMINAL] Found ${records.length} TDDF records for Terminal ID ${terminalId}`);
       
       // Transform records to include consistent field names for frontend
+      // Fix field name mapping: database uses snake_case, frontend expects camelCase
       const transformedRecords = records.map(record => ({
         id: record.id,
-        referenceNumber: record.referenceNumber,
-        merchantName: record.merchantName,
-        transactionAmount: record.transactionAmount,
-        transactionDate: record.transactionDate,
-        recordedAt: record.recordedAt,
-        terminalId: record.terminalId,
-        cardType: record.cardType,
-        authorizationNumber: record.authorizationNumber,
-        merchantAccountNumber: record.merchantAccountNumber,
-        mccCode: record.mccCode,
-        transactionTypeIdentifier: record.transactionTypeIdentifier,
-        mmsRawLine: record.mmsRawLine, // Include raw TDDF line data for details modal
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-        sourceRowNumber: record.sourceRowNumber,
+        referenceNumber: record.reference_number,
+        merchantName: record.merchant_name,
+        transactionAmount: record.transaction_amount,
+        transactionDate: record.transaction_date,
+        recordedAt: record.recorded_at,
+        terminalId: record.terminal_id,
+        cardType: record.card_type,
+        authorizationNumber: record.authorization_number,
+        merchantAccountNumber: record.merchant_account_number,
+        mccCode: record.mcc_code,
+        transactionTypeIdentifier: record.transaction_type_identifier,
+        mmsRawLine: record.mms_raw_line, // Include raw TDDF line data for details modal
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+        sourceRowNumber: record.source_row_number,
         // Add any other fields needed for display
-        amount: record.transactionAmount, // Alias for amount field
-        date: record.transactionDate    // Alias for date field
+        amount: record.transaction_amount, // Alias for amount field
+        date: record.transaction_date    // Alias for date field
       }));
       
       res.json(transformedRecords);
