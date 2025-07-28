@@ -460,15 +460,7 @@ export default function MMSUploader() {
                   )}
                 </div>
 
-                {/* Processing Info */}
-                <div className="bg-blue-50 p-3 rounded-md border-l-4 border-blue-500">
-                  <div className="text-sm font-medium text-blue-800">
-                    Automatic Processing Enabled
-                  </div>
-                  <div className="text-xs text-blue-600 mt-1">
-                    Files will automatically progress through 3 phases: Started → Uploading → Uploaded (browser). Files remain as raw-unprocessed data ready for viewing.
-                  </div>
-                </div>
+
               </div>
               
               {startUploadMutation.error && (
