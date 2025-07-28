@@ -264,25 +264,26 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
         </div>
       </div>
 
-      {/* Heat Map Grid - GitHub-style contribution chart */}
-      <div className="mb-4">
+      {/* Heat Map Grid Container with Box */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
         <div className="overflow-x-auto">
           <div className="relative" style={{ minWidth: `${weeks.length * 14 + 60}px` }}>
             {/* Month labels - positioned to align with grid columns */}
-            <div className="flex relative mb-2" style={{ marginLeft: '40px' }}>
+            <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
               {monthLabels.map((label, index) => (
                 <div
                   key={index}
                   className="absolute text-xs text-gray-500"
-                  style={{ left: `${label.position * 14}px` }}
+                  style={{ left: `${label.position * 15}px` }}
                 >
                   {label.month}
                 </div>
               ))}
             </div>
+            
             <div className="flex">
               {/* Day labels - Mon, Wed, Fri on left side */}
-              <div className="flex flex-col justify-around text-xs text-gray-500 mr-2" style={{ height: '105px' }}>
+              <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '105px' }}>
                 <div>Mon</div>
                 <div>Wed</div>
                 <div>Fri</div>
