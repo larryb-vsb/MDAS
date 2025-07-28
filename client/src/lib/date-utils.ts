@@ -146,9 +146,9 @@ export function formatTddfDate(dateString: string | null): string {
   if (!dateString) return "N/A";
   
   try {
-    // TDDF dates are stored as date-only strings (e.g., "2023-02-03")
-    // Parse without timezone conversion since they're date-only
-    const date = new Date(dateString + 'T00:00:00');
+    // Handle both ISO format from API (e.g., "2025-07-25T00:00:00.000Z") 
+    // and date-only strings (e.g., "2023-02-03")
+    const date = new Date(dateString);
     
     if (!isValid(date)) return "N/A";
     
