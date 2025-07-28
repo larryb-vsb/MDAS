@@ -71,7 +71,7 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
   return (
     <div
-      className={`w-3 h-3 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
+      className={`w-4 h-4 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
       title={`${formatDate(date)}: ${count} transactions${count > 0 ? ' (Click to filter)' : ''}`}
       onClick={handleClick}
     >
@@ -242,9 +242,9 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
       {/* Heat Map Grid Container with Box */}
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
         <div className="overflow-x-auto">
-          <div className="relative" style={{ minWidth: `${weeks.length * 14 + 60}px` }}>
+          <div className="relative" style={{ minWidth: `${weeks.length * 20 + 60}px` }}>
             {/* Year Navigation - Right aligned with heat map */}
-            <div className="flex justify-end mb-4" style={{ width: `${weeks.length * 15 + 32}px` }}>
+            <div className="flex justify-end mb-4" style={{ width: `${weeks.length * 20 + 32}px` }}>
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -276,7 +276,7 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
                 <div
                   key={index}
                   className="absolute text-xs text-gray-500"
-                  style={{ left: `${label.position * 15}px` }}
+                  style={{ left: `${label.position * 20}px` }}
                 >
                   {label.month}
                 </div>
@@ -285,7 +285,7 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
             
             <div className="flex">
               {/* Day labels - Mon, Wed, Fri on left side */}
-              <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '105px' }}>
+              <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '140px' }}>
                 <div>Mon</div>
                 <div>Wed</div>
                 <div>Fri</div>
@@ -311,7 +311,7 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
             </div>
             
             {/* Legend and Stats - Right aligned with heat map */}
-            <div className="flex justify-end mt-4" style={{ width: `${weeks.length * 15 + 32}px` }}>
+            <div className="flex justify-end mt-4" style={{ width: `${weeks.length * 20 + 32}px` }}>
               <div className="flex items-center gap-4 text-sm text-gray-600">
                 <div>
                   <span className="font-medium">{yearStats.totalCount}</span> transactions in {currentYear}
