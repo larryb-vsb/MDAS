@@ -4187,6 +4187,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fix stuck uploads (move uploading files to queued if they've been stuck for too long)
+  app.post("/api/uploads/fix-stuck-uploads", async (req, res) => {
+    try {
+      const { getTableName } = await import('./table-config');
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Find files stuck in uploading status for more than 1 minute
+      const result = await db.execute(sql`
+        UPDATE ${sql.identifier(uploadsTableName)}
+        SET processing_status = 'queued',
+            raw_lines_count = COALESCE(raw_lines_count, 0)
+        WHERE processing_status = 'uploading' 
+          AND uploaded_at < NOW() - INTERVAL '1 minute'
+        RETURNING id, original_filename, processing_status
+      `);
+      
+      res.json({
+        success: true,
+        message: `Fixed ${result.rowCount || 0} stuck uploads`,
+        fixedFiles: result.rows.map((row: any) => ({
+          id: row.id,
+          filename: row.original_filename,
+          newStatus: row.processing_status
+        }))
+      });
+    } catch (error) {
+      console.error("Fix stuck uploads failed:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Fix failed"
+      });
+    }
+  });
+
   // Cleanup orphaned files endpoint
   app.post("/api/uploads/cleanup-orphaned", isAuthenticated, async (req, res) => {
     try {
