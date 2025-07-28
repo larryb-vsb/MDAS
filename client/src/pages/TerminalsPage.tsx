@@ -45,13 +45,13 @@ export default function TerminalsPage() {
   const { paginatedTerminals, pagination } = useMemo(() => {
     let filteredTerminals = terminals.filter((terminal) => {
       const matchesSearch = 
-        terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.v_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.dba_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.pos_merchant_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
-      const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
+      const matchesType = terminalTypeFilter === "all" || terminal.terminal_type === terminalTypeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     });
@@ -63,11 +63,11 @@ export default function TerminalsPage() {
         let bValue: Date | null = null;
 
         if (sortField === 'lastActivity') {
-          aValue = a.lastActivity ? new Date(a.lastActivity) : null;
-          bValue = b.lastActivity ? new Date(b.lastActivity) : null;
+          aValue = a.last_activity ? new Date(a.last_activity) : null;
+          bValue = b.last_activity ? new Date(b.last_activity) : null;
         } else if (sortField === 'lastUpdate') {
-          aValue = a.lastUpdate ? new Date(a.lastUpdate) : null;
-          bValue = b.lastUpdate ? new Date(b.lastUpdate) : null;
+          aValue = a.last_update ? new Date(a.last_update) : null;
+          bValue = b.last_update ? new Date(b.last_update) : null;
         }
 
         // Handle null values - put them at the end
