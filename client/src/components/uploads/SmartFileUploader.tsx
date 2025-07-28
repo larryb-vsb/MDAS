@@ -35,6 +35,32 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
     setUploadMode("regular");
     
     try {
+      // Step 1: Initialize upload placeholders immediately
+      const fileInfoArray = Array.from(files).map(file => ({
+        name: file.name,
+        size: file.size
+      }));
+
+      console.log(`[UPLOAD] Initializing ${files.length} files with placeholder entries`);
+      
+      const initResponse = await fetch("/api/uploads/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: fileInfoArray,
+          fileType
+        }),
+        credentials: "include",
+      });
+
+      if (!initResponse.ok) {
+        throw new Error(`Upload initialization failed: ${initResponse.statusText}`);
+      }
+
+      const initResult = await initResponse.json();
+      console.log(`[UPLOAD] Created ${initResult.placeholders?.length || 0} placeholder entries`);
+
+      // Step 2: Proceed with actual file upload
       const formData = new FormData();
       for (let i = 0; i < files.length; i++) {
         formData.append("files", files[i]);

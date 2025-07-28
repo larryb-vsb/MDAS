@@ -1797,6 +1797,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create placeholder upload entries before upload starts
+  app.post("/api/uploads/initialize", isAuthenticated, async (req, res) => {
+    try {
+      const { files, fileType } = req.body;
+      
+      if (!files || !Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: "No files provided" });
+      }
+
+      if (!fileType || !["merchant", "transaction", "terminal", "tddf", "merchant-risk"].includes(fileType)) {
+        return res.status(400).json({ error: "Invalid file type" });
+      }
+
+      const { getTableName } = await import("./table-config");
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const currentEnvironment = process.env.NODE_ENV || 'production';
+      const placeholderEntries = [];
+
+      for (const fileInfo of files) {
+        const fileId = `${fileType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Create placeholder entry with "uploading" status
+        try {
+          await pool.query(`
+            INSERT INTO ${uploadedFilesTableName} (
+              id, 
+              original_filename, 
+              storage_path, 
+              file_type, 
+              uploaded_at, 
+              processed, 
+              deleted,
+              file_size,
+              raw_lines_count,
+              upload_environment,
+              processing_status,
+              processing_notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `, [
+            fileId,
+            fileInfo.name,
+            `placeholder_${fileId}`, // Temporary path
+            fileType,
+            new Date(),
+            false,
+            false,
+            fileInfo.size || 0,
+            0, // Will be updated during actual upload
+            currentEnvironment,
+            'uploading',
+            'Upload initialized - awaiting file data'
+          ]);
+          
+          placeholderEntries.push({
+            id: fileId,
+            fileName: fileInfo.name,
+            status: 'uploading'
+          });
+          
+          console.log(`[UPLOAD-INIT] Created placeholder entry for ${fileInfo.name} with ID ${fileId}`);
+        } catch (error: any) {
+          // Fallback for older schema versions
+          if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
+            await pool.query(`
+              INSERT INTO ${uploadedFilesTableName} (
+                id, 
+                original_filename, 
+                storage_path, 
+                file_type, 
+                uploaded_at, 
+                processed, 
+                deleted,
+                file_size,
+                raw_lines_count,
+                processing_status,
+                processing_notes
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `, [
+              fileId,
+              fileInfo.name,
+              `placeholder_${fileId}`,
+              fileType,
+              new Date(),
+              false,
+              false,
+              fileInfo.size || 0,
+              0,
+              'uploading',
+              'Upload initialized - awaiting file data'
+            ]);
+            
+            placeholderEntries.push({
+              id: fileId,
+              fileName: fileInfo.name,
+              status: 'uploading'
+            });
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        placeholders: placeholderEntries,
+        message: `Created ${placeholderEntries.length} placeholder entries`
+      });
+    } catch (error: any) {
+      console.error("Error creating upload placeholders:", error);
+      res.status(500).json({ error: error.message || "Failed to initialize uploads" });
+    }
+  });
+
   // Upload CSV files - pure SQL implementation (multiple files support)
   app.post("/api/uploads", upload.array("files"), async (req, res) => {
     try {
@@ -1814,8 +1927,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnvironment = process.env.NODE_ENV || 'production';
 
       for (const file of req.files as Express.Multer.File[]) {
-        // Create file record with basic information and file content
-        const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Check if there's an existing placeholder entry for this file
+        const placeholderQuery = `
+          SELECT id FROM ${uploadedFilesTableName} 
+          WHERE original_filename = $1 
+            AND file_type = $2 
+            AND processing_status = 'uploading'
+            AND storage_path LIKE 'placeholder_%'
+          ORDER BY uploaded_at DESC 
+          LIMIT 1
+        `;
+        
+        const placeholderResult = await pool.query(placeholderQuery, [file.originalname, type]);
+        let fileId: string;
+        let isUpdatingPlaceholder = false;
+        
+        if (placeholderResult.rows.length > 0) {
+          // Update existing placeholder
+          fileId = placeholderResult.rows[0].id;
+          isUpdatingPlaceholder = true;
+          console.log(`[UPLOAD] Updating placeholder entry ${fileId} for ${file.originalname}`);
+        } else {
+          // Create new file record
+          fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          console.log(`[UPLOAD] Creating new entry ${fileId} for ${file.originalname}`);
+        }
         
         // Read file content properly for different file types
         let fileContent: string;
@@ -1844,41 +1980,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`[UPLOAD] File ${fileId}: ${fileSize} bytes, ${rawLinesCount} lines`);
         
-        // Direct SQL insertion using environment-specific table with environment tracking
-        try {
-          await pool.query(`
-            INSERT INTO ${uploadedFilesTableName} (
-              id, 
-              original_filename, 
-              storage_path, 
-              file_type, 
-              uploaded_at, 
-              processed, 
-              deleted,
-              file_content,
-              file_size,
-              raw_lines_count,
-              upload_environment,
-              processing_status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-          `, [
-            fileId,
-            file.originalname,
-            file.path,
-            type,
-            new Date(),
-            false,
-            false,
-            fileContentBase64,
-            fileSize,
-            rawLinesCount,
-            currentEnvironment,
-            'uploading'
-          ]);
-        } catch (error: any) {
-          // Fallback for environments where upload_environment column doesn't exist yet
-          if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
-            console.log(`[UPLOAD] upload_environment column doesn't exist, inserting without environment tracking`);
+        // Update or insert file record
+        if (isUpdatingPlaceholder) {
+          // Update existing placeholder entry
+          try {
+            await pool.query(`
+              UPDATE ${uploadedFilesTableName} SET
+                storage_path = $1,
+                file_content = $2,
+                file_size = $3,
+                raw_lines_count = $4,
+                processing_status = 'queued',
+                processing_notes = 'File content uploaded successfully'
+              WHERE id = $5
+            `, [
+              file.path,
+              fileContentBase64,
+              fileSize,
+              rawLinesCount,
+              fileId
+            ]);
+            console.log(`[UPLOAD] Updated placeholder entry ${fileId}`);
+          } catch (error: any) {
+            console.error(`[UPLOAD] Failed to update placeholder ${fileId}:`, error);
+            throw error;
+          }
+        } else {
+          // Insert new file record
+          try {
             await pool.query(`
               INSERT INTO ${uploadedFilesTableName} (
                 id, 
@@ -1891,8 +2020,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 file_content,
                 file_size,
                 raw_lines_count,
+                upload_environment,
                 processing_status
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             `, [
               fileId,
               file.originalname,
@@ -1904,10 +2034,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
               fileContentBase64,
               fileSize,
               rawLinesCount,
-              'uploading'
+              currentEnvironment,
+              'queued'
             ]);
-          } else {
-            throw error;
+          } catch (error: any) {
+            // Fallback for environments where upload_environment column doesn't exist yet
+            if (error.message?.includes('upload_environment') || error.message?.includes('column does not exist')) {
+              console.log(`[UPLOAD] upload_environment column doesn't exist, inserting without environment tracking`);
+              await pool.query(`
+                INSERT INTO ${uploadedFilesTableName} (
+                  id, 
+                  original_filename, 
+                  storage_path, 
+                  file_type, 
+                  uploaded_at, 
+                  processed, 
+                  deleted,
+                  file_content,
+                  file_size,
+                  raw_lines_count,
+                  processing_status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              `, [
+                fileId,
+                file.originalname,
+                file.path,
+                type,
+                new Date(),
+                false,
+                false,
+                fileContentBase64,
+                fileSize,
+                rawLinesCount,
+                'queued'
+              ]);
+            } else {
+              throw error;
+            }
           }
         }
         
