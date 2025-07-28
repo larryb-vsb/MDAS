@@ -14,12 +14,20 @@ interface SmartFileUploaderProps {
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
 const SIZE_THRESHOLD = 20 * 1024 * 1024; // 20MB threshold for chunked upload
 
+interface FileUploadProgress {
+  name: string;
+  progress: number;
+  status: 'pending' | 'uploading' | 'completed' | 'error';
+  error?: string;
+}
+
 export default function SmartFileUploader({ onUploadComplete, fileType, disabled }: SmartFileUploaderProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState<string>("");
   const [uploadMode, setUploadMode] = useState<"regular" | "chunked">("regular");
+  const [uploadingFiles, setUploadingFiles] = useState<FileUploadProgress[]>([]);
 
   // Regular upload for smaller files
   const uploadRegular = useCallback(async (files: FileList) => {
@@ -141,27 +149,77 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
-    // Check if any file is large enough for chunked upload
-    const largeFiles = files.filter(file => file.size > SIZE_THRESHOLD);
-    
-    if (largeFiles.length > 0) {
-      // Use chunked upload for large files (one at a time)
-      for (const file of largeFiles) {
-        await uploadChunked(file);
-      }
+    // Initialize file tracking
+    const fileProgress: FileUploadProgress[] = files.map(file => ({
+      name: file.name,
+      progress: 0,
+      status: 'pending'
+    }));
+    setUploadingFiles(fileProgress);
+    setUploading(true);
+
+    try {
+      // Check if any file is large enough for chunked upload
+      const largeFiles = files.filter(file => file.size > SIZE_THRESHOLD);
       
-      // Handle remaining smaller files with regular upload
-      const smallFiles = files.filter(file => file.size <= SIZE_THRESHOLD);
-      if (smallFiles.length > 0) {
+      if (largeFiles.length > 0) {
+        // Use chunked upload for large files (one at a time)
+        for (const file of largeFiles) {
+          const fileIndex = files.findIndex(f => f.name === file.name);
+          setUploadingFiles(prev => prev.map((f, i) => 
+            i === fileIndex ? { ...f, status: 'uploading' } : f
+          ));
+          await uploadChunked(file);
+          setUploadingFiles(prev => prev.map((f, i) => 
+            i === fileIndex ? { ...f, status: 'completed', progress: 100 } : f
+          ));
+        }
+        
+        // Handle remaining smaller files with regular upload
+        const smallFiles = files.filter(file => file.size <= SIZE_THRESHOLD);
+        if (smallFiles.length > 0) {
+          // Mark small files as uploading
+          smallFiles.forEach(file => {
+            const fileIndex = files.findIndex(f => f.name === file.name);
+            setUploadingFiles(prev => prev.map((f, i) => 
+              i === fileIndex ? { ...f, status: 'uploading', progress: 50 } : f
+            ));
+          });
+          
+          const fileList = new DataTransfer();
+          smallFiles.forEach(file => fileList.items.add(file));
+          await uploadRegular(fileList.files);
+          
+          // Mark small files as completed
+          smallFiles.forEach(file => {
+            const fileIndex = files.findIndex(f => f.name === file.name);
+            setUploadingFiles(prev => prev.map((f, i) => 
+              i === fileIndex ? { ...f, status: 'completed', progress: 100 } : f
+            ));
+          });
+        }
+      } else {
+        // All files are small, use regular upload
         const fileList = new DataTransfer();
-        smallFiles.forEach(file => fileList.items.add(file));
+        files.forEach(file => fileList.items.add(file));
+        
+        // Mark all as uploading
+        setUploadingFiles(prev => prev.map(f => ({ ...f, status: 'uploading', progress: 50 })));
+        
         await uploadRegular(fileList.files);
+        
+        // Mark all as completed
+        setUploadingFiles(prev => prev.map(f => ({ ...f, status: 'completed', progress: 100 })));
       }
-    } else {
-      // All files are small, use regular upload
-      const fileList = new DataTransfer();
-      files.forEach(file => fileList.items.add(file));
-      await uploadRegular(fileList.files);
+    } catch (error: any) {
+      // Mark failed files
+      setUploadingFiles(prev => prev.map(f => ({ ...f, status: 'error', error: error.message })));
+    } finally {
+      setUploading(false);
+      // Clear file list after 3 seconds
+      setTimeout(() => {
+        setUploadingFiles([]);
+      }, 3000);
     }
   }, [uploadRegular, uploadChunked]);
 
@@ -382,6 +440,63 @@ export default function SmartFileUploader({ onUploadComplete, fileType, disabled
         </div>
       )}
 
+      {/* Multi-File Upload Progress */}
+      {uploadingFiles.length > 0 && (
+        <div className="space-y-3 bg-gray-50 p-4 rounded-lg border">
+          <div className="flex justify-between items-center">
+            <h4 className="text-sm font-medium text-gray-700">
+              Uploading {uploadingFiles.length} file{uploadingFiles.length > 1 ? 's' : ''}
+            </h4>
+            <div className="text-xs text-gray-500">
+              {uploadingFiles.filter(f => f.status === 'completed').length} / {uploadingFiles.length} completed
+            </div>
+          </div>
+          
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {uploadingFiles.map((file, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 truncate max-w-64">
+                    {file.name}
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    {file.status === 'pending' && (
+                      <span className="text-xs text-gray-400">Pending</span>
+                    )}
+                    {file.status === 'uploading' && (
+                      <>
+                        <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs text-gray-600">Uploading...</span>
+                      </>
+                    )}
+                    {file.status === 'completed' && (
+                      <span className="text-xs text-green-600">✓ Complete</span>
+                    )}
+                    {file.status === 'error' && (
+                      <span className="text-xs text-red-600">✗ Failed</span>
+                    )}
+                  </div>
+                </div>
+                
+                {file.status !== 'pending' && (
+                  <Progress 
+                    value={file.progress} 
+                    className={`w-full h-1 ${
+                      file.status === 'error' ? 'bg-red-100' : 
+                      file.status === 'completed' ? 'bg-green-100' : 
+                      'bg-gray-200'
+                    }`}
+                  />
+                )}
+                
+                {file.error && (
+                  <p className="text-xs text-red-600 mt-1">{file.error}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );
