@@ -103,7 +103,9 @@ export default function MMSUploader() {
         body: {
           filename: file.name,
           fileSize: file.size,
-          sessionId
+          sessionId,
+          finalFileType: selectedFileType,
+          userClassifiedType: selectedFileType
         }
       });
       return response;
@@ -331,11 +333,11 @@ export default function MMSUploader() {
               </div>
               <div className="flex items-center gap-2">
                 <Progress 
-                  value={Math.round((completedUploads / Math.max(totalUploads, 1)) * 100)} 
+                  value={totalUploads > 0 ? Math.round((completedUploads / totalUploads) * 100) : 0} 
                   className="w-32"
                 />
                 <span className="text-sm text-blue-600 font-medium">
-                  {Math.round((completedUploads / Math.max(totalUploads, 1)) * 100)}%
+                  {totalUploads > 0 ? Math.round((completedUploads / totalUploads) * 100) : 0}%
                 </span>
               </div>
             </div>
@@ -722,19 +724,19 @@ export default function MMSUploader() {
                           <div className="flex-1">
                             <div className="font-medium">{upload.filename}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-4">
-                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || 'Unknown type'}</span>
-                              <span>Started {formatDuration(upload.startTime)}</span>
-                              {upload.lineCount && <span>{upload.lineCount.toLocaleString()} lines</span>}
+                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.fileType || 'TDDF'}</span>
+                              <span>Started {upload.startTime ? formatDuration(upload.startTime) : 'recently'}</span>
+                              {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-3">
                           {/* Upload progress for uploading files */}
-                          {upload.currentPhase === 'uploading' && upload.uploadProgress && (
+                          {upload.currentPhase === 'uploading' && upload.uploadProgress !== null && upload.uploadProgress !== undefined && (
                             <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={upload.uploadProgress} className="w-16" />
-                              <span className="text-sm">{upload.uploadProgress}%</span>
+                              <Progress value={upload.uploadProgress || 0} className="w-16" />
+                              <span className="text-sm">{Math.round(upload.uploadProgress || 0)}%</span>
                             </div>
                           )}
 
