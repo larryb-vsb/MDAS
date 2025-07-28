@@ -7229,51 +7229,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MMS Uploader API endpoints - S3 Object Storage
+  // MMS Uploader API endpoints - Replit Object Storage
   app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
     try {
       const { filename, fileSize, sessionId } = req.body;
       const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Import S3Service
-      const { S3Service } = await import('./s3-service');
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
       
-      // Check S3 configuration
-      if (!S3Service.isConfigured()) {
+      // Check Replit Object Storage configuration
+      if (!ReplitStorageService.isConfigured()) {
         return res.status(500).json({ 
-          error: 'S3 not configured. Please provide AWS credentials.',
-          configStatus: S3Service.getConfigStatus()
+          error: 'Replit Object Storage not available.',
+          configStatus: ReplitStorageService.getConfigStatus()
         });
       }
       
-      // Generate presigned URL for direct browser upload
-      const presignedResult = await S3Service.generatePresignedUploadUrl(filename, uploadId);
+      // Generate storage key for upload
+      const storageKey = ReplitStorageService.generateUploadKey(filename, uploadId);
       
       const upload = await storage.createUploaderUpload({
         id: uploadId,
         filename,
         fileSize: fileSize,
-        storagePath: presignedResult.key,
-        s3Bucket: presignedResult.bucket,
-        s3Key: presignedResult.key,
+        storagePath: storageKey,
+        s3Bucket: 'mms-uploader-files', // Using same field for Replit bucket name
+        s3Key: storageKey, // Using same field for storage key
         createdBy: (req.user as any)?.username || 'unknown',
         sessionId: sessionId,
         serverId: process.env.HOSTNAME || 'unknown'
       });
       
-      console.log(`[UPLOADER-S3] Started upload: ${upload.id} for ${filename} with S3 key: ${presignedResult.key}`);
+      console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);
       
       res.json({
         ...upload,
-        presignedUrl: presignedResult.uploadUrl
+        storageKey: storageKey
       });
     } catch (error: any) {
-      console.error('Start S3 upload error:', error);
+      console.error('Start Replit upload error:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Phase 2: Upload file content directly to S3 via server
+  // Phase 2: Upload file content to Replit Object Storage
   app.post("/api/uploader/:id/upload", isAuthenticated, upload.single('file'), async (req, res) => {
     try {
       const { id } = req.params;
@@ -7287,43 +7287,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Upload record not found" });
       }
       
-      // Import S3Service
-      const { S3Service } = await import('./s3-service');
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
       
-      // Upload file buffer directly to S3
-      const s3Result = await S3Service.uploadFile(
+      // Upload file buffer to Replit Object Storage
+      const replitResult = await ReplitStorageService.uploadFile(
         req.file.buffer,
         uploadRecord.filename,
         id,
         req.file.mimetype
       );
       
-      // Update database with S3 information
+      // Update database with Replit Object Storage information
       await storage.updateUploaderUpload(id, {
         currentPhase: 'uploading',
         uploadProgress: 100,
-        s3Bucket: s3Result.bucket,
-        s3Key: s3Result.key,
-        s3Url: s3Result.url,
-        s3Etag: s3Result.etag,
-        dataSize: s3Result.size,
+        s3Bucket: replitResult.bucket,
+        s3Key: replitResult.key,
+        s3Url: replitResult.url,
+        s3Etag: replitResult.etag,
+        dataSize: replitResult.size,
         lineCount: req.file.buffer.toString('utf-8').split('\n').length
       });
       
-      console.log(`[UPLOADER-S3] Uploaded to S3: ${id} -> ${s3Result.url}`);
+      console.log(`[UPLOADER-REPLIT] Uploaded to Replit Storage: ${id} -> ${replitResult.url}`);
       res.json({ 
         success: true, 
-        message: "File uploaded to S3", 
-        s3Url: s3Result.url,
-        s3Key: s3Result.key
+        message: "File uploaded to Replit Object Storage", 
+        storageUrl: replitResult.url,
+        storageKey: replitResult.key
       });
     } catch (error: any) {
-      console.error('S3 upload error:', error);
+      console.error('Replit storage upload error:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Phase 3: Finalize S3 upload and mark as uploaded
+  // Phase 3: Finalize Replit Object Storage upload and mark as uploaded
   app.post("/api/uploader/:id/finalize", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
@@ -7333,27 +7333,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Upload record not found" });
       }
       
-      // Verify S3 file exists by checking if we have S3 metadata
+      // Verify Replit Object Storage file exists by checking if we have storage metadata
       if (!uploadRecord.s3Key || !uploadRecord.s3Bucket) {
-        return res.status(400).json({ error: "S3 upload incomplete - missing S3 metadata" });
+        return res.status(400).json({ error: "Replit storage upload incomplete - missing storage metadata" });
       }
       
       // Mark as uploaded with file identification
       await storage.updateUploaderUpload(id, {
         currentPhase: 'uploaded',
         uploadedAt: new Date(),
-        processingNotes: 'S3 upload completed successfully'
+        processingNotes: 'Replit Object Storage upload completed successfully'
       });
       
-      console.log(`[UPLOADER-S3] Finalized upload: ${id} - S3 object: s3://${uploadRecord.s3Bucket}/${uploadRecord.s3Key}`);
+      console.log(`[UPLOADER-REPLIT] Finalized upload: ${id} - Storage object: ${uploadRecord.s3Bucket}/${uploadRecord.s3Key}`);
       res.json({ 
         success: true, 
-        message: "S3 upload finalized",
-        s3Location: `s3://${uploadRecord.s3Bucket}/${uploadRecord.s3Key}`,
-        s3Url: uploadRecord.s3Url
+        message: "Replit Object Storage upload finalized",
+        storageLocation: `${uploadRecord.s3Bucket}/${uploadRecord.s3Key}`,
+        storageUrl: uploadRecord.s3Url
       });
     } catch (error: any) {
-      console.error('Finalize S3 upload error:', error);
+      console.error('Finalize Replit storage upload error:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -7464,7 +7464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get file content from S3
+  // Get file content from Replit Object Storage
   app.get("/api/uploader/:id/content", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
@@ -7479,33 +7479,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "File content not available at this stage" });
       }
 
-      // Get content from S3
+      // Get content from Replit Object Storage
       if (!upload.s3Key || !upload.s3Bucket) {
-        return res.status(404).json({ error: "S3 file location not found" });
+        return res.status(404).json({ error: "Storage file location not found" });
       }
 
-      const { S3Service } = await import('./s3-service');
+      const { ReplitStorageService } = await import('./replit-storage-service');
       
-      // Retrieve file content from S3
-      const fileBuffer = await S3Service.getFileContent(upload.s3Key);
+      // Retrieve file content from Replit Object Storage
+      const fileBuffer = await ReplitStorageService.getFileContent(upload.s3Key);
       const fileContent = fileBuffer.toString('utf-8');
       const lines = fileContent.split('\n');
       
       // Create preview (first 50 lines)
       const preview = lines.slice(0, 50).join('\n');
       
-      console.log(`[UPLOADER-S3] Retrieved content for upload ${id}: ${lines.length} lines from S3`);
+      console.log(`[UPLOADER-REPLIT] Retrieved content for upload ${id}: ${lines.length} lines from Replit Storage`);
       
       res.json({
         content: fileContent,
         preview: preview,
         lineCount: lines.length,
         fileSize: fileBuffer.length,
-        s3Key: upload.s3Key,
-        s3Url: upload.s3Url
+        storageKey: upload.s3Key,
+        storageUrl: upload.s3Url
       });
     } catch (error: any) {
-      console.error('Get S3 file content error:', error);
+      console.error('Get Replit storage file content error:', error);
       res.status(500).json({ error: error.message });
     }
   });

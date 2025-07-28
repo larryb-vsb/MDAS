@@ -16,6 +16,11 @@ import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 
+// Extended type for UploaderUpload with presigned URL
+interface UploaderUploadWithPresigned extends UploaderUpload {
+  presignedUrl?: string;
+}
+
 // 8-State Processing Workflow
 const PROCESSING_PHASES = [
   { id: 'started', name: 'Started', icon: Play, color: 'blue', description: 'Upload initialized' },
@@ -93,7 +98,7 @@ export default function MMSUploader() {
   // Start upload mutation
   const startUploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const response = await apiRequest<UploaderUpload>('/api/uploader/start', {
+      const response = await apiRequest<UploaderUploadWithPresigned>('/api/uploader/start', {
         method: 'POST',
         body: {
           filename: file.name,
@@ -173,45 +178,30 @@ export default function MMSUploader() {
     
     for (const file of Array.from(selectedFiles)) {
       try {
-        console.log(`[S3-UPLOAD-PHASE-1] Starting S3 upload for: ${file.name}`);
+        console.log(`[REPLIT-UPLOAD-PHASE-1] Starting Replit Object Storage upload for: ${file.name}`);
         
-        // Phase 1: Get presigned URL and create database record
+        // Phase 1: Create database record with storage key
         const uploadResponse = await startUploadMutation.mutateAsync(file);
-        console.log(`[S3-UPLOAD-PHASE-1] Created DB record with presigned URL: ${uploadResponse.id}`);
+        console.log(`[REPLIT-UPLOAD-PHASE-1] Created DB record with storage key: ${uploadResponse.id}`);
         
-        if (uploadResponse?.id && uploadResponse.presignedUrl) {
-          // Phase 2A: Direct upload to S3 using presigned URL (browser to S3)
-          const s3Response = await fetch(uploadResponse.presignedUrl, {
-            method: 'PUT',
-            body: file,
-            headers: {
-              'Content-Type': file.type || 'application/octet-stream'
-            }
-          });
-          
-          if (!s3Response.ok) {
-            throw new Error(`S3 upload failed: ${s3Response.statusText}`);
-          }
-          
-          console.log(`[S3-UPLOAD-PHASE-2A] Direct upload to S3 successful: ${uploadResponse.id}`);
-          
-          // Phase 2B: Update database with S3 metadata via server
+        if (uploadResponse?.id && uploadResponse.storageKey) {
+          // Phase 2: Server-side upload to Replit Object Storage
           const formData = new FormData();
           formData.append('file', file);
           
-          const uploadResponse2 = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
+          const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
             method: 'POST',
             body: formData,
             credentials: 'include'
           });
           
-          if (!uploadResponse2.ok) {
-            throw new Error(`Phase 2B failed: ${uploadResponse2.statusText}`);
+          if (!uploadApiResponse.ok) {
+            throw new Error(`Replit storage upload failed: ${uploadApiResponse.statusText}`);
           }
           
-          console.log(`[S3-UPLOAD-PHASE-2B] Updated database with S3 metadata: ${uploadResponse.id}`);
+          console.log(`[REPLIT-UPLOAD-PHASE-2] Server-side upload to Replit Object Storage successful: ${uploadResponse.id}`);
           
-          // Phase 3: Finalize S3 upload
+          // Phase 3: Finalize Replit Object Storage upload
           const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/finalize`, {
             method: 'POST',
             credentials: 'include'
@@ -221,10 +211,10 @@ export default function MMSUploader() {
             throw new Error(`Phase 3 failed: ${finalizeResponse.statusText}`);
           }
           
-          console.log(`[S3-UPLOAD-PHASE-3] Finalized S3 upload: ${uploadResponse.id}`);
+          console.log(`[REPLIT-UPLOAD-PHASE-3] Finalized Replit Object Storage upload: ${uploadResponse.id}`);
         }
       } catch (error) {
-        console.error('S3 upload error:', error);
+        console.error('Replit Object Storage upload error:', error);
       }
     }
     
