@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -31,7 +30,7 @@ export default function TerminalsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch terminals data with debugging
+  // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
     refetchOnWindowFocus: true, // Refetch when window gains focus
@@ -39,23 +38,7 @@ export default function TerminalsPage() {
     gcTime: 0, // Don't cache data in garbage collection
   });
 
-  // Add debugging effects
-  React.useEffect(() => {
-    if (error) {
-      console.error('[TERMINALS PAGE] Query error:', error);
-    }
-  }, [error]);
 
-  React.useEffect(() => {
-    if (terminals) {
-      console.log('[TERMINALS PAGE] Terminals data:', terminals?.length, 'terminals loaded');
-      if (terminals?.length === 0) {
-        console.log('[TERMINALS PAGE] No terminals found - empty array returned');
-      } else {
-        console.log('[TERMINALS PAGE] Sample terminal:', terminals[0]);
-      }
-    }
-  }, [terminals]);
 
   // Filter, sort and paginate terminals
   const { paginatedTerminals, pagination } = useMemo(() => {
@@ -79,11 +62,11 @@ export default function TerminalsPage() {
         let bValue: Date | null = null;
 
         if (sortField === 'lastActivity') {
-          aValue = a.lastActivity ? new Date(a.lastActivity) : null;
-          bValue = b.lastActivity ? new Date(b.lastActivity) : null;
+          aValue = a.last_activity ? new Date(a.last_activity) : null;
+          bValue = b.last_activity ? new Date(b.last_activity) : null;
         } else if (sortField === 'lastUpdate') {
-          aValue = a.lastUpdate ? new Date(a.lastUpdate) : null;
-          bValue = b.lastUpdate ? new Date(b.lastUpdate) : null;
+          aValue = a.last_update ? new Date(a.last_update) : null;
+          bValue = b.last_update ? new Date(b.last_update) : null;
         }
 
         // Handle null values - put them at the end
@@ -314,8 +297,8 @@ export default function TerminalsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {terminals.filter(t => t.lastUpdate && 
-                new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+              {terminals.filter(t => t.last_update && 
+                new Date(t.last_update) > new Date(Date.now() - 24 * 60 * 60 * 1000)
               ).length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -471,27 +454,27 @@ export default function TerminalsPage() {
                         <Checkbox
                           checked={selectedTerminals.includes(terminal.id)}
                           onCheckedChange={() => handleSelectTerminal(terminal.id)}
-                          aria-label={`Select terminal ${terminal.vNumber}`}
+                          aria-label={`Select terminal ${terminal.v_number}`}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {getTerminalTypeIcon(terminal.terminalType)}
-                          {terminal.vNumber}
+                          {getTerminalTypeIcon(terminal.terminal_type)}
+                          {terminal.v_number}
                         </div>
                       </TableCell>
-                      <TableCell>{terminal.dbaName || "-"}</TableCell>
+                      <TableCell>{terminal.dba_name || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {terminal.posMerchantNumber || "-"}
+                        {terminal.pos_merchant_number || "-"}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastActivity?.toString() || null)}
+                        {formatTableDate(terminal.last_activity?.toString() || null)}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.lastUpdate?.toString() || null)}
+                        {formatTableDate(terminal.last_update?.toString() || null)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
