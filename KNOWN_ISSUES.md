@@ -196,6 +196,72 @@ Merchant table fails to render/display data
 
 ---
 
+### Issue #004: Production Large File Upload Failure (413 Request Entity Too Large)
+**Status**: Active  
+**Priority**: High  
+**Date Reported**: 2025-07-28  
+**Reported By**: Larry (Production Testing)  
+
+**Description**: 
+40MB file uploads fail in production environment with "413 Request Entity Too Large" error, while the same files upload successfully in development.
+
+**Environment**:
+- **Production**: Fails with 413 error for 40MB+ files
+- **Development**: Works perfectly for same files
+- **Small Files**: Work fine in both environments (<10MB)
+
+**Technical Analysis**:
+Application code is correctly configured for 100MB uploads:
+- Express.js: `app.use(express.json({ limit: '100mb' }))`
+- Multer: `limits: { fileSize: 100 * 1024 * 1024 }`
+- Both development and production use identical code
+
+**Root Cause**: 
+Production infrastructure layers (reverse proxy, load balancer, or CDN) have body size limits that override application settings.
+
+**Error Details**:
+```html
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Error 413 Request Entity Too Large</title>
+</head><body>
+<h1>Error 413</h1>
+<p>Request Entity Too Large</p>
+</body></html>
+```
+
+**Infrastructure vs Application**:
+- **Application Level**: ✅ Configured for 100MB (Express.js + multer)
+- **Infrastructure Level**: ❌ Production environment has lower limits
+
+**Common Production Infrastructure Limits**:
+- Reverse Proxy (nginx): Default 1MB body size limit
+- Load Balancer: May have request size restrictions
+- CDN/Edge: Often have upload size limitations
+- Container Platform: May impose resource limits
+
+**Fix Options**:
+1. **Infrastructure Config** (Recommended): Configure production infrastructure for larger uploads
+2. **Chunked Upload** (Alternative): Implement client-side file chunking for large files
+3. **External Storage** (Advanced): Use S3/cloud storage with signed upload URLs
+
+**Workaround Available**:
+ChunkedFileUploader component exists but needs integration with main upload flow.
+
+**Investigation Required**:
+- Check Replit deployment configuration for body size limits
+- Review reverse proxy settings in production environment
+- Verify CDN/edge configuration for large file handling
+
+**Expected Resolution**:
+Configure production infrastructure to match development capabilities (100MB+ uploads).
+
+**Business Impact**:
+- Large TDDF files cannot be processed in production
+- Manual workarounds required for 40MB+ files
+- Production feature parity issue
+
+---
+
 ## Future Enhancements
 
 ### Enhanced Database Safety Strategy - Dual Environment Protection
