@@ -4187,6 +4187,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fix placeholder upload errors by attempting to recover content
+  app.post("/api/uploads/fix-placeholder-errors", async (req, res) => {
+    try {
+      const { getTableName } = await import('./table-config');
+      const uploadsTableName = getTableName('uploaded_files');
+      
+      // Find files with placeholder upload errors
+      const placeholderFiles = await db.execute(sql`
+        SELECT id, original_filename, file_type, storage_path, file_size
+        FROM ${sql.identifier(uploadsTableName)}
+        WHERE processing_status = 'error' 
+          AND processing_errors LIKE '%placeholder upload detected%'
+      `);
+
+      const recoveredFiles = [];
+      
+      for (const file of placeholderFiles.rows) {
+        try {
+          // Mark as failed since we can't recover placeholder uploads
+          await db.execute(sql`
+            UPDATE ${sql.identifier(uploadsTableName)}
+            SET processing_status = 'failed',
+                processing_errors = 'Placeholder upload - file content not recoverable. Please re-upload the file.',
+                processed_at = NOW()
+            WHERE id = ${file.id}
+          `);
+          
+          recoveredFiles.push({
+            id: file.id,
+            filename: file.original_filename,
+            status: 'failed',
+            message: 'Marked as failed - requires re-upload'
+          });
+          
+        } catch (fileError) {
+          console.error(`Error processing placeholder file ${file.id}:`, fileError);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Processed ${recoveredFiles.length} placeholder upload errors`,
+        processedFiles: recoveredFiles,
+        note: "Placeholder uploads cannot be recovered and require re-uploading the original files"
+      });
+    } catch (error) {
+      console.error("Fix placeholder errors failed:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Fix failed"
+      });
+    }
+  });
+
   // Fix stuck uploads (move uploading files to queued if they've been stuck for too long)
   app.post("/api/uploads/fix-stuck-uploads", async (req, res) => {
     try {

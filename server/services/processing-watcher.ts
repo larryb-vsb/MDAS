@@ -368,6 +368,9 @@ export class ScanlyWatcher {
       
       console.log('[SCANLY-WATCHER] Running orphaned file cleanup...');
       
+      // First, check for and fix placeholder upload errors
+      await this.fixPlaceholderUploadErrors();
+      
       // Find files locked by different server instances inactive for 5+ minutes
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
@@ -429,6 +432,49 @@ export class ScanlyWatcher {
         details: { error: error instanceof Error ? error.message : String(error) },
         timestamp: new Date()
       });
+    }
+  }
+
+  private async fixPlaceholderUploadErrors(): Promise<void> {
+    try {
+      const uploadsTable = getTableName('uploaded_files');
+      
+      // Find files with placeholder upload errors
+      const placeholderFiles = await db.execute(sql`
+        SELECT id, original_filename
+        FROM ${sql.identifier(uploadsTable)}
+        WHERE processing_status = 'error' 
+          AND processing_errors LIKE '%placeholder upload detected%'
+      `);
+
+      if (placeholderFiles.rows.length > 0) {
+        // Mark them as failed since content cannot be recovered
+        await db.execute(sql`
+          UPDATE ${sql.identifier(uploadsTable)}
+          SET processing_status = 'failed',
+              processing_errors = 'Placeholder upload - file content not recoverable. Please re-upload the file.',
+              processed_at = NOW()
+          WHERE processing_status = 'error' 
+            AND processing_errors LIKE '%placeholder upload detected%'
+        `);
+        
+        console.log(`[SCANLY-WATCHER] 🔧 Fixed ${placeholderFiles.rows.length} placeholder upload errors - marked as failed for re-upload`);
+        
+        await this.logAlert({
+          level: 'info',
+          type: 'placeholder_uploads_fixed',
+          message: `Fixed ${placeholderFiles.rows.length} placeholder upload errors`,
+          details: { 
+            filesFixed: placeholderFiles.rows.length,
+            action: 'marked as failed for re-upload',
+            fixedFiles: placeholderFiles.rows.map(f => f.original_filename)
+          },
+          timestamp: new Date()
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] ❌ Error fixing placeholder upload errors:', error);
     }
   }
 
