@@ -2351,7 +2351,11 @@ export default function TddfPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch TDDF records");
       }
-      return response.json();
+      const result = await response.json();
+      console.log('[TDDF DEBUG] API Response:', result);
+      console.log('[TDDF DEBUG] Date filter active:', !!selectedDate);
+      console.log('[TDDF DEBUG] Total items:', result?.pagination?.totalItems);
+      return result;
     },
   });
 
