@@ -92,7 +92,7 @@ export default function MMSUploader() {
   // Query for MMS uploads only (separate system from /uploads)
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
     queryKey: ['/api/uploader'],
-    refetchInterval: 3000 // Refresh every 3 seconds for real-time updates
+    refetchInterval: 1000 // Refresh every 1 second for real-time upload feedback
   });
 
   // Start upload mutation
@@ -312,6 +312,36 @@ export default function MMSUploader() {
           </Card>
         </div>
       </div>
+
+      {/* Real-time Upload Progress Banner */}
+      {activeUploads > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="font-medium text-blue-800">
+                    {activeUploads} files actively uploading
+                  </span>
+                </div>
+                <div className="text-sm text-blue-600">
+                  Auto-upload system processing files in background
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Progress 
+                  value={Math.round((completedUploads / Math.max(totalUploads, 1)) * 100)} 
+                  className="w-32"
+                />
+                <span className="text-sm text-blue-600 font-medium">
+                  {Math.round((completedUploads / Math.max(totalUploads, 1)) * 100)}%
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
