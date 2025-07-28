@@ -1802,6 +1802,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { files, fileType } = req.body;
       
+      console.log(`[INIT] 🚀 Starting placeholder initialization for ${files?.length || 0} files of type: ${fileType}`);
+      
       if (!files || !Array.isArray(files) || files.length === 0) {
         return res.status(400).json({ error: "No files provided" });
       }
@@ -1815,8 +1817,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnvironment = process.env.NODE_ENV || 'production';
       const placeholderEntries = [];
 
+      console.log(`[INIT] Using table: ${uploadedFilesTableName} for environment: ${currentEnvironment}`);
+
       for (const fileInfo of files) {
         const fileId = `${fileType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        console.log(`[INIT] Creating placeholder for: ${fileInfo.name} → ID: ${fileId}`);
         
         // Create placeholder entry with "uploading" status
         try {
@@ -1928,17 +1934,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const file of req.files as Express.Multer.File[]) {
         // Check if there's an existing placeholder entry for this file
+        // Look for recent placeholder entries (within last 5 minutes) to avoid conflicts
         const placeholderQuery = `
           SELECT id FROM ${uploadedFilesTableName} 
           WHERE original_filename = $1 
             AND file_type = $2 
             AND processing_status = 'uploading'
             AND storage_path LIKE 'placeholder_%'
+            AND uploaded_at > NOW() - INTERVAL '5 MINUTES'
           ORDER BY uploaded_at DESC 
           LIMIT 1
         `;
         
         const placeholderResult = await pool.query(placeholderQuery, [file.originalname, type]);
+        console.log(`[UPLOAD] Placeholder lookup for ${file.originalname}: ${placeholderResult.rows.length} matches found`);
         let fileId: string;
         let isUpdatingPlaceholder = false;
         
@@ -1946,11 +1955,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Update existing placeholder
           fileId = placeholderResult.rows[0].id;
           isUpdatingPlaceholder = true;
-          console.log(`[UPLOAD] Updating placeholder entry ${fileId} for ${file.originalname}`);
+          console.log(`[UPLOAD] ✅ Found placeholder entry ${fileId} for ${file.originalname} - will update with content`);
         } else {
           // Create new file record
           fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log(`[UPLOAD] Creating new entry ${fileId} for ${file.originalname}`);
+          console.log(`[UPLOAD] 🆕 No placeholder found for ${file.originalname} - creating new entry ${fileId}`);
+          
+          // Additional debug: check if any placeholders exist for this file at all
+          const debugQuery = `
+            SELECT id, processing_status, storage_path, uploaded_at 
+            FROM ${uploadedFilesTableName} 
+            WHERE original_filename = $1 AND file_type = $2
+            ORDER BY uploaded_at DESC 
+            LIMIT 3
+          `;
+          const debugResult = await pool.query(debugQuery, [file.originalname, type]);
+          console.log(`[UPLOAD-DEBUG] All entries for ${file.originalname}:`, debugResult.rows);
         }
         
         // Read file content properly for different file types
@@ -1984,14 +2004,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isUpdatingPlaceholder) {
           // Update existing placeholder entry
           try {
-            await pool.query(`
+            const updateResult = await pool.query(`
               UPDATE ${uploadedFilesTableName} SET
                 storage_path = $1,
                 file_content = $2,
                 file_size = $3,
                 raw_lines_count = $4,
                 processing_status = 'queued',
-                processing_notes = 'File content uploaded successfully'
+                processing_notes = 'File content uploaded successfully - placeholder updated'
               WHERE id = $5
             `, [
               file.path,
@@ -2000,9 +2020,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               rawLinesCount,
               fileId
             ]);
-            console.log(`[UPLOAD] Updated placeholder entry ${fileId}`);
+            
+            if (updateResult.rowCount === 0) {
+              console.error(`[UPLOAD] ❌ CRITICAL: No rows updated for placeholder ${fileId} - placeholder may have been deleted or modified`);
+              throw new Error(`Failed to update placeholder entry ${fileId} - no matching record found`);
+            }
+            
+            console.log(`[UPLOAD] ✅ Successfully updated placeholder entry ${fileId} with ${rawLinesCount} lines`);
           } catch (error: any) {
-            console.error(`[UPLOAD] Failed to update placeholder ${fileId}:`, error);
+            console.error(`[UPLOAD] ❌ Failed to update placeholder ${fileId}:`, error);
             throw error;
           }
         } else {
@@ -2120,7 +2146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 processing_notes = $1
             WHERE id = $2
           `, [
-            `Raw data error: ${rawDataError.message}`,
+            `Raw data error: ${(rawDataError as Error).message || 'Unknown error during raw data processing'}`,
             fileId
           ]);
         }
@@ -2295,7 +2321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               processing_notes = $1
           WHERE id = $2
         `, [
-          `Raw data error: ${rawDataError.message}`,
+          `Raw data error: ${(rawDataError as Error).message || 'Unknown error during raw data processing'}`,
           fileId
         ]);
       }

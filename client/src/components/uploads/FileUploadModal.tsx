@@ -104,12 +104,28 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
   };
 
   const uploadFile = async (fileData: UploadedFile & { file: File }) => {
-    const formData = new FormData();
-    formData.append("files", fileData.file);
-    formData.append("type", fileData.type);
-
     try {
-      // Simulate upload progress
+      // Step 1: Initialize placeholder entry
+      console.log(`[FILE-MODAL] 🚀 Initializing placeholder for ${fileData.name} (${fileData.type})`);
+      
+      const initResponse = await fetch("/api/uploads/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: [{ name: fileData.name, size: fileData.size }],
+          fileType: fileData.type
+        }),
+        credentials: "include",
+      });
+
+      if (!initResponse.ok) {
+        throw new Error(`Placeholder creation failed: ${initResponse.statusText}`);
+      }
+
+      const initResult = await initResponse.json();
+      console.log(`[FILE-MODAL] ✅ Created placeholder entry for ${fileData.name}`);
+
+      // Step 2: Simulate upload progress during actual upload
       const progressInterval = setInterval(() => {
         setFiles((prev) =>
           prev.map((f) => {
@@ -121,7 +137,13 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
         );
       }, 100);
 
-      // Upload file
+      // Step 3: Upload actual file content
+      console.log(`[FILE-MODAL] ⬆️ Uploading content for ${fileData.name}`);
+      
+      const formData = new FormData();
+      formData.append("files", fileData.file);
+      formData.append("type", fileData.type);
+
       const response = await fetch("/api/uploads", {
         method: "POST",
         body: formData,
@@ -129,6 +151,11 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       });
 
       clearInterval(progressInterval);
+      
+      console.log(`[FILE-MODAL] 📨 Upload response for ${fileData.name}:`, {
+        status: response.status,
+        statusText: response.statusText
+      });
 
       if (!response.ok) {
         let errorMessage = "Failed to upload file";
@@ -161,6 +188,7 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
       let responseData;
       try {
         responseData = await response.json();
+        console.log(`[FILE-MODAL] ✅ Upload successful for ${fileData.name}:`, responseData);
       } catch (parseError) {
         throw new Error("Invalid response from server");
       }
