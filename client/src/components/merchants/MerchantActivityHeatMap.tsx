@@ -66,7 +66,7 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
   return (
     <div
-      className={`w-3 h-3 rounded-sm relative group transition-colors ${
+      className={`w-4 h-4 rounded-sm relative group transition-colors ${
         count > 0 ? 'cursor-pointer' : 'cursor-help'
       } ${getBackgroundColor(count)} ${!isCurrentMonth ? 'opacity-30' : ''} ${
         isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''
@@ -195,16 +195,72 @@ const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-64 mb-4"></div>
-          <div className="flex gap-1">
-            {Array.from({ length: 53 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                {Array.from({ length: 7 }).map((_, j) => (
-                  <div key={j} className="w-3 h-3 bg-gray-200 rounded-sm"></div>
-                ))}
+        {/* Header - exact same structure as loaded state */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-6 bg-gray-200 rounded w-64 mb-1 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Heat Map Grid Container with Box - Same structure as loaded state */}
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+          <div className="overflow-x-auto">
+            <div className="relative" style={{ minWidth: `${53 * 20 + 60}px` }}>
+              {/* Year Navigation Placeholder - exact same positioning */}
+              <div className="flex justify-end mb-4" style={{ width: `${53 * 20 + 32}px` }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                </div>
               </div>
-            ))}
+              
+              {/* Month labels placeholder - exact same positioning */}
+              <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '0px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '200px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '400px' }}></div>
+                <div className="w-8 h-3 bg-gray-200 rounded animate-pulse absolute" style={{ left: '600px' }}></div>
+              </div>
+              
+              <div className="flex">
+                {/* Day labels - exact same structure */}
+                <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '140px' }}>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                
+                {/* Grid skeleton - exact same size (4x4 pixels) */}
+                <div className="flex gap-1">
+                  {Array.from({ length: 53 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <div key={j} className="w-4 h-4 bg-gray-200 rounded-sm animate-pulse"></div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Legend placeholder - exact same positioning */}
+              <div className="flex justify-end mt-4" style={{ width: `${53 * 20 + 32}px` }}>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="flex gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="w-3 h-3 bg-gray-200 rounded-sm animate-pulse"></div>
+                      ))}
+                    </div>
+                    <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -226,120 +282,130 @@ const MerchantActivityHeatMap: React.FC<MerchantActivityHeatMapProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Transaction Activity Heat Map</h3>
-          <div className="flex items-center gap-4 mt-1">
-            <p className="text-sm text-gray-600">
-              Daily transaction volume over time - darker squares indicate more transactions
-            </p>
-            {merchantInfo && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-500">Total Transactions:</span>
-                <span className="font-semibold text-blue-600">
-                  {merchantInfo.totalTransactions?.toLocaleString() || 'N/A'}
-                </span>
-                <span className="text-gray-400">•</span>
-                <span className="text-gray-500">Last Transaction Year:</span>
-                <span className="font-semibold text-green-600">
-                  {merchantInfo.lastTransactionDate ? 
-                    new Date(merchantInfo.lastTransactionDate).getFullYear() : 'N/A'}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentYear(currentYear - 1)}
-            className="flex items-center gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="font-medium text-gray-900 min-w-[60px] text-center">
-            {currentYear}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentYear(currentYear + 1)}
-            disabled={currentYear >= new Date().getFullYear()}
-            className="flex items-center gap-1"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            Transaction Activity Heat Map
+          </h3>
+          <p className="text-sm text-gray-600">
+            Daily transaction volume over time - darker squares indicate more transactions
+          </p>
+          {merchantInfo && (
+            <div className="flex items-center gap-2 text-sm mt-2">
+              <span className="text-gray-500">Total Transactions:</span>
+              <span className="font-semibold text-blue-600">
+                {merchantInfo.totalTransactions?.toLocaleString() || 'N/A'}
+              </span>
+              <span className="text-gray-400">•</span>
+              <span className="text-gray-500">Last Transaction Year:</span>
+              <span className="font-semibold text-green-600">
+                {merchantInfo.lastTransactionDate ? 
+                  new Date(merchantInfo.lastTransactionDate).getFullYear() : 'N/A'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="relative">
-        {/* Month labels */}
-        <div className="flex gap-1 mb-2 ml-6">
-          {monthNames.map((month, index) => (
-            <div
-              key={month}
-              className="text-xs text-gray-500 font-medium"
-              style={{ width: `${(weeks.length / 12) * 13}px`, minWidth: '20px' }}
-            >
-              {index % 2 === 0 ? month : ''}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-1">
-          {/* Weekday labels */}
-          <div className="flex flex-col gap-1 mr-2">
-            {weekDays.map((day, index) => (
-              <div key={day} className="h-3 text-xs text-gray-500 font-medium flex items-center">
-                {index === 0 && 'Mon'}
-                {index === 1 && 'Wed'}
-                {index === 2 && 'Fri'}
+      {/* Heat Map Grid Container with Box */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="overflow-x-auto">
+          <div className="relative" style={{ minWidth: `${weeks.length * 20 + 60}px` }}>
+            {/* Year Navigation - Right aligned with heat map */}
+            <div className="flex justify-end mb-4" style={{ width: `${weeks.length * 20 + 32}px` }}>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentYear(currentYear - 1)}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <span className="text-lg font-semibold text-gray-900 min-w-[60px] text-center">
+                  {currentYear}
+                </span>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentYear(currentYear + 1)}
+                  disabled={currentYear >= new Date().getFullYear()}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-            ))}
-            <div className="h-3"></div>
-            <div className="h-3"></div>
-            <div className="h-3"></div>
-            <div className="h-3"></div>
-          </div>
-
-          {/* Heat map grid */}
-          <div className="flex gap-1">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
-                {week.map((day, dayIndex) => (
-                  <DaySquare
-                    key={`${day.dateStr}-${dayIndex}`}
-                    date={day.date}
-                    activity={day.activity}
-                    isCurrentMonth={day.isCurrentYear}
-                    onClick={handleDateClick}
-                    isSelected={selectedDate === day.dateStr}
-                  />
+            </div>
+            
+            {/* Month labels with precise alignment */}
+            <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
+              {monthNames.map((month, index) => {
+                if (index % 2 === 0) {
+                  const position = (weeks.length / 12) * index * 20;
+                  return (
+                    <div
+                      key={month}
+                      className="text-xs text-gray-500 font-medium absolute"
+                      style={{ left: `${position}px` }}
+                    >
+                      {month}
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+            
+            <div className="flex">
+              {/* Day labels */}
+              <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '140px' }}>
+                <div>Mon</div>
+                <div>Wed</div>
+                <div>Fri</div>
+              </div>
+              
+              {/* Heat map grid */}
+              <div className="flex gap-1">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col gap-1">
+                    {week.map((day, dayIndex) => (
+                      <DaySquare
+                        key={`${day.dateStr}-${dayIndex}`}
+                        date={day.date}
+                        activity={day.activity}
+                        isCurrentMonth={day.isCurrentYear}
+                        onClick={handleDateClick}
+                        isSelected={selectedDate === day.dateStr}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
-            ))}
+            </div>
+            
+            {/* Legend - Right aligned with heat map */}
+            <div className="flex justify-end mt-4" style={{ width: `${weeks.length * 20 + 32}px` }}>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">{yearStats.totalCount}</span> transactions in {currentYear}
+                  <span className="mx-2">•</span>
+                  <span>Peak day: <span className="font-medium">{peakDay}</span> transactions</span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>Less</span>
+                  <div className="flex gap-1">
+                    <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
+                  </div>
+                  <span>More</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Legend and stats */}
-      <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-        <div className="text-sm text-gray-600">
-          <span className="font-medium">{yearStats.totalCount}</span> transactions in {currentYear}
-          <span className="mx-2">•</span>
-          <span>Peak day: <span className="font-medium">{peakDay}</span> transactions</span>
-        </div>
-        
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span>Less</span>
-          <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-            <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-            <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
-          </div>
-          <span>More</span>
         </div>
       </div>
     </div>
