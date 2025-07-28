@@ -7287,45 +7287,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Upload record not found" });
       }
       
-      // Temporarily use local file storage while fixing Replit Object Storage configuration
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      // Create local storage directory
-      const uploadDir = path.join(process.cwd(), 'tmp_uploads');
-      await fs.promises.mkdir(uploadDir, { recursive: true });
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
       
       // Use file buffer from memory storage
       const fileBuffer = req.file.buffer;
-      console.log(`[UPLOADER-DEBUG] File buffer length: ${fileBuffer.length}, Original name: ${req.file.originalname}`);
+      console.log(`[UPLOADER-REPLIT] Uploading file: ${req.file.originalname} (${fileBuffer.length} bytes)`);
       
-      // Save file locally with unique name
-      const localPath = path.join(uploadDir, `${id}_${uploadRecord.filename}`);
-      await fs.promises.writeFile(localPath, fileBuffer);
-      
-      const fileSize = fileBuffer.length;
-      const lineCount = fileBuffer.toString('utf-8').split('\n').length;
-      
-      // Update database with local storage information
+      // Update to uploading phase
       await storage.updateUploaderUpload(id, {
         currentPhase: 'uploading',
-        uploadProgress: 100,
-        s3Bucket: 'local-storage',
-        s3Key: localPath,
-        s3Url: `file://${localPath}`,
-        dataSize: fileSize,
-        lineCount: lineCount
+        uploadStartedAt: new Date(),
+        uploadProgress: 0
       });
       
-      console.log(`[UPLOADER-LOCAL] Uploaded locally: ${id} -> ${localPath}`);
+      // Upload to Replit Object Storage
+      const uploadResult = await ReplitStorageService.uploadFile(
+        fileBuffer,
+        uploadRecord.filename,
+        id,
+        req.file.mimetype
+      );
+      
+      const lineCount = fileBuffer.toString('utf-8').split('\n').length;
+      
+      // Update database with Replit storage information
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'uploaded',
+        uploadProgress: 100,
+        uploadedAt: new Date(),
+        storagePath: uploadResult.key,
+        s3Bucket: uploadResult.bucket,
+        s3Key: uploadResult.key,
+        s3Url: uploadResult.url,
+        s3Etag: uploadResult.etag,
+        fileSize: uploadResult.size,
+        lineCount: lineCount,
+        processingNotes: `Uploaded to Replit Object Storage: ${uploadResult.key}`
+      });
+      
+      console.log(`[UPLOADER-REPLIT] Successfully uploaded: ${id} to ${uploadResult.key}`);
+      
       res.json({ 
-        success: true, 
-        message: "File uploaded to local storage", 
-        storageUrl: `file://${localPath}`,
-        storageKey: localPath
+        success: true,
+        message: "File uploaded to Replit Object Storage successfully",
+        uploadResult,
+        lineCount,
+        fileSize: uploadResult.size
       });
     } catch (error: any) {
       console.error('Replit storage upload error:', error);
+      
+      // Update upload record with error
+      await storage.updateUploaderUpload(id, {
+        currentPhase: 'warning',
+        processingNotes: `Upload failed: ${error.message}`
+      });
+      
       res.status(500).json({ error: error.message });
     }
   });

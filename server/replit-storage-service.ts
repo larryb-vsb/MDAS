@@ -35,6 +35,12 @@ export class ReplitStorageService {
     };
   }
 
+  // Generate storage key for uploads
+  static generateUploadKey(filename: string, uploadId: string): string {
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    return `uploads/${timestamp}/${uploadId}/${filename}`;
+  }
+
   // Upload file buffer to Replit Object Storage
   static async uploadFile(
     fileBuffer: Buffer, 
