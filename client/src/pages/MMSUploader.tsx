@@ -141,7 +141,6 @@ export default function MMSUploader() {
     }
     
     setSelectedFiles(null);
-    setSelectedFileType('');
     // Reset file input
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
@@ -257,19 +256,93 @@ export default function MMSUploader() {
                   )}
                 </div>
 
-                {/* File Selection */}
+                {/* File Upload Zone */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Files</label>
-                  <Input
-                    id="file-input"
-                    type="file"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="cursor-pointer"
-                  />
+                  
+                  {/* Drop Zone */}
+                  <div className="relative">
+                    <div 
+                      className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors duration-300 bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer group"
+                      onClick={() => document.getElementById('file-input')?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        const files = e.dataTransfer?.files;
+                        if (files) {
+                          setSelectedFiles(files);
+                        }
+                      }}
+                    >
+                      {/* Animated Bag Icon */}
+                      <div className="mb-4">
+                        <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <svg 
+                            className="w-8 h-8 text-blue-500 group-hover:animate-bounce" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={1.5}
+                              d="M7 3V1.5C7 1.22 7.22 1 7.5 1h9c.28 0 .5.22.5.5V3M19 5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zM12 10v6M9 13l3-3 3 3"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-gray-700">File Upload Zone</h3>
+                        <p className="text-sm text-gray-500">
+                          Drag & drop files here, or click to select
+                        </p>
+                        
+                        {/* Browse Files Button */}
+                        <div className="pt-2">
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 transition-colors duration-200">
+                            <Upload className="h-4 w-4" />
+                            Browse Files
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Hidden File Input */}
+                    <input
+                      id="file-input"
+                      type="file"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept={selectedFileType === 'tddf' ? '.TSYSO,.tsyso' : selectedFileType === 'mastercard_di' ? '.xlms,.xlsx' : '.csv'}
+                    />
+                  </div>
+                  
                   {selectedFiles && (
-                    <div className="text-sm text-muted-foreground">
-                      {selectedFiles.length} file(s) selected
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="font-medium">
+                          {selectedFiles.length} file(s) selected
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        {Array.from(selectedFiles).map((file, index) => (
+                          <div key={index} className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                            {file.name} ({Math.round(file.size / 1024)}KB)
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
