@@ -1103,6 +1103,150 @@ export const insertUploadSchema = uploadsSchema.omit({ id: true, uploadDate: tru
 export type Upload = typeof uploads.$inferSelect;
 export type InsertUpload = typeof uploads.$inferInsert;
 
+// =============================================================================
+// MMS UPLOADER SYSTEM TABLES
+// =============================================================================
+// Parallel upload system with 4-phase processing: Started -> Uploading -> Uploaded -> Identified
+
+// Phase 1-4: Main uploader uploads table
+export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
+  id: text("id").primaryKey(), // String ID for upload identification
+  filename: text("filename").notNull(), // Original filename
+  fileSize: integer("file_size"), // File size in bytes
+  
+  // Phase 1: Started
+  startTime: timestamp("start_time").defaultNow().notNull(), // When upload was initiated
+  
+  // Phase 2: Uploading
+  uploadStartedAt: timestamp("upload_started_at"), // When actual file transfer began
+  uploadProgress: integer("upload_progress").default(0), // Upload progress 0-100
+  chunkedUpload: boolean("chunked_upload").default(false), // Whether using chunked upload
+  chunkCount: integer("chunk_count"), // Total number of chunks (if chunked)
+  chunksUploaded: integer("chunks_uploaded").default(0), // Number of chunks uploaded
+  
+  // Phase 3: Uploaded  
+  uploadedAt: timestamp("uploaded_at"), // When file upload completed
+  storagePath: text("storage_path"), // Where file is stored temporarily
+  uploadStatus: text("upload_status").default("started").notNull(), // started, uploading, uploaded, failed
+  
+  // Phase 4: Identified
+  identifiedAt: timestamp("identified_at"), // When file analysis completed
+  detectedFileType: text("detected_file_type"), // auto-detected file type
+  userClassifiedType: text("user_classified_type"), // user-override type
+  finalFileType: text("final_file_type"), // final determined type
+  lineCount: integer("line_count"), // Number of lines in file
+  dataSize: integer("data_size"), // Analyzed data size
+  hasHeaders: boolean("has_headers"), // Whether file has header row
+  fileFormat: text("file_format"), // csv, fixed-width, json, etc.
+  
+  // Metadata and error handling
+  compressionUsed: text("compression_used"), // gzip, none, etc.
+  encodingDetected: text("encoding_detected"), // utf-8, ascii, etc.
+  validationErrors: jsonb("validation_errors"), // Array of validation issues
+  processingNotes: text("processing_notes"), // General processing notes
+  
+  // System tracking
+  createdBy: text("created_by"), // Username who uploaded
+  serverId: text("server_id"), // Which server handled upload
+  sessionId: text("session_id"), // Session identifier
+  
+  // Current processing state
+  currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, failed
+  lastUpdated: timestamp("last_updated").defaultNow().notNull()
+}, (table) => ({
+  currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),
+  uploadStatusIdx: index("uploader_uploads_upload_status_idx").on(table.uploadStatus),
+  startTimeIdx: index("uploader_uploads_start_time_idx").on(table.startTime),
+  filenameIdx: index("uploader_uploads_filename_idx").on(table.filename),
+  createdByIdx: index("uploader_uploads_created_by_idx").on(table.createdBy),
+  finalFileTypeIdx: index("uploader_uploads_final_file_type_idx").on(table.finalFileType)
+}));
+
+// JSON processing table for Phase 5+ (future expansion)
+export const uploaderJson = pgTable(getTableName("uploader_json"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id").notNull().references(() => uploaderUploads.id, { onDelete: "cascade" }),
+  lineNumber: integer("line_number").notNull(), // Line number in original file
+  rawLineData: text("raw_line_data").notNull(), // Original line content
+  processedJson: jsonb("processed_json"), // Parsed JSON representation
+  fieldSeparationData: jsonb("field_separation_data"), // Field parsing metadata
+  processingTimeMs: integer("processing_time_ms"), // Processing time for this line
+  errors: jsonb("errors"), // Any parsing errors
+  sourceFileName: text("source_file_name").notNull(), // Original filename reference
+  metadata: jsonb("metadata"), // Additional line-level metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at")
+}, (table) => ({
+  uploadIdIdx: index("uploader_json_upload_id_idx").on(table.uploadId),
+  lineNumberIdx: index("uploader_json_line_number_idx").on(table.lineNumber),
+  sourceFileNameIdx: index("uploader_json_source_file_name_idx").on(table.sourceFileName)
+}));
+
+// TDDF JSONB records table for future TDDF processing
+export const uploaderTddfJsonbRecords = pgTable(getTableName("uploader_tddf_jsonb_records"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id").notNull().references(() => uploaderUploads.id, { onDelete: "cascade" }),
+  recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
+  recordData: jsonb("record_data").notNull(), // Complete TDDF record as JSON
+  processingStatus: text("processing_status").default("pending").notNull(), // pending, processing, completed, failed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at")
+}, (table) => ({
+  uploadIdIdx: index("uploader_tddf_jsonb_upload_id_idx").on(table.uploadId),
+  recordTypeIdx: index("uploader_tddf_jsonb_record_type_idx").on(table.recordType),
+  processingStatusIdx: index("uploader_tddf_jsonb_processing_status_idx").on(table.processingStatus)
+}));
+
+// MasterCard Data Integrity records table for future expansion
+export const uploaderMastercardDiEditRecords = pgTable(getTableName("uploader_mastercard_di_edit_records"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id").notNull().references(() => uploaderUploads.id, { onDelete: "cascade" }),
+  editData: jsonb("edit_data").notNull(), // Variable length field data
+  editNumbers: jsonb("edit_numbers"), // Array of edit numbers
+  processingStatus: text("processing_status").default("pending").notNull(), // pending, processing, completed, failed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at")
+}, (table) => ({
+  uploadIdIdx: index("uploader_mastercard_di_upload_id_idx").on(table.uploadId),
+  processingStatusIdx: index("uploader_mastercard_di_processing_status_idx").on(table.processingStatus)
+}));
+
+// Zod schemas for uploader tables
+export const uploaderUploadsSchema = createInsertSchema(uploaderUploads);
+export const insertUploaderUploadSchema = uploaderUploadsSchema.omit({ 
+  id: true, 
+  startTime: true, 
+  lastUpdated: true 
+});
+
+export const uploaderJsonSchema = createInsertSchema(uploaderJson);
+export const insertUploaderJsonSchema = uploaderJsonSchema.omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const uploaderTddfJsonbRecordsSchema = createInsertSchema(uploaderTddfJsonbRecords);
+export const insertUploaderTddfJsonbRecordSchema = uploaderTddfJsonbRecordsSchema.omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export const uploaderMastercardDiEditRecordsSchema = createInsertSchema(uploaderMastercardDiEditRecords);
+export const insertUploaderMastercardDiEditRecordSchema = uploaderMastercardDiEditRecordsSchema.omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+// Export uploader types
+export type UploaderUpload = typeof uploaderUploads.$inferSelect;
+export type InsertUploaderUpload = typeof uploaderUploads.$inferInsert;
+export type UploaderJson = typeof uploaderJson.$inferSelect;
+export type InsertUploaderJson = typeof uploaderJson.$inferInsert;
+export type UploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferSelect;
+export type InsertUploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferInsert;
+export type UploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferSelect;
+export type InsertUploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferInsert;
+
 // Security log table for authentication and access events
 export const securityLogs = pgTable("security_logs", {
   id: serial("id").primaryKey(),

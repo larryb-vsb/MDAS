@@ -7226,25 +7226,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MMS Uploader API endpoints
+  app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
+    try {
+      const { filename, fileSize, sessionId } = req.body;
+      
+      const upload = await storage.createUploaderUpload({
+        filename,
+        file_size: fileSize,
+        created_by: (req.user as any)?.username || 'unknown',
+        session_id: sessionId,
+        server_id: process.env.HOSTNAME || 'unknown'
+      });
+      
+      console.log(`[UPLOADER API] Started upload: ${upload.id} for ${filename}`);
+      res.json(upload);
+    } catch (error: any) {
+      console.error('Start upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
     try {
-      const uploads = await storage.getDevUploads();
+      const { phase, limit, offset } = req.query;
+      const uploads = await storage.getUploaderUploads({
+        phase: phase as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined
+      });
       res.json(uploads);
     } catch (error: any) {
-      console.error('Get dev uploads error:', error);
+      console.error('Get uploader uploads error:', error);
       res.status(500).json({ error: error.message });
     }
   });
 
   app.get("/api/uploader/:id", isAuthenticated, async (req, res) => {
     try {
-      const upload = await storage.getDevUploadById(req.params.id);
+      const upload = await storage.getUploaderUploadById(req.params.id);
       if (!upload) {
         return res.status(404).json({ error: "Upload not found" });
       }
       res.json(upload);
     } catch (error: any) {
-      console.error('Get dev upload error:', error);
+      console.error('Get uploader upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/uploader/:id/phase/:phase", isAuthenticated, async (req, res) => {
+    try {
+      const { id, phase } = req.params;
+      const phaseData = req.body;
+      
+      const upload = await storage.updateUploaderPhase(id, phase, phaseData);
+      console.log(`[UPLOADER API] Updated upload ${id} to phase: ${phase}`);
+      res.json(upload);
+    } catch (error: any) {
+      console.error('Update upload phase error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/uploader/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const upload = await storage.updateUploaderUpload(id, updates);
+      console.log(`[UPLOADER API] Updated upload ${id}`);
+      res.json(upload);
+    } catch (error: any) {
+      console.error('Update uploader upload error:', error);
       res.status(500).json({ error: error.message });
     }
   });

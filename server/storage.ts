@@ -44,7 +44,10 @@ import {
   insertSchemaContentSchema,
   DevUpload,
   InsertDevUpload,
-  devUploads
+  devUploads,
+  UploaderUpload,
+  InsertUploaderUpload,
+  uploaderUploads
 } from "@shared/schema";
 import { db, batchDb, sessionPool, pool } from "./db";
 import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, ilike, isNotNull, inArray, ne } from "drizzle-orm";
@@ -91,6 +94,13 @@ export interface IStorage {
   createDevUpload(insertDevUpload: any): Promise<any>;
   getDevUploads(): Promise<any[]>;
   getDevUploadById(id: string): Promise<any | undefined>;
+
+  // MMS Uploader operations (4-phase processing)
+  createUploaderUpload(insertUploaderUpload: Partial<InsertUploaderUpload>): Promise<UploaderUpload>;
+  getUploaderUploads(options?: { phase?: string; limit?: number; offset?: number }): Promise<UploaderUpload[]>;
+  getUploaderUploadById(id: string): Promise<UploaderUpload | undefined>;
+  updateUploaderUpload(id: string, updates: Partial<UploaderUpload>): Promise<UploaderUpload>;
+  updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload>;
 
   // Terminal operations
   getTerminals(): Promise<Terminal[]>;
@@ -13111,6 +13121,174 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error) {
       console.error('[ORPHANED-RECOVERY] Error recovering orphaned uploads:', error);
+      throw error;
+    }
+  }
+
+  // MMS Uploader storage operations
+  async createUploaderUpload(insertUploaderUpload: Partial<InsertUploaderUpload>): Promise<UploaderUpload> {
+    try {
+      console.log(`[UPLOADER] Creating new upload: ${insertUploaderUpload.filename}`);
+      
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Generate unique ID if not provided
+      const id = insertUploaderUpload.id || `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const result = await pool.query(`
+        INSERT INTO ${uploaderTableName} (
+          id, filename, file_size, start_time, upload_status, 
+          current_phase, created_by, server_id, session_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      `, [
+        id,
+        insertUploaderUpload.filename,
+        insertUploaderUpload.file_size || null,
+        insertUploaderUpload.start_time || new Date(),
+        insertUploaderUpload.upload_status || 'started',
+        insertUploaderUpload.current_phase || 'started',
+        insertUploaderUpload.created_by || 'system',
+        insertUploaderUpload.server_id || null,
+        insertUploaderUpload.session_id || null
+      ]);
+      
+      console.log(`[UPLOADER] Created upload ${id} in phase: ${result.rows[0].current_phase}`);
+      return result.rows[0] as UploaderUpload;
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error creating uploader upload:', error);
+      throw error;
+    }
+  }
+
+  async getUploaderUploads(options?: { phase?: string; limit?: number; offset?: number }): Promise<UploaderUpload[]> {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      let query = `SELECT * FROM ${uploaderTableName}`;
+      const params: any[] = [];
+      
+      if (options?.phase) {
+        query += ` WHERE current_phase = $1`;
+        params.push(options.phase);
+      }
+      
+      query += ` ORDER BY start_time DESC`;
+      
+      if (options?.limit) {
+        query += ` LIMIT $${params.length + 1}`;
+        params.push(options.limit);
+      }
+      
+      if (options?.offset) {
+        query += ` OFFSET $${params.length + 1}`;
+        params.push(options.offset);
+      }
+      
+      const result = await pool.query(query, params);
+      return result.rows as UploaderUpload[];
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error getting uploader uploads:', error);
+      throw error;
+    }
+  }
+
+  async getUploaderUploadById(id: string): Promise<UploaderUpload | undefined> {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      const result = await pool.query(`
+        SELECT * FROM ${uploaderTableName} 
+        WHERE id = $1
+      `, [id]);
+      
+      return result.rows[0] as UploaderUpload || undefined;
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error getting uploader upload by ID:', error);
+      throw error;
+    }
+  }
+
+  async updateUploaderUpload(id: string, updates: Partial<UploaderUpload>): Promise<UploaderUpload> {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Build dynamic update query
+      const fields = Object.keys(updates).filter(key => key !== 'id');
+      const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+      
+      if (fields.length === 0) {
+        throw new Error('No fields to update');
+      }
+      
+      // Always update last_updated timestamp
+      const query = `
+        UPDATE ${uploaderTableName} 
+        SET ${setClause}, last_updated = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `;
+      
+      const values = [id, ...fields.map(field => updates[field as keyof UploaderUpload])];
+      const result = await pool.query(query, values);
+      
+      if (result.rows.length === 0) {
+        throw new Error(`Upload with ID ${id} not found`);
+      }
+      
+      console.log(`[UPLOADER] Updated upload ${id}: ${JSON.stringify(updates)}`);
+      return result.rows[0] as UploaderUpload;
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error updating uploader upload:', error);
+      throw error;
+    }
+  }
+
+  async updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload> {
+    try {
+      console.log(`[UPLOADER] Transitioning upload ${id} to phase: ${phase}`);
+      
+      const updates: Partial<UploaderUpload> = {
+        current_phase: phase,
+        last_updated: new Date()
+      };
+      
+      // Add phase-specific timestamp and data
+      switch (phase) {
+        case 'uploading':
+          updates.upload_started_at = new Date();
+          updates.upload_status = 'uploading';
+          if (phaseData?.progress) updates.upload_progress = phaseData.progress;
+          if (phaseData?.chunked_upload) updates.chunked_upload = phaseData.chunked_upload;
+          if (phaseData?.chunk_count) updates.chunk_count = phaseData.chunk_count;
+          break;
+          
+        case 'uploaded':
+          updates.uploaded_at = new Date();
+          updates.upload_status = 'uploaded';
+          if (phaseData?.storage_path) updates.storage_path = phaseData.storage_path;
+          if (phaseData?.file_size) updates.file_size = phaseData.file_size;
+          break;
+          
+        case 'identified':
+          updates.identified_at = new Date();
+          if (phaseData?.detected_file_type) updates.detected_file_type = phaseData.detected_file_type;
+          if (phaseData?.final_file_type) updates.final_file_type = phaseData.final_file_type;
+          if (phaseData?.line_count) updates.line_count = phaseData.line_count;
+          if (phaseData?.has_headers !== undefined) updates.has_headers = phaseData.has_headers;
+          if (phaseData?.file_format) updates.file_format = phaseData.file_format;
+          if (phaseData?.encoding_detected) updates.encoding_detected = phaseData.encoding_detected;
+          if (phaseData?.validation_errors) updates.validation_errors = phaseData.validation_errors;
+          if (phaseData?.processing_notes) updates.processing_notes = phaseData.processing_notes;
+          break;
+      }
+      
+      return await this.updateUploaderUpload(id, updates);
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error updating upload phase:', error);
       throw error;
     }
   }
