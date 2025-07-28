@@ -1064,11 +1064,13 @@ export class DatabaseStorage implements IStorage {
 
       let sourceFiles: Record<string, string> = {};
       if (sourceFileIds.length > 0) {
-        // Use raw SQL for file queries with individual lookups
+        // @ENVIRONMENT-CRITICAL - File lookup operations
+        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+        const uploadedFilesTableName = getTableName('uploaded_files');
         const filePromises = sourceFileIds.map(async (fileId) => {
           const filesQuery = await db.execute(sql`
             SELECT id, original_filename 
-            FROM uploaded_files 
+            FROM ${sql.identifier(uploadedFilesTableName)}
             WHERE id = ${fileId}
           `);
           return filesQuery.rows[0];
@@ -1201,11 +1203,14 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Update merchant details with audit logging
+  // @ENVIRONMENT-CRITICAL - Merchant update operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async updateMerchant(merchantId: string, merchantData: Partial<InsertMerchant>): Promise<any> {
     try {
+      const merchantsTableName = getTableName('merchants');
       // Check if merchant exists and get original values
-      const [existingMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      const existingResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+      const existingMerchant = existingResult.rows[0];
       
       if (!existingMerchant) {
         throw new Error(`Merchant with ID ${merchantId} not found`);
@@ -1221,13 +1226,18 @@ export class DatabaseStorage implements IStorage {
       if (changedFields.length > 0) {
         // Search index will be maintained at database level
         
-        // Update merchant
-        await db.update(merchantsTable)
-          .set(merchantData)
-          .where(eq(merchantsTable.id, merchantId));
+        // Update merchant with environment-aware table naming
+        const updateFields = Object.keys(merchantData).map((key, i) => `${key} = $${i + 2}`).join(', ');
+        const updateValues = [merchantId, ...Object.values(merchantData)];
+        
+        await pool.query(
+          `UPDATE ${merchantsTableName} SET ${updateFields} WHERE id = $1`,
+          updateValues
+        );
         
         // Get updated merchant
-        const [updatedMerchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+        const updatedResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+        const updatedMerchant = updatedResult.rows[0];
         
         // Create audit log entry
         const username = merchantData.updatedBy || 'System';
@@ -1250,7 +1260,9 @@ export class DatabaseStorage implements IStorage {
         
         return updatedMerchant;
       } else {
-        // No changes detected
+        // No changes detected  
+        // @ENVIRONMENT-CRITICAL - Merchant existence check completed
+        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
         return existingMerchant;
       }
     } catch (error) {
@@ -1279,8 +1291,13 @@ export class DatabaseStorage implements IStorage {
     return filtered;
   }
   
-  // Delete multiple merchants with audit logging
+  // @ENVIRONMENT-CRITICAL - Merchant deletion operations  
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async deleteMerchants(merchantIds: string[], username: string = 'System'): Promise<void> {
+    const merchantsTableName = getTableName('merchants');
+    const transactionsTableName = getTableName('transactions');
+    const auditLogsTableName = getTableName('audit_logs');
+    
     // Use database transaction to ensure all operations are committed together
     return await db.transaction(async (tx) => {
       console.log(`[DELETE MERCHANTS] Starting deletion of ${merchantIds.length} merchants:`, merchantIds);
@@ -1292,31 +1309,26 @@ export class DatabaseStorage implements IStorage {
       for (const merchantId of merchantIds) {
         console.log(`[DELETE MERCHANTS] Processing merchant: ${merchantId}`);
         
-        // Get merchant data before deletion for audit log
-        const [existingMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+        // Get merchant data before deletion for audit log (environment-aware)
+        const merchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+        const existingMerchant = merchantResult.rows[0];
         
         if (existingMerchant) {
           console.log(`[DELETE MERCHANTS] Found merchant: ${existingMerchant.name}`);
           
-          // Get transaction count for this merchant
-          const [{ count: transactionCount }] = await tx
-            .select({ count: count() })
-            .from(transactionsTable)
-            .where(eq(transactionsTable.merchantId, merchantId));
+          // Get transaction count for this merchant (environment-aware)
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName} WHERE merchant_id = $1`, [merchantId]);
+          const transactionCount = parseInt(countResult.rows[0].count, 10);
           
           console.log(`[DELETE MERCHANTS] Found ${transactionCount} transactions for merchant ${merchantId}`);
           
-          // Delete transactions associated with this merchant
-          const deleteTransactionsResult = await tx.delete(transactionsTable)
-            .where(eq(transactionsTable.merchantId, merchantId));
+          // Delete transactions associated with this merchant (environment-aware)
+          await pool.query(`DELETE FROM ${transactionsTableName} WHERE merchant_id = $1`, [merchantId]);
+          console.log(`[DELETE MERCHANTS] Deleted ${transactionCount} transactions for ${merchantId}`);
           
-          console.log(`[DELETE MERCHANTS] Deleted transactions for ${merchantId}:`, deleteTransactionsResult);
-          
-          // Delete the merchant
-          const deleteMerchantResult = await tx.delete(merchantsTable)
-            .where(eq(merchantsTable.id, merchantId));
-          
-          console.log(`[DELETE MERCHANTS] Deleted merchant ${merchantId}:`, deleteMerchantResult);
+          // Delete the merchant (environment-aware)
+          await pool.query(`DELETE FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+          console.log(`[DELETE MERCHANTS] Deleted merchant ${merchantId}`);
           
           deletedCount++;
           totalTransactionsDeleted += Number(transactionCount);
@@ -1336,7 +1348,16 @@ export class DatabaseStorage implements IStorage {
             };
             
             console.log(`[DELETE MERCHANTS] Creating audit log for ${merchantId}`);
-            await tx.insert(auditLogsTable).values(auditLogData);
+            const auditColumns = Object.keys(auditLogData).join(', ');
+            const auditPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
+            const auditValues = Object.values(auditLogData).map(val => 
+              typeof val === 'object' ? JSON.stringify(val) : val
+            );
+            
+            await pool.query(
+              `INSERT INTO ${auditLogsTableName} (${auditColumns}) VALUES (${auditPlaceholders})`,
+              auditValues
+            );
             console.log(`[DELETE MERCHANTS] Audit log created for ${merchantId}`);
           } catch (auditError) {
             console.error(`[DELETE MERCHANTS] Failed to create audit log for ${merchantId}:`, auditError);
@@ -1351,17 +1372,23 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // Merge merchants - transfer all transactions from source merchants to target merchant
+  // @ENVIRONMENT-CRITICAL - Merchant merge operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async mergeMerchants(targetMerchantId: string, sourceMerchantIds: string[], username: string = 'System'): Promise<{
     success: boolean;
     transactionsTransferred: number;
     merchantsRemoved: number;
     targetMerchant: Merchant;
   }> {
+    const merchantsTableName = getTableName('merchants');
+    const transactionsTableName = getTableName('transactions');
+    const auditLogsTableName = getTableName('audit_logs');
+    
     // Use database transaction to ensure all operations including logging are committed together
     return await db.transaction(async (tx) => {
-      // Validate target merchant exists
-      const [targetMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, targetMerchantId));
+      // Validate target merchant exists (environment-aware)
+      const targetResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [targetMerchantId]);
+      const targetMerchant = targetResult.rows[0];
       if (!targetMerchant) {
         throw new Error(`Target merchant with ID ${targetMerchantId} not found`);
       }
@@ -1378,30 +1405,32 @@ export class DatabaseStorage implements IStorage {
 
       // Process each source merchant
       for (const sourceMerchantId of filteredSourceIds) {
-        // Get source merchant data before merging
-        const [sourceMerchant] = await tx.select().from(merchantsTable).where(eq(merchantsTable.id, sourceMerchantId));
+        // Get source merchant data before merging (environment-aware)
+        const sourceResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [sourceMerchantId]);
+        const sourceMerchant = sourceResult.rows[0];
         
         if (sourceMerchant) {
-          // Count transactions to be transferred
-          const [{ count: transactionCount }] = await tx
-            .select({ count: count() })
-            .from(transactionsTable)
-            .where(eq(transactionsTable.merchantId, sourceMerchantId));
+          // Count transactions to be transferred (environment-aware)
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName} WHERE merchant_id = $1`, [sourceMerchantId]);
+          const transactionCount = parseInt(countResult.rows[0].count, 10);
 
-          // Transfer all transactions from source to target merchant
-          await tx.update(transactionsTable)
-            .set({ merchantId: targetMerchantId })
-            .where(eq(transactionsTable.merchantId, sourceMerchantId));
+          // Transfer all transactions from source to target merchant (environment-aware)
+          await pool.query(
+            `UPDATE ${transactionsTableName} SET merchant_id = $1 WHERE merchant_id = $2`,
+            [targetMerchantId, sourceMerchantId]
+          );
 
           totalTransactionsTransferred += Number(transactionCount);
 
-          // Mark source merchant as removed instead of deleting
-          await tx.update(merchantsTable)
-            .set({ 
-              status: 'Removed',
-              notes: `Merged into merchant "${targetMerchant.name}" (${targetMerchantId}) on ${new Date().toISOString()}. ${Number(transactionCount)} transactions transferred.`
-            })
-            .where(eq(merchantsTable.id, sourceMerchantId));
+          // Mark source merchant as removed instead of deleting (environment-aware)
+          await pool.query(
+            `UPDATE ${merchantsTableName} SET status = $1, notes = $2 WHERE id = $3`,
+            [
+              'Removed',
+              `Merged into merchant "${targetMerchant.name}" (${targetMerchantId}) on ${new Date().toISOString()}. ${transactionCount} transactions transferred.`,
+              sourceMerchantId
+            ]
+          );
 
           merchantsRemoved++;
 
@@ -1418,11 +1447,20 @@ export class DatabaseStorage implements IStorage {
             notes: `Merged merchant "${sourceMerchant.name}" (${sourceMerchantId}) into "${targetMerchant.name}" (${targetMerchantId}). Transferred ${transactionCount} transactions.`
           };
 
-          // Create audit log entry directly within the transaction
+          // Create audit log entry directly within the transaction (environment-aware)
           try {
             console.log('[MERGE LOGGING] Creating audit log entry:', auditLogData);
-            const [auditLog] = await tx.insert(auditLogsTable).values(auditLogData).returning();
-            console.log('[MERGE LOGGING] Audit log created successfully with ID:', auditLog.id);
+            const auditColumns = Object.keys(auditLogData).join(', ');
+            const auditPlaceholders = Object.keys(auditLogData).map((_, i) => `$${i + 1}`).join(', ');
+            const auditValues = Object.values(auditLogData).map(val => 
+              typeof val === 'object' ? JSON.stringify(val) : val
+            );
+            
+            const auditResult = await pool.query(
+              `INSERT INTO ${auditLogsTableName} (${auditColumns}) VALUES (${auditPlaceholders}) RETURNING id`,
+              auditValues
+            );
+            console.log('[MERGE LOGGING] Audit log created successfully with ID:', auditResult.rows[0].id);
           } catch (error) {
             console.error('[MERGE LOGGING] Failed to create audit log:', error);
           }
@@ -1486,11 +1524,18 @@ export class DatabaseStorage implements IStorage {
     });
   }
   
-  // Add a new transaction for a merchant with audit logging
+  // @ENVIRONMENT-CRITICAL - Transaction creation operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async addTransaction(merchantId: string, transactionData: { amount: string, type: string, date: string }, username: string = 'System'): Promise<any> {
     try {
-      // Check if the merchant exists
-      const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      // @ENVIRONMENT-CRITICAL - Transaction creation operations
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const merchantsTableName = getTableName('merchants');
+      const transactionsTableName = getTableName('transactions');
+      
+      // Check if the merchant exists (environment-aware)
+      const merchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchantId]);
+      const merchant = merchantResult.rows[0];
       
       if (!merchant) {
         throw new Error(`Merchant with ID ${merchantId} not found`);
@@ -1525,15 +1570,19 @@ export class DatabaseStorage implements IStorage {
         type: transactionData.type
       };
       
-      // Insert the transaction
-      const [insertedTransaction] = await db.insert(transactionsTable)
-        .values(transaction)
-        .returning();
+      // Insert the transaction (environment-aware)
+      const insertResult = await pool.query(`
+        INSERT INTO ${transactionsTableName} (id, merchant_id, amount, date, type)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [transaction.id, transaction.merchantId, transaction.amount, transaction.date, transaction.type]);
+      const insertedTransaction = insertResult.rows[0];
       
-      // Update the merchant's lastUploadDate
-      await db.update(merchantsTable)
-        .set({ lastUploadDate: new Date() })
-        .where(eq(merchantsTable.id, merchantId));
+      // Update the merchant's lastUploadDate (environment-aware)
+      await pool.query(
+        `UPDATE ${merchantsTableName} SET last_upload_date = $1 WHERE id = $2`,
+        [new Date(), merchantId]
+      );
       
       // Create audit log entry for the transaction creation
       const auditLogData: InsertAuditLog = {
@@ -1572,7 +1621,8 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Get transactions with pagination and filtering
+  // @ENVIRONMENT-CRITICAL - Transaction pagination and filtering operations  
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getTransactions(
     page: number = 1,
     limit: number = 20,
@@ -1591,98 +1641,99 @@ export class DatabaseStorage implements IStorage {
     };
   }> {
     try {
-      // Create base query with filename lookup
-      let query = db.select({
-        transaction: transactionsTable,
-        merchantName: merchantsTable.name,
-        sourceFileName: uploadedFilesTable.originalFilename
-      })
-      .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-      .leftJoin(uploadedFilesTable, eq(transactionsTable.sourceFileId, uploadedFilesTable.id));
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
+      const uploadedFilesTableName = getTableName('uploaded_files');
       
       // Build filter conditions
       const conditions = [];
+      const params = [];
+      let paramIndex = 1;
       
       if (merchantId) {
-        conditions.push(eq(transactionsTable.merchantId, merchantId));
+        conditions.push(`t.merchant_id = $${paramIndex}`);
+        params.push(merchantId);
+        paramIndex++;
       }
       
       if (startDate) {
-        const startDateObj = new Date(startDate);
-        conditions.push(gte(transactionsTable.date, startDateObj));
+        conditions.push(`t.date >= $${paramIndex}`);
+        params.push(new Date(startDate));
+        paramIndex++;
       }
       
       if (endDate) {
         const endDateObj = new Date(endDate);
-        // Set time to end of day
         endDateObj.setHours(23, 59, 59, 999);
-        conditions.push(sql`${transactionsTable.date} <= ${endDateObj}`);
+        conditions.push(`t.date <= $${paramIndex}`);
+        params.push(endDateObj);
+        paramIndex++;
       }
       
       if (type) {
-        conditions.push(eq(transactionsTable.type, type));
+        conditions.push(`t.type = $${paramIndex}`);
+        params.push(type);
+        paramIndex++;
       }
       
       if (transactionId) {
-        conditions.push(ilike(transactionsTable.id, `%${transactionId}%`));
+        conditions.push(`t.id ILIKE $${paramIndex}`);  
+        params.push(`%${transactionId}%`);
+        paramIndex++;
       }
       
-      // Apply conditions to query
-      if (conditions.length > 0) {
-        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
-        query = query.where(whereClause);
-      }
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       
-      // Get total count for pagination with same filters
-      let countQuery = db.select({ count: count() })
-        .from(transactionsTable)
-        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-        .leftJoin(uploadedFilesTable, eq(transactionsTable.sourceFileId, uploadedFilesTable.id));
+      // Get total count for pagination
+      const countQuery = `
+        SELECT COUNT(*) as count
+        FROM ${transactionsTableName} t
+        LEFT JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        LEFT JOIN ${uploadedFilesTableName} f ON t.source_file_id = f.id
+        ${whereClause}
+      `;
       
-      // Apply the same conditions to count query
-      if (conditions.length > 0) {
-        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
-        countQuery = countQuery.where(whereClause);
-      }
+      const totalItems = parseInt(countResult.rows[0].count);
       
-      const countResult = await countQuery;
-      const totalItems = parseInt(countResult[0].count.toString(), 10);
-      const totalPages = Math.ceil(totalItems / limit);
+      // Main query with pagination
       const offset = (page - 1) * limit;
+      const mainQuery = `
+        SELECT 
+          t.*,
+          m.name as merchant_name,
+          f.original_filename as source_file_name
+        FROM ${transactionsTableName} t
+        LEFT JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        LEFT JOIN ${uploadedFilesTableName} f ON t.source_file_id = f.id
+        ${whereClause}
+        ORDER BY t.date DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
       
-      // Apply pagination and ordering
-      query = query
-        .orderBy(desc(transactionsTable.date))
-        .limit(limit)
-        .offset(offset);
-      
-      // Execute query
-      const results = await query;
+      const results = await pool.query(mainQuery, [...params, limit, offset]);
       
       // Format results
-      const transactions = results.map(result => {
-        const { transaction, merchantName, sourceFileName } = result;
+      const transactions = results.rows.map(result => {
         return {
-          id: transaction.id, // Keep id for backward compatibility
-          transactionId: transaction.id, // Add transactionId to match getMerchantById format
-          merchantId: transaction.merchantId,
-          merchantName: merchantName,
-          amount: parseFloat(transaction.amount.toString()),
-          date: transaction.date.toISOString(),
-          type: transaction.type,
+          id: result.id, // Keep id for backward compatibility
+          transactionId: result.id, // Add transactionId to match getMerchantById format
+          merchantId: result.merchant_id,
+          merchantName: result.merchant_name,
+          amount: parseFloat(result.amount.toString()),
+          date: result.date.toISOString(),
+          type: result.type,
           // Raw data fields for tooltip display
-          rawData: transaction.rawData,
-          sourceFileId: transaction.sourceFileId,
-          sourceFileName: sourceFileName,
-          sourceRowNumber: transaction.sourceRowNumber,
-          recordedAt: transaction.recordedAt?.toISOString(),
+          rawData: result.raw_data,
+          sourceFileId: result.source_file_id,
+          sourceFileName: result.source_file_name,
+          sourceRowNumber: result.source_row_number,
+          recordedAt: result.recorded_at?.toISOString(),
           // Additional fields for CSV export
-          sequenceNumber: transaction.id.replace('T', ''),
-          accountNumber: transaction.merchantId,
-          netAmount: parseFloat(transaction.amount.toString()),
-          category: transaction.type === "Credit" ? "Income" : (transaction.type === "Debit" ? "Expense" : "Sale"),
-          postDate: transaction.date.toISOString().split('T')[0]
+          sequenceNumber: result.id.replace('T', ''),
+          accountNumber: result.merchant_id,
+          netAmount: parseFloat(result.amount.toString()),
+          category: result.type === "Credit" ? "Income" : (result.type === "Debit" ? "Expense" : "Sale"),
+          postDate: result.date.toISOString().split('T')[0]
         };
       });
       
@@ -1690,7 +1741,7 @@ export class DatabaseStorage implements IStorage {
         transactions,
         pagination: {
           currentPage: page,
-          totalPages,
+          totalPages: Math.ceil(totalItems / limit),
           totalItems,
           itemsPerPage: limit
         }
@@ -1730,7 +1781,8 @@ export class DatabaseStorage implements IStorage {
     return csvRows.join('\n');
   }
 
-  // Export transactions to CSV
+  // @ENVIRONMENT-CRITICAL - Transaction export operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async exportTransactionsToCSV(
     merchantId?: string,
     startDate?: string,
@@ -1739,71 +1791,74 @@ export class DatabaseStorage implements IStorage {
     transactionId?: string
   ): Promise<string> {
     try {
-      // Get all transactions matching the filters (without pagination)
-      let query = db.select({
-        transaction: transactionsTable,
-        merchantName: merchantsTable.name
-      })
-      .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-      .orderBy(desc(transactionsTable.date));
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
       
-      // Build filter conditions
-      const conditions = [];
+      // Build query conditions
+      const filterConditions = [];
+      const params = [];
+      let paramIndex = 1;
       
       if (merchantId) {
-        conditions.push(eq(transactionsTable.merchantId, merchantId));
+        filterConditions.push(`t.merchant_id = $${paramIndex}`);
+        params.push(merchantId);
+        paramIndex++;
       }
       
       if (startDate) {
-        const startDateObj = new Date(startDate);
-        conditions.push(gte(transactionsTable.date, startDateObj));
+        filterConditions.push(`t.date >= $${paramIndex}`);
+        params.push(new Date(startDate));
+        paramIndex++;
       }
       
       if (endDate) {
         const endDateObj = new Date(endDate);
         endDateObj.setHours(23, 59, 59, 999);
-        conditions.push(sql`${transactionsTable.date} <= ${endDateObj}`);
+        filterConditions.push(`t.date <= $${paramIndex}`);
+        params.push(endDateObj);
+        paramIndex++;
       }
       
       if (type) {
-        conditions.push(eq(transactionsTable.type, type));
+        filterConditions.push(`t.type = $${paramIndex}`);
+        params.push(type);
+        paramIndex++;
       }
       
       if (transactionId) {
-        conditions.push(ilike(transactionsTable.id, `%${transactionId}%`));
+        filterConditions.push(`t.id ILIKE $${paramIndex}`);
+        params.push(`%${transactionId}%`);
+        paramIndex++;
       }
       
-      // Apply conditions to query
-      if (conditions.length > 0) {
-        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
-        query = query.where(whereClause);
-      }
+      // Build WHERE clause
+      const whereClause = filterConditions.length > 0 ? `WHERE ${filterConditions.join(' AND ')}` : '';
       
-      const results = await query;
+      // Execute query with environment-aware table naming
+      const query = `
+        SELECT t.*, m.name as merchant_name
+        FROM ${transactionsTableName} t
+        LEFT JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        ${whereClause}
+        ORDER BY t.date DESC
+      `;
+      
+      const results = await pool.query(query, params);
       
       // Format results for CSV
-      const csvData = results.map(result => {
-        const { transaction, merchantName } = result;
-        const dateObj = new Date(transaction.date);
+      const csvData = results.rows.map(result => {
+        const dateObj = new Date(result.date);
         const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
-        const tranType = transaction.type === "Credit" ? "C" : (transaction.type === "Debit" ? "D" : transaction.type.charAt(0).toUpperCase());
+        const tranType = result.type === "Credit" ? "C" : (result.type === "Debit" ? "D" : result.type.charAt(0).toUpperCase());
         
         return {
-          'TranSeqN': transaction.id.replace('T', ''),
-          'TranAccou': transaction.merchantId,
-          'TranDate': formattedDate,
-          'TranType': tranType,
-          'TranAmou': parseFloat(transaction.amount.toString()).toFixed(2),
-          'NetTranAr': parseFloat(transaction.amount.toString()).toFixed(2),
-          'TranCategory': transaction.type === "Credit" ? "ACH-PURCH" : (transaction.type === "Debit" ? "ACH-PURCH" : "ACH-PURCH"),
-          'TranPostD': formattedDate,
-          'TranTraile': merchantName || 'MICHIGAN ASPIRE III LL',
-          'TranTraile1': '',
-          'TranTraile2': '',
-          'TranTraile3': '',
-          'TranTraile4': '',
-          'TranTraile5': ''
+          'Transaction ID': result.id,
+          'Merchant ID': result.merchant_id,
+          'Merchant Name': result.merchant_name || 'Unknown',
+          'Amount': result.amount,
+          'Date': formattedDate,
+          'Type': tranType,
+          'Recorded At': result.recorded_at ? new Date(result.recorded_at).toLocaleDateString() : ''
         };
       });
       
@@ -1835,27 +1890,34 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Get all transactions for a specific merchant by merchant ID
+  // @ENVIRONMENT-CRITICAL - Transaction retrieval by merchant
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getTransactionsByMerchantId(merchantId: string): Promise<Transaction[]> {
     try {
-      const transactions = await db
-        .select()
-        .from(transactionsTable)
-        .where(eq(transactionsTable.merchantId, merchantId))
-        .orderBy(desc(transactionsTable.date));
+      const transactionsTableName = getTableName('transactions');
       
-      return transactions;
+      const result = await pool.query(`
+        SELECT * FROM ${transactionsTableName} 
+        WHERE merchant_id = $1 
+        ORDER BY date DESC
+      `, [merchantId]);
+      
+      return result.rows;
     } catch (error) {
       console.error('Error getting transactions by merchant ID:', error);
       throw error;
     }
   }
 
-  // Export batch summary to CSV - groups transactions by ClientMID for a given day
+  // @ENVIRONMENT-CRITICAL - Batch summary export operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async exportBatchSummaryToCSV(
     targetDate: string
   ): Promise<string> {
     try {
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
+      
       // Parse the target date and set to beginning and end of day
       const startDate = new Date(targetDate);
       startDate.setUTCHours(0, 0, 0, 0);
@@ -1863,31 +1925,22 @@ export class DatabaseStorage implements IStorage {
       const endDate = new Date(targetDate);
       endDate.setUTCHours(23, 59, 59, 999);
       
-      // Get all transactions for the specified date using the same pattern as exportTransactionsToCSV
-      let query = db.select({
-        transaction: transactionsTable,
-        merchant: merchantsTable
-      })
-      .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id));
+      // Get all transactions for the specified date using environment-aware query
+      const query = `
+        SELECT t.*, m.client_mid, m.name as merchant_name
+        FROM ${transactionsTableName} t
+        LEFT JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        WHERE t.date >= $1 AND t.date <= $2
+      `;
       
-      // Build filter conditions for the specific date
-      const conditions = [
-        gte(transactionsTable.date, startDate),
-        sql`${transactionsTable.date} <= ${endDate}`
-      ];
-      
-      query = query.where(and(...conditions));
-      
-      const results = await query;
+      const result = await pool.query(query, [startDate, endDate]);
+      const results = result.rows;
       
       // Group transactions by ClientMID
       const summaryMap = new Map();
       
       results.forEach(record => {
-        const transaction = record.transaction;
-        const merchant = record.merchant;
-        const clientMidKey = merchant?.clientMid || transaction.merchantId; // Use merchantId as fallback
+        const clientMidKey = record.client_mid || record.merchant_id; // Use merchantId as fallback
         
         if (!summaryMap.has(clientMidKey)) {
           summaryMap.set(clientMidKey, {
@@ -1901,7 +1954,7 @@ export class DatabaseStorage implements IStorage {
         
         const summary = summaryMap.get(clientMidKey);
         summary.transactionCount += 1;
-        summary.dailyTotal += parseFloat(transaction.amount.toString());
+        summary.dailyTotal += parseFloat(record.amount.toString());
       });
       
       // Convert map to array and format for CSV
@@ -1949,36 +2002,44 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Export merchants to CSV
+  // @ENVIRONMENT-CRITICAL - Merchant CSV export operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming  
   async exportMerchantsToCSV(
     startDate?: string,
     endDate?: string
   ): Promise<string> {
     try {
-      // Get all merchants matching the filters
-      let query = db.select().from(merchantsTable).orderBy(merchantsTable.name);
+      const merchantsTableName = getTableName('merchants');
       
-      // Build filter conditions if date range is provided
+      // Build filter conditions
       const conditions = [];
+      const params = [];
+      let paramIndex = 1;
       
       if (startDate) {
-        const startDateObj = new Date(startDate);
-        conditions.push(gte(merchantsTable.createdAt, startDateObj));
+        conditions.push(`created_at >= $${paramIndex}`);
+        params.push(new Date(startDate));
+        paramIndex++;
       }
       
       if (endDate) {
         const endDateObj = new Date(endDate);
         endDateObj.setHours(23, 59, 59, 999);
-        conditions.push(sql`${merchantsTable.createdAt} <= ${endDateObj}`);
+        conditions.push(`created_at <= $${paramIndex}`);
+        params.push(endDateObj);
+        paramIndex++;
       }
       
-      // Apply conditions to query
-      if (conditions.length > 0) {
-        const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
-        query = query.where(whereClause);
-      }
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       
-      const results = await query;
+      const query = `
+        SELECT * FROM ${merchantsTableName}
+        ${whereClause}
+        ORDER BY name
+      `;
+      
+      const result = await pool.query(query, params);
+      const results = result.rows;
       
       // Format results for CSV - matching the format from the provided image
       const csvData = results.map(merchant => {
@@ -1988,9 +2049,9 @@ export class DatabaseStorage implements IStorage {
         
         return {
           'AsOfDate': formattedAsOfDate,
-          'ClientNum': merchant.otherClientNumber1 || '',
+          'ClientNum': merchant.other_client_number_1 || '',
           'ClientLega': merchant.name || '',
-          'ClientMID': merchant.clientMID || merchant.id,
+          'ClientMID': merchant.client_mid || merchant.id,
           'ClientPAd': merchant.address || '',
           'ClientPAd1': '', // Additional address line
           'ClientPAd2': '', // Additional address line
@@ -2131,22 +2192,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // @ENVIRONMENT-CRITICAL - All merchants CSV export operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async exportAllMerchantsForDateToCSV(
     targetDate: string
   ): Promise<string> {
     try {
+      const merchantsTableName = getTableName('merchants');
+      
       // Get all merchants (no date filtering - we want all merchants as of the target date)
-      const query = db.select().from(merchantsTable).orderBy(merchantsTable.name);
-      const results = await query;
+      const query = `SELECT * FROM ${merchantsTableName} ORDER BY name`;
+      const result = await pool.query(query);
+      const results = result.rows;
       
       // Format results for CSV with the target date as AsOfDate
       const formattedAsOfDate = new Date(targetDate).toLocaleDateString('en-US');
       
       const csvData = results.map(merchant => ({
         'AsOfDate': formattedAsOfDate,
-        'ClientNum': merchant.otherClientNumber1 || '',
+        'ClientNum': merchant.other_client_number_1 || '',
         'ClientLega': merchant.name || '',
-        'ClientMID': merchant.clientMID || merchant.id,
+        'ClientMID': merchant.client_mid || merchant.id,
         'ClientPAd': merchant.address || '',
         'ClientPAd1': '', // Additional address line
         'ClientPAd2': '', // Additional address line  
@@ -2154,13 +2220,13 @@ export class DatabaseStorage implements IStorage {
         'ClientPAd4': '', // Additional address line
         'ClientPAd5': '', // Additional address line
         'ClientPAd6': '', // Additional address line
-        'ClientSinc': merchant.clientSinceDate ? new Date(merchant.clientSinceDate).toLocaleDateString('en-US') : '',
+        'ClientSinc': merchant.client_since_date ? new Date(merchant.client_since_date).toLocaleDateString('en-US') : '',
         'ClientCity': merchant.city || '',
         'ClientStat': merchant.state || '',
         'ClientCoun': merchant.country || 'US',
-        'ClientZip': merchant.zipCode || '',
-        'MType': merchant.merchantType || '',
-        'SalesChannel': merchant.salesChannel || ''
+        'ClientZip': merchant.zip_code || '',
+        'MType': merchant.merchant_type || '',
+        'SalesChannel': merchant.sales_channel || ''
       }));
       
       // Generate a temp file path
@@ -2191,25 +2257,31 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  // Delete multiple transactions
+  // @ENVIRONMENT-CRITICAL - Transaction deletion operations
+  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async deleteTransactions(transactionIds: string[], username: string = 'System'): Promise<void> {
     try {
       if (transactionIds.length === 0) {
         return;
       }
       
-      // Get transaction data before deletion for audit logs
-      const transactionsToDelete = await db.select({
-        transaction: transactionsTable,
-        merchantName: merchantsTable.name
-      })
-      .from(transactionsTable)
-      .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-      .where(or(...transactionIds.map(id => eq(transactionsTable.id, id))));
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
+      
+      // Get transaction data before deletion for audit logs (environment-aware)
+      const placeholders = transactionIds.map((_, i) => `$${i + 1}`).join(',');
+      const transactionsQuery = await pool.query(`
+        SELECT t.*, m.name as merchant_name
+        FROM ${transactionsTableName} t
+        LEFT JOIN ${merchantsTableName} m ON t.merchant_id = m.id
+        WHERE t.id IN (${placeholders})
+      `, transactionIds);
+      
+      const transactionsToDelete = transactionsQuery.rows;
       
       // Create audit logs for each transaction before deleting them
-      for (const result of transactionsToDelete) {
-        const { transaction, merchantName } = result;
+      for (const transaction of transactionsToDelete) {
+        const merchantName = transaction.merchant_name;
         
         // Prepare audit log data
         const auditLogData: InsertAuditLog = {
@@ -2220,28 +2292,28 @@ export class DatabaseStorage implements IStorage {
           username: username,
           oldValues: {
             id: transaction.id,
-            merchantId: transaction.merchantId,
+            merchantId: transaction.merchant_id,
             merchantName: merchantName,
             amount: transaction.amount,
-            date: transaction.date.toISOString(),
+            date: new Date(transaction.date).toISOString(),
             type: transaction.type
           },
           newValues: null, // No new values for deletion
           changedFields: [],
-          notes: `Deleted ${transaction.type} transaction of ${transaction.amount} for merchant: ${merchantName || transaction.merchantId}`
+          notes: `Deleted ${transaction.type} transaction of ${transaction.amount} for merchant: ${merchantName || transaction.merchant_id}`
         };
         
         // Create audit log entry
         await this.createAuditLog(auditLogData);
       }
       
-      // Delete the transactions using raw SQL to avoid Drizzle ORM array issues
+      // Delete the transactions using environment-aware table naming
       if (transactionIds.length === 1) {
-        await db.execute(sql`DELETE FROM transactions WHERE id = ${transactionIds[0]}`);
+        await pool.query(`DELETE FROM ${transactionsTableName} WHERE id = $1`, [transactionIds[0]]);
       } else {
-        // Build a parameterized query for multiple IDs
-        const placeholders = transactionIds.map(() => '?').join(',');
-        await db.execute(sql.raw(`DELETE FROM transactions WHERE id IN (${transactionIds.map(id => `'${id}'`).join(',')})`));
+        // For multiple IDs, use IN clause with parameter binding
+        const placeholders = transactionIds.map((_, i) => `$${i + 1}`).join(',');
+        await pool.query(`DELETE FROM ${transactionsTableName} WHERE id IN (${placeholders})`, transactionIds);
       }
       
       console.log(`Successfully deleted ${transactionIds.length} transactions`);
@@ -2504,23 +2576,28 @@ export class DatabaseStorage implements IStorage {
     totalRevenue: number;
   }> {
     try {
-      // Find the latest transaction date to base our calculations on actual data
-      const latestTransactionResult = await db.select({ 
-        latestDate: sql<Date>`MAX(${transactionsTable.date})` 
-      }).from(transactionsTable);
+      // @ENVIRONMENT-CRITICAL - Dashboard statistics calculations
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const transactionsTableName = getTableName('transactions');
+      const merchantsTableName = getTableName('merchants');
       
-      const latestTransactionDate = latestTransactionResult[0]?.latestDate;
+      // Find the latest transaction date to base our calculations on actual data
+      const latestTransactionResult = await pool.query(`
+        SELECT MAX(date) as latest_date FROM ${transactionsTableName}
+      `);
+      
+      const latestTransactionDate = latestTransactionResult.rows[0]?.latest_date;
       
       if (!latestTransactionDate) {
         // No transactions in database, but still count merchants
-        const merchantCount = await db.select({ count: count() }).from(merchantsTable);
-        const totalMerchants = parseInt(merchantCount[0].count.toString(), 10);
+        const merchantCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`);
+        const totalMerchants = parseInt(merchantCountResult.rows[0].count);
         
         // Count active merchants (merchants with status 'Active')
-        const activeMerchantsResult = await db.select({ count: count() })
-          .from(merchantsTable)
-          .where(eq(merchantsTable.status, 'Active'));
-        const activeMerchants = parseInt(activeMerchantsResult[0].count.toString(), 10);
+        const activeMerchantsResult = await pool.query(`
+          SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE status = 'Active'
+        `);
+        const activeMerchants = parseInt(activeMerchantsResult.rows[0].count);
         
         // Calculate active rate (percentage of merchants that are active)
         const activeRate = totalMerchants > 0 ? (activeMerchants / totalMerchants) * 100 : 0;
@@ -2529,10 +2606,10 @@ export class DatabaseStorage implements IStorage {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        const newMerchantsResult = await db.select({ count: count() })
-          .from(merchantsTable)
-          .where(gte(merchantsTable.createdAt, thirtyDaysAgo));
-        const newMerchants = parseInt(newMerchantsResult[0].count.toString(), 10);
+        const newMerchantsResult = await pool.query(`
+          SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= $1
+        `, [thirtyDaysAgo]);
+        const newMerchants = parseInt(newMerchantsResult.rows[0].count);
         
         return {
           totalMerchants,
@@ -2563,44 +2640,32 @@ export class DatabaseStorage implements IStorage {
       console.log(`[DASHBOARD STATS] Last 30 days from: ${thirtyDaysAgo.toISOString()} to ${referenceDate.toISOString()}`);
       
       // Get total merchants count
-      const merchantCount = await db.select({ count: count() }).from(merchantsTable);
-      const totalMerchants = parseInt(merchantCount[0].count.toString(), 10);
+      const merchantCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`);
+      const totalMerchants = parseInt(merchantCountResult.rows[0].count, 10);
       
       // Count active merchants (merchants with status 'Active')
-      const activeMerchantsResult = await db.select({ count: count() })
-        .from(merchantsTable)
-        .where(eq(merchantsTable.status, 'Active'));
-      const activeMerchants = parseInt(activeMerchantsResult[0].count.toString(), 10);
+      const activeMerchantsResult = await pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE status = 'Active'`);
+      const activeMerchants = parseInt(activeMerchantsResult.rows[0].count, 10);
       
       // Calculate active rate (percentage of merchants that are active)
       const activeRate = totalMerchants > 0 ? (activeMerchants / totalMerchants) * 100 : 0;
       
       // Get new merchants in the last 30 days (using actual transaction dates)
-      const newMerchantsResult = await db.select({ count: count() })
-        .from(merchantsTable)
-        .where(gte(merchantsTable.createdAt, thirtyDaysAgo));
-      const newMerchants = parseInt(newMerchantsResult[0].count.toString(), 10);
+      const newMerchantsResult = await pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= $1`, [thirtyDaysAgo]);
+      const newMerchants = parseInt(newMerchantsResult.rows[0].count, 10);
       
       // Get daily transaction count (from the latest day with transactions)
-      const dailyTransactionsResult = await db.select({ count: count() })
-        .from(transactionsTable)
-        .where(gte(transactionsTable.date, today));
-      const dailyTransactions = parseInt(dailyTransactionsResult[0].count.toString(), 10);
+      const dailyTransactionsResult = await pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName} WHERE date >= $1`, [today]);
+      const dailyTransactions = parseInt(dailyTransactionsResult.rows[0].count, 10);
       
       // Get recent transactions (last 30 days from latest transaction date)
-      const recentTransactions = await db.select()
-        .from(transactionsTable)
-        .where(gte(transactionsTable.date, thirtyDaysAgo));
+      const recentTransactionsResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE date >= $1`, [thirtyDaysAgo]);
+      const recentTransactions = recentTransactionsResult.rows;
       
       // Get previous period transactions (30-60 days ago from latest transaction date)
-      const prevPeriodTransactions = await db.select()
-        .from(transactionsTable)
-        .where(
-          and(
-            gte(transactionsTable.date, sixtyDaysAgo),
-            lt(transactionsTable.date, thirtyDaysAgo)
-          )
-        );
+      const prevPeriodTransactionsResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE date >= $1 AND date < $2`, [sixtyDaysAgo, thirtyDaysAgo]);
+      const prevPeriodTransactions = prevPeriodTransactionsResult.rows;
+
         
       // Calculate recent period revenue (last 30 days)
       const recentRevenue = recentTransactions.reduce((sum, tx) => {
@@ -2639,12 +2704,16 @@ export class DatabaseStorage implements IStorage {
         ? recentRevenue / recentTransactions.length 
         : 0;
       
+      // @ENVIRONMENT-CRITICAL - Dashboard statistics total calculations  
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      
       // Get total transactions (all time)
-      const totalTransactionsResult = await db.select({ count: count() }).from(transactionsTable);
-      const totalTransactions = parseInt(totalTransactionsResult[0].count.toString(), 10);
+      const totalTransactionsResult = await pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName}`);
+      const totalTransactions = parseInt(totalTransactionsResult.rows[0].count, 10);
       
       // Calculate total revenue (all time)
-      const allTransactions = await db.select().from(transactionsTable);
+      const allTransactionsResult = await pool.query(`SELECT * FROM ${transactionsTableName}`);
+      const allTransactions = allTransactionsResult.rows;
       const totalRevenue = allTransactions.reduce((sum, tx) => {
         const amount = parseFloat(tx.amount.toString());
         if (tx.type === "Credit" || tx.type === "Debit") {
@@ -2766,6 +2835,8 @@ export class DatabaseStorage implements IStorage {
               let dbContent = null;
               try {
                 console.log(`[TRACE] Attempting to retrieve database content for ${file.id}`);
+                // @ENVIRONMENT-CRITICAL - File content retrieval
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
                 const dbContentResults = await db.execute(sql`
                   SELECT file_content FROM ${sql.identifier(uploadedFilesTableName)} WHERE id = ${file.id}
                 `);
@@ -2787,6 +2858,8 @@ export class DatabaseStorage implements IStorage {
                 const processingCompletedTime = new Date();
                 const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
                 
+                // @ENVIRONMENT-CRITICAL - File processing completion updates
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
                 // Update database with processing metrics and completion status using environment-specific table
                 // PRESERVE raw_lines_count and processing_notes during completion
                 await db.execute(sql`
@@ -3506,9 +3579,12 @@ export class DatabaseStorage implements IStorage {
           // Check if each merchant exists in the database
           for (const merchant of merchants) {
             console.log(`Processing merchant update: ${merchant.id} - ${merchant.name}`);
-            const existingMerchant = await db.select()
-              .from(merchantsTable)
-              .where(eq(merchantsTable.id, merchant.id));
+            
+            // @ENVIRONMENT-CRITICAL - Merchant existence check for CSV processing
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+            const merchantsTableName = getTableName('merchants');
+            const existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchant.id]);
+            const existingMerchant = existingMerchantResult.rows;
             
             if (existingMerchant.length > 0) {
               // Update existing merchant
@@ -3545,11 +3621,24 @@ export class DatabaseStorage implements IStorage {
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);
               
-              await db.update(merchantsTable)
-                .set(updateData)
-                .where(eq(merchantsTable.id, merchant.id));
+              // @ENVIRONMENT-CRITICAL - Merchant CSV processing update operations
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const merchantsTableName = getTableName('merchants');
+              
+              const updateColumns = Object.keys(updateData);
+              const updateValues = Object.values(updateData);
+              const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
+              
+              const updateQuery = `
+                UPDATE ${merchantsTableName}
+                SET ${setClause}
+                WHERE id = $${updateColumns.length + 1}
+              `;
+              
+              await pool.query(updateQuery, [...updateValues, merchant.id]);
             } else {
-              // Insert new merchant
+              // @ENVIRONMENT-CRITICAL - Merchant insertion operations
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               console.log(`Inserting new merchant: ${merchant.id} - ${merchant.name}`);
               stats.newMerchants++;
               createdMerchantsList.push({
@@ -3559,7 +3648,17 @@ export class DatabaseStorage implements IStorage {
                 asOfDate: merchant.asOfDate
               });
               
-              await db.insert(merchantsTable).values(merchant);
+              const merchantsTableName = getTableName('merchants');
+              await pool.query(`
+                INSERT INTO ${merchantsTableName} (
+                  id, name, merchant_type, client_since_date, as_of_date, 
+                  created_at, last_upload_date, edit_date, updated_by
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              `, [
+                merchant.id, merchant.name, merchant.merchantType, merchant.clientSinceDate,
+                merchant.asOfDate, merchant.createdAt, merchant.lastUploadDate, 
+                merchant.editDate, merchant.updatedBy
+              ]);
             }
           }
           
@@ -3777,10 +3876,13 @@ export class DatabaseStorage implements IStorage {
           const updatedMerchantsList = [];
           
           for (const merchant of merchants) {
+            // @ENVIRONMENT-CRITICAL - Merchant existence check for file processing
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+            const merchantsTableName = getTableName('merchants');
+            
             // Check if merchant exists
-            const existingMerchant = await db.select()
-              .from(merchantsTable)
-              .where(eq(merchantsTable.id, merchant.id));
+            const existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchant.id]);
+            const existingMerchant = existingMerchantResult.rows;
               
             if (existingMerchant.length > 0) {
               // Update existing merchant
@@ -3793,6 +3895,10 @@ export class DatabaseStorage implements IStorage {
                 merchantType: merchant.merchantType,
                 asOfDate: merchant.asOfDate
               });
+              
+              // @ENVIRONMENT-CRITICAL - Merchant file processing update operations
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const merchantsTableName = getTableName('merchants');
               
               // Always update the edit date to current date/time
               const updateData = {
@@ -3818,9 +3924,17 @@ export class DatabaseStorage implements IStorage {
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);
               
-              await db.update(merchantsTable)
-                .set(updateData)
-                .where(eq(merchantsTable.id, merchant.id));
+              const updateColumns = Object.keys(updateData);
+              const updateValues = Object.values(updateData);
+              const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
+              
+              const updateQuery = `
+                UPDATE ${merchantsTableName}
+                SET ${setClause}
+                WHERE id = $${updateColumns.length + 1}
+              `;
+              
+              await pool.query(updateQuery, [...updateValues, merchant.id]);
             } else {
               // Insert new merchant
               console.log(`Inserting new merchant: ${merchant.id} - ${merchant.name}`);
@@ -3833,7 +3947,20 @@ export class DatabaseStorage implements IStorage {
                 asOfDate: merchant.asOfDate
               });
               
-              await db.insert(merchantsTable).values(merchant);
+              // @ENVIRONMENT-CRITICAL - Merchant file processing insertion operations
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const merchantsTableName2 = getTableName('merchants');
+              
+              const insertColumns = Object.keys(merchant);
+              const insertValues = Object.values(merchant);
+              const placeholders = insertValues.map((_, index) => `$${index + 1}`).join(', ');
+              
+              const insertQuery = `
+                INSERT INTO ${merchantsTableName2} (${insertColumns.join(', ')})
+                VALUES (${placeholders})
+              `;
+              
+              await pool.query(insertQuery, insertValues);
             }
           }
           
@@ -4101,8 +4228,11 @@ export class DatabaseStorage implements IStorage {
           console.log(`\n=================== ADVANCED MERCHANT MATCHING ===================`);
           console.log(`Processing ${transactions.length} transactions for intelligent merchant matching...`);
           
-          // Get all existing merchants for comprehensive matching
-          const allExistingMerchants = await db.select().from(merchantsTable);
+          // @ENVIRONMENT-CRITICAL - Merchant matching for transaction processing
+          // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+          const merchantsTableName = getTableName('merchants');
+          const allExistingMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName}`);
+          const allExistingMerchants = allExistingMerchantsResult.rows;
           console.log(`Loaded ${allExistingMerchants.length} existing merchants for name matching`);
           
           // Create map to track merchant names used in transactions
@@ -4244,11 +4374,11 @@ export class DatabaseStorage implements IStorage {
           
           for (const merchantId of uniqueMerchantIds) {
             // Check if merchant exists (this should catch both original and remapped IDs)
-            const existingMerchant = await db.select()
-              .from(merchantsTable)
-              .where(eq(merchantsTable.id, merchantId));
+            const existingMerchantResult = await pool.query(`
+              SELECT * FROM ${merchantsTableName} WHERE id = $1
+            `, [merchantId]);
               
-            if (existingMerchant.length === 0) {
+            if (existingMerchantResult.rows.length === 0) {
               console.log(`No merchant found with ID: ${merchantId}, checking if we should create...`);
               
               // Get a transaction with this merchant ID to extract the name
@@ -4325,10 +4455,11 @@ export class DatabaseStorage implements IStorage {
                   console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
                   
                   try {
-                    const existingTransaction = await db.select()
-                      .from(transactionsTable)
-                      .where(eq(transactionsTable.id, originalId))
-                      .limit(1);
+                    // @ENVIRONMENT-CRITICAL - Transaction duplicate checking
+                    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                    const transactionsTableName = getTableName('transactions');
+                    const existingTransactionResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [originalId]);
+                    const existingTransaction = existingTransactionResult.rows;
                     
                     if (existingTransaction.length > 0) {
                       const existingDate = new Date(existingTransaction[0].date);
@@ -4424,17 +4555,21 @@ export class DatabaseStorage implements IStorage {
             try {
               let merchantId = transaction.merchantId;
               
-              // Check if merchant exists with the original merchant ID
-              let existingMerchant = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId)).limit(1);
+              // @ENVIRONMENT-CRITICAL - Transaction fallback merchant matching
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming  
+              const merchantsTableName = getTableName('merchants');
+              
+              // Check if merchant exists with the original merchant ID  
+              let existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1 LIMIT 1`, [merchantId]);
+              let existingMerchant = existingMerchantResult.rows;
               
               // If not found, try comprehensive merchant matching
               if (existingMerchant.length === 0) {
                 console.log(`Merchant ${merchantId} not found, trying comprehensive matching...`);
                 
                 // Try to match by clientMID field
-                const clientMidMatch = await db.select().from(merchantsTable)
-                  .where(eq(merchantsTable.clientMID, merchantId))
-                  .limit(1);
+                const clientMidMatchResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE client_mid = $1 LIMIT 1`, [merchantId]);
+                const clientMidMatch = clientMidMatchResult.rows;
                 
                 if (clientMidMatch.length > 0) {
                   merchantId = clientMidMatch[0].id;
@@ -4442,14 +4577,8 @@ export class DatabaseStorage implements IStorage {
                   existingMerchant = clientMidMatch;
                 } else {
                   // Try to match by otherClientNumber1 or otherClientNumber2
-                  const clientNumberMatch = await db.select().from(merchantsTable)
-                    .where(
-                      or(
-                        eq(merchantsTable.otherClientNumber1, merchantId),
-                        eq(merchantsTable.otherClientNumber2, merchantId)
-                      )
-                    )
-                    .limit(1);
+                  const clientNumberMatchResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE other_client_number1 = $1 OR other_client_number2 = $1 LIMIT 1`, [merchantId]);
+                  const clientNumberMatch = clientNumberMatchResult.rows;
                   
                   if (clientNumberMatch.length > 0) {
                     merchantId = clientNumberMatch[0].id;
@@ -4458,14 +4587,8 @@ export class DatabaseStorage implements IStorage {
                   } else {
                     // Try to find merchant by partial name matching (for similar business names)
                     const namePattern = merchantId.replace(/[^a-zA-Z0-9]/g, '%');
-                    const nameMatch = await db.select().from(merchantsTable)
-                      .where(
-                        or(
-                          like(merchantsTable.name, `%${namePattern}%`),
-                          like(merchantsTable.id, `%${merchantId}%`)
-                        )
-                      )
-                      .limit(1);
+                    const nameMatchResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE name ILIKE $1 OR id ILIKE $2 LIMIT 1`, [`%${namePattern}%`, `%${merchantId}%`]);
+                    const nameMatch = nameMatchResult.rows;
                     
                     if (nameMatch.length > 0) {
                       merchantId = nameMatch[0].id;
@@ -4488,8 +4611,22 @@ export class DatabaseStorage implements IStorage {
               const updatedTransaction = { ...transaction, merchantId };
               
               try {
-                // First attempt - try to insert normally
-                await db.insert(transactionsTable).values(updatedTransaction);
+                // @ENVIRONMENT-CRITICAL - Transaction insertion during batch processing
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const transactionsTableName = getTableName('transactions');
+                
+                // First attempt - try to insert normally using raw SQL
+                const insertTransactionQuery = `
+                  INSERT INTO ${transactionsTableName} (
+                    id, date, amount, type, description, merchant_id, created_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `;
+                
+                await pool.query(insertTransactionQuery, [
+                  updatedTransaction.id, updatedTransaction.date, updatedTransaction.amount,
+                  updatedTransaction.type, updatedTransaction.description, updatedTransaction.merchantId,
+                  updatedTransaction.createdAt || new Date()
+                ]);
                 console.log(`Successfully inserted transaction ${updatedTransaction.id} with merchant ${merchantId}`);
                 
               } catch (insertError: any) {
@@ -4497,11 +4634,13 @@ export class DatabaseStorage implements IStorage {
                   // Transaction ID already exists - now check date and implement smart handling
                   console.log(`Duplicate transaction ID detected: ${updatedTransaction.id}`);
                   
+                  // @ENVIRONMENT-CRITICAL - Transaction duplicate checking during batch processing
+                  // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                  const transactionsTableName = getTableName('transactions');
+                  
                   // Get the existing transaction to check the date
-                  const existingTransactions = await db.select()
-                    .from(transactionsTable)
-                    .where(eq(transactionsTable.id, updatedTransaction.id))
-                    .limit(1);
+                  const existingTransactionsResult = await pool.query(`SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1`, [updatedTransaction.id]);
+                  const existingTransactions = existingTransactionsResult.rows;
                   
                   if (existingTransactions.length > 0) {
                     const existingTransaction = existingTransactions[0];
@@ -4519,14 +4658,20 @@ export class DatabaseStorage implements IStorage {
                       if (!sameAmount || !sameType) {
                         // Values differ - update the existing transaction
                         console.log(`Updating existing transaction ${updatedTransaction.id} with new values (amount: ${existingTransaction.amount} -> ${updatedTransaction.amount}, type: ${existingTransaction.type} -> ${updatedTransaction.type})`);
-                        await db.update(transactionsTable)
-                          .set({
-                            amount: updatedTransaction.amount,
-                            type: updatedTransaction.type,
-                            description: updatedTransaction.description,
-                            merchantId: updatedTransaction.merchantId
-                          })
-                          .where(eq(transactionsTable.id, updatedTransaction.id));
+                        
+                        // @ENVIRONMENT-CRITICAL - Transaction update during duplicate handling
+                        // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                        const updateTransactionQuery = `
+                          UPDATE ${transactionsTableName} 
+                          SET amount = $1, type = $2, description = $3, merchant_id = $4
+                          WHERE id = $5
+                        `;
+                        
+                        await pool.query(updateTransactionQuery, [
+                          updatedTransaction.amount, updatedTransaction.type, 
+                          updatedTransaction.description, updatedTransaction.merchantId,
+                          updatedTransaction.id
+                        ]);
                         console.log(`Successfully updated transaction ${updatedTransaction.id}`);
                       } else {
                         // Same values - skip duplicate
@@ -4899,8 +5044,13 @@ export class DatabaseStorage implements IStorage {
               // Get all merchants with matching names
               const merchantNames = Array.from(nameToIdMapping.keys());
               
+              // @ENVIRONMENT-CRITICAL - Transaction processing merchant matching
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const merchantsTableName = getTableName('merchants');
+              
               // First get all existing merchant names for more efficient matching
-              const allExistingMerchants = await db.select().from(merchantsTable);
+              const allExistingMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName}`);
+              const allExistingMerchants = allExistingMerchantsResult.rows;
               console.log(`Loaded ${allExistingMerchants.length} existing merchants for name matching`);
               
               // For each name, check if we have a merchant with that name already
@@ -4984,10 +5134,13 @@ export class DatabaseStorage implements IStorage {
           }
           
           for (const transaction of transactions) {
+            // @ENVIRONMENT-CRITICAL - Transaction processing merchant existence check
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+            const merchantsTableName = getTableName('merchants');
+            
             // Check if merchant exists by ID
-            const existingMerchant = await db.select()
-              .from(merchantsTable)
-              .where(eq(merchantsTable.id, transaction.merchantId));
+            const existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [transaction.merchantId]);
+            const existingMerchant = existingMerchantResult.rows;
               
             // Create placeholder merchant if needed
             if (existingMerchant.length === 0) {
@@ -4997,10 +5150,8 @@ export class DatabaseStorage implements IStorage {
               const merchantNameFromTransaction = merchantNameMapping.get(transaction.merchantId);
               
               // Try to find a merchant with a similar ID pattern
-              const similarMerchants = await db.select()
-                .from(merchantsTable)
-                .where(like(merchantsTable.id, `${transaction.merchantId.substring(0, 2)}%`))
-                .limit(5);
+              const similarMerchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id LIKE $1 LIMIT 5`, [`${transaction.merchantId.substring(0, 2)}%`]);
+              const similarMerchants = similarMerchantsResult.rows;
               
               if (merchantNameFromTransaction) {
                 // Use the real merchant name from the transaction
@@ -5025,7 +5176,21 @@ export class DatabaseStorage implements IStorage {
                   editDate: new Date()
                 };
                 
-                await db.insert(merchantsTable).values(newMerchant);
+                // @ENVIRONMENT-CRITICAL - New merchant creation during transaction processing
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const insertQuery = `
+                  INSERT INTO ${merchantsTableName} (
+                    id, name, client_mid, status, address, city, state, zip_code, 
+                    country, category, created_at, last_upload_date, edit_date
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                `;
+                
+                await pool.query(insertQuery, [
+                  newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
+                  newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
+                  newMerchant.country, newMerchant.category, newMerchant.createdAt, 
+                  newMerchant.lastUploadDate, newMerchant.editDate
+                ]);
                 createdMerchants++;
                 createdMerchantsList.push({
                   id: newMerchant.id,
@@ -5060,7 +5225,21 @@ export class DatabaseStorage implements IStorage {
                   editDate: new Date()
                 };
                 
-                await db.insert(merchantsTable).values(newMerchant);
+                // @ENVIRONMENT-CRITICAL - Similar merchant creation during transaction processing  
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const insertQuery2 = `
+                  INSERT INTO ${merchantsTableName} (
+                    id, name, client_mid, status, address, city, state, zip_code, 
+                    country, category, created_at, last_upload_date, edit_date
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                `;
+                
+                await pool.query(insertQuery2, [
+                  newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
+                  newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
+                  newMerchant.country, newMerchant.category, newMerchant.createdAt, 
+                  newMerchant.lastUploadDate, newMerchant.editDate
+                ]);
                 createdMerchants++;
                 createdMerchantsList.push({
                   id: newMerchant.id,
@@ -5087,7 +5266,21 @@ export class DatabaseStorage implements IStorage {
                   editDate: new Date()
                 };
                 
-                await db.insert(merchantsTable).values(newMerchant);
+                // @ENVIRONMENT-CRITICAL - Placeholder merchant creation during transaction processing
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const insertQuery3 = `
+                  INSERT INTO ${merchantsTableName} (
+                    id, name, client_mid, status, address, city, state, zip_code, 
+                    country, category, created_at, last_upload_date, edit_date
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                `;
+                
+                await pool.query(insertQuery3, [
+                  newMerchant.id, newMerchant.name, newMerchant.clientMID, newMerchant.status,
+                  newMerchant.address, newMerchant.city, newMerchant.state, newMerchant.zipCode,
+                  newMerchant.country, newMerchant.category, newMerchant.createdAt, 
+                  newMerchant.lastUploadDate, newMerchant.editDate
+                ]);
                 createdMerchants++;
                 createdMerchantsList.push({
                   id: newMerchant.id,
@@ -5104,9 +5297,17 @@ export class DatabaseStorage implements IStorage {
                 name: existingMerchant[0].name
               });
               
-              await db.update(merchantsTable)
-                .set({ lastUploadDate: new Date() })
-                .where(eq(merchantsTable.id, transaction.merchantId));
+              // @ENVIRONMENT-CRITICAL - Merchant last upload date update
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const merchantsTableName = getTableName('merchants');
+              
+              const updateMerchantQuery = `
+                UPDATE ${merchantsTableName}
+                SET last_upload_date = $1
+                WHERE id = $2
+              `;
+              
+              await pool.query(updateMerchantQuery, [new Date(), transaction.merchantId]);
             }
             
             // Insert transaction with auto-increment for duplicates
@@ -5118,9 +5319,23 @@ export class DatabaseStorage implements IStorage {
             let originalId = transaction.id;
             let duplicateInfo: { increments: number; wasSkipped: boolean } | undefined;
             
+            // @ENVIRONMENT-CRITICAL - Transaction insertion with duplicate handling
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+            const transactionsTableName = getTableName('transactions');
+            
             while (insertAttempts < 100) { // Prevent infinite loop
               try {
-                await db.insert(transactionsTable).values(finalTransaction);
+                // Prepare values for insertion
+                const columns = Object.keys(finalTransaction);
+                const values = Object.values(finalTransaction);
+                const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+                
+                const insertQuery = `
+                  INSERT INTO ${transactionsTableName} (${columns.join(', ')})
+                  VALUES (${placeholders})
+                `;
+                
+                await pool.query(insertQuery, values);
                 
                 // Update file processor statistics
                 const { fileProcessorService } = await import("./services/file-processor");
@@ -5149,13 +5364,12 @@ export class DatabaseStorage implements IStorage {
                   console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
                   
                   try {
-                    const existingTransaction = await db.select()
-                      .from(transactionsTable)
-                      .where(eq(transactionsTable.id, originalId))
-                      .limit(1);
+                    const existingTransactionResult = await pool.query(`
+                      SELECT * FROM ${transactionsTableName} WHERE id = $1 LIMIT 1
+                    `, [originalId]);
                     
-                    if (existingTransaction.length > 0) {
-                      const existing = existingTransaction[0];
+                    if (existingTransactionResult.rows.length > 0) {
+                      const existing = existingTransactionResult.rows[0];
                       const existingDate = new Date(existing.date);
                       const newDate = new Date(finalTransaction.date);
                       
@@ -5175,13 +5389,18 @@ export class DatabaseStorage implements IStorage {
                           // Values are different, update the existing transaction
                           console.log(`[UPDATE] Updating transaction ${originalId}: Amount ${existingAmount} -> ${newAmount}, Type ${existing.type} -> ${finalTransaction.type}`);
                           
-                          await db.update(transactionsTable)
-                            .set({
-                              amount: finalTransaction.amount,
-                              type: finalTransaction.type,
-                              merchantId: finalTransaction.merchantId
-                            })
-                            .where(eq(transactionsTable.id, originalId));
+                          const updateQuery = `
+                            UPDATE ${transactionsTableName}
+                            SET amount = $1, type = $2, merchant_id = $3
+                            WHERE id = $4
+                          `;
+                          
+                          await pool.query(updateQuery, [
+                            finalTransaction.amount,
+                            finalTransaction.type, 
+                            finalTransaction.merchantId,
+                            originalId
+                          ]);
                           
                           console.log(`[UPDATE SUCCESS] Transaction ${originalId} updated successfully`);
                           insertedCount++; // Count as processed
@@ -5451,43 +5670,54 @@ export class DatabaseStorage implements IStorage {
           // Process each terminal
           for (const terminal of terminals) {
             try {
+              // @ENVIRONMENT-CRITICAL - Terminal existence check during CSV processing
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              const terminalsTableName = getTableName('terminals');
+              
               // Check if terminal already exists (by V Number)
-              const [existingTerminal] = await db
-                .select()
-                .from(terminalsTable)
-                .where(eq(terminalsTable.vNumber, terminal.vNumber))
-                .limit(1);
+              const existingTerminalResult = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE v_number = $1 LIMIT 1`, [terminal.vNumber]);
+              const existingTerminal = existingTerminalResult.rows[0];
               
               if (existingTerminal) {
-                // Update existing terminal
-                await db
-                  .update(terminalsTable)
-                  .set({
-                    ...terminal,
-                    // Keep original ID and creation date, but update timestamps and activity
-                    id: existingTerminal.id,
-                    updatedAt: new Date(),
-                    lastUpdate: new Date(),
-                    updateSource: sourceFilename ? `File: ${sourceFilename}` : "System Import",
-                    updatedBy: "System Import",
-                  })
-                  .where(eq(terminalsTable.vNumber, terminal.vNumber));
+                // @ENVIRONMENT-CRITICAL - Terminal update during CSV processing
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const updateTerminalQuery = `
+                  UPDATE ${terminalsTableName} 
+                  SET v_number = $2, pos_merchant_number = $3, status = $4, mcc = $5, terminal_type = $6,
+                      board_date = $7, record_status = $8, business_name = $9, dba_name = $10,
+                      merchant_address = $11, city = $12, state = $13, zip_code = $14, country = $15,
+                      phone = $16, updated_at = $17, last_update = $18, update_source = $19, updated_by = $20
+                  WHERE id = $1
+                `;
+                
+                await pool.query(updateTerminalQuery, [
+                  existingTerminal.id, terminal.vNumber, terminal.posMerchantNumber, terminal.status,
+                  terminal.mcc, terminal.terminalType, terminal.boardDate, terminal.recordStatus,
+                  terminal.businessName, terminal.dbaName, terminal.merchantAddress, terminal.city,
+                  terminal.state, terminal.zipCode, terminal.country, terminal.phone,
+                  new Date(), new Date(), sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import"
+                ]);
                 
                 updatedCount++;
                 console.log(`Updated terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
               } else {
-                // Create new terminal with proper timestamps
-                await db
-                  .insert(terminalsTable)
-                  .values({
-                    ...terminal,
-                    createdAt: new Date(),
-                    updatedAt: new Date(), 
-                    lastUpdate: new Date(),
-                    updateSource: sourceFilename ? `File: ${sourceFilename}` : "System Import",
-                    createdBy: "System Import",
-                    updatedBy: "System Import",
-                  });
+                // @ENVIRONMENT-CRITICAL - New terminal creation during CSV processing
+                // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+                const insertTerminalQuery = `
+                  INSERT INTO ${terminalsTableName} (
+                    v_number, pos_merchant_number, status, mcc, terminal_type, board_date, record_status,
+                    business_name, dba_name, merchant_address, city, state, zip_code, country, phone,
+                    created_at, updated_at, last_update, update_source, created_by, updated_by
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                `;
+                
+                await pool.query(insertTerminalQuery, [
+                  terminal.vNumber, terminal.posMerchantNumber, terminal.status, terminal.mcc,
+                  terminal.terminalType, terminal.boardDate, terminal.recordStatus, terminal.businessName,
+                  terminal.dbaName, terminal.merchantAddress, terminal.city, terminal.state,
+                  terminal.zipCode, terminal.country, terminal.phone, new Date(), new Date(), new Date(),
+                  sourceFilename ? `File: ${sourceFilename}` : "System Import", "System Import", "System Import"
+                ]);
                 
                 createdCount++;
                 console.log(`Created terminal: ${terminal.vNumber} -> ${terminal.posMerchantNumber}`);
@@ -5526,30 +5756,27 @@ export class DatabaseStorage implements IStorage {
   // Generate CSV export of all transactions
   async generateTransactionsExport(): Promise<string> {
     try {
-      // Get all transactions
-      const transactions = await db.select({
-        id: transactionsTable.id,
-        merchantId: transactionsTable.merchantId,
-        amount: transactionsTable.amount,
-        date: transactionsTable.date,
-        type: transactionsTable.type,
-        merchantName: merchantsTable.name
-      }).from(transactionsTable)
-        .leftJoin(merchantsTable, eq(transactionsTable.merchantId, merchantsTable.id))
-        .orderBy(desc(transactionsTable.date));
+      // @ENVIRONMENT-CRITICAL - Transaction export data retrieval
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const transactionsTableName = getTableName('transactions');
+      
+      // Get all transactions using raw SQL
+      const transactionsResult = await pool.query(`SELECT id, merchant_id, amount, date, type, description FROM ${transactionsTableName} ORDER BY date DESC`);
+      const transactions = transactionsResult.rows;
         
       // Create a temporary file to store the CSV
       const tempFilePath = path.join(os.tmpdir(), `transactions_export_${Date.now()}.csv`);
       const csvFileStream = createWriteStream(tempFilePath);
       
       // Format transactions for CSV
-      const formattedTransactions = transactions.map(transaction => ({
+      const formattedTransactions = transactions.map((transaction: any) => ({
         Transaction_ID: transaction.id,
-        Merchant_ID: transaction.merchantId,
-        Merchant_Name: transaction.merchantName,
+        Merchant_ID: transaction.merchant_id,
+        Merchant_Name: transaction.merchant_name || 'Unknown',
         Amount: transaction.amount,
         Date: new Date(transaction.date).toISOString().split("T")[0],
-        Type: transaction.type
+        Type: transaction.type,
+        Description: transaction.description
       }));
       
       // Generate CSV file
@@ -5568,8 +5795,13 @@ export class DatabaseStorage implements IStorage {
   // Generate CSV export of all merchants
   async generateMerchantsExport(): Promise<string> {
     try {
-      // Get all merchants
-      const merchants = await db.select().from(merchantsTable);
+      // @ENVIRONMENT-CRITICAL - Merchant export data retrieval
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const merchantsTableName = getTableName('merchants');
+      
+      // Get all merchants using raw SQL
+      const merchantsResult = await pool.query(`SELECT * FROM ${merchantsTableName} ORDER BY name ASC`);
+      const merchants = merchantsResult.rows;
       
       // Create a temporary file to store the CSV
       const tempFilePath = path.join(os.tmpdir(), `merchants_export_${Date.now()}.csv`);
@@ -6105,18 +6337,17 @@ export class DatabaseStorage implements IStorage {
   // Get complete audit history for a specific entity
   async getEntityAuditHistory(entityType: string, entityId: string): Promise<AuditLog[]> {
     try {
-      const logs = await db
-        .select()
-        .from(auditLogs)
-        .where(
-          and(
-            eq(auditLogs.entityType, entityType),
-            eq(auditLogs.entityId, entityId)
-          )
-        )
-        .orderBy(desc(auditLogs.timestamp));
+      // @ENVIRONMENT-CRITICAL - Audit history retrieval
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const auditLogsTableName = getTableName('audit_logs');
       
-      return logs;
+      const result = await pool.query(`
+        SELECT * FROM ${auditLogsTableName} 
+        WHERE entity_type = $1 AND entity_id = $2 
+        ORDER BY timestamp DESC
+      `, [entityType, entityId]);
+      
+      return result.rows;
     } catch (error) {
       console.error(`Error fetching audit history for ${entityType} ${entityId}:`, error);
       throw new Error(`Failed to retrieve audit history for ${entityType}`);
@@ -6257,18 +6488,30 @@ export class DatabaseStorage implements IStorage {
 
   // Terminal operations
   async getTerminals(): Promise<Terminal[]> {
-    const results = await db.select().from(terminalsTable);
-    return results;
+    // @ENVIRONMENT-CRITICAL - Terminal data retrieval
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const terminalsTableName = getTableName('terminals');
+    
+    const result = await pool.query(`SELECT * FROM ${terminalsTableName} ORDER BY v_number ASC`);
+    return result.rows;
   }
 
   async getTerminalById(terminalId: number): Promise<Terminal | undefined> {
-    const [terminal] = await db.select().from(terminalsTable).where(eq(terminalsTable.id, terminalId));
-    return terminal || undefined;
+    // @ENVIRONMENT-CRITICAL - Terminal lookup by ID
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const terminalsTableName = getTableName('terminals');
+    
+    const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
+    return result.rows[0] || undefined;
   }
 
   async getTerminalsByMasterMID(masterMID: string): Promise<Terminal[]> {
-    const results = await db.select().from(terminalsTable).where(eq(terminalsTable.posMerchantNumber, masterMID));
-    return results;
+    // @ENVIRONMENT-CRITICAL - Terminal lookup by Master MID
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const terminalsTableName = getTableName('terminals');
+    
+    const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE pos_merchant_number = $1`, [masterMID]);
+    return result.rows;
   }
 
   async createTerminal(insertTerminal: InsertTerminal): Promise<Terminal> {
@@ -6465,59 +6708,77 @@ export class DatabaseStorage implements IStorage {
         conditions.push(eq(tddfRecordsTable.terminalId, terminalId));
       }
 
-      // Get total count
-      let countQuery = db.select({ count: count() }).from(tddfRecordsTable);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(and(...conditions));
-      }
-      const countResult = await countQuery;
-      const totalItems = parseInt(countResult[0].count.toString(), 10);
-      const totalPages = Math.ceil(totalItems / limit);
-
-      // Get paginated data
-      let dataQuery = db.select().from(tddfRecordsTable);
-      if (conditions.length > 0) {
-        dataQuery = dataQuery.where(and(...conditions));
+      // @ENVIRONMENT-CRITICAL - TDDF records pagination and search
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const tddfRecordsTableName = getTableName('tddf_records');
+      
+      // Build WHERE clause for raw SQL
+      let whereClause = '';
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (options.search && options.search.trim() !== '') {
+        const searchTerm = `%${options.search.trim().toLowerCase()}%`;
+        whereClause += ` WHERE (LOWER(merchant_name) LIKE $${paramIndex} OR LOWER(mcc_code) LIKE $${paramIndex+1} OR LOWER(reference_number) LIKE $${paramIndex+2})`;
+        queryParams.push(searchTerm, searchTerm, searchTerm);
+        paramIndex += 3;
       }
       
-      // Dynamic sorting
+      if (options.vNumber && options.vNumber.trim() !== '') {
+        const vNumber = options.vNumber.trim();
+        let terminalId = vNumber;
+        if (vNumber.toUpperCase().startsWith('V')) {
+          terminalId = '7' + vNumber.substring(1);
+        }
+        const connector = whereClause ? ' AND' : ' WHERE';
+        whereClause += `${connector} terminal_id = $${paramIndex}`;
+        queryParams.push(terminalId);
+        paramIndex++;
+      }
+
+      // Get total count using raw SQL
+      const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRecordsTableName}${whereClause}`, queryParams);
+      const totalItems = parseInt(countResult.rows[0].count, 10);
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      // Dynamic sorting for raw SQL
       const sortBy = options.sortBy || 'transactionDate';
       const sortOrder = options.sortOrder || 'desc';
       
-      // Map sort fields to database columns
-      let sortColumn = tddfRecordsTable.transactionDate; // default
+      // Map sort fields to database columns for raw SQL
+      let sortColumnName = 'transaction_date'; // default
       switch (sortBy) {
         case 'transactionDate':
-          sortColumn = tddfRecordsTable.transactionDate;
+          sortColumnName = 'transaction_date';
           break;
         case 'terminalId':
-          sortColumn = tddfRecordsTable.terminalId;
+          sortColumnName = 'terminal_id';
           break;
         case 'merchantName':
-          sortColumn = tddfRecordsTable.merchantName;
+          sortColumnName = 'merchant_name';
           break;
         case 'transactionAmount':
-          sortColumn = tddfRecordsTable.transactionAmount;
+          sortColumnName = 'transaction_amount';
           break;
         case 'referenceNumber':
-          sortColumn = tddfRecordsTable.referenceNumber;
+          sortColumnName = 'reference_number';
           break;
         default:
-          sortColumn = tddfRecordsTable.transactionDate;
+          sortColumnName = 'transaction_date';
       }
       
-      // Apply sorting with proper order
-      if (sortOrder === 'asc') {
-        dataQuery = dataQuery.orderBy(asc(sortColumn));
-      } else {
-        dataQuery = dataQuery.orderBy(desc(sortColumn));
-      }
+      // Get paginated data using raw SQL
+      const orderDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
+      const dataQuery = `
+        SELECT * FROM ${tddfRecordsTableName}
+        ${whereClause}
+        ORDER BY ${sortColumnName} ${orderDirection}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
       
-      dataQuery = dataQuery
-        .limit(limit)
-        .offset(offset);
-
-      const records = await dataQuery;
+      queryParams.push(limit, offset);
+      const dataResult = await pool.query(dataQuery, queryParams);
+      const records = dataResult.rows;
 
       return {
         data: records,
@@ -7057,13 +7318,12 @@ export class DatabaseStorage implements IStorage {
 
   async getTddfRecordById(recordId: number): Promise<TddfRecord | undefined> {
     try {
-      const records = await db
-        .select()
-        .from(tddfRecordsTable)
-        .where(eq(tddfRecordsTable.id, recordId))
-        .limit(1);
+      // @ENVIRONMENT-CRITICAL - TDDF record lookup by ID
+      // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+      const tddfRecordsTableName = getTableName('tddf_records');
       
-      return records[0] || undefined;
+      const result = await pool.query(`SELECT * FROM ${tddfRecordsTableName} WHERE id = $1 LIMIT 1`, [recordId]);
+      return result.rows[0] || undefined;
     } catch (error) {
       console.error('Error getting TDDF record by ID:', error);
       throw error;
