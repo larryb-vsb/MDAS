@@ -471,16 +471,6 @@ export default function MMSUploader() {
                 </div>
               </div>
               
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleStartUpload}
-                  disabled={!selectedFiles || !selectedFileType || startUploadMutation.isPending}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                >
-                  {startUploadMutation.isPending ? 'Starting Automatic Upload...' : 'Start Automatic Upload'}
-                </Button>
-              </div>
-              
               {startUploadMutation.error && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
