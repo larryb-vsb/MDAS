@@ -155,6 +155,7 @@ export default function ProcessingFilters() {
       case 'completed': return 'bg-green-500/10 text-green-700 border-green-200';
       case 'processing': return 'bg-blue-500/10 text-blue-700 border-blue-200';
       case 'queued': return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
+      case 'uploading': return 'bg-purple-500/10 text-purple-700 border-purple-200';
       case 'error': return 'bg-red-500/10 text-red-700 border-red-200';
       default: return 'bg-gray-500/10 text-gray-700 border-gray-200';
     }
@@ -165,6 +166,7 @@ export default function ProcessingFilters() {
       case 'completed': return <CheckCircle className="h-3 w-3" />;
       case 'processing': return <RefreshCw className="h-3 w-3 animate-spin" />;
       case 'queued': return <Clock className="h-3 w-3" />;
+      case 'uploading': return <Upload className="h-3 w-3 animate-pulse" />;
       case 'error': return <AlertCircle className="h-3 w-3" />;
       default: return <FileText className="h-3 w-3" />;
     }
@@ -448,12 +450,13 @@ export default function ProcessingFilters() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeStatusFilter} onValueChange={handleStatusFilterChange}>
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="all">All Files</TabsTrigger>
+              <TabsTrigger value="uploading">Uploading</TabsTrigger>
               <TabsTrigger value="queued">Queued</TabsTrigger>
               <TabsTrigger value="processing">Processing</TabsTrigger>
               <TabsTrigger value="completed">Completed</TabsTrigger>
-              <TabsTrigger value="error">Errors</TabsTrigger>
+              <TabsTrigger value="errors">Errors</TabsTrigger>
             </TabsList>
 
             <div className="flex gap-4 mt-4 flex-wrap">

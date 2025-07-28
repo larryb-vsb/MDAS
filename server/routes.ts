@@ -1873,7 +1873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fileSize,
             rawLinesCount,
             currentEnvironment,
-            'queued'
+            'uploading'
           ]);
         } catch (error: any) {
           // Fallback for environments where upload_environment column doesn't exist yet
@@ -1904,7 +1904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               fileContentBase64,
               fileSize,
               rawLinesCount,
-              'queued'
+              'uploading'
             ]);
           } else {
             throw error;
@@ -1961,6 +1961,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fileId
           ]);
         }
+        
+        // Update status from 'uploading' to 'queued' now that upload and initial processing is complete
+        await pool.query(`
+          UPDATE ${uploadedFilesTableName} 
+          SET processing_status = 'queued'
+          WHERE id = $1
+        `, [fileId]);
+        
+        console.log(`[UPLOAD] File ${fileId} status updated from 'uploading' to 'queued'`);
         
         uploads.push({
           fileId,
@@ -2434,6 +2443,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baseQuery = sql`${baseQuery} AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))`;
       } else if (status === 'error') {
         baseQuery = sql`${baseQuery} AND processing_errors IS NOT NULL`;
+      } else if (status === 'uploading') {
+        // For files that are in the process of being uploaded (very transient state)
+        baseQuery = sql`${baseQuery} AND processing_status = 'uploading'`;
       }
 
       // Add file type filter to query if needed
@@ -2450,6 +2462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ${status === 'processing' ? sql`AND processing_status = 'processing'` : sql``}
         ${status === 'queued' ? sql`AND (processing_status = 'queued' OR (processed = false AND processing_errors IS NULL))` : sql``}
         ${status === 'error' ? sql`AND processing_errors IS NOT NULL` : sql``}
+        ${status === 'uploading' ? sql`AND processing_status = 'uploading'` : sql``}
         ${fileType !== 'all' ? sql`AND file_type = ${fileType}` : sql``}
       `;
       
@@ -2514,7 +2527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         processorStatus,
         filters: {
-          status: ['all', 'queued', 'processing', 'completed', 'error'],
+          status: ['all', 'uploading', 'queued', 'processing', 'completed', 'error'],
           fileType: ['all', 'merchant', 'transaction', 'terminal', 'tddf'],
           sortBy: ['uploadDate', 'processingTime', 'filename']
         }
