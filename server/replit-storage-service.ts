@@ -6,9 +6,18 @@ export class ReplitStorageService {
 
   private static getClient(): Client {
     if (!this.client) {
-      // Replit Object Storage uses zero-configuration - no bucket name needed
       try {
-        this.client = new Client();
+        // Try to get bucket ID from environment or use default
+        const bucketId = process.env.REPLIT_OBJECT_STORAGE_BUCKET_ID;
+        
+        if (bucketId) {
+          console.log(`[REPLIT-STORAGE] Initializing with bucket ID: ${bucketId}`);
+          this.client = new Client({ bucket_id: bucketId });
+        } else {
+          console.log('[REPLIT-STORAGE] No bucket ID found, using default configuration');
+          this.client = new Client();
+        }
+        
         console.log('[REPLIT-STORAGE] Client initialized successfully');
       } catch (error) {
         console.error('[REPLIT-STORAGE] Client initialization failed:', error);
@@ -34,7 +43,7 @@ export class ReplitStorageService {
     return {
       available: this.isConfigured(),
       service: 'Replit Object Storage',
-      bucket: this.bucketName
+      bucket: 'default-replit-bucket' // Use default bucket
     };
   }
 
@@ -72,8 +81,8 @@ export class ReplitStorageService {
 
       return {
         key,
-        bucket: this.bucketName,
-        url: `replit-object-storage://${this.bucketName}/${key}`,
+        bucket: 'default-replit-bucket',
+        url: `replit-object-storage://default/${key}`,
         size: fileBuffer.length
       };
     } catch (error) {
