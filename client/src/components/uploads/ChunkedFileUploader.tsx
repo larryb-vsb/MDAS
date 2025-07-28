@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ChunkedFileUploaderProps {
   onUploadComplete: (fileId: string) => void;
-  fileType: "merchant" | "transaction" | "terminal" | "tddf";
+  fileType: "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk";
 }
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks

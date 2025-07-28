@@ -4656,6 +4656,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Chunked file upload endpoints for large files
+  const chunks = new Map<string, { chunks: Buffer[], metadata: any }>();
+  
+  app.post("/api/uploads/chunked", upload.single('chunk'), isAuthenticated, async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No chunk provided" });
+      }
+
+      const { uploadId, chunkIndex, totalChunks, fileName, fileType } = req.body;
+      
+      if (!uploadId || chunkIndex === undefined || !totalChunks || !fileName || !fileType) {
+        return res.status(400).json({ error: "Missing chunk metadata" });
+      }
+
+      // Read chunk data
+      const chunkData = fs.readFileSync(req.file.path);
+      
+      // Initialize upload if first chunk
+      if (!chunks.has(uploadId)) {
+        chunks.set(uploadId, { 
+          chunks: new Array(parseInt(totalChunks)), 
+          metadata: { fileName, fileType, totalChunks: parseInt(totalChunks) }
+        });
+      }
+
+      // Store chunk
+      const upload = chunks.get(uploadId)!;
+      upload.chunks[parseInt(chunkIndex)] = chunkData;
+
+      // Clean up temp file
+      fs.unlinkSync(req.file.path);
+
+      console.log(`[CHUNKED UPLOAD] Received chunk ${parseInt(chunkIndex) + 1}/${totalChunks} for ${fileName}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded` 
+      });
+
+    } catch (error) {
+      console.error("Chunked upload error:", error);
+      res.status(500).json({ error: "Failed to upload chunk" });
+    }
+  });
+
+  app.post("/api/uploads/chunked/finalize", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId, fileName, fileType } = req.body;
+      
+      if (!uploadId || !fileName || !fileType) {
+        return res.status(400).json({ error: "Missing finalize parameters" });
+      }
+
+      const uploadData = chunks.get(uploadId);
+      if (!uploadData) {
+        return res.status(400).json({ error: "Upload not found" });
+      }
+
+      // Verify all chunks received
+      const missingChunks = uploadData.chunks.findIndex(chunk => !chunk);
+      if (missingChunks !== -1) {
+        return res.status(400).json({ error: `Missing chunk ${missingChunks}` });
+      }
+
+      // Reconstruct file
+      const completeFile = Buffer.concat(uploadData.chunks);
+      const fileContent = completeFile.toString('utf8');
+      const fileContentBase64 = completeFile.toString('base64');
+
+      // Process raw data for diagnostics
+      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+      const rawLinesCount = lines.length;
+      
+      // Detect headers and analyze content
+      let processingNotes = `Chunked upload: ${uploadData.metadata.totalChunks} chunks, ${(completeFile.length / 1024 / 1024).toFixed(1)}MB total`;
+      if (lines.length > 0) {
+        const firstLine = lines[0];
+        const hasHeaders = /^[a-zA-Z]/.test(firstLine) && (firstLine.includes(',') || firstLine.includes('\t'));
+        processingNotes += hasHeaders ? `, Headers detected: ${firstLine.substring(0, 50)}...` : ', No headers detected';
+      }
+
+      // Store in database
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const currentEnvironment = process.env.NODE_ENV || 'development';
+      const fileId = `chunked_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      await pool.query(`
+        INSERT INTO ${uploadedFilesTableName} (
+          id, original_filename, storage_path, file_type, uploaded_at, 
+          processed, deleted, file_content, upload_environment,
+          raw_lines_count, processing_notes, processing_status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        fileId,
+        fileName,
+        `chunked_${uploadId}`,
+        fileType,
+        new Date(),
+        false,
+        false,
+        fileContentBase64,
+        currentEnvironment,
+        rawLinesCount,
+        processingNotes,
+        'queued'
+      ]);
+
+      // Clean up chunks from memory
+      chunks.delete(uploadId);
+
+      console.log(`[CHUNKED UPLOAD] Finalized ${fileName} (${(completeFile.length / 1024 / 1024).toFixed(1)}MB, ${rawLinesCount} lines)`);
+
+      res.json({ 
+        success: true, 
+        fileId,
+        message: `Successfully uploaded ${fileName}`,
+        size: completeFile.length,
+        lines: rawLinesCount
+      });
+
+    } catch (error) {
+      console.error("Chunked upload finalization error:", error);
+      res.status(500).json({ error: "Failed to finalize upload" });
+    }
+  });
+
   // Multi-stream JSON TDDF upload endpoint (for PowerShell agent)
   app.post("/api/tddf/upload-json", isApiKeyAuthenticated, async (req, res) => {
     try {

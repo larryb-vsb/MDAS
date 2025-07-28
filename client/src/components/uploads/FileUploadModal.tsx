@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import FileUploader from "./FileUploader";
+import SmartFileUploader from "./SmartFileUploader";
 
 interface UploadedFile {
   id: string;
@@ -272,7 +273,17 @@ export default function FileUploadModal({ onClose }: FileUploadModalProps) {
           </DialogDescription>
         </DialogHeader>
         
-        <FileUploader onFilesSelected={handleFilesSelected} />
+        <SmartFileUploader 
+          fileType={activeTab} 
+          onUploadComplete={(fileIds) => {
+            // Refresh the upload list
+            queryClient.invalidateQueries({ queryKey: ["/api/uploads/history"] });
+            toast({
+              title: "Upload Complete",
+              description: `Successfully uploaded ${fileIds.length} file(s)`,
+            });
+          }}
+        />
         
         <Tabs defaultValue="transaction" value={activeTab} onValueChange={(value) => setActiveTab(value as "merchant" | "transaction" | "terminal" | "tddf" | "merchant-risk")}>
           <TabsList className="grid w-full grid-cols-5">
