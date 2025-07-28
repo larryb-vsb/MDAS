@@ -173,14 +173,29 @@ export default function MMSUploader() {
     
     for (const file of Array.from(selectedFiles)) {
       try {
-        console.log(`[REAL-UPLOAD-PHASE-1] Starting upload for: ${file.name}`);
+        console.log(`[S3-UPLOAD-PHASE-1] Starting S3 upload for: ${file.name}`);
         
-        // Phase 1: Create temp file and database record
+        // Phase 1: Get presigned URL and create database record
         const uploadResponse = await startUploadMutation.mutateAsync(file);
-        console.log(`[REAL-UPLOAD-PHASE-1] Created temp file and DB record: ${uploadResponse.id}`);
+        console.log(`[S3-UPLOAD-PHASE-1] Created DB record with presigned URL: ${uploadResponse.id}`);
         
-        if (uploadResponse?.id) {
-          // Phase 2: Upload actual file content to temp storage and database
+        if (uploadResponse?.id && uploadResponse.presignedUrl) {
+          // Phase 2A: Direct upload to S3 using presigned URL (browser to S3)
+          const s3Response = await fetch(uploadResponse.presignedUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream'
+            }
+          });
+          
+          if (!s3Response.ok) {
+            throw new Error(`S3 upload failed: ${s3Response.statusText}`);
+          }
+          
+          console.log(`[S3-UPLOAD-PHASE-2A] Direct upload to S3 successful: ${uploadResponse.id}`);
+          
+          // Phase 2B: Update database with S3 metadata via server
           const formData = new FormData();
           formData.append('file', file);
           
@@ -191,12 +206,12 @@ export default function MMSUploader() {
           });
           
           if (!uploadResponse2.ok) {
-            throw new Error(`Phase 2 failed: ${uploadResponse2.statusText}`);
+            throw new Error(`Phase 2B failed: ${uploadResponse2.statusText}`);
           }
           
-          console.log(`[REAL-UPLOAD-PHASE-2] Uploaded content to temp file and database: ${uploadResponse.id}`);
+          console.log(`[S3-UPLOAD-PHASE-2B] Updated database with S3 metadata: ${uploadResponse.id}`);
           
-          // Phase 3: Validate temp file vs database and finalize
+          // Phase 3: Finalize S3 upload
           const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/finalize`, {
             method: 'POST',
             credentials: 'include'
@@ -206,10 +221,10 @@ export default function MMSUploader() {
             throw new Error(`Phase 3 failed: ${finalizeResponse.statusText}`);
           }
           
-          console.log(`[REAL-UPLOAD-PHASE-3] Finalized upload - validated and marked as uploaded: ${uploadResponse.id}`);
+          console.log(`[S3-UPLOAD-PHASE-3] Finalized S3 upload: ${uploadResponse.id}`);
         }
       } catch (error) {
-        console.error('Real upload error:', error);
+        console.error('S3 upload error:', error);
       }
     }
     
