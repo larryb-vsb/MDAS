@@ -6833,24 +6833,49 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTerminal(insertTerminal: InsertTerminal): Promise<Terminal> {
-    const [terminal] = await db
-      .insert(terminalsTable)
-      .values(insertTerminal)
-      .returning();
-    return terminal;
+    // @ENVIRONMENT-CRITICAL - Terminal creation with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const terminalsTableName = getTableName('terminals');
+    
+    const columns = Object.keys(insertTerminal).join(', ');
+    const placeholders = Object.keys(insertTerminal).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(insertTerminal);
+    
+    const result = await pool.query(`
+      INSERT INTO ${terminalsTableName} (${columns}) 
+      VALUES (${placeholders}) 
+      RETURNING *
+    `, values);
+    
+    return result.rows[0];
   }
 
   async updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal> {
-    const [terminal] = await db
-      .update(terminalsTable)
-      .set(terminalData)
-      .where(eq(terminalsTable.id, terminalId))
-      .returning();
-    return terminal;
+    // @ENVIRONMENT-CRITICAL - Terminal update with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const terminalsTableName = getTableName('terminals');
+    
+    const setClause = Object.keys(terminalData)
+      .map((key, i) => `${key} = $${i + 2}`)
+      .join(', ');
+    const values = [terminalId, ...Object.values(terminalData)];
+    
+    const result = await pool.query(`
+      UPDATE ${terminalsTableName} 
+      SET ${setClause} 
+      WHERE id = $1 
+      RETURNING *
+    `, values);
+    
+    return result.rows[0];
   }
 
   async deleteTerminal(terminalId: number): Promise<void> {
-    await db.delete(terminalsTable).where(eq(terminalsTable.id, terminalId));
+    // @ENVIRONMENT-CRITICAL - Terminal deletion with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const terminalsTableName = getTableName('terminals');
+    
+    await pool.query(`DELETE FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
   }
 
 

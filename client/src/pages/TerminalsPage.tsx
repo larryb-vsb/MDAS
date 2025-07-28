@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,13 +31,31 @@ export default function TerminalsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Fetch terminals data
+  // Fetch terminals data with debugging
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
     queryKey: ["/api/terminals"],
     refetchOnWindowFocus: true, // Refetch when window gains focus
     staleTime: 0, // Always consider data stale to ensure fresh fetches
     gcTime: 0, // Don't cache data in garbage collection
   });
+
+  // Add debugging effects
+  React.useEffect(() => {
+    if (error) {
+      console.error('[TERMINALS PAGE] Query error:', error);
+    }
+  }, [error]);
+
+  React.useEffect(() => {
+    if (terminals) {
+      console.log('[TERMINALS PAGE] Terminals data:', terminals?.length, 'terminals loaded');
+      if (terminals?.length === 0) {
+        console.log('[TERMINALS PAGE] No terminals found - empty array returned');
+      } else {
+        console.log('[TERMINALS PAGE] Sample terminal:', terminals[0]);
+      }
+    }
+  }, [terminals]);
 
   // Filter, sort and paginate terminals
   const { paginatedTerminals, pagination } = useMemo(() => {
