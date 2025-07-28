@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -160,7 +160,40 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
 
   const peakDay = activityData ? Math.max(...activityData.map(d => parseInt(d.dtCount.toString()))) : 0;
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // Generate month labels with proper positioning (similar to terminal heat map)
+  const monthLabels = useMemo(() => {
+    if (weeks.length === 0) return [];
+    
+    const labels: Array<{ month: string; position: number }> = [];
+    let lastMonth = "";
+    
+    weeks.forEach((week, weekIndex) => {
+      const firstDayOfWeek = week[0].date;
+      const monthYear = firstDayOfWeek.toLocaleDateString('en-US', { 
+        month: 'short'
+      });
+      
+      if (monthYear !== lastMonth && weekIndex > 0) {
+        labels.push({
+          month: monthYear,
+          position: weekIndex
+        });
+        lastMonth = monthYear;
+      }
+    });
+
+    return labels;
+  }, [weeks]);
+
+  // Add first month if not covered
+  if (monthLabels.length > 0 && weeks.length > 0) {
+    const firstWeek = weeks[0];
+    const firstMonth = firstWeek[0].date.toLocaleDateString('en-US', { month: 'short' });
+    if (monthLabels.length === 0 || monthLabels[0].month !== firstMonth) {
+      monthLabels.unshift({ month: firstMonth, position: 0 });
+    }
+  }
+
   const weekDays = ['Mon', 'Wed', 'Fri'];
 
   if (isLoading) {
@@ -233,39 +266,46 @@ const TddfActivityHeatMap: React.FC<TddfActivityHeatMapProps> = ({ onDateSelect,
 
       {/* Heat Map Grid - GitHub-style contribution chart */}
       <div className="mb-4">
-        {/* Month labels - positioned above the grid */}
-        <div className="flex mb-2 ml-8">
-          {monthNames.map((month, index) => (
-            <div key={month} className="text-xs text-gray-500" style={{ width: `${100/12}%`, textAlign: 'left' }}>
-              {month}
+        <div className="overflow-x-auto">
+          <div className="relative" style={{ minWidth: `${weeks.length * 14 + 60}px` }}>
+            {/* Month labels - positioned to align with grid columns */}
+            <div className="flex relative mb-2" style={{ marginLeft: '40px' }}>
+              {monthLabels.map((label, index) => (
+                <div
+                  key={index}
+                  className="absolute text-xs text-gray-500"
+                  style={{ left: `${label.position * 14}px` }}
+                >
+                  {label.month}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        
-        <div className="flex">
-          {/* Day labels - Mon, Wed, Fri on left side */}
-          <div className="flex flex-col justify-around text-xs text-gray-500 mr-2" style={{ height: '105px' }}>
-            <div>Mon</div>
-            <div>Wed</div>
-            <div>Fri</div>
-          </div>
-          
-          {/* GitHub-style grid - weeks as columns, days as rows */}
-          <div className="flex gap-1">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
-                {week.map((day, dayIndex) => (
-                  <DaySquare
-                    key={`${weekIndex}-${dayIndex}`}
-                    date={day.date}
-                    activity={day.activity}
-                    isCurrentMonth={day.isCurrentYear}
-                    onDateSelect={onDateSelect}
-                    selectedDate={selectedDate}
-                  />
+            <div className="flex">
+              {/* Day labels - Mon, Wed, Fri on left side */}
+              <div className="flex flex-col justify-around text-xs text-gray-500 mr-2" style={{ height: '105px' }}>
+                <div>Mon</div>
+                <div>Wed</div>
+                <div>Fri</div>
+              </div>
+              
+              {/* GitHub-style grid - weeks as columns, days as rows */}
+              <div className="flex gap-1">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col gap-1">
+                    {week.map((day, dayIndex) => (
+                      <DaySquare
+                        key={`${weekIndex}-${dayIndex}`}
+                        date={day.date}
+                        activity={day.activity}
+                        isCurrentMonth={day.isCurrentYear}
+                        onDateSelect={onDateSelect}
+                        selectedDate={selectedDate}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>
