@@ -343,10 +343,13 @@ export default function TerminalActivityHeatMap({
                   <span>Less</span>
                   <div className="flex gap-1">
                     <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-300 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
                     <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
-                    <div className="w-3 h-3 bg-green-800 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-700 rounded-sm"></div>
                   </div>
                   <span>More</span>
                 </div>
