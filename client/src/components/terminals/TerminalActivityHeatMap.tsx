@@ -181,10 +181,13 @@ export default function TerminalActivityHeatMap({
     
     const intensity = count / heatMapData.maxCount;
     
+    if (intensity <= 0.1) return "bg-green-100";
     if (intensity <= 0.25) return "bg-green-200";
-    if (intensity <= 0.5) return "bg-green-400";
-    if (intensity <= 0.75) return "bg-green-600";
-    return "bg-green-800";
+    if (intensity <= 0.4) return "bg-green-300";
+    if (intensity <= 0.55) return "bg-green-400";
+    if (intensity <= 0.7) return "bg-green-500";
+    if (intensity <= 0.85) return "bg-green-600";
+    return "bg-green-700";
   };
 
   // Get month labels for the timeline
