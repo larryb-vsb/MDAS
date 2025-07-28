@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 // 8-State Processing Workflow
 const PROCESSING_PHASES = [
@@ -165,7 +166,8 @@ export default function MMSUploader() {
   const activeUploads = totalUploads - completedUploads - failedUploads;
 
   return (
-    <div className="space-y-6">
+    <MainLayout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">MMS Uploader</h1>
