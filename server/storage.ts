@@ -101,6 +101,7 @@ export interface IStorage {
   getUploaderUploadById(id: string): Promise<UploaderUpload | undefined>;
   updateUploaderUpload(id: string, updates: Partial<UploaderUpload>): Promise<UploaderUpload>;
   updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload>;
+  deleteUploaderUploads(uploadIds: string[]): Promise<void>;
 
   // Terminal operations
   getTerminals(): Promise<Terminal[]>;
@@ -13330,6 +13331,30 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error) {
       console.error('[UPLOADER] Error updating upload phase:', error);
+      throw error;
+    }
+  }
+
+  async deleteUploaderUploads(uploadIds: string[]): Promise<void> {
+    try {
+      if (!uploadIds || uploadIds.length === 0) {
+        return;
+      }
+
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Build placeholders for parameterized query
+      const placeholders = uploadIds.map((_, index) => `$${index + 1}`).join(', ');
+      
+      const result = await pool.query(`
+        DELETE FROM ${uploaderTableName} 
+        WHERE id IN (${placeholders})
+      `, uploadIds);
+      
+      console.log(`[UPLOADER] Deleted ${result.rowCount} uploader uploads`);
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error deleting uploader uploads:', error);
       throw error;
     }
   }

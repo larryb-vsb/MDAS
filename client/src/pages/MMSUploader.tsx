@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -75,6 +76,13 @@ export default function MMSUploader() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0); // 0-based for array indexing
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  
+  // Bulk delete state
+  const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
 
   // Query for MMS uploads only (separate system from /uploads)
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
@@ -118,7 +126,43 @@ export default function MMSUploader() {
     }
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/bulk-delete', {
+        method: 'DELETE',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+    }
+  });
 
+  // Filter uploads based on status and file type
+  const filteredUploads = uploads.filter(upload => {
+    const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
+    const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
+    return statusMatch && typeMatch;
+  });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUploads.length / itemsPerPage);
+  const startIndex = currentPage * itemsPerPage;
+  const paginatedUploads = filteredUploads.slice(startIndex, startIndex + itemsPerPage);
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedUploads.length === 0) return;
+    
+    try {
+      await bulkDeleteMutation.mutateAsync(selectedUploads);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(event.target.files);
@@ -189,12 +233,10 @@ export default function MMSUploader() {
   const warningUploads = uploadsByPhase.warning?.length || 0;
   const activeUploads = totalUploads - completedUploads - warningUploads;
 
-  // Filter uploads for Files tab
-  const filteredUploads = uploads.filter(upload => {
-    const matchesStatus = statusFilter === 'all' || (upload.currentPhase || 'started') === statusFilter;
-    const matchesFileType = fileTypeFilter === 'all' || (upload.finalFileType || 'unknown') === fileTypeFilter;
-    return matchesStatus && matchesFileType;
-  });
+  // Reset page when filters change
+  React.useEffect(() => {
+    setCurrentPage(0);
+  }, [statusFilter, fileTypeFilter, itemsPerPage]);
 
   // View file contents query (only fetch when needed)
   const { data: fileContent, isLoading: isLoadingContent } = useQuery({
@@ -474,49 +516,106 @@ export default function MMSUploader() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filters */}
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <Label>Status:</Label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="started">Started</SelectItem>
-                      <SelectItem value="uploading">Uploading</SelectItem>
-                      <SelectItem value="uploaded">Uploaded</SelectItem>
-                      <SelectItem value="identified">Identified</SelectItem>
-                      <SelectItem value="encoding">Encoding</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="warning">Warning</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* Filters and Controls */}
+              <div className="flex flex-wrap gap-4 items-center justify-between">
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    <Label>Status:</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="started">Started</SelectItem>
+                        <SelectItem value="uploading">Uploading</SelectItem>
+                        <SelectItem value="uploaded">Uploaded</SelectItem>
+                        <SelectItem value="identified">Identified</SelectItem>
+                        <SelectItem value="encoding">Encoding</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="warning">Warning</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label>File Type:</Label>
+                    <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="tddf">TDDF</SelectItem>
+                        <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                        <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                        <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label>Per Page:</Label>
+                    <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <Label>File Type:</Label>
-                  <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="tddf">TDDF</SelectItem>
-                      <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
-                      <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
-                      <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="flex items-center gap-4">
+                  {selectedUploads.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleBulkDelete()}
+                      disabled={bulkDeleteMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedUploads.length} files`}
+                    </Button>
+                  )}
+                  
+                  <Badge variant="outline">
+                    {filteredUploads.length} files
+                  </Badge>
                 </div>
-                
-                <Badge variant="outline" className="ml-auto">
-                  {filteredUploads.length} files
-                </Badge>
               </div>
+
+              {/* Bulk Selection Controls */}
+              {filteredUploads.length > 0 && (
+                <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedUploads.length === paginatedUploads.length && paginatedUploads.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedUploads(paginatedUploads.map(u => u.id));
+                        } else {
+                          setSelectedUploads([]);
+                        }
+                      }}
+                    />
+                    <Label className="text-sm">Select all on page</Label>
+                  </div>
+                  
+                  {selectedUploads.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {selectedUploads.length} selected
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Files List */}
               <div className="space-y-3">
@@ -534,7 +633,7 @@ export default function MMSUploader() {
                     </div>
                   </div>
                 ) : (
-                  filteredUploads.map((upload) => {
+                  paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
                     const canViewContent = upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified' || 
@@ -542,7 +641,18 @@ export default function MMSUploader() {
                                          upload.currentPhase === 'completed';
                     
                     return (
-                      <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">
+                        <Checkbox
+                          checked={selectedUploads.includes(upload.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedUploads(prev => [...prev, upload.id]);
+                            } else {
+                              setSelectedUploads(prev => prev.filter(id => id !== upload.id));
+                            }
+                          }}
+                        />
+                        
                         <div className="flex items-center gap-3 flex-1">
                           <Icon className={`h-5 w-5 text-${phaseColor}-600`} />
                           <div className="flex-1">
@@ -635,6 +745,49 @@ export default function MMSUploader() {
                   })
                 )}
               </div>
+
+              {/* Pagination Controls */}
+              {filteredUploads.length > itemsPerPage && (
+                <div className="flex items-center justify-between pt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {Math.min(currentPage * itemsPerPage + 1, filteredUploads.length)} to {Math.min((currentPage + 1) * itemsPerPage, filteredUploads.length)} of {filteredUploads.length} files
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                      disabled={currentPage === 0}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <Button
+                          key={i}
+                          variant={currentPage === i ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(i)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                      disabled={currentPage === totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
