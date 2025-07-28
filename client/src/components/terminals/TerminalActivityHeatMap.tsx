@@ -89,7 +89,7 @@ export default function TerminalActivityHeatMap({
     }
 
     // Calculate max count for color intensity
-    const maxCount = Math.max(...Object.values(transactionsByDate), 1);
+    const maxCount = Math.max(...Object.values(transactionsByDate).map(Number), 1);
 
     return { weeks, maxCount, totalDays: weeks.length * 7 };
   }, [transactions, selectedYear]);
@@ -152,103 +152,123 @@ export default function TerminalActivityHeatMap({
   const canGoToNext = availableYears.indexOf(selectedYear) > 0;
 
   return (
-    <div className="space-y-4">
-      {/* Year Navigation */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToPreviousYear}
-            disabled={!canGoToPrevious}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="text-lg font-semibold min-w-[80px] text-center">{selectedYear}</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToNextYear}
-            disabled={!canGoToNext}
-            className="h-8 w-8 p-0"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Less</span>
-          <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-800 rounded-sm"></div>
-          </div>
-          <span>More</span>
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            Terminal Activity Heat Map
+          </h3>
+          <p className="text-sm text-gray-600">
+            Daily transaction volume over time - darker squares indicate more transactions
+          </p>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="relative" style={{ minWidth: `${heatMapData.weeks.length * 14 + 60}px` }}>
-          {/* Month labels */}
-          <div className="flex relative mb-2" style={{ marginLeft: '40px' }}>
-            {monthLabels.map((label, index) => (
-              <div
-                key={index}
-                className="absolute text-xs text-muted-foreground"
-                style={{ left: `${label.position * 14}px` }}
-              >
-                {label.month}
+      {/* Heat Map Grid Container with Box */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="overflow-x-auto">
+          <div className="relative" style={{ minWidth: `${heatMapData.weeks.length * 20 + 60}px` }}>
+            {/* Year Navigation - Right aligned with heat map */}
+            <div className="flex justify-end mb-4" style={{ width: `${heatMapData.weeks.length * 20 + 32}px` }}>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={goToPreviousYear}
+                  disabled={!canGoToPrevious}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <span className="text-lg font-semibold text-gray-900 min-w-[60px] text-center">
+                  {selectedYear}
+                </span>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={goToNextYear}
+                  disabled={!canGoToNext}
+                  className="p-1 h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-            ))}
-          </div>
-
-          <div className="flex">
-            {/* Day labels */}
-            <div className="flex flex-col justify-between text-xs text-muted-foreground w-10">
-              {dayLabels.map((day, index) => (
-                index % 2 === 1 && (
-                  <div key={day} className="h-3 flex items-center">
-                    {day}
+            </div>
+            
+            {/* Month labels with precise alignment */}
+            <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
+              {monthLabels.map((label, index) => {
+                const position = label.position * 20;
+                return (
+                  <div
+                    key={index}
+                    className="text-xs text-gray-500 font-medium absolute"
+                    style={{ left: `${position}px` }}
+                  >
+                    {label.month}
                   </div>
-                )
-              ))}
+                );
+              })}
             </div>
-
-            {/* Heat map grid */}
-            <div className="flex gap-1">
-              {heatMapData.weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-1">
-                  {week.map((day, dayIndex) => (
-                    <div
-                      key={`${weekIndex}-${dayIndex}`}
-                      className={`w-3 h-3 rounded-sm cursor-pointer transition-all hover:ring-2 hover:ring-blue-300 ${getIntensity(day.count)}`}
-                      title={`${day.count} transaction${day.count !== 1 ? 's' : ''} on ${day.dateObj.toLocaleDateString('en-US', { 
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}`}
-                      onClick={() => onDateClick && onDateClick(day.date)}
-                    />
-                  ))}
+            
+            <div className="flex">
+              {/* Day labels */}
+              <div className="flex flex-col justify-around text-xs text-gray-500 w-8" style={{ height: '140px' }}>
+                <div>Mon</div>
+                <div>Wed</div>
+                <div>Fri</div>
+              </div>
+              
+              {/* Heat map grid */}
+              <div className="flex gap-1">
+                {heatMapData.weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col gap-1">
+                    {week.map((day, dayIndex) => (
+                      <div
+                        key={`${weekIndex}-${dayIndex}`}
+                        className={`w-4 h-4 rounded-sm cursor-pointer transition-all hover:ring-2 hover:ring-blue-300 ${getIntensity(day.count)}`}
+                        title={`${day.count} transaction${day.count !== 1 ? 's' : ''} on ${day.dateObj.toLocaleDateString('en-US', { 
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}`}
+                        onClick={() => onDateClick && onDateClick(day.date)}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Legend - Right aligned with heat map */}
+            <div className="flex justify-end mt-4" style={{ width: `${heatMapData.weeks.length * 20 + 32}px` }}>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">{transactions.filter(t => {
+                    const transactionDate = new Date(t.transactionDate || t.date);
+                    return transactionDate.getFullYear() === selectedYear;
+                  }).length}</span> transactions in {selectedYear}
+                  <span className="mx-2">•</span>
+                  <span>Peak day: <span className="font-medium">{heatMapData.maxCount}</span> transactions</span>
                 </div>
-              ))}
+                
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>Less</span>
+                  <div className="flex gap-1">
+                    <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
+                    <div className="w-3 h-3 bg-green-800 rounded-sm"></div>
+                  </div>
+                  <span>More</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Summary stats */}
-      <div className="text-sm text-muted-foreground space-y-1">
-        <div>
-          <strong>{transactions.filter(t => {
-            const transactionDate = new Date(t.transactionDate || t.date);
-            return transactionDate.getFullYear() === selectedYear;
-          }).length}</strong> transactions in {selectedYear}
-        </div>
-        <div>
-          Peak day: <strong>{heatMapData.maxCount}</strong> transactions
         </div>
       </div>
     </div>
