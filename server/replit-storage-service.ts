@@ -2,11 +2,11 @@ import { Client } from '@replit/object-storage';
 
 export class ReplitStorageService {
   private static client: Client | null = null;
-  private static bucketName = 'mms-uploader-files';
+  private static bucketName = 'mms-uploader-files'; // For reference/logging only
 
   private static getClient(): Client {
     if (!this.client) {
-      // Replit Object Storage automatically handles authentication in Replit environment
+      // Replit Object Storage uses zero-configuration - no bucket name needed
       this.client = new Client();
     }
     return this.client;
@@ -47,9 +47,11 @@ export class ReplitStorageService {
     
     try {
       // Upload the file buffer
-      await client.uploadFromBytes(key, fileBuffer, {
-        contentType: contentType || 'application/octet-stream'
-      });
+      const result = await client.uploadFromBytes(key, fileBuffer);
+      
+      if (!result.ok) {
+        throw new Error(`Upload failed: ${result.error.message}`);
+      }
 
       console.log(`[REPLIT-STORAGE] Uploaded file: ${key} (${fileBuffer.length} bytes)`);
 
@@ -70,7 +72,13 @@ export class ReplitStorageService {
     const client = this.getClient();
     
     try {
-      const content = await client.downloadAsBytes(key);
+      const result = await client.downloadAsBytes(key);
+      
+      if (!result.ok) {
+        throw new Error(`Download failed: ${result.error.message}`);
+      }
+      
+      const content = result.value[0]; // Result is [Buffer]
       console.log(`[REPLIT-STORAGE] Retrieved file: ${key} (${content.length} bytes)`);
       return content;
     } catch (error) {
@@ -84,7 +92,13 @@ export class ReplitStorageService {
     const client = this.getClient();
     
     try {
-      return await client.exists(key);
+      const result = await client.exists(key);
+      
+      if (!result.ok) {
+        return false;
+      }
+      
+      return result.value;
     } catch (error) {
       console.error('[REPLIT-STORAGE] Exists check error:', error);
       return false;
@@ -109,8 +123,13 @@ export class ReplitStorageService {
     const client = this.getClient();
     
     try {
-      const objects = await client.list({ prefix });
-      return objects.map(obj => obj.name);
+      const result = await client.list({ prefix });
+      
+      if (!result.ok) {
+        throw new Error(`List failed: ${result.error.message}`);
+      }
+      
+      return result.value.map((obj: any) => obj.name);
     } catch (error) {
       console.error('[REPLIT-STORAGE] List error:', error);
       throw new Error(`Failed to list files from Replit Object Storage: ${error}`);
