@@ -290,6 +290,26 @@ app.use((req, res, next) => {
           error: error instanceof Error ? error.message : String(error)
         });
       }
+
+      // Start MMS Watcher service for automatic file processing (phases 4-7)
+      try {
+        console.log('Initializing MMS Watcher service...');
+        const { default: MMSWatcher } = await import('./mms-watcher.js');
+        const { storage } = await import('./storage');
+        const mmsWatcher = new MMSWatcher(storage);
+        mmsWatcher.start();
+        console.log('[MMS-WATCHER] Service started successfully');
+        
+        await systemLogger.info('Application', 'MMS Watcher service initialized', {
+          environment: NODE_ENV,
+          serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
+        });
+      } catch (error) {
+        console.error('[MMS-WATCHER] Failed to start service:', error);
+        await systemLogger.error('Application', 'Failed to start MMS Watcher service', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
       
       // Skip sample logs initialization during development database setup
       // const { initSampleLogs } = await import('./init-sample-logs');

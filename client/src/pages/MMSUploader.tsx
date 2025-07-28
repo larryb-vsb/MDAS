@@ -68,7 +68,6 @@ const formatDuration = (startTime: string | Date, endTime?: string | Date): stri
 export default function MMSUploader() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [selectedFileType, setSelectedFileType] = useState<string>('tddf');
-  const [autoProcessing, setAutoProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
@@ -119,19 +118,7 @@ export default function MMSUploader() {
     }
   });
 
-  // Auto processing mutation
-  const autoProcessMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('/api/uploader/auto-process', {
-        method: 'POST',
-        body: {}
-      });
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
-    }
-  });
+
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(event.target.files);
@@ -141,20 +128,42 @@ export default function MMSUploader() {
     if (!selectedFiles || !selectedFileType) return;
     
     for (const file of Array.from(selectedFiles)) {
-      const uploadResponse = await startUploadMutation.mutateAsync(file);
-      
-      // If auto processing is enabled, automatically progress through phases
-      if (autoProcessing && uploadResponse?.id) {
-        try {
-          // Progress through the phases automatically
+      try {
+        // Step 1: Create upload record in "started" state
+        const uploadResponse = await startUploadMutation.mutateAsync(file);
+        console.log(`[BROWSER-UPLOAD] Started upload: ${uploadResponse.id}`);
+        
+        if (uploadResponse?.id) {
+          // Step 2: Automatically transition to "uploading" state
           await updatePhaseMutation.mutateAsync({ 
             uploadId: uploadResponse.id, 
             phase: 'uploading', 
-            phaseData: { fileType: selectedFileType } 
+            phaseData: { fileType: selectedFileType, startedAt: new Date().toISOString() } 
           });
-        } catch (error) {
-          console.error('Auto processing error:', error);
+          console.log(`[BROWSER-UPLOAD] Upload ${uploadResponse.id}: started → uploading`);
+          
+          // Step 3: Simulate browser upload progress and transition to "uploaded"
+          setTimeout(async () => {
+            try {
+              await updatePhaseMutation.mutateAsync({ 
+                uploadId: uploadResponse.id, 
+                phase: 'uploaded', 
+                phaseData: { 
+                  fileType: selectedFileType, 
+                  fileSize: file.size,
+                  uploadedAt: new Date().toISOString(),
+                  storagePath: `tmp_uploads/${file.name}` 
+                } 
+              });
+              console.log(`[BROWSER-UPLOAD] Upload ${uploadResponse.id}: uploading → uploaded`);
+              console.log(`[BROWSER-UPLOAD] File ready for watcher processing: ${file.name}`);
+            } catch (error) {
+              console.error(`[BROWSER-UPLOAD] Error transitioning to uploaded:`, error);
+            }
+          }, 2000 + Math.random() * 3000); // 2-5 seconds simulated upload
         }
+      } catch (error) {
+        console.error('Upload error:', error);
       }
     }
     
@@ -164,9 +173,7 @@ export default function MMSUploader() {
     if (fileInput) fileInput.value = '';
   };
 
-  const handleAutoProcess = () => {
-    autoProcessMutation.mutate();
-  };
+
 
   // Group MMS uploads by phase
   const uploadsByPhase = uploads.reduce((acc, upload) => {
@@ -388,20 +395,13 @@ export default function MMSUploader() {
                   )}
                 </div>
 
-                {/* Auto Processing Toggle */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="auto-processing"
-                    checked={autoProcessing}
-                    onChange={(e) => setAutoProcessing(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="auto-processing" className="text-sm font-medium">
-                    Enable Auto Processing
-                  </label>
-                  <div className="text-xs text-muted-foreground">
-                    Automatically progress through workflow phases
+                {/* Processing Info */}
+                <div className="bg-blue-50 p-3 rounded-md border-l-4 border-blue-500">
+                  <div className="text-sm font-medium text-blue-800">
+                    Automatic Processing Enabled
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    Files will automatically progress through all 8 phases: Started → Uploading → Uploaded (browser) → Identified → Encoding → Processing → Completed (watcher)
                   </div>
                 </div>
               </div>
@@ -410,19 +410,9 @@ export default function MMSUploader() {
                 <Button 
                   onClick={handleStartUpload}
                   disabled={!selectedFiles || !selectedFileType || startUploadMutation.isPending}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
                 >
-                  {startUploadMutation.isPending ? 'Starting...' : 'Start Upload'}
-                </Button>
-                
-                <Button 
-                  onClick={handleAutoProcess}
-                  disabled={autoProcessMutation.isPending || uploads.length === 0}
-                  variant="outline"
-                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
-                >
-                  <Zap className="h-4 w-4" />
-                  Auto
+                  {startUploadMutation.isPending ? 'Starting Automatic Upload...' : 'Start Automatic Upload'}
                 </Button>
               </div>
               
