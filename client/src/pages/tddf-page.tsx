@@ -604,21 +604,21 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
   };
 
   const summaryFields = [
-    { label: 'Reference Number (62-84)', value: record.referenceNumber, mono: true },
-    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
-    { label: 'Terminal ID (277-284)', value: record.terminalId, mono: true },
-    { label: 'MCC Code (273-276)', value: record.mccCode, mono: true },
-    { label: 'Transaction Type Identifier (336-338)', value: record.transactionTypeIdentifier, mono: true },
-    { label: 'Merchant Account Number (24-39)', value: record.merchantAccountNumber, mono: true },
-    { label: 'Merchant Name (218-242)', value: record.merchantName },
-    { label: 'Batch Julian Date (104-108)', value: record.batchJulianDate, mono: true },
-    { label: 'Cardholder Account Number (109-142)', value: record.cardholderAccountNumber, mono: true },
-    { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transactionAmount), highlight: true },
-    { label: 'Auth Source (176-176)', value: record.authSource, mono: true },
-    { label: 'Auth Amount (192-203)', value: record.authAmount ? formatCurrency(record.authAmount) : 'N/A', highlight: true },
-    { label: 'Authorization Number (243-250)', value: record.authorizationNumber, mono: true },
-    { label: 'Card Type (253-254)', value: record.cardType, mono: true },
-    { label: 'Reject Reason (255-258)', value: record.rejectReason, mono: true },
+    { label: 'Reference Number (62-84)', value: record.reference_number, mono: true },
+    { label: 'Transaction Date (85-92)', value: record.transaction_date ? formatTddfDate(record.transaction_date.toString()) : 'N/A' },
+    { label: 'Terminal ID (277-284)', value: record.terminal_id, mono: true },
+    { label: 'MCC Code (273-276)', value: record.mcc_code, mono: true },
+    { label: 'Transaction Type Identifier (336-338)', value: record.transaction_type_identifier, mono: true },
+    { label: 'Merchant Account Number (24-39)', value: record.merchant_account_number, mono: true },
+    { label: 'Merchant Name (218-242)', value: record.merchant_name },
+    { label: 'Batch Julian Date (104-108)', value: record.batch_julian_date, mono: true },
+    { label: 'Cardholder Account Number (109-142)', value: record.cardholder_account_number, mono: true },
+    { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transaction_amount), highlight: true },
+    { label: 'Auth Source (176-176)', value: record.auth_source, mono: true },
+    { label: 'Auth Amount (192-203)', value: record.auth_amount ? formatCurrency(record.auth_amount) : 'N/A', highlight: true },
+    { label: 'Authorization Number (243-250)', value: record.authorization_number, mono: true },
+    { label: 'Card Type (253-254)', value: record.card_type, mono: true },
+    { label: 'Reject Reason (255-258)', value: record.reject_reason, mono: true },
     { label: 'Cash Back Amount (312-322)', value: record.cashBackAmount ? formatCurrency(record.cashBackAmount) : 'N/A' },
     { label: 'Source Row Number', value: record.sourceRowNumber },
     { label: 'Recorded At', value: record.recordedAt ? formatTableDate(record.recordedAt.toString()) : 'N/A' },
@@ -644,9 +644,9 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'Association Number 2 (56-61)', value: record.associationNumber2, mono: true },
     
     // Core transaction fields (positions 62-142)
-    { label: 'Reference Number (62-84)', value: record.referenceNumber, mono: true },
-    { label: 'Transaction Date (85-92)', value: record.transactionDate ? formatTddfDate(record.transactionDate.toString()) : 'N/A' },
-    { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transactionAmount), highlight: true },
+    { label: 'Reference Number (62-84)', value: record.reference_number, mono: true },
+    { label: 'Transaction Date (85-92)', value: record.transaction_date ? formatTddfDate(record.transaction_date.toString()) : 'N/A' },
+    { label: 'Transaction Amount (93-103)', value: formatCurrency(record.transaction_amount), highlight: true },
     { label: 'Batch Julian Date (104-108)', value: record.batchJulianDate, mono: true },
     { label: 'Net Deposit (109-109)', value: record.netDeposit ? formatCurrency(record.netDeposit) : 'N/A' },
     { label: 'Cardholder Account Number (109-142)', value: record.cardholderAccountNumber, mono: true },
@@ -678,7 +678,7 @@ function TddfRecordDetails({ record, formatCurrency, formatTddfDate }: {
     { label: 'POS Entry Mode (217-217)', value: record.posEntryMode, mono: true },
     { label: 'Debit Credit Indicator (217-217)', value: record.debitCreditIndicator, mono: true },
     { label: 'Reversal Flag (217-217)', value: record.reversalFlag, mono: true },
-    { label: 'Merchant Name (218-242)', value: record.merchantName },
+    { label: 'Merchant Name (218-242)', value: record.merchant_name },
     
     // Authorization and card details (positions 243-268)
     { label: 'Authorization Number (243-250)', value: record.authorizationNumber, mono: true },
@@ -863,8 +863,8 @@ function TerminalIdDisplay({ terminalId, recordId }: { terminalId?: string; reco
 
 // Card Type Detection Function - Returns single badge per transaction using Card Type field (251-256)
 function getCardTypeBadges(record: TddfRecord) {
-  const isDebit = record.debitCreditIndicator === 'D';
-  const cardType = record.cardType?.trim();
+  const isDebit = record.debit_credit_indicator === 'D';
+  const cardType = record.card_type?.trim();
   
   // Priority 1: Check cardType field (positions 251-256) - most accurate identification
   if (cardType) {
@@ -2809,25 +2809,25 @@ export default function TddfPage() {
                           />
                         </td>
                         <td className="p-3">
-                          {record.transactionDate 
-                            ? formatTddfDate(record.transactionDate.toString())
+                          {record.transaction_date 
+                            ? formatTddfDate(record.transaction_date.toString())
                             : 'N/A'
                           }
                         </td>
                         <td className="p-3 font-mono text-xs">
-                          <TruncatedRefNumber refNumber={record.referenceNumber || null} />
+                          <TruncatedRefNumber refNumber={record.reference_number || null} />
                         </td>
                         <td className="p-3 max-w-32 truncate">
-                          {record.merchantName || 'N/A'}
+                          {record.merchant_name || 'N/A'}
                         </td>
                         <td className="p-3 text-right font-medium">
-                          ${parseFloat(record.transactionAmount?.toString() || '0').toFixed(2)}
+                          ${parseFloat(record.transaction_amount?.toString() || '0').toFixed(2)}
                         </td>
                         <td className="p-3 font-mono text-xs">
-                          {record.authorizationNumber || 'N/A'}
+                          {record.authorization_number || 'N/A'}
                         </td>
                         <td className="p-3">
-                          <TerminalIdDisplay terminalId={record.terminalId} recordId={record.id} />
+                          <TerminalIdDisplay terminalId={record.terminal_id} recordId={record.id} />
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
