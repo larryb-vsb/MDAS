@@ -9,11 +9,99 @@ interface TerminalActivityHeatMapProps {
   onDateClick?: (date: string) => void;
 }
 
+// Skeleton loader component matching final layout
+function TerminalActivityHeatMapSkeleton() {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="h-6 bg-gray-200 rounded w-48 mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-80 animate-pulse"></div>
+        </div>
+      </div>
+
+      {/* Heat Map Container */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="overflow-x-auto">
+          <div className="relative" style={{ minWidth: '740px' }}>
+            {/* Year Navigation Skeleton */}
+            <div className="flex justify-end mb-4" style={{ width: '740px' }}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+            
+            {/* Month Labels Skeleton */}
+            <div className="relative mb-2" style={{ height: '16px', marginLeft: '32px' }}>
+              {Array.from({ length: 12 }, (_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-6 h-3 bg-gray-200 rounded animate-pulse"
+                  style={{ left: `${i * 60}px` }}
+                />
+              ))}
+            </div>
+            
+            {/* Heat Map Grid Skeleton */}
+            <div className="flex">
+              <div className="flex flex-col justify-around text-xs w-8" style={{ height: '140px' }}>
+                <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: 37 }, (_, weekIndex) => (
+                  <div key={weekIndex} className="flex flex-col gap-1">
+                    {Array.from({ length: 7 }, (_, dayIndex) => (
+                      <div
+                        key={dayIndex}
+                        className="w-4 h-4 bg-gray-200 rounded-sm animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Legend Skeleton */}
+            <div className="flex justify-end mt-4" style={{ width: '740px' }}>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-32 h-4 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="flex gap-1">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <div key={i} className="w-3 h-3 bg-gray-200 rounded-sm animate-pulse"></div>
+                    ))}
+                  </div>
+                  <div className="w-8 h-3 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TerminalActivityHeatMap({ 
   transactions, 
   timeRange,
   onDateClick 
 }: TerminalActivityHeatMapProps) {
+  
+  // Show skeleton while transactions are loading
+  if (!transactions || transactions.length === 0) {
+    return <TerminalActivityHeatMapSkeleton />;
+  }
   
   // Get available years from transactions
   const availableYears = useMemo(() => {
