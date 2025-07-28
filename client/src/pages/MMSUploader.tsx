@@ -82,7 +82,7 @@ export default function MMSUploader() {
         fileSize: file.size,
         sessionId
       });
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
@@ -97,7 +97,7 @@ export default function MMSUploader() {
       phaseData?: Record<string, any> 
     }) => {
       const response = await apiRequest('POST', `/api/uploader/${uploadId}/phase/${phase}`, phaseData || {});
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
@@ -108,7 +108,7 @@ export default function MMSUploader() {
   const autoProcessMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', '/api/uploader/auto-process', {});
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
@@ -126,7 +126,7 @@ export default function MMSUploader() {
       const uploadResponse = await startUploadMutation.mutateAsync(file);
       
       // If auto processing is enabled, automatically progress through phases
-      if (autoProcessing && uploadResponse.id) {
+      if (autoProcessing && uploadResponse?.id) {
         try {
           // Progress through the phases automatically
           await updatePhaseMutation.mutateAsync({ 
