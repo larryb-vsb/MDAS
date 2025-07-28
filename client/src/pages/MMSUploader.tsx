@@ -178,29 +178,28 @@ export default function MMSUploader() {
     // Auto-start upload if files are selected and file type is chosen
     if (files && files.length > 0 && selectedFileType) {
       console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} files`);
-      setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+      setTimeout(() => handleStartUpload(files), 100); // Pass files directly to avoid React state timing issues
       
       // Backup trigger in case the first one doesn't work
       setTimeout(() => {
-        if (selectedFiles && selectedFiles.length > 0 && selectedFileType) {
-          console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${selectedFiles.length} files`);
-          handleStartUpload();
-        }
+        console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${files.length} files`);
+        handleStartUpload(files);
       }, 500);
     } else {
       console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - missing files or file type`);
     }
   };
 
-  const handleStartUpload = async () => {
-    if (!selectedFiles || !selectedFileType) {
-      console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload called but missing requirements - Files: ${selectedFiles?.length || 0}, Type: ${selectedFileType}`);
+  const handleStartUpload = async (filesToUpload?: FileList | null) => {
+    const files = filesToUpload || selectedFiles;
+    if (!files || !selectedFileType) {
+      console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload called but missing requirements - Files: ${files?.length || 0}, Type: ${selectedFileType}`);
       return;
     }
     
-    console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload starting for ${selectedFiles.length} files of type ${selectedFileType}`);
+    console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload starting for ${files.length} files of type ${selectedFileType}`);
     
-    for (const file of Array.from(selectedFiles)) {
+    for (const file of Array.from(files)) {
       try {
         console.log(`[REPLIT-UPLOAD-PHASE-1] Starting Replit Object Storage upload for: ${file.name}`);
         
@@ -348,7 +347,7 @@ export default function MMSUploader() {
                           // Auto-start upload if files are already selected
                           if (selectedFiles && selectedFiles.length > 0) {
                             console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${selectedFiles.length} files after file type selection`);
-                            setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                            setTimeout(() => handleStartUpload(selectedFiles), 100); // Pass files directly
                           } else {
                             console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - no files selected yet`);
                           }
@@ -414,14 +413,12 @@ export default function MMSUploader() {
                           // Auto-start upload if file type is already selected
                           if (selectedFileType) {
                             console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} dropped files`);
-                            setTimeout(() => handleStartUpload(), 100); // Small delay to ensure state updates
+                            setTimeout(() => handleStartUpload(files), 100); // Pass files directly to avoid React state timing issues
                             
                             // Backup trigger in case the first one doesn't work
                             setTimeout(() => {
-                              if (selectedFiles && selectedFiles.length > 0 && selectedFileType) {
-                                console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${selectedFiles.length} dropped files`);
-                                handleStartUpload();
-                              }
+                              console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${files.length} dropped files`);
+                              handleStartUpload(files);
                             }, 500);
                           } else {
                             console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - no file type selected`);
