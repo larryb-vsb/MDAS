@@ -26,9 +26,12 @@ import { getTableName } from "./table-config";
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
+  console.log(`[AUTH-DEBUG] Checking authentication for ${req.method} ${req.path}`);
   if (req.isAuthenticated()) {
+    console.log(`[AUTH-DEBUG] User authenticated: ${(req.user as any)?.username}`);
     return next();
   }
+  console.log(`[AUTH-DEBUG] Authentication failed for ${req.method} ${req.path}`);
   res.status(401).json({ error: "Not authenticated" });
 }
 
@@ -7248,6 +7251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
+    console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
     try {
       const { phase, limit, offset } = req.query;
       const uploads = await storage.getUploaderUploads({
