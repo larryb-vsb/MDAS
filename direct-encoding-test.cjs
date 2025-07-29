@@ -1,134 +1,144 @@
-#!/usr/bin/env node
+// Direct encoding test through server internal functions
+const fs = require('fs');
+const path = require('path');
 
-/**
- * Direct Encoding Test - Calls the encoding function directly
- */
+// Create a simple Express request to test the encoding endpoint
+const express = require('express');
+const app = express();
 
-const { Pool } = require('@neondatabase/serverless');
-const ws = require('ws');
+console.log('=== DIRECT ENCODING TEST FOR 29-LINE FILE ===');
 
-// Neon config for WebSocket
-const neonConfig = require('@neondatabase/serverless').neonConfig;
-neonConfig.webSocketConstructor = ws;
+// Create a test server that can authenticate and call the encoding endpoint
+const testServer = async () => {
+  try {
+    // Import the server modules directly
+    const { default: serverApp } = await import('./server/index.js');
+    
+    console.log('Server modules loaded successfully');
+    
+    // Test the encoding endpoint directly by simulating a request
+    const uploadId = 'uploader_1753770043406_rxjr75vpv';
+    
+    // Create a mock request object
+    const mockReq = {
+      params: { id: uploadId },
+      user: { id: 1, username: 'admin' }, // Simulate authenticated user
+      method: 'POST',
+      url: `/api/uploader/${uploadId}/encode`
+    };
+    
+    const mockRes = {
+      status: function(code) { 
+        this.statusCode = code; 
+        return this; 
+      },
+      json: function(data) { 
+        console.log('Encoding Response:', JSON.stringify(data, null, 2));
+        this.data = data;
+        return this;
+      },
+      statusCode: 200,
+      data: null
+    };
+    
+    console.log(`Attempting to encode upload: ${uploadId}`);
+    
+    // This would need to be adapted based on the actual server structure
+    console.log('Mock request created, testing encoding...');
+    
+    return { success: true, message: 'Test setup complete' };
+    
+  } catch (error) {
+    console.error('Error in test server:', error.message);
+    return { success: false, error: error.message };
+  }
+};
 
-async function testDirectEncoding() {
-  console.log('🧪 Starting Direct Encoding Test');
-  
-  const uploadId = 'uploader_1753770043406_rxjr75vpv';
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Alternative: Direct database approach
+const directDatabaseTest = () => {
+  const { execSync } = require('child_process');
   
   try {
-    // Step 1: Get file information
-    console.log('📋 Getting file information...');
-    const fileResult = await pool.query(
-      'SELECT filename, line_count, storage_path FROM dev_uploader_uploads WHERE id = $1',
-      [uploadId]
-    );
+    console.log('\n=== ALTERNATIVE: DATABASE-DRIVEN TEST ===');
     
-    if (fileResult.rows.length === 0) {
-      throw new Error('File not found');
-    }
+    // Get the file content directly from storage
+    console.log('1. Getting file content...');
+    const fileContent = execSync(`node -e "
+      const { ReplitStorageService } = require('./server/replit-storage-service.ts');
+      const service = new ReplitStorageService();
+      service.getFileContent('dev-uploader/uploader_1753770043406_rxjr75vpv/VERMNTSB.6759_TDDF_2400_11282022_000826.TSYSO')
+        .then(content => {
+          if (content) {
+            const lines = content.trim().split('\\n');
+            console.log(\`Found \${lines.length} lines in file\`);
+            console.log(\`First line: \${lines[0].substring(0, 50)}...\`);
+          } else {
+            console.log('File content not found');
+          }
+        })
+        .catch(err => console.error('Error:', err.message));
+    "`, { encoding: 'utf8', cwd: '/home/runner/workspace' });
     
-    const fileInfo = fileResult.rows[0];
-    console.log(`📁 File: ${fileInfo.filename} (${fileInfo.line_count} lines)`);
+    console.log(fileContent);
     
-    // Step 2: Read file content from storage (simulate)
-    console.log('📖 Reading file content...');
-    
-    // Step 3: Manual JSONB record creation (simplified test)
-    console.log('🔄 Creating test JSONB records...');
-    
-    // Create sample JSONB records for testing
-    const records = [];
-    for (let i = 1; i <= fileInfo.line_count; i++) {
-      records.push({
-        recordType: 'DT',
-        lineNumber: i,
-        rawLine: `sample_tddf_line_${i}`,
-        extractedFields: {
-          transactionAmount: (Math.random() * 1000).toFixed(2),
-          merchantName: `TEST_MERCHANT_${i}`,
-          transactionDate: '2022-11-28'
+    console.log('\n2. Testing encoding function...');
+    const encodingResult = execSync(`node -e "
+      const { encodeTddfToJsonbDirect } = require('./server/tddf-json-encoder.ts');
+      const { ReplitStorageService } = require('./server/replit-storage-service.ts');
+      
+      (async () => {
+        try {
+          const uploadId = 'uploader_1753770043406_rxjr75vpv';
+          const service = new ReplitStorageService();
+          const content = await service.getFileContent('dev-uploader/uploader_1753770043406_rxjr75vpv/VERMNTSB.6759_TDDF_2400_11282022_000826.TSYSO');
+          
+          if (!content) {
+            throw new Error('File content not available');
+          }
+          
+          const result = await encodeTddfToJsonbDirect(uploadId, content);
+          console.log(\`Encoding completed: \${result.totalRecords} records\`);
+          console.log(\`Processing time: \${result.processingTime}ms\`);
+          console.log(\`Record breakdown: \${JSON.stringify(result.recordTypeBreakdown)}\`);
+        } catch (error) {
+          console.error('Encoding error:', error.message);
         }
-      });
-    }
+      })();
+    "`, { encoding: 'utf8', cwd: '/home/runner/workspace' });
     
-    // Step 4: Insert JSONB records
-    console.log(`💾 Inserting ${records.length} JSONB records...`);
+    console.log(encodingResult);
     
-    for (const record of records) {
-      await pool.query(
-        'INSERT INTO dev_uploader_tddf_jsonb_records (upload_id, record_type, record_data, processing_status) VALUES ($1, $2, $3, $4)',
-        [uploadId, record.recordType, JSON.stringify(record), 'completed']
-      );
-    }
+    console.log('\n3. Checking JSONB table...');
+    const jsonbCount = execSync(`psql "${process.env.DATABASE_URL}" -t -c "SELECT COUNT(*) FROM dev_tddf_jsonb WHERE upload_id = 'uploader_1753770043406_rxjr75vpv';"`, { encoding: 'utf8' }).trim();
+    console.log(`JSONB records found: ${jsonbCount}`);
     
-    // Step 5: Update file status
-    console.log('📝 Updating file status...');
-    await pool.query(
-      'UPDATE dev_uploader_uploads SET current_phase = $1, encoding_status = $2, json_records_created = $3, encoding_complete = NOW() WHERE id = $4',
-      ['encoded', 'completed', records.length, uploadId]
-    );
-    
-    // Step 6: Verify results
-    console.log('🔍 Verifying results...');
-    const verifyResult = await pool.query(
-      'SELECT COUNT(*) as count FROM dev_uploader_tddf_jsonb_records WHERE upload_id = $1',
-      [uploadId]
-    );
-    
-    const recordCount = parseInt(verifyResult.rows[0].count);
-    console.log(`📊 JSONB Records Created: ${recordCount}`);
-    
-    // Step 7: Test JSON data retrieval
-    console.log('📋 Testing JSON data retrieval...');
-    const jsonDataResult = await pool.query(
-      'SELECT record_data FROM dev_uploader_tddf_jsonb_records WHERE upload_id = $1 LIMIT 3',
-      [uploadId]
-    );
-    
-    console.log(`✅ Sample records:`);
-    jsonDataResult.rows.forEach((row, index) => {
-      const data = row.record_data;
-      console.log(`   Record ${index + 1}: Line ${data.lineNumber}, Type ${data.recordType}, Amount $${data.extractedFields.transactionAmount}`);
-    });
-    
-    // Step 8: Final status check
-    const finalStatus = await pool.query(
-      'SELECT current_phase, encoding_status, json_records_created FROM dev_uploader_uploads WHERE id = $1',
-      [uploadId]
-    );
-    
-    const status = finalStatus.rows[0];
-    console.log(`\n🎉 ENCODING TEST COMPLETED!`);
-    console.log(`   Phase: ${status.current_phase}`);
-    console.log(`   Status: ${status.encoding_status}`);
-    console.log(`   Records: ${status.json_records_created}`);
-    
-    if (status.current_phase === 'encoded' && status.json_records_created >= 29) {
-      console.log(`\n✅ SUCCESS! All requirements met:`);
-      console.log(`   ✓ File moved to 'encoded' phase`);
-      console.log(`   ✓ ${status.json_records_created} JSONB records created`);
-      console.log(`   ✓ JSON data accessible for viewer`);
-      return true;
+    if (parseInt(jsonbCount) === 29) {
+      console.log('\n🎉 SUCCESS: All 29 lines encoded to JSON!');
+      return { success: true, recordCount: 29 };
     } else {
-      console.log(`\n❌ Test incomplete - requirements not fully met`);
-      return false;
+      console.log(`\n❌ MISMATCH: Expected 29, got ${jsonbCount}`);
+      return { success: false, recordCount: parseInt(jsonbCount) };
     }
     
   } catch (error) {
-    console.error('💥 Test failed:', error.message);
-    console.error(error.stack);
-    return false;
-  } finally {
-    await pool.end();
+    console.error('\nDatabase test failed:', error.message);
+    return { success: false, error: error.message };
   }
-}
+};
 
-// Run the test
-testDirectEncoding().then(success => {
-  process.exit(success ? 0 : 1);
-}).catch(error => {
-  console.error('💥 Fatal error:', error);
-  process.exit(1);
-});
+// Run the tests
+testServer()
+  .then(result => {
+    console.log('Server test result:', result);
+    
+    // Run the database test
+    const dbResult = directDatabaseTest();
+    console.log('\nFinal result:', dbResult);
+  })
+  .catch(error => {
+    console.error('Test failed:', error.message);
+    
+    // Still try the database test
+    const dbResult = directDatabaseTest();
+    console.log('\nFallback result:', dbResult);
+  });
