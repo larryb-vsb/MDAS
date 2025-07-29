@@ -1,6 +1,7 @@
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { SchemaVersionManager } from './schema_version';
+import { getTableName } from './table-config';
 
 /**
  * Fix schema_versions table structure to match current schema definition
@@ -159,28 +160,31 @@ export async function ensureAdminUser() {
   try {
     console.log('Checking for admin user...');
     
+    // Get environment-specific table name
+    const usersTableName = getTableName('users');
+    
     // First check if the users table exists
     try {
       const result = await db.execute(sql`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
-          WHERE table_name = 'users'
+          WHERE table_name = ${usersTableName}
         );
       `);
       
       if (!result.rows[0].exists) {
-        console.log('users table does not exist yet, it will be created with migrations');
+        console.log(`${usersTableName} table does not exist yet, it will be created with migrations`);
         return false;
       }
     } catch (error) {
-      console.error('Error checking if users table exists:', error);
+      console.error(`Error checking if ${usersTableName} table exists:`, error);
       return false;
     }
     
     // Check if the admin user exists
     try {
       const adminResult = await db.execute(sql`
-        SELECT * FROM users WHERE username = 'admin' LIMIT 1
+        SELECT * FROM ${sql.identifier(usersTableName)} WHERE username = 'admin' LIMIT 1
       `);
       
       // Hash the default password (admin123) - this is a known bcrypt hash for 'admin123'
@@ -190,22 +194,30 @@ export async function ensureAdminUser() {
         console.log('Admin user does not exist, creating default admin...');
         
         await db.execute(sql`
-          INSERT INTO users (username, password, email, role, created_at)
+          INSERT INTO ${sql.identifier(usersTableName)} (username, password, email, role, created_at)
           VALUES ('admin', ${passwordHash}, 'admin@example.com', 'admin', CURRENT_TIMESTAMP)
         `);
         
         console.log('Default admin user created successfully');
         console.log('You can login with username "admin" and password "admin123"');
       } else {
-        console.log('Admin user exists, updating password to ensure it works...');
+        console.log('Admin user exists, checking if password needs update...');
         
-        // Update the admin password to match our expected hash
-        await db.execute(sql`
-          UPDATE users SET password = ${passwordHash} WHERE username = 'admin'
-        `);
+        // Only update password if it's still the default or empty
+        const currentPassword = adminResult.rows[0].password;
+        const defaultPasswordHash = '$2b$10$hIJ9hSuT7PJwlSxZu5ibbOGh7v3yMHGBITKrMpkpyaZFdHFvQhfIK';
         
-        console.log('Admin password updated');
-        console.log('You can login with username "admin" and password "admin123"');
+        if (!currentPassword || currentPassword === defaultPasswordHash) {
+          // Update the admin password to match our expected hash
+          await db.execute(sql`
+            UPDATE ${sql.identifier(usersTableName)} SET password = ${passwordHash} WHERE username = 'admin'
+          `);
+          
+          console.log('Admin password updated to default');
+          console.log('You can login with username "admin" and password "admin123"');
+        } else {
+          console.log('Admin user has custom password - keeping existing password');
+        }
       }
       
       return true;
