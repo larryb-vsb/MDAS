@@ -679,6 +679,103 @@ export default function MMSUploader() {
             </Card>
           )}
 
+          {/* Session Control & Monitoring */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Session Control & Monitoring
+              </CardTitle>
+              <CardDescription>
+                Real-time session monitoring with hourly cleanup cycle and upload control
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Session Statistics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">{uploads.length}</div>
+                  <div className="text-sm text-blue-700">Total Sessions</div>
+                </div>
+                
+                <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">{uploadsByPhase.uploaded?.length || 0}</div>
+                  <div className="text-sm text-green-700">Uploaded Files</div>
+                </div>
+                
+                <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-2xl font-bold text-purple-600">{uploadsByPhase.uploading?.length || 0}</div>
+                  <div className="text-sm text-purple-700">Active Uploads</div>
+                </div>
+                
+                <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="text-2xl font-bold text-orange-600">{uploadsByPhase.started?.length || 0}</div>
+                  <div className="text-sm text-orange-700">Pending Sessions</div>
+                </div>
+              </div>
+
+              {/* Session Control Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-4 w-4 text-gray-600" />
+                    <span className="font-medium text-gray-800">Cleanup Schedule</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <p>• Orphaned session cleanup: Every hour</p>
+                    <p>• Session validation: Automatic</p>
+                    <p>• Upload timeout: 10 minutes</p>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="h-4 w-4 text-gray-600" />
+                    <span className="font-medium text-gray-800">System Status</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <p>• Phase control: Session-based (1-3)</p>
+                    <p>• Storage: Replit Object Storage</p>
+                    <p>• Environment: Development</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Sessions Display */}
+              {(uploadsByPhase.uploading?.length > 0 || uploadsByPhase.started?.length > 0) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Active Sessions
+                  </h4>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {[...(uploadsByPhase.uploading || []), ...(uploadsByPhase.started || [])].map((upload) => (
+                      <div key={upload.id} className="flex items-center justify-between text-sm p-2 bg-white border rounded">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {upload.sessionId || 'No Session'}
+                          </Badge>
+                          <span className="truncate max-w-[200px]">{upload.filename}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {upload.currentPhase === 'uploading' && upload.uploadProgress !== null && (
+                            <div className="flex items-center gap-1">
+                              <Progress value={upload.uploadProgress || 0} className="w-12 h-2" />
+                              <span className="text-xs">{Math.round(upload.uploadProgress || 0)}%</span>
+                            </div>
+                          )}
+                          <Badge className={`text-xs bg-${getPhaseColor(upload.currentPhase)}-100 text-${getPhaseColor(upload.currentPhase)}-800`}>
+                            {upload.currentPhase}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Processing Phases Overview */}
           <Card>
             <CardHeader>

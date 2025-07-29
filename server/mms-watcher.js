@@ -22,9 +22,9 @@ class MMSWatcher {
     // Only cleanup orphaned sessions - phases 1-3 are session-controlled
     this.intervalId = setInterval(() => {
       this.cleanupOrphanedSessions();
-    }, 30000); // Check every 30 seconds for orphaned sessions
+    }, 3600000); // Check every hour (3600000ms) for orphaned sessions
     
-    console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active');
+    console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
   }
 
   stop() {
