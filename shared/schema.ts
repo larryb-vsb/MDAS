@@ -1215,6 +1215,25 @@ export const uploaderTddfJsonbRecords = pgTable(getTableName("uploader_tddf_json
   processingStatusIdx: index("uploader_tddf_jsonb_processing_status_idx").on(table.processingStatus)
 }));
 
+// TDDF JSONB storage table for fast batch encoding (Stage 5)
+export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id").notNull(), // Reference to uploader_uploads.id
+  filename: text("filename").notNull(),
+  recordType: text("record_type").notNull(), // DT, BH, P1, P2, etc.
+  lineNumber: integer("line_number").notNull(), // Original line number in file
+  rawLine: text("raw_line").notNull(), // Original TDDF fixed-width line
+  extractedFields: jsonb("extracted_fields").notNull(), // Parsed TDDF fields as JSONB
+  recordIdentifier: text("record_identifier"), // Extracted record identifier for highlighting
+  processingTimeMs: integer("processing_time_ms").default(0), // Processing duration
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => ({
+  uploadIdIdx: index("tddf_jsonb_upload_id_idx").on(table.uploadId),
+  recordTypeIdx: index("tddf_jsonb_record_type_idx").on(table.recordType),
+  lineNumberIdx: index("tddf_jsonb_line_number_idx").on(table.lineNumber),
+  recordIdentifierIdx: index("tddf_jsonb_record_identifier_idx").on(table.recordIdentifier)
+}));
+
 // MasterCard Data Integrity records table for future expansion
 export const uploaderMastercardDiEditRecords = pgTable(getTableName("uploader_mastercard_di_edit_records"), {
   id: serial("id").primaryKey(),

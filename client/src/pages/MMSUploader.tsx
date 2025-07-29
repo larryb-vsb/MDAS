@@ -116,6 +116,10 @@ export default function MMSUploader() {
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
   
+  // JSONB viewer state
+  const [jsonbViewerOpen, setJsonbViewerOpen] = useState(false);
+  const [selectedUploadForJsonb, setSelectedUploadForJsonb] = useState<UploaderUpload | null>(null);
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0); // 0-based for array indexing
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -1488,23 +1492,19 @@ export default function MMSUploader() {
                           )}
                           
                           {/* Stage 5: Show JSON Sample for completed encoding */}
-                          {upload.currentPhase === 'completed' && upload.finalFileType === 'tddf' && encodingResults[upload.id] && (
+                          {upload.currentPhase === 'completed' && upload.finalFileType === 'tddf' && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
                               onClick={() => {
-                                // Toggle JSON display in a dialog
-                                setSelectedFileForView({
-                                  ...upload,
-                                  showJsonSample: true,
-                                  encodingResult: encodingResults[upload.id]
-                                } as any);
+                                setSelectedUploadForJsonb(upload);
+                                setJsonbViewerOpen(true);
                               }}
-                              title="View JSON sample with highlighted Record Identifier"
+                              title="View JSONB data with highlighted Record Identifier fields"
                             >
                               <Eye className="h-3 w-3 mr-1" />
-                              View JSON
+                              View JSONB
                             </Button>
                           )}
 
@@ -1677,6 +1677,19 @@ export default function MMSUploader() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* JSONB Data Viewer Modal */}
+      {selectedUploadForJsonb && (
+        <TddfJsonViewer
+          uploadId={selectedUploadForJsonb.id}
+          filename={selectedUploadForJsonb.filename}
+          isOpen={jsonbViewerOpen}
+          onClose={() => {
+            setJsonbViewerOpen(false);
+            setSelectedUploadForJsonb(null);
+          }}
+        />
+      )}
     </MainLayout>
   );
 }

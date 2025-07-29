@@ -7663,7 +7663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const startTime = Date.now();
     const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
     
-    console.log(`[TDDF-JSON-ENCODER] Processing ${lines.length} lines from ${upload.filename}`);
+    console.log(`[FAST-JSONB-ENCODER] Processing ${lines.length} lines from ${upload.filename}`);
     
     const results = {
       uploadId: upload.id,
@@ -7679,47 +7679,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       errors: [] as string[]
     };
     
-    // Process each line
-    for (let i = 0; i < lines.length; i++) {
-      try {
-        const line = lines[i];
-        console.log(`[TDDF-JSON-ENCODER] Processing line ${i + 1}: ${line.substring(0, 30)}...`);
-        
-        if (line.length < 19) {
-          results.errors.push(`Line ${i + 1}: Too short for TDDF format (${line.length} chars)`);
-          continue;
-        }
-        
-        const recordType = line.substring(17, 19); // Positions 18-19
-        console.log(`[TDDF-JSON-ENCODER] Line ${i + 1} record type: ${recordType}`);
-        
-        const jsonRecord = {
-          recordType,
-          lineNumber: i + 1,
-          rawLine: line,
-          extractedFields: extractTddfFields(line, recordType)
-        };
-        
-        results.jsonRecords.push(jsonRecord);
-        results.totalRecords++;
-        
-        results.recordCounts.byType[recordType] = 
-          (results.recordCounts.byType[recordType] || 0) + 1;
+    // Determine environment-specific table name
+    const NODE_ENV = process.env.NODE_ENV || 'production';
+    const tableName = NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+    
+    console.log(`[FAST-JSONB-ENCODER] Using table: ${tableName} for environment: ${NODE_ENV}`);
+    
+    // Batch process records for fast insertion
+    const batchSize = 500; // Process in batches for performance
+    const batches = [];
+    
+    for (let i = 0; i < lines.length; i += batchSize) {
+      const batch = lines.slice(i, i + batchSize);
+      batches.push(batch);
+    }
+    
+    console.log(`[FAST-JSONB-ENCODER] Processing ${batches.length} batches of ${batchSize} records each`);
+    
+    // Process each batch
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      const insertValues = [];
+      const insertParams = [];
+      let paramIndex = 1;
+      
+      console.log(`[FAST-JSONB-ENCODER] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} lines)`);
+      
+      for (let lineIndex = 0; lineIndex < batch.length; lineIndex++) {
+        try {
+          const line = batch[lineIndex];
+          const globalLineNumber = (batchIndex * batchSize) + lineIndex + 1;
           
-        console.log(`[TDDF-JSON-ENCODER] Line ${i + 1} processed successfully - ${Object.keys(jsonRecord.extractedFields).length} fields extracted`);
-        
-      } catch (error: any) {
-        const errorMsg = `Line ${i + 1}: ${error.message}`;
-        results.errors.push(errorMsg);
-        console.error(`[TDDF-JSON-ENCODER] ${errorMsg}`);
+          if (line.length < 19) {
+            results.errors.push(`Line ${globalLineNumber}: Too short for TDDF format (${line.length} chars)`);
+            continue;
+          }
+          
+          const recordType = line.substring(17, 19); // Positions 18-19
+          const extractedFields = extractTddfFields(line, recordType);
+          const recordIdentifier = extractedFields.recordIdentifier || recordType;
+          
+          // Add to sample for response (first 3 records only)
+          if (results.jsonRecords.length < 3) {
+            results.jsonRecords.push({
+              recordType,
+              lineNumber: globalLineNumber,
+              rawLine: line,
+              extractedFields,
+              highlightedRecordIdentifier: recordIdentifier
+            });
+          }
+          
+          // Prepare INSERT values
+          insertValues.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7})`);
+          insertParams.push(
+            upload.id,                    // upload_id
+            upload.filename,              // filename  
+            recordType,                   // record_type
+            globalLineNumber,             // line_number
+            line,                         // raw_line
+            JSON.stringify(extractedFields), // extracted_fields (JSONB)
+            recordIdentifier,             // record_identifier
+            0                             // processing_time_ms (placeholder)
+          );
+          paramIndex += 8;
+          
+          results.totalRecords++;
+          
+          // Count by record type
+          if (!results.recordCounts.byType[recordType]) {
+            results.recordCounts.byType[recordType] = 0;
+          }
+          results.recordCounts.byType[recordType]++;
+          
+        } catch (error: any) {
+          const globalLineNumber = (batchIndex * batchSize) + lineIndex + 1;
+          results.errors.push(`Line ${globalLineNumber}: ${error.message}`);
+          console.error(`[FAST-JSONB-ENCODER] Error processing line ${globalLineNumber}:`, error);
+        }
+      }
+      
+      // Execute batch INSERT
+      if (insertValues.length > 0) {
+        try {
+          const insertQuery = `
+            INSERT INTO ${tableName} (
+              upload_id, filename, record_type, line_number, raw_line, 
+              extracted_fields, record_identifier, processing_time_ms
+            ) VALUES ${insertValues.join(', ')}
+          `;
+          
+          await pool.query(insertQuery, insertParams);
+          console.log(`[FAST-JSONB-ENCODER] ✅ Inserted batch ${batchIndex + 1}: ${insertValues.length} records`);
+          
+        } catch (insertError: any) {
+          console.error(`[FAST-JSONB-ENCODER] ❌ Batch insert error:`, insertError);
+          results.errors.push(`Batch ${batchIndex + 1} insert failed: ${insertError.message}`);
+        }
       }
     }
     
     results.recordCounts.total = results.totalRecords;
     results.encodingTimeMs = Date.now() - startTime;
     
-    console.log(`[TDDF-JSON-ENCODER] Completed encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
-    console.log(`[TDDF-JSON-ENCODER] Record type breakdown:`, results.recordCounts.byType);
+    console.log(`[FAST-JSONB-ENCODER] ✅ COMPLETED: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
+    console.log(`[FAST-JSONB-ENCODER] 📊 Record type breakdown:`, results.recordCounts.byType);
+    console.log(`[FAST-JSONB-ENCODER] 🗄️ Data stored in table: ${tableName}`);
     
     return results;
   }
@@ -7882,15 +7947,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing...`);
       const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
       
-      // Update to completed phase with encoding metadata
-      await storage.updateUploaderPhase(id, 'completed', {
+      // Update to encoded phase with completion metadata
+      await storage.updateUploaderPhase(id, 'encoded', {
         encodingStrategy: strategy,
         encodingStatus: 'completed',
         encodingTimeMs: encodingResults.encodingTimeMs,
-        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB`,
+        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB database`,
         jsonRecordsCreated: encodingResults.recordCounts.total,
         tddfRecordsCreated: encodingResults.recordCounts.byType.DT || 0,
-        encodingMetadata: encodingResults
+        encodingMetadata: encodingResults,
+        jsonbTableUsed: NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb'
       });
       
       // Create JSON sample with highlighted record identifier
@@ -8022,6 +8088,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(encodingStats);
     } catch (error: any) {
       console.error('Get encoding status error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get JSONB data for a specific upload
+  app.get("/api/uploader/:id/jsonb-data", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limit = '50', offset = '0', recordType } = req.query;
+      
+      const NODE_ENV = process.env.NODE_ENV || 'production';
+      const tableName = NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      
+      console.log(`[JSONB-API] Fetching data from ${tableName} for upload ${id}`);
+      
+      let query = `
+        SELECT 
+          id, upload_id, filename, record_type, line_number, 
+          raw_line, extracted_fields, record_identifier, 
+          processing_time_ms, created_at
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `;
+      
+      const params = [id];
+      let paramIndex = 2;
+      
+      if (recordType && recordType !== 'all') {
+        query += ` AND record_type = $${paramIndex}`;
+        params.push(recordType);
+        paramIndex++;
+      }
+      
+      query += ` ORDER BY line_number ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+      
+      const result = await pool.query(query, params);
+      
+      // Also get total count
+      let countQuery = `SELECT COUNT(*) as total FROM ${tableName} WHERE upload_id = $1`;
+      const countParams = [id];
+      
+      if (recordType && recordType !== 'all') {
+        countQuery += ` AND record_type = $2`;
+        countParams.push(recordType);
+      }
+      
+      const countResult = await pool.query(countQuery, countParams);
+      const total = parseInt(countResult.rows[0].total);
+      
+      console.log(`[JSONB-API] Found ${result.rows.length} records, total: ${total}`);
+      
+      res.json({
+        data: result.rows,
+        tableName: tableName,
+        pagination: {
+          total: total,
+          limit: parseInt(limit as string),
+          offset: parseInt(offset as string),
+          hasMore: parseInt(offset as string) + parseInt(limit as string) < total
+        }
+      });
+    } catch (error: any) {
+      console.error('Get JSONB data error:', error);
       res.status(500).json({ error: error.message });
     }
   });
