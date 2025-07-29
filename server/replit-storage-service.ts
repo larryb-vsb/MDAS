@@ -164,15 +164,15 @@ export class ReplitStorageService {
       const client = this.getClient();
       console.log(`[REPLIT-STORAGE] Reading file content: ${key}`);
       
-      const result = await client.read(key);
+      const result = await client.downloadAsText(key);
       
       if (result.ok) {
-        const content = result.value.toString('utf8');
+        const content = result.value;
         console.log(`[REPLIT-STORAGE] File content read successfully: ${key} (${content.length} chars)`);
         return content;
       } else {
         console.error('[REPLIT-STORAGE] Read failed:', result.error);
-        throw new Error(`Failed to read file ${key}: ${result.error}`);
+        throw new Error(`Failed to read file ${key}: ${result.error.message || result.error}`);
       }
     } catch (error) {
       console.error('[REPLIT-STORAGE] Read error:', error);
