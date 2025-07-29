@@ -477,11 +477,11 @@ export default function TddfJsonPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Line Number:</span>
-                        <span>{selectedRecord.record_data.lineNumber}</span>
+                        <span>{selectedRecord.line_number}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant="outline">{selectedRecord.processing_status}</Badge>
+                        <span className="text-muted-foreground">Filename:</span>
+                        <span className="font-mono text-xs">{selectedRecord.filename}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Created:</span>
@@ -494,7 +494,7 @@ export default function TddfJsonPage() {
                     <h3 className="font-semibold mb-2">Extracted Fields</h3>
                     <ScrollArea className="h-64">
                       <div className="space-y-2 text-sm">
-                        {Object.entries(selectedRecord.record_data.extractedFields).map(([key, value]) => (
+                        {Object.entries(selectedRecord.extracted_fields).map(([key, value]) => (
                           <div key={key} className="flex justify-between py-1 border-b">
                             <span className="text-muted-foreground capitalize">
                               {key.replace(/([A-Z])/g, ' $1').trim()}:
@@ -513,7 +513,7 @@ export default function TddfJsonPage() {
                   <h3 className="font-semibold mb-2">Raw TDDF Line</h3>
                   <ScrollArea className="h-96">
                     <pre className="text-xs font-mono bg-muted p-4 rounded whitespace-pre-wrap break-all">
-                      {selectedRecord.record_data.rawLine}
+                      {selectedRecord.raw_line}
                     </pre>
                   </ScrollArea>
                 </div>

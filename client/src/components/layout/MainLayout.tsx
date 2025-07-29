@@ -20,7 +20,9 @@ import {
   ScrollText,
   ArchiveRestore,
   Zap,
-  Activity
+  Activity,
+  FileJson,
+  Database
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,11 @@ const navItems = [
     icon: <FileText className="h-5 w-5 text-gray-300" />,
     label: "TDDF Records",
     href: "/tddf"
+  },
+  {
+    icon: <FileJson className="h-5 w-5 text-blue-400" />,
+    label: "TDDF JSON",
+    href: "/tddf-json"
   },
   {
     icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
