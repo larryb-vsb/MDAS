@@ -92,8 +92,8 @@ export const BH_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
   
   // Batch information (positions 56-135)
-  { name: 'batchId', positions: [56, 71], type: 'text', description: 'Batch ID (16 chars)' },
-  { name: 'batchDate', positions: [72, 79], type: 'date', description: 'Batch date (MMDDCCYY)' },
+  { name: 'batchDate', positions: [56, 63], type: 'date', description: 'Batch date (MMDDCCYY)' },
+  { name: 'batchId', positions: [124, 126], type: 'text', description: 'Batch ID (3 chars)' },
   { name: 'netDeposit', positions: [69, 83], type: 'numeric', precision: 17, scale: 2, description: 'Net deposit amount (15 chars)' },
   { name: 'transactionCount', positions: [80, 87], type: 'numeric', precision: 8, scale: 0, description: 'Transaction count' },
   { name: 'totalAmount', positions: [88, 103], type: 'numeric', precision: 16, scale: 2, description: 'Total batch amount' }

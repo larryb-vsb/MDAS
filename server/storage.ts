@@ -8315,9 +8315,10 @@ export class DatabaseStorage implements IStorage {
             merchant_account_number: line.substring(23, 39).trim() || null,
             // BH-specific fields based on TDDF specification  
             transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
-            batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars) 
-            batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
+            batch_date: line.substring(55, 63).trim() || null, // Positions 56-63 (8 chars MMDDCCYY) 
+            batch_julian_date: line.substring(63, 68).trim() || null, // Positions 64-68 (5 chars)
             net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N) - Net Deposit
+            batch_id: line.substring(123, 126).trim() || null, // Positions 124-126 (3 chars)
             reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
             source_file_id: rawLine.source_file_id,
             source_row_number: rawLine.line_number,
@@ -9444,9 +9445,10 @@ export class DatabaseStorage implements IStorage {
       record_identifier: line.substring(17, 19).trim() || null,
       merchant_account_number: line.substring(23, 39).trim() || null,
       transaction_code: line.substring(51, 55).trim() || null,
-      batch_date: line.substring(55, 60).trim() || null,
-      batch_julian_date: line.substring(60, 65).trim() || null,
+      batch_date: line.substring(55, 63).trim() || null, // Positions 56-63 (8 chars MMDDCCYY)
+      batch_julian_date: line.substring(63, 68).trim() || null, // Positions 64-68 (5 chars)
       net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null,
+      batch_id: line.substring(123, 126).trim() || null, // Positions 124-126 (3 chars)
       reject_reason: line.substring(83, 87).trim() || null,
       source_file_id: rawRecord.source_file_id,
       source_row_number: rawRecord.line_number,
@@ -9456,9 +9458,9 @@ export class DatabaseStorage implements IStorage {
     const insertResult = await client.query(`
       INSERT INTO "${batchHeaderTableName}" (
         bh_record_number, record_identifier, merchant_account_number,
-        transaction_code, batch_date, batch_julian_date, net_deposit, reject_reason,
+        transaction_code, batch_date, batch_julian_date, net_deposit, batch_id, reject_reason,
         source_file_id, source_row_number, raw_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (bh_record_number) DO UPDATE SET 
         recorded_at = CURRENT_TIMESTAMP,
         net_deposit = EXCLUDED.net_deposit
@@ -9466,7 +9468,7 @@ export class DatabaseStorage implements IStorage {
     `, [
       bhRecord.bh_record_number, bhRecord.record_identifier, bhRecord.merchant_account_number,
       bhRecord.transaction_code, bhRecord.batch_date, bhRecord.batch_julian_date,
-      bhRecord.net_deposit, bhRecord.reject_reason, bhRecord.source_file_id,
+      bhRecord.net_deposit, bhRecord.batch_id, bhRecord.reject_reason, bhRecord.source_file_id,
       bhRecord.source_row_number, bhRecord.raw_data
     ]);
 
@@ -10385,9 +10387,10 @@ export class DatabaseStorage implements IStorage {
               merchant_account_number: line.substring(23, 39).trim() || null,
               // BH-specific fields based on TDDF specification
               transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
-              batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars)
-              batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
+              batch_date: line.substring(55, 63).trim() || null, // Positions 56-63 (8 chars MMDDCCYY)
+              batch_julian_date: line.substring(63, 68).trim() || null, // Positions 64-68 (5 chars)
               net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N) - Net Deposit field
+              batch_id: line.substring(123, 126).trim() || null, // Positions 124-126 (3 chars)
               reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
               source_file_id: rawLine.source_file_id,
               source_row_number: rawLine.line_number,
@@ -10398,15 +10401,15 @@ export class DatabaseStorage implements IStorage {
               INSERT INTO "${targetTable}" (
                 sequence_number, entry_run_number, sequence_within_run, record_identifier,
                 bank_number, merchant_account_number, transaction_code, batch_date, 
-                batch_julian_date, net_deposit, reject_reason, source_file_id, source_row_number, raw_data
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                batch_julian_date, net_deposit, batch_id, reject_reason, source_file_id, source_row_number, raw_data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
               RETURNING id
             `, [
               bhRecord.sequence_number, bhRecord.entry_run_number,
               bhRecord.sequence_within_run, bhRecord.record_identifier,
               bhRecord.bank_number, bhRecord.merchant_account_number,
               bhRecord.transaction_code, bhRecord.batch_date, bhRecord.batch_julian_date,
-              bhRecord.net_deposit, bhRecord.reject_reason, bhRecord.source_file_id,
+              bhRecord.net_deposit, bhRecord.batch_id, bhRecord.reject_reason, bhRecord.source_file_id,
               bhRecord.source_row_number, bhRecord.raw_data
             ]);
             
