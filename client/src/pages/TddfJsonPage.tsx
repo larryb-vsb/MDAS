@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
-import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
+import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import {
   Dialog,
   DialogContent,
@@ -281,32 +281,39 @@ export default function TddfJsonPage() {
 
 
 
-        {/* TDDF Activity Heat Map - Standard Setup */}
-        <div className="mb-4 sm:mb-6">
-          <TddfActivityHeatMap 
-            onDateSelect={handleDateSelect}
-            selectedDate={dateFilter}
-          />
-          {dateFilter && (
-            <Card className="mt-4">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    Filtered by: {formatDate(dateFilter)}
-                  </Badge>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={clearDateFilter}
-                    className="text-xs"
-                  >
-                    Clear Filter
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {/* TDDF JSON Activity Heat Map - Custom for JSON Data */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5" />
+              TDDF JSON Activity Heat Map
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Daily transaction activity from TDDF JSON records (dev_tddf_jsonb table)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <TddfJsonActivityHeatMap 
+              onDateSelect={handleDateSelect}
+              selectedDate={dateFilter}
+            />
+            {dateFilter && (
+              <div className="mt-4 flex items-center gap-2">
+                <Badge variant="secondary">
+                  Filtered by: {formatDate(dateFilter)}
+                </Badge>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearDateFilter}
+                  className="text-xs"
+                >
+                  Clear Filter
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters and Search */}
         <Card>
