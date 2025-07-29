@@ -62,6 +62,13 @@ async function checkTablesExist() {
     { name: getTableName('tddf_batch_headers'), createFunction: createTddfBatchHeadersTable },
     { name: getTableName('tddf_purchasing_extensions'), createFunction: createTddfPurchasingExtensionsTable },
     { name: getTableName('tddf_other_records'), createFunction: createTddfOtherRecordsTable },
+    { name: getTableName('tddf_jsonb'), createFunction: createTddfJsonbTable },
+    
+    // MMS Uploader System Tables (Schema 2.7.1)  
+    { name: getTableName('uploader_uploads'), createFunction: createUploaderUploadsTable },
+    { name: getTableName('uploader_json'), createFunction: createUploaderJsonTable },
+    { name: getTableName('uploader_tddf_jsonb_records'), createFunction: createUploaderTddfJsonbRecordsTable },
+    { name: getTableName('uploader_mastercard_di_edit_records'), createFunction: createUploaderMastercardDiEditRecordsTable },
     
     // Shared system tables (no environment prefix)
     { name: 'backup_history', createFunction: createBackupHistoryTable },
@@ -737,4 +744,121 @@ async function createDevUploadsTable() {
       notes TEXT
     )
   `);
+}
+
+// MMS Uploader - TDDF JSONB Table (Schema 2.7.1)
+async function createTddfJsonbTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+      id SERIAL PRIMARY KEY,
+      upload_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      record_type TEXT NOT NULL, -- DT, BH, P1, etc.
+      line_number INTEGER NOT NULL,
+      raw_line TEXT NOT NULL,
+      extracted_fields JSONB NOT NULL, -- All parsed fields as JSON
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  // Create indexes for performance
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_upload_id`)} ON ${sql.identifier(tableName)} (upload_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_record_type`)} ON ${sql.identifier(tableName)} (record_type)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_extracted_fields`)} ON ${sql.identifier(tableName)} USING GIN (extracted_fields)`);
+}
+
+// MMS Uploader - Main Uploads Table (Schema 2.7.1)
+async function createUploaderUploadsTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_uploader_uploads' : 'uploader_uploads';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+      id TEXT PRIMARY KEY,
+      filename TEXT NOT NULL,
+      file_type TEXT NOT NULL, -- tddf, ach_merchant, etc.
+      status TEXT DEFAULT 'started' NOT NULL, -- started, uploading, uploaded, identified, encoding, processing, completed, error
+      session_id TEXT,
+      started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      uploaded_at TIMESTAMP WITH TIME ZONE,
+      identified_at TIMESTAMP WITH TIME ZONE,
+      encoding_at TIMESTAMP WITH TIME ZONE,  
+      processing_at TIMESTAMP WITH TIME ZONE,
+      completed_at TIMESTAMP WITH TIME ZONE,
+      file_size BIGINT,
+      line_count INTEGER,
+      has_headers BOOLEAN,
+      file_format TEXT,
+      encoding_detected TEXT,
+      storage_key TEXT,
+      bucket_name TEXT,
+      encoding_status TEXT,
+      encoding_time_ms INTEGER,
+      json_records_created INTEGER,
+      processing_errors TEXT,
+      keep_for_review BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  // Create indexes
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_status`)} ON ${sql.identifier(tableName)} (status)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_file_type`)} ON ${sql.identifier(tableName)} (file_type)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_session_id`)} ON ${sql.identifier(tableName)} (session_id)`);
+}
+
+// MMS Uploader - JSON Processing Table (Schema 2.7.1)
+async function createUploaderJsonTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_uploader_json' : 'uploader_json';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+      id SERIAL PRIMARY KEY,
+      upload_id TEXT NOT NULL,
+      raw_line_data TEXT,
+      processed_json JSONB,
+      field_separation_data JSONB,
+      processing_time_ms INTEGER,
+      errors JSONB,
+      source_file_name TEXT,
+      metadata JSONB,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_upload_id`)} ON ${sql.identifier(tableName)} (upload_id)`);
+}
+
+// MMS Uploader - TDDF JSONB Records Table (Schema 2.7.1)  
+async function createUploaderTddfJsonbRecordsTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (
+      id SERIAL PRIMARY KEY,
+      upload_id TEXT NOT NULL,
+      record_type TEXT NOT NULL,
+      line_number INTEGER NOT NULL,
+      raw_line TEXT NOT NULL,
+      extracted_fields JSONB NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_upload_id`)} ON ${sql.identifier(tableName)} (upload_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_record_type`)} ON ${sql.identifier(tableName)} (record_type)`);
+}
+
+// MMS Uploader - MasterCard DI Edit Records Table (Schema 2.7.1)
+async function createUploaderMastercardDiEditRecordsTable() {
+  const tableName = NODE_ENV === 'development' ? 'dev_uploader_mastercard_di_edit_records' : 'uploader_mastercard_di_edit_records';
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS ${sql.identifier(tableName)} (    
+      id SERIAL PRIMARY KEY,
+      upload_id TEXT NOT NULL,
+      record_data JSONB NOT NULL,
+      processing_status TEXT DEFAULT 'pending',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_upload_id`)} ON ${sql.identifier(tableName)} (upload_id)`);
 }
