@@ -227,11 +227,12 @@ export default function MMSUploader() {
     console.log(`[SESSION-CONTROL] Created upload session: ${sessionId}`);
     
     for (const file of Array.from(files)) {
+      let uploadResponse: any = null;
       try {
         console.log(`[SESSION-PHASE-1] Starting session upload for: ${file.name} (Session: ${sessionId})`);
         
         // Phase 1: Create database record with session control
-        const uploadResponse = await startUploadMutation.mutateAsync(file);
+        uploadResponse = await startUploadMutation.mutateAsync(file);
         console.log(`[SESSION-PHASE-1] Created DB record with session control: ${uploadResponse.id}`);
         
         if (uploadResponse?.id && uploadResponse.storageKey) {
@@ -290,6 +291,7 @@ export default function MMSUploader() {
             }, 800);
             
             // Perform actual upload with fetch (more resilient than XMLHttpRequest)
+            console.log(`[SESSION-UPLOAD] Starting upload for ${file.name} to /api/uploader/${uploadResponse.id}/upload`);
             const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
               method: 'POST',
               body: formData,
@@ -302,9 +304,16 @@ export default function MMSUploader() {
               progressTracker = null;
             }
             
+            console.log(`[SESSION-UPLOAD] Upload response status: ${uploadApiResponse.status} ${uploadApiResponse.statusText}`);
+            
             if (!uploadApiResponse.ok) {
-              throw new Error(`Session upload failed: ${uploadApiResponse.statusText}`);
+              const errorText = await uploadApiResponse.text();
+              console.error(`[SESSION-UPLOAD] Upload failed with status ${uploadApiResponse.status}: ${errorText}`);
+              throw new Error(`Session upload failed: ${uploadApiResponse.status} ${uploadApiResponse.statusText} - ${errorText}`);
             }
+            
+            const uploadResult = await uploadApiResponse.json();
+            console.log(`[SESSION-UPLOAD] Upload successful:`, uploadResult);
             
             // Set final progress to 100%
             await fetch(`/api/uploader/${uploadResponse.id}`, {
@@ -325,21 +334,7 @@ export default function MMSUploader() {
             }
             throw uploadError;
           }
-          
-          if (!uploadApiResponse.ok) {
-            throw new Error(`Session upload failed: ${uploadApiResponse.statusText}`);
-          }
-          
-          // Final progress update
-          await fetch(`/api/uploader/${uploadResponse.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              uploadProgress: 100,
-              processingNotes: `Upload completed - Session: ${sessionId}`
-            })
-          });
+
           
           console.log(`[SESSION-PHASE-2] Session-controlled upload to Replit Object Storage successful: ${uploadResponse.id}`);
           
@@ -371,9 +366,8 @@ export default function MMSUploader() {
         }
       } catch (error) {
         console.error(`[SESSION-ERROR] Session upload error for ${file.name}:`, error);
-        // Mark as failed with session info
+        // Mark existing upload as failed with session info
         try {
-          const uploadResponse = await startUploadMutation.mutateAsync(file);
           if (uploadResponse?.id) {
             await fetch(`/api/uploader/${uploadResponse.id}`, {
               method: 'PUT',
