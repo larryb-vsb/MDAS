@@ -7852,7 +7852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Perform TDDF JSON encoding using schema definitions
       console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing for ${fileContent.split('\n').length} lines...`);
-      const encodingResults = await encodeTddfToJsonbDirect(upload.id, fileContent);
+      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
       
       // Update to encoded phase with completion metadata
       await storage.updateUploaderPhase(id, 'encoded', {

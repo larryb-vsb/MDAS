@@ -25,6 +25,14 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Database Field Cleanup**: Recovery process clears encoding-related fields (encoding_status, encoding_time_ms, json_records_created) when resetting failed files
   - **Comprehensive Testing**: Created test failed files in database and verified complete recovery workflow with detailed console logging
   - **Production Ready**: Complete failed file recovery infrastructure operational with robust error handling and recovery state management
+- **✅ CRITICAL ENCODING DATABASE INSERTION FIX COMPLETED (July 29, 2025)**: Successfully resolved "null value in column upload_id" error that was preventing JSONB data storage
+  - **Root Cause Fixed**: Function parameter order was incorrect - `encodeTddfToJsonbDirect(upload.id, fileContent)` changed to `encodeTddfToJsonbDirect(fileContent, upload)`
+  - **Method Call Correction**: Changed from static method instance creation `new ReplitStorageService()` to proper static method call `ReplitStorageService.getFileContent()`
+  - **Database Schema Issues**: Removed non-existent `identify_complete` column from Set Previous Level operations preventing SQL errors
+  - **Parameter Validation**: Function now receives complete upload object ensuring upload.id is properly available for database insertion
+  - **JSONB Table Ready**: dev_tddf_jsonb table now properly receives upload_id, filename, record_type, and extracted_fields for complete data storage
+  - **Error Resolution**: Eliminated "Database batch insert failed: null value in column upload_id" errors that were causing encoded files to show no JSONB content
+  - **Production Ready**: Complete encoding workflow now functional with proper file content retrieval and database insertion for JSONB data storage
 - **✅ ENCODING COMPLETION ISSUE COMPLETELY RESOLVED (July 29, 2025)**: Successfully fixed all encoding completion failures and import errors that were preventing files from transitioning to "encoded" status
   - **Root Cause Fixed**: Missing `ReplitStorageService` import in encoding route prevented file content retrieval causing silent failures
   - **Database Schema Aligned**: Removed non-existent field references in TDDF JSON encoder that were causing database insertion failures
