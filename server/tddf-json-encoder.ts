@@ -299,9 +299,7 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           raw_line: batch[i],
           extracted_fields: JSON.stringify(jsonRecord.extractedFields),
           record_identifier: jsonRecord.extractedFields.recordIdentifier || jsonRecord.recordType,
-          processing_time_ms: recordProcessingTime,
-          batch_start_time: new Date(startTime).toISOString(),
-          record_processed_at: new Date().toISOString()
+          processing_time_ms: recordProcessingTime
         };
         
         batchRecords.push(dbRecord);
