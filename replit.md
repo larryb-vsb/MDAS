@@ -85,6 +85,15 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Real-Time Feedback**: Upload logs now show detailed success messages with file metadata including storage keys, bucket names, and file sizes
   - **Phase Transition Reliability**: All upload phases (started → uploading → uploaded) now work consistently with proper status updates
   - **Production Ready**: Complete upload system operational with verified reliability for both small test files and large production data files
+- **✅ STATUS-BASED BULB INDICATOR SYSTEM COMPLETED (July 29, 2025)**: Successfully implemented color-coded lightbulb system replacing magnifying glass icons with comprehensive hover tooltips
+  - **Fixed Content Bug**: Removed duplicate content endpoints in server/routes.ts resolving "Content not available" errors
+  - **Storage Status API**: Added `/api/uploader/:id/storage-status` endpoint with caching for real-time accessibility checking
+  - **Color-Coded Bulbs**: Green (accessible), Grey (pending/connecting), Orange (error/warning) with hover-only tooltips
+  - **Enhanced Tooltips**: Displays object names, storage status, warning reasons, and "connecting/pending" status
+  - **Hover-Only Interface**: Removed click functionality, status information available only through hover tooltips
+  - **Object Name Display**: Shows full object paths (dev-uploader/uploadId/filename) and storage accessibility status
+  - **Warning Integration**: Orange bulbs display specific error messages and object names for troubleshooting
+  - **Production Ready**: Complete storage status monitoring system operational with visual indicators and detailed hover information
 - **✅ MMS UPLOADER SESSION CONTROL & MONITORING COMPLETED (July 29, 2025)**: Successfully implemented comprehensive session-controlled MMS Uploader system with enhanced monitoring and hourly cleanup cycle
   - **Session-Based Control**: Upload phases 1-3 (started → uploading → uploaded) controlled by user sessions rather than automatic processing
   - **Session Management Architecture**: Each upload batch assigned unique session ID (`session_${timestamp}_${random}`) for tracking and control

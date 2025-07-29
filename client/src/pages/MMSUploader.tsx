@@ -98,6 +98,8 @@ const getBulbColor = (upload: UploaderUpload, storageStatus?: any): string => {
   return 'text-gray-400'; // Default grey
 };
 
+
+
 export default function MMSUploader() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [selectedFileType, setSelectedFileType] = useState<string>('tddf');
@@ -121,6 +123,34 @@ export default function MMSUploader() {
   
   // Storage status for bulb system
   const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
+
+  // Storage status bulb tooltip text (moved inside component)
+  const getBulbTooltip = (upload: UploaderUpload, storageStatus?: any): string => {
+    const objectName = upload.s3Key || `dev-uploader/${upload.id}/${upload.filename}`;
+    
+    // Early phases - still connecting/pending
+    if (!['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+      return `Object: ${objectName} - Status: Connecting/Pending`;
+    }
+    
+    // Check storage status if available
+    if (storageStatus) {
+      if (storageStatus.storageStatus?.exists && storageStatus.storageStatus?.accessible) {
+        return `Object: ${objectName} - Status: Available`;
+      } else if (storageStatus.storageStatus?.error) {
+        return `Object: ${objectName} - Warning: ${storageStatus.storageStatus.error}`;
+      } else {
+        return `Object: ${objectName} - Status: Not Found`;
+      }
+    }
+    
+    // Default for completed files
+    if (upload.currentPhase === 'completed') {
+      return `Object: ${objectName} - Status: Available (assumed)`;
+    }
+    
+    return `Object: ${objectName} - Status: Checking...`;
+  };
 
   // Query for MMS uploads only (separate system from /uploads) - show recent uploads from all sessions
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
@@ -1166,16 +1196,13 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
-                          {/* Storage Status Bulb - Color-coded based on storage accessibility */}
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleBulbClick(upload)}
-                            className="flex items-center justify-center p-2 hover:bg-gray-50"
-                            title={`View file content (Status: ${storageStatusCache[upload.id]?.storageStatus?.accessible ? 'Available' : 'Checking...'})`}
-                          >
+                          {/* Storage Status Bulb - Color-coded with hover info only */}
+                          <div className="relative group">
                             <Lightbulb className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`} />
-                          </Button>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                              {getBulbTooltip(upload, storageStatusCache[upload.id])}
+                            </div>
+                          </div>
                           
                           {/* Legacy Content Dialog - kept for complex viewing */}
                           {canViewContent && (
