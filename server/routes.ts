@@ -8532,6 +8532,222 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===========================
+  // HEAT MAP PERFORMANCE OPTIMIZATION ENDPOINTS
+  // ===========================
+
+  // Optimized heat map endpoint for large datasets with smart aggregation
+  app.get("/api/tddf-json/heatmap-optimized", isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const aggregation = (req.query.aggregation as string) || 'auto'; // auto, day, week, month
+      const recordType = (req.query.recordType as string) || 'DT';
+      
+      console.log(`[HEATMAP-OPT] Generating ${aggregation} heatmap for ${year}, type: ${recordType}`);
+      const startTime = Date.now();
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      
+      // First, get data size to determine optimal aggregation
+      const sizeCheck = await pool.query(`
+        SELECT COUNT(*) as total_records
+        FROM ${tableName}
+        WHERE record_type = $1
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+      `, [recordType, year]);
+      
+      const totalRecords = parseInt(sizeCheck.rows[0].total_records);
+      
+      // Auto-determine aggregation level based on data size
+      let finalAggregation = aggregation;
+      if (aggregation === 'auto') {
+        if (totalRecords > 100000) finalAggregation = 'month';
+        else if (totalRecords > 25000) finalAggregation = 'week'; 
+        else finalAggregation = 'day';
+      }
+      
+      let dateGroupBy: string;
+      let dateSelect: string;
+      let expectedDataPoints: number;
+      
+      switch (finalAggregation) {
+        case 'week':
+          dateGroupBy = "DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date)";
+          dateSelect = "DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date) as date";
+          expectedDataPoints = 53;
+          break;
+        case 'month':
+          dateGroupBy = "DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date)";
+          dateSelect = "DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date) as date";
+          expectedDataPoints = 12;
+          break;
+        default: // day
+          dateGroupBy = "DATE((extracted_fields->>'transactionDate')::date)";
+          dateSelect = "DATE((extracted_fields->>'transactionDate')::date) as date";
+          expectedDataPoints = 365;
+      }
+      
+      // High-performance aggregated query with LIMIT for safety
+      const heatmapResult = await pool.query(`
+        SELECT 
+          ${dateSelect},
+          COUNT(*) as count,
+          SUM(CASE 
+            WHEN extracted_fields->>'transactionAmount' ~ '^[0-9.]+$' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE 0 
+          END) as total_amount,
+          AVG(CASE 
+            WHEN extracted_fields->>'transactionAmount' ~ '^[0-9.]+$' 
+            THEN (extracted_fields->>'transactionAmount')::numeric 
+            ELSE NULL 
+          END) as avg_amount
+        FROM ${tableName}
+        WHERE record_type = $1
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+          AND extracted_fields->>'transactionDate' != ''
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+        GROUP BY ${dateGroupBy}
+        ORDER BY date ASC
+        LIMIT 500
+      `, [recordType, year]);
+      
+      const queryTime = Date.now() - startTime;
+      
+      // Calculate performance metrics
+      const totalCount = heatmapResult.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
+      const totalAmount = heatmapResult.rows.reduce((sum, row) => sum + parseFloat(row.total_amount || 0), 0);
+      const maxDayCount = Math.max(...heatmapResult.rows.map(row => parseInt(row.count)), 0);
+      
+      const performanceMode = totalRecords > 100000 ? 'high' : totalRecords > 25000 ? 'medium' : 'standard';
+      
+      const responseData = {
+        data: heatmapResult.rows,
+        year,
+        aggregation: finalAggregation,
+        originalAggregation: aggregation,
+        recordType,
+        performance: {
+          queryTime,
+          totalRecords,
+          totalTransactions: totalCount,
+          totalAmount,
+          maxDayCount,
+          dataPoints: heatmapResult.rows.length,
+          expectedDataPoints,
+          compressionRatio: expectedDataPoints > 0 ? (heatmapResult.rows.length / expectedDataPoints) : 1,
+          performanceMode
+        },
+        recommendations: {
+          current: `Using ${finalAggregation} aggregation for ${totalRecords.toLocaleString()} records`,
+          suggested: totalRecords > 100000 ? 'Consider monthly view for optimal performance' :
+                    totalRecords > 25000 ? 'Weekly view provides good balance' :
+                    'Daily view available for detailed analysis'
+        }
+      };
+      
+      console.log(`[HEATMAP-OPT] Generated ${finalAggregation} heatmap in ${queryTime}ms: ${totalRecords} records, ${performanceMode} mode`);
+      res.json(responseData);
+      
+    } catch (error) {
+      console.error('Error generating optimized heatmap:', error);
+      res.status(500).json({ error: 'Failed to generate heatmap' });
+    }
+  });
+
+  // Cache statistics and performance monitoring endpoint
+  app.get("/api/tddf-json/performance-stats", isAuthenticated, async (req, res) => {
+    try {
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      
+      // Get basic table statistics
+      const tableStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(DISTINCT record_type) as record_types,
+          COUNT(DISTINCT filename) as unique_files,
+          COUNT(DISTINCT DATE(extracted_fields->>'transactionDate')) as unique_days,
+          MIN(extracted_fields->>'transactionDate') as earliest_date,
+          MAX(extracted_fields->>'transactionDate') as latest_date
+        FROM ${tableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+      `);
+      
+      const stats = tableStats.rows[0];
+      const totalRecords = parseInt(stats.total_records);
+      
+      // Performance recommendations based on data size
+      let recommendations = [];
+      if (totalRecords > 1000000) {
+        recommendations = [
+          "Very large dataset detected (1M+ records)",
+          "Strongly recommend monthly aggregation for heat maps",
+          "Consider implementing data archiving strategies",
+          "Use indexed queries with LIMIT clauses"
+        ];
+      } else if (totalRecords > 100000) {
+        recommendations = [
+          "Large dataset detected (100k+ records)", 
+          "Recommend weekly or monthly aggregation",
+          "Daily views may be slow for full year ranges",
+          "Consider pagination for record views"
+        ];
+      } else if (totalRecords > 25000) {
+        recommendations = [
+          "Medium dataset detected (25k+ records)",
+          "Weekly aggregation provides good balance",
+          "Daily views acceptable for shorter ranges",
+          "Standard caching effective"
+        ];
+      } else {
+        recommendations = [
+          "Standard dataset size (< 25k records)",
+          "Daily aggregation performs well",
+          "All heat map views should be responsive",
+          "Standard performance optimizations sufficient"
+        ];
+      }
+      
+      const responseData = {
+        tableStats: {
+          totalRecords,
+          recordTypes: parseInt(stats.record_types),
+          uniqueFiles: parseInt(stats.unique_files),
+          uniqueDays: parseInt(stats.unique_days),
+          dateRange: {
+            earliest: stats.earliest_date,
+            latest: stats.latest_date
+          }
+        },
+        performanceProfile: {
+          level: totalRecords > 1000000 ? 'enterprise' : 
+                 totalRecords > 100000 ? 'large' :
+                 totalRecords > 25000 ? 'medium' : 'standard',
+          recommendedAggregation: totalRecords > 100000 ? 'month' :
+                                  totalRecords > 25000 ? 'week' : 'day',
+          cacheStrategy: totalRecords > 100000 ? 'aggressive' : 'standard'
+        },
+        recommendations,
+        cacheStatus: {
+          activityCache: activityCache ? {
+            age: Date.now() - activityCache.timestamp,
+            hits: activityCache.hits || 0,
+            size: JSON.stringify(activityCache.data).length
+          } : null
+        }
+      };
+      
+      res.json(responseData);
+    } catch (error) {
+      console.error('Error getting performance stats:', error);
+      res.status(500).json({ error: 'Failed to get performance statistics' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

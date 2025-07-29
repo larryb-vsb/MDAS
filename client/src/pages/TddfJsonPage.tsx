@@ -168,6 +168,15 @@ export default function TddfJsonPage() {
     enabled: !!recordsData, // Only load after records are loaded to further stagger API calls
   });
 
+  // Fetch performance statistics for large dataset recommendations
+  const { data: performanceStats } = useQuery<any>({
+    queryKey: ['/api/tddf-json/performance-stats'],
+    queryFn: () => apiRequest('/api/tddf-json/performance-stats'),
+    staleTime: 15 * 60 * 1000, // Cache for 15 minutes - performance stats change slowly
+    gcTime: 60 * 60 * 1000, // Keep in cache for 1 hour
+    enabled: !!stats, // Only load after basic stats are loaded
+  });
+
 
 
   // Transform activity data for heat map
