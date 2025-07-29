@@ -892,6 +892,45 @@ export default function TddfJsonPage() {
                           ))}
                           <div>Actions</div>
                         </div>
+                      ) : selectedTab === 'P1' ? (
+                        /* P1 Records - Show TDDF header fields matching specification */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-6 gap-4 text-sm font-medium">
+                          {[
+                            { key: 'sequence_number', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
+                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
+                            { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
+                            { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): P1 for Purchasing Card Extension' },
+                            { key: 'merchant_account_number', label: 'Merchant Account Number', tooltip: 'Merchant Account Number (24-39): 16-digit account number' }
+                          ].map(({ key, label, tooltip }) => (
+                            <TooltipProvider key={key}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button 
+                                    className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                      sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                    }`}
+                                    onClick={() => handleHeaderSort(key)}
+                                  >
+                                    {label}
+                                    {sortBy === key ? (
+                                      sortOrder === 'asc' ? (
+                                        <ChevronUp className="w-3 h-3 text-blue-600" />
+                                      ) : (
+                                        <ChevronDown className="w-3 h-3 text-blue-600" />
+                                      )
+                                    ) : (
+                                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{tooltip}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ))}
+                          <div>Actions</div>
+                        </div>
                       ) : (
                         /* All other record types - Show normalized common headers */
                         <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
@@ -1046,6 +1085,38 @@ export default function TddfJsonPage() {
                               </Button>
                             </div>
                           </div>
+                        ) : selectedTab === 'P1' ? (
+                          /* P1 Records - Show TDDF header fields matching specification */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceNumber || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs font-medium text-blue-600">
+                              {record.extracted_fields?.entryRunNumber || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              <Badge className="bg-orange-100 text-orange-800 border-orange-300">
+                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                              </Badge>
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                            </div>
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecordClick(record)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
                         ) : (
                           /* All other record types - Show normalized common data */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm">
@@ -1178,27 +1249,160 @@ export default function TddfJsonPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="font-semibold mb-2">Extracted Fields</h3>
-                    <ScrollArea className="h-64">
-                      <div className="space-y-2 text-sm">
-                        {Object.entries(selectedRecord.extracted_fields).map(([key, value]) => (
-                          <div key={key} className="flex justify-between py-1 border-b">
-                            <span className="text-muted-foreground capitalize">
-                              {key.replace(/([A-Z])/g, ' $1').trim()}:
-                            </span>
-                            <span className="font-mono text-xs break-all max-w-48">
-                              {key === 'terminalId' ? (
-                                <TerminalIdDisplay terminalId={value?.toString()} />
-                              ) : (
-                                value?.toString() || 'N/A'
-                              )}
-                            </span>
+{selectedRecord.record_type === 'P1' ? (
+                    <div>
+                      <h3 className="font-semibold mb-2">P1 Purchasing Card Extension Fields</h3>
+                      <ScrollArea className="h-64">
+                        <div className="space-y-3 text-sm">
+                          {/* TDDF Header Fields */}
+                          <div className="border-b pb-2">
+                            <h4 className="font-medium text-orange-700 mb-2">TDDF Header Fields</h4>
+                            <div className="space-y-1">
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Sequence Number (1-7):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.sequenceNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Entry Run Number (8-13):</span>
+                                <span className="font-mono text-xs font-medium text-blue-600">{selectedRecord.extracted_fields?.entryRunNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Sequence Within Run (14-17):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.sequenceWithinRun || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Record Identifier (18-19):</span>
+                                <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
+                                  {selectedRecord.extracted_fields?.recordIdentifier || 'N/A'}
+                                </Badge>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Bank Number (20-23):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.bankNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Merchant Account Number (24-39):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantAccountNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Association Number (40-45):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.associationNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Group Number (46-51):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.groupNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Transaction Code (52-55):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.transactionCode || 'N/A'}</span>
+                              </div>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
+
+                          {/* P1 Purchasing Card Data Fields */}
+                          <div className="border-b pb-2">
+                            <h4 className="font-medium text-orange-700 mb-2">Purchasing Card Level 1 Data</h4>
+                            <div className="space-y-1">
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Tax Amount (56-67):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.taxAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Tax Rate (68-71):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.taxRate || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Product ID/Customer Code (76-100):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.customerCode || selectedRecord.extracted_fields?.productIdentifier || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Local Tax (101):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.localTax || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Local Tax Amount (102-113):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.localTaxAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Freight Amount (114-125):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.freightAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Destination Zip (126-135):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.destinationZip || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Merchant Type (136-139):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantType || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Duty Amount (140-151):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.dutyAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Merchant Tax ID (152-161):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantTaxId || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Ship From Zip (162-171):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.shipFromZipCode || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">National Tax Included (172):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.nationalTaxIncluded || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">National/Alt Tax Amount (173-184):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.nationalTaxAmount || selectedRecord.extracted_fields?.alternateAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Other Tax (185-196):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.otherTax)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Destination Country (197-199):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.destinationCountryCode || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Merchant Reference (200-216):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantReferenceNumber || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Discount Amount (217-228):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.discountAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Order Date (281-286):</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.orderDate || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="font-semibold mb-2">Extracted Fields</h3>
+                      <ScrollArea className="h-64">
+                        <div className="space-y-2 text-sm">
+                          {Object.entries(selectedRecord.extracted_fields).map(([key, value]) => (
+                            <div key={key} className="flex justify-between py-1 border-b">
+                              <span className="text-muted-foreground capitalize">
+                                {key.replace(/([A-Z])/g, ' $1').trim()}:
+                              </span>
+                              <span className="font-mono text-xs break-all max-w-48">
+                                {key === 'terminalId' ? (
+                                  <TerminalIdDisplay terminalId={value?.toString()} />
+                                ) : (
+                                  value?.toString() || 'N/A'
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
                 </div>
 
                 <div>

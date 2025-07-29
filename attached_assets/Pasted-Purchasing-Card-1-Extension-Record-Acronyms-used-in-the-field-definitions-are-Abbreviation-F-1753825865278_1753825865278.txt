@@ -1,0 +1,520 @@
+Purchasing Card 1 Extension Record
+Acronyms used in the field definitions are:
+
+Abbreviation
+
+Full Form
+
+A
+
+Alphabetic
+
+N
+
+Numeric
+
+C
+
+Special character
+
+AN
+
+Alphanumeric
+
+AC
+
+Alpha and Special character
+
+NC
+
+ 
+
+Numeric and Special character
+
+ANC
+
+Alphanumeric and Special character
+
+The Purchasing Card 1 Extension record is used to send purchasing card information. It can be followed by a Purchasing Card 2 Extension Record.
+
+Position
+
+Field Name
+
+Field Length
+
+Format
+
+Description
+
+Enumeration
+
+1-7
+
+Sequence Number Area
+
+7
+
+N
+
+A number to identify the file position within the transmission.
+
+ 
+
+8-13
+
+Entry Run Number
+
+6
+
+N
+
+ 
+
+ 
+
+14-17
+
+Sequence Number within entry run
+
+4
+
+N
+
+ 
+
+ 
+
+18-19
+
+Record Identifier
+
+2
+
+AN
+
+A value that identifies the type of record.
+
+Constant value is "P1"
+
+20-23
+
+Bank Number
+
+4
+
+AN
+
+The Global Payments Bank number.
+
+ 
+
+24-39
+
+Merchant Account Number
+
+16
+
+N
+
+The Global Payments account number of the merchant.
+
+ 
+
+40-45
+
+Association Number
+
+6
+
+AN
+
+The identification number of an association to which the merchant reports.
+
+ 
+
+46-51
+
+Group Number
+
+6
+
+AN
+
+Group number for the merchant.
+
+ 
+
+52-55
+
+Transaction Code
+
+4
+
+N
+
+Global Payments Transaction code identifies the type of record being transmitted.
+
+ 
+
+56-67
+
+VAT Tax Amount (Freight)
+
+12
+
+N
+
+ 
+
+Format:
+999999999999
+
+68-71
+
+VAT Tax Rate (Freight)
+
+4
+
+N
+
+ 
+
+Format:
+Blank or
+9999
+
+72-75
+
+Reserved for future use
+
+4
+
+AN
+
+ 
+
+ 
+
+76-100
+
+Product Identifier (VS, AM)
+Customer Code (MC)
+
+25
+
+AN
+
+ 
+
+ 
+
+101-101
+
+Loacl Tax (VS, MC,AM)
+
+1
+
+N
+
+For Visa, the Visa Code indicates if local tax is included in the amount charged for the goods or services purchased.
+
+For Mastercard, the Tax Exempt Indicator Code indicates if the goods or services were exempted from taxes.
+
+Allowed values for Visa are:
+
+0 = No tax included
+
+1 = State or provincial tax included
+
+2 = Non-taxable transaction
+
+Allowed values for Mastercard are:
+
+Spaces = Unknown or not applicable
+
+0 = No Tax Collected
+
+1 = Tax Exempt
+
+102-113
+
+Local Tax Amount
+
+12
+
+N
+
+For Visa, the amount of any state or provincial tax included in the transaction amount. The currency in which this amount is given must be the same as the amount of the source transaction.
+
+This field has two implied decimal places.
+
+The field must be right justified. You can use zeroes as filler. The field can have all zeroes.
+
+For Mastercard and Discover, the amount of tax assessed on the transaction.
+
+Format:
+999999999999
+
+114-125
+
+Freight Amount (VS, MC, AM)
+
+12
+
+N
+
+The amount charged for freight or shipping charges.
+
+For Visa transactions, the field has two implied decimal places. It can have all zeros.
+
+Format:
+999999999999
+
+126-135
+
+Destination Zip (VS)
+
+10
+
+N
+
+The postal code or ZIP code for the address to which the merchandise was sent.
+
+For Visa and Mastercard, the field name is Destination Postal Code or ZIP Code.
+
+For Discover, the field name is Destination ZIP.
+
+For American Express, the field name is Ship to Postal Code.
+
+ 
+
+ 
+
+136-139
+
+Merchant Type
+
+4
+
+AN
+
+For more information on the merchant type code, refer to the Mastercard documentation.
+
+ 
+
+140-151
+
+Duty Amount (VS, MC, AM)
+
+12
+
+N
+
+The amount of the duty tax applied to the transaction.
+
+For Visa transactions, the field has two implied decimal places. It can have all zeros.
+
+Format:
+999999999999
+
+152-161
+
+Merchant Tax ID
+
+10
+
+AN
+
+The tax identifier used by the merchant.
+
+ 
+
+162-171
+
+Ship from Zip Code (VS, MC)
+
+10
+
+N
+
+The postal code or ZIP code used by the location from which the merchandise was shipped.
+
+For Discover, the field name is Originating ZIP.
+
+ 
+
+172-172
+
+National Tax Included (VS, MC)
+
+1
+
+N
+
+For Visa, the field indicator indicates if the national tax is included in the amount charged for the goods or services purchased.
+
+For Mastercard, the field name is Alternate Tax Amount. It indicates if any alternate taxes are included in the amount charged for the goods or services purchased.
+
+ 
+
+173-184
+
+National/ALT Tax Amount (VS, MC)
+
+12
+
+N
+
+The amount of any national tax included in the transaction amount. The currency in which the amount is paid must be the same as the amount of the source transaction.
+
+For Visa, the field name is National Tax Amount.
+
+The field has two implied decimal places and must be right justified. You can use zeros as filler. It can have all zeroes.
+
+For Mastercard, the field name is Alternate Tax Amount.
+
+Format:
+999999999999
+
+185-196
+
+Other Tax
+
+12
+
+N
+
+The amount of any other taxes assessed on the transaction.
+
+Format:
+999999999999
+
+197-199
+
+Destination Country Code (VS, MC)
+
+3
+
+AN
+
+Valid ISO (International Standardization Organization) code used to identify the country to which the merchandise was shipped.
+
+For Visa, the codes are Numeric Country Codes.
+
+For Mastercard, the codes are Alpha Country Codes.
+
+For Discover, the codes are alphabetic ISO codes.
+
+ 
+
+200-216
+
+Merchant Reference Number
+
+17
+
+N
+
+The reference number assigned to the transaction by the merchant.
+
+ 
+
+217-228
+
+Discount Amount
+
+12
+
+N
+
+The amount of the discount applied to the transaction.
+
+Format:
+
+999999999999
+
+229-248
+
+Merchant VAT Registration
+
+20
+
+AN
+
+The VAT registration number or SBRN number used by the merchant.
+
+ 
+
+249-261
+
+Customer VAT Registration
+
+13
+
+AN
+
+The VAT registration number used by the cardholder.
+
+ 
+
+262-265
+
+Summary Commodity Code
+
+4
+
+N
+
+ 
+
+ 
+
+266 -280
+
+VAT Invoice Reference Number
+
+15
+
+N
+
+The reference number used to identify the invoice that has information about the VAT charges assessed on the transaction.
+
+ 
+
+281-286
+
+Order Date
+
+6
+
+N
+
+The date on which the order was placed.
+
+Allowed format is MMDDYY
+
+287-287
+
+Detail Record to follow (D)
+
+1
+
+AN
+
+A code that indicates if another extension record follows this record.
+
+ 
+
+288-700
+
+Reserved for future use
+
+413
+
+AN
+
+ 
+
+ 
+
