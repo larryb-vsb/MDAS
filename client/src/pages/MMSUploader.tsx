@@ -238,10 +238,40 @@ export default function MMSUploader() {
           
           console.log(`[SESSION-PHASE-2] Updating to uploading phase with session control: ${uploadResponse.id}`);
           
-          // Phase 2: Session-controlled upload to Replit Object Storage
+          // Set initial uploading phase with progress tracking
+          await fetch(`/api/uploader/${uploadResponse.id}/phase/uploading`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              sessionId: sessionId,
+              uploadProgress: 0,
+              processingNotes: `Upload started - Session: ${sessionId}`
+            })
+          });
+          
+          // Phase 2: Session-controlled upload to Replit Object Storage with progress
           const formData = new FormData();
           formData.append('file', file);
           formData.append('sessionId', sessionId);
+          
+          // Simulate progress updates during upload for better UX
+          const progressInterval = setInterval(async () => {
+            const progress = Math.min(Math.random() * 60 + 10, 90);
+            try {
+              await fetch(`/api/uploader/${uploadResponse.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  uploadProgress: Math.round(progress),
+                  processingNotes: `Uploading... ${Math.round(progress)}% (Session: ${sessionId})`
+                })
+              });
+            } catch (error) {
+              console.log('Progress update error:', error);
+            }
+          }, 500);
           
           const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
             method: 'POST',
@@ -249,11 +279,27 @@ export default function MMSUploader() {
             credentials: 'include'
           });
           
+          clearInterval(progressInterval);
+          
           if (!uploadApiResponse.ok) {
             throw new Error(`Session upload failed: ${uploadApiResponse.statusText}`);
           }
           
+          // Final progress update
+          await fetch(`/api/uploader/${uploadResponse.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              uploadProgress: 100,
+              processingNotes: `Upload completed - Session: ${sessionId}`
+            })
+          });
+          
           console.log(`[SESSION-PHASE-2] Session-controlled upload to Replit Object Storage successful: ${uploadResponse.id}`);
+          
+          // Add a small delay to ensure progress is visible
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Phase 3: Finalize to uploaded phase and stop (session-controlled)
           const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/uploaded`, {
