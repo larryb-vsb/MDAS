@@ -8,8 +8,60 @@ async function countDTRecordsFromStorage() {
     // Initialize Replit Object Storage client
     const client = new Client();
     
-    // Use one of the uploaded files from the logs
-    const fileKey = 'dev-uploader/2025-07-29/uploader_1753757989409_atsw4ji1h/VERMNTSB.6759_TDDF_2400_01062025_001400.TSYSO';
+    // First, let's check the database for available files
+    const { Pool } = require('pg');
+    
+    // Database connection
+    const pool = new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      database: process.env.DB_NAME || 'mms_dev',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres'
+    });
+    
+    console.log('📊 Checking database for uploaded files...');
+    
+    // Get files from the uploader table
+    const tableQuery = `
+      SELECT 
+        id,
+        filename,
+        s3_key,
+        s3_bucket,
+        file_size,
+        current_phase,
+        uploaded_at
+      FROM dev_uploaded_files 
+      WHERE s3_key IS NOT NULL 
+        AND current_phase IN ('uploaded', 'identified', 'encoding', 'processing', 'completed')
+      ORDER BY uploaded_at DESC 
+      LIMIT 10
+    `;
+    
+    const dbResult = await pool.query(tableQuery);
+    const availableFiles = dbResult.rows;
+    
+    console.log(`📁 Found ${availableFiles.length} uploaded files in database:`);
+    availableFiles.forEach((file, idx) => {
+      console.log(`   ${idx + 1}. ${file.filename} (${file.id})`);
+      console.log(`      Key: ${file.s3_key}`);
+      console.log(`      Phase: ${file.current_phase}`);
+      console.log(`      Size: ${(file.file_size / 1024 / 1024).toFixed(1)}MB`);
+      console.log(`      Uploaded: ${file.uploaded_at}`);
+      console.log();
+    });
+    
+    if (availableFiles.length === 0) {
+      throw new Error('No uploaded files found in database');
+    }
+    
+    // Use the most recent file
+    const selectedFile = availableFiles[0];
+    const fileKey = selectedFile.s3_key;
+    
+    console.log(`🎯 Selected file: ${selectedFile.filename}`);
+    console.log(`🔑 Object key: ${fileKey}`);
     
     console.log(`📁 Retrieving file: ${fileKey}`);
     
@@ -94,6 +146,9 @@ async function countDTRecordsFromStorage() {
     console.log(`   DT Records: ${dtCount.toLocaleString()}`);
     console.log(`   Sample Transaction Total: $${totalTransactionAmount.toFixed(2)}`);
     console.log(`   Record Types Found: ${Object.keys(recordTypeCounts).length}`);
+    
+    // Close database connection
+    await pool.end();
     
     return {
       fileName: fileKey.split('/').pop(),
