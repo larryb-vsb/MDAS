@@ -254,31 +254,49 @@ export default function MMSUploader() {
           formData.append('file', file);
           formData.append('sessionId', sessionId);
           
-          // Simulate progress updates during upload for better UX
-          const progressInterval = setInterval(async () => {
-            const progress = Math.min(Math.random() * 60 + 10, 90);
-            try {
-              await fetch(`/api/uploader/${uploadResponse.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  uploadProgress: Math.round(progress),
-                  processingNotes: `Uploading... ${Math.round(progress)}% (Session: ${sessionId})`
-                })
-              });
-            } catch (error) {
-              console.log('Progress update error:', error);
-            }
-          }, 500);
-          
-          const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
+          // Real-time upload with authentic streaming progress
+          const uploadApiResponse = await new Promise<Response>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            
+            // Track authentic upload progress from stream
+            xhr.upload.addEventListener('progress', async (event) => {
+              if (event.lengthComputable) {
+                const progress = Math.round((event.loaded / event.total) * 100);
+                const loadedMB = Math.round(event.loaded / 1024 / 1024 * 100) / 100;
+                const totalMB = Math.round(event.total / 1024 / 1024 * 100) / 100;
+                
+                try {
+                  await fetch(`/api/uploader/${uploadResponse.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      uploadProgress: progress,
+                      processingNotes: `Uploading... ${progress}% (${loadedMB}MB / ${totalMB}MB) - Session: ${sessionId}`
+                    })
+                  });
+                } catch (error) {
+                  console.log('Progress update error:', error);
+                }
+              }
+            });
+            
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(new Response(xhr.responseText, { status: xhr.status }));
+              } else {
+                reject(new Error(`Upload failed with status: ${xhr.status}`));
+              }
+            });
+            
+            xhr.addEventListener('error', () => {
+              reject(new Error('Upload failed due to network error'));
+            });
+            
+            xhr.open('POST', `/api/uploader/${uploadResponse.id}/upload`);
+            xhr.withCredentials = true;
+            xhr.send(formData);
           });
-          
-          clearInterval(progressInterval);
           
           if (!uploadApiResponse.ok) {
             throw new Error(`Session upload failed: ${uploadApiResponse.statusText}`);
