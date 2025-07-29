@@ -7689,17 +7689,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         encodingNotes: `Started encoding with strategy: ${strategy}`
       });
       
-      // TODO: Implement actual encoding logic here
-      // For now, just simulate setup without processing
-      const mockResult = {
+      // Get file content for TDDF encoding
+      const fileContent = await replitStorage.getFileContent(upload.storageKey || upload.storagePath || '');
+      
+      // Import TDDF encoder
+      const { encodeTddfToJsonb } = await import('./tddf-json-encoder');
+      
+      // Perform TDDF JSON encoding using schema definitions
+      const encodingResults = await encodeTddfToJsonb(fileContent, upload);
+      
+      // Update to completed phase with encoding metadata
+      await storage.updateUploaderPhase(id, 'completed', {
+        encodingStrategy: strategy,
+        encodingStatus: 'completed',
+        encodingTimeMs: encodingResults.encodingTimeMs,
+        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB`,
+        jsonRecordsCreated: encodingResults.recordCounts.total,
+        tddfRecordsCreated: encodingResults.recordCounts.byType.DT || 0,
+        encodingMetadata: encodingResults
+      });
+      
+      const result = {
         uploadId: id,
         filename: upload.filename,
         strategy: strategy,
-        status: 'encoding_setup_ready',
-        message: 'Encoding infrastructure ready - no actual processing performed yet'
+        status: 'completed',
+        message: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+        results: encodingResults
       };
       
-      res.json(mockResult);
+      res.json(result);
     } catch (error: any) {
       console.error('Single file encoding error:', error);
       res.status(500).json({ error: error.message });
