@@ -13338,7 +13338,26 @@ export class DatabaseStorage implements IStorage {
         serverId: 'server_id',
         sessionId: 'session_id',
         failedAt: 'failed_at',
-        completedAt: 'completed_at'
+        completedAt: 'completed_at',
+        // Encoding phase fields
+        encodingStartedAt: 'encoding_started_at',
+        encodingCompletedAt: 'encoding_completed_at',
+        encodingTimeMs: 'encoding_time_ms',
+        encodingStatus: 'encoding_status',
+        jsonRecordsCreated: 'json_records_created',
+        tddfRecordsCreated: 'tddf_records_created',
+        fieldSeparationStrategy: 'field_separation_strategy',
+        encodingErrors: 'encoding_errors',
+        healthMetadata: 'health_metadata',
+        // Additional phase tracking fields
+        uploadStart: 'upload_start',
+        uploadComplete: 'upload_complete',
+        uploadedLineCount: 'uploaded_line_count',
+        identifyStart: 'identify_start',
+        identifyComplete: 'identify_complete',
+        encodingStart: 'encoding_start',
+        encodingComplete: 'encoding_complete',
+        encodedLines: 'encoded_lines'
       };
       
       // Build dynamic update query
