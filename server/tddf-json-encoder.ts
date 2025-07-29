@@ -15,41 +15,35 @@ export interface TddfFieldDefinition {
   description?: string;
 }
 
-// DT Record Field Definitions (based on shared/schema.ts tddfTransactionRecords)
+// DT Record Field Definitions (based on shared/schema.ts tddfTransactionRecords) - Fixed positioning
 export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
-  // Core TDDF header fields (positions 1-19)
+  // Core TDDF header fields (positions 1-23)
   { name: 'sequenceNumber', positions: [1, 7], type: 'text', description: 'File position identifier' },
   { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Entry run number' },
   { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Sequence within entry run' },
   { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'Always "DT"' },
-  
-  // Bank and account fields (positions 20-55)
   { name: 'bankNumber', positions: [20, 23], type: 'text', description: 'Global Payments bank number' },
+  
+  // Account and merchant fields (positions 24-61)
   { name: 'merchantAccountNumber', positions: [24, 39], type: 'text', description: 'GP account number (16 chars)' },
-  { name: 'associationNumber', positions: [40, 45], type: 'text', description: 'Association ID (6 chars)' },
-  { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number (6 chars)' },
-  { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
+  { name: 'associationNumber1', positions: [40, 45], type: 'text', description: 'Association number' },
+  { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number' },
+  { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code' },
+  { name: 'associationNumber2', positions: [56, 61], type: 'text', description: 'Second association number' },
   
-  // Transaction identification and dates (positions 56-84)
-  { name: 'referenceNumber', positions: [56, 84], type: 'text', description: 'TSYS reference number (29 chars)' },
+  // Core transaction fields (positions 62-142)
+  { name: 'referenceNumber', positions: [62, 84], type: 'text', description: 'Reference number (23 chars)' },
   { name: 'transactionDate', positions: [85, 92], type: 'date', description: 'Transaction date (MMDDCCYY)' },
-  { name: 'batchDate', positions: [93, 100], type: 'date', description: 'Batch date (MMDDCCYY)' },
+  { name: 'transactionAmount', positions: [93, 103], type: 'numeric', precision: 15, scale: 2, description: 'Transaction amount' },
+  { name: 'batchJulianDate', positions: [104, 108], type: 'text', description: 'Batch julian date (DDDYY)' },
+  { name: 'netDeposit', positions: [109, 123], type: 'numeric', precision: 17, scale: 2, description: 'Net deposit amount' },
+  { name: 'cardholderAccountNumber', positions: [124, 142], type: 'text', description: 'Cardholder account number' },
   
-  // Transaction amounts (positions 101-156)
-  { name: 'transactionAmount', positions: [101, 112], type: 'numeric', precision: 12, scale: 2, description: 'Transaction amount' },
-  { name: 'authorizationAmount', positions: [113, 124], type: 'numeric', precision: 12, scale: 2, description: 'Authorization amount' },
-  { name: 'feeAmount', positions: [125, 136], type: 'numeric', precision: 12, scale: 2, description: 'Fee amount' },
-  { name: 'cashbackAmount', positions: [137, 148], type: 'numeric', precision: 12, scale: 2, description: 'Cashback amount' },
-  { name: 'tipAmount', positions: [149, 156], type: 'numeric', precision: 8, scale: 2, description: 'Tip amount' },
-  
-  // Card and POS data (positions 157-242)
-  { name: 'cardNumber', positions: [157, 175], type: 'text', description: 'Card number (19 chars masked)' },
-  { name: 'cardType', positions: [176, 177], type: 'text', description: 'Card type code' },
-  { name: 'authorizationNumber', positions: [178, 183], type: 'text', description: 'Authorization number' },
-  { name: 'posEntryMode', positions: [184, 186], type: 'text', description: 'POS entry mode' },
-  { name: 'transactionTypeIdentifier', positions: [187, 190], type: 'text', description: 'Transaction type identifier' },
-  { name: 'mccCode', positions: [191, 194], type: 'text', description: 'Merchant Category Code' },
-  { name: 'terminalIdNumber', positions: [195, 202], type: 'text', description: 'Terminal ID number' },
+  // Authorization and additional transaction info (positions 188-242)
+  { name: 'authAmount', positions: [192, 203], type: 'numeric', precision: 14, scale: 2, description: 'Authorization amount' },
+  { name: 'authResponseCode', positions: [208, 209], type: 'text', description: 'Authorization response code' },
+  { name: 'posEntryMode', positions: [214, 215], type: 'text', description: 'POS entry mode' },
+  { name: 'debitCreditIndicator', positions: [216, 216], type: 'text', description: 'Debit/Credit indicator' },
   { name: 'reversalFlag', positions: [217, 217], type: 'text', description: 'Reversal flag' },
   { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' }
 ];
