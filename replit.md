@@ -26,7 +26,9 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Record Detail Modal Enhanced**: Fixed modal to display correct data structure (line_number, filename, raw_line, extracted_fields) for comprehensive record viewing
   - **Production Table Prepared**: Recreated empty `tddf_jsonb` table in production environment preventing Stage 5 encoding failures
   - **Complete System Integration**: TDDF JSON page now fully operational with 1,086,101 total records displaying proper record type breakdowns and authentic transaction activity patterns
-  - **Production Ready**: Complete TDDF JSON visualization system operational with proper database connections and DT-focused heat map functionality
+  - **Heat Map Data Transformation Fixed**: Corrected data field mapping from `transaction_date` to `date` ensuring heat map component receives properly formatted data
+  - **DT-Only Filtering Verified**: Confirmed activity API endpoint filters for DT transactions only, excluding BH, P1, E1, G2, and other record types
+  - **Production Ready**: Complete TDDF JSON visualization system operational with proper database connections and DT-focused heat map functionality displaying 372,447 transactions in 2025
 - **✅ FAILED FILE RECOVERY SYSTEM COMPLETED (July 29, 2025)**: Successfully implemented complete "Set Previous Level" functionality for failed files with smart fallback logic
   - **Backend Recovery Logic**: Added comprehensive failed file handling in `/api/uploader/set-previous-level` endpoint with identified→uploaded→started fallback hierarchy
   - **Frontend Integration**: Updated MMSUploader.tsx to include failed files in Set Previous Level button selection criteria and processing logic

@@ -164,8 +164,8 @@ export default function TddfJsonPage() {
     if (!activityData?.records) return [];
     
     return activityData.records.map((record: any) => ({
-      transaction_date: record.transaction_date,
-      count: record.transaction_count
+      date: record.transaction_date, // Heat map expects 'date' not 'transaction_date'
+      count: parseInt(record.transaction_count) || 0
     }));
   }, [activityData]);
 
