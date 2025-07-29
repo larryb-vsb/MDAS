@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -77,6 +78,9 @@ export default function MMSUploader() {
   const [activeTab, setActiveTab] = useState('upload');
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
+  // Review mode state
+  const [keepForReview, setKeepForReview] = useState<boolean>(false);
+  
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
@@ -116,7 +120,8 @@ export default function MMSUploader() {
           fileSize: file.size,
           sessionId,
           finalFileType: selectedFileType,
-          userClassifiedType: selectedFileType
+          userClassifiedType: selectedFileType,
+          keepForReview: keepForReview
         }
       });
       return response;
@@ -301,35 +306,42 @@ export default function MMSUploader() {
           // Add a small delay to ensure progress is visible
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Phase 3: First set to uploaded phase (intermediate step)
+          // Phase 3: Set to uploaded phase
           await fetch(`/api/uploader/${uploadResponse.id}/phase/uploaded`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
               sessionId: sessionId,
-              processingNotes: `Upload to storage completed - Session: ${sessionId}`,
-              uploadedAt: new Date().toISOString()
+              processingNotes: keepForReview 
+                ? `Upload to storage completed - HELD FOR REVIEW - Session: ${sessionId}`
+                : `Upload to storage completed - Session: ${sessionId}`,
+              uploadedAt: new Date().toISOString(),
+              keepForReview: keepForReview
             })
           });
           
-          // Phase 4: Automatically progress to completed status (all chunks received)
-          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/completed`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              sessionId: sessionId,
-              processingNotes: `All chunks received and processing completed - Session: ${sessionId}`,
-              completedAt: new Date().toISOString()
-            })
-          });
-          
-          if (!finalizeResponse.ok) {
-            throw new Error(`Session finalization failed: ${finalizeResponse.statusText}`);
+          // Phase 4: Only auto-progress to completed if NOT in review mode
+          if (!keepForReview) {
+            const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/completed`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                sessionId: sessionId,
+                processingNotes: `All chunks received and processing completed - Session: ${sessionId}`,
+                completedAt: new Date().toISOString()
+              })
+            });
+            
+            if (!finalizeResponse.ok) {
+              throw new Error(`Session finalization failed: ${finalizeResponse.statusText}`);
+            }
+            
+            console.log(`[SESSION-PHASE-3] Session upload completed with 'completed' status: ${uploadResponse.id}`);
+          } else {
+            console.log(`[SESSION-REVIEW] Upload held at 'uploaded' phase for review: ${uploadResponse.id}`);
           }
-          
-          console.log(`[SESSION-PHASE-3] Session upload completed with 'completed' status: ${uploadResponse.id}`);
         }
       } catch (error) {
         console.error(`[SESSION-ERROR] Session upload error for ${file.name}:`, error);
@@ -658,6 +670,31 @@ export default function MMSUploader() {
                   )}
                 </div>
 
+                {/* Review Mode Switch */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Pause className="h-5 w-5 text-amber-600" />
+                      <div>
+                        <div className="font-medium text-amber-800">Keep for Review</div>
+                        <div className="text-sm text-amber-600">
+                          Hold uploads for manual review instead of auto-processing
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={keepForReview}
+                      onCheckedChange={setKeepForReview}
+                      className="data-[state=checked]:bg-amber-500"
+                    />
+                  </div>
+                  
+                  {keepForReview && (
+                    <div className="text-xs text-amber-700 bg-amber-100 p-2 rounded border-l-4 border-amber-500">
+                      <strong>Review Mode Active:</strong> Files will be uploaded but held at "uploaded" phase for manual review and approval before processing.
+                    </div>
+                  )}
+                </div>
 
               </div>
               

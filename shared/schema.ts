@@ -1154,6 +1154,9 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   serverId: text("server_id"), // Which server handled upload
   sessionId: text("session_id"), // Session identifier
   
+  // Review mode control
+  keepForReview: boolean("keep_for_review").default(false), // Whether to hold at uploaded phase for manual review
+  
   // Current processing state
   currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, failed
   lastUpdated: timestamp("last_updated").defaultNow().notNull()

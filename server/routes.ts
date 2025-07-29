@@ -7253,7 +7253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MMS Uploader API endpoints - Replit Object Storage
   app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
     try {
-      const { filename, fileSize, sessionId } = req.body;
+      const { filename, fileSize, sessionId, keepForReview = false } = req.body;
       const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Import Replit Storage Service
@@ -7279,7 +7279,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         s3Key: storageKey, // Using same field for storage key
         createdBy: (req.user as any)?.username || 'unknown',
         sessionId: sessionId,
-        serverId: process.env.HOSTNAME || 'unknown'
+        serverId: process.env.HOSTNAME || 'unknown',
+        keepForReview: keepForReview
       });
       
       console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);

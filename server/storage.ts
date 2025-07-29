@@ -13139,8 +13139,8 @@ export class DatabaseStorage implements IStorage {
       const result = await pool.query(`
         INSERT INTO ${uploaderTableName} (
           id, filename, file_size, start_time, upload_status, 
-          current_phase, created_by, server_id, session_id
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          current_phase, created_by, server_id, session_id, keep_for_review
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `, [
         id,
@@ -13151,7 +13151,8 @@ export class DatabaseStorage implements IStorage {
         insertUploaderUpload.current_phase || 'started',
         insertUploaderUpload.created_by || 'system',
         insertUploaderUpload.server_id || null,
-        insertUploaderUpload.session_id || null
+        insertUploaderUpload.session_id || null,
+        insertUploaderUpload.keepForReview || false
       ]);
       
       console.log(`[UPLOADER] Created upload ${id} in phase: ${result.rows[0].current_phase}`);
@@ -13238,6 +13239,7 @@ export class DatabaseStorage implements IStorage {
         finalFileType: 'final_file_type',
         lineCount: 'line_count',
         dataSize: 'data_size',
+        keepForReview: 'keep_for_review',
         hasHeaders: 'has_headers',
         fileFormat: 'file_format',
         compressionUsed: 'compression_used',
