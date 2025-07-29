@@ -13188,7 +13188,45 @@ export class DatabaseStorage implements IStorage {
       }
       
       const result = await pool.query(query, params);
-      return result.rows as UploaderUpload[];
+      
+      // Convert snake_case database fields to camelCase for frontend compatibility
+      return result.rows.map(row => ({
+        ...row,
+        currentPhase: row.current_phase,
+        lastUpdated: row.last_updated,
+        uploadStartedAt: row.upload_started_at,
+        uploadStatus: row.upload_status,
+        uploadProgress: row.upload_progress,
+        chunkedUpload: row.chunked_upload,
+        chunkCount: row.chunk_count,
+        chunksUploaded: row.chunks_uploaded,
+        uploadedAt: row.uploaded_at,
+        storagePath: row.storage_path,
+        s3Bucket: row.s3_bucket,
+        s3Key: row.s3_key,
+        s3Url: row.s3_url,
+        s3Etag: row.s3_etag,
+        fileSize: row.file_size,
+        identifiedAt: row.identified_at,
+        detectedFileType: row.detected_file_type,
+        userClassifiedType: row.user_classified_type,
+        finalFileType: row.final_file_type,
+        lineCount: row.line_count,
+        dataSize: row.data_size,
+        keepForReview: row.keep_for_review,
+        hasHeaders: row.has_headers,
+        fileFormat: row.file_format,
+        compressionUsed: row.compression_used,
+        encodingDetected: row.encoding_detected,
+        validationErrors: row.validation_errors,
+        processingNotes: row.processing_notes,
+        createdBy: row.created_by,
+        serverId: row.server_id,
+        sessionId: row.session_id,
+        failedAt: row.failed_at,
+        completedAt: row.completed_at,
+        startTime: row.start_time
+      })) as UploaderUpload[];
       
     } catch (error) {
       console.error('[UPLOADER] Error getting uploader uploads:', error);
@@ -13204,7 +13242,47 @@ export class DatabaseStorage implements IStorage {
         WHERE id = $1
       `, [id]);
       
-      return result.rows[0] as UploaderUpload || undefined;
+      if (!result.rows[0]) return undefined;
+      
+      const row = result.rows[0];
+      // Convert snake_case database fields to camelCase for frontend compatibility
+      return {
+        ...row,
+        currentPhase: row.current_phase,
+        lastUpdated: row.last_updated,
+        uploadStartedAt: row.upload_started_at,
+        uploadStatus: row.upload_status,
+        uploadProgress: row.upload_progress,
+        chunkedUpload: row.chunked_upload,
+        chunkCount: row.chunk_count,
+        chunksUploaded: row.chunks_uploaded,
+        uploadedAt: row.uploaded_at,
+        storagePath: row.storage_path,
+        s3Bucket: row.s3_bucket,
+        s3Key: row.s3_key,
+        s3Url: row.s3_url,
+        s3Etag: row.s3_etag,
+        fileSize: row.file_size,
+        identifiedAt: row.identified_at,
+        detectedFileType: row.detected_file_type,
+        userClassifiedType: row.user_classified_type,
+        finalFileType: row.final_file_type,
+        lineCount: row.line_count,
+        dataSize: row.data_size,
+        keepForReview: row.keep_for_review,
+        hasHeaders: row.has_headers,
+        fileFormat: row.file_format,
+        compressionUsed: row.compression_used,
+        encodingDetected: row.encoding_detected,
+        validationErrors: row.validation_errors,
+        processingNotes: row.processing_notes,
+        createdBy: row.created_by,
+        serverId: row.server_id,
+        sessionId: row.session_id,
+        failedAt: row.failed_at,
+        completedAt: row.completed_at,
+        startTime: row.start_time
+      } as UploaderUpload;
       
     } catch (error) {
       console.error('[UPLOADER] Error getting uploader upload by ID:', error);
