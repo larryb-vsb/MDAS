@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronLeft, ChevronRight, FileJson, Database, Eye } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 
 interface TddfJsonViewerProps {
   uploadId: string;
@@ -61,9 +62,7 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
         params.append('recordType', selectedRecordType);
       }
       
-      const response = await fetch(`/api/uploader/${uploadId}/jsonb-data?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch JSONB data');
-      return response.json();
+      return await apiRequest(`/api/uploader/${uploadId}/jsonb-data?${params}`);
     },
     enabled: isOpen && !!uploadId,
     refetchOnWindowFocus: false
@@ -73,20 +72,18 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
   const { data: allRecordTypes } = useQuery({
     queryKey: ['/api/uploader', uploadId, 'jsonb-data', 'types'],
     queryFn: async () => {
-      const response = await fetch(`/api/uploader/${uploadId}/jsonb-data?limit=1000`);
-      if (!response.ok) throw new Error('Failed to fetch record types');
-      const data = await response.json();
-      const types = [...new Set(data.data.map((record: JsonbRecord) => record.record_type))];
+      const data: any = await apiRequest(`/api/uploader/${uploadId}/jsonb-data?limit=1000`);
+      const types = Array.from(new Set(data.data.map((record: JsonbRecord) => record.record_type)));
       return types.sort();
     },
     enabled: isOpen && !!uploadId,
     refetchOnWindowFocus: false
   });
 
-  const records: JsonbRecord[] = jsonbData?.data || [];
-  const totalRecords = jsonbData?.pagination?.total || 0;
+  const records: JsonbRecord[] = (jsonbData as any)?.data || [];
+  const totalRecords = (jsonbData as any)?.pagination?.total || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
-  const timingMetadata = jsonbData?.timingMetadata;
+  const timingMetadata = (jsonbData as any)?.timingMetadata;
 
   const handlePreviousPage = () => {
     if (currentPage > 0) {
@@ -146,10 +143,10 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
           <div className="flex items-center gap-4 text-sm text-gray-600">
             <span className="font-medium">{filename}</span>
             <Badge variant="outline">Upload ID: {uploadId}</Badge>
-            {jsonbData?.tableName && (
+            {(jsonbData as any)?.tableName && (
               <Badge variant="outline" className="flex items-center gap-1">
                 <Database className="w-3 h-3" />
-                {jsonbData.tableName}
+                {(jsonbData as any).tableName}
               </Badge>
             )}
           </div>

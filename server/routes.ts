@@ -7981,10 +7981,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { limit = '50', offset = '0', recordType } = req.query;
       
+      console.log(`[JSONB-API] Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
+      
       const environment = getEnvironment();
       const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
-      console.log(`[JSONB-API] Fetching data from ${tableName} for upload ${id}`);
+      console.log(`[JSONB-API] Using environment: ${environment}, table: ${tableName}`);
       
       let query = `
         SELECT 
@@ -8006,7 +8008,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit as string, offset as string);
       
+      console.log(`[JSONB-API] Executing query with ${params.length} parameters`);
       const result = await pool.query(query, params);
+      console.log(`[JSONB-API] Query returned ${result.rows.length} rows`);
       
       // Transform data to match expected JSON viewer format
       const transformedData = result.rows.map(row => {
