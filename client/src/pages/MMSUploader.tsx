@@ -1054,8 +1054,8 @@ export default function MMSUploader() {
                             <div className="font-medium">{upload.filename}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-4">
                               <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.detectedFileType || upload.userClassifiedType || 'TDDF'}</span>
-                              <span>Started {upload.startTime ? new Date(upload.startTime).toLocaleDateString() + ' ' + new Date(upload.startTime).toLocaleTimeString() : 'recently'}</span>
-                              <span>Duration: {upload.startTime ? formatDuration(upload.startTime, upload.uploadedAt || new Date()) : '0s'}</span>
+                              <span>Started {upload.uploadStartedAt ? new Date(upload.uploadStartedAt).toLocaleDateString() + ' ' + new Date(upload.uploadStartedAt).toLocaleTimeString() : 'recently'}</span>
+                              <span>Duration: {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || new Date()) : '0s'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
                             </div>
                           </div>
@@ -1216,7 +1216,7 @@ export default function MMSUploader() {
                           <div>
                             <div className="font-medium">{upload.filename}</div>
                             <div className="text-sm text-muted-foreground">
-                              {formatFileSize(upload.fileSize)} • Started {formatDuration(upload.startTime)}
+                              {formatFileSize(upload.fileSize)} • Started {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt) : 'recently'}
                             </div>
                           </div>
                         </div>

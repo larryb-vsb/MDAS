@@ -164,10 +164,11 @@ export class ReplitStorageService {
       const client = this.getClient();
       console.log(`[REPLIT-STORAGE] Reading file content: ${key}`);
       
-      const result = await client.downloadAsText(key);
+      // Try downloadAsBytes first then convert to string
+      const result = await client.downloadAsBytes(key);
       
       if (result.ok) {
-        const content = result.value;
+        const content = result.value.toString('utf8');
         console.log(`[REPLIT-STORAGE] File content read successfully: ${key} (${content.length} chars)`);
         return content;
       } else {
