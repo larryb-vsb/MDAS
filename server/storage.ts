@@ -7617,26 +7617,26 @@ export class DatabaseStorage implements IStorage {
       const sortBy = options.sortBy || 'transaction_date';
       const sortOrder = options.sortOrder || 'desc';
       const dateFilter = options.dateFilter;
-      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log(`[TDDF MERCHANT TRANSACTIONS] Fetching paginated transactions for merchant: ${merchantAccountNumber}`);
-      console.log(`[TDDF MERCHANT TRANSACTIONS] Page: ${page}, Limit: ${limit}, Offset: ${offset}, Sort: ${sortBy} ${sortOrder}, Date Filter: ${dateFilter}`);
+      console.log(`[TDDF MERCHANT TRANSACTIONS JSONB] Fetching paginated transactions for merchant: ${merchantAccountNumber}`);
+      console.log(`[TDDF MERCHANT TRANSACTIONS JSONB] Page: ${page}, Limit: ${limit}, Offset: ${offset}, Sort: ${sortBy} ${sortOrder}, Date Filter: ${dateFilter}`);
       
-      // Build WHERE clause
-      let whereClause = 'WHERE merchant_account_number = $1';
+      // Build WHERE clause - filter for DT records only and merchant account number
+      let whereClause = `WHERE record_type = 'DT' AND extracted_fields->>'merchantAccountNumber' = $1`;
       const queryParams = [merchantAccountNumber];
       let paramCount = 1;
       
       if (dateFilter) {
         paramCount++;
-        whereClause += ` AND DATE(transaction_date) = $${paramCount}`;
+        whereClause += ` AND DATE(extracted_fields->>'transactionDate') = $${paramCount}`;
         queryParams.push(dateFilter);
       }
       
       // Get total count for pagination
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM "${tddfRecordsTableName}"
+        FROM "${tddfJsonbTableName}"
         ${whereClause}
       `;
       
@@ -7644,17 +7644,17 @@ export class DatabaseStorage implements IStorage {
       const totalItems = parseInt(countResult.rows[0].total) || 0;
       const totalPages = Math.ceil(totalItems / limit);
       
-      // Build ORDER BY clause
+      // Build ORDER BY clause - map sort fields to JSONB extracted fields
       const validSortFields = {
-        'transaction_date': 'transaction_date',
-        'reference_number': 'reference_number',
-        'terminal_identification': 'terminal_id',
-        'transaction_amount': 'transaction_amount',
-        'card_type': 'card_type',
-        'authorization_number': 'authorization_number'
+        'transaction_date': `(extracted_fields->>'transactionDate')::date`,
+        'reference_number': `extracted_fields->>'referenceNumber'`,
+        'terminal_identification': `extracted_fields->>'terminalId'`,
+        'transaction_amount': `(extracted_fields->>'transactionAmount')::numeric`,
+        'card_type': `extracted_fields->>'cardType'`,
+        'authorization_number': `extracted_fields->>'authorizationNumber'`
       };
       
-      const sortField = validSortFields[sortBy] || 'transaction_date';
+      const sortField = validSortFields[sortBy] || `(extracted_fields->>'transactionDate')::date`;
       const sortDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
       const orderClause = `ORDER BY ${sortField} ${sortDirection}, id DESC`;
       
@@ -7667,19 +7667,26 @@ export class DatabaseStorage implements IStorage {
       const dataQuery = `
         SELECT 
           id,
-          reference_number,
-          merchant_name,
-          transaction_amount,
-          transaction_date,
-          terminal_id,
-          card_type,
-          authorization_number,
-          merchant_account_number,
-          mcc_code,
-          transaction_type_identifier,
-          recorded_at,
-          mms_raw_line
-        FROM "${tddfRecordsTableName}"
+          upload_id,
+          filename,
+          record_type,
+          line_number,
+          raw_line,
+          extracted_fields,
+          -- Extract commonly used fields for compatibility
+          extracted_fields->>'referenceNumber' as reference_number,
+          extracted_fields->>'merchantName' as merchant_name,
+          (extracted_fields->>'transactionAmount')::numeric as transaction_amount,
+          (extracted_fields->>'transactionDate')::date as transaction_date,
+          extracted_fields->>'terminalId' as terminal_id,
+          extracted_fields->>'cardType' as card_type,
+          extracted_fields->>'authorizationNumber' as authorization_number,
+          extracted_fields->>'merchantAccountNumber' as merchant_account_number,
+          extracted_fields->>'mccCode' as mcc_code,
+          extracted_fields->>'transactionTypeIdentifier' as transaction_type_identifier,
+          created_at as recorded_at,
+          raw_line as mms_raw_line
+        FROM "${tddfJsonbTableName}"
         ${whereClause}
         ${orderClause}
         LIMIT $${limitParam} OFFSET $${offsetParam}
@@ -7688,7 +7695,7 @@ export class DatabaseStorage implements IStorage {
       queryParams.push(limit, offset);
       const dataResult = await pool.query(dataQuery, queryParams);
       
-      console.log(`[TDDF MERCHANT TRANSACTIONS] Retrieved ${dataResult.rows.length} transactions (page ${page}/${totalPages}, total: ${totalItems})`);
+      console.log(`[TDDF MERCHANT TRANSACTIONS JSONB] Retrieved ${dataResult.rows.length} transactions (page ${page}/${totalPages}, total: ${totalItems})`);
       
       return {
         data: dataResult.rows,
@@ -7700,7 +7707,7 @@ export class DatabaseStorage implements IStorage {
         }
       };
     } catch (error) {
-      console.error('Error getting TDDF transactions by merchant:', error);
+      console.error('[TDDF MERCHANT TRANSACTIONS JSONB] Error fetching transactions:', error);
       throw error;
     }
   }
