@@ -13164,15 +13164,25 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getUploaderUploads(options?: { phase?: string; limit?: number; offset?: number }): Promise<UploaderUpload[]> {
+  async getUploaderUploads(options?: { phase?: string; sessionId?: string; limit?: number; offset?: number }): Promise<UploaderUpload[]> {
     try {
       const uploaderTableName = getTableName('uploader_uploads');
       let query = `SELECT * FROM ${uploaderTableName}`;
       const params: any[] = [];
+      const conditions: string[] = [];
       
       if (options?.phase) {
-        query += ` WHERE current_phase = $1`;
+        conditions.push(`current_phase = $${params.length + 1}`);
         params.push(options.phase);
+      }
+      
+      if (options?.sessionId) {
+        conditions.push(`session_id = $${params.length + 1}`);
+        params.push(options.sessionId);
+      }
+      
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
       }
       
       query += ` ORDER BY start_time DESC`;

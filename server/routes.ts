@@ -7425,12 +7425,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
     console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
     try {
-      const { phase, limit, offset } = req.query;
+      const { phase, sessionId, limit, offset } = req.query;
       const uploads = await storage.getUploaderUploads({
         phase: phase as string,
+        sessionId: sessionId as string,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined
       });
+      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'}`);
       res.json(uploads);
     } catch (error: any) {
       console.error('Get uploader uploads error:', error);
