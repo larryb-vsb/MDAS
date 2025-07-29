@@ -86,10 +86,10 @@ class MMSWatcher {
       const allUploads = await this.storage.getUploaderUploads({});
       
       const brokenSessions = allUploads.filter(upload => 
-        // Missing required session data
-        !upload.s3Key || 
+        // Only check for truly broken session data - don't touch successfully uploaded files
         !upload.filename ||
-        (upload.currentPhase === 'uploading' && !upload.uploadStartedAt)
+        (upload.currentPhase === 'uploading' && !upload.uploadStartedAt) ||
+        (upload.currentPhase === 'started' && !upload.sessionId)
       );
 
       if (brokenSessions.length > 0) {
