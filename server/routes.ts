@@ -7982,11 +7982,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { limit = '50', offset = '0', recordType } = req.query;
       
       console.log(`[JSONB-API] Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
+      console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
       
       const environment = process.env.NODE_ENV || 'development';
       const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
-      console.log(`[JSONB-API] Using environment: ${environment}, table: ${tableName}`);
+      console.log(`[JSONB-API] Detected environment: "${environment}", selected table: "${tableName}"`);
       
       let query = `
         SELECT 
