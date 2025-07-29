@@ -7600,7 +7600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only allow content viewing for uploaded files and beyond
-      if (!['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+      if (!['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '')) {
         return res.status(400).json({ error: "File content not available at this stage" });
       }
 
