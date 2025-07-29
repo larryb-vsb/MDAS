@@ -79,10 +79,10 @@ export const P1_RECORD_FIELDS: TddfFieldDefinition[] = [
 // BH Record Field Definitions (based on shared/schema.ts tddfBatchHeaders)
 export const BH_RECORD_FIELDS: TddfFieldDefinition[] = [
   // Core TDDF header fields (positions 1-19)
-  { name: 'sequenceNumber', positions: [1, 7], type: 'text', description: 'File position identifier' },
-  { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Entry run number' },
-  { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Sequence within entry run' },
-  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'Always "BH"' },
+  { name: 'sequenceNumberArea', positions: [1, 7], type: 'text', description: 'File-level sequence ID (7 chars)' },
+  { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Batch ID (6 chars)' },
+  { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Unique within the batch (4 chars)' },
+  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: '"BH" for Batch Header (2 chars)' },
   
   // Bank and account fields (positions 20-55)
   { name: 'bankNumber', positions: [20, 23], type: 'text', description: 'Global Payments bank number' },

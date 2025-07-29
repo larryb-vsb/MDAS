@@ -707,14 +707,14 @@ export default function TddfJsonPage() {
                   <div className="space-y-4">
                     {/* Records Table */}
                     <div className="border rounded-lg overflow-hidden">
-                      {/* BH Records - Show only 4 required fields */}
+                      {/* BH Records - Show authentic TDDF header fields */}
                       {selectedTab === 'BH' ? (
                         <div className="bg-muted/50 px-4 py-2 grid grid-cols-5 gap-4 text-sm font-medium">
                           {[
-                            { key: 'batch_id', label: 'Batch ID' },
-                            { key: 'net_deposit', label: 'Net Deposit' },
-                            { key: 'batch_date', label: 'Batch Date' },
-                            { key: 'merchant_account_number', label: 'Merchant Account Number' }
+                            { key: 'sequence_number_area', label: 'Sequence Number Area (1-7)' },
+                            { key: 'entry_run_number', label: 'Entry Run Number (8-13)' },
+                            { key: 'sequence_within_run', label: 'Sequence within Run (14-17)' },
+                            { key: 'record_identifier', label: 'Record Identifier (18-19)' }
                           ].map(({ key, label }) => (
                             <button 
                               key={key}
@@ -773,20 +773,21 @@ export default function TddfJsonPage() {
                       )}
                       {recordsData?.records?.map((record: TddfJsonRecord) => (
                         selectedTab === 'BH' ? (
-                          /* BH Records - Show only 4 required fields */
+                          /* BH Records - Show authentic TDDF header fields */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-5 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.batchId || 'N/A'}
+                              {record.extracted_fields?.sequenceNumberArea || 'N/A'}
                             </div>
-                            <div className="font-medium text-green-600">
-                              {record.extracted_fields?.netDeposit ? 
-                                formatAmount(record.extracted_fields.netDeposit) : 'N/A'}
-                            </div>
-                            <div className="text-xs">
-                              {record.extracted_fields?.batchDate || 'N/A'}
+                            <div className="font-mono text-xs font-medium text-blue-600">
+                              {record.extracted_fields?.entryRunNumber || 'N/A'}
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              <Badge className="bg-green-100 text-green-800 border-green-300">
+                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                              </Badge>
                             </div>
                             <div>
                               <Button
