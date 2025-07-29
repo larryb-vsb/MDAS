@@ -7681,27 +7681,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           let newPhase: string;
           let updateData: any = {
-            processingNotes: `Moved from ${upload.currentPhase} to previous level at ${new Date().toISOString()}`
+            processing_notes: `Moved from ${upload.currentPhase} to previous level at ${new Date().toISOString()}`
           };
           
           // Determine previous level based on current phase
           switch (upload.currentPhase) {
             case 'encoded':
               newPhase = 'identified';
-              // Clear encoding data
-              updateData.encodingStatus = null;
-              updateData.encodingTimeMs = null;
-              updateData.jsonRecordsCreated = null;
-              updateData.tddfRecordsCreated = null;
-              updateData.encodingCompleted = null;
+              // Clear encoding data (using snake_case field names for database)
+              updateData.encoding_status = null;
+              updateData.encoding_time_ms = null;
+              updateData.json_records_created = null;
+              updateData.tddf_records_created = null;
+              updateData.encoding_complete = null;
               break;
               
             case 'identified':
               newPhase = 'uploaded';
-              // Clear identification data
-              updateData.finalFileType = null;
-              updateData.identificationResults = null;
-              updateData.identificationCompleted = null;
+              // Clear identification data (using snake_case field names for database)
+              updateData.final_file_type = null;
+              updateData.identification_results = null;
+              updateData.identify_complete = null;
               break;
               
             case 'uploaded':
