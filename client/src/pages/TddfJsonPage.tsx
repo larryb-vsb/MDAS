@@ -50,6 +50,26 @@ interface TddfJsonRecord {
   created_at: string;
 }
 
+interface TddfJsonResponse {
+  records: TddfJsonRecord[];
+  total: number;
+  totalPages: number;
+}
+
+interface TddfStatsResponse {
+  totalRecords: number;
+  recordTypeBreakdown: { [key: string]: number };
+  uniqueFiles: number;
+  totalAmount: number;
+}
+
+interface ActivityResponse {
+  records: Array<{
+    transaction_date: string;
+    transaction_count: number;
+  }>;
+}
+
 interface TddfJsonStats {
   totalRecords: number;
   recordTypeBreakdown: {
@@ -101,13 +121,13 @@ export default function TddfJsonPage() {
   const { toast } = useToast();
 
   // Fetch TDDF JSON statistics
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<TddfStatsResponse>({
     queryKey: ['/api/tddf-json/stats'],
     queryFn: () => apiRequest('/api/tddf-json/stats'),
   });
 
   // Fetch TDDF JSON records with filtering and pagination
-  const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery({
+  const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
     queryKey: ['/api/tddf-json/records', {
       page: currentPage,
       limit: pageSize,
@@ -134,7 +154,7 @@ export default function TddfJsonPage() {
   });
 
   // Fetch activity data for heat map (DT records only)
-  const { data: activityData } = useQuery({
+  const { data: activityData } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/activity'],
     queryFn: () => apiRequest('/api/tddf-json/activity'),
   });
@@ -260,7 +280,8 @@ export default function TddfJsonPage() {
             <CardContent>
               <SimpleActivityHeatMap 
                 data={heatMapData}
-                onDateClick={handleDateClick}
+                title="DT Transaction Activity" 
+                description="Daily transaction activity from TDDF JSON records (DT records only)"
                 selectedDate={dateFilter}
               />
               {dateFilter && (
