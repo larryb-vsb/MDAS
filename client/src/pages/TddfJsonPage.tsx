@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -203,6 +203,18 @@ export default function TddfJsonPage() {
     setCurrentPage(1);
   };
 
+  const handleHeaderSort = (field: string) => {
+    if (sortBy === field) {
+      // If clicking the same field, toggle sort order
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // If clicking a different field, set it as sort field with ascending order
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting changes
+  };
+
 
 
   const formatAmount = (amount: string | number | undefined): string => {
@@ -345,14 +357,20 @@ export default function TddfJsonPage() {
                   />
                 </div>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-52">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at">Creation Date</SelectItem>
                     <SelectItem value="record_type">Record Type</SelectItem>
+                    <SelectItem value="upload_id">File ID</SelectItem>
                     <SelectItem value="transaction_date">Transaction Date</SelectItem>
                     <SelectItem value="transaction_amount">Amount</SelectItem>
+                    <SelectItem value="merchant_name">Merchant Name</SelectItem>
+                    <SelectItem value="terminal_id">Terminal ID</SelectItem>
+                    <SelectItem value="card_type">Card Type</SelectItem>
+                    <SelectItem value="line_number">Line Number</SelectItem>
+                    <SelectItem value="reference_number">Reference Number</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button
@@ -406,13 +424,34 @@ export default function TddfJsonPage() {
                     {/* Records Table */}
                     <div className="border rounded-lg overflow-hidden">
                       <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
-                        <div>Record Type</div>
-                        <div>File</div>
-                        <div>Transaction Date</div>
-                        <div>Amount</div>
-                        <div>Merchant</div>
-                        <div>Terminal</div>
-                        <div>Card Type</div>
+                        {[
+                          { key: 'record_type', label: 'Record Type' },
+                          { key: 'upload_id', label: 'File' },
+                          { key: 'transaction_date', label: 'Transaction Date' },
+                          { key: 'transaction_amount', label: 'Amount' },
+                          { key: 'merchant_name', label: 'Merchant' },
+                          { key: 'terminal_id', label: 'Terminal' },
+                          { key: 'card_type', label: 'Card Type' }
+                        ].map(({ key, label }) => (
+                          <button 
+                            key={key}
+                            className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                              sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                            }`}
+                            onClick={() => handleHeaderSort(key)}
+                          >
+                            {label}
+                            {sortBy === key ? (
+                              sortOrder === 'asc' ? (
+                                <ChevronUp className="w-3 h-3 text-blue-600" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3 text-blue-600" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 opacity-50" />
+                            )}
+                          </button>
+                        ))}
                         <div>Actions</div>
                       </div>
                       {recordsData?.records?.map((record: TddfJsonRecord) => (

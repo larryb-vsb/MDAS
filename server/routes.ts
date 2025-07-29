@@ -8360,16 +8360,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const whereClause = whereConditions.length > 0 ? 
         `WHERE ${whereConditions.join(' AND ')}` : '';
       
-      // Build ORDER BY clause (using dev_tddf_jsonb field structure)
+      // Build ORDER BY clause with comprehensive field sorting
       let orderClause = 'ORDER BY created_at DESC';
-      if (sortBy === 'record_type') {
-        orderClause = `ORDER BY record_type ${sortOrder.toUpperCase()}`;
-      } else if (sortBy === 'transaction_date') {
-        orderClause = `ORDER BY (extracted_fields->>'transactionDate') ${sortOrder.toUpperCase()}`;
-      } else if (sortBy === 'transaction_amount') {
-        orderClause = `ORDER BY CAST(extracted_fields->>'transactionAmount' AS NUMERIC) ${sortOrder.toUpperCase()}`;
-      } else if (sortBy === 'created_at') {
-        orderClause = `ORDER BY created_at ${sortOrder.toUpperCase()}`;
+      const sortDirection = sortOrder.toUpperCase();
+      
+      switch (sortBy) {
+        case 'record_type':
+          orderClause = `ORDER BY record_type ${sortDirection}`;
+          break;
+        case 'upload_id':
+        case 'file':
+          orderClause = `ORDER BY upload_id ${sortDirection}`;
+          break;
+        case 'transaction_date':
+        case 'date':
+          orderClause = `ORDER BY (extracted_fields->>'transactionDate') ${sortDirection}`;
+          break;
+        case 'transaction_amount':
+        case 'amount':
+          orderClause = `ORDER BY CAST(extracted_fields->>'transactionAmount' AS NUMERIC) ${sortDirection}`;
+          break;
+        case 'merchant_name':
+        case 'merchant':
+          orderClause = `ORDER BY (extracted_fields->>'merchantName') ${sortDirection}`;
+          break;
+        case 'terminal_id':
+        case 'terminal':
+          orderClause = `ORDER BY (extracted_fields->>'terminalId') ${sortDirection}`;
+          break;
+        case 'card_type':
+          orderClause = `ORDER BY (extracted_fields->>'cardType') ${sortDirection}`;
+          break;
+        case 'line_number':
+          orderClause = `ORDER BY line_number ${sortDirection}`;
+          break;
+        case 'reference_number':
+          orderClause = `ORDER BY (extracted_fields->>'referenceNumber') ${sortDirection}`;
+          break;
+        case 'created_at':
+        default:
+          orderClause = `ORDER BY created_at ${sortDirection}`;
+          break;
       }
       
       // Get records
