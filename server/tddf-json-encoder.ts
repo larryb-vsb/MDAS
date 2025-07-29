@@ -104,6 +104,14 @@ function extractFieldValue(line: string, field: TddfFieldDefinition): any {
   const [start, end] = field.positions;
   const rawValue = line.substring(start - 1, end).trim(); // Convert to 0-based indexing
   
+  // Special handling for cardType field - allow "00" and other values
+  if (field.name === 'cardType') {
+    if (rawValue.length > 0) {
+      return rawValue; // Return any non-empty value for card type
+    }
+    return null;
+  }
+  
   if (!rawValue) return null;
   
   switch (field.type) {

@@ -222,7 +222,11 @@ export default function TddfJsonPage() {
   const getCardTypeBadge = (cardType: string) => {
     if (!cardType || cardType === 'null' || cardType === 'undefined') return null;
     
-    const cleanCardType = cardType.replace(/"/g, '').trim().toUpperCase();
+    // Clean up double-quoted JSON strings and normalize
+    let cleanCardType = cardType;
+    if (typeof cardType === 'string') {
+      cleanCardType = cardType.replace(/^"+|"+$/g, '').trim().toUpperCase();
+    }
     
     const badges: Record<string, { label: string; className: string }> = {
       'AM': { label: 'AMEX', className: 'bg-green-50 text-green-700 border-green-200' },
