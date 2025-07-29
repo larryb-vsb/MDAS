@@ -30,8 +30,14 @@ class MMSWatcher {
       this.processUploadedFiles();
     }, 10000); // Check every 10 seconds for uploaded files ready for identification
     
+    // Start Stage 5 encoding service
+    this.encodingIntervalId = setInterval(() => {
+      this.processIdentifiedFiles();
+    }, 5000); // Check every 5 seconds for identified files ready for encoding
+    
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 10 seconds');
+    console.log('[MMS-WATCHER] File encoding service started - processes identified files every 5 seconds');
   }
 
   stop() {
@@ -45,6 +51,10 @@ class MMSWatcher {
     if (this.identificationIntervalId) {
       clearInterval(this.identificationIntervalId);
       this.identificationIntervalId = null;
+    }
+    if (this.encodingIntervalId) {
+      clearInterval(this.encodingIntervalId);
+      this.encodingIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -355,6 +365,97 @@ class MMSWatcher {
     });
     
     console.log(`[MMS-WATCHER] ❌ Failed to identify: ${upload.filename} - ${errorMessage}`);
+  }
+
+  // Stage 5: File Encoding Service - Autoprocess identified files to encoded state
+  async processIdentifiedFiles() {
+    try {
+      // Find files in "identified" phase that need encoding
+      const identifiedFiles = await this.storage.getUploaderUploads({
+        phase: 'identified'
+      });
+
+      if (identifiedFiles.length === 0) {
+        return; // No files to process
+      }
+
+      // Filter for TDDF files only (other file types need different processing)
+      const tddfFiles = identifiedFiles.filter(upload => 
+        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf'
+      );
+
+      if (tddfFiles.length === 0) {
+        return; // No TDDF files to encode
+      }
+
+      console.log(`[MMS-WATCHER] Stage 5: Processing ${tddfFiles.length} identified TDDF files for encoding...`);
+
+      for (const upload of tddfFiles) {
+        // Skip files in review mode unless specifically marked for processing
+        if (upload.keepForReview && !upload.processingNotes?.includes('FORCE_ENCODING')) {
+          console.log(`[MMS-WATCHER] Skipping file in review mode: ${upload.filename}`);
+          continue;
+        }
+
+        try {
+          await this.encodeFile(upload);
+        } catch (error) {
+          console.error(`[MMS-WATCHER] Error encoding file ${upload.filename}:`, error);
+          await this.markEncodingFailed(upload, error.message);
+        }
+      }
+    } catch (error) {
+      console.error('[MMS-WATCHER] Error processing identified files:', error);
+    }
+  }
+
+  async encodeFile(upload) {
+    console.log(`[MMS-WATCHER] Encoding file: ${upload.filename} (${upload.id})`);
+    
+    try {
+      // Update to encoding phase first
+      await this.storage.updateUploaderPhase(upload.id, 'encoding', {
+        encodingStartedAt: new Date(),
+        processingNotes: `Auto-encoding started by MMS Watcher at ${new Date().toISOString()}`
+      });
+
+      // Get file content from Replit Object Storage
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+      
+      // Import and use the TDDF JSON encoder
+      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.ts');
+      
+      // Perform encoding
+      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
+      
+      // Update to encoded phase with results
+      await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+        encodingCompletedAt: new Date(),
+        encodingStatus: 'completed',
+        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+        jsonRecordsCreated: encodingResults.totalRecords,
+        recordTypeBreakdown: encodingResults.recordCounts.byType,
+        processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
+      });
+
+      console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
+      
+    } catch (error) {
+      console.error(`[MMS-WATCHER] Encoding failed for ${upload.filename}:`, error);
+      throw error;
+    }
+  }
+
+  async markEncodingFailed(upload, errorMessage) {
+    await this.storage.updateUploaderUpload(upload.id, {
+      currentPhase: 'failed',
+      processingNotes: `Encoding failed: ${errorMessage}`,
+      encodingStatus: 'failed',
+      encodingNotes: `Auto-encoding failed: ${errorMessage}`
+    });
+    
+    console.log(`[MMS-WATCHER] ❌ Failed to encode: ${upload.filename} - ${errorMessage}`);
   }
 }
 
