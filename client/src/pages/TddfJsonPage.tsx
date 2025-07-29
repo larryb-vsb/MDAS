@@ -893,35 +893,64 @@ export default function TddfJsonPage() {
                           <div>Actions</div>
                         </div>
                       ) : (
-                        /* All other record types - Show full table */
+                        /* All other record types - Show normalized common headers */
                         <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
                           {[
-                            { key: 'record_type', label: 'Record Type' },
-                            { key: 'upload_id', label: 'File' },
-                            { key: 'transaction_date', label: 'Transaction Date' },
-                            { key: 'transaction_amount', label: 'Amount' },
-                            { key: 'merchant_name', label: 'Merchant' },
-                            { key: 'terminal_id', label: 'Terminal' },
-                            { key: 'card_type', label: 'Card Type' }
-                          ].map(({ key, label }) => (
-                            <button 
-                              key={key}
-                              className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
-                                sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
-                              }`}
-                              onClick={() => handleHeaderSort(key)}
-                            >
-                              {label}
-                              {sortBy === key ? (
-                                sortOrder === 'asc' ? (
-                                  <ChevronUp className="w-3 h-3 text-blue-600" />
+                            { key: 'record_type', label: 'Type', tooltip: 'TDDF Record Type (18-19)' },
+                            { key: 'merchant_account_number', label: 'Merchant Account', tooltip: 'Merchant Account Number (24-39)' },
+                            { key: 'transaction_date', label: 'Date', tooltip: 'Transaction Date' },
+                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction Amount' },
+                            { key: 'merchant_name', label: 'Merchant Name', tooltip: 'Merchant Business Name' },
+                            { key: 'terminal_id', label: 'Terminal', tooltip: 'Terminal ID' },
+                            { key: 'card_type', label: 'Card Type', tooltip: 'Card Brand Type' }
+                          ].map(({ key, label, tooltip }) => (
+                            tooltip ? (
+                              <TooltipProvider key={key}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button 
+                                      className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                        sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                      }`}
+                                      onClick={() => handleHeaderSort(key)}
+                                    >
+                                      {label}
+                                      {sortBy === key ? (
+                                        sortOrder === 'asc' ? (
+                                          <ChevronUp className="w-3 h-3 text-blue-600" />
+                                        ) : (
+                                          <ChevronDown className="w-3 h-3 text-blue-600" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                      )}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{tooltip}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <button 
+                                key={key}
+                                className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                  sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                }`}
+                                onClick={() => handleHeaderSort(key)}
+                              >
+                                {label}
+                                {sortBy === key ? (
+                                  sortOrder === 'asc' ? (
+                                    <ChevronUp className="w-3 h-3 text-blue-600" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3 text-blue-600" />
+                                  )
                                 ) : (
-                                  <ChevronDown className="w-3 h-3 text-blue-600" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="w-3 h-3 opacity-50" />
-                              )}
-                            </button>
+                                  <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                )}
+                              </button>
+                            )
                           ))}
                           <div>Actions</div>
                         </div>
@@ -1018,15 +1047,15 @@ export default function TddfJsonPage() {
                             </div>
                           </div>
                         ) : (
-                          /* All other record types - Show full table */
+                          /* All other record types - Show normalized common data */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm">
                             <div>
                               <Badge className={getRecordTypeBadgeClass(record.record_type)}>
                                 {record.record_type}
                               </Badge>
                             </div>
-                            <div className="truncate text-xs font-mono">
-                              {record.upload_id}
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
                             </div>
                             <div>
                               {formatDate(record.extracted_fields?.transactionDate)}
