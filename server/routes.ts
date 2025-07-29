@@ -7983,7 +7983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[JSONB-API] Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
       
-      const environment = getEnvironment();
+      const environment = process.env.NODE_ENV || 'development';
       const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
       console.log(`[JSONB-API] Using environment: ${environment}, table: ${tableName}`);
@@ -8042,6 +8042,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const total = parseInt(countResult.rows[0].total);
       
       console.log(`[JSONB-API] Found ${result.rows.length} records, total: ${total}`);
+      console.log(`[JSONB-API] Sample record data structure:`, result.rows[0] ? Object.keys(result.rows[0]) : 'No records');
+      console.log(`[JSONB-API] Sample transformed data:`, transformedData[0] ? Object.keys(transformedData[0]) : 'No data');
       
       // Get timing metadata from uploader uploads table
       let timingMetadata = null;
