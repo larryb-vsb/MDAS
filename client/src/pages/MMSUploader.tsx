@@ -703,7 +703,7 @@ export default function MMSUploader() {
       });
       return response;
     },
-    enabled: !!selectedFileForView && ['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(selectedFileForView.currentPhase || ''),
+    enabled: !!selectedFileForView && ['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(selectedFileForView.currentPhase || ''),
     refetchOnWindowFocus: false
   });
 
@@ -1532,7 +1532,7 @@ export default function MMSUploader() {
                   paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    const canViewContent = ['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '');
+                    const canViewContent = ['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '');
                     
                     return (
                       <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">
