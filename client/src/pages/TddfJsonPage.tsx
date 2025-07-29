@@ -748,41 +748,66 @@ export default function TddfJsonPage() {
                           <div>Actions</div>
                         </div>
                       ) : selectedTab === 'DT' ? (
-                        /* DT Records - Show same header fields as BH */
-                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-6 gap-4 text-sm font-medium">
+                        /* DT Records - Show TDDF header fields plus original DT fields */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-10 gap-4 text-sm font-medium">
                           {[
                             { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
                             { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
                             { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
                             { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): DT for Detail Transaction' },
-                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction Amount: Individual transaction value' }
+                            { key: 'transaction_date', label: 'Transaction Date' },
+                            { key: 'transaction_amount', label: 'Amount' },
+                            { key: 'merchant_name', label: 'Merchant' },
+                            { key: 'terminal_id', label: 'Terminal' },
+                            { key: 'card_type', label: 'Card Type' }
                           ].map(({ key, label, tooltip }) => (
-                            <TooltipProvider key={key}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button 
-                                    className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
-                                      sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
-                                    }`}
-                                    onClick={() => handleHeaderSort(key)}
-                                  >
-                                    {label}
-                                    {sortBy === key ? (
-                                      sortOrder === 'asc' ? (
-                                        <ChevronUp className="w-3 h-3 text-blue-600" />
+                            tooltip ? (
+                              <TooltipProvider key={key}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button 
+                                      className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                        sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                      }`}
+                                      onClick={() => handleHeaderSort(key)}
+                                    >
+                                      {label}
+                                      {sortBy === key ? (
+                                        sortOrder === 'asc' ? (
+                                          <ChevronUp className="w-3 h-3 text-blue-600" />
+                                        ) : (
+                                          <ChevronDown className="w-3 h-3 text-blue-600" />
+                                        )
                                       ) : (
-                                        <ChevronDown className="w-3 h-3 text-blue-600" />
-                                      )
-                                    ) : (
-                                      <ArrowUpDown className="w-3 h-3 opacity-50" />
-                                    )}
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{tooltip}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                                        <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                      )}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{tooltip}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <button 
+                                key={key}
+                                className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                  sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                }`}
+                                onClick={() => handleHeaderSort(key)}
+                              >
+                                {label}
+                                {sortBy === key ? (
+                                  sortOrder === 'asc' ? (
+                                    <ChevronUp className="w-3 h-3 text-blue-600" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3 text-blue-600" />
+                                  )
+                                ) : (
+                                  <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                )}
+                              </button>
+                            )
                           ))}
                           <div>Actions</div>
                         </div>
@@ -855,8 +880,8 @@ export default function TddfJsonPage() {
                             </div>
                           </div>
                         ) : selectedTab === 'DT' ? (
-                          /* DT Records - Show same header fields as BH */
-                          <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
+                          /* DT Records - Show TDDF header fields plus original DT fields */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
                               {record.extracted_fields?.sequenceNumberArea || 'N/A'}
                             </div>
@@ -871,9 +896,33 @@ export default function TddfJsonPage() {
                                 {record.extracted_fields?.recordIdentifier || 'N/A'}
                               </Badge>
                             </div>
-                            <div className="font-medium text-green-600">
-                              {record.extracted_fields?.transactionAmount ? 
-                                formatAmount(record.extracted_fields.transactionAmount) : 'N/A'}
+                            <div>
+                              {formatDate(record.extracted_fields?.transactionDate)}
+                            </div>
+                            <div className="font-mono text-green-600">
+                              {formatAmount(record.extracted_fields?.transactionAmount)}
+                            </div>
+                            <div className="truncate">
+                              {record.extracted_fields?.merchantName || 'N/A'}
+                            </div>
+                            <div>
+                              <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
+                            </div>
+                            <div>
+                              {record.extracted_fields?.cardType ? (
+                                (() => {
+                                  const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                  return cardBadge ? (
+                                    <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                      {cardBadge.label}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">
+                                      {record.extracted_fields.cardType}
+                                    </Badge>
+                                  );
+                                })()
+                              ) : 'N/A'}
                             </div>
                             <div>
                               <Button
