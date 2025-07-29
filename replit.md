@@ -30,6 +30,14 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Special Handling Logic Updated**: Enhanced terminalId field extraction with proper null filtering prevention ensuring consistent data extraction
   - **Database Validation Confirmed**: New encodings correctly show Terminal ID values from positions 277-284 with proper JSONB storage format
   - **Production Ready**: TDDF JSON encoding system now extracts Terminal ID field from authentic TDDF specification positions ensuring data integrity
+- **✅ TDDF JSON PAGE TERMINAL ID LINKING COMPLETED (July 29, 2025)**: Successfully implemented comprehensive terminal ID linking functionality matching TDDF Records page behavior
+  - **TerminalIdDisplay Component Integration**: Added complete terminal linking component to TDDF JSON page with V Number conversion logic
+  - **Blue Terminal Links**: Real terminals show blue buttons linking to terminal details page (Terminal ID "76044904" → V Number "V6044904" → Terminal ID 1995)
+  - **Orange Orphan Terminal Links**: Non-matching terminals show orange buttons linking to orphan terminals page with converted V Number display
+  - **Modal Enhancement**: Record detail modal now displays terminal IDs as clickable links instead of plain text in extracted fields section
+  - **Conversion Logic**: Terminal IDs starting with "7" convert to V Numbers by removing first "7" and adding "V" prefix (76044904 → V6044904)
+  - **Referrer Tracking**: All terminal links include "?referrer=tddf-json" parameter for navigation tracking
+  - **Production Ready**: Complete terminal ID linking infrastructure operational across main table and record detail modal views
 - **✅ HEAT MAP PERFORMANCE OPTIMIZATION SYSTEM COMPLETED (July 29, 2025)**: Successfully implemented comprehensive large dataset optimization infrastructure for TDDF JSON heat maps handling 4.9M+ records
   - **Smart Aggregation API**: Created `/api/tddf-json/heatmap-optimized` endpoint with automatic aggregation level selection (day/week/month) based on dataset size
   - **Performance Thresholds**: Auto-switches to weekly aggregation for 25k+ records, monthly for 100k+ records ensuring optimal query performance

@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { Link } from "wouter";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import {
@@ -71,6 +72,66 @@ interface ActivityResponse {
 }
 
 
+
+// Terminal ID Display Component (matches TDDF Records page functionality)
+function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
+  const { data: terminals } = useQuery({
+    queryKey: ['/api/terminals'],
+    queryFn: () => fetch('/api/terminals', { credentials: 'include' }).then(res => res.json()),
+  });
+
+  if (!terminalId) {
+    return (
+      <span className="text-xs text-muted-foreground font-mono">
+        N/A
+      </span>
+    );
+  }
+
+  // Find terminal by VAR mapping pattern: V8912064 → 78912064
+  const terminal = terminals?.find((t: any) => {
+    if (!terminalId) return false;
+    // Extract numeric part from V Number and add "7" prefix for comparison
+    const vNumberNumeric = t.v_number?.replace('V', '');
+    const expectedTerminalId = '7' + vNumberNumeric;
+    return expectedTerminalId === terminalId;
+  });
+
+  // If terminal found and V Number matches Terminal ID
+  if (terminal) {
+    return (
+      <Link href={`/terminals/${terminal.id}?referrer=tddf-json`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 p-1 text-xs font-mono text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          {terminal.v_number}
+        </Button>
+      </Link>
+    );
+  }
+
+  // If no matching V Number found - convert Terminal ID to V Number and link to orphan terminal
+  let displayValue = terminalId;
+  if (terminalId.startsWith('7') && terminalId.length >= 8) {
+    displayValue = 'V' + terminalId.substring(1);
+  }
+
+  return (
+    <Link href={`/orphan-terminals/${terminalId}?referrer=tddf-json`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 p-1 text-xs font-mono text-orange-600 bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:text-orange-800"
+      >
+        <ExternalLink className="h-3 w-3 mr-1" />
+        {displayValue}
+      </Button>
+    </Link>
+  );
+}
 
 interface TddfJsonStats {
   totalRecords: number;
@@ -478,8 +539,8 @@ export default function TddfJsonPage() {
                           <div className="truncate">
                             {record.extracted_fields?.merchantName || 'N/A'}
                           </div>
-                          <div className="font-mono text-xs">
-                            {record.extracted_fields?.terminalId || 'N/A'}
+                          <div>
+                            <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
                           </div>
                           <div>
                             {record.extracted_fields?.cardType ? (
@@ -598,7 +659,11 @@ export default function TddfJsonPage() {
                               {key.replace(/([A-Z])/g, ' $1').trim()}:
                             </span>
                             <span className="font-mono text-xs break-all max-w-48">
-                              {value?.toString() || 'N/A'}
+                              {key === 'terminalId' ? (
+                                <TerminalIdDisplay terminalId={value?.toString()} />
+                              ) : (
+                                value?.toString() || 'N/A'
+                              )}
                             </span>
                           </div>
                         ))}
