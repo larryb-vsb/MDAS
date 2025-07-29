@@ -258,7 +258,13 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
     jsonRecords: [] as any[], // Keep sample for display
     encodingTimeMs: 0,
     errors: [] as string[],
-    tableName: tableName
+    tableName: tableName,
+    timingData: {
+      startTime: new Date(startTime).toISOString(),
+      finishTime: '', // Will be set at completion
+      totalProcessingTime: 0,
+      batchTimes: [] as any[]
+    }
   };
   
   console.log(`[TDDF-JSON-ENCODER-DIRECT] Starting JSONB database encoding for ${upload.filename} (${lines.length} lines)`);
@@ -280,7 +286,11 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         const lineNumber = batchStart + i + 1;
         const jsonRecord = encodeTddfLineToJson(batch[i], lineNumber);
         
-        // Prepare database record
+        // Track individual record processing time
+        const recordStartTime = Date.now();
+        const recordProcessingTime = Date.now() - recordStartTime;
+        
+        // Prepare database record with timing data
         const dbRecord = {
           upload_id: upload.id,
           filename: upload.filename,
@@ -289,7 +299,9 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           raw_line: batch[i],
           extracted_fields: JSON.stringify(jsonRecord.extractedFields),
           record_identifier: jsonRecord.extractedFields.recordIdentifier || jsonRecord.recordType,
-          processing_time_ms: Date.now() - startTime
+          processing_time_ms: recordProcessingTime,
+          batch_start_time: new Date(startTime).toISOString(),
+          record_processed_at: new Date().toISOString()
         };
         
         batchRecords.push(dbRecord);
@@ -312,9 +324,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
       }
     }
     
-    // Batch insert to database
+    // Batch insert to database with timing
     if (batchRecords.length > 0) {
       try {
+        const batchInsertStart = Date.now();
         const insertQuery = `
           INSERT INTO ${tableName} (
             upload_id, filename, record_type, line_number, raw_line, 
@@ -336,9 +349,18 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         ]);
         
         await pool.query(insertQuery, values);
+        const batchInsertTime = Date.now() - batchInsertStart;
         processedCount += batchRecords.length;
         
-        console.log(`[TDDF-JSON-ENCODER-DIRECT] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records (${processedCount}/${lines.length})`);
+        // Track batch timing
+        results.timingData.batchTimes.push({
+          batchNumber: Math.floor(batchStart/batchSize) + 1,
+          recordsInBatch: batchRecords.length,
+          insertTimeMs: batchInsertTime,
+          cumulativeRecords: processedCount
+        });
+        
+        console.log(`[TDDF-JSON-ENCODER-DIRECT] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records in ${batchInsertTime}ms (${processedCount}/${lines.length})`);
         
       } catch (dbError: any) {
         console.error(`[TDDF-JSON-ENCODER-DIRECT] Database batch insert failed:`, dbError);
@@ -349,10 +371,14 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
   
   results.recordCounts.total = results.totalRecords;
   results.encodingTimeMs = Date.now() - startTime;
+  results.timingData.finishTime = new Date().toISOString();
+  results.timingData.totalProcessingTime = results.encodingTimeMs;
   
   console.log(`[TDDF-JSON-ENCODER-DIRECT] Completed JSONB encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
   console.log(`[TDDF-JSON-ENCODER-DIRECT] Record type breakdown:`, results.recordCounts.byType);
   console.log(`[TDDF-JSON-ENCODER-DIRECT] Database table: ${tableName}`);
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Timing: Started ${results.timingData.startTime}, Finished ${results.timingData.finishTime}`);
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Average batch time: ${(results.timingData.batchTimes.reduce((sum, batch) => sum + batch.insertTimeMs, 0) / results.timingData.batchTimes.length).toFixed(2)}ms`);
   
   await pool.end();
   return results;

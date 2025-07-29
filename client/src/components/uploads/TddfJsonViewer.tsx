@@ -24,7 +24,20 @@ interface JsonbRecord {
   raw_line: string;
   extracted_fields: any;
   record_identifier: string;
+  processing_time_ms?: number;
   created_at: string;
+}
+
+interface EncodingTimingData {
+  startTime: string;
+  finishTime: string;
+  totalProcessingTime: number;
+  batchTimes: Array<{
+    batchNumber: number;
+    recordsInBatch: number;
+    insertTimeMs: number;
+    cumulativeRecords: number;
+  }>;
 }
 
 export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: TddfJsonViewerProps) {
@@ -73,6 +86,7 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
   const records: JsonbRecord[] = jsonbData?.data || [];
   const totalRecords = jsonbData?.pagination?.total || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
+  const timingMetadata = jsonbData?.timingMetadata;
 
   const handlePreviousPage = () => {
     if (currentPage > 0) {
@@ -142,6 +156,43 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col">
+          {/* Timing Information Summary */}
+          {timingMetadata && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Database className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-blue-800">Encoding Performance Summary</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-600">Total Records:</span>
+                  <span className="ml-1 font-medium">{timingMetadata.totalRecords?.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Processing Time:</span>
+                  <span className="ml-1 font-medium">{(timingMetadata.totalEncodingTimeMs / 1000).toFixed(2)}s</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Records/sec:</span>
+                  <span className="ml-1 font-medium">{Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Started:</span>
+                  <span className="ml-1 font-medium">{timingMetadata.encodingStartTime ? new Date(timingMetadata.encodingStartTime).toLocaleTimeString() : 'N/A'}</span>
+                </div>
+              </div>
+              {timingMetadata.recordTypeBreakdown && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {Object.entries(timingMetadata.recordTypeBreakdown).map(([type, count]) => (
+                    <Badge key={type} variant="outline" className={`text-xs ${getRecordTypeBadgeColor(type)} text-white`}>
+                      {type}: {(count as number).toLocaleString()}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Filters and Pagination */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">

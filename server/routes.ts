@@ -8140,9 +8140,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[JSONB-API] Found ${result.rows.length} records, total: ${total}`);
       
+      // Get timing metadata from uploader uploads table
+      let timingMetadata = null;
+      try {
+        const timingQuery = `
+          SELECT processing_notes, created_at, updated_at
+          FROM ${environment === 'development' ? 'dev_uploader_uploads' : 'uploader_uploads'}
+          WHERE id = $1
+        `;
+        const timingResult = await pool.query(timingQuery, [id]);
+        if (timingResult.rows.length > 0) {
+          const notes = timingResult.rows[0].processing_notes;
+          if (notes && typeof notes === 'object' && notes.encodingMetadata) {
+            timingMetadata = {
+              encodingStartTime: notes.encodingMetadata.timingData?.startTime,
+              encodingFinishTime: notes.encodingMetadata.timingData?.finishTime,
+              totalEncodingTimeMs: notes.encodingMetadata.encodingTimeMs,
+              totalRecords: notes.encodingMetadata.totalRecords,
+              recordTypeBreakdown: notes.encodingMetadata.recordCounts?.byType,
+              batchPerformance: notes.encodingMetadata.timingData?.batchTimes
+            };
+          }
+        }
+      } catch (timingError) {
+        console.log(`[JSONB-API] Could not fetch timing metadata: ${timingError.message}`);
+      }
+      
       res.json({
         data: result.rows,
         tableName: tableName,
+        timingMetadata: timingMetadata,
         pagination: {
           total: total,
           limit: parseInt(limit as string),
