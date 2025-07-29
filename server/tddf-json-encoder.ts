@@ -48,7 +48,7 @@ export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' },
   
   // Terminal and card information (positions 243-254)
-  { name: 'terminalId', positions: [243, 250], type: 'text', description: 'Terminal ID (8 chars)' },
+  { name: 'terminalId', positions: [277, 284], type: 'text', description: 'Terminal ID (8 chars)' },
   { name: 'cardType', positions: [253, 254], type: 'text', description: 'Card type code (2 chars)' }
 ];
 
