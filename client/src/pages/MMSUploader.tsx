@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -618,6 +618,66 @@ export default function MMSUploader() {
               )}
             </CardContent>
           </Card>
+
+          {/* Live Upload Progress */}
+          {uploads && uploads.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Live Upload Progress
+                </CardTitle>
+                <CardDescription>Real-time status of your uploaded files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {uploads.slice(0, 10).map((upload) => {
+                    const Icon = getPhaseIcon(upload.currentPhase || 'started');
+                    const phaseColor = getPhaseColor(upload.currentPhase || 'started');
+                    
+                    return (
+                      <div key={upload.id} className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50/50">
+                        <Icon className={`h-5 w-5 text-${phaseColor}-600`} />
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{upload.filename}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatFileSize(upload.fileSize || 0)} • {upload.finalFileType || 'TDDF'}
+                            {upload.sessionId && (
+                              <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                Session: {upload.sessionId.split('_')[2]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          {/* Upload progress for uploading files */}
+                          {upload.currentPhase === 'uploading' && upload.uploadProgress !== null && upload.uploadProgress !== undefined && (
+                            <div className="flex items-center gap-2 min-w-[100px]">
+                              <Progress value={upload.uploadProgress || 0} className="w-16" />
+                              <span className="text-sm">{Math.round(upload.uploadProgress || 0)}%</span>
+                            </div>
+                          )}
+
+                          <Badge className={`bg-${phaseColor}-100 text-${phaseColor}-800 border-${phaseColor}-200`}>
+                            {upload.currentPhase || 'started'}
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {uploads.length > 10 && (
+                  <div className="text-center pt-3">
+                    <p className="text-sm text-muted-foreground">
+                      Showing latest 10 uploads. View all in the Files tab below.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Processing Phases Overview */}
           <Card>
