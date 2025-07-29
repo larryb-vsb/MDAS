@@ -18,7 +18,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import BackupHistoryDialog from "@/components/settings/BackupHistoryDialog";
 import SchemaVersionInfo from "@/components/settings/SchemaVersionInfo";
 import FileProcessingHistory from "@/components/settings/FileProcessingHistory";
-import ProcessingStatus from "@/components/settings/ProcessingStatus";
 import UserManagement from "@/components/settings/UserManagement";
 import ApiUserManagement from "@/components/settings/ApiUserManagement";
 import { PoolStatus } from "@/components/settings/PoolStatus";
@@ -203,11 +202,6 @@ export default function Settings() {
           </div>
           
           <Separator />
-          
-          {/* Processing Status Widget - Top Priority */}
-          <div className="grid grid-cols-1 gap-6">
-            <ProcessingStatus />
-          </div>
           
           {/* System Information Section */}
           <Card>
