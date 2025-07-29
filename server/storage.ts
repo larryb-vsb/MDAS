@@ -13330,6 +13330,12 @@ export class DatabaseStorage implements IStorage {
           if (phaseData?.validationErrors) updates.validationErrors = phaseData.validationErrors;
           if (phaseData?.processingNotes) updates.processingNotes = phaseData.processingNotes;
           break;
+          
+        case 'completed':
+          updates.completedAt = new Date();
+          updates.uploadStatus = 'completed';
+          if (phaseData?.processingNotes) updates.processingNotes = phaseData.processingNotes;
+          break;
       }
       
       return await this.updateUploaderUpload(id, updates);

@@ -301,15 +301,27 @@ export default function MMSUploader() {
           // Add a small delay to ensure progress is visible
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Phase 3: Finalize to uploaded phase and stop (session-controlled)
-          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/uploaded`, {
+          // Phase 3: First set to uploaded phase (intermediate step)
+          await fetch(`/api/uploader/${uploadResponse.id}/phase/uploaded`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
               sessionId: sessionId,
-              processingNotes: `Session-controlled upload completed. File ready for manual processing. (Session: ${sessionId})`,
+              processingNotes: `Upload to storage completed - Session: ${sessionId}`,
               uploadedAt: new Date().toISOString()
+            })
+          });
+          
+          // Phase 4: Automatically progress to completed status (all chunks received)
+          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/completed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              sessionId: sessionId,
+              processingNotes: `All chunks received and processing completed - Session: ${sessionId}`,
+              completedAt: new Date().toISOString()
             })
           });
           
@@ -317,7 +329,7 @@ export default function MMSUploader() {
             throw new Error(`Session finalization failed: ${finalizeResponse.statusText}`);
           }
           
-          console.log(`[SESSION-PHASE-3] Session upload completed and stopped at 'uploaded' phase: ${uploadResponse.id}`);
+          console.log(`[SESSION-PHASE-3] Session upload completed with 'completed' status: ${uploadResponse.id}`);
         }
       } catch (error) {
         console.error(`[SESSION-ERROR] Session upload error for ${file.name}:`, error);
@@ -343,7 +355,7 @@ export default function MMSUploader() {
       }
     }
     
-    console.log(`[SESSION-CONTROL] Upload session ${sessionId} completed - files now in 'uploaded' phase for manual processing`);
+    console.log(`[SESSION-CONTROL] Upload session ${sessionId} completed - files automatically progressed to 'completed' phase`);
     
     setSelectedFiles(null);
     // Reset file input
