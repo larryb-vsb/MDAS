@@ -206,24 +206,42 @@ export default function MMSUploader() {
   const handleStartUpload = async (filesToUpload?: FileList | null) => {
     const files = filesToUpload || selectedFiles;
     if (!files || !selectedFileType) {
-      console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload called but missing requirements - Files: ${files?.length || 0}, Type: ${selectedFileType}`);
+      console.log(`[SESSION-UPLOAD-DEBUG] handleStartUpload called but missing requirements - Files: ${files?.length || 0}, Type: ${selectedFileType}`);
       return;
     }
     
-    console.log(`[AUTO-UPLOAD-DEBUG] handleStartUpload starting for ${files.length} files of type ${selectedFileType}`);
+    console.log(`[SESSION-UPLOAD-DEBUG] Starting session-based upload for ${files.length} files of type ${selectedFileType}`);
+    
+    // Create upload session ID for this batch
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[SESSION-CONTROL] Created upload session: ${sessionId}`);
     
     for (const file of Array.from(files)) {
       try {
-        console.log(`[REPLIT-UPLOAD-PHASE-1] Starting Replit Object Storage upload for: ${file.name}`);
+        console.log(`[SESSION-PHASE-1] Starting session upload for: ${file.name} (Session: ${sessionId})`);
         
-        // Phase 1: Create database record with storage key
+        // Phase 1: Create database record with session control
         const uploadResponse = await startUploadMutation.mutateAsync(file);
-        console.log(`[REPLIT-UPLOAD-PHASE-1] Created DB record with storage key: ${uploadResponse.id}`);
+        console.log(`[SESSION-PHASE-1] Created DB record with session control: ${uploadResponse.id}`);
         
         if (uploadResponse?.id && uploadResponse.storageKey) {
-          // Phase 2: Server-side upload to Replit Object Storage
+          // Update with session ID for tracking
+          await fetch(`/api/uploader/${uploadResponse.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              sessionId: sessionId,
+              processingNotes: `Session-controlled upload started (Session: ${sessionId})`
+            })
+          });
+          
+          console.log(`[SESSION-PHASE-2] Updating to uploading phase with session control: ${uploadResponse.id}`);
+          
+          // Phase 2: Session-controlled upload to Replit Object Storage
           const formData = new FormData();
           formData.append('file', file);
+          formData.append('sessionId', sessionId);
           
           const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
             method: 'POST',
@@ -232,27 +250,54 @@ export default function MMSUploader() {
           });
           
           if (!uploadApiResponse.ok) {
-            throw new Error(`Replit storage upload failed: ${uploadApiResponse.statusText}`);
+            throw new Error(`Session upload failed: ${uploadApiResponse.statusText}`);
           }
           
-          console.log(`[REPLIT-UPLOAD-PHASE-2] Server-side upload to Replit Object Storage successful: ${uploadResponse.id}`);
+          console.log(`[SESSION-PHASE-2] Session-controlled upload to Replit Object Storage successful: ${uploadResponse.id}`);
           
-          // Phase 3: Finalize Replit Object Storage upload
-          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/finalize`, {
+          // Phase 3: Finalize to uploaded phase and stop (session-controlled)
+          const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/uploaded`, {
             method: 'POST',
-            credentials: 'include'
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              sessionId: sessionId,
+              processingNotes: `Session-controlled upload completed. File ready for manual processing. (Session: ${sessionId})`,
+              uploadedAt: new Date().toISOString()
+            })
           });
           
           if (!finalizeResponse.ok) {
-            throw new Error(`Phase 3 failed: ${finalizeResponse.statusText}`);
+            throw new Error(`Session finalization failed: ${finalizeResponse.statusText}`);
           }
           
-          console.log(`[REPLIT-UPLOAD-PHASE-3] Finalized Replit Object Storage upload: ${uploadResponse.id}`);
+          console.log(`[SESSION-PHASE-3] Session upload completed and stopped at 'uploaded' phase: ${uploadResponse.id}`);
         }
       } catch (error) {
-        console.error('Replit Object Storage upload error:', error);
+        console.error(`[SESSION-ERROR] Session upload error for ${file.name}:`, error);
+        // Mark as failed with session info
+        try {
+          const uploadResponse = await startUploadMutation.mutateAsync(file);
+          if (uploadResponse?.id) {
+            await fetch(`/api/uploader/${uploadResponse.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                currentPhase: 'warning',
+                sessionId: sessionId,
+                processingNotes: `Session upload failed: ${error.message} (Session: ${sessionId})`,
+                failedAt: new Date().toISOString()
+              })
+            });
+          }
+        } catch (cleanupError) {
+          console.error('[SESSION-CLEANUP-ERROR] Failed to mark failed upload:', cleanupError);
+        }
       }
     }
+    
+    console.log(`[SESSION-CONTROL] Upload session ${sessionId} completed - files now in 'uploaded' phase for manual processing`);
     
     setSelectedFiles(null);
     // Reset file input
@@ -302,7 +347,7 @@ export default function MMSUploader() {
         <div>
           <h1 className="text-3xl font-bold">MMS Uploader</h1>
           <p className="text-muted-foreground">
-            Advanced 8-phase file processing system (separate from main /uploads page)
+            Session-controlled 3-phase upload system (started → uploading → uploaded)
           </p>
         </div>
         
@@ -398,7 +443,7 @@ export default function MMSUploader() {
                 File Upload
               </CardTitle>
               <CardDescription>
-                Select files to start the 8-phase processing workflow
+                Session-controlled upload to phases 1-3 (started → uploading → uploaded)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

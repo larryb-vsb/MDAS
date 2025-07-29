@@ -53,15 +53,16 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Enhanced Error Handling**: Comprehensive error handling for storage initialization, upload failures, and configuration checking
   - **CRUD Operations Complete**: Full Create, Read, Update, Delete test infrastructure implemented with comprehensive error handling
   - **Production Ready**: Complete Replit Object Storage integration operational for high-volume file processing with automatic upload stream management
-- **✅ MMS UPLOADER 3-PHASE SYSTEM OPERATIONAL (July 29, 2025)**: Successfully configured streamlined MMS Uploader system for 3-phase workflow with content viewing
-  - **3-Phase Workflow**: System limited to phases 1-3 (started → uploading → uploaded) with no auto-processing beyond upload
-  - **Replit Object Storage Integration**: Complete file storage in environment-aware folders (dev-uploader/ and prod-uploader/) with date-based organization
+- **✅ MMS UPLOADER SESSION-BASED 3-PHASE SYSTEM OPERATIONAL (July 29, 2025)**: Successfully implemented session-controlled MMS Uploader system for phases 1-3 with orphaned session cleanup
+  - **Session-Based Control**: Upload phases 1-3 (started → uploading → uploaded) controlled by user sessions rather than automatic processing
+  - **Session Management Architecture**: Each upload batch assigned unique session ID (`session_${timestamp}_${random}`) for tracking and control
+  - **Orphaned Session Cleanup**: MMS Watcher performs only cleanup duties - removes stalled uploads (>10 min), broken sessions, and validates active uploads
+  - **Replit Object Storage Integration**: Complete file storage in environment-aware folders (dev-uploader/ and prod-uploader/) with session-based organization
   - **Content Viewing Capability**: Files in "uploaded" phase can be viewed through `/api/uploader/:id/content` endpoint with full file content and preview
-  - **Environment-Aware Structure**: Automatic folder creation with YYYY-MM-DD/uploadId/filename path structure for organized storage
-  - **MMS Watcher Service**: Configured for monitoring-only mode - tracks uploaded files without auto-processing to subsequent phases
-  - **Storage Configuration Display**: Blue-highlighted status card showing "✅ Replit Storage" with bucket name 'default-replit-bucket'
-  - **Auto-Upload Functionality**: Files automatically start uploading when both files and file type are selected through drag-drop or file selection
-  - **Production Ready**: Complete 3-phase upload system operational with content viewing for manual file review and processing control
+  - **Session Validation**: MMS Watcher validates active upload sessions and marks corrupted/inaccessible files as failed
+  - **Auto-Upload with Session Control**: Files automatically start uploading when both files and file type are selected, with session ID tracking throughout
+  - **Deliberate Processing Stop**: System deliberately stops at "uploaded" phase for manual processing control - no automatic progression beyond phase 3
+  - **Production Ready**: Complete session-controlled 3-phase upload system with orphaned cleanup and manual processing workflow
 - **✅ UPLOAD MODAL AUTO-CLOSE FUNCTIONALITY COMPLETED (July 28, 2025)**: Successfully implemented user-controlled modal monitoring system resolving UI stuck state issues
   - **Completion Detection System**: Added comprehensive file status monitoring to detect when all uploads finish (completed or failed)
   - **User-Controlled Closure**: Removed forced auto-close, allowing users to monitor progress and close when ready
