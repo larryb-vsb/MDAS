@@ -8230,10 +8230,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TDDF JSON API endpoints (using MMS Uploader JSONB data only)
+  // TDDF JSON API endpoints (using dev_tddf_jsonb table from Stage 5 encoding)
   app.get("/api/tddf-json/stats", isAuthenticated, async (req, res) => {
     try {
-      const tableName = getTableName('uploader_tddf_jsonb_records');
+      // Use the same table that Stage 5 encoding writes to
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
       // Get total records and record type breakdown
       const totalResult = await db.execute(sql`
@@ -8252,13 +8254,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${sql.identifier(tableName)}
       `);
       
-      // Calculate total transaction amount from DT records
+      // Calculate total transaction amount from DT records (extractedFields is JSONB in dev_tddf_jsonb)
       const totalAmountResult = await db.execute(sql`
-        SELECT SUM(CAST(record_data->>'extractedFields'->>'transactionAmount' AS NUMERIC)) as total_amount
+        SELECT SUM(CAST(extracted_fields->>'transactionAmount' AS NUMERIC)) as total_amount
         FROM ${sql.identifier(tableName)}
         WHERE record_type = 'DT' 
-        AND record_data->>'extractedFields'->>'transactionAmount' IS NOT NULL
-        AND record_data->>'extractedFields'->>'transactionAmount' != ''
+        AND extracted_fields->>'transactionAmount' IS NOT NULL
+        AND extracted_fields->>'transactionAmount' != ''
       `);
       
       const recordTypeBreakdown: { [key: string]: number } = {};
@@ -8294,7 +8296,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limitNum = Math.min(parseInt(limit as string) || 50, 200); // Max 200 records
       const offset = (pageNum - 1) * limitNum;
       
-      const tableName = getTableName('uploader_tddf_jsonb_records');
+      // Use the same table that Stage 5 encoding writes to
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
       // Build WHERE conditions
       let whereConditions = [];
@@ -8313,8 +8317,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (search) {
         whereConditions.push(`(
-          record_data->>'extractedFields'->>'merchantName' ILIKE $${paramIndex} OR
-          record_data->>'extractedFields'->>'referenceNumber' ILIKE $${paramIndex} OR
+          extracted_fields->>'merchantName' ILIKE $${paramIndex} OR
+          extracted_fields->>'referenceNumber' ILIKE $${paramIndex} OR
           upload_id ILIKE $${paramIndex}
         )`);
         params.push(`%${search}%`);
@@ -8322,7 +8326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (dateFilter) {
-        whereConditions.push(`DATE(record_data->>'extractedFields'->>'transactionDate') = $${paramIndex}`);
+        whereConditions.push(`DATE(extracted_fields->>'transactionDate') = $${paramIndex}`);
         params.push(dateFilter);
         paramIndex++;
       }
@@ -8330,14 +8334,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const whereClause = whereConditions.length > 0 ? 
         `WHERE ${whereConditions.join(' AND ')}` : '';
       
-      // Build ORDER BY clause
+      // Build ORDER BY clause (using dev_tddf_jsonb field structure)
       let orderClause = 'ORDER BY created_at DESC';
       if (sortBy === 'record_type') {
         orderClause = `ORDER BY record_type ${sortOrder.toUpperCase()}`;
       } else if (sortBy === 'transaction_date') {
-        orderClause = `ORDER BY (record_data->>'extractedFields'->>'transactionDate') ${sortOrder.toUpperCase()}`;
+        orderClause = `ORDER BY (extracted_fields->>'transactionDate') ${sortOrder.toUpperCase()}`;
       } else if (sortBy === 'transaction_amount') {
-        orderClause = `ORDER BY CAST(record_data->>'extractedFields'->>'transactionAmount' AS NUMERIC) ${sortOrder.toUpperCase()}`;
+        orderClause = `ORDER BY CAST(extracted_fields->>'transactionAmount' AS NUMERIC) ${sortOrder.toUpperCase()}`;
       } else if (sortBy === 'created_at') {
         orderClause = `ORDER BY created_at ${sortOrder.toUpperCase()}`;
       }
@@ -8378,18 +8382,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
     try {
-      const tableName = getTableName('uploader_tddf_jsonb_records');
+      // Use the same table that Stage 5 encoding writes to
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
-      // Get daily transaction activity from DT records only
+      // Get daily transaction activity from DT records only (extracted_fields is direct JSONB in dev_tddf_jsonb)
       const activityResult = await db.execute(sql`
         SELECT 
-          DATE(record_data->>'extractedFields'->>'transactionDate') as transaction_date,
+          DATE(extracted_fields->>'transactionDate') as transaction_date,
           COUNT(*) as transaction_count
         FROM ${sql.identifier(tableName)}
         WHERE record_type = 'DT'
-        AND record_data->>'extractedFields'->>'transactionDate' IS NOT NULL
-        AND record_data->>'extractedFields'->>'transactionDate' != ''
-        GROUP BY DATE(record_data->>'extractedFields'->>'transactionDate')
+        AND extracted_fields->>'transactionDate' IS NOT NULL
+        AND extracted_fields->>'transactionDate' != ''
+        GROUP BY DATE(extracted_fields->>'transactionDate')
         ORDER BY transaction_date DESC
         LIMIT 365
       `);

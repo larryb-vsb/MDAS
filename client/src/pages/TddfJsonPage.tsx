@@ -30,24 +30,23 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface TddfJsonRecord {
   id: number;
   upload_id: string;
+  filename: string;
   record_type: string;
-  record_data: {
-    recordType: string;
-    lineNumber: number;
-    rawLine: string;
-    extractedFields: {
-      transactionDate?: string;
-      transactionAmount?: string;
-      merchantName?: string;
-      merchantAccountNumber?: string;
-      authorizationNumber?: string;
-      cardType?: string;
-      terminalId?: string;
-      referenceNumber?: string;
-      [key: string]: any;
-    };
+  line_number: number;
+  raw_line: string;
+  extracted_fields: {
+    transactionDate?: string;
+    transactionAmount?: string;
+    merchantName?: string;
+    merchantAccountNumber?: string;
+    authorizationNumber?: string;
+    cardType?: string;
+    terminalId?: string;
+    referenceNumber?: string;
+    [key: string]: any;
   };
-  processing_status: string;
+  record_identifier?: string;
+  processing_time_ms?: number;
   created_at: string;
 }
 
@@ -382,21 +381,21 @@ export default function TddfJsonPage() {
                             {record.upload_id}
                           </div>
                           <div>
-                            {formatDate(record.record_data.extractedFields?.transactionDate)}
+                            {formatDate(record.extracted_fields?.transactionDate)}
                           </div>
                           <div className="font-mono">
-                            {formatAmount(record.record_data.extractedFields?.transactionAmount)}
+                            {formatAmount(record.extracted_fields?.transactionAmount)}
                           </div>
                           <div className="truncate">
-                            {record.record_data.extractedFields?.merchantName || 'N/A'}
+                            {record.extracted_fields?.merchantName || 'N/A'}
                           </div>
                           <div className="font-mono text-xs">
-                            {record.record_data.extractedFields?.terminalId || 'N/A'}
+                            {record.extracted_fields?.terminalId || 'N/A'}
                           </div>
                           <div>
-                            {record.record_data.extractedFields?.cardType ? (
+                            {record.extracted_fields?.cardType ? (
                               <Badge variant="outline" className="text-xs">
-                                {record.record_data.extractedFields.cardType}
+                                {record.extracted_fields.cardType}
                               </Badge>
                             ) : 'N/A'}
                           </div>
