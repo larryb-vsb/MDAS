@@ -7982,15 +7982,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { limit = '50', offset = '0', recordType } = req.query;
       
       const environment = getEnvironment();
-      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
       console.log(`[JSONB-API] Fetching data from ${tableName} for upload ${id}`);
       
       let query = `
         SELECT 
-          id, upload_id, filename, record_type, line_number, 
-          raw_line, extracted_fields, record_identifier, 
-          processing_time_ms, created_at
+          id, upload_id, record_type, record_data, 
+          processing_status, created_at
         FROM ${tableName} 
         WHERE upload_id = $1
       `;
@@ -8004,10 +8003,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paramIndex++;
       }
       
-      query += ` ORDER BY line_number ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit as string, offset as string);
       
       const result = await pool.query(query, params);
+      
+      // Transform data to match expected JSON viewer format
+      const transformedData = result.rows.map(row => {
+        const recordData = row.record_data;
+        return {
+          id: row.id,
+          upload_id: row.upload_id,
+          filename: recordData.filename || 'Unknown',
+          record_type: row.record_type,
+          line_number: recordData.lineNumber || 0,
+          raw_line: recordData.rawLine || '',
+          extracted_fields: recordData.extractedFields || {},
+          record_identifier: `${row.record_type}-${recordData.lineNumber || row.id}`,
+          processing_time_ms: recordData.processingTimeMs || 0,
+          created_at: row.created_at
+        };
+      });
       
       // Also get total count
       let countQuery = `SELECT COUNT(*) as total FROM ${tableName} WHERE upload_id = $1`;
@@ -8050,7 +8066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({
-        data: result.rows,
+        data: transformedData,
         tableName: tableName,
         timingMetadata: timingMetadata,
         pagination: {
