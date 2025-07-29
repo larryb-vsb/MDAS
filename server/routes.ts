@@ -6179,57 +6179,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Get TDDF records by terminal ID (VAR number mapping)
+  // Get TDDF JSONB records by terminal ID (VAR number mapping)
   app.get("/api/tddf/by-terminal/:terminalId", isAuthenticated, async (req, res) => {
     try {
       const terminalId = req.params.terminalId;
-      console.log(`[TDDF TERMINAL] Fetching TDDF records for Terminal ID: ${terminalId}`);
+      console.log(`[TDDF TERMINAL] Fetching TDDF JSONB records for Terminal ID: ${terminalId}`);
       
-      // @ENVIRONMENT-CRITICAL - TDDF terminal records with environment-aware table naming
+      // @ENVIRONMENT-CRITICAL - TDDF JSONB terminal records with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
-      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      // Query TDDF records where Terminal ID field matches the extracted terminal ID from VAR
-      // VAR V8357055 = Terminal ID 78357055 (remove V prefix) using raw SQL
+      // Query TDDF JSONB records where Terminal ID field matches the extracted terminal ID from VAR
+      // Uses JSONB extracted_fields for terminal ID matching
       const recordsResult = await pool.query(`
-        SELECT * FROM ${tddfRecordsTableName} 
-        WHERE terminal_id = $1 
-        ORDER BY transaction_date DESC 
+        SELECT 
+          id,
+          upload_id,
+          filename,
+          record_type,
+          line_number,
+          raw_line,
+          extracted_fields,
+          created_at,
+          updated_at
+        FROM ${tddfJsonbTableName} 
+        WHERE record_type = 'DT'
+        AND extracted_fields->>'terminalId' = $1 
+        ORDER BY (extracted_fields->>'transactionDate')::date DESC, id DESC
         LIMIT 100
       `, [terminalId]);
       const records = recordsResult.rows;
       
-      console.log(`[TDDF TERMINAL] Found ${records.length} TDDF records for Terminal ID ${terminalId}`);
+      console.log(`[TDDF TERMINAL] Found ${records.length} TDDF JSONB records for Terminal ID ${terminalId}`);
       
-      // Transform records to include consistent field names for frontend
-      // Fix field name mapping: database uses snake_case, frontend expects camelCase
-      const transformedRecords = records.map(record => ({
-        id: record.id,
-        referenceNumber: record.reference_number,
-        merchantName: record.merchant_name,
-        transactionAmount: record.transaction_amount,
-        transactionDate: record.transaction_date,
-        recordedAt: record.recorded_at,
-        terminalId: record.terminal_id,
-        cardType: record.card_type,
-        authorizationNumber: record.authorization_number,
-        merchantAccountNumber: record.merchant_account_number,
-        mccCode: record.mcc_code,
-        transactionTypeIdentifier: record.transaction_type_identifier,
-        mmsRawLine: record.mms_raw_line, // Include raw TDDF line data for details modal
-        createdAt: record.created_at,
-        updatedAt: record.updated_at,
-        sourceRowNumber: record.source_row_number,
-        // Add any other fields needed for display
-        amount: record.transaction_amount, // Alias for amount field
-        date: record.transaction_date    // Alias for date field
-      }));
+      // Transform JSONB records to include consistent field names for frontend
+      // Extract data from JSONB extracted_fields for compatibility
+      const transformedRecords = records.map(record => {
+        const fields = record.extracted_fields || {};
+        return {
+          id: record.id,
+          upload_id: record.upload_id,
+          filename: record.filename,
+          record_type: record.record_type,
+          line_number: record.line_number,
+          raw_line: record.raw_line,
+          extracted_fields: fields,
+          // Legacy field mappings for compatibility
+          referenceNumber: fields.referenceNumber || fields.reference_number,
+          merchantName: fields.merchantName || fields.merchant_name,
+          transactionAmount: fields.transactionAmount || fields.transaction_amount,
+          transactionDate: fields.transactionDate || fields.transaction_date,
+          terminalId: fields.terminalId || fields.terminal_id,
+          cardType: fields.cardType || fields.card_type,
+          authorizationNumber: fields.authorizationNumber || fields.authorization_number,
+          merchantAccountNumber: fields.merchantAccountNumber || fields.merchant_account_number,
+          mccCode: fields.mccCode || fields.mcc_code,
+          transactionTypeIdentifier: fields.transactionTypeIdentifier || fields.transaction_type_identifier,
+          mmsRawLine: record.raw_line, // Raw TDDF line data for details modal
+          createdAt: record.created_at,
+          updatedAt: record.updated_at,
+          // Aliases for heat map and table compatibility
+          amount: fields.transactionAmount || fields.transaction_amount,
+          date: fields.transactionDate || fields.transaction_date
+        };
+      });
       
       res.json(transformedRecords);
     } catch (error) {
-      console.error('Error fetching TDDF records by terminal:', error);
+      console.error('Error fetching TDDF JSONB records by terminal:', error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to fetch TDDF records by terminal" 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF JSONB records by terminal" 
       });
     }
   });
