@@ -103,25 +103,7 @@ export class ReplitStorageService {
     }
   }
 
-  // Get file content from Replit Object Storage
-  static async getFileContent(key: string): Promise<Buffer> {
-    const client = this.getClient();
-    
-    try {
-      const result = await client.downloadAsBytes(key);
-      
-      if (!result.ok) {
-        throw new Error(`Download failed: ${result.error.message}`);
-      }
-      
-      const content = result.value[0]; // Result is [Buffer]
-      console.log(`[REPLIT-STORAGE] Retrieved file: ${key} (${content.length} bytes)`);
-      return content;
-    } catch (error) {
-      console.error('[REPLIT-STORAGE] Download error:', error);
-      throw new Error(`Failed to retrieve file from Replit Object Storage: ${error}`);
-    }
-  }
+
 
   // Check if file exists
   static async fileExists(key: string): Promise<boolean> {
@@ -141,18 +123,7 @@ export class ReplitStorageService {
     }
   }
 
-  // Delete file from Replit Object Storage
-  static async deleteFile(key: string): Promise<void> {
-    const client = this.getClient();
-    
-    try {
-      await client.delete(key);
-      console.log(`[REPLIT-STORAGE] Deleted file: ${key}`);
-    } catch (error) {
-      console.error('[REPLIT-STORAGE] Delete error:', error);
-      throw new Error(`Failed to delete file from Replit Object Storage: ${error}`);
-    }
-  }
+
 
   // List files with optional prefix filter (environment-aware)
   static async listFiles(prefix?: string): Promise<string[]> {

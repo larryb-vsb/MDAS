@@ -7253,7 +7253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MMS Uploader API endpoints - Replit Object Storage
   app.post("/api/uploader/start", isAuthenticated, async (req, res) => {
     try {
-      const { filename, fileSize, sessionId, keepForReview = false } = req.body;
+      const { filename, fileSize, sessionId, keep = false } = req.body;
       const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Import Replit Storage Service
@@ -7280,7 +7280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: (req.user as any)?.username || 'unknown',
         sessionId: sessionId,
         serverId: process.env.HOSTNAME || 'unknown',
-        keepForReview: keepForReview
+        keepForReview: keep
       });
       
       console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);
@@ -7447,6 +7447,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(upload);
     } catch (error: any) {
       console.error('Get uploader upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Content viewing endpoint for uploaded files
+  app.get("/api/uploader/:id/content", isAuthenticated, async (req, res) => {
+    try {
+      const upload = await storage.getUploaderUploadById(req.params.id);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+
+      // Only allow content viewing for uploaded files
+      if (upload.currentPhase !== 'uploaded' && upload.currentPhase !== 'completed') {
+        return res.status(400).json({ error: "File content only available for uploaded files" });
+      }
+
+      if (!upload.s3Key) {
+        return res.status(400).json({ error: "No storage key available for this file" });
+      }
+
+      // Import Replit Storage Service
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      // Get file content from Replit Object Storage
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+      
+      res.json({
+        id: upload.id,
+        filename: upload.filename,
+        content: fileContent,
+        contentLength: fileContent.length,
+        phase: upload.currentPhase,
+        lineCount: upload.lineCount,
+        fileFormat: upload.fileFormat
+      });
+    } catch (error: any) {
+      console.error('Get file content error:', error);
       res.status(500).json({ error: error.message });
     }
   });

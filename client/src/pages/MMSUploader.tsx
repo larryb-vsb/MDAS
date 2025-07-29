@@ -79,7 +79,7 @@ export default function MMSUploader() {
   const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   
   // Review mode state
-  const [keepForReview, setKeepForReview] = useState<boolean>(false);
+  const [keep, setKeep] = useState<boolean>(false);
   
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
@@ -121,7 +121,7 @@ export default function MMSUploader() {
           sessionId,
           finalFileType: selectedFileType,
           userClassifiedType: selectedFileType,
-          keepForReview: keepForReview
+          keep: keep
         }
       });
       return response;
@@ -313,16 +313,16 @@ export default function MMSUploader() {
             credentials: 'include',
             body: JSON.stringify({
               sessionId: sessionId,
-              processingNotes: keepForReview 
+              processingNotes: keep 
                 ? `Upload to storage completed - HELD FOR REVIEW - Session: ${sessionId}`
                 : `Upload to storage completed - Session: ${sessionId}`,
               uploadedAt: new Date().toISOString(),
-              keepForReview: keepForReview
+              keep: keep
             })
           });
           
           // Phase 4: Only auto-progress to completed if NOT in review mode
-          if (!keepForReview) {
+          if (!keep) {
             const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/completed`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -683,13 +683,13 @@ export default function MMSUploader() {
                       </div>
                     </div>
                     <Switch
-                      checked={keepForReview}
-                      onCheckedChange={setKeepForReview}
+                      checked={keep}
+                      onCheckedChange={setKeep}
                       className="data-[state=checked]:bg-amber-500"
                     />
                   </div>
                   
-                  {keepForReview && (
+                  {keep && (
                     <div className="text-xs text-amber-700 bg-amber-100 p-2 rounded border-l-4 border-amber-500">
                       <strong>Review Mode Active:</strong> Files will be uploaded but held at "uploaded" phase for manual review and approval before processing.
                     </div>
