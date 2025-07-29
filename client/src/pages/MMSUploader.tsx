@@ -93,12 +93,12 @@ export default function MMSUploader() {
   // Bulk delete state
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
 
-  // Query for MMS uploads only (separate system from /uploads) - filtered by current session
+  // Query for MMS uploads only (separate system from /uploads) - show recent uploads from all sessions
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
-    queryKey: ['/api/uploader', { sessionId }],
+    queryKey: ['/api/uploader'],
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.append('sessionId', sessionId);
+      params.append('limit', '50'); // Show last 50 uploads from all sessions
       const response = await fetch(`/api/uploader?${params.toString()}`, {
         credentials: 'include'
       });
@@ -753,8 +753,12 @@ export default function MMSUploader() {
                           <div className="text-xs text-muted-foreground">
                             {formatFileSize(upload.fileSize || 0)} • {upload.finalFileType || 'TDDF'}
                             {upload.sessionId && (
-                              <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                                Session: {upload.sessionId.split('_')[2]}
+                              <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                upload.sessionId === sessionId 
+                                  ? 'bg-green-100 text-green-700 border border-green-200' 
+                                  : 'bg-gray-100 text-gray-600 border border-gray-200'
+                              }`}>
+                                {upload.sessionId === sessionId ? 'Current Session' : `Session: ${upload.sessionId.split('_')[2]}`}
                               </span>
                             )}
                           </div>
