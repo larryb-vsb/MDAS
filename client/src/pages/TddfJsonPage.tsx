@@ -702,87 +702,151 @@ export default function TddfJsonPage() {
                   <div className="space-y-4">
                     {/* Records Table */}
                     <div className="border rounded-lg overflow-hidden">
-                      <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
-                        {[
-                          { key: 'record_type', label: 'Record Type' },
-                          { key: 'upload_id', label: 'File' },
-                          { key: 'transaction_date', label: 'Transaction Date' },
-                          { key: 'transaction_amount', label: 'Amount' },
-                          { key: 'merchant_name', label: 'Merchant' },
-                          { key: 'terminal_id', label: 'Terminal' },
-                          { key: 'card_type', label: 'Card Type' }
-                        ].map(({ key, label }) => (
-                          <button 
-                            key={key}
-                            className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
-                              sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
-                            }`}
-                            onClick={() => handleHeaderSort(key)}
-                          >
-                            {label}
-                            {sortBy === key ? (
-                              sortOrder === 'asc' ? (
-                                <ChevronUp className="w-3 h-3 text-blue-600" />
-                              ) : (
-                                <ChevronDown className="w-3 h-3 text-blue-600" />
-                              )
-                            ) : (
-                              <ArrowUpDown className="w-3 h-3 opacity-50" />
-                            )}
-                          </button>
-                        ))}
-                        <div>Actions</div>
-                      </div>
-                      {recordsData?.records?.map((record: TddfJsonRecord) => (
-                        <div key={record.id} className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm">
-                          <div>
-                            <Badge className={getRecordTypeBadgeClass(record.record_type)}>
-                              {record.record_type}
-                            </Badge>
-                          </div>
-                          <div className="truncate text-xs font-mono">
-                            {record.upload_id}
-                          </div>
-                          <div>
-                            {formatDate(record.extracted_fields?.transactionDate)}
-                          </div>
-                          <div className="font-mono">
-                            {formatAmount(record.extracted_fields?.transactionAmount)}
-                          </div>
-                          <div className="truncate">
-                            {record.extracted_fields?.merchantName || 'N/A'}
-                          </div>
-                          <div>
-                            <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
-                          </div>
-                          <div>
-                            {record.extracted_fields?.cardType ? (
-                              (() => {
-                                const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
-                                return cardBadge ? (
-                                  <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
-                                    {cardBadge.label}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs">
-                                    {record.extracted_fields.cardType}
-                                  </Badge>
-                                );
-                              })()
-                            ) : 'N/A'}
-                          </div>
-                          <div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRecordClick(record)}
-                              className="flex items-center gap-1"
+                      {/* BH Records - Show only 4 required fields */}
+                      {selectedTab === 'BH' ? (
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-5 gap-4 text-sm font-medium">
+                          {[
+                            { key: 'batch_id', label: 'Batch ID' },
+                            { key: 'net_deposit', label: 'Net Deposit' },
+                            { key: 'batch_date', label: 'Batch Date' },
+                            { key: 'merchant_account_number', label: 'Merchant Account Number' }
+                          ].map(({ key, label }) => (
+                            <button 
+                              key={key}
+                              className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                              }`}
+                              onClick={() => handleHeaderSort(key)}
                             >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </Button>
-                          </div>
+                              {label}
+                              {sortBy === key ? (
+                                sortOrder === 'asc' ? (
+                                  <ChevronUp className="w-3 h-3 text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="w-3 h-3 text-blue-600" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-50" />
+                              )}
+                            </button>
+                          ))}
+                          <div>Actions</div>
                         </div>
+                      ) : (
+                        /* All other record types - Show full table */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
+                          {[
+                            { key: 'record_type', label: 'Record Type' },
+                            { key: 'upload_id', label: 'File' },
+                            { key: 'transaction_date', label: 'Transaction Date' },
+                            { key: 'transaction_amount', label: 'Amount' },
+                            { key: 'merchant_name', label: 'Merchant' },
+                            { key: 'terminal_id', label: 'Terminal' },
+                            { key: 'card_type', label: 'Card Type' }
+                          ].map(({ key, label }) => (
+                            <button 
+                              key={key}
+                              className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                              }`}
+                              onClick={() => handleHeaderSort(key)}
+                            >
+                              {label}
+                              {sortBy === key ? (
+                                sortOrder === 'asc' ? (
+                                  <ChevronUp className="w-3 h-3 text-blue-600" />
+                                ) : (
+                                  <ChevronDown className="w-3 h-3 text-blue-600" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-3 h-3 opacity-50" />
+                              )}
+                            </button>
+                          ))}
+                          <div>Actions</div>
+                        </div>
+                      )}
+                      {recordsData?.records?.map((record: TddfJsonRecord) => (
+                        selectedTab === 'BH' ? (
+                          /* BH Records - Show only 4 required fields */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-5 gap-4 border-t items-center text-sm">
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.batchId || 'N/A'}
+                            </div>
+                            <div className="font-medium text-green-600">
+                              {record.extracted_fields?.netDeposit ? 
+                                formatAmount(record.extracted_fields.netDeposit) : 'N/A'}
+                            </div>
+                            <div className="text-xs">
+                              {record.extracted_fields?.batchDate || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                            </div>
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecordClick(record)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* All other record types - Show full table */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm">
+                            <div>
+                              <Badge className={getRecordTypeBadgeClass(record.record_type)}>
+                                {record.record_type}
+                              </Badge>
+                            </div>
+                            <div className="truncate text-xs font-mono">
+                              {record.upload_id}
+                            </div>
+                            <div>
+                              {formatDate(record.extracted_fields?.transactionDate)}
+                            </div>
+                            <div className="font-mono">
+                              {formatAmount(record.extracted_fields?.transactionAmount)}
+                            </div>
+                            <div className="truncate">
+                              {record.extracted_fields?.merchantName || 'N/A'}
+                            </div>
+                            <div>
+                              <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
+                            </div>
+                            <div>
+                              {record.extracted_fields?.cardType ? (
+                                (() => {
+                                  const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                  return cardBadge ? (
+                                    <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                      {cardBadge.label}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">
+                                      {record.extracted_fields.cardType}
+                                    </Badge>
+                                  );
+                                })()
+                              ) : 'N/A'}
+                            </div>
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecordClick(record)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        )
                       ))}
                     </div>
 
