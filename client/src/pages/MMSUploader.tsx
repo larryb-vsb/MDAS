@@ -1478,7 +1478,7 @@ export default function MMSUploader() {
                           // Filter selected uploads to only include those that can be moved back
                           const eligibleUploads = selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
-                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded');
+                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
                           });
                           
                           if (eligibleUploads.length > 0) {
@@ -1487,7 +1487,7 @@ export default function MMSUploader() {
                         }}
                         disabled={setPreviousLevelMutation.isPending || !selectedUploads.some(id => {
                           const upload = uploads.find(u => u.id === id);
-                          return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded');
+                          return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
                         })}
                         className="text-blue-600 border-blue-300 hover:bg-blue-50"
                       >

@@ -7722,6 +7722,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Determine previous level based on current phase
           switch (upload.currentPhase) {
+            case 'failed':
+              // For failed files, try to go back to last good state
+              if (upload.identifiedAt) {
+                newPhase = 'identified';
+                updateData.processing_notes = `RECOVERY: Failed encoding reset to identified state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
+              } else if (upload.uploadedAt) {
+                newPhase = 'uploaded';
+                updateData.processing_notes = `RECOVERY: Failed encoding reset to uploaded state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
+              } else {
+                newPhase = 'started';
+                updateData.processing_notes = `RECOVERY: Failed encoding reset to started state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
+              }
+              // Clear failed status fields
+              updateData.encoding_status = null;
+              updateData.encoding_time_ms = null;
+              updateData.json_records_created = null;
+              updateData.tddf_records_created = null;
+              updateData.encoding_complete = null;
+              break;
             case 'encoded':
               newPhase = 'identified';
               // Clear encoding data (using snake_case field names for database)
