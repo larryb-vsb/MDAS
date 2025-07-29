@@ -7280,7 +7280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: (req.user as any)?.username || 'unknown',
         sessionId: sessionId,
         serverId: process.env.HOSTNAME || 'unknown',
-        keepForReview: keep
+        keep_for_review: keep
       });
       
       console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);
