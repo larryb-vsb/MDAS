@@ -8230,6 +8230,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF JSON API endpoints (using MMS Uploader JSONB data only)
+  app.get("/api/tddf-json/stats", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Get total records and record type breakdown
+      const totalResult = await db.execute(sql`
+        SELECT COUNT(*) as total_records FROM ${sql.identifier(tableName)}
+      `);
+      
+      const recordTypeResult = await db.execute(sql`
+        SELECT record_type, COUNT(*) as count 
+        FROM ${sql.identifier(tableName)}
+        GROUP BY record_type
+        ORDER BY count DESC
+      `);
+      
+      const uniqueFilesResult = await db.execute(sql`
+        SELECT COUNT(DISTINCT upload_id) as unique_files 
+        FROM ${sql.identifier(tableName)}
+      `);
+      
+      // Calculate total transaction amount from DT records
+      const totalAmountResult = await db.execute(sql`
+        SELECT SUM(CAST(record_data->>'extractedFields'->>'transactionAmount' AS NUMERIC)) as total_amount
+        FROM ${sql.identifier(tableName)}
+        WHERE record_type = 'DT' 
+        AND record_data->>'extractedFields'->>'transactionAmount' IS NOT NULL
+        AND record_data->>'extractedFields'->>'transactionAmount' != ''
+      `);
+      
+      const recordTypeBreakdown: { [key: string]: number } = {};
+      recordTypeResult.rows.forEach((row: any) => {
+        recordTypeBreakdown[row.record_type] = parseInt(row.count);
+      });
+      
+      res.json({
+        totalRecords: parseInt(totalResult.rows[0]?.total_records || '0'),
+        recordTypeBreakdown,
+        uniqueFiles: parseInt(uniqueFilesResult.rows[0]?.unique_files || '0'),
+        totalAmount: parseFloat(totalAmountResult.rows[0]?.total_amount || '0')
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF JSON stats:', error);
+      res.status(500).json({ error: 'Failed to fetch statistics' });
+    }
+  });
+
+  app.get("/api/tddf-json/records", isAuthenticated, async (req, res) => {
+    try {
+      const {
+        page = '1',
+        limit = '50',
+        recordType,
+        search,
+        sortBy = 'created_at',
+        sortOrder = 'desc',
+        dateFilter
+      } = req.query;
+      
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = Math.min(parseInt(limit as string) || 50, 200); // Max 200 records
+      const offset = (pageNum - 1) * limitNum;
+      
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Build WHERE conditions
+      let whereConditions = [];
+      let params: any[] = [];
+      let paramIndex = 1;
+      
+      if (recordType && recordType !== 'all') {
+        if (recordType === 'other') {
+          whereConditions.push(`record_type NOT IN ('DT', 'BH', 'P1', 'P2')`);
+        } else {
+          whereConditions.push(`record_type = $${paramIndex}`);
+          params.push(recordType);
+          paramIndex++;
+        }
+      }
+      
+      if (search) {
+        whereConditions.push(`(
+          record_data->>'extractedFields'->>'merchantName' ILIKE $${paramIndex} OR
+          record_data->>'extractedFields'->>'referenceNumber' ILIKE $${paramIndex} OR
+          upload_id ILIKE $${paramIndex}
+        )`);
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+      
+      if (dateFilter) {
+        whereConditions.push(`DATE(record_data->>'extractedFields'->>'transactionDate') = $${paramIndex}`);
+        params.push(dateFilter);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 
+        `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Build ORDER BY clause
+      let orderClause = 'ORDER BY created_at DESC';
+      if (sortBy === 'record_type') {
+        orderClause = `ORDER BY record_type ${sortOrder.toUpperCase()}`;
+      } else if (sortBy === 'transaction_date') {
+        orderClause = `ORDER BY (record_data->>'extractedFields'->>'transactionDate') ${sortOrder.toUpperCase()}`;
+      } else if (sortBy === 'transaction_amount') {
+        orderClause = `ORDER BY CAST(record_data->>'extractedFields'->>'transactionAmount' AS NUMERIC) ${sortOrder.toUpperCase()}`;
+      } else if (sortBy === 'created_at') {
+        orderClause = `ORDER BY created_at ${sortOrder.toUpperCase()}`;
+      }
+      
+      // Get records
+      const recordsQuery = `
+        SELECT * FROM ${tableName}
+        ${whereClause}
+        ${orderClause}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      params.push(limitNum, offset);
+      
+      const recordsResult = await pool.query(recordsQuery, params);
+      
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as total FROM ${tableName}
+        ${whereClause}
+      `;
+      const countResult = await pool.query(countQuery, params.slice(0, -2)); // Remove limit/offset params
+      
+      const total = parseInt(countResult.rows[0]?.total || '0');
+      const totalPages = Math.ceil(total / limitNum);
+      
+      res.json({
+        records: recordsResult.rows,
+        total,
+        totalPages,
+        currentPage: pageNum,
+        pageSize: limitNum
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF JSON records:', error);
+      res.status(500).json({ error: 'Failed to fetch records' });
+    }
+  });
+
+  app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Get daily transaction activity from DT records only
+      const activityResult = await db.execute(sql`
+        SELECT 
+          DATE(record_data->>'extractedFields'->>'transactionDate') as transaction_date,
+          COUNT(*) as transaction_count
+        FROM ${sql.identifier(tableName)}
+        WHERE record_type = 'DT'
+        AND record_data->>'extractedFields'->>'transactionDate' IS NOT NULL
+        AND record_data->>'extractedFields'->>'transactionDate' != ''
+        GROUP BY DATE(record_data->>'extractedFields'->>'transactionDate')
+        ORDER BY transaction_date DESC
+        LIMIT 365
+      `);
+      
+      res.json({
+        records: activityResult.rows
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF JSON activity:', error);
+      res.status(500).json({ error: 'Failed to fetch activity data' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

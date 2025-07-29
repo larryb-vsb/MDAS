@@ -18,6 +18,7 @@ import Transactions from "@/pages/Transactions";
 import TerminalsPage from "@/pages/TerminalsPage";
 import TerminalViewPage from "@/pages/TerminalViewPage";
 import TddfPage from "@/pages/tddf-page";
+import TddfJsonPage from "@/pages/TddfJsonPage";
 import OrphanTerminalsPage from "@/pages/OrphanTerminalsPage";
 import OrphanTerminalViewPage from "@/pages/OrphanTerminalViewPage";
 import MMSMerchants from "@/pages/MMSMerchants";
@@ -43,6 +44,7 @@ function Router() {
       <ProtectedRoute path="/transactions" component={Transactions} />
       <ProtectedRoute path="/tddf-records" component={TddfPage} />
       <ProtectedRoute path="/tddf" component={TddfPage} />
+      <ProtectedRoute path="/tddf-json" component={TddfJsonPage} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
