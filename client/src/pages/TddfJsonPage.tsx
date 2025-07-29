@@ -137,13 +137,15 @@ export default function TddfJsonPage() {
 
   const { toast } = useToast();
 
-  // Fetch TDDF JSON statistics
+  // Fetch TDDF JSON statistics with caching optimization
   const { data: stats, isLoading: statsLoading } = useQuery<TddfStatsResponse>({
     queryKey: ['/api/tddf-json/stats'],
     queryFn: () => apiRequest('/api/tddf-json/stats'),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes to reduce load
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
-  // Fetch TDDF JSON records with filtering and pagination
+  // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
     queryKey: ['/api/tddf-json/records', {
       page: currentPage,
@@ -168,19 +170,25 @@ export default function TddfJsonPage() {
       
       return apiRequest(`/api/tddf-json/records?${params}`);
     },
+    enabled: !!stats, // Only load after stats are loaded to stagger API calls
   });
 
-  // Fetch activity data for heat map (DT records only)
+  // Fetch activity data for heat map (DT records only) with caching (staggered after records)
   const { data: activityData } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/activity'],
     queryFn: () => apiRequest('/api/tddf-json/activity'),
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes - heat map data changes slowly
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    enabled: !!recordsData, // Only load after records are loaded to further stagger API calls
   });
 
-  // Fetch duplicate cleanup statistics
+  // Fetch duplicate cleanup statistics with staggered loading to reduce load
   const { data: duplicateStats, isLoading: duplicateStatsLoading, refetch: refetchDuplicateStats } = useQuery<DuplicateStatsResponse>({
     queryKey: ['/api/mms-watcher/duplicate-stats'],
     queryFn: () => apiRequest('/api/mms-watcher/duplicate-stats'),
     refetchInterval: 60000, // Refetch every minute
+    staleTime: 30 * 1000, // Cache for 30 seconds
+    enabled: !!stats, // Only load after stats are loaded to stagger API calls
   });
 
   // Transform activity data for heat map

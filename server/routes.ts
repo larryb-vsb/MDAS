@@ -8232,49 +8232,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // TDDF JSON API endpoints (using dev_tddf_jsonb table from Stage 5 encoding)
+  // Add in-memory cache for statistics (5 minute TTL)
+  let statsCache: { data: any; timestamp: number } | null = null;
+  const STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
   app.get("/api/tddf-json/stats", isAuthenticated, async (req, res) => {
     try {
+      // Check cache first for performance optimization
+      if (statsCache && (Date.now() - statsCache.timestamp) < STATS_CACHE_TTL) {
+        console.log('[TDDF-JSON-STATS] Serving from cache');
+        return res.json(statsCache.data);
+      }
+
+      console.log('[TDDF-JSON-STATS] Cache miss, querying database...');
+      const startTime = Date.now();
+      
       // Use the same table that Stage 5 encoding writes to
       const environment = process.env.NODE_ENV || 'development';
       const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
-      // Get total records and record type breakdown
-      const totalResult = await db.execute(sql`
-        SELECT COUNT(*) as total_records FROM ${sql.identifier(tableName)}
+      // Optimized single query to get all stats at once
+      const optimizedStatsResult = await pool.query(`
+        WITH stats AS (
+          SELECT 
+            COUNT(*) as total_records,
+            COUNT(DISTINCT upload_id) as unique_files,
+            SUM(CASE 
+              WHEN record_type = 'DT' 
+                AND extracted_fields->>'transactionAmount' IS NOT NULL 
+                AND extracted_fields->>'transactionAmount' != ''
+              THEN CAST(extracted_fields->>'transactionAmount' AS NUMERIC)
+              ELSE 0
+            END) as total_amount
+          FROM ${tableName}
+        ),
+        type_breakdown AS (
+          SELECT record_type, COUNT(*) as count 
+          FROM ${tableName}
+          GROUP BY record_type
+        )
+        SELECT 
+          s.total_records,
+          s.unique_files,
+          s.total_amount,
+          json_object_agg(tb.record_type, tb.count) as record_type_breakdown
+        FROM stats s
+        CROSS JOIN type_breakdown tb
+        GROUP BY s.total_records, s.unique_files, s.total_amount
       `);
       
-      const recordTypeResult = await db.execute(sql`
-        SELECT record_type, COUNT(*) as count 
-        FROM ${sql.identifier(tableName)}
-        GROUP BY record_type
-        ORDER BY count DESC
-      `);
+      const queryTime = Date.now() - startTime;
+      console.log(`[TDDF-JSON-STATS] Database query completed in ${queryTime}ms`);
       
-      const uniqueFilesResult = await db.execute(sql`
-        SELECT COUNT(DISTINCT upload_id) as unique_files 
-        FROM ${sql.identifier(tableName)}
-      `);
+      const result = optimizedStatsResult.rows[0];
+      const responseData = {
+        totalRecords: parseInt(result?.total_records || '0'),
+        recordTypeBreakdown: result?.record_type_breakdown || {},
+        uniqueFiles: parseInt(result?.unique_files || '0'),
+        totalAmount: parseFloat(result?.total_amount || '0'),
+        queryTime: queryTime
+      };
+
+      // Cache the result for future requests
+      statsCache = {
+        data: responseData,
+        timestamp: Date.now()
+      };
       
-      // Calculate total transaction amount from DT records (extractedFields is JSONB in dev_tddf_jsonb)
-      const totalAmountResult = await db.execute(sql`
-        SELECT SUM(CAST(extracted_fields->>'transactionAmount' AS NUMERIC)) as total_amount
-        FROM ${sql.identifier(tableName)}
-        WHERE record_type = 'DT' 
-        AND extracted_fields->>'transactionAmount' IS NOT NULL
-        AND extracted_fields->>'transactionAmount' != ''
-      `);
-      
-      const recordTypeBreakdown: { [key: string]: number } = {};
-      recordTypeResult.rows.forEach((row: any) => {
-        recordTypeBreakdown[row.record_type] = parseInt(row.count);
-      });
-      
-      res.json({
-        totalRecords: parseInt(totalResult.rows[0]?.total_records || '0'),
-        recordTypeBreakdown,
-        uniqueFiles: parseInt(uniqueFilesResult.rows[0]?.unique_files || '0'),
-        totalAmount: parseFloat(totalAmountResult.rows[0]?.total_amount || '0')
-      });
+      res.json(responseData);
     } catch (error) {
       console.error('Error fetching TDDF JSON stats:', error);
       res.status(500).json({ error: 'Failed to fetch statistics' });
@@ -8381,18 +8406,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add cache for activity data (10 minute TTL)
+  let activityCache: { data: any; timestamp: number } | null = null;
+  const ACTIVITY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
   app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
     try {
+      // Check cache first for performance optimization
+      if (activityCache && (Date.now() - activityCache.timestamp) < ACTIVITY_CACHE_TTL) {
+        console.log('[TDDF-JSON-ACTIVITY] Serving from cache');
+        return res.json(activityCache.data);
+      }
+
+      console.log('[TDDF-JSON-ACTIVITY] Cache miss, querying database...');
+      const startTime = Date.now();
+      
       // Use the same table that Stage 5 encoding writes to
       const environment = process.env.NODE_ENV || 'development';
       const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
-      // Get daily transaction activity from DT records only (extracted_fields is direct JSONB in dev_tddf_jsonb)
-      const activityResult = await db.execute(sql`
+      // Optimized query with proper indexing expected
+      const activityResult = await pool.query(`
         SELECT 
           DATE(extracted_fields->>'transactionDate') as transaction_date,
           COUNT(*) as transaction_count
-        FROM ${sql.identifier(tableName)}
+        FROM ${tableName}
         WHERE record_type = 'DT'
         AND extracted_fields->>'transactionDate' IS NOT NULL
         AND extracted_fields->>'transactionDate' != ''
@@ -8401,9 +8439,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 365
       `);
       
-      res.json({
-        records: activityResult.rows
-      });
+      const queryTime = Date.now() - startTime;
+      console.log(`[TDDF-JSON-ACTIVITY] Database query completed in ${queryTime}ms`);
+      
+      const responseData = {
+        records: activityResult.rows,
+        queryTime: queryTime
+      };
+
+      // Cache the result for future requests
+      activityCache = {
+        data: responseData,
+        timestamp: Date.now()
+      };
+      
+      res.json(responseData);
     } catch (error) {
       console.error('Error fetching TDDF JSON activity:', error);
       res.status(500).json({ error: 'Failed to fetch activity data' });
