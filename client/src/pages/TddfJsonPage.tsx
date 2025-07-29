@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -70,6 +70,22 @@ interface ActivityResponse {
   }>;
 }
 
+interface DuplicateStatsResponse {
+  success: boolean;
+  stats?: {
+    totalDuplicateRecords: number;
+    totalUniqueRecords: number;
+    duplicateReferenceNumbers: number;
+    duplicateRawLines: number;
+  };
+  duplicatePatterns?: number;
+  totalDuplicateRecords?: number;
+  lastScanned?: string;
+  status?: string;
+  message?: string;
+  error?: string;
+}
+
 interface TddfJsonStats {
   totalRecords: number;
   recordTypeBreakdown: {
@@ -117,6 +133,7 @@ export default function TddfJsonPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedRecord, setSelectedRecord] = useState<TddfJsonRecord | null>(null);
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
 
   const { toast } = useToast();
 
@@ -159,6 +176,13 @@ export default function TddfJsonPage() {
     queryFn: () => apiRequest('/api/tddf-json/activity'),
   });
 
+  // Fetch duplicate cleanup statistics
+  const { data: duplicateStats, isLoading: duplicateStatsLoading, refetch: refetchDuplicateStats } = useQuery<DuplicateStatsResponse>({
+    queryKey: ['/api/mms-watcher/duplicate-stats'],
+    queryFn: () => apiRequest('/api/mms-watcher/duplicate-stats'),
+    refetchInterval: 60000, // Refetch every minute
+  });
+
   // Transform activity data for heat map
   const heatMapData = useMemo(() => {
     if (!activityData?.records) return [];
@@ -181,6 +205,36 @@ export default function TddfJsonPage() {
   const clearDateFilter = () => {
     setDateFilter('');
     setCurrentPage(1);
+  };
+
+  const handleDuplicateCleanup = async () => {
+    setIsCleaningDuplicates(true);
+    try {
+      const response = await apiRequest('/api/mms-watcher/run-duplicate-cleanup', {
+        method: 'POST'
+      });
+
+      if (response.success) {
+        toast({
+          title: "Duplicate Cleanup Complete",
+          description: response.message || "Duplicates have been successfully processed",
+        });
+        // Refetch the stats to show updated numbers
+        refetchDuplicateStats();
+        refetch(); // Refetch the main records data too
+      } else {
+        throw new Error(response.error || 'Cleanup failed');
+      }
+    } catch (error: any) {
+      console.error('[DUPLICATE-CLEANUP] Error:', error);
+      toast({
+        title: "Cleanup Failed",
+        description: error.message || "Failed to run duplicate cleanup",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCleaningDuplicates(false);
+    }
   };
 
   const formatAmount = (amount: string | number | undefined): string => {
@@ -264,6 +318,108 @@ export default function TddfJsonPage() {
             </Card>
           ))}
         </div>
+
+        {/* Duplicate Cleanup Management */}
+        <Card className="border-orange-200 bg-orange-50/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+              Duplicate Record Cleanup
+            </CardTitle>
+            <p className="text-sm text-orange-700">
+              Monitor and manage duplicate TDDF records during legacy file import completion
+            </p>
+          </CardHeader>
+          <CardContent>
+            {duplicateStatsLoading ? (
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Loading duplicate statistics...</span>
+              </div>
+            ) : duplicateStats ? (
+              <div className="space-y-4">
+                {/* Duplicate Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
+                    <div className="text-sm font-medium text-orange-700">Total Duplicates</div>
+                    <div className="text-2xl font-bold text-orange-800">
+                      {duplicateStats.stats?.totalDuplicateRecords?.toLocaleString() || 
+                       duplicateStats.totalDuplicateRecords?.toLocaleString() || '0'}
+                    </div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
+                    <div className="text-sm font-medium text-orange-700">Unique Records</div>
+                    <div className="text-2xl font-bold text-orange-800">
+                      {duplicateStats.stats?.totalUniqueRecords?.toLocaleString() || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
+                    <div className="text-sm font-medium text-orange-700">Duplicate References</div>
+                    <div className="text-2xl font-bold text-orange-800">
+                      {duplicateStats.stats?.duplicateReferenceNumbers?.toLocaleString() || 
+                       duplicateStats.duplicatePatterns?.toLocaleString() || 'N/A'}
+                    </div>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
+                    <div className="text-sm font-medium text-orange-700">Last Scanned</div>
+                    <div className="text-sm font-bold text-orange-800">
+                      {duplicateStats.lastScanned ? 
+                        format(new Date(duplicateStats.lastScanned), 'MMM dd, yyyy HH:mm') : 
+                        'Not scanned'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Message */}
+                {duplicateStats.message && (
+                  <div className="bg-orange-100 border border-orange-200 rounded-lg p-3">
+                    <p className="text-sm text-orange-800">{duplicateStats.message}</p>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {duplicateStats.error && (
+                  <div className="bg-red-100 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-800">{duplicateStats.error}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleDuplicateCleanup}
+                    disabled={isCleaningDuplicates}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    {isCleaningDuplicates ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Running Cleanup...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Run Duplicate Cleanup
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => refetchDuplicateStats()}
+                    variant="outline"
+                    disabled={isCleaningDuplicates}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh Stats
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-orange-700">
+                No duplicate statistics available
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Activity Heat Map */}
         {heatMapData.length > 0 && (

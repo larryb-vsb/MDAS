@@ -23,6 +23,7 @@ import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName } from "./table-config";
+import { getMmsWatcherInstance } from "./mms-watcher-instance";
 
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
@@ -8406,6 +8407,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching TDDF JSON activity:', error);
       res.status(500).json({ error: 'Failed to fetch activity data' });
+    }
+  });
+
+  // JSONB Duplicate Cleanup API endpoints
+  app.get("/api/mms-watcher/duplicate-stats", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[DUPLICATE-API] Getting duplicate cleanup statistics...");
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      const stats = await mmsWatcher.getDuplicateCleanupStats();
+      
+      if (stats.success) {
+        res.json({
+          success: true,
+          stats: stats.stats,
+          duplicatePatterns: stats.duplicatePatterns,
+          totalDuplicateRecords: stats.totalDuplicateRecords,
+          lastScanned: stats.lastScanned,
+          status: stats.status,
+          message: "Duplicate statistics retrieved successfully"
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: stats.error,
+          message: "Failed to retrieve duplicate statistics"
+        });
+      }
+    } catch (error) {
+      console.error("[DUPLICATE-API] Error getting duplicate stats:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get duplicate statistics" 
+      });
+    }
+  });
+
+  // Run manual duplicate cleanup scan
+  app.post("/api/mms-watcher/run-duplicate-cleanup", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[DUPLICATE-API] Running manual duplicate cleanup scan...");
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      await mmsWatcher.runDuplicateCleanup();
+      const stats = await mmsWatcher.getDuplicateCleanupStats();
+      
+      res.json({
+        success: true,
+        message: "Duplicate cleanup scan completed",
+        stats: stats.success ? stats : null,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[DUPLICATE-API] Error running duplicate cleanup:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to run duplicate cleanup" 
+      });
     }
   });
 

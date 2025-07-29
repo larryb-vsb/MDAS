@@ -2,12 +2,17 @@
 // Automatically processes files through phases 4-7: Identified → Encoding → Processing → Completed
 // This service monitors files that reach "uploaded" status and progresses them through the remaining phases
 
+import { JsonbDuplicateCleanup } from './jsonb-duplicate-cleanup.js';
+
 class MMSWatcher {
   constructor(storage) {
     this.storage = storage;
     this.isRunning = false;
     this.intervalId = null;
     this.identificationIntervalId = null;
+    this.encodingIntervalId = null;
+    this.duplicateCleanupIntervalId = null;
+    this.duplicateCleanup = new JsonbDuplicateCleanup();
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
 
@@ -35,9 +40,15 @@ class MMSWatcher {
       this.processIdentifiedFiles();
     }, 5000); // Check every 5 seconds for identified files ready for encoding
     
+    // Start JSONB duplicate cleanup service (during legacy import)
+    this.duplicateCleanupIntervalId = setInterval(() => {
+      this.runDuplicateCleanup();
+    }, 900000); // Check every 15 minutes (900000ms) during legacy import
+    
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 10 seconds');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 5 seconds');
+    console.log('[MMS-WATCHER] JSONB duplicate cleanup service started - scans every 15 minutes during legacy import');
   }
 
   stop() {
@@ -55,6 +66,10 @@ class MMSWatcher {
     if (this.encodingIntervalId) {
       clearInterval(this.encodingIntervalId);
       this.encodingIntervalId = null;
+    }
+    if (this.duplicateCleanupIntervalId) {
+      clearInterval(this.duplicateCleanupIntervalId);
+      this.duplicateCleanupIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -456,6 +471,59 @@ class MMSWatcher {
     });
     
     console.log(`[MMS-WATCHER] ❌ Failed to encode: ${upload.filename} - ${errorMessage}`);
+  }
+
+  // JSONB Duplicate Cleanup Service - runs during legacy import
+  async runDuplicateCleanup() {
+    try {
+      console.log('[MMS-WATCHER] 🧹 Running JSONB duplicate cleanup scan...');
+      
+      const result = await this.duplicateCleanup.runCleanupScan();
+      
+      if (result.success) {
+        const { duplicates, stats } = result;
+        
+        console.log(`[MMS-WATCHER] ✅ Duplicate scan completed:`);
+        console.log(`  📊 JSONB Records: ${stats?.totalRecords || 0} total, ${stats?.dtRecords || 0} DT records`);
+        console.log(`  🔍 Duplicate Patterns: ${duplicates?.totalPatterns || 0} found`);
+        console.log(`  📝 Excess Records: ${duplicates?.totalDuplicateRecords || 0} duplicates logged`);
+        console.log(`  🔄 Status: Legacy import ongoing - duplicates tracked for post-import cleanup`);
+        
+        // Store summary in processing notes for monitoring
+        if (duplicates?.totalDuplicateRecords > 0) {
+          console.log(`[MMS-WATCHER] 📋 Duplicate breakdown:`);
+          console.log(`    Reference-based: ${duplicates.referenceBasedDuplicates} records`);
+          console.log(`    Line-based: ${duplicates.lineBasedDuplicates} records`);
+        }
+      } else {
+        console.error(`[MMS-WATCHER] ❌ Duplicate cleanup scan failed:`, result.error);
+      }
+      
+    } catch (error) {
+      console.error('[MMS-WATCHER] Error during duplicate cleanup:', error);
+    }
+  }
+
+  // Get duplicate cleanup statistics for API endpoints
+  async getDuplicateCleanupStats() {
+    try {
+      const stats = await this.duplicateCleanup.getDuplicateStats();
+      const duplicates = await this.duplicateCleanup.findDuplicates();
+      
+      return {
+        success: true,
+        stats,
+        duplicatePatterns: duplicates.length,
+        totalDuplicateRecords: duplicates.reduce((sum, dup) => sum + (dup.duplicate_count - 1), 0),
+        lastScanned: new Date().toISOString(),
+        status: 'legacy_import_ongoing'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

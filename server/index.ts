@@ -294,9 +294,9 @@ app.use((req, res, next) => {
       // Start MMS Watcher service for automatic file processing (phases 4-7)
       try {
         console.log('Initializing MMS Watcher service...');
-        const { default: MMSWatcher } = await import('./mms-watcher.js');
-        const { storage } = await import('./storage');
-        const mmsWatcher = new MMSWatcher(storage);
+        const { createMmsWatcherInstance, setMmsWatcherInstance } = await import('./mms-watcher-instance');
+        const mmsWatcher = createMmsWatcherInstance();
+        setMmsWatcherInstance(mmsWatcher);
         mmsWatcher.start();
         console.log('[MMS-WATCHER] Service started successfully');
         
