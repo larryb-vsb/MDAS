@@ -7,6 +7,7 @@ class MMSWatcher {
     this.storage = storage;
     this.isRunning = false;
     this.intervalId = null;
+    this.identificationIntervalId = null;
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
 
@@ -24,7 +25,13 @@ class MMSWatcher {
       this.cleanupOrphanedSessions();
     }, 3600000); // Check every hour (3600000ms) for orphaned sessions
     
+    // Start Stage 4 identification service
+    this.identificationIntervalId = setInterval(() => {
+      this.processUploadedFiles();
+    }, 10000); // Check every 10 seconds for uploaded files ready for identification
+    
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
+    console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 10 seconds');
   }
 
   stop() {
@@ -34,6 +41,10 @@ class MMSWatcher {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.identificationIntervalId) {
+      clearInterval(this.identificationIntervalId);
+      this.identificationIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -149,6 +160,202 @@ class MMSWatcher {
 
   // Session-based system: Phases 1-3 controlled by user sessions
   // Watcher only performs cleanup of orphaned/broken sessions
+  
+  // Stage 4: File Identification Service
+  async processUploadedFiles() {
+    try {
+      // Find files in "uploaded" phase that need identification
+      const uploadedFiles = await this.storage.getUploaderUploads({
+        phase: 'uploaded'
+      });
+
+      if (uploadedFiles.length === 0) {
+        return; // No files to process
+      }
+
+      console.log(`[MMS-WATCHER] Stage 4: Processing ${uploadedFiles.length} uploaded files for identification...`);
+
+      for (const upload of uploadedFiles) {
+        // Skip files in review mode unless specifically marked for processing
+        if (upload.keepForReview && !upload.processingNotes?.includes('FORCE_IDENTIFICATION')) {
+          console.log(`[MMS-WATCHER] Skipping file in review mode: ${upload.filename}`);
+          continue;
+        }
+
+        try {
+          await this.identifyFile(upload);
+        } catch (error) {
+          console.error(`[MMS-WATCHER] Error identifying file ${upload.filename}:`, error);
+          await this.markIdentificationFailed(upload, error.message);
+        }
+      }
+    } catch (error) {
+      console.error('[MMS-WATCHER] Error processing uploaded files:', error);
+    }
+  }
+
+  async identifyFile(upload) {
+    console.log(`[MMS-WATCHER] Identifying file: ${upload.filename} (${upload.id})`);
+    
+    // Get file content from Replit Object Storage
+    const { ReplitStorageService } = await import('./replit-storage-service.js');
+    const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
+    
+    // Analyze file structure and content
+    const identification = await this.analyzeFileContent(fileContent, upload.filename);
+    
+    // Update upload record with identification results
+    await this.storage.updateUploaderUpload(upload.id, {
+      currentPhase: 'identified',
+      identifiedAt: new Date(),
+      detectedFileType: identification.detectedType,
+      finalFileType: identification.finalType,
+      lineCount: identification.lineCount,
+      hasHeaders: identification.hasHeaders,
+      fileFormat: identification.format,
+      validationErrors: identification.validationErrors,
+      processingNotes: `File identified: ${identification.detectedType} format, ${identification.lineCount} lines, headers: ${identification.hasHeaders}`
+    });
+
+    console.log(`[MMS-WATCHER] ✅ File identified: ${upload.filename} -> ${identification.detectedType} (${identification.lineCount} lines)`);
+  }
+
+  async analyzeFileContent(fileContent, filename) {
+    const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+    const lineCount = lines.length;
+    
+    // Basic file format detection
+    let format = 'text';
+    let detectedType = 'unknown';
+    let hasHeaders = false;
+    let validationErrors = [];
+
+    try {
+      // TDDF file detection (.tsyso extension or specific TDDF patterns)
+      if (filename.toLowerCase().endsWith('.tsyso') || this.detectTddfPattern(lines)) {
+        detectedType = 'tddf';
+        format = 'tddf';
+        hasHeaders = false; // TDDF files don't have header rows
+        console.log('[MMS-WATCHER] Detected TDDF format');
+      }
+      // CSV file detection
+      else if (this.detectCsvPattern(lines)) {
+        detectedType = 'transaction_csv';
+        format = 'csv';
+        hasHeaders = this.detectCsvHeaders(lines);
+        console.log('[MMS-WATCHER] Detected CSV format with headers:', hasHeaders);
+      }
+      // JSON file detection
+      else if (this.detectJsonPattern(fileContent)) {
+        detectedType = 'json';
+        format = 'json';
+        hasHeaders = false;
+        console.log('[MMS-WATCHER] Detected JSON format');
+      }
+      // Fixed-width format detection
+      else if (this.detectFixedWidthPattern(lines)) {
+        detectedType = 'transaction_fixed';
+        format = 'fixed-width';
+        hasHeaders = false;
+        console.log('[MMS-WATCHER] Detected fixed-width format');
+      }
+      // Default to transaction CSV if contains numeric/date patterns
+      else if (this.detectTransactionPatterns(lines)) {
+        detectedType = 'transaction_csv';
+        format = 'csv';
+        hasHeaders = this.detectCsvHeaders(lines);
+        console.log('[MMS-WATCHER] Detected transaction data format');
+      }
+      else {
+        validationErrors.push('Unable to identify file format automatically');
+        console.log('[MMS-WATCHER] Unknown file format detected');
+      }
+    } catch (error) {
+      validationErrors.push(`File analysis error: ${error.message}`);
+      console.error('[MMS-WATCHER] Error during file analysis:', error);
+    }
+
+    return {
+      detectedType,
+      finalType: detectedType, // Use detected type as final type
+      lineCount,
+      hasHeaders,
+      format,
+      validationErrors: validationErrors.length > 0 ? validationErrors : null
+    };
+  }
+
+  // File pattern detection methods
+  detectTddfPattern(lines) {
+    if (lines.length === 0) return false;
+    
+    // TDDF lines are typically fixed-width with specific patterns
+    const sampleLine = lines[0];
+    return sampleLine.length > 100 && 
+           /^\d{2}/.test(sampleLine) && // Starts with record type (2 digits)
+           sampleLine.length >= 300; // Minimum TDDF line length
+  }
+
+  detectCsvPattern(lines) {
+    if (lines.length === 0) return false;
+    
+    const sampleLine = lines[0];
+    const commaCount = (sampleLine.match(/,/g) || []).length;
+    const semicolonCount = (sampleLine.match(/;/g) || []).length;
+    
+    return commaCount >= 2 || semicolonCount >= 2; // At least 3 fields
+  }
+
+  detectJsonPattern(content) {
+    try {
+      const trimmed = content.trim();
+      return (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+             (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    } catch {
+      return false;
+    }
+  }
+
+  detectFixedWidthPattern(lines) {
+    if (lines.length < 2) return false;
+    
+    // Check if multiple lines have the same length (fixed-width indicator)
+    const lengths = lines.slice(0, 5).map(line => line.length);
+    const uniqueLengths = [...new Set(lengths)];
+    
+    return uniqueLengths.length === 1 && lengths[0] > 50; // All same length and substantial
+  }
+
+  detectTransactionPatterns(lines) {
+    if (lines.length === 0) return false;
+    
+    const sampleLine = lines[0].toLowerCase();
+    
+    // Look for transaction-related keywords
+    const transactionKeywords = ['amount', 'date', 'merchant', 'transaction', 'account', 'id'];
+    const keywordCount = transactionKeywords.filter(keyword => sampleLine.includes(keyword)).length;
+    
+    return keywordCount >= 2;
+  }
+
+  detectCsvHeaders(lines) {
+    if (lines.length === 0) return false;
+    
+    const firstLine = lines[0].toLowerCase();
+    const headerKeywords = ['name', 'id', 'date', 'amount', 'type', 'account', 'merchant'];
+    
+    return headerKeywords.some(keyword => firstLine.includes(keyword));
+  }
+
+  async markIdentificationFailed(upload, errorMessage) {
+    await this.storage.updateUploaderUpload(upload.id, {
+      currentPhase: 'failed',
+      processingNotes: `Identification failed: ${errorMessage}`,
+      validationErrors: [errorMessage]
+    });
+    
+    console.log(`[MMS-WATCHER] ❌ Failed to identify: ${upload.filename} - ${errorMessage}`);
+  }
 }
 
 export default MMSWatcher;
