@@ -47,7 +47,8 @@ export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'reversalFlag', positions: [217, 217], type: 'text', description: 'Reversal flag' },
   { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' },
   
-  // Card type and extended fields (positions 253-254)
+  // Terminal and card information (positions 243-254)
+  { name: 'terminalId', positions: [243, 250], type: 'text', description: 'Terminal ID (8 chars)' },
   { name: 'cardType', positions: [253, 254], type: 'text', description: 'Card type code (2 chars)' }
 ];
 
@@ -108,6 +109,14 @@ function extractFieldValue(line: string, field: TddfFieldDefinition): any {
   if (field.name === 'cardType') {
     if (rawValue.length > 0) {
       return rawValue; // Return any non-empty value for card type
+    }
+    return null;
+  }
+  
+  // Special handling for terminalId field - allow numeric terminal IDs and mixed values
+  if (field.name === 'terminalId') {
+    if (rawValue.length > 0) {
+      return rawValue; // Return any non-empty value for terminal ID
     }
     return null;
   }
