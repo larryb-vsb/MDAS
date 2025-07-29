@@ -7453,43 +7453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Content viewing endpoint for uploaded files
-  app.get("/api/uploader/:id/content", isAuthenticated, async (req, res) => {
-    try {
-      const upload = await storage.getUploaderUploadById(req.params.id);
-      if (!upload) {
-        return res.status(404).json({ error: "Upload not found" });
-      }
 
-      // Only allow content viewing for uploaded files
-      if (upload.currentPhase !== 'uploaded' && upload.currentPhase !== 'completed') {
-        return res.status(400).json({ error: "File content only available for uploaded files" });
-      }
-
-      if (!upload.s3Key) {
-        return res.status(400).json({ error: "No storage key available for this file" });
-      }
-
-      // Import Replit Storage Service
-      const { ReplitStorageService } = await import('./replit-storage-service');
-      
-      // Get file content from Replit Object Storage
-      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
-      
-      res.json({
-        id: upload.id,
-        filename: upload.filename,
-        content: fileContent,
-        contentLength: fileContent.length,
-        phase: upload.currentPhase,
-        lineCount: upload.lineCount,
-        fileFormat: upload.fileFormat
-      });
-    } catch (error: any) {
-      console.error('Get file content error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   app.post("/api/uploader/:id/phase/:phase", isAuthenticated, async (req, res) => {
     try {
@@ -7564,6 +7528,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('Auto process error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check file storage status
+  app.get("/api/uploader/:id/storage-status", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const upload = await storage.getUploaderUploadById(id);
+      
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+
+      // Check if file exists in storage
+      let storageStatus = {
+        exists: false,
+        accessible: false,
+        fileSize: 0,
+        error: null as string | null
+      };
+
+      if (upload.s3Key && upload.s3Bucket) {
+        try {
+          const { ReplitStorageService } = await import('./replit-storage-service');
+          
+          // Try to get file info (this will throw if file doesn't exist)
+          const fileBuffer = await ReplitStorageService.getFileContent(upload.s3Key);
+          
+          storageStatus = {
+            exists: true,
+            accessible: true,
+            fileSize: fileBuffer.length,
+            error: null
+          };
+        } catch (error: any) {
+          storageStatus = {
+            exists: false,
+            accessible: false,
+            fileSize: 0,
+            error: error.message || 'Storage access error'
+          };
+        }
+      } else {
+        storageStatus.error = 'No storage location configured';
+      }
+
+      res.json({
+        id: upload.id,
+        filename: upload.filename,
+        phase: upload.currentPhase,
+        storageStatus,
+        s3Key: upload.s3Key,
+        s3Bucket: upload.s3Bucket
+      });
+    } catch (error: any) {
+      console.error('Check storage status error:', error);
       res.status(500).json({ error: error.message });
     }
   });

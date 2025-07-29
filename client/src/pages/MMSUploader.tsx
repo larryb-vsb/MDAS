@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -72,6 +72,32 @@ const formatDuration = (startTime: string | Date, endTime?: string | Date): stri
   return `${diffSec}s`;
 };
 
+// Storage status bulb color determination
+const getBulbColor = (upload: UploaderUpload, storageStatus?: any): string => {
+  // Grey (not accessible) for early phases
+  if (!['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+    return 'text-gray-400';
+  }
+  
+  // Check storage status if available
+  if (storageStatus) {
+    if (storageStatus.storageStatus?.exists && storageStatus.storageStatus?.accessible) {
+      return 'text-green-500'; // Green - file found and accessible
+    } else if (storageStatus.storageStatus?.error) {
+      return 'text-orange-500'; // Orange - error/warning
+    } else {
+      return 'text-gray-400'; // Grey - not found
+    }
+  }
+  
+  // Default based on phase if no storage status checked yet
+  if (upload.currentPhase === 'completed') {
+    return 'text-green-500'; // Assume accessible for completed files
+  }
+  
+  return 'text-gray-400'; // Default grey
+};
+
 export default function MMSUploader() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [selectedFileType, setSelectedFileType] = useState<string>('tddf');
@@ -92,6 +118,9 @@ export default function MMSUploader() {
   
   // Bulk delete state
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
+  
+  // Storage status for bulb system
+  const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
 
   // Query for MMS uploads only (separate system from /uploads) - show recent uploads from all sessions
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
@@ -393,6 +422,51 @@ export default function MMSUploader() {
     // Reset file input
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  // Handle bulb click - check storage status and view file content
+  const handleBulbClick = async (upload: UploaderUpload) => {
+    try {
+      // First check storage status if not already cached
+      if (!storageStatusCache[upload.id]) {
+        const storageResponse = await fetch(`/api/uploader/${upload.id}/storage-status`, {
+          credentials: 'include'
+        });
+        
+        if (storageResponse.ok) {
+          const storageStatus = await storageResponse.json();
+          setStorageStatusCache(prev => ({
+            ...prev,
+            [upload.id]: storageStatus
+          }));
+        }
+      }
+      
+      // If file is accessible, try to get content
+      const storageStatus = storageStatusCache[upload.id];
+      if (storageStatus?.storageStatus?.accessible) {
+        setSelectedFileForView(upload);
+        
+        // Show a quick content preview
+        const contentResponse = await fetch(`/api/uploader/${upload.id}/content`, {
+          credentials: 'include'
+        });
+        
+        if (contentResponse.ok) {
+          const content = await contentResponse.json();
+          // Show first 2 lines as requested
+          const lines = content.content?.split('\n') || [];
+          const preview = lines.slice(0, 2).join('\n');
+          
+          alert(`File: ${upload.filename}\nFirst 2 lines:\n\n${preview}`);
+        }
+      } else {
+        alert(`File: ${upload.filename}\nStatus: ${storageStatus?.storageStatus?.error || 'Not accessible'}`);
+      }
+    } catch (error) {
+      console.error('Error handling bulb click:', error);
+      alert(`Error accessing file: ${upload.filename}`);
+    }
   };
 
 
@@ -1092,7 +1166,18 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
-                          {/* View Content Button - Magnifying Glass Icon */}
+                          {/* Storage Status Bulb - Color-coded based on storage accessibility */}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleBulbClick(upload)}
+                            className="flex items-center justify-center p-2 hover:bg-gray-50"
+                            title={`View file content (Status: ${storageStatusCache[upload.id]?.storageStatus?.accessible ? 'Available' : 'Checking...'})`}
+                          >
+                            <Lightbulb className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`} />
+                          </Button>
+                          
+                          {/* Legacy Content Dialog - kept for complex viewing */}
                           {canViewContent && (
                             <Dialog>
                               <DialogTrigger asChild>
@@ -1100,9 +1185,10 @@ export default function MMSUploader() {
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => setSelectedFileForView(upload)}
-                                  className="flex items-center gap-1 hover:bg-blue-50"
+                                  className="flex items-center gap-1 hover:bg-blue-50 ml-2"
                                 >
-                                  <ZoomIn className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" />
+                                  <span className="text-xs">Full View</span>
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="max-w-4xl max-h-[80vh]">
