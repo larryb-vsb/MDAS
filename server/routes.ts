@@ -7975,6 +7975,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Re-encode upload with real data (debug endpoint)
+  app.post("/api/uploader/:id/re-encode", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      console.log(`[RE-ENCODE] Starting re-encoding for upload ${id}`);
+      
+      // Get upload info
+      const upload = await storage.getUploaderUpload(id);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      
+      // Get real file content from storage
+      console.log(`[RE-ENCODE] Fetching file content for ${upload.filename}`);
+      const { replit } = await import("@replit/object-storage");
+      const storageKey = upload.storage_path || `dev-uploader/${id}/${upload.filename}`;
+      
+      let fileContent: string;
+      try {
+        const fileObject = await replit.read(storageKey);
+        fileContent = await fileObject.text();
+        console.log(`[RE-ENCODE] Retrieved ${fileContent.length} characters`);
+      } catch (error: any) {
+        console.error(`[RE-ENCODE] Failed to read file: ${error.message}`);
+        return res.status(500).json({ error: "Failed to read file content" });
+      }
+      
+      // Clear existing JSONB records
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      
+      console.log(`[RE-ENCODE] Clearing existing records from ${tableName}`);
+      await pool.query(`DELETE FROM ${tableName} WHERE upload_id = $1`, [id]);
+      
+      // Process real TDDF lines
+      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+      console.log(`[RE-ENCODE] Processing ${lines.length} real TDDF lines`);
+      
+      let recordsInserted = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineNumber = i + 1;
+        
+        // Extract record type (first 2 characters)
+        const recordType = line.substring(0, 2);
+        
+        // Extract fields based on record type
+        let extractedFields: any = {
+          recordType: recordType,
+          recordIdentifier: `${recordType}-${lineNumber}`
+        };
+        
+        if (recordType === 'DT') {
+          // DT record - extract transaction fields
+          const merchantAccount = line.substring(2, 22).trim();
+          const authCode = line.substring(36, 42).trim();
+          const amountStr = line.substring(101, 112).trim();
+          const amount = amountStr ? (parseFloat(amountStr) / 100).toFixed(2) : '0.00';
+          const dateStr = line.substring(90, 98);
+          
+          extractedFields = {
+            recordType: 'DT',
+            merchantAccountNumber: merchantAccount,
+            authorizationCode: authCode,
+            transactionAmount: amount,
+            transactionDate: formatTddfDate(dateStr),
+            cardType: line.substring(187, 188),
+            merchantName: line.substring(217, 242).trim(),
+            recordIdentifier: `DT-${merchantAccount}-${lineNumber}`
+          };
+        } else if (recordType === 'BH') {
+          // BH record - batch header
+          const batchId = line.substring(2, 22).trim();
+          const dateStr = line.substring(90, 98);
+          
+          extractedFields = {
+            recordType: 'BH',
+            batchId: batchId,
+            batchDate: formatTddfDate(dateStr),
+            recordIdentifier: `BH-${batchId}-${lineNumber}`
+          };
+        }
+        
+        // Insert record
+        const recordData = {
+          rawLine: line,
+          lineNumber: lineNumber,
+          recordType: recordType,
+          extractedFields: extractedFields
+        };
+        
+        await pool.query(`
+          INSERT INTO ${tableName} (
+            upload_id, record_type, record_data, processing_status, created_at
+          ) VALUES ($1, $2, $3, $4, NOW())
+        `, [id, recordType, JSON.stringify(recordData), 'completed']);
+        
+        recordsInserted++;
+      }
+      
+      console.log(`[RE-ENCODE] Successfully inserted ${recordsInserted} real records`);
+      
+      res.json({
+        success: true,
+        message: `Re-encoded ${recordsInserted} records with real TDDF data`,
+        recordsInserted: recordsInserted,
+        tableName: tableName
+      });
+      
+    } catch (error: any) {
+      console.error('Re-encode error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get JSONB data for a specific upload
   app.get("/api/uploader/:id/jsonb-data", isAuthenticated, async (req, res) => {
     try {
@@ -8105,6 +8222,17 @@ function parseDate(dateStr: string): Date | null {
   if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
   
   return new Date(year, month - 1, day);
+}
+
+// Helper function to format TDDF dates
+function formatTddfDate(dateStr: string): string | null {
+  if (!dateStr || dateStr.length !== 8) return null;
+  
+  const month = dateStr.substring(0, 2);
+  const day = dateStr.substring(2, 4);
+  const year = dateStr.substring(4, 8);
+  
+  return `${year}-${month}-${day}`;
 }
 
 function parseAmount(amountStr: string): number | null {
