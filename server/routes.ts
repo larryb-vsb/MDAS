@@ -7657,6 +7657,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stage 5: Encoding API endpoints
+  
+  // Direct TDDF to JSON encoding function (inline implementation)
+  async function encodeTddfToJsonbDirect(fileContent: string, upload: any): Promise<any> {
+    const startTime = Date.now();
+    const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+    
+    console.log(`[TDDF-JSON-ENCODER] Processing ${lines.length} lines from ${upload.filename}`);
+    
+    const results = {
+      uploadId: upload.id,
+      filename: upload.filename,
+      totalLines: lines.length,
+      totalRecords: 0,
+      recordCounts: {
+        total: 0,
+        byType: {} as Record<string, number>
+      },
+      jsonRecords: [] as any[],
+      encodingTimeMs: 0,
+      errors: [] as string[]
+    };
+    
+    // Process each line
+    for (let i = 0; i < lines.length; i++) {
+      try {
+        const line = lines[i];
+        console.log(`[TDDF-JSON-ENCODER] Processing line ${i + 1}: ${line.substring(0, 30)}...`);
+        
+        if (line.length < 19) {
+          results.errors.push(`Line ${i + 1}: Too short for TDDF format (${line.length} chars)`);
+          continue;
+        }
+        
+        const recordType = line.substring(17, 19); // Positions 18-19
+        console.log(`[TDDF-JSON-ENCODER] Line ${i + 1} record type: ${recordType}`);
+        
+        const jsonRecord = {
+          recordType,
+          lineNumber: i + 1,
+          rawLine: line,
+          extractedFields: extractTddfFields(line, recordType)
+        };
+        
+        results.jsonRecords.push(jsonRecord);
+        results.totalRecords++;
+        
+        results.recordCounts.byType[recordType] = 
+          (results.recordCounts.byType[recordType] || 0) + 1;
+          
+        console.log(`[TDDF-JSON-ENCODER] Line ${i + 1} processed successfully - ${Object.keys(jsonRecord.extractedFields).length} fields extracted`);
+        
+      } catch (error: any) {
+        const errorMsg = `Line ${i + 1}: ${error.message}`;
+        results.errors.push(errorMsg);
+        console.error(`[TDDF-JSON-ENCODER] ${errorMsg}`);
+      }
+    }
+    
+    results.recordCounts.total = results.totalRecords;
+    results.encodingTimeMs = Date.now() - startTime;
+    
+    console.log(`[TDDF-JSON-ENCODER] Completed encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
+    console.log(`[TDDF-JSON-ENCODER] Record type breakdown:`, results.recordCounts.byType);
+    
+    return results;
+  }
+  
+  // Extract TDDF fields based on record type
+  function extractTddfFields(line: string, recordType: string): any {
+    const fields: any = {};
+    
+    console.log(`[TDDF-FIELD-EXTRACT] Extracting fields for record type: ${recordType}`);
+    
+    try {
+      // Common header fields (positions 1-19)
+      fields.sequenceNumber = line.substring(0, 7).trim();
+      fields.entryRunNumber = line.substring(7, 13).trim();
+      fields.sequenceWithinRun = line.substring(13, 17).trim();
+      fields.recordIdentifier = line.substring(17, 19).trim();
+      
+      console.log(`[TDDF-FIELD-EXTRACT] Header fields extracted: seq=${fields.sequenceNumber}, run=${fields.entryRunNumber}, record=${fields.recordIdentifier}`);
+      
+      if (recordType === 'DT') {
+        // DT Record specific fields
+        fields.bankNumber = line.substring(19, 23).trim();
+        fields.merchantAccountNumber = line.substring(23, 39).trim();
+        fields.associationNumber = line.substring(39, 45).trim();
+        fields.groupNumber = line.substring(45, 51).trim();
+        fields.transactionCode = line.substring(51, 55).trim();
+        fields.referenceNumber = line.substring(55, 84).trim();
+        
+        // Transaction dates (MMDDCCYY format)
+        const transDate = line.substring(84, 92).trim();
+        const batchDate = line.substring(92, 100).trim();
+        fields.transactionDate = convertTddfDate(transDate);
+        fields.batchDate = convertTddfDate(batchDate);
+        
+        // Transaction amounts (implied decimal)
+        fields.transactionAmount = parseAmount(line.substring(100, 112));
+        fields.authorizationAmount = parseAmount(line.substring(112, 124));
+        fields.feeAmount = parseAmount(line.substring(124, 136));
+        fields.cashbackAmount = parseAmount(line.substring(136, 148));
+        fields.tipAmount = parseAmount(line.substring(148, 156));
+        
+        // Card and POS data
+        fields.cardNumber = line.substring(156, 175).trim();
+        fields.cardType = line.substring(175, 177).trim();
+        fields.authorizationNumber = line.substring(177, 183).trim();
+        fields.posEntryMode = line.substring(183, 186).trim();
+        fields.transactionTypeIdentifier = line.substring(186, 190).trim();
+        fields.mccCode = line.substring(190, 194).trim();
+        fields.terminalIdNumber = line.substring(194, 202).trim();
+        fields.reversalFlag = line.substring(216, 217).trim();
+        fields.merchantName = line.substring(217, 242).trim();
+        
+        console.log(`[TDDF-FIELD-EXTRACT] DT fields: merchant=${fields.merchantAccountNumber}, amount=${fields.transactionAmount}, date=${fields.transactionDate}`);
+        
+      } else if (recordType === 'BH') {
+        // BH Record specific fields
+        fields.bankNumber = line.substring(19, 23).trim();
+        fields.merchantAccountNumber = line.substring(23, 39).trim();
+        fields.associationNumber = line.substring(39, 45).trim();
+        fields.groupNumber = line.substring(45, 51).trim();
+        fields.transactionCode = line.substring(51, 55).trim();
+        fields.batchId = line.substring(55, 71).trim();
+        
+        const batchDateRaw = line.substring(71, 79).trim();
+        fields.batchDate = convertTddfDate(batchDateRaw);
+        fields.transactionCount = parseInt(line.substring(79, 87).trim()) || 0;
+        fields.totalAmount = parseAmount(line.substring(87, 103));
+        
+        console.log(`[TDDF-FIELD-EXTRACT] BH fields: batchId=${fields.batchId}, count=${fields.transactionCount}, total=${fields.totalAmount}`);
+        
+      } else if (recordType === 'P1' || recordType === 'P2') {
+        // P1/P2 Record specific fields
+        fields.taxAmount = parseAmount(line.substring(19, 31));
+        fields.taxRate = parseFloat(line.substring(31, 38).trim()) / 10000 || 0; // 4 decimal places
+        fields.taxType = line.substring(38, 39).trim();
+        fields.purchaseIdentifier = line.substring(39, 64).trim();
+        fields.customerCode = line.substring(64, 89).trim();
+        fields.salesTax = parseAmount(line.substring(89, 101));
+        fields.freightAmount = parseAmount(line.substring(113, 125));
+        fields.destinationZip = line.substring(125, 135).trim();
+        fields.merchantType = line.substring(135, 139).trim();
+        fields.dutyAmount = parseAmount(line.substring(139, 151));
+        fields.discountAmount = parseAmount(line.substring(216, 228));
+        
+        console.log(`[TDDF-FIELD-EXTRACT] P1/P2 fields: taxAmount=${fields.taxAmount}, purchaseId=${fields.purchaseIdentifier}`);
+      }
+      
+      console.log(`[TDDF-FIELD-EXTRACT] Successfully extracted ${Object.keys(fields).length} fields for ${recordType} record`);
+      
+    } catch (error: any) {
+      console.error(`[TDDF-FIELD-EXTRACT] Error extracting fields: ${error.message}`);
+      fields.extractionError = error.message;
+    }
+    
+    return fields;
+  }
+  
+  // Convert TDDF date format (MMDDCCYY) to YYYY-MM-DD
+  function convertTddfDate(dateStr: string): string | null {
+    if (!dateStr || dateStr.length !== 8) return null;
+    try {
+      const month = dateStr.substring(0, 2);
+      const day = dateStr.substring(2, 4);
+      const year = dateStr.substring(4, 8);
+      return `${year}-${month}-${day}`;
+    } catch {
+      return null;
+    }
+  }
+  
+  // Parse TDDF amount field (implied 2 decimal places)
+  function parseAmount(amountStr: string): number | null {
+    const trimmed = amountStr.trim();
+    if (!trimmed) return null;
+    try {
+      const amount = parseInt(trimmed) / 100; // Implied 2 decimal places
+      return isNaN(amount) ? null : amount;
+    } catch {
+      return null;
+    }
+  }
 
   // Start encoding for a single file (individual testing)
   app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
@@ -7690,13 +7874,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Get file content for TDDF encoding
+      console.log(`[STAGE-5-ENCODING] Getting file content for ${upload.filename}`);
       const fileContent = await replitStorage.getFileContent(upload.storageKey || upload.storagePath || '');
-      
-      // Import TDDF encoder
-      const { encodeTddfToJsonb } = await import('./tddf-json-encoder');
+      console.log(`[STAGE-5-ENCODING] File content length: ${fileContent.length} characters`);
       
       // Perform TDDF JSON encoding using schema definitions
-      const encodingResults = await encodeTddfToJsonb(fileContent, upload);
+      console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing...`);
+      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
       
       // Update to completed phase with encoding metadata
       await storage.updateUploaderPhase(id, 'completed', {
