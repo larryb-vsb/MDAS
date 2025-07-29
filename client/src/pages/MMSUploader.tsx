@@ -278,6 +278,27 @@ export default function MMSUploader() {
     }
   });
 
+  // Bulk encode mutation
+  const bulkEncodeMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/bulk-encode', {
+        method: 'POST',
+        body: { 
+          uploadIds,
+          strategy: 'tddf_json'
+        }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+    },
+    onError: (error) => {
+      console.error('Error with bulk encoding:', error);
+    }
+  });
+
   // Filter uploads based on status and file type
   const filteredUploads = uploads.filter(upload => {
     const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
@@ -343,6 +364,34 @@ export default function MMSUploader() {
       console.log('[SET-PREVIOUS-LEVEL] Mutation completed successfully');
     } catch (error) {
       console.error('[SET-PREVIOUS-LEVEL] Error:', error);
+    }
+  };
+
+  // Group Selected Encode handler
+  const handleGroupSelectedEncode = async () => {
+    console.log('[GROUP-ENCODE] Button clicked, selectedUploads:', selectedUploads);
+    
+    // Filter selected uploads to only include TDDF files in identified phase
+    const eligibleUploads = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      const isEligible = upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
+      console.log(`[GROUP-ENCODE] File ${upload?.filename} (${upload?.currentPhase}, ${upload?.finalFileType}) eligible: ${isEligible}`);
+      return isEligible;
+    });
+    
+    console.log(`[GROUP-ENCODE] Found ${eligibleUploads.length} eligible TDDF uploads:`, eligibleUploads);
+    
+    if (eligibleUploads.length === 0) {
+      console.log('[GROUP-ENCODE] No eligible TDDF uploads found, returning');
+      return;
+    }
+    
+    try {
+      console.log('[GROUP-ENCODE] Starting bulk encoding for uploads:', eligibleUploads);
+      await bulkEncodeMutation.mutateAsync(eligibleUploads);
+      console.log('[GROUP-ENCODE] Bulk encoding completed successfully');
+    } catch (error) {
+      console.error('[GROUP-ENCODE] Error:', error);
     }
   };
 
@@ -1518,6 +1567,20 @@ export default function MMSUploader() {
                       >
                         <X className="h-4 w-4 mr-2" />
                         {cancelEncodingMutation.isPending ? 'Canceling...' : 'Cancel Encoding'}
+                      </Button>
+
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleGroupSelectedEncode}
+                        disabled={bulkEncodeMutation.isPending || !selectedUploads.some(id => {
+                          const upload = uploads.find(u => u.id === id);
+                          return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
+                        })}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        {bulkEncodeMutation.isPending ? 'Encoding...' : 'Group Selected Encode'}
                       </Button>
                     </div>
                   )}
