@@ -16,6 +16,7 @@ import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Pl
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
+import TddfJsonViewer from '@/components/uploads/TddfJsonViewer';
 import { formatDistanceToNow } from 'date-fns';
 
 // Extended type for UploaderUpload with storage key
@@ -124,6 +125,10 @@ export default function MMSUploader() {
   
   // Storage status for bulb system
   const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
+  
+  // Encoding results and progress tracking
+  const [encodingResults, setEncodingResults] = useState<Record<string, any>>({});
+  const [encodingProgress, setEncodingProgress] = useState<Record<string, number>>({});
 
   // Storage status bulb tooltip text (moved inside component)
   const getBulbTooltip = (upload: UploaderUpload, storageStatus?: any): string => {
@@ -258,10 +263,24 @@ export default function MMSUploader() {
     }
   };
 
-  // Stage 5: Single file encoding handler
+  // Stage 5: Single file encoding handler with progress tracking
   const handleSingleFileEncoding = async (uploadId: string) => {
     try {
       console.log(`[STAGE-5] Starting encoding for upload: ${uploadId}`);
+      
+      // Set initial progress
+      setEncodingProgress(prev => ({ ...prev, [uploadId]: 0 }));
+      
+      // Simulate progress tracking
+      const progressInterval = setInterval(() => {
+        setEncodingProgress(prev => {
+          const currentProgress = prev[uploadId] || 0;
+          if (currentProgress < 90) {
+            return { ...prev, [uploadId]: currentProgress + 10 };
+          }
+          return prev;
+        });
+      }, 200);
       
       const response = await apiRequest(`/api/uploader/${uploadId}/encode`, {
         method: 'POST',
@@ -270,13 +289,46 @@ export default function MMSUploader() {
         }
       });
       
+      // Clear progress interval
+      clearInterval(progressInterval);
+      
       console.log('[STAGE-5] Encoding response:', response);
+      
+      // Store encoding results for JSON display
+      if (response.jsonSample && response.recordTypeBreakdown) {
+        setEncodingResults(prev => ({
+          ...prev,
+          [uploadId]: {
+            jsonSample: response.jsonSample,
+            recordTypeBreakdown: response.recordTypeBreakdown,
+            message: response.message,
+            filename: response.filename,
+            encodingTimeMs: response.results?.encodingTimeMs
+          }
+        }));
+      }
+      
+      // Set final progress to 100%
+      setEncodingProgress(prev => ({ ...prev, [uploadId]: 100 }));
       
       // Refresh upload list to show updated status
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       
     } catch (error) {
       console.error('Single file encoding error:', error);
+      
+      // Clear progress on error
+      setEncodingProgress(prev => ({ ...prev, [uploadId]: 0 }));
+      
+      // Store error result
+      setEncodingResults(prev => ({
+        ...prev,
+        [uploadId]: {
+          error: error instanceof Error ? error.message : 'Unknown encoding error',
+          jsonSample: [],
+          recordTypeBreakdown: {}
+        }
+      }));
     }
   };
 
@@ -1412,15 +1464,47 @@ export default function MMSUploader() {
                           
                           {/* Stage 5: Encoding Button (for identified TDDF files) */}
                           {upload.currentPhase === 'identified' && upload.finalFileType === 'tddf' && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                onClick={() => handleSingleFileEncoding(upload.id)}
+                                title="Start Stage 5 encoding"
+                                disabled={encodingProgress[upload.id] > 0 && encodingProgress[upload.id] < 100}
+                              >
+                                <Database className="h-3 w-3 mr-1" />
+                                {encodingProgress[upload.id] > 0 && encodingProgress[upload.id] < 100 ? 'Encoding...' : 'Encode'}
+                              </Button>
+                              
+                              {/* Progress Display */}
+                              {encodingProgress[upload.id] > 0 && encodingProgress[upload.id] < 100 && (
+                                <div className="flex items-center gap-2 min-w-[100px]">
+                                  <Progress value={encodingProgress[upload.id]} className="w-16" />
+                                  <span className="text-sm">{Math.round(encodingProgress[upload.id])}%</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Stage 5: Show JSON Sample for completed encoding */}
+                          {upload.currentPhase === 'completed' && upload.finalFileType === 'tddf' && encodingResults[upload.id] && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
-                              onClick={() => handleSingleFileEncoding(upload.id)}
-                              title="Start Stage 5 encoding"
+                              className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
+                              onClick={() => {
+                                // Toggle JSON display in a dialog
+                                setSelectedFileForView({
+                                  ...upload,
+                                  showJsonSample: true,
+                                  encodingResult: encodingResults[upload.id]
+                                } as any);
+                              }}
+                              title="View JSON sample with highlighted Record Identifier"
                             >
-                              <Database className="h-3 w-3 mr-1" />
-                              Encode
+                              <Eye className="h-3 w-3 mr-1" />
+                              View JSON
                             </Button>
                           )}
 
@@ -1532,16 +1616,38 @@ export default function MMSUploader() {
 
       {/* File Content Viewer Dialog */}
       <Dialog open={!!selectedFileForView} onOpenChange={() => setSelectedFileForView(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogContent className="max-w-6xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>File Contents</DialogTitle>
+            <DialogTitle>
+              {(selectedFileForView as any)?.showJsonSample ? 'TDDF JSON Sample' : 'File Contents'}
+            </DialogTitle>
             <DialogDescription>
               Viewing: {selectedFileForView?.filename} ({formatFileSize(selectedFileForView?.fileSize)})
+              {(selectedFileForView as any)?.showJsonSample && ' - JSON Sample with highlighted Record Identifier fields'}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            {isLoadingContent ? (
+          <div className="space-y-4 overflow-auto">
+            {(selectedFileForView as any)?.showJsonSample && (selectedFileForView as any)?.encodingResult ? (
+              /* JSON Sample Display with TddfJsonViewer */
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-sm font-medium text-blue-800 mb-2">
+                    Encoding Results: {(selectedFileForView as any).encodingResult.message}
+                  </div>
+                  {(selectedFileForView as any).encodingResult.encodingTimeMs && (
+                    <div className="text-xs text-blue-600">
+                      Processing time: {(selectedFileForView as any).encodingResult.encodingTimeMs}ms
+                    </div>
+                  )}
+                </div>
+                
+                <TddfJsonViewer 
+                  jsonSample={(selectedFileForView as any).encodingResult.jsonSample}
+                  recordTypeBreakdown={(selectedFileForView as any).encodingResult.recordTypeBreakdown}
+                />
+              </div>
+            ) : isLoadingContent ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-muted-foreground">Loading file contents...</div>
               </div>

@@ -7893,19 +7893,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         encodingMetadata: encodingResults
       });
       
+      // Create JSON sample with highlighted record identifier
+      const jsonSample = encodingResults.jsonRecords.slice(0, 3).map((record: any) => ({
+        ...record,
+        highlightedRecordIdentifier: record.extractedFields.recordIdentifier, // Highlight this field in red
+        extractedFieldsCount: Object.keys(record.extractedFields).length
+      }));
+      
       const result = {
         uploadId: id,
         filename: upload.filename,
         strategy: strategy,
         status: 'completed',
+        progress: 100,
         message: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+        jsonSample: jsonSample, // Include JSON sample for display
+        recordTypeBreakdown: encodingResults.recordCounts.byType,
         results: encodingResults
       };
       
       res.json(result);
     } catch (error: any) {
       console.error('Single file encoding error:', error);
-      res.status(500).json({ error: error.message });
+      
+      // Update to failed phase with error details
+      try {
+        await storage.updateUploaderPhase(id, 'failed', {
+          encodingStatus: 'failed',
+          encodingNotes: `Encoding failed: ${error.message}`,
+          encodingError: error.message
+        });
+      } catch (updateError: any) {
+        console.error('Failed to update upload phase:', updateError);
+      }
+      
+      res.status(500).json({ 
+        error: error.message || 'Unknown encoding error',
+        uploadId: id,
+        stack: error.stack
+      });
     }
   });
 
