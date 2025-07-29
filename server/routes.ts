@@ -8786,7 +8786,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           LEFT JOIN ${tddfJsonbTableName} dt ON (
             dt.record_type = 'DT' 
             AND dt.filename = bh.filename
+            -- Shared identifiers as per TDDF specification
             AND dt.extracted_fields->>'merchantAccountNumber' = bh.extracted_fields->>'merchantAccountNumber'
+            AND dt.extracted_fields->>'entryRunNumber' = bh.extracted_fields->>'entryRunNumber'
+            -- Sequential positioning logic
             AND dt.line_number > bh.line_number
             AND dt.line_number < COALESCE(
               (SELECT MIN(next_bh.line_number) 

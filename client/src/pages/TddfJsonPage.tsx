@@ -148,7 +148,8 @@ function BatchRelationshipsView() {
            `Showing ${batchData?.batches?.length || 0} of ${batchData?.total || 0} batch relationships`}
         </p>
         <div className="text-xs text-muted-foreground mt-2">
-          Shows Batch Header (BH) records with their associated Detail Transaction (DT) records based on merchant account matching and positional relationships.
+          Shows Batch Header (BH) records with their associated Detail Transaction (DT) records based on TDDF specification:
+          <span className="font-mono ml-2">Shared Entry Run Number + Merchant Account + Sequential Positioning</span>
         </div>
       </CardHeader>
       <CardContent>
@@ -178,10 +179,12 @@ function BatchRelationshipsView() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="font-medium text-green-800">Batch ID:</span>
-                      <div className="font-mono">{batch.batch_fields?.batchId || 'N/A'}</div>
+                      <span className="font-medium text-green-800">Entry Run #:</span>
+                      <div className="font-mono bg-blue-100 px-2 py-1 rounded text-blue-800 font-semibold">
+                        {batch.batch_fields?.entryRunNumber || batch.batch_fields?.batchId || 'N/A'}
+                      </div>
                     </div>
                     <div>
                       <span className="font-medium text-green-800">Net Deposit:</span>
@@ -191,8 +194,12 @@ function BatchRelationshipsView() {
                       </div>
                     </div>
                     <div>
+                      <span className="font-medium text-green-800">Batch Date:</span>
+                      <div className="font-mono">{batch.batch_fields?.batchDate || 'N/A'}</div>
+                    </div>
+                    <div>
                       <span className="font-medium text-green-800">Merchant Account:</span>
-                      <div className="font-mono">{batch.batch_fields?.merchantAccountNumber || 'N/A'}</div>
+                      <div className="font-mono text-xs">{batch.batch_fields?.merchantAccountNumber || 'N/A'}</div>
                     </div>
                   </div>
                 </div>
@@ -206,39 +213,87 @@ function BatchRelationshipsView() {
                     <span className="text-sm text-muted-foreground">
                       ({batch.related_transactions?.length || 0} transactions)
                     </span>
+                    {/* TDDF Relationship Validation */}
+                    {batch.related_transactions?.length > 0 && (
+                      <div className="ml-auto flex items-center gap-2">
+                        {(() => {
+                          const bhAmount = parseFloat(batch.batch_fields?.netDeposit || '0');
+                          const dtTotal = batch.related_transactions.reduce((sum, tx) => 
+                            sum + parseFloat(tx.extracted_fields?.transactionAmount || '0'), 0
+                          );
+                          const isMatch = Math.abs(bhAmount - dtTotal) < 0.01;
+                          
+                          return (
+                            <div className="flex items-center gap-1">
+                              <Badge className={isMatch 
+                                ? "bg-green-100 text-green-800 border-green-300" 
+                                : "bg-amber-100 text-amber-800 border-amber-300"
+                              }>
+                                {isMatch ? "✓ Amount Match" : "⚠ Amount Variance"}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                DT Total: ${dtTotal.toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                   
                   {batch.related_transactions?.length > 0 ? (
                     <div className="space-y-2">
-                      {batch.related_transactions.slice(0, 5).map((transaction) => (
-                        <div key={transaction.id} className="bg-blue-50 border border-blue-200 rounded p-3">
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
-                            <div>
-                              <span className="font-medium text-blue-800">Line:</span>
-                              <div className="font-mono">{transaction.line_number}</div>
+                      {batch.related_transactions.slice(0, 5).map((transaction, index) => {
+                        // Check TDDF compliance indicators
+                        const hasMatchingRunNumber = transaction.extracted_fields?.entryRunNumber === batch.batch_fields?.entryRunNumber;
+                        const hasMatchingMerchant = transaction.extracted_fields?.merchantAccountNumber === batch.batch_fields?.merchantAccountNumber;
+                        const complianceStrength = (hasMatchingRunNumber ? 1 : 0) + (hasMatchingMerchant ? 1 : 0);
+                        
+                        return (
+                          <div key={transaction.id} className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                  DT #{index + 1}
+                                </Badge>
+                                <Badge className={
+                                  complianceStrength === 2 ? "bg-green-100 text-green-800 border-green-300" :
+                                  complianceStrength === 1 ? "bg-amber-100 text-amber-800 border-amber-300" :
+                                  "bg-red-100 text-red-800 border-red-300"
+                                }>
+                                  {complianceStrength === 2 ? "✓ Full Match" :
+                                   complianceStrength === 1 ? "⚠ Partial" : "✗ Weak"}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground font-mono">
+                                Line {transaction.line_number}
+                              </span>
                             </div>
-                            <div>
-                              <span className="font-medium text-blue-800">Amount:</span>
-                              <div className="font-mono">
-                                {transaction.extracted_fields?.transactionAmount ? 
-                                  `$${transaction.extracted_fields.transactionAmount}` : 'N/A'}
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                              <div>
+                                <span className="font-medium text-blue-800">Amount:</span>
+                                <div className="font-mono font-semibold">
+                                  {transaction.extracted_fields?.transactionAmount ? 
+                                    `$${transaction.extracted_fields.transactionAmount}` : 'N/A'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-blue-800">Date:</span>
+                                <div className="font-mono">{transaction.extracted_fields?.transactionDate || 'N/A'}</div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-blue-800">Card:</span>
+                                <div className="font-mono">{transaction.extracted_fields?.cardType || 'N/A'}</div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-blue-800">Reference:</span>
+                                <div className="font-mono text-[10px]">{transaction.extracted_fields?.referenceNumber || 'N/A'}</div>
                               </div>
                             </div>
-                            <div>
-                              <span className="font-medium text-blue-800">Date:</span>
-                              <div className="font-mono">{transaction.extracted_fields?.transactionDate || 'N/A'}</div>
-                            </div>
-                            <div>
-                              <span className="font-medium text-blue-800">Card:</span>
-                              <div className="font-mono">{transaction.extracted_fields?.cardType || 'N/A'}</div>
-                            </div>
-                            <div>
-                              <span className="font-medium text-blue-800">Reference:</span>
-                              <div className="font-mono text-[10px]">{transaction.extracted_fields?.referenceNumber || 'N/A'}</div>
-                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       
                       {batch.related_transactions.length > 5 && (
                         <div className="text-center text-sm text-muted-foreground py-2">
