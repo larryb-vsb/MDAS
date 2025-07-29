@@ -1197,10 +1197,11 @@ export default function MMSUploader() {
                           </Badge>
                           
                           {/* Storage Status Bulb - replaces magnifying glass with hover info */}
-                          <Lightbulb 
-                            className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`}
-                            title={getBulbTooltip(upload, storageStatusCache[upload.id])}
-                          />
+                          <div title={getBulbTooltip(upload, storageStatusCache[upload.id])}>
+                            <Lightbulb 
+                              className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`}
+                            />
+                          </div>
                         </div>
                       </div>
                     );
@@ -1293,6 +1294,7 @@ export default function MMSUploader() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </MainLayout>
   );
 }
