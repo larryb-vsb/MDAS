@@ -13246,7 +13246,8 @@ export class DatabaseStorage implements IStorage {
         processingNotes: 'processing_notes',
         createdBy: 'created_by',
         serverId: 'server_id',
-        sessionId: 'session_id'
+        sessionId: 'session_id',
+        failedAt: 'failed_at'
       };
       
       // Build dynamic update query
