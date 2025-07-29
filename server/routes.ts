@@ -7656,6 +7656,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset encoded files to identified status
+  app.post("/api/uploader/reset-to-identified", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER API] Reset to identified request for ${uploadIds.length} uploads:`, uploadIds);
+      
+      // Reset each upload to identified status
+      let resetCount = 0;
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          
+          if (!upload) {
+            errors.push(`Upload ${uploadId} not found`);
+            continue;
+          }
+          
+          if (upload.currentPhase !== 'encoded') {
+            errors.push(`Upload ${upload.filename} is not in encoded status (current: ${upload.currentPhase})`);
+            continue;
+          }
+          
+          // Reset to identified phase and clear encoding data
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'identified',
+            encodingStatus: null,
+            encodingTimeMs: null,
+            jsonRecordsCreated: null,
+            tddfRecordsCreated: null,
+            processingNotes: `Reset from encoded to identified status at ${new Date().toISOString()}`
+          });
+          
+          resetCount++;
+          console.log(`[UPLOADER API] Reset upload ${uploadId} (${upload.filename}) from encoded to identified`);
+          
+        } catch (error: any) {
+          console.error(`Error resetting upload ${uploadId}:`, error);
+          errors.push(`Failed to reset upload ${uploadId}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[UPLOADER API] Successfully reset ${resetCount} uploads to identified status`);
+      
+      const response: any = { 
+        success: true, 
+        message: `Successfully reset ${resetCount} files to identified status`,
+        resetCount
+      };
+      
+      if (errors.length > 0) {
+        response.warnings = errors;
+        response.message += ` (${errors.length} warnings)`;
+      }
+      
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('Reset to identified error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Stage 5: Encoding API endpoints
   
   // Direct TDDF to JSON encoding function (inline implementation)

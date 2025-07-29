@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -126,6 +126,10 @@ export default function MMSUploader() {
   
   // Bulk delete state
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
+  
+  // Reset controls state
+  const [selectedForReset, setSelectedForReset] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
   
   // Storage status for bulb system
   const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
@@ -244,6 +248,25 @@ export default function MMSUploader() {
     }
   });
 
+  // Reset encoded files to identified status mutation
+  const resetMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/reset-to-identified', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedForReset(new Set());
+      setShowBulkActions(false);
+    },
+    onError: (error) => {
+      console.error('Error resetting uploads:', error);
+    }
+  });
+
   // Filter uploads based on status and file type
   const filteredUploads = uploads.filter(upload => {
     const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
@@ -264,6 +287,49 @@ export default function MMSUploader() {
       await bulkDeleteMutation.mutateAsync(selectedUploads);
     } catch (error) {
       console.error('Bulk delete error:', error);
+    }
+  };
+
+  // Reset control handlers
+  const handleSelectForReset = (uploadId: string, checked: boolean) => {
+    const newSelected = new Set(selectedForReset);
+    if (checked) {
+      newSelected.add(uploadId);
+    } else {
+      newSelected.delete(uploadId);
+    }
+    setSelectedForReset(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  const handleSelectAllForReset = (checked: boolean) => {
+    if (checked) {
+      const encodedFiles = paginatedUploads
+        .filter(upload => upload.currentPhase === 'encoded')
+        .map(upload => upload.id);
+      setSelectedForReset(new Set(encodedFiles));
+      setShowBulkActions(encodedFiles.length > 0);
+    } else {
+      setSelectedForReset(new Set());
+      setShowBulkActions(false);
+    }
+  };
+
+  const handleResetSingle = async (uploadId: string) => {
+    try {
+      await resetMutation.mutateAsync([uploadId]);
+    } catch (error) {
+      console.error('Single reset error:', error);
+    }
+  };
+
+  const handleResetSelected = async () => {
+    if (selectedForReset.size === 0) return;
+    
+    try {
+      await resetMutation.mutateAsync(Array.from(selectedForReset));
+    } catch (error) {
+      console.error('Bulk reset error:', error);
     }
   };
 
@@ -1305,6 +1371,51 @@ export default function MMSUploader() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Reset Controls Section */}
+              {uploads.filter(u => u.currentPhase === 'encoded').length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <RefreshCw className="h-5 w-5 text-orange-600" />
+                      <div>
+                        <div className="font-medium text-orange-800">Reset Encoded Files</div>
+                        <div className="text-sm text-orange-600">
+                          Reset encoded files back to identified status for re-processing
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-orange-700">
+                        {selectedForReset.size} of {uploads.filter(u => u.currentPhase === 'encoded').length} selected
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectAllForReset(selectedForReset.size === 0)}
+                        className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                      >
+                        {selectedForReset.size === uploads.filter(u => u.currentPhase === 'encoded').length ? 'Clear All' : 'Select All'}
+                      </Button>
+                      
+                      {selectedForReset.size > 0 && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleResetSelected}
+                          disabled={resetMutation.isPending}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          {resetMutation.isPending ? 'Resetting...' : `Reset ${selectedForReset.size} Files`}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Filters and Controls */}
               <div className="flex flex-wrap gap-4 items-center justify-between">
                 <div className="flex flex-wrap gap-4">
@@ -1493,19 +1604,34 @@ export default function MMSUploader() {
                           
                           {/* Stage 5: Show JSON Sample for encoded files */}
                           {upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
-                              onClick={() => {
-                                setSelectedUploadForJsonb(upload);
-                                setJsonbViewerOpen(true);
-                              }}
-                              title="View JSONB data with highlighted Record Identifier fields"
-                            >
-                              <Eye className="h-3 w-3 mr-1" />
-                              View JSONB
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
+                                onClick={() => {
+                                  setSelectedUploadForJsonb(upload);
+                                  setJsonbViewerOpen(true);
+                                }}
+                                title="View JSONB data with highlighted Record Identifier fields"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View JSONB
+                              </Button>
+                              
+                              {/* Reset to Identified Button */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-orange-600 border-orange-200 hover:bg-orange-50"
+                                onClick={() => handleResetSingle(upload.id)}
+                                title="Reset to identified status and clear encoding data"
+                                disabled={resetMutation.isPending}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" />
+                                Reset
+                              </Button>
+                            </div>
                           )}
 
                           {/* View Contents Button */}
