@@ -22,7 +22,10 @@ import {
   Zap,
   Activity,
   FileJson,
-  Database
+  Database,
+  ChevronDown,
+  ChevronRight,
+  Archive
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -38,10 +41,19 @@ import { useToast } from "@/hooks/use-toast";
 interface NavItemProps {
   icon: React.ReactNode;
   label: string;
-  href: string;
-  isActive: boolean;
+  href?: string;
+  isActive?: boolean;
   onClick?: () => void;
   adminOnly?: boolean;
+  submenu?: NavSubmenuItem[];
+  isExpanded?: boolean;
+  onToggle?: () => void;
+}
+
+interface NavSubmenuItem {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
 }
 
 const navItems = [
@@ -79,11 +91,6 @@ const navItems = [
     href: "/transactions"
   },
   {
-    icon: <FileText className="h-5 w-5 text-gray-300" />,
-    label: "TDDF Records",
-    href: "/tddf"
-  },
-  {
     icon: <FileJson className="h-5 w-5 text-blue-400" />,
     label: "TDDF JSON",
     href: "/tddf-json"
@@ -99,14 +106,25 @@ const navItems = [
     href: "/processing"
   },
   {
-    icon: <UploadCloud className="h-5 w-5 text-gray-300" />,
-    label: "Uploads",
-    href: "/uploads"
-  },
-  {
     icon: <Zap className="h-5 w-5 text-orange-400" />,
     label: "MMS Uploader",
     href: "/uploader"
+  },
+  {
+    icon: <Archive className="h-5 w-5 text-amber-400" />,
+    label: "Legacy",
+    submenu: [
+      {
+        icon: <FileText className="h-4 w-4 text-gray-300" />,
+        label: "TDDF Records",
+        href: "/tddf"
+      },
+      {
+        icon: <UploadCloud className="h-4 w-4 text-gray-300" />,
+        label: "Uploads",
+        href: "/uploads"
+      }
+    ]
   },
   {
     icon: <FileText className="h-5 w-5 text-gray-300" />,
@@ -132,10 +150,72 @@ const navItems = [
   }
 ];
 
-function NavItem({ icon, label, href, isActive, onClick }: NavItemProps) {
+function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, onToggle }: NavItemProps) {
+  const [location] = useLocation();
+  
+  // If this is a submenu item, render the collapsible submenu
+  if (submenu) {
+    return (
+      <div className="relative">
+        <div
+          onClick={onToggle}
+          className={cn(
+            "flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer min-h-[44px] touch-manipulation relative z-50 select-none",
+            isExpanded ? "text-white bg-gray-700 shadow-lg" : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
+          )}
+          style={{
+            WebkitUserSelect: 'none',
+            MozUserSelect: 'none',
+            msUserSelect: 'none',
+            userSelect: 'none'
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {icon}
+            <span>{label}</span>
+          </div>
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-gray-300" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-300" />
+          )}
+        </div>
+        
+        {/* Submenu items */}
+        {isExpanded && (
+          <div className="ml-6 mt-1 space-y-1">
+            {submenu.map((subItem, index) => (
+              <Link
+                key={index}
+                href={subItem.href}
+                onClick={onClick}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[36px] touch-manipulation relative z-50 select-none",
+                  location === subItem.href 
+                    ? "text-white bg-gray-600 shadow-lg" 
+                    : "text-gray-400 hover:bg-gray-600 hover:text-white hover:shadow-md"
+                )}
+                style={{
+                  WebkitUserSelect: 'none',
+                  MozUserSelect: 'none',
+                  msUserSelect: 'none',
+                  userSelect: 'none'
+                }}
+              >
+                {subItem.icon}
+                <span>{subItem.label}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Regular navigation item
   return (
     <Link
-      href={href}
+      href={href!}
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation relative z-50 select-none",
@@ -158,6 +238,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [legacyExpanded, setLegacyExpanded] = useState(false);
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   
@@ -166,6 +247,17 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   
   // Filter navigation items based on admin status
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  
+  // Check if any Legacy submenu items are active
+  const isLegacyActive = location === "/tddf" || location === "/uploads" || 
+                        location.startsWith("/tddf/") || location.startsWith("/uploads/");
+  
+  // Auto-expand Legacy submenu if any of its items are active
+  useEffect(() => {
+    if (isLegacyActive) {
+      setLegacyExpanded(true);
+    }
+  }, [isLegacyActive]);
   
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -212,10 +304,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   label={item.label}
                   href={item.href}
                   isActive={
-                    location === item.href || 
-                    (item.href !== "/" && location.startsWith(item.href + "/"))
+                    item.href && (
+                      location === item.href || 
+                      (item.href !== "/" && location.startsWith(item.href + "/"))
+                    )
                   }
                   onClick={() => setOpen(false)}
+                  submenu={item.submenu}
+                  isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
+                  onToggle={item.label === "Legacy" ? () => setLegacyExpanded(!legacyExpanded) : undefined}
                 />
               ))}
               
@@ -308,9 +405,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 label={item.label}
                 href={item.href}
                 isActive={
-                  location === item.href || 
-                  (item.href !== "/" && location.startsWith(item.href + "/"))
+                  item.href && (
+                    location === item.href || 
+                    (item.href !== "/" && location.startsWith(item.href + "/"))
+                  )
                 }
+                submenu={item.submenu}
+                isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
+                onToggle={item.label === "Legacy" ? () => setLegacyExpanded(!legacyExpanded) : undefined}
               />
             ))}
           </nav>
