@@ -7823,7 +7823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get file content for TDDF encoding
       console.log(`[STAGE-5-ENCODING] Getting file content for ${upload.filename}`);
-      const fileContent = await replitStorage.getFileContent(upload.storageKey || upload.storagePath || '');
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key || upload.storagePath || '');
       console.log(`[STAGE-5-ENCODING] File content length: ${fileContent.length} characters`);
       
       // Perform TDDF JSON encoding using schema definitions
@@ -7867,6 +7868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update to failed phase with error details
       try {
+        const { id } = req.params;
         await storage.updateUploaderPhase(id, 'failed', {
           encodingStatus: 'failed',
           encodingNotes: `Encoding failed: ${error.message}`,
