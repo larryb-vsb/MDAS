@@ -344,7 +344,7 @@ export default function MMSUploader() {
               body: JSON.stringify({
                 currentPhase: 'warning',
                 sessionId: sessionId,
-                processingNotes: `Session upload failed: ${error.message} (Session: ${sessionId})`,
+                processingNotes: `Session upload failed: ${error instanceof Error ? error.message : String(error)} (Session: ${sessionId})`,
                 failedAt: new Date().toISOString()
               })
             });
@@ -420,14 +420,9 @@ export default function MMSUploader() {
                 </div>
                 <div className="text-sm text-blue-600">
                   Bucket: {storageConfig?.bucket || 'default-replit-bucket'}
-                  {storageConfig?.environment && (
-                    <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs font-medium">
-                      {storageConfig.environment}
-                    </span>
-                  )}
                 </div>
                 <div className="text-xs text-blue-500">
-                  Folder: {storageConfig?.folderPrefix || 'dev-uploader'}/
+                  Folder: dev-uploader/
                   {storageConfig?.fileCount !== undefined && (
                     <span className="ml-2">({storageConfig.fileCount} files)</span>
                   )}
@@ -1021,7 +1016,7 @@ export default function MMSUploader() {
                           <div className="flex-1">
                             <div className="font-medium">{upload.filename}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-4">
-                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.fileType || 'TDDF'}</span>
+                              <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || 'TDDF'}</span>
                               <span>Started {upload.startTime ? formatDuration(upload.startTime) : 'recently'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
                             </div>
