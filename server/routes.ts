@@ -7824,12 +7824,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get file content for TDDF encoding
       console.log(`[STAGE-5-ENCODING] Getting file content for ${upload.filename}`);
       const { ReplitStorageService } = await import('./replit-storage-service');
-      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key || upload.storagePath || '');
-      console.log(`[STAGE-5-ENCODING] File content length: ${fileContent.length} characters`);
+      const storageService = new ReplitStorageService();
+      const fileContent = await storageService.getFileContent(upload.s3Key || upload.storagePath || '');
+      console.log(`[STAGE-5-ENCODING] File content length: ${fileContent ? fileContent.length : 0} characters`);
       
+      // Check if file content was retrieved
+      if (!fileContent) {
+        throw new Error(`Failed to retrieve file content from storage. S3Key: ${upload.s3Key}, StoragePath: ${upload.storagePath}`);
+      }
+
       // Perform TDDF JSON encoding using schema definitions
-      console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing...`);
-      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
+      console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing for ${fileContent.split('\n').length} lines...`);
+      const encodingResults = await encodeTddfToJsonbDirect(upload.id, fileContent);
       
       // Update to encoded phase with completion metadata
       await storage.updateUploaderPhase(id, 'encoded', {
@@ -7840,7 +7846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         jsonRecordsCreated: encodingResults.recordCounts.total,
         tddfRecordsCreated: encodingResults.recordCounts.byType.DT || 0,
         encodingMetadata: encodingResults,
-        jsonbTableUsed: NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb'
+        jsonbTableUsed: process.env.NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb'
       });
       
       // Create JSON sample with highlighted record identifier
@@ -7985,7 +7991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[RE-ENCODE] Starting re-encoding for upload ${id}`);
       
       // Get upload info
-      const upload = await storage.getUploaderUpload(id);
+      const upload = await storage.getUploaderUploadById(id);
       if (!upload) {
         return res.status(404).json({ error: "Upload not found" });
       }
@@ -8007,7 +8013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Clear existing JSONB records
       const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
       console.log(`[RE-ENCODE] Clearing existing records from ${tableName}`);
       await pool.query(`DELETE FROM ${tableName} WHERE upload_id = $1`, [id]);
@@ -8104,14 +8110,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
       
       const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
       console.log(`[JSONB-API] Detected environment: "${environment}", selected table: "${tableName}"`);
       
       let query = `
         SELECT 
-          id, upload_id, record_type, record_data, 
-          processing_status, created_at
+          id, upload_id, record_type, line_number, raw_line,
+          extracted_fields, record_identifier, processing_time_ms, created_at
         FROM ${tableName} 
         WHERE upload_id = $1
       `;
@@ -8134,17 +8140,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform data to match expected JSON viewer format
       const transformedData = result.rows.map(row => {
-        const recordData = row.record_data;
         return {
           id: row.id,
           upload_id: row.upload_id,
-          filename: recordData.filename || 'Unknown',
+          filename: row.filename || 'Unknown',
           record_type: row.record_type,
-          line_number: recordData.lineNumber || 0,
-          raw_line: recordData.rawLine || '',
-          extracted_fields: recordData.extractedFields || {},
-          record_identifier: `${row.record_type}-${recordData.lineNumber || row.id}`,
-          processing_time_ms: recordData.processingTimeMs || 0,
+          line_number: row.line_number || 0,
+          raw_line: row.raw_line || '',
+          extracted_fields: row.extracted_fields || {},
+          record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
+          processing_time_ms: row.processing_time_ms || 0,
           created_at: row.created_at
         };
       });
