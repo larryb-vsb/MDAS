@@ -16,7 +16,7 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 29, 2025 - HEAT MAP PERFORMANCE OPTIMIZATION SYSTEM COMPLETED - COMPREHENSIVE LARGE DATASET HEAT MAP OPTIMIZATION INFRASTRUCTURE OPERATIONAL - MMS UPLOADER API PARAMETER REFACTORING COMPLETED - REVIEW MODE API TESTING SUCCESSFUL - FILE CONTENT VIEWING SYSTEM OPERATIONAL - ENHANCED METADATA CAPTURE SYSTEM COMPLETED - SESSION-CONTROLLED UPLOAD MONITORING COMPLETED - UPLOAD SYSTEM CRITICAL FIXES COMPLETED AND VERIFIED - JSONB ENCODING TIMING SYSTEM COMPLETED - ENCODING COMPLETION ISSUE COMPLETELY RESOLVED - TDDF JSON PAGE COMPLETE DATABASE INTEGRATION SUCCESSFUL - **✅ DARK THEME LOGIN PAGE WITH MOBILE OPTIMIZATION COMPLETED (July 29, 2025)**: Successfully redesigned authentication page with modern dark theme and comprehensive mobile enhancements
+- Current session: July 29, 2025 - HEAT MAP PERFORMANCE OPTIMIZATION SYSTEM COMPLETED - COMPREHENSIVE LARGE DATASET HEAT MAP OPTIMIZATION INFRASTRUCTURE OPERATIONAL - MMS UPLOADER API PARAMETER REFACTORING COMPLETED - REVIEW MODE API TESTING SUCCESSFUL - FILE CONTENT VIEWING SYSTEM OPERATIONAL - ENHANCED METADATA CAPTURE SYSTEM COMPLETED - SESSION-CONTROLLED UPLOAD MONITORING COMPLETED - UPLOAD SYSTEM CRITICAL FIXES COMPLETED AND VERIFIED - JSONB ENCODING TIMING SYSTEM COMPLETED - ENCODING COMPLETION ISSUE COMPLETELY RESOLVED - TDDF JSON PAGE COMPLETE DATABASE INTEGRATION SUCCESSFUL - **✅ DARK THEME LOGIN PAGE WITH MOBILE OPTIMIZATION AND AUTHENTICATION SYSTEM COMPLETED (July 29, 2025)**: Successfully redesigned authentication page with modern dark theme, comprehensive mobile enhancements, and resolved password management issues
   - **Dark Theme Implementation**: Complete dark gray (bg-gray-900) background with white card-based form design for professional appearance
   - **Mobile-First Responsive Design**: Responsive layout using flexbox with dedicated mobile header and features section at bottom
   - **Enhanced Form Styling**: Larger input fields (h-12), improved focus states, and professional blue button styling
@@ -25,6 +25,14 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Improved Typography**: Better spacing, font weights, and color contrast for accessibility across all screen sizes
   - **Card-Based Layout**: Clean white card with shadow for form content, making it stand out against dark background
   - **Touch-Friendly Interface**: Larger touch targets and proper spacing for mobile interaction
+- **✅ AUTHENTICATION SYSTEM PASSWORD MANAGEMENT FIX COMPLETED (July 29, 2025)**: Successfully resolved critical issue where server startup was overriding custom admin passwords
+  - **Environment-Aware Table Handling**: Fixed `ensureAdminUser()` function to use proper dev_users/users table separation based on NODE_ENV
+  - **Custom Password Preservation**: Modified startup logic to only reset password if it matches default hash, preserving custom passwords during server restarts
+  - **Database Migration Enhanced**: Added getTableName() utility integration to database helpers for consistent environment-aware operations
+  - **Password Management**: Admin password successfully updated to custom value: D-,bF6:K}k6CiZxN'd<C",%bn3KXcp+ with proper bcrypt hashing
+  - **Startup Logging Improved**: Server now logs "Admin user has custom password - keeping existing password" when preserving custom settings
+  - **Authentication Testing**: Verified successful login with both default (admin123) and custom password through dark theme interface
+  - **Production Ready**: Authentication system now maintains password consistency across development and production environments
 - **✅ CRITICAL P1 FIELD POSITION BUG COMPLETELY RESOLVED (July 29, 2025)**: Successfully fixed massive data integrity issue where P1 tax amounts were incorrectly showing $6,759,067,590.00 instead of $0.00 due to wrong field position extraction
   - **Root Cause Fixed**: P1 tax amount field positions corrected from merchant account positions (20-31) to authentic TDDF specification positions (56-67)
   - **Field Position Corrections**: Tax Amount (56-67), Tax Rate (68-74), Tax Type (75), Purchase ID (76-100), Customer Code (101-125) all properly aligned
