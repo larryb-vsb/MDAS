@@ -8745,10 +8745,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      // Get BH records with their associated DT records
+      // Get BH records with their associated DT records (DISTINCT to avoid duplicates)
       const batchQuery = `
         WITH batch_headers AS (
-          SELECT 
+          SELECT DISTINCT ON (filename, line_number)
             id,
             upload_id,
             filename,
@@ -8758,7 +8758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             created_at
           FROM ${tddfJsonbTableName}
           WHERE record_type = 'BH'
-          ORDER BY filename, line_number
+          ORDER BY filename, line_number, id
           LIMIT $1 OFFSET $2
         ),
         batch_details AS (
@@ -8808,8 +8808,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM ${tddfJsonbTableName}
-        WHERE record_type = 'BH';
+        FROM (
+          SELECT DISTINCT filename, line_number
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'BH'
+        ) unique_bh;
       `;
       
       const [batchResult, countResult] = await Promise.all([
