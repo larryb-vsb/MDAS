@@ -1095,17 +1095,39 @@ export default function MMSUploader() {
                                 </DialogHeader>
                                 <div className="mt-4">
                                   {isLoadingContent ? (
-                                    <div className="text-center py-8">
+                                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                                       <div className="text-muted-foreground">Loading file contents...</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Reading {formatFileSize(upload.fileSize)} from Replit Object Storage
+                                      </div>
                                     </div>
                                   ) : fileContent ? (
                                     <div className="space-y-4">
-                                      {fileContent.preview && (
+                                      <div className="bg-blue-50 p-3 rounded-lg">
+                                        <div className="text-sm font-medium text-blue-800">
+                                          File Size: {formatFileSize(upload.fileSize)} • Lines: {upload.lineCount?.toLocaleString() || 'N/A'}
+                                        </div>
+                                        <div className="text-xs text-blue-600 mt-1">
+                                          Storage: Replit Object Storage • Content Length: {fileContent.content?.length?.toLocaleString() || 0} characters
+                                        </div>
+                                      </div>
+
+                                      {fileContent.content && (
                                         <div>
-                                          <h4 className="font-medium mb-2">File Preview (first 50 lines):</h4>
-                                          <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto max-h-96 font-mono">
-                                            {fileContent.preview}
-                                          </pre>
+                                          <h4 className="font-medium mb-3 flex items-center gap-2">
+                                            Raw Line Data
+                                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                              First 2 lines shown
+                                            </span>
+                                          </h4>
+                                          <div className="border rounded-lg bg-gray-50">
+                                            <div className="max-h-32 overflow-y-auto p-4">
+                                              <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                                                {fileContent.content.split('\n').slice(0, 2).join('\n')}
+                                              </pre>
+                                            </div>
+                                          </div>
                                         </div>
                                       )}
                                       
@@ -1122,7 +1144,7 @@ export default function MMSUploader() {
                                             URL.revokeObjectURL(url);
                                           }}
                                         >
-                                          Download Full File
+                                          Download Full File ({formatFileSize(fileContent.content?.length || 0)})
                                         </Button>
                                       </div>
                                     </div>
@@ -1216,7 +1238,7 @@ export default function MMSUploader() {
                           <div>
                             <div className="font-medium">{upload.filename}</div>
                             <div className="text-sm text-muted-foreground">
-                              {formatFileSize(upload.fileSize)} • Started {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt) : 'recently'}
+                              {formatFileSize(upload.fileSize)} • Started {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || undefined) : 'recently'}
                             </div>
                           </div>
                         </div>
