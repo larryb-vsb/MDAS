@@ -1143,6 +1143,17 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   hasHeaders: boolean("has_headers"), // Whether file has header row
   fileFormat: text("file_format"), // csv, fixed-width, json, etc.
   
+  // Phase 5: Encoding
+  encodingStartedAt: timestamp("encoding_started_at"), // When encoding process began
+  encodingCompletedAt: timestamp("encoding_completed_at"), // When encoding finished
+  encodingTimeMs: integer("encoding_time_ms"), // Time taken for encoding process
+  encodingStatus: text("encoding_status"), // pending, processing, completed, failed
+  jsonRecordsCreated: integer("json_records_created"), // Number of JSON records created
+  tddfRecordsCreated: integer("tddf_records_created"), // Number of TDDF records created (for TDDF files)
+  fieldSeparationStrategy: text("field_separation_strategy"), // Method used for field separation
+  encodingErrors: jsonb("encoding_errors"), // Array of encoding errors/warnings
+  healthMetadata: jsonb("health_metadata"), // Encoding health and quality metrics
+  
   // Metadata and error handling
   compressionUsed: text("compression_used"), // gzip, none, etc.
   encodingDetected: text("encoding_detected"), // utf-8, ascii, etc.
@@ -1158,7 +1169,7 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   keepForReview: boolean("keep_for_review").default(false), // Whether to hold at uploaded phase for manual review
   
   // Current processing state
-  currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, failed
+  currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, encoding, processing, completed, failed
   lastUpdated: timestamp("last_updated").defaultNow().notNull()
 }, (table) => ({
   currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),

@@ -16,6 +16,7 @@ import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Pl
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
+import { formatDistanceToNow } from 'date-fns';
 
 // Extended type for UploaderUpload with storage key
 interface UploaderUploadWithPresigned extends UploaderUpload {
@@ -254,6 +255,54 @@ export default function MMSUploader() {
       await bulkDeleteMutation.mutateAsync(selectedUploads);
     } catch (error) {
       console.error('Bulk delete error:', error);
+    }
+  };
+
+  // Stage 5: Single file encoding handler
+  const handleSingleFileEncoding = async (uploadId: string) => {
+    try {
+      console.log(`[STAGE-5] Starting encoding for upload: ${uploadId}`);
+      
+      const response = await apiRequest(`/api/uploader/${uploadId}/encode`, {
+        method: 'POST',
+        body: {
+          strategy: 'tddf_json'
+        }
+      });
+      
+      console.log('[STAGE-5] Encoding response:', response);
+      
+      // Refresh upload list to show updated status
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      
+    } catch (error) {
+      console.error('Single file encoding error:', error);
+    }
+  };
+
+  // Stage 5: Bulk encoding handler
+  const handleBulkEncoding = async () => {
+    try {
+      console.log(`[STAGE-5] Starting bulk encoding for ${selectedUploads.length} files`);
+      
+      const response = await apiRequest('/api/uploader/bulk-encode', {
+        method: 'POST',
+        body: {
+          uploadIds: selectedUploads,
+          strategy: 'tddf_json'
+        }
+      });
+      
+      console.log('[STAGE-5] Bulk encoding response:', response);
+      
+      // Refresh upload list to show updated status
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      
+      // Clear selection after bulk operation
+      setSelectedUploads([]);
+      
+    } catch (error) {
+      console.error('Bulk encoding error:', error);
     }
   };
 
@@ -617,9 +666,10 @@ export default function MMSUploader() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="encoding">Stage 5: Encoding</TabsTrigger>
           <TabsTrigger value="monitor">Processing Monitor</TabsTrigger>
           <TabsTrigger value="phases">Phase Details</TabsTrigger>
         </TabsList>
@@ -1023,6 +1073,170 @@ export default function MMSUploader() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="encoding" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Stage 5: TDDF JSON Encoding
+              </CardTitle>
+              <CardDescription>
+                Convert TDDF files to structured JSON records with field separation and validation. Setup phase only - no actual processing yet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* TDDF Files Ready for Encoding */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-gray-900">TDDF Files Ready for Encoding</h3>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    {uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf').length} files ready
+                  </Badge>
+                </div>
+                
+                {uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf').length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Database className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium">No TDDF files ready for encoding</p>
+                    <p className="text-sm">Upload and identify TDDF files first to see them here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {uploads
+                      .filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf')
+                      .slice(0, 10)
+                      .map((upload) => (
+                        <div key={upload.id} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedUploads.includes(upload.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedUploads([...selectedUploads, upload.id]);
+                                } else {
+                                  setSelectedUploads(selectedUploads.filter(id => id !== upload.id));
+                                }
+                              }}
+                            />
+                            <div>
+                              <div className="font-medium text-sm">{upload.filename}</div>
+                              <div className="text-xs text-gray-600">
+                                {formatFileSize(upload.fileSize)} • {upload.lineCount || 0} lines
+                                {upload.identifiedAt && (
+                                  <span className="ml-2">• Identified {formatDistanceToNow(new Date(upload.identifiedAt))} ago</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-orange-100 text-orange-800">
+                              {upload.currentPhase}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => handleSingleFileEncoding(upload.id)}
+                            >
+                              <Database className="h-3 w-3 mr-1" />
+                              Test Encode
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bulk Encoding Controls */}
+              {uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf').length > 0 && (
+                <div className="border-t pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">Bulk Encoding Operations</h3>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const tddfFiles = uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf');
+                            setSelectedUploads(tddfFiles.map(f => f.id));
+                          }}
+                          disabled={uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf').length === 0}
+                        >
+                          Select All TDDF
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedUploads([])}
+                          disabled={selectedUploads.length === 0}
+                        >
+                          Clear Selection
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          {selectedUploads.length} file(s) selected for bulk encoding
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          Strategy: TDDF JSON with field separation and validation
+                        </div>
+                      </div>
+                      <Button
+                        variant="default"
+                        onClick={() => handleBulkEncoding()}
+                        disabled={selectedUploads.length === 0}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Start Bulk Encoding Setup
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Encoding Status Information */}
+              <div className="border-t pt-6">
+                <h3 className="font-medium text-gray-900 mb-4">Encoding Status Overview</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {uploads.filter(u => u.currentPhase === 'identified' && u.finalFileType === 'tddf').length}
+                    </div>
+                    <div className="text-sm text-orange-700">Ready to Encode</div>
+                  </div>
+                  
+                  <div className="text-center p-4 bg-pink-50 rounded-lg border border-pink-200">
+                    <div className="text-2xl font-bold text-pink-600">
+                      {uploads.filter(u => u.currentPhase === 'encoding').length}
+                    </div>
+                    <div className="text-sm text-pink-700">Currently Encoding</div>
+                  </div>
+                  
+                  <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-2xl font-bold text-green-600">
+                      {uploads.filter(u => u.currentPhase === 'completed' && u.finalFileType === 'tddf').length}
+                    </div>
+                    <div className="text-sm text-green-700">Encoding Complete</div>
+                  </div>
+                  
+                  <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="text-2xl font-bold text-red-600">
+                      {uploads.filter(u => u.currentPhase === 'failed' && u.finalFileType === 'tddf').length}
+                    </div>
+                    <div className="text-sm text-red-700">Encoding Failed</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="files" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1196,6 +1410,20 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
+                          {/* Stage 5: Encoding Button (for identified TDDF files) */}
+                          {upload.currentPhase === 'identified' && upload.finalFileType === 'tddf' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => handleSingleFileEncoding(upload.id)}
+                              title="Start Stage 5 encoding"
+                            >
+                              <Database className="h-3 w-3 mr-1" />
+                              Encode
+                            </Button>
+                          )}
+
                           {/* View Contents Button */}
                           {['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '') && (
                             <Button

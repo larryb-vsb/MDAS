@@ -7656,6 +7656,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stage 5: Encoding API endpoints
+
+  // Start encoding for a single file (individual testing)
+  app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { strategy = 'tddf_json' } = req.body;
+      
+      const upload = await storage.getUploaderUploadById(id);
+      if (!upload) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      
+      if (upload.currentPhase !== 'identified') {
+        return res.status(400).json({ 
+          error: `File must be in 'identified' phase for encoding. Current phase: ${upload.currentPhase}` 
+        });
+      }
+      
+      if (upload.finalFileType !== 'tddf') {
+        return res.status(400).json({ 
+          error: `Only TDDF files supported for encoding. File type: ${upload.finalFileType}` 
+        });
+      }
+      
+      console.log(`[STAGE-5-ENCODING] Starting encoding for upload ${id} with strategy: ${strategy}`);
+      
+      // Update to encoding phase
+      await storage.updateUploaderPhase(id, 'encoding', {
+        encodingStrategy: strategy,
+        encodingNotes: `Started encoding with strategy: ${strategy}`
+      });
+      
+      // TODO: Implement actual encoding logic here
+      // For now, just simulate setup without processing
+      const mockResult = {
+        uploadId: id,
+        filename: upload.filename,
+        strategy: strategy,
+        status: 'encoding_setup_ready',
+        message: 'Encoding infrastructure ready - no actual processing performed yet'
+      };
+      
+      res.json(mockResult);
+    } catch (error: any) {
+      console.error('Single file encoding error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk encoding with selector
+  app.post("/api/uploader/bulk-encode", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds, strategy = 'tddf_json', fileTypeFilter = 'tddf' } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[STAGE-5-BULK-ENCODING] Bulk encoding request for ${uploadIds.length} files with strategy: ${strategy}`);
+      
+      // Validate all files are in correct phase and type
+      const uploads = await Promise.all(
+        uploadIds.map(id => storage.getUploaderUploadById(id))
+      );
+      
+      const invalidFiles = uploads.filter(upload => 
+        !upload || 
+        upload.currentPhase !== 'identified' || 
+        upload.finalFileType !== fileTypeFilter
+      );
+      
+      if (invalidFiles.length > 0) {
+        return res.status(400).json({
+          error: `${invalidFiles.length} files are not ready for encoding`,
+          details: invalidFiles.map(f => f ? 
+            `${f.filename}: phase=${f.currentPhase}, type=${f.finalFileType}` : 
+            'File not found'
+          )
+        });
+      }
+      
+      // TODO: Implement bulk encoding logic here
+      // For now, just simulate setup without processing
+      const results = uploadIds.map(id => {
+        const upload = uploads.find(u => u?.id === id);
+        return {
+          uploadId: id,
+          filename: upload?.filename,
+          strategy: strategy,
+          status: 'encoding_setup_ready'
+        };
+      });
+      
+      res.json({
+        success: true,
+        totalFiles: uploadIds.length,
+        strategy: strategy,
+        fileTypeFilter: fileTypeFilter,
+        results: results,
+        message: 'Bulk encoding infrastructure ready - no actual processing performed yet'
+      });
+    } catch (error: any) {
+      console.error('Bulk encoding error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get encoding status for files
+  app.get("/api/uploader/encoding-status", isAuthenticated, async (req, res) => {
+    try {
+      const { phase = 'encoding', fileType = 'tddf' } = req.query;
+      
+      const uploads = await storage.getUploaderUploads({
+        phase: phase as string,
+        fileType: fileType as string
+      });
+      
+      const encodingStats = {
+        totalFiles: uploads.length,
+        encoding: uploads.filter(u => u.currentPhase === 'encoding').length,
+        completed: uploads.filter(u => u.currentPhase === 'completed').length,
+        failed: uploads.filter(u => u.currentPhase === 'failed').length,
+        files: uploads.map(u => ({
+          id: u.id,
+          filename: u.filename,
+          currentPhase: u.currentPhase,
+          encodingStatus: u.encodingStatus,
+          encodingTimeMs: u.encodingTimeMs,
+          jsonRecordsCreated: u.jsonRecordsCreated,
+          tddfRecordsCreated: u.tddfRecordsCreated
+        }))
+      };
+      
+      res.json(encodingStats);
+    } catch (error: any) {
+      console.error('Get encoding status error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
