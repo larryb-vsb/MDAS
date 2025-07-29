@@ -8098,8 +8098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { limit = '50', offset = '0', recordType } = req.query;
       
-      const NODE_ENV = process.env.NODE_ENV || 'production';
-      const tableName = NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      const environment = getEnvironment();
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
       
       console.log(`[JSONB-API] Fetching data from ${tableName} for upload ${id}`);
       
@@ -8117,12 +8117,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (recordType && recordType !== 'all') {
         query += ` AND record_type = $${paramIndex}`;
-        params.push(recordType);
+        params.push(recordType as string);
         paramIndex++;
       }
       
       query += ` ORDER BY line_number ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-      params.push(limit, offset);
+      params.push(limit as string, offset as string);
       
       const result = await pool.query(query, params);
       
@@ -8132,7 +8132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (recordType && recordType !== 'all') {
         countQuery += ` AND record_type = $2`;
-        countParams.push(recordType);
+        countParams.push(recordType as string);
       }
       
       const countResult = await pool.query(countQuery, countParams);

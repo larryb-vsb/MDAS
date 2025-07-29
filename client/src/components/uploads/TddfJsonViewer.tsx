@@ -38,6 +38,20 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
       offset: currentPage * pageSize,
       recordType: selectedRecordType || undefined 
     }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: (currentPage * pageSize).toString()
+      });
+      
+      if (selectedRecordType && selectedRecordType !== 'all') {
+        params.append('recordType', selectedRecordType);
+      }
+      
+      const response = await fetch(`/api/uploader/${uploadId}/jsonb-data?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch JSONB data');
+      return response.json();
+    },
     enabled: isOpen && !!uploadId,
     refetchOnWindowFocus: false
   });
