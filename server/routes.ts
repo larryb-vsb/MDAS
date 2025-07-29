@@ -918,19 +918,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       // Get hierarchical record counts using separate simple queries to avoid subquery issues
-      const bhCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_batch_headers')}`);
-      const p1TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions')}`);
-      const p2TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions_2')}`);
-      const p1RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P1' AND processing_status = 'processed'`);
-      const p2RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P2' AND processing_status = 'processed'`);
-      const otherCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_other_records')}`);
+      // Use try-catch for each table query to handle missing tables gracefully
+      let bhCount = 0, p1TableCount = 0, p2TableCount = 0, p1RawCount = 0, p2RawCount = 0, otherCount = 0;
+      
+      try {
+        const bhCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_batch_headers')}`);
+        bhCount = parseInt(bhCountResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] BH table not accessible: ${e.message}`); }
+      
+      try {
+        const p1TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions')}`);
+        p1TableCount = parseInt(p1TableResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 table not accessible: ${e.message}`); }
+      
+      try {
+        const p2TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions_2')}`);
+        p2TableCount = parseInt(p2TableResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 table not accessible: ${e.message}`); }
+      
+      try {
+        const p1RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P1' AND processing_status = 'processed'`);
+        p1RawCount = parseInt(p1RawResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 raw import not accessible: ${e.message}`); }
+      
+      try {
+        const p2RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P2' AND processing_status = 'processed'`);
+        p2RawCount = parseInt(p2RawResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 raw import not accessible: ${e.message}`); }
+      
+      try {
+        const otherCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_other_records')}`);
+        otherCount = parseInt(otherCountResult.rows[0]?.count || '0');
+      } catch (e) { console.log(`[REAL-TIME STATS] Other records table not accessible: ${e.message}`); }
       
       // Combine the results
       const hierarchicalStats = {
-        bh_records_processed: parseInt(bhCountResult.rows[0]?.count || '0'),
-        p1_total_processed: parseInt(p1TableResult.rows[0]?.count || '0') + parseInt(p1RawResult.rows[0]?.count || '0'),
-        p2_total_processed: parseInt(p2TableResult.rows[0]?.count || '0') + parseInt(p2RawResult.rows[0]?.count || '0'),
-        other_records_processed: parseInt(otherCountResult.rows[0]?.count || '0')
+        bh_records_processed: bhCount,
+        p1_total_processed: p1TableCount + p1RawCount,
+        p2_total_processed: p2TableCount + p2RawCount,
+        other_records_processed: otherCount
       };
 
       const stats = result.rows[0];
