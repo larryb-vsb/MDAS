@@ -290,19 +290,25 @@ export const tddfBatchHeaders = pgTable(getTableName("tddf_batch_headers"), {
   // Unique BH record identifier to prevent duplicates and ensure all BH records load
   bhRecordNumber: text("bh_record_number").unique(), // Generated unique identifier for each BH record
   
-  // Core TDDF header fields (positions 18-23)
+  // Core TDDF header fields (positions 1-23) - aligned with encoder
+  sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
+  entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
   recordIdentifier: text("record_identifier"), // Positions 18-19: Always "BH"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
   
-  // Updated BH-specific fields based on TDDF specification
-  transactionCode: text("transaction_code"), // Positions 52-55: Global Payments Transaction code (4 chars)
+  // Bank and account fields (positions 24-55) - aligned with encoder
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number (16 chars)
+  associationNumber: text("association_number"), // Positions 40-45: Association ID (6 chars)
+  groupNumber: text("group_number"), // Positions 46-51: Group number (6 chars)
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code (4 chars)
+  
+  // Batch information (positions 56-126) - aligned with encoder
   batchDate: text("batch_date"), // Positions 56-63: Batch Date MMDDCCYY format (8 chars)
   batchJulianDate: text("batch_julian_date"), // Positions 64-68: Batch Julian Date DDDYY format (5 chars)
   netDeposit: numeric("net_deposit", { precision: 15, scale: 2 }), // Positions 69-83: Net Deposit amount (15 chars N)
-  batchId: text("batch_id"), // Positions 124-126: Batch ID (3 chars)
   rejectReason: text("reject_reason"), // Positions 84-87: Global Payments Reject Reason Code (4 chars AN)
-  
-  // Merchant identification (keeping for existing data compatibility)
-  merchantAccountNumber: text("merchant_account_number"), // GP account number for reference
+  batchId: text("batch_id"), // Positions 124-126: Batch ID (3 chars)
   
   // System and audit fields
   sourceFileId: text("source_file_id").references(() => uploadedFiles.id),
@@ -399,23 +405,27 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   // Link to parent transaction
   transactionRecordId: integer("transaction_record_id").references(() => tddfTransactionRecords.id),
   
-  // Core TDDF header fields (positions 1-19) - shared with all record types
+  // Core TDDF header fields (positions 1-23) - aligned with encoder
   sequenceNumber: text("sequence_number"), // Positions 1-7: File position identifier
   entryRunNumber: text("entry_run_number"), // Positions 8-13: Entry run number
   sequenceWithinRun: text("sequence_within_run"), // Positions 14-17: Sequence within entry run
-  recordIdentifier: text("record_identifier"), // Positions 18-19: "P1" or "P2"
+  recordIdentifier: text("record_identifier"), // Positions 18-19: Always "P1"
+  bankNumber: text("bank_number"), // Positions 20-23: Global Payments bank number
   
-  // Standard P1 fields based on TDDF specification (positions 20-700)
-  parentDtReference: text("parent_dt_reference"), // Reference to parent DT record
+  // Account and merchant fields (positions 24-55) - aligned with encoder
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39: GP account number (16 chars)
+  associationNumber: text("association_number"), // Positions 40-45: Association number (6 chars)
+  groupNumber: text("group_number"), // Positions 46-51: Group number (6 chars)
+  transactionCode: text("transaction_code"), // Positions 52-55: GP transaction code (4 chars)
   
-  // Purchasing Card Level 1 Data (positions 20-39) 
-  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }), // Positions 20-31: Tax amount
-  taxRate: numeric("tax_rate", { precision: 15, scale: 4 }), // Positions 32-38: Tax rate
-  taxType: text("tax_type"), // Position 39: Tax type indicator
+  // P1 Purchasing Card Level 1 Data (corrected positions 56+)
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }), // Positions 56-67: Tax amount (12 chars)
+  taxRate: numeric("tax_rate", { precision: 7, scale: 4 }), // Positions 68-74: Tax rate (7 chars)
+  taxType: text("tax_type"), // Position 75: Tax type indicator (1 char)
   
-  // Purchasing Card Level 2 Data (positions 40-113)
-  purchaseIdentifier: text("purchase_identifier"), // Positions 40-64: Purchase identifier
-  customerCode: text("customer_code"), // Positions 65-89: Customer code  
+  // Purchasing Card Level 2 Data (corrected positions 76+)
+  purchaseIdentifier: text("purchase_identifier"), // Positions 76-100: Purchase identifier (25 chars)
+  customerCode: text("customer_code"), // Positions 101-125: Customer code (25 chars)  
   salesTax: numeric("sales_tax", { precision: 12, scale: 2 }), // Positions 90-101: Sales tax amount
   freightAmount: numeric("freight_amount", { precision: 12, scale: 2 }), // Positions 114-125: Freight amount
   destinationZip: text("destination_zip"), // Positions 126-135: Destination ZIP
@@ -454,12 +464,7 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   productCode: text("product_code"), // Product code
   quantity: text("quantity"), // Quantity
   
-  // Core TDDF header fields for complete schema synchronization
-  bankNumber: text("bank_number"), // Bank number
-  merchantAccountNumber: text("merchant_account_number"), // Merchant account number
-  associationNumber: text("association_number"), // Association number
-  groupNumber: text("group_number"), // Group number
-  transactionCode: text("transaction_code"), // Transaction code
+  // Note: Core TDDF header fields already defined above (bankNumber, merchantAccountNumber, etc.)
   
   // Reserved for future use (positions 288-700)
   reservedFutureUse: text("reserved_future_use"), // Positions 288-700: Reserved for future use
@@ -474,7 +479,6 @@ export const tddfPurchasingExtensions = pgTable(getTableName("tddf_purchasing_ex
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => ({
   transactionRecordIndex: index("tddf_pe_transaction_record_idx").on(table.transactionRecordId),
-  parentDtReferenceIndex: index("tddf_pe_parent_dt_ref_idx").on(table.parentDtReference),
   recordIdentifierIndex: index("tddf_pe_record_identifier_idx").on(table.recordIdentifier)
 }));
 

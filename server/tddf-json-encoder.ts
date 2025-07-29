@@ -47,56 +47,65 @@ export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'reversalFlag', positions: [217, 217], type: 'text', description: 'Reversal flag' },
   { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' },
   
-  // Terminal and card information (positions 243-254)
-  { name: 'terminalId', positions: [277, 284], type: 'text', description: 'Terminal ID (8 chars)' },
-  { name: 'cardType', positions: [253, 254], type: 'text', description: 'Card type code (2 chars)' }
+  // Authorization and card details (positions 243-284)
+  { name: 'authorizationNumber', positions: [243, 248], type: 'text', description: 'Authorization number (6 chars)' },
+  { name: 'rejectReason', positions: [249, 250], type: 'text', description: 'Reject reason (2 chars)' },
+  { name: 'cardType', positions: [251, 256], type: 'text', description: 'Card type code (6 chars)' },
+  { name: 'terminalId', positions: [277, 284], type: 'text', description: 'Terminal ID (8 chars)' }
 ];
 
-// P1 Record Field Definitions (based on shared/schema.ts tddfPurchasingExtensions)
+// P1 Record Field Definitions (corrected positions based on TDDF specification)
 export const P1_RECORD_FIELDS: TddfFieldDefinition[] = [
-  // Core TDDF header fields (positions 1-19)
+  // Core TDDF header fields (positions 1-23) - same as DT records
   { name: 'sequenceNumber', positions: [1, 7], type: 'text', description: 'File position identifier' },
   { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Entry run number' },
   { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Sequence within entry run' },
-  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'P1 or P2' },
+  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'Always "P1"' },
+  { name: 'bankNumber', positions: [20, 23], type: 'text', description: 'Global Payments bank number' },
   
-  // Purchasing Card Level 1 Data (positions 20-39)
-  { name: 'taxAmount', positions: [20, 31], type: 'numeric', precision: 12, scale: 2, description: 'Tax amount' },
-  { name: 'taxRate', positions: [32, 38], type: 'numeric', precision: 15, scale: 4, description: 'Tax rate' },
-  { name: 'taxType', positions: [39, 39], type: 'text', description: 'Tax type indicator' },
+  // Account and merchant fields (positions 24-55) - same as DT records  
+  { name: 'merchantAccountNumber', positions: [24, 39], type: 'text', description: 'GP account number (16 chars)' },
+  { name: 'associationNumber', positions: [40, 45], type: 'text', description: 'Association number (6 chars)' },
+  { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number (6 chars)' },
+  { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
   
-  // Purchasing Card Level 2 Data (positions 40-287)
-  { name: 'purchaseIdentifier', positions: [40, 64], type: 'text', description: 'Purchase identifier' },
-  { name: 'customerCode', positions: [65, 89], type: 'text', description: 'Customer code' },
-  { name: 'salesTax', positions: [90, 101], type: 'numeric', precision: 12, scale: 2, description: 'Sales tax amount' },
-  { name: 'freightAmount', positions: [114, 125], type: 'numeric', precision: 12, scale: 2, description: 'Freight amount' },
-  { name: 'destinationZip', positions: [126, 135], type: 'text', description: 'Destination ZIP' },
-  { name: 'merchantType', positions: [136, 139], type: 'text', description: 'Merchant type' },
-  { name: 'dutyAmount', positions: [140, 151], type: 'numeric', precision: 12, scale: 2, description: 'Duty amount' },
-  { name: 'discountAmount', positions: [217, 228], type: 'numeric', precision: 12, scale: 2, description: 'Discount amount' }
+  // P1 Purchasing Card Level 1 Data (positions 56+)
+  { name: 'taxAmount', positions: [56, 67], type: 'numeric', precision: 12, scale: 2, description: 'Tax amount (12 chars)' },
+  { name: 'taxRate', positions: [68, 74], type: 'numeric', precision: 7, scale: 4, description: 'Tax rate (7 chars)' },
+  { name: 'taxType', positions: [75, 75], type: 'text', description: 'Tax type indicator (1 char)' },
+  
+  // Purchasing Card Level 2 Data (positions 76+)
+  { name: 'purchaseIdentifier', positions: [76, 100], type: 'text', description: 'Purchase identifier (25 chars)' },
+  { name: 'customerCode', positions: [101, 125], type: 'text', description: 'Customer code (25 chars)' },
+  { name: 'salesTax', positions: [126, 137], type: 'numeric', precision: 12, scale: 2, description: 'Sales tax amount (12 chars)' },
+  { name: 'freightAmount', positions: [150, 161], type: 'numeric', precision: 12, scale: 2, description: 'Freight amount (12 chars)' },
+  { name: 'destinationZip', positions: [162, 171], type: 'text', description: 'Destination ZIP (10 chars)' },
+  { name: 'merchantType', positions: [172, 175], type: 'text', description: 'Merchant type (4 chars)' },
+  { name: 'dutyAmount', positions: [176, 187], type: 'numeric', precision: 12, scale: 2, description: 'Duty amount (12 chars)' },
+  { name: 'discountAmount', positions: [253, 264], type: 'numeric', precision: 12, scale: 2, description: 'Discount amount (12 chars)' }
 ];
 
-// BH Record Field Definitions (based on shared/schema.ts tddfBatchHeaders)
+// BH Record Field Definitions (aligned with shared/schema.ts tddfBatchHeaders)
 export const BH_RECORD_FIELDS: TddfFieldDefinition[] = [
-  // Core TDDF header fields (positions 1-19)
-  { name: 'sequenceNumberArea', positions: [1, 7], type: 'text', description: 'File-level sequence ID (7 chars)' },
-  { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Batch ID (6 chars)' },
-  { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Unique within the batch (4 chars)' },
-  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: '"BH" for Batch Header (2 chars)' },
+  // Core TDDF header fields matching schema field names
+  { name: 'sequenceNumber', positions: [1, 7], type: 'text', description: 'File position identifier' },
+  { name: 'entryRunNumber', positions: [8, 13], type: 'text', description: 'Entry run number' },
+  { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Sequence within entry run' },
+  { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'Always "BH"' },
   
-  // Bank and account fields (positions 20-55)
+  // Bank and account fields (positions 20-55) 
   { name: 'bankNumber', positions: [20, 23], type: 'text', description: 'Global Payments bank number' },
   { name: 'merchantAccountNumber', positions: [24, 39], type: 'text', description: 'GP account number (16 chars)' },
   { name: 'associationNumber', positions: [40, 45], type: 'text', description: 'Association ID (6 chars)' },
   { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number (6 chars)' },
   { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
   
-  // Batch information (positions 56-135)
+  // Batch information (positions 56-126) - aligned with schema
   { name: 'batchDate', positions: [56, 63], type: 'date', description: 'Batch date (MMDDCCYY)' },
-  { name: 'batchId', positions: [124, 126], type: 'text', description: 'Batch ID (3 chars)' },
-  { name: 'netDeposit', positions: [69, 83], type: 'numeric', precision: 17, scale: 2, description: 'Net deposit amount (15 chars)' },
-  { name: 'transactionCount', positions: [80, 87], type: 'numeric', precision: 8, scale: 0, description: 'Transaction count' },
-  { name: 'totalAmount', positions: [88, 103], type: 'numeric', precision: 16, scale: 2, description: 'Total batch amount' }
+  { name: 'batchJulianDate', positions: [64, 68], type: 'text', description: 'Batch Julian Date DDDYY format (5 chars)' },
+  { name: 'netDeposit', positions: [69, 83], type: 'numeric', precision: 15, scale: 2, description: 'Net deposit amount (15 chars)' },
+  { name: 'rejectReason', positions: [84, 87], type: 'text', description: 'Global Payments Reject Reason Code (4 chars)' },
+  { name: 'batchId', positions: [124, 126], type: 'text', description: 'Batch ID (3 chars)' }
 ];
 
 /**
