@@ -44,6 +44,7 @@ interface TddfBatchHeader {
   batchDate?: string;
   batchJulianDate?: string;
   netDeposit?: number;
+  batchId?: string;
   rejectReason?: string;
   merchantReferenceNumber?: string;
   sourceFileId?: string;
@@ -404,9 +405,9 @@ function BHRecordsTable() {
                 Delete ({selectedRecords.size})
               </Button>
             )}
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={refreshBhData}>
               <Eye className="h-4 w-4 mr-2" />
-              View Fields
+              Refresh Data
             </Button>
           </div>
         </div>
@@ -452,7 +453,7 @@ function BHRecordsTable() {
                   className="ml-4"
                 />
                 <div className="w-32 font-mono text-xs">
-                  {(record as any).batchId || 'N/A'}
+                  {record.batchId || 'N/A'}
                 </div>
                 <div className="w-40 font-medium text-green-600">
                   {record.netDeposit ? `$${Number(record.netDeposit).toFixed(2)}` : 'N/A'}
@@ -498,7 +499,7 @@ function BHRecordsTable() {
                   <div>
                     <h4 className="font-medium mb-2">BH Specific Fields</h4>
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium">Batch ID (124-126):</span> {(detailsRecord as any).batchId || 'N/A'}</div>
+                      <div><span className="font-medium">Batch ID (124-126):</span> {detailsRecord.batchId || 'N/A'}</div>
                       <div><span className="font-medium">Net Deposit (69-83):</span> {detailsRecord.netDeposit ? `$${Number(detailsRecord.netDeposit).toFixed(2)}` : 'N/A'}</div>
                       <div><span className="font-medium">Batch Date (56-63):</span> {detailsRecord.batchDate || 'N/A'}</div>
                       <div><span className="font-medium">Merchant Account (24-39):</span> {detailsRecord.merchantAccountNumber || 'N/A'}</div>

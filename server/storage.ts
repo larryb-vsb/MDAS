@@ -10558,7 +10558,8 @@ export class DatabaseStorage implements IStorage {
         SELECT id, bh_record_number as "bhRecordNumber", record_identifier as "recordIdentifier", 
                transaction_code as "transactionCode", batch_date as "batchDate", 
                batch_julian_date as "batchJulianDate", net_deposit as "netDeposit", 
-               reject_reason as "rejectReason", merchant_account_number as "merchantAccountNumber",
+               batch_id as "batchId", reject_reason as "rejectReason", 
+               merchant_account_number as "merchantAccountNumber",
                source_file_id as "sourceFileId", source_row_number as "sourceRowNumber",
                recorded_at as "recordedAt", raw_data as "rawData",
                created_at as "createdAt", updated_at as "updatedAt"
