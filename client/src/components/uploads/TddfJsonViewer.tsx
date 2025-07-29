@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronLeft, ChevronRight, FileJson, Database, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface TddfJsonViewerProps {
@@ -45,6 +45,7 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
   const [pageSize] = useState(25);
+  const [isReEncoding, setIsReEncoding] = useState(false);
 
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/uploader', uploadId, 'jsonb-data', { 
@@ -53,6 +54,8 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
       recordType: selectedRecordType || undefined 
     }],
     queryFn: async () => {
+      console.log(`[TDDF-JSON-VIEWER] Fetching JSONB data for upload ${uploadId}`);
+      
       const params = new URLSearchParams({
         limit: pageSize.toString(),
         offset: (currentPage * pageSize).toString()
@@ -62,7 +65,14 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
         params.append('recordType', selectedRecordType);
       }
       
-      return await apiRequest(`/api/uploader/${uploadId}/jsonb-data?${params}`);
+      try {
+        const result = await apiRequest(`/api/uploader/${uploadId}/jsonb-data?${params}`);
+        console.log(`[TDDF-JSON-VIEWER] Successfully fetched data:`, result);
+        return result;
+      } catch (error: any) {
+        console.error(`[TDDF-JSON-VIEWER] API Error:`, error);
+        throw error;
+      }
     },
     enabled: isOpen && !!uploadId,
     refetchOnWindowFocus: false
@@ -100,6 +110,27 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
   const handleRecordTypeChange = (value: string) => {
     setSelectedRecordType(value === 'all' ? '' : value);
     setCurrentPage(0); // Reset to first page when filtering
+  };
+
+  const handleReEncode = async () => {
+    setIsReEncoding(true);
+    try {
+      console.log(`[TDDF-JSON-VIEWER] Starting re-encode for upload ${uploadId}`);
+      
+      const result = await apiRequest(`/api/uploader/${uploadId}/re-encode`, {
+        method: 'POST'
+      });
+      
+      console.log(`[TDDF-JSON-VIEWER] Re-encode successful:`, result);
+      
+      // Refresh the data after re-encoding
+      await refetch();
+      
+    } catch (error: any) {
+      console.error(`[TDDF-JSON-VIEWER] Re-encode failed:`, error);
+    } finally {
+      setIsReEncoding(false);
+    }
   };
 
   const getRecordTypeBadgeColor = (recordType: string) => {
@@ -238,8 +269,42 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
             </div>
           </div>
 
+          {/* Error State with Re-encode Option */}
+          {error && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <span className="font-medium text-red-800">JSONB Data Not Available</span>
+                  </div>
+                  <p className="text-sm text-red-700 mb-4">
+                    This file may contain test/sample data instead of real TDDF content.
+                  </p>
+                  <Button 
+                    onClick={handleReEncode}
+                    disabled={isReEncoding}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isReEncoding ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Re-encoding with Real Data...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Re-encode with Real Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Loading and Error States */}
-          {isLoading && (
+          {isLoading && !error && (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -262,10 +327,27 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
           {/* Data Display */}
           {!isLoading && !error && records.length === 0 && (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <FileJson className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>No JSONB records found for this upload</p>
-                <p className="text-sm">Try encoding the file first</p>
+              <div className="text-center space-y-4">
+                <FileJson className="w-12 h-12 text-gray-400 mx-auto" />
+                <h3 className="text-lg font-medium text-gray-900">No JSONB Records Found</h3>
+                <p className="text-gray-600">This file hasn't been processed with real data yet.</p>
+                <Button 
+                  onClick={handleReEncode}
+                  disabled={isReEncoding}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  {isReEncoding ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Processing Real Data...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Process with Real Data
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}
