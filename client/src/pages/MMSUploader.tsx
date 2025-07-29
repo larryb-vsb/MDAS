@@ -320,18 +320,29 @@ export default function MMSUploader() {
 
   // Set previous level handler (using existing bulk selection system)
   const handleSetPreviousLevelSelected = async () => {
+    console.log('[SET-PREVIOUS-LEVEL] Button clicked, selectedUploads:', selectedUploads);
+    
     // Filter selected uploads to only include those that can be moved back
     const eligibleUploads = selectedUploads.filter(id => {
       const upload = uploads.find(u => u.id === id);
-      return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded');
+      const isEligible = upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+      console.log(`[SET-PREVIOUS-LEVEL] File ${upload?.filename} (${upload?.currentPhase}) eligible: ${isEligible}`);
+      return isEligible;
     });
     
-    if (eligibleUploads.length === 0) return;
+    console.log(`[SET-PREVIOUS-LEVEL] Found ${eligibleUploads.length} eligible uploads:`, eligibleUploads);
+    
+    if (eligibleUploads.length === 0) {
+      console.log('[SET-PREVIOUS-LEVEL] No eligible uploads found, returning');
+      return;
+    }
     
     try {
+      console.log('[SET-PREVIOUS-LEVEL] Calling setPreviousLevelMutation with:', eligibleUploads);
       await setPreviousLevelMutation.mutateAsync(eligibleUploads);
+      console.log('[SET-PREVIOUS-LEVEL] Mutation completed successfully');
     } catch (error) {
-      console.error('Set previous level error:', error);
+      console.error('[SET-PREVIOUS-LEVEL] Error:', error);
     }
   };
 

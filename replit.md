@@ -17,6 +17,14 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 29, 2025 - MMS UPLOADER API PARAMETER REFACTORING COMPLETED - REVIEW MODE API TESTING SUCCESSFUL - FILE CONTENT VIEWING SYSTEM OPERATIONAL - ENHANCED METADATA CAPTURE SYSTEM COMPLETED - SESSION-CONTROLLED UPLOAD MONITORING COMPLETED - UPLOAD SYSTEM CRITICAL FIXES COMPLETED AND VERIFIED - JSONB ENCODING TIMING SYSTEM COMPLETED - ENCODING COMPLETION ISSUE COMPLETELY RESOLVED
+- **✅ FAILED FILE RECOVERY SYSTEM COMPLETED (July 29, 2025)**: Successfully implemented complete "Set Previous Level" functionality for failed files with smart fallback logic
+  - **Backend Recovery Logic**: Added comprehensive failed file handling in `/api/uploader/set-previous-level` endpoint with identified→uploaded→started fallback hierarchy
+  - **Frontend Integration**: Updated MMSUploader.tsx to include failed files in Set Previous Level button selection criteria and processing logic
+  - **Smart Recovery Algorithm**: Failed files automatically determine best recovery state based on file processing history (identifiedAt, uploadedAt timestamps)
+  - **Enhanced Error Tracking**: Recovery operations preserve original failure messages in processing notes for audit trail and debugging
+  - **Database Field Cleanup**: Recovery process clears encoding-related fields (encoding_status, encoding_time_ms, json_records_created) when resetting failed files
+  - **Comprehensive Testing**: Created test failed files in database and verified complete recovery workflow with detailed console logging
+  - **Production Ready**: Complete failed file recovery infrastructure operational with robust error handling and recovery state management
 - **✅ ENCODING COMPLETION ISSUE COMPLETELY RESOLVED (July 29, 2025)**: Successfully fixed all encoding completion failures and import errors that were preventing files from transitioning to "encoded" status
   - **Root Cause Fixed**: Missing `ReplitStorageService` import in encoding route prevented file content retrieval causing silent failures
   - **Database Schema Aligned**: Removed non-existent field references in TDDF JSON encoder that were causing database insertion failures
