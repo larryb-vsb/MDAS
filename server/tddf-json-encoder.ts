@@ -45,7 +45,10 @@ export const DT_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'posEntryMode', positions: [214, 215], type: 'text', description: 'POS entry mode' },
   { name: 'debitCreditIndicator', positions: [216, 216], type: 'text', description: 'Debit/Credit indicator' },
   { name: 'reversalFlag', positions: [217, 217], type: 'text', description: 'Reversal flag' },
-  { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' }
+  { name: 'merchantName', positions: [218, 242], type: 'text', description: 'DBA name (25 chars)' },
+  
+  // Card type and extended fields (positions 253-254)
+  { name: 'cardType', positions: [253, 254], type: 'text', description: 'Card type code (2 chars)' }
 ];
 
 // P1 Record Field Definitions (based on shared/schema.ts tddfPurchasingExtensions)

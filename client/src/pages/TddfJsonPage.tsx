@@ -218,6 +218,31 @@ export default function TddfJsonPage() {
            'bg-gray-500/10 text-gray-700 border-gray-200';
   };
 
+  // Card type badge function to match DT page styling
+  const getCardTypeBadge = (cardType: string) => {
+    if (!cardType || cardType === 'null' || cardType === 'undefined') return null;
+    
+    const cleanCardType = cardType.replace(/"/g, '').trim().toUpperCase();
+    
+    const badges: Record<string, { label: string; className: string }> = {
+      'AM': { label: 'AMEX', className: 'bg-green-50 text-green-700 border-green-200' },
+      'AX': { label: 'AMEX', className: 'bg-green-50 text-green-700 border-green-200' },
+      'VS': { label: 'VISA', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+      'VD': { label: 'VISA-D', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+      'VB': { label: 'VISA-B', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+      'MC': { label: 'MC', className: 'bg-red-50 text-red-700 border-red-200' },
+      'MD': { label: 'MC-D', className: 'bg-red-50 text-red-700 border-red-200' },
+      'MB': { label: 'MC-B', className: 'bg-red-50 text-red-700 border-red-200' },
+      'DS': { label: 'DISC', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+      'DJ': { label: 'DISC', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+      'DZ': { label: 'DISC', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+      'DI': { label: 'DINERS', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+      'JC': { label: 'JCB', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    };
+    
+    return badges[cleanCardType] || { label: cleanCardType, className: 'bg-gray-50 text-gray-700 border-gray-200' };
+  };
+
   const recordTypeOptions = stats?.recordTypeBreakdown ? 
     Object.keys(stats.recordTypeBreakdown).sort() : [];
 
@@ -454,9 +479,18 @@ export default function TddfJsonPage() {
                           </div>
                           <div>
                             {record.extracted_fields?.cardType ? (
-                              <Badge variant="outline" className="text-xs">
-                                {record.extracted_fields.cardType}
-                              </Badge>
+                              (() => {
+                                const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                return cardBadge ? (
+                                  <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                    {cardBadge.label}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">
+                                    {record.extracted_fields.cardType}
+                                  </Badge>
+                                );
+                              })()
                             ) : 'N/A'}
                           </div>
                           <div>
