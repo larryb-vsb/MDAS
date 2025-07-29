@@ -8317,7 +8317,7 @@ export class DatabaseStorage implements IStorage {
             transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
             batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars) 
             batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
-            net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N)
+            net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N) - Net Deposit
             reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
             source_file_id: rawLine.source_file_id,
             source_row_number: rawLine.line_number,
@@ -10387,7 +10387,7 @@ export class DatabaseStorage implements IStorage {
               transaction_code: line.substring(51, 55).trim() || null, // Positions 52-55 (4 chars)
               batch_date: line.substring(55, 60).trim() || null, // Positions 56-60 (5 chars)
               batch_julian_date: line.substring(60, 65).trim() || null, // Positions 61-65 (5 chars)
-              net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N)
+              net_deposit: this.parseAuthAmount(line.substring(68, 83).trim()) || null, // Positions 69-83 (15 chars N) - Net Deposit field
               reject_reason: line.substring(83, 87).trim() || null, // Positions 84-87 (4 chars AN)
               source_file_id: rawLine.source_file_id,
               source_row_number: rawLine.line_number,
