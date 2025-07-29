@@ -71,7 +71,216 @@ interface ActivityResponse {
   }>;
 }
 
+interface BatchRelationship {
+  batch_id: number;
+  upload_id: string;
+  filename: string;
+  batch_line_number: number;
+  batch_fields: {
+    batchId?: string;
+    merchantAccountNumber?: string;
+    transactionCount?: number;
+    totalAmount?: number;
+    batchDate?: string;
+    [key: string]: any;
+  };
+  batch_created_at: string;
+  related_transactions: Array<{
+    id: number;
+    line_number: number;
+    extracted_fields: {
+      transactionAmount?: string;
+      merchantName?: string;
+      transactionDate?: string;
+      cardType?: string;
+      referenceNumber?: string;
+      [key: string]: any;
+    };
+    raw_line: string;
+  }>;
+}
 
+interface BatchRelationshipsResponse {
+  batches: BatchRelationship[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+
+
+// Batch Relationships View Component
+function BatchRelationshipsView() {
+  const [batchPage, setBatchPage] = useState(1);
+  const [batchLimit] = useState(10);
+
+  // Fetch batch relationships data
+  const { data: batchData, isLoading: batchLoading } = useQuery<BatchRelationshipsResponse>({
+    queryKey: ['/api/tddf-json/batch-relationships', { page: batchPage, limit: batchLimit }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: batchPage.toString(),
+        limit: batchLimit.toString()
+      });
+      return apiRequest(`/api/tddf-json/batch-relationships?${params}`);
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Database className="w-5 h-5" />
+          Batch Relationships (BH → DT)
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {batchLoading ? 'Loading...' : 
+           `Showing ${batchData?.batches?.length || 0} of ${batchData?.total || 0} batch relationships`}
+        </p>
+        <div className="text-xs text-muted-foreground mt-2">
+          Shows Batch Header (BH) records with their associated Detail Transaction (DT) records based on merchant account matching and positional relationships.
+        </div>
+      </CardHeader>
+      <CardContent>
+        {batchLoading ? (
+          <div className="text-center py-8">Loading batch relationships...</div>
+        ) : batchData?.batches?.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No batch relationships found
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {batchData?.batches?.map((batch) => (
+              <div key={batch.batch_id} className="border rounded-lg p-4 space-y-4">
+                {/* Batch Header Information */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-100 text-green-800 border-green-300">
+                        BH - Batch Header
+                      </Badge>
+                      <span className="text-sm font-mono text-muted-foreground">
+                        Line {batch.batch_line_number}
+                      </span>
+                    </div>
+                    <div className="text-xs text-green-700 font-mono">
+                      {batch.filename}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-green-800">Batch ID:</span>
+                      <div className="font-mono">{batch.batch_fields?.batchId || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Merchant Account:</span>
+                      <div className="font-mono">{batch.batch_fields?.merchantAccountNumber || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Transaction Count:</span>
+                      <div className="font-mono">{batch.batch_fields?.transactionCount?.toLocaleString() || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-800">Total Amount:</span>
+                      <div className="font-mono">
+                        {batch.batch_fields?.totalAmount ? 
+                          `$${(batch.batch_fields.totalAmount / 100).toFixed(2)}` : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Related DT Transactions */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+                      Related DT Transactions
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      ({batch.related_transactions?.length || 0} transactions)
+                    </span>
+                  </div>
+                  
+                  {batch.related_transactions?.length > 0 ? (
+                    <div className="space-y-2">
+                      {batch.related_transactions.slice(0, 5).map((transaction) => (
+                        <div key={transaction.id} className="bg-blue-50 border border-blue-200 rounded p-3">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                            <div>
+                              <span className="font-medium text-blue-800">Line:</span>
+                              <div className="font-mono">{transaction.line_number}</div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-blue-800">Amount:</span>
+                              <div className="font-mono">
+                                {transaction.extracted_fields?.transactionAmount ? 
+                                  `$${transaction.extracted_fields.transactionAmount}` : 'N/A'}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-blue-800">Date:</span>
+                              <div className="font-mono">{transaction.extracted_fields?.transactionDate || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-blue-800">Card:</span>
+                              <div className="font-mono">{transaction.extracted_fields?.cardType || 'N/A'}</div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-blue-800">Reference:</span>
+                              <div className="font-mono text-[10px]">{transaction.extracted_fields?.referenceNumber || 'N/A'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {batch.related_transactions.length > 5 && (
+                        <div className="text-center text-sm text-muted-foreground py-2">
+                          ... and {batch.related_transactions.length - 5} more transactions
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No related DT transactions found for this batch
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Pagination */}
+            {batchData && batchData.totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Page {batchData.currentPage} of {batchData.totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={batchPage <= 1}
+                    onClick={() => setBatchPage(batchPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={batchPage >= batchData.totalPages}
+                    onClick={() => setBatchPage(batchPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // Terminal ID Display Component (matches TDDF Records page functionality)
 function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
@@ -455,30 +664,34 @@ export default function TddfJsonPage() {
 
         {/* Record Type Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="all">All Records</TabsTrigger>
             <TabsTrigger value="DT">DT - Transactions</TabsTrigger>
             <TabsTrigger value="BH">BH - Batch Headers</TabsTrigger>
+            <TabsTrigger value="batch">Batch Relationships</TabsTrigger>
             <TabsTrigger value="P1">P1 - Purchasing</TabsTrigger>
             <TabsTrigger value="P2">P2 - Purchasing 2</TabsTrigger>
             <TabsTrigger value="other">Other Types</TabsTrigger>
           </TabsList>
 
           <TabsContent value={selectedTab} className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileJson className="w-5 h-5" />
-                  {selectedTab === 'all' ? 'All TDDF JSON Records' : 
-                   selectedTab === 'other' ? 'Other Record Types' :
-                   `${selectedTab} Records`}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {recordsLoading ? 'Loading...' : 
-                   `Showing ${recordsData?.records?.length || 0} of ${recordsData?.total || 0} records`}
-                </p>
-              </CardHeader>
-              <CardContent>
+            {selectedTab === 'batch' ? (
+              <BatchRelationshipsView />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileJson className="w-5 h-5" />
+                    {selectedTab === 'all' ? 'All TDDF JSON Records' : 
+                     selectedTab === 'other' ? 'Other Record Types' :
+                     `${selectedTab} Records`}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {recordsLoading ? 'Loading...' : 
+                     `Showing ${recordsData?.records?.length || 0} of ${recordsData?.total || 0} records`}
+                  </p>
+                </CardHeader>
+                <CardContent>
                 {recordsLoading ? (
                   <div className="text-center py-8">Loading records...</div>
                 ) : recordsData?.records?.length === 0 ? (
@@ -603,6 +816,7 @@ export default function TddfJsonPage() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
         </Tabs>
 

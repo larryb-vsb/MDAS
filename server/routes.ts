@@ -8733,6 +8733,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get TDDF JSON batch relationships (BH records with their related DT records)
+  app.get("/api/tddf-json/batch-relationships", isAuthenticated, async (req, res) => {
+    try {
+      const { page = 1, limit = 10 } = req.query;
+      const offset = (Number(page) - 1) * Number(limit);
+      
+      console.log(`[TDDF-JSON-BATCH] Fetching batch relationships (page ${page}, limit ${limit})`);
+      
+      // @ENVIRONMENT-CRITICAL - TDDF JSONB batch relationships with environment-aware table naming
+      // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      
+      // Get BH records with their associated DT records
+      const batchQuery = `
+        WITH batch_headers AS (
+          SELECT 
+            id,
+            upload_id,
+            filename,
+            line_number,
+            raw_line,
+            extracted_fields,
+            created_at
+          FROM ${tddfJsonbTableName}
+          WHERE record_type = 'BH'
+          ORDER BY filename, line_number
+          LIMIT $1 OFFSET $2
+        ),
+        batch_details AS (
+          SELECT 
+            bh.id as batch_id,
+            bh.upload_id,
+            bh.filename,
+            bh.line_number as batch_line_number,
+            bh.extracted_fields as batch_fields,
+            bh.created_at as batch_created_at,
+            -- Get related DT records
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', dt.id,
+                  'line_number', dt.line_number,
+                  'extracted_fields', dt.extracted_fields,
+                  'raw_line', LEFT(dt.raw_line, 100)
+                )
+                ORDER BY dt.line_number
+              ) FILTER (WHERE dt.id IS NOT NULL),
+              '[]'::json
+            ) as related_transactions
+          FROM batch_headers bh
+          LEFT JOIN ${tddfJsonbTableName} dt ON (
+            dt.record_type = 'DT' 
+            AND dt.filename = bh.filename
+            AND dt.extracted_fields->>'merchantAccountNumber' = bh.extracted_fields->>'merchantAccountNumber'
+            AND dt.line_number > bh.line_number
+            AND dt.line_number < COALESCE(
+              (SELECT MIN(next_bh.line_number) 
+               FROM ${tddfJsonbTableName} next_bh 
+               WHERE next_bh.record_type = 'BH' 
+               AND next_bh.filename = bh.filename 
+               AND next_bh.line_number > bh.line_number),
+              999999
+            )
+          )
+          GROUP BY bh.id, bh.upload_id, bh.filename, bh.line_number, bh.extracted_fields, bh.created_at
+        )
+        SELECT * FROM batch_details
+        ORDER BY filename, batch_line_number;
+      `;
+      
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'BH';
+      `;
+      
+      const [batchResult, countResult] = await Promise.all([
+        pool.query(batchQuery, [Number(limit), offset]),
+        pool.query(countQuery)
+      ]);
+      
+      const batches = batchResult.rows;
+      const total = parseInt(countResult.rows[0].total);
+      const totalPages = Math.ceil(total / Number(limit));
+      
+      console.log(`[TDDF-JSON-BATCH] Found ${batches.length} batch relationships`);
+      
+      res.json({
+        batches,
+        total,
+        totalPages,
+        currentPage: Number(page)
+      });
+      
+    } catch (error) {
+      console.error('Error fetching TDDF JSON batch relationships:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to fetch batch relationships"
+      });
+    }
+  });
+
   // Cache statistics and performance monitoring endpoint
   app.get("/api/tddf-json/performance-stats", isAuthenticated, async (req, res) => {
     try {
