@@ -197,12 +197,6 @@ export default function MMSUploader() {
     if (files && files.length > 0 && selectedFileType) {
       console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} files`);
       setTimeout(() => handleStartUpload(files), 100); // Pass files directly to avoid React state timing issues
-      
-      // Backup trigger in case the first one doesn't work
-      setTimeout(() => {
-        console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${files.length} files`);
-        handleStartUpload(files);
-      }, 500);
     } else {
       console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - missing files or file type`);
     }
@@ -321,26 +315,12 @@ export default function MMSUploader() {
             })
           });
           
-          // Phase 4: Only auto-progress to completed if NOT in review mode
-          if (!keep) {
-            const finalizeResponse = await fetch(`/api/uploader/${uploadResponse.id}/phase/completed`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                sessionId: sessionId,
-                processingNotes: `All chunks received and processing completed - Session: ${sessionId}`,
-                completedAt: new Date().toISOString()
-              })
-            });
-            
-            if (!finalizeResponse.ok) {
-              throw new Error(`Session finalization failed: ${finalizeResponse.statusText}`);
-            }
-            
-            console.log(`[SESSION-PHASE-3] Session upload completed with 'completed' status: ${uploadResponse.id}`);
-          } else {
+          // Phase 3 Final: Files stay at 'uploaded' status - no auto-progression to 'completed'
+          console.log(`[SESSION-PHASE-3] Session upload completed with 'uploaded' status: ${uploadResponse.id}`);
+          if (keep) {
             console.log(`[SESSION-REVIEW] Upload held at 'uploaded' phase for review: ${uploadResponse.id}`);
+          } else {
+            console.log(`[SESSION-CONTROL] Upload completed and ready at 'uploaded' phase: ${uploadResponse.id}`);
           }
         }
       } catch (error) {
@@ -367,7 +347,7 @@ export default function MMSUploader() {
       }
     }
     
-    console.log(`[SESSION-CONTROL] Upload session ${sessionId} completed - files automatically progressed to 'completed' phase`);
+    console.log(`[SESSION-CONTROL] Upload session ${sessionId} completed - files stopped at 'uploaded' phase`);
     
     setSelectedFiles(null);
     // Reset file input
@@ -593,12 +573,6 @@ export default function MMSUploader() {
                           if (selectedFileType) {
                             console.log(`[AUTO-UPLOAD-DEBUG] Triggering auto-upload for ${files.length} dropped files`);
                             setTimeout(() => handleStartUpload(files), 100); // Pass files directly to avoid React state timing issues
-                            
-                            // Backup trigger in case the first one doesn't work
-                            setTimeout(() => {
-                              console.log(`[AUTO-UPLOAD-DEBUG] Backup trigger: Starting upload for ${files.length} dropped files`);
-                              handleStartUpload(files);
-                            }, 500);
                           } else {
                             console.log(`[AUTO-UPLOAD-DEBUG] Auto-upload not triggered - no file type selected`);
                           }
