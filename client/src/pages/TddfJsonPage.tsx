@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import MainLayout from "@/components/layout/MainLayout";
-import SimpleActivityHeatMap from "@/components/shared/SimpleActivityHeatMap";
+import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
 import {
   Dialog,
   DialogContent,
@@ -159,15 +159,6 @@ export default function TddfJsonPage() {
     enabled: !!stats, // Only load after stats are loaded to stagger API calls
   });
 
-  // Fetch activity data for heat map (DT records only) with caching (staggered after records)
-  const { data: activityData } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/activity'],
-    queryFn: () => apiRequest('/api/tddf-json/activity'),
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes - heat map data changes slowly
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    enabled: !!recordsData, // Only load after records are loaded to further stagger API calls
-  });
-
   // Fetch performance statistics for large dataset recommendations
   const { data: performanceStats } = useQuery<any>({
     queryKey: ['/api/tddf-json/performance-stats'],
@@ -177,23 +168,12 @@ export default function TddfJsonPage() {
     enabled: !!stats, // Only load after basic stats are loaded
   });
 
-
-
-  // Transform activity data for heat map
-  const heatMapData = useMemo(() => {
-    if (!activityData?.records) return [];
-    
-    return activityData.records.map((record: any) => ({
-      date: record.transaction_date, // Heat map expects 'date' not 'transaction_date'
-      count: parseInt(record.transaction_count) || 0
-    }));
-  }, [activityData]);
-
   const handleRecordClick = (record: TddfJsonRecord) => {
     setSelectedRecord(record);
   };
 
-  const handleDateClick = (date: string) => {
+  const handleDateSelect = (date: string) => {
+    console.log('Selected date for filtering:', date);
     setDateFilter(date);
     setCurrentPage(1);
   };
@@ -301,27 +281,16 @@ export default function TddfJsonPage() {
 
 
 
-        {/* Activity Heat Map */}
-        {heatMapData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="w-5 h-5" />
-                Transaction Activity Heat Map
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Daily transaction volume from JSON records (click dates to filter)
-              </p>
-            </CardHeader>
-            <CardContent>
-              <SimpleActivityHeatMap 
-                data={heatMapData}
-                title="DT Transaction Activity" 
-                description="Daily transaction activity from TDDF JSON records (DT records only)"
-                selectedDate={dateFilter}
-              />
-              {dateFilter && (
-                <div className="mt-4 flex items-center gap-2">
+        {/* TDDF Activity Heat Map - Standard Setup */}
+        <div className="mb-4 sm:mb-6">
+          <TddfActivityHeatMap 
+            onDateSelect={handleDateSelect}
+            selectedDate={dateFilter}
+          />
+          {dateFilter && (
+            <Card className="mt-4">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2">
                   <Badge variant="secondary">
                     Filtered by: {formatDate(dateFilter)}
                   </Badge>
@@ -334,10 +303,10 @@ export default function TddfJsonPage() {
                     Clear Filter
                   </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Filters and Search */}
         <Card>
