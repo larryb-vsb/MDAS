@@ -7230,42 +7230,48 @@ export class DatabaseStorage implements IStorage {
       const limit = options.limit || 20;
       const offset = (page - 1) * limit;
 
-      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log('[TDDF MERCHANTS API] Starting aggregation query');
-      console.log('[TDDF MERCHANTS API] Table name:', tddfRecordsTableName);
+      console.log('[TDDF MERCHANTS API] Starting JSONB aggregation query');
+      console.log('[TDDF MERCHANTS API] Table name:', tddfJsonbTableName);
       console.log('[TDDF MERCHANTS API] Options:', options);
       
-      // Simple approach: Direct query without complex filtering initially
+      // Query using JSONB extracted fields for DT (transaction) records only
       const simpleQuery = `
         SELECT 
-          merchant_name,
-          merchant_account_number,
-          mcc_code,
-          MAX(transaction_type_identifier) as transaction_type_identifier,
-          COUNT(DISTINCT terminal_id) as terminal_count,
+          extracted_fields->>'merchantName' as merchant_name,
+          extracted_fields->>'merchantAccountNumber' as merchant_account_number,
+          extracted_fields->>'mccCode' as mcc_code,
+          MAX(extracted_fields->>'transactionTypeIdentifier') as transaction_type_identifier,
+          COUNT(DISTINCT extracted_fields->>'terminalId') as terminal_count,
           COUNT(*) as total_transactions,
-          SUM(CAST(transaction_amount AS NUMERIC)) as total_amount,
-          MAX(transaction_date) as last_transaction_date,
-          SUBSTRING(merchant_account_number, 1, 5) as pos_relative_code
-        FROM "${tddfRecordsTableName}"
-        WHERE merchant_name IS NOT NULL 
-          AND merchant_name != ''
-          AND merchant_account_number IS NOT NULL
-        GROUP BY merchant_name, merchant_account_number, mcc_code
+          SUM(CAST(COALESCE(extracted_fields->>'transactionAmount', '0') AS NUMERIC)) as total_amount,
+          MAX(extracted_fields->>'transactionDate') as last_transaction_date,
+          SUBSTRING(extracted_fields->>'merchantAccountNumber', 1, 5) as pos_relative_code
+        FROM "${tddfJsonbTableName}"
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'merchantName' IS NOT NULL 
+          AND extracted_fields->>'merchantName' != ''
+          AND extracted_fields->>'merchantAccountNumber' IS NOT NULL
+        GROUP BY extracted_fields->>'merchantName', extracted_fields->>'merchantAccountNumber', extracted_fields->>'mccCode'
         ORDER BY total_transactions DESC
         LIMIT $1 OFFSET $2
       `;
       
       const countQuery = `
-        SELECT COUNT(DISTINCT CONCAT(merchant_name, '|', merchant_account_number, '|', mcc_code)) as total
-        FROM "${tddfRecordsTableName}"
-        WHERE merchant_name IS NOT NULL 
-          AND merchant_name != ''
-          AND merchant_account_number IS NOT NULL
+        SELECT COUNT(DISTINCT CONCAT(
+          extracted_fields->>'merchantName', '|', 
+          extracted_fields->>'merchantAccountNumber', '|', 
+          extracted_fields->>'mccCode'
+        )) as total
+        FROM "${tddfJsonbTableName}"
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'merchantName' IS NOT NULL 
+          AND extracted_fields->>'merchantName' != ''
+          AND extracted_fields->>'merchantAccountNumber' IS NOT NULL
       `;
       
-      console.log('[TDDF MERCHANTS API] Executing simple aggregation query');
+      console.log('[TDDF MERCHANTS API] Executing JSONB aggregation query');
       
       // Execute queries
       const [dataResult, countResult] = await Promise.all([
