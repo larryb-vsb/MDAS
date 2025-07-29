@@ -7656,6 +7656,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cancel encoding for selected files
+  app.post("/api/uploader/cancel-encoding", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER API] Cancel encoding request for ${uploadIds.length} uploads:`, uploadIds);
+      
+      const result = await storage.cancelUploaderEncoding(uploadIds);
+      
+      if (result.success) {
+        console.log(`[UPLOADER API] Successfully canceled encoding for ${result.canceledCount} files`);
+        res.json({
+          success: true,
+          message: `Successfully canceled encoding for ${result.canceledCount} files`,
+          canceledCount: result.canceledCount,
+          errors: result.errors
+        });
+      } else {
+        console.log(`[UPLOADER API] Failed to cancel encoding:`, result.errors);
+        res.status(400).json({
+          success: false,
+          message: `Failed to cancel encoding: ${result.errors.join(', ')}`,
+          canceledCount: result.canceledCount,
+          errors: result.errors
+        });
+      }
+    } catch (error: any) {
+      console.error('Cancel encoding error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Set previous level - move upload back one processing level
   app.post("/api/uploader/set-previous-level", isAuthenticated, async (req, res) => {
     try {

@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -124,10 +124,8 @@ export default function MMSUploader() {
   const [currentPage, setCurrentPage] = useState(0); // 0-based for array indexing
   const [itemsPerPage, setItemsPerPage] = useState(20);
   
-  // Bulk delete state
+  // Selection state for bulk operations
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
-  
-
   
   // Storage status for bulb system
   const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
@@ -246,6 +244,22 @@ export default function MMSUploader() {
     }
   });
 
+  // Cancel encoding mutation
+  const cancelEncodingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/cancel-encoding', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      console.log(`[CANCEL-ENCODING] Successfully canceled encoding for ${data.canceledCount} files`);
+    }
+  });
+
   // Set previous level mutation
   const setPreviousLevelMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
@@ -284,6 +298,23 @@ export default function MMSUploader() {
       await bulkDeleteMutation.mutateAsync(selectedUploads);
     } catch (error) {
       console.error('Bulk delete error:', error);
+    }
+  };
+
+  // Cancel encoding handler
+  const handleCancelEncoding = async () => {
+    // Filter selected uploads to only include those in encoding phase
+    const encodingUploads = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      return upload && upload.currentPhase === 'encoding';
+    });
+    
+    if (encodingUploads.length === 0) return;
+    
+    try {
+      await cancelEncodingMutation.mutateAsync(encodingUploads);
+    } catch (error) {
+      console.error('Cancel encoding error:', error);
     }
   };
 
@@ -1462,6 +1493,20 @@ export default function MMSUploader() {
                       >
                         <ChevronLeft className="h-4 w-4 mr-2" />
                         {setPreviousLevelMutation.isPending ? 'Setting...' : 'Set Previous Level'}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelEncoding}
+                        disabled={cancelEncodingMutation.isPending || !selectedUploads.some(id => {
+                          const upload = uploads.find(u => u.id === id);
+                          return upload && upload.currentPhase === 'encoding';
+                        })}
+                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        {cancelEncodingMutation.isPending ? 'Canceling...' : 'Cancel Encoding'}
                       </Button>
                     </div>
                   )}

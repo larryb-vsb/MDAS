@@ -102,6 +102,7 @@ export interface IStorage {
   updateUploaderUpload(id: string, updates: Partial<UploaderUpload>): Promise<UploaderUpload>;
   updateUploaderPhase(id: string, phase: string, phaseData?: Record<string, any>): Promise<UploaderUpload>;
   deleteUploaderUploads(uploadIds: string[]): Promise<void>;
+  cancelUploaderEncoding(uploadIds: string[]): Promise<{ success: boolean; canceledCount: number; errors: string[] }>;
 
   // Terminal operations
   getTerminals(): Promise<Terminal[]>;
@@ -13477,6 +13478,76 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('[UPLOADER] Error deleting uploader uploads:', error);
       throw error;
+    }
+  }
+
+  async cancelUploaderEncoding(uploadIds: string[]): Promise<{ success: boolean; canceledCount: number; errors: string[] }> {
+    try {
+      if (!uploadIds || uploadIds.length === 0) {
+        return { success: true, canceledCount: 0, errors: [] };
+      }
+
+      const uploaderTableName = getTableName('uploader_uploads');
+      const errors: string[] = [];
+      let canceledCount = 0;
+      
+      console.log(`[UPLOADER] Attempting to cancel encoding for ${uploadIds.length} files`);
+      
+      // Check that all files are in encoding phase
+      const placeholders = uploadIds.map((_, index) => `$${index + 1}`).join(', ');
+      const checkResult = await pool.query(`
+        SELECT id, filename, current_phase FROM ${uploaderTableName} 
+        WHERE id IN (${placeholders})
+      `, uploadIds);
+      
+      const nonEncodingFiles = checkResult.rows.filter((row: any) => row.current_phase !== 'encoding');
+      if (nonEncodingFiles.length > 0) {
+        const nonEncodingIds = nonEncodingFiles.map((row: any) => `${row.filename} (${row.current_phase})`);
+        errors.push(`Some files are not in encoding phase: ${nonEncodingIds.join(', ')}`);
+      }
+      
+      // Filter to only encoding files
+      const encodingFiles = checkResult.rows.filter((row: any) => row.current_phase === 'encoding');
+      const encodingIds = encodingFiles.map((row: any) => row.id);
+      
+      if (encodingIds.length === 0) {
+        return { success: false, canceledCount: 0, errors: ['No files in encoding phase found'] };
+      }
+      
+      // Reset encoding files back to identified phase
+      const encodingPlaceholders = encodingIds.map((_, index) => `$${index + 1}`).join(', ');
+      const updateResult = await pool.query(`
+        UPDATE ${uploaderTableName} 
+        SET 
+          current_phase = 'identified',
+          encoding_status = NULL,
+          encoding_start_time = NULL,
+          encoding_end_time = NULL,
+          encoding_progress = NULL,
+          encoding_error = NULL,
+          processing_notes = COALESCE(processing_notes, '') || ' | Encoding canceled by user - reset to identified phase',
+          last_updated = NOW()
+        WHERE id IN (${encodingPlaceholders})
+      `, encodingIds);
+      
+      canceledCount = updateResult.rowCount || 0;
+      
+      console.log(`[UPLOADER] Successfully canceled encoding for ${canceledCount} files`);
+      console.log(`[UPLOADER] Reset files: ${encodingFiles.map((f: any) => f.filename).join(', ')}`);
+      
+      return { 
+        success: true, 
+        canceledCount, 
+        errors: errors.length > 0 ? errors : [] 
+      };
+      
+    } catch (error: any) {
+      console.error('[UPLOADER] Error canceling encoding:', error);
+      return { 
+        success: false, 
+        canceledCount: 0, 
+        errors: [error.message || 'Unknown error occurred'] 
+      };
     }
   }
 }
