@@ -747,6 +747,45 @@ export default function TddfJsonPage() {
                           ))}
                           <div>Actions</div>
                         </div>
+                      ) : selectedTab === 'DT' ? (
+                        /* DT Records - Show same header fields as BH */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-6 gap-4 text-sm font-medium">
+                          {[
+                            { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
+                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
+                            { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
+                            { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): DT for Detail Transaction' },
+                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction Amount: Individual transaction value' }
+                          ].map(({ key, label, tooltip }) => (
+                            <TooltipProvider key={key}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button 
+                                    className={`text-left hover:bg-muted/80 p-1 rounded flex items-center gap-1 transition-colors ${
+                                      sortBy === key ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''
+                                    }`}
+                                    onClick={() => handleHeaderSort(key)}
+                                  >
+                                    {label}
+                                    {sortBy === key ? (
+                                      sortOrder === 'asc' ? (
+                                        <ChevronUp className="w-3 h-3 text-blue-600" />
+                                      ) : (
+                                        <ChevronDown className="w-3 h-3 text-blue-600" />
+                                      )
+                                    ) : (
+                                      <ArrowUpDown className="w-3 h-3 opacity-50" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{tooltip}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ))}
+                          <div>Actions</div>
+                        </div>
                       ) : (
                         /* All other record types - Show full table */
                         <div className="bg-muted/50 px-4 py-2 grid grid-cols-8 gap-4 text-sm font-medium">
@@ -802,6 +841,39 @@ export default function TddfJsonPage() {
                             <div className="font-medium text-green-600">
                               {record.extracted_fields?.netDeposit ? 
                                 formatAmount(record.extracted_fields.netDeposit) : 'N/A'}
+                            </div>
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecordClick(record)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        ) : selectedTab === 'DT' ? (
+                          /* DT Records - Show same header fields as BH */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceNumberArea || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs font-medium text-blue-600">
+                              {record.extracted_fields?.entryRunNumber || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                              </Badge>
+                            </div>
+                            <div className="font-medium text-green-600">
+                              {record.extracted_fields?.transactionAmount ? 
+                                formatAmount(record.extracted_fields.transactionAmount) : 'N/A'}
                             </div>
                             <div>
                               <Button
