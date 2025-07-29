@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -1051,7 +1051,7 @@ export default function MMSUploader() {
                   paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    const canViewContent = upload.currentPhase === 'uploaded';
+                    const canViewContent = ['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '');
                     
                     return (
                       <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">
@@ -1092,7 +1092,7 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
-                          {/* View Content Button for uploaded files */}
+                          {/* View Content Button - Magnifying Glass Icon */}
                           {canViewContent && (
                             <Dialog>
                               <DialogTrigger asChild>
@@ -1100,8 +1100,9 @@ export default function MMSUploader() {
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => setSelectedFileForView(upload)}
+                                  className="flex items-center gap-1 hover:bg-blue-50"
                                 >
-                                  <Eye className="h-4 w-4" />
+                                  <ZoomIn className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="max-w-4xl max-h-[80vh]">
