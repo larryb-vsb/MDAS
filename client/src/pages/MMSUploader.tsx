@@ -77,7 +77,7 @@ const formatDuration = (startTime: string | Date, endTime?: string | Date): stri
 // Storage status bulb color determination
 const getBulbColor = (upload: UploaderUpload, storageStatus?: any): string => {
   // Grey (not accessible) for early phases
-  if (!['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '')) {
+  if (!['uploaded', 'identified', 'encoding', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '')) {
     return 'text-gray-400';
   }
   
@@ -93,8 +93,8 @@ const getBulbColor = (upload: UploaderUpload, storageStatus?: any): string => {
   }
   
   // Default based on phase if no storage status checked yet
-  if (upload.currentPhase === 'completed') {
-    return 'text-green-500'; // Assume accessible for completed files
+  if (upload.currentPhase === 'completed' || upload.currentPhase === 'encoded') {
+    return 'text-green-500'; // Assume accessible for completed/encoded files
   }
   
   return 'text-gray-400'; // Default grey
@@ -1276,7 +1276,7 @@ export default function MMSUploader() {
                   
                   <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-2xl font-bold text-green-600">
-                      {uploads.filter(u => u.currentPhase === 'completed' && u.finalFileType === 'tddf').length}
+                      {uploads.filter(u => u.currentPhase === 'encoded' && u.finalFileType === 'tddf').length}
                     </div>
                     <div className="text-sm text-green-700">Encoding Complete</div>
                   </div>
@@ -1462,8 +1462,8 @@ export default function MMSUploader() {
                             </div>
                           )}
 
-                          <Badge className={`bg-${phaseColor}-100 text-${phaseColor}-800`}>
-                            {upload.currentPhase || 'started'}
+                          <Badge className={`${upload.currentPhase === 'encoded' ? 'bg-green-100 text-green-800' : `bg-${phaseColor}-100 text-${phaseColor}-800`}`}>
+                            {upload.currentPhase === 'encoded' ? 'Encoded' : upload.currentPhase || 'started'}
                           </Badge>
                           
                           {/* Stage 5: Encoding Button (for identified TDDF files) */}
@@ -1491,8 +1491,8 @@ export default function MMSUploader() {
                             </div>
                           )}
                           
-                          {/* Stage 5: Show JSON Sample for completed encoding */}
-                          {upload.currentPhase === 'completed' && upload.finalFileType === 'tddf' && (
+                          {/* Stage 5: Show JSON Sample for encoded files */}
+                          {upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf' && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -1509,7 +1509,7 @@ export default function MMSUploader() {
                           )}
 
                           {/* View Contents Button */}
-                          {['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '') && (
+                          {['uploaded', 'identified', 'encoding', 'processing', 'completed', 'encoded'].includes(upload.currentPhase || '') && (
                             <Button
                               variant="ghost"
                               size="sm"
