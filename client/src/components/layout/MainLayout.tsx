@@ -211,7 +211,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   icon={item.icon}
                   label={item.label}
                   href={item.href}
-                  isActive={location === item.href}
+                  isActive={
+                    location === item.href || 
+                    (item.href !== "/" && location.startsWith(item.href + "/"))
+                  }
                   onClick={() => setOpen(false)}
                 />
               ))}
@@ -306,7 +309,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 href={item.href}
                 isActive={
                   location === item.href || 
-                  (item.href !== "/" && location.startsWith(item.href))
+                  (item.href !== "/" && location.startsWith(item.href + "/"))
                 }
               />
             ))}
