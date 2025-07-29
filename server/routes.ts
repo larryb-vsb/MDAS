@@ -7656,8 +7656,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Reset encoded files to identified status
-  app.post("/api/uploader/reset-to-identified", isAuthenticated, async (req, res) => {
+  // Set previous level - move upload back one processing level
+  app.post("/api/uploader/set-previous-level", isAuthenticated, async (req, res) => {
     try {
       const { uploadIds } = req.body;
       
@@ -7665,10 +7665,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
       }
       
-      console.log(`[UPLOADER API] Reset to identified request for ${uploadIds.length} uploads:`, uploadIds);
+      console.log(`[UPLOADER API] Set previous level request for ${uploadIds.length} uploads:`, uploadIds);
       
-      // Reset each upload to identified status
-      let resetCount = 0;
+      let processedCount = 0;
       const errors = [];
       
       for (const uploadId of uploadIds) {
@@ -7680,36 +7679,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          if (upload.currentPhase !== 'encoded') {
-            errors.push(`Upload ${upload.filename} is not in encoded status (current: ${upload.currentPhase})`);
-            continue;
+          let newPhase: string;
+          let updateData: any = {
+            processingNotes: `Moved from ${upload.currentPhase} to previous level at ${new Date().toISOString()}`
+          };
+          
+          // Determine previous level based on current phase
+          switch (upload.currentPhase) {
+            case 'encoded':
+              newPhase = 'identified';
+              // Clear encoding data
+              updateData.encodingStatus = null;
+              updateData.encodingTimeMs = null;
+              updateData.jsonRecordsCreated = null;
+              updateData.tddfRecordsCreated = null;
+              updateData.encodingCompleted = null;
+              break;
+              
+            case 'identified':
+              newPhase = 'uploaded';
+              // Clear identification data
+              updateData.finalFileType = null;
+              updateData.identificationResults = null;
+              updateData.identificationCompleted = null;
+              break;
+              
+            case 'uploaded':
+              errors.push(`Upload ${upload.filename} is already at the minimum level (uploaded)`);
+              continue;
+              
+            default:
+              errors.push(`Upload ${upload.filename} has invalid phase: ${upload.currentPhase}`);
+              continue;
           }
           
-          // Reset to identified phase and clear encoding data
-          await storage.updateUploaderUpload(uploadId, {
-            currentPhase: 'identified',
-            encodingStatus: null,
-            encodingTimeMs: null,
-            jsonRecordsCreated: null,
-            tddfRecordsCreated: null,
-            processingNotes: `Reset from encoded to identified status at ${new Date().toISOString()}`
-          });
+          updateData.currentPhase = newPhase;
           
-          resetCount++;
-          console.log(`[UPLOADER API] Reset upload ${uploadId} (${upload.filename}) from encoded to identified`);
+          await storage.updateUploaderUpload(uploadId, updateData);
+          
+          processedCount++;
+          console.log(`[UPLOADER API] Moved upload ${uploadId} (${upload.filename}) from ${upload.currentPhase} to ${newPhase}`);
           
         } catch (error: any) {
-          console.error(`Error resetting upload ${uploadId}:`, error);
-          errors.push(`Failed to reset upload ${uploadId}: ${error.message}`);
+          console.error(`Error setting previous level for upload ${uploadId}:`, error);
+          errors.push(`Failed to process upload ${uploadId}: ${error.message}`);
         }
       }
       
-      console.log(`[UPLOADER API] Successfully reset ${resetCount} uploads to identified status`);
+      console.log(`[UPLOADER API] Successfully processed ${processedCount} uploads to previous level`);
       
       const response: any = { 
         success: true, 
-        message: `Successfully reset ${resetCount} files to identified status`,
-        resetCount
+        message: `Successfully moved ${processedCount} files to previous level`,
+        processedCount
       };
       
       if (errors.length > 0) {
@@ -7720,7 +7742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(response);
       
     } catch (error: any) {
-      console.error('Reset to identified error:', error);
+      console.error('Set previous level error:', error);
       res.status(500).json({ error: error.message });
     }
   });

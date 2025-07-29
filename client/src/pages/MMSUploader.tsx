@@ -127,9 +127,9 @@ export default function MMSUploader() {
   // Bulk delete state
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
   
-  // Reset controls state
-  const [selectedForReset, setSelectedForReset] = useState<Set<string>>(new Set());
-  const [showBulkActions, setShowBulkActions] = useState(false);
+  // Set Previous Level controls state
+  const [selectedForPreviousLevel, setSelectedForPreviousLevel] = useState<Set<string>>(new Set());
+  const [showPreviousLevelActions, setShowPreviousLevelActions] = useState(false);
   
   // Storage status for bulb system
   const [storageStatusCache, setStorageStatusCache] = useState<Record<string, any>>({});
@@ -248,10 +248,10 @@ export default function MMSUploader() {
     }
   });
 
-  // Reset encoded files to identified status mutation
-  const resetMutation = useMutation({
+  // Set previous level mutation
+  const setPreviousLevelMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
-      const response = await apiRequest('/api/uploader/reset-to-identified', {
+      const response = await apiRequest('/api/uploader/set-previous-level', {
         method: 'POST',
         body: { uploadIds }
       });
@@ -259,11 +259,11 @@ export default function MMSUploader() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
-      setSelectedForReset(new Set());
-      setShowBulkActions(false);
+      setSelectedForPreviousLevel(new Set());
+      setShowPreviousLevelActions(false);
     },
     onError: (error) => {
-      console.error('Error resetting uploads:', error);
+      console.error('Error setting previous level:', error);
     }
   });
 
@@ -290,46 +290,38 @@ export default function MMSUploader() {
     }
   };
 
-  // Reset control handlers
-  const handleSelectForReset = (uploadId: string, checked: boolean) => {
-    const newSelected = new Set(selectedForReset);
+  // Previous level control handlers
+  const handleSelectForPreviousLevel = (uploadId: string, checked: boolean) => {
+    const newSelected = new Set(selectedForPreviousLevel);
     if (checked) {
       newSelected.add(uploadId);
     } else {
       newSelected.delete(uploadId);
     }
-    setSelectedForReset(newSelected);
-    setShowBulkActions(newSelected.size > 0);
+    setSelectedForPreviousLevel(newSelected);
+    setShowPreviousLevelActions(newSelected.size > 0);
   };
 
-  const handleSelectAllForReset = (checked: boolean) => {
+  const handleSelectAllForPreviousLevel = (checked: boolean) => {
     if (checked) {
-      const encodedFiles = paginatedUploads
-        .filter(upload => upload.currentPhase === 'encoded')
+      const eligibleFiles = paginatedUploads
+        .filter(upload => upload.currentPhase === 'identified' || upload.currentPhase === 'encoded')
         .map(upload => upload.id);
-      setSelectedForReset(new Set(encodedFiles));
-      setShowBulkActions(encodedFiles.length > 0);
+      setSelectedForPreviousLevel(new Set(eligibleFiles));
+      setShowPreviousLevelActions(eligibleFiles.length > 0);
     } else {
-      setSelectedForReset(new Set());
-      setShowBulkActions(false);
+      setSelectedForPreviousLevel(new Set());
+      setShowPreviousLevelActions(false);
     }
   };
 
-  const handleResetSingle = async (uploadId: string) => {
-    try {
-      await resetMutation.mutateAsync([uploadId]);
-    } catch (error) {
-      console.error('Single reset error:', error);
-    }
-  };
-
-  const handleResetSelected = async () => {
-    if (selectedForReset.size === 0) return;
+  const handleSetPreviousLevelSelected = async () => {
+    if (selectedForPreviousLevel.size === 0) return;
     
     try {
-      await resetMutation.mutateAsync(Array.from(selectedForReset));
+      await setPreviousLevelMutation.mutateAsync(Array.from(selectedForPreviousLevel));
     } catch (error) {
-      console.error('Bulk reset error:', error);
+      console.error('Set previous level error:', error);
     }
   };
 
@@ -1371,46 +1363,44 @@ export default function MMSUploader() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Reset Controls Section */}
-              {uploads.filter(u => u.currentPhase === 'encoded').length > 0 && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              {/* Set Previous Level Controls Section */}
+              {showPreviousLevelActions && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <RefreshCw className="h-5 w-5 text-orange-600" />
+                      <ChevronLeft className="h-5 w-5 text-blue-600" />
                       <div>
-                        <div className="font-medium text-orange-800">Reset Encoded Files</div>
-                        <div className="text-sm text-orange-600">
-                          Reset encoded files back to identified status for re-processing
+                        <div className="font-medium text-blue-800">Set Previous Level</div>
+                        <div className="text-sm text-blue-600">
+                          Move selected files back one processing level (encoded → identified → uploaded)
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <div className="text-sm text-orange-700">
-                        {selectedForReset.size} of {uploads.filter(u => u.currentPhase === 'encoded').length} selected
+                      <div className="text-sm text-blue-700">
+                        {selectedForPreviousLevel.size} files selected
                       </div>
                       
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleSelectAllForReset(selectedForReset.size === 0)}
-                        className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                        onClick={() => handleSelectAllForPreviousLevel(false)}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-100"
                       >
-                        {selectedForReset.size === uploads.filter(u => u.currentPhase === 'encoded').length ? 'Clear All' : 'Select All'}
+                        Clear Selection
                       </Button>
                       
-                      {selectedForReset.size > 0 && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleResetSelected}
-                          disabled={resetMutation.isPending}
-                          className="bg-orange-600 hover:bg-orange-700"
-                        >
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          {resetMutation.isPending ? 'Resetting...' : `Reset ${selectedForReset.size} Files`}
-                        </Button>
-                      )}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleSetPreviousLevelSelected}
+                        disabled={setPreviousLevelMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        {setPreviousLevelMutation.isPending ? 'Setting...' : `Set Previous Level`}
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1599,6 +1589,21 @@ export default function MMSUploader() {
                                   <span className="text-sm">{Math.round(encodingProgress[upload.id])}%</span>
                                 </div>
                               )}
+
+                              {/* Select for Previous Level Checkbox for identified files */}
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`select-identified-${upload.id}`}
+                                  checked={selectedForPreviousLevel.has(upload.id)}
+                                  onCheckedChange={(checked) => handleSelectForPreviousLevel(upload.id, checked as boolean)}
+                                />
+                                <label
+                                  htmlFor={`select-identified-${upload.id}`}
+                                  className="text-sm text-blue-600 cursor-pointer"
+                                >
+                                  Select for Level Down
+                                </label>
+                              </div>
                             </div>
                           )}
                           
@@ -1619,18 +1624,20 @@ export default function MMSUploader() {
                                 View JSONB
                               </Button>
                               
-                              {/* Reset to Identified Button */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-3 text-orange-600 border-orange-200 hover:bg-orange-50"
-                                onClick={() => handleResetSingle(upload.id)}
-                                title="Reset to identified status and clear encoding data"
-                                disabled={resetMutation.isPending}
-                              >
-                                <RotateCcw className="h-3 w-3 mr-1" />
-                                Reset
-                              </Button>
+                              {/* Select for Previous Level Checkbox */}
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`select-${upload.id}`}
+                                  checked={selectedForPreviousLevel.has(upload.id)}
+                                  onCheckedChange={(checked) => handleSelectForPreviousLevel(upload.id, checked as boolean)}
+                                />
+                                <label
+                                  htmlFor={`select-${upload.id}`}
+                                  className="text-sm text-blue-600 cursor-pointer"
+                                >
+                                  Select for Level Down
+                                </label>
+                              </div>
                             </div>
                           )}
 

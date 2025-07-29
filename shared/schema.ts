@@ -1114,6 +1114,21 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   filename: text("filename").notNull(), // Original filename
   fileSize: integer("file_size"), // File size in bytes
   
+  // Comprehensive Status Date Tracking
+  // Upload Phase Tracking
+  uploadStart: timestamp("upload_start"), // When upload process began
+  uploadComplete: timestamp("upload_complete"), // When upload finished
+  uploadedLineCount: integer("uploaded_line_count"), // Number of lines in uploaded file
+  
+  // Identify Phase Tracking  
+  identifyStart: timestamp("identify_start"), // When identification process began
+  identifyComplete: timestamp("identify_complete"), // When identification finished
+  
+  // Encoding Phase Tracking
+  encodingStart: timestamp("encoding_start"), // When encoding process began
+  encodingComplete: timestamp("encoding_complete"), // When encoding finished
+  encodedLines: integer("encoded_lines"), // Number of lines that were encoded
+  
   // Phase 1: Started
   startTime: timestamp("start_time").defaultNow().notNull(), // When upload was initiated
   
