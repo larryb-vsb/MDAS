@@ -433,10 +433,10 @@ function BHRecordsTable() {
                 onCheckedChange={handleSelectAll}
                 className="ml-4"
               />
-              <div className="w-32">Batch ID (124-126)</div>
-              <div className="w-40">Net Deposit (69-83)</div>
-              <div className="w-40">Batch Date (56-63)</div>
-              <div className="w-48">Merchant Account Number (24-39)</div>
+              <div className="w-32">Batch ID</div>
+              <div className="w-40">Net Deposit</div>
+              <div className="w-40">Batch Date</div>
+              <div className="w-48">Merchant Account Number</div>
               <div className="w-20">Actions</div>
             </div>
 
