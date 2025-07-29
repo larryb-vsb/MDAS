@@ -217,7 +217,7 @@ function BatchRelationshipsView() {
                     {batch.related_transactions?.length > 0 && (
                       <div className="ml-auto flex items-center gap-2">
                         {(() => {
-                          const bhAmount = parseFloat(batch.batch_fields?.netDeposit || '0');
+                          const bhAmount = parseFloat(String(batch.batch_fields?.netDeposit || '0'));
                           const dtTotal = batch.related_transactions.reduce((sum, tx) => 
                             sum + parseFloat(tx.extracted_fields?.transactionAmount || '0'), 0
                           );
@@ -284,7 +284,33 @@ function BatchRelationshipsView() {
                               </div>
                               <div>
                                 <span className="font-medium text-blue-800">Card:</span>
-                                <div className="font-mono">{transaction.extracted_fields?.cardType || 'N/A'}</div>
+                                <div className="flex items-center gap-1">
+                                  {(() => {
+                                    const cardType = transaction.extracted_fields?.cardType;
+                                    if (!cardType || cardType === 'N/A') return <span className="font-mono">N/A</span>;
+                                    
+                                    const getCardBadgeStyle = (type: string) => {
+                                      const upperType = type.toUpperCase();
+                                      if (upperType.includes('VISA') || upperType === 'VI') {
+                                        return 'bg-blue-100 text-blue-800 border-blue-300';
+                                      } else if (upperType.includes('MC') || upperType === 'MC') {
+                                        return 'bg-red-100 text-red-800 border-red-300';
+                                      } else if (upperType.includes('AMEX') || upperType === 'AX') {
+                                        return 'bg-green-100 text-green-800 border-green-300';
+                                      } else if (upperType.includes('DISC') || upperType === 'DI') {
+                                        return 'bg-purple-100 text-purple-800 border-purple-300';
+                                      } else {
+                                        return 'bg-gray-100 text-gray-800 border-gray-300';
+                                      }
+                                    };
+                                    
+                                    return (
+                                      <Badge className={`text-xs px-2 py-1 ${getCardBadgeStyle(cardType)}`}>
+                                        {cardType}
+                                      </Badge>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                               <div>
                                 <span className="font-medium text-blue-800">Reference:</span>
