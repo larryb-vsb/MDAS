@@ -79,9 +79,10 @@ interface BatchRelationship {
   batch_fields: {
     batchId?: string;
     merchantAccountNumber?: string;
+    netDeposit?: string | number;
+    batchDate?: string;
     transactionCount?: number;
     totalAmount?: number;
-    batchDate?: string;
     [key: string]: any;
   };
   batch_created_at: string;
@@ -113,6 +114,14 @@ interface BatchRelationshipsResponse {
 function BatchRelationshipsView() {
   const [batchPage, setBatchPage] = useState(1);
   const [batchLimit] = useState(10);
+
+  // Format amount utility function
+  const formatAmount = (amount: string | number | undefined): string => {
+    if (!amount) return 'N/A';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numAmount)) return 'N/A';
+    return `$${numAmount.toFixed(2)}`;
+  };
 
   // Fetch batch relationships data
   const { data: batchData, isLoading: batchLoading } = useQuery<BatchRelationshipsResponse>({
@@ -168,25 +177,21 @@ function BatchRelationshipsView() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="font-medium text-green-800">Batch ID:</span>
                       <div className="font-mono">{batch.batch_fields?.batchId || 'N/A'}</div>
                     </div>
                     <div>
+                      <span className="font-medium text-green-800">Net Deposit:</span>
+                      <div className="font-mono text-green-600 font-semibold">
+                        {batch.batch_fields?.netDeposit ? 
+                          formatAmount(batch.batch_fields.netDeposit) : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
                       <span className="font-medium text-green-800">Merchant Account:</span>
                       <div className="font-mono">{batch.batch_fields?.merchantAccountNumber || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-800">Transaction Count:</span>
-                      <div className="font-mono">{batch.batch_fields?.transactionCount?.toLocaleString() || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-800">Total Amount:</span>
-                      <div className="font-mono">
-                        {batch.batch_fields?.totalAmount ? 
-                          `$${(batch.batch_fields.totalAmount / 100).toFixed(2)}` : 'N/A'}
-                      </div>
                     </div>
                   </div>
                 </div>
