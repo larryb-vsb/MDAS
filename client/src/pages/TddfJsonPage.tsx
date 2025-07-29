@@ -186,7 +186,9 @@ function BatchRelationshipsView() {
                       <span className="font-medium text-green-800">Net Deposit:</span>
                       <div className="font-mono text-green-600 font-semibold">
                         {batch.batch_fields?.netDeposit ? 
-                          formatAmount(batch.batch_fields.netDeposit) : 'N/A'}
+                          formatAmount(batch.batch_fields.netDeposit) : 
+                         batch.batch_fields?.totalAmount ? 
+                          formatAmount(batch.batch_fields.totalAmount / 100) : 'N/A'}
                       </div>
                     </div>
                     <div>
