@@ -7330,9 +7330,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.file.mimetype
       );
       
-      const lineCount = fileBuffer.toString('utf-8').split('\n').length;
+      // Extract comprehensive file metadata
+      const fileContent = fileBuffer.toString('utf-8');
+      const lines = fileContent.split('\n');
+      const lineCount = lines.length;
+      const actualFileSize = fileBuffer.length;
+      const hasHeaders = lines.length > 0 && lines[0].includes(',') || lines[0].includes('\t');
       
-      // Update database with Replit storage information
+      // Detect file format
+      let fileFormat = 'text';
+      if (uploadRecord.filename.toLowerCase().endsWith('.csv')) fileFormat = 'csv';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.tsv')) fileFormat = 'tsv';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.json')) fileFormat = 'json';
+      else if (uploadRecord.filename.toLowerCase().endsWith('.tsyso')) fileFormat = 'tddf';
+      
+      // Update database with comprehensive metadata
       await storage.updateUploaderUpload(id, {
         currentPhase: 'uploaded',
         uploadProgress: 100,
@@ -7342,7 +7354,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         s3Key: uploadResult.key,
         s3Url: uploadResult.url,
         s3Etag: uploadResult.etag,
-        fileSize: uploadResult.size,
+        fileSize: actualFileSize,
+        lineCount: lineCount,
+        dataSize: actualFileSize,
+        hasHeaders: hasHeaders,
+        fileFormat: fileFormat,
+        encodingDetected: 'utf-8',
         lineCount: lineCount,
         processingNotes: `Uploaded to Replit Object Storage: ${uploadResult.key}`
       });
