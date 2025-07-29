@@ -1196,12 +1196,18 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
-                          {/* Storage Status Bulb - replaces magnifying glass with hover info */}
-                          <div title={getBulbTooltip(upload, storageStatusCache[upload.id])}>
-                            <Lightbulb 
-                              className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`}
-                            />
-                          </div>
+                          {/* View Contents Button */}
+                          {['uploaded', 'identified', 'encoding', 'processing', 'completed'].includes(upload.currentPhase || '') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => setSelectedFileForView(upload)}
+                              title="View file contents"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1295,6 +1301,48 @@ export default function MMSUploader() {
         </TabsContent>
       </Tabs>
       </div>
+
+      {/* File Content Viewer Dialog */}
+      <Dialog open={!!selectedFileForView} onOpenChange={() => setSelectedFileForView(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>File Contents</DialogTitle>
+            <DialogDescription>
+              Viewing: {selectedFileForView?.filename} ({formatFileSize(selectedFileForView?.fileSize)})
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {isLoadingContent ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-muted-foreground">Loading file contents...</div>
+              </div>
+            ) : fileContent ? (
+              <div className="space-y-4">
+                {/* 2-line preview box */}
+                <div className="bg-gray-50 border rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Preview (First 2 lines):</div>
+                  <div className="font-mono text-sm bg-white border rounded p-3 min-h-[4rem] whitespace-pre-wrap">
+                    {fileContent.preview || fileContent.content?.split('\n').slice(0, 2).join('\n') || 'No preview available'}
+                  </div>
+                </div>
+                
+                {/* Full content */}
+                <div className="bg-gray-50 border rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Full Content:</div>
+                  <div className="font-mono text-xs bg-white border rounded p-3 max-h-96 overflow-auto whitespace-pre-wrap">
+                    {fileContent.content || 'Content not available'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Content not available for this file
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
