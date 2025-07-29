@@ -1196,99 +1196,11 @@ export default function MMSUploader() {
                             {upload.currentPhase || 'started'}
                           </Badge>
                           
-                          {/* Storage Status Bulb - Color-coded with hover info only */}
-                          <div className="relative group">
-                            <Lightbulb className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`} />
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                              {getBulbTooltip(upload, storageStatusCache[upload.id])}
-                            </div>
-                          </div>
-                          
-                          {/* Legacy Content Dialog - kept for complex viewing */}
-                          {canViewContent && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setSelectedFileForView(upload)}
-                                  className="flex items-center gap-1 hover:bg-blue-50 ml-2"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  <span className="text-xs">Full View</span>
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[80vh]">
-                                <DialogHeader>
-                                  <DialogTitle>File Contents: {upload.filename}</DialogTitle>
-                                  <DialogDescription>
-                                    Phase: {upload.currentPhase} • {formatFileSize(upload.fileSize)} • {upload.lineCount || 0} lines
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="mt-4">
-                                  {isLoadingContent ? (
-                                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                      <div className="text-muted-foreground">Loading file contents...</div>
-                                      <div className="text-xs text-muted-foreground">
-                                        Reading {formatFileSize(upload.fileSize)} from Replit Object Storage
-                                      </div>
-                                    </div>
-                                  ) : fileContent ? (
-                                    <div className="space-y-4">
-                                      <div className="bg-blue-50 p-3 rounded-lg">
-                                        <div className="text-sm font-medium text-blue-800">
-                                          File Size: {formatFileSize(upload.fileSize)} • Lines: {upload.lineCount?.toLocaleString() || 'N/A'}
-                                        </div>
-                                        <div className="text-xs text-blue-600 mt-1">
-                                          Storage: Replit Object Storage • Content Length: {fileContent.content?.length?.toLocaleString() || 0} characters
-                                        </div>
-                                      </div>
-
-                                      {fileContent.content && (
-                                        <div>
-                                          <h4 className="font-medium mb-3 flex items-center gap-2">
-                                            Raw Line Data
-                                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                              First 2 lines shown
-                                            </span>
-                                          </h4>
-                                          <div className="border rounded-lg bg-gray-50">
-                                            <div className="max-h-32 overflow-y-auto p-4">
-                                              <pre className="text-xs font-mono whitespace-pre-wrap break-all">
-                                                {fileContent.content.split('\n').slice(0, 2).join('\n')}
-                                              </pre>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      <div className="flex gap-2">
-                                        <Button 
-                                          variant="outline" 
-                                          onClick={() => {
-                                            const blob = new Blob([fileContent.content], { type: 'text/plain' });
-                                            const url = URL.createObjectURL(blob);
-                                            const a = document.createElement('a');
-                                            a.href = url;
-                                            a.download = upload.filename;
-                                            a.click();
-                                            URL.revokeObjectURL(url);
-                                          }}
-                                        >
-                                          Download Full File ({formatFileSize(fileContent.content?.length || 0)})
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-center py-8">
-                                      <div className="text-muted-foreground">File content not available</div>
-                                    </div>
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          )}
+                          {/* Storage Status Bulb - replaces magnifying glass with hover info */}
+                          <Lightbulb 
+                            className={`h-4 w-4 ${getBulbColor(upload, storageStatusCache[upload.id])}`}
+                            title={getBulbTooltip(upload, storageStatusCache[upload.id])}
+                          />
                         </div>
                       </div>
                     );
@@ -1345,103 +1257,42 @@ export default function MMSUploader() {
         <TabsContent value="monitor" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Active Processing Monitor</CardTitle>
-              <CardDescription>Real-time view of file processing status</CardDescription>
+              <CardTitle>Processing Monitor</CardTitle>
+              <CardDescription>Monitor and track file processing status</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="text-muted-foreground">Loading uploads...</div>
-                </div>
-              ) : uploads.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-muted-foreground">No MMS uploads found. Use the upload form above to start processing files through the 8-phase workflow.</div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {uploads.slice(0, 20).map((upload) => {
-                    const Icon = getPhaseIcon(upload.currentPhase || 'started');
-                    const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    
-                    return (
-                      <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Icon className={`h-5 w-5 text-${phaseColor}-600`} />
-                          <div>
-                            <div className="font-medium">{upload.filename}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatFileSize(upload.fileSize)} • Started {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || undefined) : 'recently'}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <Badge className={`bg-${phaseColor}-100 text-${phaseColor}-800`}>
-                            {upload.currentPhase || 'started'}
-                          </Badge>
-                          
-                          {upload.uploadProgress && upload.uploadProgress > 0 && (
-                            <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={upload.uploadProgress} className="w-16" />
-                              <span className="text-sm">{upload.uploadProgress}%</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="text-center py-8 text-muted-foreground">
+                Processing monitor functionality coming soon
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="phases" className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {PROCESSING_PHASES.map((phase) => {
-              const phaseUploads = uploadsByPhase[phase.id] || [];
-              const Icon = phase.icon;
-              
-              return (
-                <Card key={phase.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Phase Details</CardTitle>
+              <CardDescription>Detailed information about each processing phase</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {PROCESSING_PHASES.map((phase) => {
+                  const Icon = phase.icon;
+                  return (
+                    <div key={phase.id} className="flex items-center gap-3 p-3 border rounded-lg">
                       <Icon className={`h-5 w-5 text-${phase.color}-600`} />
-                      {phase.name}
-                      <Badge variant="secondary">{phaseUploads.length}</Badge>
-                    </CardTitle>
-                    <CardDescription>{phase.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {phaseUploads.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No files in this phase</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {phaseUploads.slice(0, 5).map((upload) => (
-                          <div key={upload.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div className="text-sm font-medium truncate">
-                              {upload.filename}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatDuration(upload.startTime)}
-                            </div>
-                          </div>
-                        ))}
-                        {phaseUploads.length > 5 && (
-                          <div className="text-xs text-muted-foreground text-center">
-                            ...and {phaseUploads.length - 5} more
-                          </div>
-                        )}
+                      <div>
+                        <div className="font-medium">{phase.name}</div>
+                        <div className="text-sm text-muted-foreground">{phase.description}</div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-    </div>
     </MainLayout>
   );
 }
