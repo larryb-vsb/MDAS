@@ -231,3 +231,129 @@ export async function encodeTddfToJsonb(fileContent: string, upload: UploaderUpl
   
   return results;
 }
+
+/**
+ * Direct TDDF to JSONB encoding with database storage
+ */
+export async function encodeTddfToJsonbDirect(fileContent: string, upload: UploaderUpload): Promise<any> {
+  const { Pool } = await import('@neondatabase/serverless');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  
+  const startTime = Date.now();
+  const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+  
+  // Determine table name based on environment
+  const environment = process.env.NODE_ENV || 'development';
+  const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+  
+  const results = {
+    uploadId: upload.id,
+    filename: upload.filename,
+    totalLines: lines.length,
+    totalRecords: 0,
+    recordCounts: {
+      total: 0,
+      byType: {} as Record<string, number>
+    },
+    jsonRecords: [] as any[], // Keep sample for display
+    encodingTimeMs: 0,
+    errors: [] as string[],
+    tableName: tableName
+  };
+  
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Starting JSONB database encoding for ${upload.filename} (${lines.length} lines)`);
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Using table: ${tableName}`);
+  
+  // Process lines in batches for better performance
+  const batchSize = 1000;
+  let processedCount = 0;
+  
+  for (let batchStart = 0; batchStart < lines.length; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, lines.length);
+    const batch = lines.slice(batchStart, batchEnd);
+    
+    const batchRecords: any[] = [];
+    
+    // Process batch
+    for (let i = 0; i < batch.length; i++) {
+      try {
+        const lineNumber = batchStart + i + 1;
+        const jsonRecord = encodeTddfLineToJson(batch[i], lineNumber);
+        
+        // Prepare database record
+        const dbRecord = {
+          upload_id: upload.id,
+          filename: upload.filename,
+          record_type: jsonRecord.recordType,
+          line_number: lineNumber,
+          raw_line: batch[i],
+          extracted_fields: JSON.stringify(jsonRecord.extractedFields),
+          record_identifier: jsonRecord.extractedFields.recordIdentifier || jsonRecord.recordType,
+          processing_time_ms: Date.now() - startTime
+        };
+        
+        batchRecords.push(dbRecord);
+        results.totalRecords++;
+        
+        if (jsonRecord.recordType) {
+          results.recordCounts.byType[jsonRecord.recordType] = 
+            (results.recordCounts.byType[jsonRecord.recordType] || 0) + 1;
+        }
+        
+        // Keep first 3 records as samples for display
+        if (results.jsonRecords.length < 3) {
+          results.jsonRecords.push(jsonRecord);
+        }
+        
+      } catch (error: any) {
+        const errorMsg = `Line ${batchStart + i + 1}: ${error.message}`;
+        results.errors.push(errorMsg);
+        console.error(`[TDDF-JSON-ENCODER-DIRECT] ${errorMsg}`);
+      }
+    }
+    
+    // Batch insert to database
+    if (batchRecords.length > 0) {
+      try {
+        const insertQuery = `
+          INSERT INTO ${tableName} (
+            upload_id, filename, record_type, line_number, raw_line, 
+            extracted_fields, record_identifier, processing_time_ms, created_at
+          ) VALUES ${batchRecords.map((_, index) => 
+            `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8}, NOW())`
+          ).join(', ')}
+        `;
+        
+        const values = batchRecords.flatMap(record => [
+          record.upload_id,
+          record.filename,
+          record.record_type,
+          record.line_number,
+          record.raw_line,
+          record.extracted_fields,
+          record.record_identifier,
+          record.processing_time_ms
+        ]);
+        
+        await pool.query(insertQuery, values);
+        processedCount += batchRecords.length;
+        
+        console.log(`[TDDF-JSON-ENCODER-DIRECT] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records (${processedCount}/${lines.length})`);
+        
+      } catch (dbError: any) {
+        console.error(`[TDDF-JSON-ENCODER-DIRECT] Database batch insert failed:`, dbError);
+        results.errors.push(`Database batch insert failed: ${dbError.message}`);
+      }
+    }
+  }
+  
+  results.recordCounts.total = results.totalRecords;
+  results.encodingTimeMs = Date.now() - startTime;
+  
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Completed JSONB encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Record type breakdown:`, results.recordCounts.byType);
+  console.log(`[TDDF-JSON-ENCODER-DIRECT] Database table: ${tableName}`);
+  
+  await pool.end();
+  return results;
+}
