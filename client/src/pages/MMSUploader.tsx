@@ -1401,19 +1401,6 @@ export default function MMSUploader() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {selectedUploads.length > 0 && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleBulkDelete()}
-                      disabled={bulkDeleteMutation.isPending}
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedUploads.length} files`}
-                    </Button>
-                  )}
-                  
                   <Badge variant="outline">
                     {filteredUploads.length} files
                   </Badge>
