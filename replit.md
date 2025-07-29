@@ -73,6 +73,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Database Field Integrity**: All BH processing now extracts Net Deposit using line.substring(68, 83) which corresponds to TDDF positions 69-83 (0-based vs 1-based)
   - **Production Ready**: Complete BH Net Deposit field correction operational ensuring accurate batch financial data extraction from TDDF files
 - **✅ TERMINALS PAGE UPDATED TO USE TDDF JSONB TABLE (July 29, 2025)**: Successfully migrated terminals page transaction history and heat map to use enhanced TDDF JSONB data with extracted fields access
+  - **Heat Map API Endpoints Updated**: Migrated both `/api/tddf/activity-heatmap` and `/api/tddf/merchant-activity-heatmap` endpoints from dev_tddf_records to dev_tddf_jsonb table
+  - **JSONB Field Integration**: Heat maps now query `extracted_fields->>'transactionDate'` and `extracted_fields->>'merchantAccountNumber'` from JSONB data structure
+  - **Terminal Transaction History Ready**: `/api/tddf/by-terminal` endpoint already using JSONB data with proper field extraction and transformation
+  - **Environment-Aware Migration**: All TDDF terminal functionality uses `getTableName('tddf_jsonb')` for proper dev/production table separation
+  - **DT Record Filtering**: Heat map endpoints specifically filter for `record_type = 'DT'` ensuring only transaction records appear in visualizations
+  - **Complete JSONB Integration**: All terminals page TDDF functionality now uses extracted fields from dev_tddf_jsonb table including heat maps, transaction history, and terminal details
 - **✅ COMPLETE TDDF DATASET DELETION EXECUTED (July 29, 2025)**: Successfully removed entire 4.9M+ record TDDF dataset per user request using TRUNCATE approach for optimal performance
 - **✅ CRITICAL TDDF TRANSACTION AMOUNT POSITION BUG FIX COMPLETED (July 29, 2025)**: Successfully fixed critical TDDF JSON encoding bug where transaction amounts were incorrectly mapped causing massive value errors
   - **Root Cause Fixed**: Transaction amount field positions corrected from 101-112 to authentic schema positions 93-103 in server/tddf-json-encoder.ts

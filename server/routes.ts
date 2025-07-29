@@ -5853,27 +5853,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get TDDF activity data for heat map (DT records only)
+  // Get TDDF activity data for heat map (DT records only) - JSONB version
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
-      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data for year: ${year}`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for year: ${year}`);
       
-      // Simplified query for DT records only
+      // Query JSONB table for DT records only with extracted transaction date
       const activityData = await pool.query(`
         SELECT 
-          DATE(transaction_date) as date,
+          DATE((extracted_fields->>'transactionDate')::date) as date,
           COUNT(*) as "dtCount"
-        FROM ${tddfRecordsTableName}
-        WHERE EXTRACT(YEAR FROM transaction_date) = $1
-          AND transaction_date IS NOT NULL
-        GROUP BY DATE(transaction_date)
-        ORDER BY DATE(transaction_date)
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        GROUP BY DATE((extracted_fields->>'transactionDate')::date)
+        ORDER BY DATE((extracted_fields->>'transactionDate')::date)
       `, [year]);
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for year ${year}`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for year ${year} from JSONB`);
       res.json(activityData.rows);
     } catch (error) {
       console.error('Error fetching TDDF activity heatmap data:', error);
@@ -5883,29 +5884,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get merchant-specific activity data for heat map
+  // Get merchant-specific activity data for heat map - JSONB version
   app.get("/api/tddf/merchant-activity-heatmap/:merchantAccountNumber", isAuthenticated, async (req, res) => {
     try {
       const { merchantAccountNumber } = req.params;
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
-      const tddfRecordsTableName = getTableName('tddf_records');
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log(`[MERCHANT ACTIVITY HEATMAP] Getting activity data for merchant: ${merchantAccountNumber}, year: ${year}`);
+      console.log(`[MERCHANT ACTIVITY HEATMAP] Getting activity data from JSONB for merchant: ${merchantAccountNumber}, year: ${year}`);
       
-      // Query for merchant-specific transaction activity
+      // Query JSONB table for merchant-specific DT transaction activity
       const activityData = await pool.query(`
         SELECT 
-          DATE(transaction_date) as date,
+          DATE((extracted_fields->>'transactionDate')::date) as date,
           COUNT(*) as "transactionCount"
-        FROM ${tddfRecordsTableName}
-        WHERE merchant_account_number = $1
-          AND EXTRACT(YEAR FROM transaction_date) = $2
-          AND transaction_date IS NOT NULL
-        GROUP BY DATE(transaction_date)
-        ORDER BY DATE(transaction_date)
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'merchantAccountNumber' = $1
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        GROUP BY DATE((extracted_fields->>'transactionDate')::date)
+        ORDER BY DATE((extracted_fields->>'transactionDate')::date)
       `, [merchantAccountNumber, year]);
       
-      console.log(`[MERCHANT ACTIVITY HEATMAP] Found ${activityData.rows.length} days with activity for merchant ${merchantAccountNumber} in year ${year}`);
+      console.log(`[MERCHANT ACTIVITY HEATMAP] Found ${activityData.rows.length} days with activity for merchant ${merchantAccountNumber} in year ${year} from JSONB`);
       res.json(activityData.rows);
     } catch (error) {
       console.error('Error fetching merchant activity heatmap data:', error);
