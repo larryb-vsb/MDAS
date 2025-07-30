@@ -30,15 +30,21 @@ class MMSWatcher {
       this.cleanupOrphanedSessions();
     }, 3600000); // Check every hour (3600000ms) for orphaned sessions
     
-    // Start Stage 4 identification service
-    this.identificationIntervalId = setInterval(() => {
-      this.processUploadedFiles();
-    }, 10000); // Check every 10 seconds for uploaded files ready for identification
+    // Start Stage 4 identification service with reduced frequency
+    this.identificationIntervalId = setInterval(async () => {
+      const hasFiles = await this.hasFilesInPhase('uploaded');
+      if (hasFiles) {
+        this.processUploadedFiles();
+      }
+    }, 30000); // Check every 30 seconds (reduced from 10s) for uploaded files
     
-    // Start Stage 5 encoding service
-    this.encodingIntervalId = setInterval(() => {
-      this.processIdentifiedFiles();
-    }, 5000); // Check every 5 seconds for identified files ready for encoding
+    // Start Stage 5 encoding service with reduced frequency
+    this.encodingIntervalId = setInterval(async () => {
+      const hasFiles = await this.hasFilesInPhase('identified');
+      if (hasFiles) {
+        this.processIdentifiedFiles();
+      }
+    }, 20000); // Check every 20 seconds (reduced from 5s) for identified files
     
     // Start JSONB duplicate cleanup service (during legacy import)
     this.duplicateCleanupIntervalId = setInterval(() => {
@@ -46,8 +52,8 @@ class MMSWatcher {
     }, 900000); // Check every 15 minutes (900000ms) during legacy import
     
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
-    console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 10 seconds');
-    console.log('[MMS-WATCHER] File encoding service started - processes identified files every 5 seconds');
+    console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
+    console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup service started - scans every 15 minutes during legacy import');
   }
 
@@ -180,6 +186,17 @@ class MMSWatcher {
       }
     } catch (error) {
       console.error('[MMS-WATCHER] Error validating active uploads:', error);
+    }
+  }
+
+  // Efficient phase checking to prevent cycling when no files exist
+  async hasFilesInPhase(phase) {
+    try {
+      const files = await this.storage.getUploaderUploads({ phase });
+      return files.length > 0;
+    } catch (error) {
+      console.error(`[MMS-WATCHER] Error checking for files in phase ${phase}:`, error);
+      return false;
     }
   }
 
