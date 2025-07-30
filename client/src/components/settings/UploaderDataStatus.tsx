@@ -57,25 +57,61 @@ const UploaderDataStatus = () => {
   const hasRecentData = metrics?.recentFiles > 0;
   const dataReadyStatus = metrics?.newDataReady || hasRecentData;
 
+  // Calculate session control monitoring values from pre-cache data
+  const totalSessions = metrics?.totalFiles || 0;
+  const uploadedFiles = metrics?.completedFiles || 0;
+  const activeUploads = 0; // Will be populated from pre-cache data
+  const pendingSessions = Math.max(totalSessions - uploadedFiles, 0);
+
   return (
     <div className="space-y-3">
-      {/* Status Summary */}
+      {/* Session Control Monitoring - 4 main cards */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="flex items-center gap-2">
-          <Upload className="h-4 w-4 text-blue-600" />
-          <div className="text-sm">
-            <div className="font-medium text-blue-900">Total Files</div>
-            <div className="text-blue-700">{metrics?.totalFiles || 0} uploaded</div>
-          </div>
+        {/* Total Sessions */}
+        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-center">
+          <div className="text-2xl font-bold text-blue-900">{totalSessions}</div>
+          <div className="text-sm text-blue-700">Total Sessions</div>
         </div>
-        <div className="flex items-center gap-2">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <div className="text-sm">
-            <div className="font-medium text-blue-900">Completed</div>
-            <div className="text-green-700">{metrics?.completedFiles || 0} processed</div>
-          </div>
+        
+        {/* Uploaded Files */}
+        <div className="p-3 bg-green-50 rounded-lg border border-green-200 text-center">
+          <div className="text-2xl font-bold text-green-900">{uploadedFiles}</div>
+          <div className="text-sm text-green-700">Uploaded Files</div>
+        </div>
+        
+        {/* Active Uploads */}
+        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200 text-center">
+          <div className="text-2xl font-bold text-purple-900">{activeUploads}</div>
+          <div className="text-sm text-purple-700">Active Uploads</div>
+        </div>
+        
+        {/* Pending Sessions */}
+        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
+          <div className="text-2xl font-bold text-orange-900">{pendingSessions}</div>
+          <div className="text-sm text-orange-700">Pending Sessions</div>
         </div>
       </div>
+
+      {/* Last New Data Date - Central highlighted section */}
+      {(metrics?.lastUploadDate || metrics?.lastCompletedUpload) && (
+        <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg text-center">
+          <div className="text-lg font-bold text-cyan-900">
+            {new Date(metrics.lastUploadDate || metrics.lastCompletedUpload!).toLocaleDateString('en-US', {
+              timeZone: 'America/Chicago',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}, {new Date(metrics.lastUploadDate || metrics.lastCompletedUpload!).toLocaleTimeString('en-US', {
+              timeZone: 'America/Chicago',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            })}
+          </div>
+          <div className="text-sm text-cyan-700">Last New Data Date</div>
+          <div className="text-xs text-cyan-600">({totalSessions} total uploads)</div>
+        </div>
+      )}
 
       {/* New Data Ready Flag */}
       <div className="flex items-center justify-between p-2 bg-white rounded border border-blue-200">
