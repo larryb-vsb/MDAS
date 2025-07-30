@@ -56,6 +56,7 @@ export default function Settings() {
   const [showClearConfirmDialog, setShowClearConfirmDialog] = useState(false);
   const [showHeatMapTest, setShowHeatMapTest] = useState(false);
   const [heatMapRefreshKey, setHeatMapRefreshKey] = useState(0);
+  const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
   
   // Query for heat map refresh status tracking
   const { data: heatMapActivity, isLoading: heatMapLoading, dataUpdatedAt } = useQuery({
@@ -97,7 +98,7 @@ export default function Settings() {
   });
 
   // Query for cached tables list with age information
-  const { data: cachedTables, isLoading: cachedTablesLoading } = useQuery({
+  const { data: cachedTables, isLoading: cachedTablesLoading, refetch: refetchCachedTables } = useQuery({
     queryKey: ['/api/settings/cached-tables', heatMapRefreshKey],
     queryFn: async () => {
       const response = await fetch('/api/settings/cached-tables');
@@ -108,6 +109,35 @@ export default function Settings() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Handler for refreshing individual cache tables
+  const handleRefreshCacheTable = async (tableName: string) => {
+    setRefreshingTable(tableName);
+    try {
+      const response = await fetch('/api/settings/refresh-cache-table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tableName }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to refresh cache table: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Refresh the cached tables list
+      await refetchCachedTables();
+      
+      console.log(`Cache table ${tableName} refreshed successfully:`, result);
+    } catch (error) {
+      console.error(`Error refreshing cache table ${tableName}:`, error);
+    } finally {
+      setRefreshingTable(null);
+    }
+  };
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -510,20 +540,34 @@ export default function Settings() {
                       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <h5 className="font-medium text-blue-900">Cached Tables</h5>
-                          {cachedTablesLoading && (
-                            <RefreshCw className="animate-spin h-4 w-4 text-blue-600" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {cachedTablesLoading && (
+                              <RefreshCw className="animate-spin h-4 w-4 text-blue-600" />
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => refetchCachedTables()}
+                              className="text-blue-700 border-blue-200 hover:bg-blue-100 h-7"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         {cachedTables && (
                           <div className="space-y-2">
-                            <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div className="grid grid-cols-4 gap-2 text-sm">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span><strong>Active:</strong> {cachedTables.summary?.activeTables || 0}</span>
+                                <span><strong>Fresh:</strong> {cachedTables.summary?.freshTables || 0}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                <span><strong>Inactive:</strong> {cachedTables.summary?.inactiveTables || 0}</span>
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                <span><strong>Stale:</strong> {cachedTables.summary?.staleTables || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                <span><strong>Expired:</strong> {cachedTables.summary?.expiredTables || 0}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -532,30 +576,51 @@ export default function Settings() {
                             </div>
                             {cachedTables.tables && cachedTables.tables.length > 0 && (
                               <div className="mt-2">
-                                <div className="text-xs text-blue-700 font-medium mb-1">Table Details:</div>
-                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                <div className="text-xs text-blue-700 font-medium mb-1">Individual Cache Tables:</div>
+                                <div className="space-y-1 max-h-40 overflow-y-auto">
                                   {cachedTables.tables.map((table: any) => (
-                                    <div key={table.name} className="text-xs flex justify-between items-center py-1 px-2 bg-white rounded border">
-                                      <div className="flex flex-col">
-                                        <span className={`font-mono ${table.isActive ? 'text-green-700' : 'text-gray-500'}`}>
-                                          {table.name}
-                                        </span>
-                                        {table.lastUpdated && (
-                                          <span className={`text-xs ${
-                                            table.ageInMinutes < 60 ? 'text-green-600' : 
-                                            table.ageInMinutes < 1440 ? 'text-yellow-600' : 
-                                            'text-red-600'
-                                          }`}>
-                                            {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
-                                             table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
-                                             `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                    <div key={table.name} className="text-xs flex justify-between items-center py-2 px-2 bg-white rounded border">
+                                      <div className="flex flex-col flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-2 h-2 rounded-full ${
+                                            table.status === 'fresh' ? 'bg-green-500' :
+                                            table.status === 'stale' ? 'bg-yellow-500' :
+                                            table.status === 'expired' ? 'bg-red-500' :
+                                            'bg-gray-400'
+                                          }`}></div>
+                                          <span className={`font-mono font-medium ${table.isActive ? 'text-blue-700' : 'text-gray-500'}`}>
+                                            {table.name}
                                           </span>
+                                        </div>
+                                        <div className="flex items-center gap-3 mt-1">
+                                          {table.lastUpdated && (
+                                            <span className={`text-xs ${
+                                              table.ageInMinutes < 30 ? 'text-green-600' : 
+                                              table.ageInMinutes < 120 ? 'text-yellow-600' : 
+                                              'text-red-600'
+                                            }`}>
+                                              {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
+                                               table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
+                                               `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                            </span>
+                                          )}
+                                          <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
+                                          <span className="text-gray-500">{table.tableSize}</span>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleRefreshCacheTable(table.name)}
+                                        disabled={refreshingTable === table.name}
+                                        className="ml-2 h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
+                                      >
+                                        {refreshingTable === table.name ? (
+                                          <RefreshCw className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <RefreshCw className="h-3 w-3" />
                                         )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
-                                        <span className="text-gray-500">{table.tableSize}</span>
-                                      </div>
+                                      </Button>
                                     </div>
                                   ))}
                                 </div>

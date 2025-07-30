@@ -7524,6 +7524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Try to get the most recent timestamp from the table itself
             let lastUpdated = null;
             let ageInMinutes = null;
+            let status = 'unknown';
             
             try {
               // Try common timestamp column names
@@ -7541,6 +7542,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   if (timestampResult.rows[0]?.max_timestamp) {
                     lastUpdated = timestampResult.rows[0].max_timestamp;
                     ageInMinutes = Math.floor((Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60));
+                    
+                    // Determine status based on age
+                    if (ageInMinutes <= 30) status = 'fresh';
+                    else if (ageInMinutes <= 120) status = 'stale';
+                    else status = 'expired';
+                    
                     break;
                   }
                 } catch (columnError) {
@@ -7569,6 +7576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastAnalyze: timeStats.last_autoanalyze,
               lastUpdated: lastUpdated,
               ageInMinutes: ageInMinutes,
+              status: status,
               isActive: parseInt(stats.row_count || 0) > 0
             };
           } catch (error) {
@@ -7587,6 +7595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastAnalyze: null,
               lastUpdated: null,
               ageInMinutes: null,
+              status: 'error',
               isActive: false,
               error: 'Stats unavailable'
             };
@@ -7599,6 +7608,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalTables: tablesWithStats.length,
         activeTables: tablesWithStats.filter(t => t.isActive).length,
         inactiveTables: tablesWithStats.filter(t => !t.isActive).length,
+        freshTables: tablesWithStats.filter(t => t.status === 'fresh').length,
+        staleTables: tablesWithStats.filter(t => t.status === 'stale').length,
+        expiredTables: tablesWithStats.filter(t => t.status === 'expired').length,
         totalRows: tablesWithStats.reduce((sum, t) => sum + t.rowCount, 0),
         totalSizeBytes: tablesWithStats.reduce((sum, t) => sum + t.sizeBytes, 0)
       };
@@ -7614,6 +7626,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[CACHED-TABLES] Error fetching cached tables:', error);
       res.status(500).json({ error: 'Failed to fetch cached tables list' });
+    }
+  });
+
+  // Refresh specific cache table endpoint
+  app.post("/api/settings/refresh-cache-table", isAuthenticated, async (req, res) => {
+    try {
+      const { tableName } = req.body;
+      
+      if (!tableName) {
+        return res.status(400).json({ error: 'Table name is required' });
+      }
+      
+      console.log(`[CACHE-REFRESH] Refreshing cache table: ${tableName}`);
+      
+      // Define known cache refresh functions
+      const cacheRefreshMap: Record<string, () => Promise<any>> = {
+        'dashboard_cache': async () => {
+          console.log(`[CACHE-REFRESH] Refreshing dashboard cache`);
+          await pool.query(`DELETE FROM ${getTableName('dashboard_cache')}`);
+          const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/dashboard/metrics`);
+          return await response.json();
+        },
+        'duplicate_finder_cache': async () => {
+          console.log(`[CACHE-REFRESH] Refreshing duplicate finder cache`);
+          await pool.query(`DELETE FROM ${getTableName('duplicate_finder_cache')}`);
+          const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/duplicates/analysis`);
+          return await response.json();
+        },
+        'uploader_dashboard_cache': async () => {
+          console.log(`[CACHE-REFRESH] Refreshing uploader dashboard cache`);
+          await pool.query(`DELETE FROM ${getTableName('uploader_dashboard_cache')}`);
+          const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/uploader/dashboard-metrics`);
+          return await response.json();
+        }
+      };
+      
+      // Check if we have a refresh function for this table
+      if (cacheRefreshMap[tableName]) {
+        const startTime = Date.now();
+        const result = await cacheRefreshMap[tableName]();
+        const refreshTime = Date.now() - startTime;
+        
+        console.log(`[CACHE-REFRESH] Successfully refreshed ${tableName} in ${refreshTime}ms`);
+        
+        res.json({
+          success: true,
+          tableName,
+          refreshTime,
+          message: `Cache table ${tableName} refreshed successfully`,
+          result: result || null
+        });
+      } else {
+        // For unknown cache tables, try a generic clear and let system rebuild
+        console.log(`[CACHE-REFRESH] Generic refresh for ${tableName} - clearing table`);
+        await pool.query(`DELETE FROM ${tableName}`);
+        
+        res.json({
+          success: true,
+          tableName,
+          message: `Cache table ${tableName} cleared - will rebuild on next access`,
+          refreshType: 'clear'
+        });
+      }
+      
+    } catch (error) {
+      console.error(`[CACHE-REFRESH] Error refreshing cache table:`, error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to refresh cache table'
+      });
     }
   });
 
