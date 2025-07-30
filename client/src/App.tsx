@@ -28,6 +28,7 @@ import Logs from "@/pages/Logs";
 import MMSUploader from "@/pages/MMSUploader";
 import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
+import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 
 function Router() {
   return (
@@ -48,6 +49,7 @@ function Router() {
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
+      <ProtectedRoute path="/processing-dashboard-v2" component={ProcessingDashboardV2} />
       <ProtectedRoute path="/processing" component={ProcessingPage} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />

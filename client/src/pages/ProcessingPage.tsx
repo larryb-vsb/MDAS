@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker } from "lucide-react";
+import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Server, Gauge, BarChart3, MonitorSpeaker, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
 import MainLayout from "@/components/layout/MainLayout";
@@ -442,6 +443,14 @@ export default function ProcessingPage() {
             <p className="text-muted-foreground">
               Monitor and manage system processing performance and status
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/processing-dashboard-v2">
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4" />
+                V2 Dashboard
+              </Button>
+            </Link>
           </div>
         </div>
 
