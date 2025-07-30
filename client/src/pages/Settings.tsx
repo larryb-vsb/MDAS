@@ -341,6 +341,64 @@ export default function Settings() {
                   <span>Replit</span>
                 </div>
               </div>
+              
+              {/* Heat Map Performance Testing Button */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <Dialog open={showHeatMapTest} onOpenChange={setShowHeatMapTest}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 bg-purple-50"
+                    >
+                      <Activity className="mr-2 h-4 w-4" />
+                      Test Dynamic Heat Map System
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center text-purple-700">
+                        <Activity className="mr-2 h-5 w-5" />
+                        Dynamic Aggregation Heat Map Testing
+                      </DialogTitle>
+                      <DialogDescription>
+                        Test the new intelligent aggregation system that automatically switches between daily, weekly, monthly, and quarterly views based on dataset size.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 overflow-auto max-h-[70vh]">
+                      <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <h4 className="font-medium text-purple-900 mb-2">Dynamic Aggregation Performance Tiers:</h4>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded"></div>
+                            <span><strong>Daily:</strong> &lt; 100k records (standard)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                            <span><strong>Weekly:</strong> 100k-500k records (medium)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-orange-500 rounded"></div>
+                            <span><strong>Monthly:</strong> 500k-2M records (large)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                            <span><strong>Quarterly:</strong> 2M+ records (enterprise)</span>
+                          </div>
+                        </div>
+                      </div>
+                      <TddfJsonActivityHeatMap />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowHeatMapTest(false)}
+                      >
+                        Close Testing Panel
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardContent>
           </Card>
       
@@ -610,62 +668,6 @@ export default function Settings() {
                                 Clear Database
                               </>
                             )}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    
-                    {/* Heat Map Performance Testing Button */}
-                    <Dialog open={showHeatMapTest} onOpenChange={setShowHeatMapTest}>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
-                        >
-                          <Activity className="mr-2 h-4 w-4" />
-                          Test Dynamic Heat Map System
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center text-blue-700">
-                            <Activity className="mr-2 h-5 w-5" />
-                            Dynamic Aggregation Heat Map Testing
-                          </DialogTitle>
-                          <DialogDescription>
-                            Test the new intelligent aggregation system that automatically switches between daily, weekly, monthly, and quarterly views based on dataset size.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4 overflow-auto max-h-[70vh]">
-                          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <h4 className="font-medium text-blue-900 mb-2">Dynamic Aggregation Performance Tiers:</h4>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-green-500 rounded"></div>
-                                <span><strong>Daily:</strong> &lt; 100k records (standard)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                                <span><strong>Weekly:</strong> 100k-500k records (medium)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                                <span><strong>Monthly:</strong> 500k-2M records (large)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 bg-purple-500 rounded"></div>
-                                <span><strong>Quarterly:</strong> 2M+ records (enterprise)</span>
-                              </div>
-                            </div>
-                          </div>
-                          <TddfJsonActivityHeatMap />
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowHeatMapTest(false)}
-                          >
-                            Close Testing Panel
                           </Button>
                         </DialogFooter>
                       </DialogContent>
