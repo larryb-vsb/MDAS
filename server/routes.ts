@@ -11031,6 +11031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Manual identification endpoint for progressing uploaded files
   app.post("/api/uploader/manual-identify", isAuthenticated, async (req, res) => {
+    console.log("[MANUAL-IDENTIFY-DEBUG] API endpoint reached with body:", req.body);
     try {
       const { uploadIds } = req.body;
       
