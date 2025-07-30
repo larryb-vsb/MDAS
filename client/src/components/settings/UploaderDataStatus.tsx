@@ -42,6 +42,13 @@ const UploaderDataStatus = () => {
     refetchInterval: 60 * 1000, // Refresh every minute
   });
 
+  // Get Last New Data Date from uploader page API - fallback for when pre-cache is empty
+  const { data: lastNewDataDate } = useQuery({
+    queryKey: ['/api/uploader/last-new-data-date'],
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 60 * 1000, // Refresh every minute
+  });
+
   // DATA ISOLATION: No separate processing date query - all data comes from pre-cache table
 
   if (isLoading) {
@@ -92,26 +99,43 @@ const UploaderDataStatus = () => {
         </div>
       </div>
 
-      {/* Last New Data Date - Central highlighted section */}
-      {(metrics?.lastUploadDate || metrics?.lastCompletedUpload) && (
-        <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg text-center">
-          <div className="text-lg font-bold text-cyan-900">
-            {new Date(metrics.lastUploadDate || metrics.lastCompletedUpload!).toLocaleDateString('en-US', {
-              timeZone: 'America/Chicago',
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            })}, {new Date(metrics.lastUploadDate || metrics.lastCompletedUpload!).toLocaleTimeString('en-US', {
-              timeZone: 'America/Chicago',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            })}
-          </div>
-          <div className="text-sm text-cyan-700">Last New Data Date</div>
-          <div className="text-xs text-cyan-600">({totalSessions} total uploads)</div>
-        </div>
-      )}
+      {/* Last New Data Date - Always show green box with fallback data */}
+      <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-center">
+        {(() => {
+          // Use pre-cache data first, then fallback to uploader page API
+          const dateToUse = metrics?.lastUploadDate || metrics?.lastCompletedUpload || (lastNewDataDate as any)?.date;
+          
+          if (dateToUse) {
+            return (
+              <>
+                <div className="text-lg font-bold text-green-900">
+                  {new Date(dateToUse).toLocaleDateString('en-US', {
+                    timeZone: 'America/Chicago',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}, {new Date(dateToUse).toLocaleTimeString('en-US', {
+                    timeZone: 'America/Chicago',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </div>
+                <div className="text-sm text-green-700">Last New Data Date</div>
+                <div className="text-xs text-green-600">({totalSessions} total uploads)</div>
+              </>
+            );
+          } else {
+            return (
+              <>
+                <div className="text-lg font-bold text-green-900">No Data Available</div>
+                <div className="text-sm text-green-700">Last New Data Date</div>
+                <div className="text-xs text-green-600">(0 total uploads)</div>
+              </>
+            );
+          }
+        })()}
+      </div>
 
       {/* New Data Ready Flag */}
       <div className="flex items-center justify-between p-2 bg-white rounded border border-blue-200">
