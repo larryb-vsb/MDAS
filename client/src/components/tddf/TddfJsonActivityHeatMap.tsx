@@ -6,11 +6,25 @@ import { Button } from '@/components/ui/button';
 interface ActivityData {
   transaction_date: string;
   transaction_count: number;
+  aggregation_level?: string;
 }
 
 interface ActivityResponse {
   records: ActivityData[];
   queryTime: number;
+  fromCache?: boolean;
+  metadata?: {
+    year: number;
+    recordType: string;
+    totalRecords: number;
+    aggregationLevel: string;
+    recordCount: number;
+    performanceMetrics: {
+      sizeCheckTime: number;
+      aggregationTime: number;
+      totalQueryTime: number;
+    };
+  };
 }
 
 interface DaySquareProps {
@@ -91,15 +105,16 @@ interface TddfJsonActivityHeatMapProps {
 const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
-  const { data: activityResponse, isLoading, error } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/activity'],
+  const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
+    queryKey: ['/api/tddf-json/activity', currentYear],
     queryFn: async () => {
-      const response = await fetch('/api/tddf-json/activity');
+      const response = await fetch(`/api/tddf-json/activity?year=${currentYear}&recordType=DT`);
       if (!response.ok) throw new Error('Failed to fetch TDDF JSON activity data');
       return response.json();
     },
     enabled: true,
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    staleTime: 5 * 60 * 1000, // Dynamic cache from backend (5-15 mins)
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 
   // Create a map for quick lookup of activity data by date
@@ -144,16 +159,41 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     return months;
   }, [calendarData, currentYear]);
 
-  // Calculate stats
+  // Calculate stats with enhanced metadata support
   const totalDays = activityResponse?.records?.length || 0;
   const totalTransactions = activityResponse?.records?.reduce((sum, record) => sum + record.transaction_count, 0) || 0;
   const maxDaily = activityResponse?.records?.reduce((max, record) => Math.max(max, record.transaction_count), 0) || 0;
+  
+  // Extract metadata for performance insights
+  const metadata = activityResponse?.metadata;
+  const aggregationLevel = metadata?.aggregationLevel || 'daily';
+  const totalRecords = metadata?.totalRecords || 0;
+  const queryTime = metadata?.performanceMetrics?.totalQueryTime || activityResponse?.queryTime || 0;
+  const fromCache = activityResponse?.fromCache || false;
 
-  if (isLoading) {
+  // Progressive loading states
+  if (isLoading || isFetching) {
     return (
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-48 mb-4"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+            <div className="h-4 bg-gray-200 rounded w-48"></div>
+          </div>
+          {/* Progressive loading indicator */}
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              <div className="text-sm text-blue-700">
+                {isLoading ? `Loading ${currentYear} activity data...` : 'Refreshing heat map...'}
+              </div>
+            </div>
+            {totalRecords > 500000 && (
+              <div className="text-xs text-blue-600 mt-1">
+                Processing {totalRecords.toLocaleString()} records • Using smart aggregation for optimal performance
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-12 gap-2">
             {Array.from({ length: 365 }, (_, i) => (
               <div key={i} className="w-4 h-4 bg-gray-200 rounded-sm"></div>
@@ -196,8 +236,19 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <div className="text-sm text-gray-600">
-          {totalDays} active days • {totalTransactions.toLocaleString()} total transactions
+        <div className="flex items-center gap-4 text-sm text-gray-600">
+          <span>{totalDays} active {aggregationLevel === 'daily' ? 'days' : `${aggregationLevel} periods`}</span>
+          <span>{totalTransactions.toLocaleString()} total transactions</span>
+          {totalRecords > 100000 && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+              {aggregationLevel} aggregation
+            </span>
+          )}
+          {fromCache && (
+            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+              cached
+            </span>
+          )}
         </div>
       </div>
 
@@ -257,11 +308,30 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
         </div>
       </div>
       
-      {activityResponse?.queryTime && (
-        <div className="mt-2 text-xs text-gray-500">
-          Query time: {activityResponse.queryTime}ms • Cached for 10 minutes
+      {/* Enhanced performance metrics footer */}
+      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center gap-4">
+          <span>Query time: {queryTime}ms</span>
+          {totalRecords > 0 && (
+            <span>{totalRecords.toLocaleString()} source records</span>
+          )}
+          {metadata?.performanceMetrics && (
+            <span>
+              Aggregation: {metadata.performanceMetrics.aggregationTime}ms
+            </span>
+          )}
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          {aggregationLevel !== 'daily' && (
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">
+              Smart {aggregationLevel} view for {totalRecords.toLocaleString()} records
+            </span>
+          )}
+          <span>
+            Cache TTL: {fromCache ? 'served from cache' : `${aggregationLevel === 'daily' ? '5' : '15'} minutes`}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

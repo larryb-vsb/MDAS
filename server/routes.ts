@@ -8501,57 +8501,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add cache for activity data (10 minute TTL)
-  let activityCache: { data: any; timestamp: number } | null = null;
-  const ACTIVITY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  // Enhanced cache system for dynamic aggregation (5-15 minute TTL based on dataset size)
+  let activityCache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+  const BASE_ACTIVITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes base TTL
+  const MAX_ACTIVITY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes max TTL for large datasets
 
+  // Dynamic monthly aggregation system for 5M+ records
   app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
     try {
-      // Check cache first for performance optimization
-      if (activityCache && (Date.now() - activityCache.timestamp) < ACTIVITY_CACHE_TTL) {
-        console.log('[TDDF-JSON-ACTIVITY] Serving from cache');
-        return res.json(activityCache.data);
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const recordType = (req.query.recordType as string) || 'DT';
+      const cacheKey = `activity_${year}_${recordType}`;
+      
+      // Check cache first with dynamic TTL
+      const cachedEntry = activityCache.get(cacheKey);
+      if (cachedEntry && (Date.now() - cachedEntry.timestamp) < cachedEntry.ttl) {
+        console.log(`[TDDF-JSON-ACTIVITY] Serving from cache for year ${year}, TTL: ${cachedEntry.ttl}ms`);
+        return res.json({ ...cachedEntry.data, fromCache: true });
       }
 
-      console.log('[TDDF-JSON-ACTIVITY] Cache miss, querying database...');
+      console.log(`[TDDF-JSON-ACTIVITY] Cache miss for year ${year}, starting dynamic aggregation...`);
       const startTime = Date.now();
       
-      // Use the same table that Stage 5 encoding writes to
-      const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      // Environment-aware table selection
+      const tableName = getTableName('tddf_jsonb');
       
-      // Optimized query with proper indexing expected
-      const activityResult = await pool.query(`
-        SELECT 
-          DATE(extracted_fields->>'transactionDate') as transaction_date,
-          COUNT(*) as transaction_count
+      // First, get dataset size to determine aggregation strategy
+      const sizeCheckResult = await pool.query(`
+        SELECT COUNT(*) as total_records
         FROM ${tableName}
-        WHERE record_type = 'DT'
+        WHERE record_type = $1
+        AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
         AND extracted_fields->>'transactionDate' IS NOT NULL
         AND extracted_fields->>'transactionDate' != ''
-        GROUP BY DATE(extracted_fields->>'transactionDate')
-        ORDER BY transaction_date DESC
-        LIMIT 365
-      `);
+      `, [recordType, year]);
       
-      const queryTime = Date.now() - startTime;
-      console.log(`[TDDF-JSON-ACTIVITY] Database query completed in ${queryTime}ms`);
+      const totalRecords = parseInt(sizeCheckResult.rows[0]?.total_records || '0');
+      const sizeCheckTime = Date.now() - startTime;
+      
+      console.log(`[TDDF-JSON-ACTIVITY] Dataset size: ${totalRecords.toLocaleString()} records (${sizeCheckTime}ms)`);
+      
+      // Determine aggregation strategy based on dataset size
+      let aggregationLevel = 'daily';
+      let cacheTtl = BASE_ACTIVITY_CACHE_TTL;
+      
+      if (totalRecords > 2000000) { // 2M+ records: quarterly aggregation
+        aggregationLevel = 'quarterly';
+        cacheTtl = MAX_ACTIVITY_CACHE_TTL;
+      } else if (totalRecords > 500000) { // 500k+ records: monthly aggregation
+        aggregationLevel = 'monthly';
+        cacheTtl = MAX_ACTIVITY_CACHE_TTL;
+      } else if (totalRecords > 100000) { // 100k+ records: weekly aggregation
+        aggregationLevel = 'weekly';
+        cacheTtl = BASE_ACTIVITY_CACHE_TTL * 2;
+      }
+      
+      console.log(`[TDDF-JSON-ACTIVITY] Using ${aggregationLevel} aggregation for ${totalRecords.toLocaleString()} records`);
+      
+      // Dynamic query based on aggregation level
+      let selectClause = '';
+      let groupByClause = '';
+      
+      switch (aggregationLevel) {
+        case 'quarterly':
+          selectClause = `
+            DATE_TRUNC('quarter', (extracted_fields->>'transactionDate')::date) as transaction_date,
+            COUNT(*) as transaction_count,
+            'quarterly' as aggregation_level
+          `;
+          groupByClause = `GROUP BY DATE_TRUNC('quarter', (extracted_fields->>'transactionDate')::date)`;
+          break;
+          
+        case 'monthly':
+          selectClause = `
+            DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date) as transaction_date,
+            COUNT(*) as transaction_count,
+            'monthly' as aggregation_level
+          `;
+          groupByClause = `GROUP BY DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date)`;
+          break;
+          
+        case 'weekly':
+          selectClause = `
+            DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date) as transaction_date,
+            COUNT(*) as transaction_count,
+            'weekly' as aggregation_level
+          `;
+          groupByClause = `GROUP BY DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date)`;
+          break;
+          
+        default: // daily
+          selectClause = `
+            DATE((extracted_fields->>'transactionDate')::date) as transaction_date,
+            COUNT(*) as transaction_count,
+            'daily' as aggregation_level
+          `;
+          groupByClause = `GROUP BY DATE((extracted_fields->>'transactionDate')::date)`;
+      }
+      
+      // Execute dynamic aggregation query
+      const aggregationStartTime = Date.now();
+      const activityResult = await pool.query(`
+        SELECT ${selectClause}
+        FROM ${tableName}
+        WHERE record_type = $1
+        AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+        AND extracted_fields->>'transactionDate' IS NOT NULL
+        AND extracted_fields->>'transactionDate' != ''
+        ${groupByClause}
+        ORDER BY transaction_date DESC
+      `, [recordType, year]);
+      
+      const aggregationTime = Date.now() - aggregationStartTime;
+      const totalQueryTime = Date.now() - startTime;
+      
+      console.log(`[TDDF-JSON-ACTIVITY] Dynamic aggregation completed: ${aggregationTime}ms (total: ${totalQueryTime}ms)`);
       
       const responseData = {
         records: activityResult.rows,
-        queryTime: queryTime
+        metadata: {
+          year: year,
+          recordType: recordType,
+          totalRecords: totalRecords,
+          aggregationLevel: aggregationLevel,
+          recordCount: activityResult.rows.length,
+          performanceMetrics: {
+            sizeCheckTime: sizeCheckTime,
+            aggregationTime: aggregationTime,
+            totalQueryTime: totalQueryTime
+          }
+        },
+        queryTime: totalQueryTime
       };
 
-      // Cache the result for future requests
-      activityCache = {
+      // Cache with dynamic TTL based on dataset size
+      activityCache.set(cacheKey, {
         data: responseData,
-        timestamp: Date.now()
-      };
+        timestamp: Date.now(),
+        ttl: cacheTtl
+      });
+      
+      // Cleanup old cache entries (keep max 50 entries)
+      if (activityCache.size > 50) {
+        const oldestKey = activityCache.keys().next().value;
+        activityCache.delete(oldestKey);
+      }
       
       res.json(responseData);
     } catch (error) {
-      console.error('Error fetching TDDF JSON activity:', error);
-      res.status(500).json({ error: 'Failed to fetch activity data' });
+      console.error('Error in dynamic TDDF JSON activity aggregation:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch TDDF JSON activity data",
+        aggregationLevel: 'error'
+      });
     }
   });
 
