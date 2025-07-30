@@ -205,7 +205,7 @@ class JsonbDuplicateCleanup {
     try {
       const statsQuery = `
         SELECT 
-          COUNT(*) as total_records,
+          (SELECT COUNT(*) FROM ${this.tableName}) as total_records,
           COUNT(DISTINCT upload_id) as total_files,
           COUNT(CASE WHEN record_type = 'DT' THEN 1 END) as dt_records,
           COUNT(DISTINCT CASE WHEN record_type = 'DT' THEN extracted_fields->>'referenceNumber' END) as unique_references,

@@ -266,6 +266,11 @@ export default function TddfDuplicateWidget() {
                     value={(stats.totalDuplicateRecords / stats.totalRecords) * 100} 
                     className="h-2"
                   />
+                  {((stats.totalDuplicateRecords / stats.totalRecords) * 100) > 95 && (
+                    <div className="text-xs text-red-600 mt-1 font-medium bg-red-50 p-2 rounded border border-red-200">
+                      ⚠️ Critical Data Quality Issue: Only {stats.totalRecords - stats.totalDuplicateRecords} unique record(s) in dataset
+                    </div>
+                  )}
                 </div>
               </div>
             )}

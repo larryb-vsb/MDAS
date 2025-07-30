@@ -8875,21 +8875,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find actual duplicates for detailed analysis
       const duplicates = await duplicateCleanup.findDuplicates();
       
-      // Calculate summary statistics
+      // Calculate summary statistics - CORRECTED LOGIC
       let totalDuplicateRecords = 0;
       let referenceBasedDuplicates = 0;
       let lineBasedDuplicates = 0;
       
+      // Correct calculation: only count the excess records (not the originals)
       duplicates.forEach(dup => {
-        totalDuplicateRecords += (dup.duplicate_count - 1);
+        const excessRecords = dup.duplicate_count - 1; // Only count duplicates, not originals
+        totalDuplicateRecords += excessRecords;
+        
         if (dup.duplicate_type === 'reference') {
-          referenceBasedDuplicates += (dup.duplicate_count - 1);
+          referenceBasedDuplicates += excessRecords;
         } else {
-          lineBasedDuplicates += (dup.duplicate_count - 1);
+          lineBasedDuplicates += excessRecords;
         }
       });
       
-      console.log(`[TDDF-JSON-DUPLICATES] Stats: ${totalDuplicateRecords} total duplicates, ${duplicates.length} patterns`);
+      console.log(`[TDDF-JSON-DUPLICATES] CORRECTED Stats: ${totalDuplicateRecords} actual duplicates from ${duplicates.length} patterns`);
       
       res.json({
         success: true,
