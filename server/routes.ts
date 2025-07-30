@@ -8353,10 +8353,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[DASHBOARD-BUILD] Building comprehensive dashboard cache...');
     
     try {
-      // Merchants data
-      const merchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
-      const merchantsResult = await pool.query(merchantsQuery);
-      const totalMerchants = parseInt(merchantsResult.rows[0]?.total || '0');
+      // ACH Merchants data (from merchants table)
+      const achMerchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
+      const achMerchantsResult = await pool.query(achMerchantsQuery);
+      const achMerchants = parseInt(achMerchantsResult.rows[0]?.total || '0');
+      
+      // MCC Merchants data (from TDDF - distinct merchant account numbers)
+      const mccMerchantsQuery = `
+        SELECT COUNT(DISTINCT (extracted_fields->>'merchantAccountNumber')) as total 
+        FROM ${getTableName('tddf_jsonb')} 
+        WHERE record_type = 'DT' AND extracted_fields->>'merchantAccountNumber' IS NOT NULL
+      `;
+      const mccMerchantsResult = await pool.query(mccMerchantsQuery);
+      const mccMerchants = parseInt(mccMerchantsResult.rows[0]?.total || '0');
+      
+      // Debug logging for merchant counts
+      console.log(`[DASHBOARD-BUILD] Merchant counts - ACH: ${achMerchants}, MCC: ${mccMerchants}, Total: ${achMerchants + mccMerchants}`);
       
       // Terminals data
       const terminalsQuery = `SELECT COUNT(*) as total FROM ${getTableName('terminals')}`;
@@ -8393,14 +8405,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build metrics object
       const metrics = {
         merchants: {
-          total: totalMerchants,
-          ach: Math.round(totalMerchants * 0.42), // 42% ACH (estimated)
-          mmc: Math.round(totalMerchants * 0.58)  // 58% MMC (estimated)
+          total: achMerchants + mccMerchants,
+          ach: achMerchants,
+          mmc: mccMerchants
         },
         newMerchants30Day: {
-          total: Math.round(totalMerchants * 0.05), // 5% new in 30 days (estimated)
-          ach: Math.round(totalMerchants * 0.05 * 0.42),
-          mmc: Math.round(totalMerchants * 0.05 * 0.58)
+          total: Math.round((achMerchants + mccMerchants) * 0.05), // 5% new in 30 days (estimated)
+          ach: Math.round(achMerchants * 0.05),
+          mmc: Math.round(mccMerchants * 0.05)
         },
         monthlyProcessingAmount: {
           ach: `$${(tddfAmount * 0.42).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -8446,7 +8458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
       const buildTime = Date.now() - startTime;
       
-      const totalRecordCount = totalMerchants + tddfTransactions;
+      const totalRecordCount = achMerchants + mccMerchants + tddfTransactions;
       
       const upsertQuery = `
         INSERT INTO ${tableName} (cache_key, cache_data, expires_at, build_time_ms, record_count)
