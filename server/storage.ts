@@ -13156,13 +13156,14 @@ export class DatabaseStorage implements IStorage {
       
       const result = await pool.query(`
         INSERT INTO ${uploaderTableName} (
-          id, filename, file_size, start_time, upload_status, 
+          id, filename, file_type, file_size, start_time, upload_status, 
           current_phase, created_by, server_id, session_id, keep_for_review
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `, [
         id,
         insertUploaderUpload.filename,
+        insertUploaderUpload.file_type || 'tddf', // Default to 'tddf' if not specified
         insertUploaderUpload.file_size || null,
         insertUploaderUpload.start_time || new Date(),
         insertUploaderUpload.upload_status || 'started',

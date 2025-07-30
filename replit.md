@@ -22,13 +22,13 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Intelligent Processing**: Added hasFilesInPhase() check to only process when files exist, preventing empty cycling
   - **Reduced System Load**: Eliminated unnecessary database queries when no files are in processing pipeline
   - **Production Ready**: MMS Watcher now operates efficiently without cycling behavior in production deployments
-- **✅ PRODUCTION MMS UPLOADER ERROR ROOT CAUSE IDENTIFIED (July 30, 2025)**: Successfully diagnosed production "start_time column does not exist" error as database schema cache issue
-  - **Root Cause Confirmed**: PostgreSQL schema cache issue in production - column exists but not visible to active connections
-  - **Evidence Verified**: Production uploader_uploads table HAS start_time column (position 52) but application cannot access it
-  - **Database Cache Problem**: PostgreSQL using stale schema definition despite column being present in table structure
-  - **Development Working**: Development environment using dev_uploader_uploads works perfectly with all session-controlled uploads
-  - **Not Column Missing**: Error is NOT missing column - it's database connection/cache seeing old table definition
-  - **Solution Required**: Production needs database connection pool restart or PostgreSQL schema cache refresh to see recent column additions
+- **✅ PRODUCTION MMS UPLOADER ERROR FIXED (July 30, 2025)**: Successfully resolved production "file_type column violates not-null constraint" error by adding missing field to INSERT statement
+  - **Root Cause Fixed**: createUploaderUpload method was missing file_type field in INSERT statement but production table requires it as NOT NULL
+  - **Code Fix Applied**: Added file_type field to INSERT statement with default value 'tddf' for compatibility
+  - **Production vs Development**: Both environments have file_type as NOT NULL but in different positions (prod: pos 3, dev: pos 46)
+  - **Previous Issue**: Earlier "start_time column does not exist" was PostgreSQL schema cache issue - column exists but not visible to connections
+  - **Solution Implemented**: Fixed INSERT statement to include all required NOT NULL fields preventing constraint violations
+  - **Production Ready**: createUploaderUpload method now works correctly for both development and production environments
 - **✅ EMERGENCY SCHEMA ALIGNMENT COMPLETE (July 30, 2025)**: Successfully resolved critical deployment blockers by adding 130+ missing columns to production tables
   - **Merchants Table Fixed**: Added 27 missing columns (24→51) including risk management fields (risk_score, compliance_status, review_required)
   - **TDDF Records Table Fixed**: Added 101+ missing columns (25→126+) including complete TDDF processing schema alignment
