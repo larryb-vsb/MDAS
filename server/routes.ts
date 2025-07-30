@@ -7407,7 +7407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           MAX(created_at) as last_new_data_date,
           COUNT(*) as total_count
         FROM ${uploaderTableName}
-        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        WHERE current_phase IN ('uploaded', 'identified', 'encoded')
         AND created_at IS NOT NULL
       `);
       
