@@ -173,22 +173,29 @@ export default function Settings() {
       
       console.log('[SETTINGS] Starting TDDF JSON database clear...');
       
-      const response = await apiRequest('DELETE', '/api/tddf-json/clear-database');
+      const response = await fetch('/api/tddf-json/clear-database', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      if (response.success) {
+      const result = await response.json();
+      
+      if (result.success) {
         toast({
           title: "TDDF JSON Database Cleared",
-          description: `Successfully cleared ${response.recordsDeleted || 0} records from TDDF JSON database`,
+          description: `Successfully cleared ${result.recordsDeleted || 0} records from TDDF JSON database`,
           variant: "default",
         });
         
-        console.log(`[SETTINGS] TDDF JSON database cleared: ${response.recordsDeleted} records deleted`);
+        console.log(`[SETTINGS] TDDF JSON database cleared: ${result.recordsDeleted} records deleted`);
         
         // Refresh database statistics
         refetch();
         
       } else {
-        throw new Error(response.error || "Failed to clear TDDF JSON database");
+        throw new Error(result.error || "Failed to clear TDDF JSON database");
       }
       
     } catch (error) {
@@ -559,27 +566,25 @@ export default function Settings() {
                             <AlertTriangle className="mr-2 h-5 w-5" />
                             Clear TDDF JSON Database
                           </DialogTitle>
-                          <DialogDescription>
-                            <div className="space-y-3">
-                              <div className="font-medium text-destructive">
-                                ⚠️ WARNING: This action cannot be undone!
-                              </div>
-                              <div>
-                                This will permanently delete all records from the TDDF JSON database table, including:
-                              </div>
-                              <ul className="list-disc list-inside space-y-1 text-sm">
-                                <li>All DT (transaction) records</li>
-                                <li>All BH (batch header) records</li>
-                                <li>All P1 (purchasing card) records</li>
-                                <li>All other TDDF record types</li>
-                                <li>All extracted field data</li>
-                              </ul>
-                              <div className="text-sm text-muted-foreground">
-                                You will need to re-process and re-encode your TDDF files to restore this data.
-                              </div>
-                            </div>
-                          </DialogDescription>
                         </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="font-medium text-destructive">
+                            ⚠️ WARNING: This action cannot be undone!
+                          </div>
+                          <div>
+                            This will permanently delete all records from the TDDF JSON database table, including:
+                          </div>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>All DT (transaction) records</li>
+                            <li>All BH (batch header) records</li>
+                            <li>All P1 (purchasing card) records</li>
+                            <li>All other TDDF record types</li>
+                            <li>All extracted field data</li>
+                          </ul>
+                          <div className="text-sm text-muted-foreground">
+                            You will need to re-process and re-encode your TDDF files to restore this data.
+                          </div>
+                        </div>
                         <DialogFooter className="flex gap-2">
                           <Button
                             variant="outline"
