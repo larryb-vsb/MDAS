@@ -451,6 +451,30 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
   );
 }
 
+// Value truncation component with hover tooltip
+function TruncatedValue({ value, maxLength = 20 }: { value: string | undefined | null, maxLength?: number }) {
+  if (!value) return <span className="text-muted-foreground">N/A</span>;
+  
+  if (value.length <= maxLength) {
+    return <span className="font-mono text-xs">{value}</span>;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="font-mono text-xs cursor-help border-b border-dotted border-gray-400">
+            {value.substring(0, maxLength)}...
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-md break-all">
+          <p className="font-mono text-xs">{value}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 interface TddfJsonStats {
   totalRecords: number;
   recordTypeBreakdown: {
@@ -1289,282 +1313,171 @@ export default function TddfJsonPage() {
               </DialogTitle>
             </DialogHeader>
             {selectedRecord && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Record Information</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Record ID:</span>
-                        <span className="font-mono">{selectedRecord.id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Upload ID:</span>
-                        <span className="font-mono text-xs">{selectedRecord.upload_id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Line Number:</span>
-                        <span>{selectedRecord.line_number}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Filename:</span>
-                        <span className="font-mono text-xs">{selectedRecord.filename}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Created:</span>
-                        <span>{format(new Date(selectedRecord.created_at), 'PPpp')}</span>
-                      </div>
-                    </div>
+              <div className="space-y-4">
+                {/* Basic Record Info */}
+                <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded-lg">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Record ID:</span>
+                    <span className="font-mono">{selectedRecord.id}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Line Number:</span>
+                    <span>{selectedRecord.line_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Upload ID:</span>
+                    <TruncatedValue value={selectedRecord.upload_id} maxLength={15} />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Filename:</span>
+                    <TruncatedValue value={selectedRecord.filename} maxLength={25} />
+                  </div>
+                </div>
 
-{selectedRecord.record_type === 'DT' && associatedP1Record ? (
-                    <div>
-                      <h3 className="font-semibold mb-2 flex items-center gap-2">
-                        DT Transaction with P1 Extension
-                        <Badge className="bg-green-100 text-green-800 border-green-300">Has P1 Details</Badge>
-                      </h3>
-                      <ScrollArea className="h-64">
+                {/* Tabbed Interface */}
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'dt' | 'p1')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="dt" className="flex items-center gap-2">
+                      <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-xs">DT</Badge>
+                      {selectedRecord.record_type === 'DT' ? 'Transaction Details' : 'Associated Transaction'}
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="p1" 
+                      className="flex items-center gap-2" 
+                      disabled={!associatedP1Record && selectedRecord.record_type !== 'P1'}
+                    >
+                      <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-xs">P1</Badge>
+                      {selectedRecord.record_type === 'P1' ? 'Purchasing Extension' : 'Purchasing Details'}
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="dt" className="mt-4">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="font-semibold mb-3 flex items-center gap-2">
+                          <Badge className="bg-blue-100 text-blue-800 border-blue-300">DT</Badge>
+                          Transaction Details
+                        </h3>
                         <div className="space-y-3 text-sm">
-                          {/* DT Transaction Info */}
-                          <div className="border-b pb-2">
-                            <h4 className="font-medium text-blue-700 mb-2">DT Transaction Details</h4>
-                            <div className="space-y-1">
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Transaction Date:</span>
-                                <span className="font-mono text-xs">{formatDate(selectedRecord.extracted_fields?.transactionDate)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Amount:</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.transactionAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Card Type:</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.cardType || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Terminal ID:</span>
-                                <div>
-                                  <TerminalIdDisplay terminalId={selectedRecord.extracted_fields?.terminalId} />
-                                </div>
-                              </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Transaction Date:</span>
+                            <TruncatedValue value={formatDate(selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.transactionDate : 'N/A')} />
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Amount:</span>
+                            <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.transactionAmount : '0')}</span>
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Card Type:</span>
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.cardType || 'N/A' : 'N/A'} />
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Merchant Name:</span>
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantName : 'N/A'} maxLength={20} />
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Merchant Account:</span>
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantAccountNumber : 'N/A'} />
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Terminal ID:</span>
+                            <div>
+                              <TerminalIdDisplay terminalId={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.terminalId : undefined} />
                             </div>
                           </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Auth Number:</span>
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.authorizationNumber : 'N/A'} />
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Reference Number:</span>
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.referenceNumber : 'N/A'} />
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* P1 Extension Details */}
-                          <div className="border-b pb-2">
-                            <h4 className="font-medium text-orange-700 mb-2">P1 Purchasing Card Extension</h4>
-                            <div className="space-y-1">
+                      <div>
+                        <h3 className="font-semibold mb-3">Raw TDDF Line</h3>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <code className="text-xs font-mono break-all text-gray-800">
+                            {selectedRecord.record_type === 'DT' ? selectedRecord.raw_line : 'No DT record selected'}
+                          </code>
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {selectedRecord.record_type === 'DT' ? selectedRecord.raw_line.length : 0} characters
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="p1" className="mt-4">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="font-semibold mb-3 flex items-center gap-2">
+                          <Badge className="bg-orange-100 text-orange-800 border-orange-300">P1</Badge>
+                          Purchasing Extension
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                          {(selectedRecord.record_type === 'P1' || associatedP1Record) ? (
+                            <>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Customer Code (101-125):</span>
-                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.customerCode || 'N/A'}</span>
+                                <TruncatedValue value={(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.customerCode} />
                               </div>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Purchase ID (76-100):</span>
-                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.purchaseIdentifier || 'N/A'}</span>
+                                <TruncatedValue value={(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.purchaseIdentifier} />
                               </div>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Tax Amount (56-67):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.taxAmount)}</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount((selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.taxAmount)}</span>
                               </div>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Tax Rate (68-74):</span>
-                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.taxRate || 'N/A'}</span>
+                                <TruncatedValue value={(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.taxRate} />
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Tax Type (75):</span>
+                                <TruncatedValue value={(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.taxType} />
                               </div>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Freight Amount (226-237):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.freightAmount)}</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount((selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.freightAmount)}</span>
                               </div>
                               <div className="flex justify-between py-1">
                                 <span className="text-muted-foreground">Duty Amount (238-249):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.dutyAmount)}</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount((selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.extracted_fields?.dutyAmount)}</span>
                               </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                              {loadingP1 ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                  <span className="text-gray-600">Looking for associated P1 purchasing card details...</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-600">No P1 purchasing extension found for this record</span>
+                              )}
                             </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-semibold mb-3">P1 Raw TDDF Line</h3>
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <code className="text-xs font-mono break-all text-gray-800">
+                            {(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.raw_line || 'No P1 record available'}
+                          </code>
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {(selectedRecord.record_type === 'P1' ? selectedRecord : associatedP1Record)?.raw_line?.length || 0} characters
                           </div>
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  ) : selectedRecord.record_type === 'DT' && loadingP1 ? (
-                    <div>
-                      <h3 className="font-semibold mb-2">DT Transaction Details</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Transaction Date:</span>
-                          <span className="font-mono text-xs">{formatDate(selectedRecord.extracted_fields?.transactionDate)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Amount:</span>
-                          <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.transactionAmount)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-4 p-3 bg-gray-50 rounded-lg">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                          <span className="text-gray-600">Looking for associated P1 purchasing card details...</span>
                         </div>
                       </div>
                     </div>
-                  ) : selectedRecord.record_type === 'P1' ? (
-                    <div>
-                      <h3 className="font-semibold mb-2">P1 Purchasing Card Extension Fields</h3>
-                      <ScrollArea className="h-64">
-                        <div className="space-y-3 text-sm">
-                          {/* TDDF Header Fields */}
-                          <div className="border-b pb-2">
-                            <h4 className="font-medium text-orange-700 mb-2">TDDF Header Fields</h4>
-                            <div className="space-y-1">
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Sequence Number (1-7):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.sequenceNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Entry Run Number (8-13):</span>
-                                <span className="font-mono text-xs font-medium text-blue-600">{selectedRecord.extracted_fields?.entryRunNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Sequence Within Run (14-17):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.sequenceWithinRun || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Record Identifier (18-19):</span>
-                                <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
-                                  {selectedRecord.extracted_fields?.recordIdentifier || 'N/A'}
-                                </Badge>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Bank Number (20-23):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.bankNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Merchant Account Number (24-39):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantAccountNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Association Number (40-45):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.associationNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Group Number (46-51):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.groupNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Transaction Code (52-55):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.transactionCode || 'N/A'}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* P1 Purchasing Card Data Fields */}
-                          <div className="border-b pb-2">
-                            <h4 className="font-medium text-orange-700 mb-2">Purchasing Card Level 1 Data</h4>
-                            <div className="space-y-1">
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Tax Amount (56-67):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.taxAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Tax Rate (68-71):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.taxRate || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Product ID/Customer Code (76-100):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.customerCode || selectedRecord.extracted_fields?.productIdentifier || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Local Tax (101):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.localTax || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Local Tax Amount (102-113):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.localTaxAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Freight Amount (114-125):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.freightAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Destination Zip (126-135):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.destinationZip || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Merchant Type (136-139):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantType || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Duty Amount (140-151):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.dutyAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Merchant Tax ID (152-161):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantTaxId || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Ship From Zip (162-171):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.shipFromZipCode || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">National Tax Included (172):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.nationalTaxIncluded || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">National/Alt Tax Amount (173-184):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.nationalTaxAmount || selectedRecord.extracted_fields?.alternateAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Other Tax (185-196):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.otherTax)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Destination Country (197-199):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.destinationCountryCode || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Merchant Reference (200-216):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.merchantReferenceNumber || 'N/A'}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Discount Amount (217-228):</span>
-                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.discountAmount)}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Order Date (281-286):</span>
-                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.orderDate || 'N/A'}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  ) : (
-                    <div>
-                      <h3 className="font-semibold mb-2">Extracted Fields</h3>
-                      <ScrollArea className="h-64">
-                        <div className="space-y-2 text-sm">
-                          {Object.entries(selectedRecord.extracted_fields).map(([key, value]) => (
-                            <div key={key} className="flex justify-between py-1 border-b">
-                              <span className="text-muted-foreground capitalize">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}:
-                              </span>
-                              <span className="font-mono text-xs break-all max-w-48">
-                                {key === 'terminalId' ? (
-                                  <TerminalIdDisplay terminalId={value?.toString()} />
-                                ) : (
-                                  value?.toString() || 'N/A'
-                                )}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Raw TDDF Line</h3>
-                  <ScrollArea className="h-96">
-                    <pre className="text-xs font-mono bg-muted p-4 rounded whitespace-pre-wrap break-all">
-                      {selectedRecord.raw_line}
-                    </pre>
-                  </ScrollArea>
-                </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </DialogContent>
