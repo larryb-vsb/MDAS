@@ -180,11 +180,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
             <div className="h-4 bg-gray-200 rounded w-32"></div>
             <div className="h-4 bg-gray-200 rounded w-48"></div>
           </div>
-          {/* Progressive loading indicator */}
+          {/* Visual Loading State Indicator */}
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2">
-              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-              <div className="text-sm text-blue-700">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <div className="text-sm text-blue-700 font-medium">
                 {isLoading ? `Loading ${currentYear} activity data...` : 'Refreshing heat map...'}
               </div>
             </div>
@@ -248,11 +248,30 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
               {aggregationLevel} aggregation
             </span>
           )}
-          {fromCache && (
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-              cached
-            </span>
-          )}
+          
+          {/* Visual Cache State Indicator */}
+          <div className="flex items-center gap-1">
+            {isFetching ? (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-blue-600 font-medium text-xs">Loading...</span>
+              </div>
+            ) : fromCache ? (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Cached
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                  Fresh data
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

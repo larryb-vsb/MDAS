@@ -563,17 +563,39 @@ export default function HomeDashboard() {
             <p className="text-muted-foreground">
               Manage your merchants, upload data, and view statistics
             </p>
-            {/* Cache Status */}
+            {/* Cache Status with Visual Indicators */}
             {metrics?.cacheMetadata && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
                 <Database className="h-3 w-3" />
+                
+                {/* Visual Cache State Indicator */}
+                <div className="flex items-center gap-1">
+                  {isLoading || isRefreshing || refreshMutation.isPending ? (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-blue-600 font-medium">Loading...</span>
+                    </div>
+                  ) : metrics.cacheMetadata.dataChangeDetected ? (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                      <span className="text-orange-600 font-medium">Pre-cache rebuild</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-green-600 font-medium">Cached</span>
+                    </div>
+                  )}
+                </div>
+                
                 <span>
                   Last refreshed: {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleDateString()} {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleTimeString()}
                 </span>
+                
                 {metrics.cacheMetadata.fromCache && (
                   <Badge variant="outline" className="text-xs">
                     <Clock className="h-3 w-3 mr-1" />
-                    Cached
+                    {metrics.cacheMetadata.recordCount ? `${metrics.cacheMetadata.recordCount.toLocaleString()} records` : 'Cached'}
                   </Badge>
                 )}
               </div>

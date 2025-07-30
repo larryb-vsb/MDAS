@@ -8110,9 +8110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tableName = getTableName('dashboard_cache');
       
-      // Check if cached data exists and is fresh
+      // Check for valid cache (not expired)
       const cacheQuery = `
-        SELECT cache_data, build_time_ms, created_at, updated_at, expires_at 
+        SELECT cache_data, build_time_ms, created_at, updated_at, expires_at, record_count
         FROM ${tableName} 
         WHERE cache_key = 'main_metrics' 
         AND expires_at > NOW()
@@ -8126,25 +8126,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const cachedData = cacheResult.rows[0];
         const age = Date.now() - new Date(cachedData.updated_at).getTime();
         
-        console.log(`[DASHBOARD-CACHE] Serving cached metrics (${Math.round(age / 1000)}s old)`);
+        // Check if data has changed since cache was built
+        const currentDataCheckQuery = `
+          SELECT 
+            (SELECT COUNT(*) FROM ${getTableName('merchants')}) as merchant_count,
+            (SELECT COUNT(*) FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT') as tddf_count
+        `;
+        const currentDataResult = await pool.query(currentDataCheckQuery);
+        const currentMerchants = parseInt(currentDataResult.rows[0].merchant_count);
+        const currentTddf = parseInt(currentDataResult.rows[0].tddf_count);
+        const currentTotal = currentMerchants + currentTddf;
         
-        return res.json({
-          ...cachedData.cache_data,
-          cacheMetadata: {
-            fromCache: true,
-            age: age,
-            lastRefresh: cachedData.updated_at,
-            nextRefresh: cachedData.expires_at,
-            buildTimeMs: cachedData.build_time_ms
-          }
-        });
+        // Only rebuild if data has significantly changed (> 1% change or > 100 records)
+        const cachedRecordCount = cachedData.record_count || 0;
+        const dataChangePct = Math.abs(currentTotal - cachedRecordCount) / Math.max(cachedRecordCount, 1);
+        const needsRefresh = dataChangePct > 0.01 || Math.abs(currentTotal - cachedRecordCount) > 100;
+        
+        if (!needsRefresh) {
+          console.log(`[DASHBOARD-CACHE] ✅ Serving cached metrics (${Math.round(age / 1000)}s old, ${cachedRecordCount} records)`);
+          
+          return res.json({
+            ...cachedData.cache_data,
+            cacheMetadata: {
+              fromCache: true,
+              age: age,
+              lastRefresh: cachedData.updated_at,
+              nextRefresh: cachedData.expires_at,
+              buildTimeMs: cachedData.build_time_ms,
+              recordCount: cachedRecordCount,
+              dataChangeDetected: false
+            }
+          });
+        } else {
+          console.log(`[DASHBOARD-CACHE] 🔄 Data change detected: ${cachedRecordCount} → ${currentTotal} records (${(dataChangePct * 100).toFixed(1)}% change)`);
+        }
       }
 
-      // Build fresh cache if none exists or expired
+      // Build fresh cache if none exists, expired, or data changed
       console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
       const metrics = await buildDashboardCache();
       
-      res.json(metrics);
+      res.json({
+        ...metrics,
+        cacheMetadata: {
+          ...metrics.cacheMetadata,
+          fromCache: false,
+          dataChangeDetected: cacheResult.rows.length > 0
+        }
+      });
       
     } catch (error: any) {
       console.error('[DASHBOARD-CACHE] Error serving cached metrics:', error);
@@ -8275,6 +8304,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
       const buildTime = Date.now() - startTime;
       
+      const totalRecordCount = totalMerchants + tddfTransactions;
+      
       const upsertQuery = `
         INSERT INTO ${tableName} (cache_key, cache_data, expires_at, build_time_ms, record_count)
         VALUES ($1, $2, $3, $4, $5)
@@ -8292,7 +8323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         JSON.stringify(metrics),
         expiresAt,
         buildTime,
-        totalMerchants + totalTerminals
+        totalRecordCount
       ]);
       
       console.log(`[DASHBOARD-BUILD] ✅ Cache built and stored in database in ${buildTime}ms`);
@@ -9250,12 +9281,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Environment-aware table selection
       const tableName = getTableName('tddf_jsonb');
       
-      // First, get dataset size to determine aggregation strategy
+      // First, get dataset size to determine aggregation strategy with robust date parsing
       const sizeCheckResult = await pool.query(`
         SELECT COUNT(*) as total_records
         FROM ${tableName}
         WHERE record_type = $1
-        AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+        AND CASE 
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+          THEN EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
+          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY')) = $2
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
+          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY')) = $2
+          ELSE FALSE
+        END
         AND extracted_fields->>'transactionDate' IS NOT NULL
         AND extracted_fields->>'transactionDate' != ''
       `, [recordType, year]);
@@ -9316,20 +9355,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
         default: // daily
           selectClause = `
-            DATE((extracted_fields->>'transactionDate')::date) as transaction_date,
+            CASE 
+              WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+              THEN DATE((extracted_fields->>'transactionDate')::date)
+              WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
+              THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY'))
+              WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
+              THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY'))
+            END as transaction_date,
             COUNT(*) as transaction_count,
             'daily' as aggregation_level
           `;
-          groupByClause = `GROUP BY DATE((extracted_fields->>'transactionDate')::date)`;
+          groupByClause = `GROUP BY CASE 
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+            THEN DATE((extracted_fields->>'transactionDate')::date)
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
+            THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY'))
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
+            THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY'))
+          END`;
       }
       
-      // Execute dynamic aggregation query
+      // Execute dynamic aggregation query with robust date parsing
       const aggregationStartTime = Date.now();
       const activityResult = await pool.query(`
         SELECT ${selectClause}
         FROM ${tableName}
         WHERE record_type = $1
-        AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+        AND CASE 
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+          THEN EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
+          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY')) = $2
+          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
+          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY')) = $2
+          ELSE FALSE
+        END
         AND extracted_fields->>'transactionDate' IS NOT NULL
         AND extracted_fields->>'transactionDate' != ''
         ${groupByClause}
