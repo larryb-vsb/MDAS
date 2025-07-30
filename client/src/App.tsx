@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
+import HomeDashboard from "@/pages/HomeDashboard";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
 import Exports from "@/pages/Exports";
@@ -33,7 +34,8 @@ import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={Dashboard} />
+      <ProtectedRoute path="/" component={HomeDashboard} />
+      <ProtectedRoute path="/merchant-management" component={Dashboard} />
       <ProtectedRoute path="/merchants" component={Merchants} />
       <ProtectedRoute path="/merchants/new" component={NewMerchant} />
       <ProtectedRoute path="/merchants/:id" component={MerchantDetail} />

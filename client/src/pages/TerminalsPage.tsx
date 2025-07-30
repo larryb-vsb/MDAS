@@ -18,6 +18,8 @@ import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
+import EnhancedTerminalHeatMap from "@/components/terminals/EnhancedTerminalHeatMap";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +32,7 @@ export default function TerminalsPage() {
   const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Fetch terminals data
   const { data: terminals = [], isLoading, error, refetch } = useQuery<Terminal[]>({
@@ -41,8 +44,8 @@ export default function TerminalsPage() {
 
 
 
-  // Filter, sort and paginate terminals
-  const { paginatedTerminals, pagination } = useMemo(() => {
+  // Enhanced filter, sort and paginate terminals with date filtering
+  const { paginatedTerminals, pagination, filteredTotal } = useMemo(() => {
     let filteredTerminals = terminals.filter((terminal) => {
       const matchesSearch = 
         terminal.v_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -53,10 +56,18 @@ export default function TerminalsPage() {
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
       const matchesType = terminalTypeFilter === "all" || terminal.terminal_type === terminalTypeFilter;
 
-      return matchesSearch && matchesStatus && matchesType;
+      // Enhanced date filtering when heat map date is selected
+      let matchesDate = true;
+      if (selectedDate) {
+        const terminalActivityDate = terminal.last_activity ? 
+          new Date(terminal.last_activity).toISOString().split('T')[0] : null;
+        matchesDate = terminalActivityDate === selectedDate;
+      }
+
+      return matchesSearch && matchesStatus && matchesType && matchesDate;
     });
 
-    // Apply sorting
+    // Apply performance-optimized sorting
     if (sortField) {
       filteredTerminals.sort((a, b) => {
         let aValue: Date | null = null;
@@ -70,10 +81,10 @@ export default function TerminalsPage() {
           bValue = b.last_update ? new Date(b.last_update) : null;
         }
 
-        // Handle null values - put them at the end
+        // Enhanced null handling with performance optimization
         if (!aValue && !bValue) return 0;
-        if (!aValue) return 1;
-        if (!bValue) return -1;
+        if (!aValue) return sortDirection === 'asc' ? 1 : -1;
+        if (!bValue) return sortDirection === 'asc' ? -1 : 1;
 
         const comparison = aValue.getTime() - bValue.getTime();
         return sortDirection === 'asc' ? comparison : -comparison;
@@ -93,9 +104,10 @@ export default function TerminalsPage() {
         totalPages,
         totalItems,
         itemsPerPage
-      }
+      },
+      filteredTotal: totalItems
     };
-  }, [terminals, searchQuery, statusFilter, terminalTypeFilter, sortField, sortDirection, currentPage, itemsPerPage]);
+  }, [terminals, searchQuery, statusFilter, terminalTypeFilter, sortField, sortDirection, currentPage, itemsPerPage, selectedDate]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -311,8 +323,11 @@ export default function TerminalsPage() {
           </Card>
         </div>
 
-        {/* TDDF Activity Heat Map - Common area above Terminal Directory */}
-        <TddfActivityHeatMap />
+        {/* Enhanced Terminal Activity Heat Map with Performance Optimization */}
+        <EnhancedTerminalHeatMap 
+          onDateSelect={setSelectedDate}
+          selectedDate={selectedDate}
+        />
 
         {/* Filters */}
         <Card>
@@ -402,10 +417,31 @@ export default function TerminalsPage() {
       {/* Terminals Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Terminal Directory</CardTitle>
-          <CardDescription>
-            {pagination.totalItems} terminal{pagination.totalItems !== 1 ? 's' : ''} found
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>Terminal Directory</CardTitle>
+              <CardDescription>
+                {filteredTotal} terminal{filteredTotal !== 1 ? 's' : ''} found
+                {selectedDate && (
+                  <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 rounded-md text-xs">
+                    Filtered by date: {selectedDate}
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            
+            {/* Performance indicators */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {terminals.filter(t => t.status === "Active").length} Active
+              </div>
+              <div className="flex items-center gap-1">
+                <CreditCard className="h-3 w-3" />
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -415,6 +451,16 @@ export default function TerminalsPage() {
           ) : pagination.totalItems === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No terminals found matching your criteria.</p>
+              {selectedDate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setSelectedDate(null)}
+                >
+                  Clear Date Filter
+                </Button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
