@@ -7676,31 +7676,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
+      // Helper function to format duration in human readable format
+      const formatDuration = (ms: number): string => {
+        if (ms < 1000) return `${ms}ms`;
+        if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+        if (ms < 3600000) return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+        return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+      };
+
       // Check if we have a refresh function for this table
       if (cacheRefreshMap[tableName]) {
         const startTime = Date.now();
-        const result = await cacheRefreshMap[tableName]();
-        const refreshTime = Date.now() - startTime;
+        const startTimestamp = new Date(startTime);
         
-        console.log(`[CACHE-REFRESH] Successfully refreshed ${tableName} in ${refreshTime}ms`);
+        console.log(`[CACHE-REFRESH] Starting refresh for ${tableName} at ${startTimestamp.toISOString()}`);
+        
+        const result = await cacheRefreshMap[tableName]();
+        
+        const endTime = Date.now();
+        const endTimestamp = new Date(endTime);
+        const refreshTime = endTime - startTime;
+        const durationHuman = formatDuration(refreshTime);
+        
+        console.log(`[CACHE-REFRESH] Successfully refreshed ${tableName} in ${durationHuman} (${refreshTime}ms)`);
         
         res.json({
           success: true,
           tableName,
-          refreshTime,
           message: `Cache table ${tableName} refreshed successfully`,
+          timing: {
+            startTime: startTimestamp.toISOString(),
+            endTime: endTimestamp.toISOString(),
+            durationMs: refreshTime,
+            durationHuman: durationHuman,
+            startTimeLocal: startTimestamp.toLocaleString('en-US', { 
+              timeZone: 'America/Chicago',
+              year: 'numeric',
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }),
+            endTimeLocal: endTimestamp.toLocaleString('en-US', {
+              timeZone: 'America/Chicago',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit', 
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          },
           result: result || null
         });
       } else {
         // For unknown cache tables, try a generic clear and let system rebuild
-        console.log(`[CACHE-REFRESH] Generic refresh for ${tableName} - clearing table`);
+        const startTime = Date.now();
+        const startTimestamp = new Date(startTime);
+        
+        console.log(`[CACHE-REFRESH] Generic refresh for ${tableName} - clearing table at ${startTimestamp.toISOString()}`);
+        
         await pool.query(`DELETE FROM ${tableName}`);
+        
+        const endTime = Date.now();
+        const endTimestamp = new Date(endTime);
+        const refreshTime = endTime - startTime;
+        const durationHuman = formatDuration(refreshTime);
         
         res.json({
           success: true,
           tableName,
           message: `Cache table ${tableName} cleared - will rebuild on next access`,
-          refreshType: 'clear'
+          refreshType: 'clear',
+          timing: {
+            startTime: startTimestamp.toISOString(),
+            endTime: endTimestamp.toISOString(),
+            durationMs: refreshTime,
+            durationHuman: durationHuman,
+            startTimeLocal: startTimestamp.toLocaleString('en-US', { 
+              timeZone: 'America/Chicago',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }),
+            endTimeLocal: endTimestamp.toLocaleString('en-US', {
+              timeZone: 'America/Chicago',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          }
         });
       }
       

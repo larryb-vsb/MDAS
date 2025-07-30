@@ -57,6 +57,7 @@ export default function Settings() {
   const [showHeatMapTest, setShowHeatMapTest] = useState(false);
   const [heatMapRefreshKey, setHeatMapRefreshKey] = useState(0);
   const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
+  const [lastRefreshDetails, setLastRefreshDetails] = useState<{[key: string]: any}>({});
   
   // Query for heat map refresh status tracking
   const { data: heatMapActivity, isLoading: heatMapLoading, dataUpdatedAt } = useQuery({
@@ -128,12 +129,30 @@ export default function Settings() {
 
       const result = await response.json();
       
+      // Store detailed timing information for display
+      if (result.timing) {
+        setLastRefreshDetails(prev => ({
+          ...prev,
+          [tableName]: {
+            ...result.timing,
+            refreshType: result.refreshType || 'specific',
+            completedAt: Date.now()
+          }
+        }));
+        
+        console.log(`✅ Cache table ${tableName} refreshed successfully:`, {
+          duration: result.timing.durationHuman,
+          started: result.timing.startTimeLocal,
+          completed: result.timing.endTimeLocal,
+          method: result.refreshType || 'specific'
+        });
+      }
+      
       // Refresh the cached tables list
       await refetchCachedTables();
       
-      console.log(`Cache table ${tableName} refreshed successfully:`, result);
     } catch (error) {
-      console.error(`Error refreshing cache table ${tableName}:`, error);
+      console.error(`❌ Error refreshing cache table ${tableName}:`, error);
     } finally {
       setRefreshingTable(null);
     }
@@ -587,60 +606,85 @@ export default function Settings() {
                                 <div className="text-xs text-blue-700 font-medium mb-1">Individual Cache Tables:</div>
                                 <div className="space-y-1 max-h-40 overflow-y-auto">
                                   {cachedTables.tables.map((table: any) => (
-                                    <div key={table.name} className="text-xs flex justify-between items-center py-2 px-2 bg-white rounded border">
-                                      <div className="flex flex-col flex-1">
-                                        <div className="flex items-center gap-2">
-                                          <div className={`w-2 h-2 rounded-full ${
-                                            table.status === 'fresh' ? 'bg-green-500' :
-                                            table.status === 'stale' ? 'bg-yellow-500' :
-                                            table.status === 'expired' ? 'bg-red-500' :
-                                            table.status === 'active' ? 'bg-blue-500' :
-                                            table.status === 'empty' ? 'bg-gray-300' :
-                                            'bg-gray-400'
-                                          }`}></div>
-                                          <span className={`font-mono font-medium ${table.isActive ? 'text-blue-700' : 'text-gray-500'}`}>
-                                            {table.name}
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-1">
-                                          {table.lastUpdated ? (
-                                            <span className={`text-xs ${
-                                              table.ageInMinutes < 30 ? 'text-green-600' : 
-                                              table.ageInMinutes < 120 ? 'text-yellow-600' : 
-                                              'text-red-600'
-                                            }`}>
-                                              {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
-                                               table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
-                                               `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                    <div key={table.name} className="text-xs bg-white rounded border">
+                                      <div className="flex justify-between items-center py-2 px-2">
+                                        <div className="flex flex-col flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${
+                                              table.status === 'fresh' ? 'bg-green-500' :
+                                              table.status === 'stale' ? 'bg-yellow-500' :
+                                              table.status === 'expired' ? 'bg-red-500' :
+                                              table.status === 'active' ? 'bg-blue-500' :
+                                              table.status === 'empty' ? 'bg-gray-300' :
+                                              'bg-gray-400'
+                                            }`}></div>
+                                            <span className={`font-mono font-medium ${table.isActive ? 'text-blue-700' : 'text-gray-500'}`}>
+                                              {table.name}
                                             </span>
+                                            {lastRefreshDetails[table.name] && (
+                                              <span className="px-1 py-0.5 text-xs rounded bg-green-100 text-green-700 border border-green-200">
+                                                Recently refreshed
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-3 mt-1">
+                                            {table.lastUpdated ? (
+                                              <span className={`text-xs ${
+                                                table.ageInMinutes < 30 ? 'text-green-600' : 
+                                                table.ageInMinutes < 120 ? 'text-yellow-600' : 
+                                                'text-red-600'
+                                              }`}>
+                                                {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
+                                                 table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
+                                                 `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                              </span>
+                                            ) : (
+                                              <span className={`text-xs ${
+                                                table.status === 'active' ? 'text-blue-600' :
+                                                table.status === 'empty' ? 'text-gray-500' :
+                                                'text-gray-400'
+                                              }`}>
+                                                {table.status === 'active' ? 'Active (no timestamp)' :
+                                                 table.status === 'empty' ? 'Empty table' :
+                                                 'No age info'}
+                                              </span>
+                                            )}
+                                            <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
+                                            <span className="text-gray-500">{table.tableSize}</span>
+                                          </div>
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleRefreshCacheTable(table.name)}
+                                          disabled={refreshingTable === table.name}
+                                          className="ml-2 h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
+                                        >
+                                          {refreshingTable === table.name ? (
+                                            <RefreshCw className="h-3 w-3 animate-spin" />
                                           ) : (
-                                            <span className={`text-xs ${
-                                              table.status === 'active' ? 'text-blue-600' :
-                                              table.status === 'empty' ? 'text-gray-500' :
-                                              'text-gray-400'
-                                            }`}>
-                                              {table.status === 'active' ? 'Active (no timestamp)' :
-                                               table.status === 'empty' ? 'Empty table' :
-                                               'No age info'}
-                                            </span>
+                                            <RefreshCw className="h-3 w-3" />
                                           )}
-                                          <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
-                                          <span className="text-gray-500">{table.tableSize}</span>
-                                        </div>
+                                        </Button>
                                       </div>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleRefreshCacheTable(table.name)}
-                                        disabled={refreshingTable === table.name}
-                                        className="ml-2 h-6 px-2 text-xs border-gray-300 hover:bg-gray-50"
-                                      >
-                                        {refreshingTable === table.name ? (
-                                          <RefreshCw className="h-3 w-3 animate-spin" />
-                                        ) : (
-                                          <RefreshCw className="h-3 w-3" />
-                                        )}
-                                      </Button>
+                                      {lastRefreshDetails[table.name] && (
+                                        <div className="px-2 pb-2 border-t border-green-100 bg-green-50">
+                                          <div className="grid grid-cols-2 gap-2 text-xs text-green-700 mt-1">
+                                            <div>
+                                              <span className="font-medium">Duration:</span> {lastRefreshDetails[table.name].durationHuman}
+                                            </div>
+                                            <div>
+                                              <span className="font-medium">Method:</span> {lastRefreshDetails[table.name].refreshType}
+                                            </div>
+                                            <div>
+                                              <span className="font-medium">Started:</span> {lastRefreshDetails[table.name].startTimeLocal?.slice(-8)}
+                                            </div>
+                                            <div>
+                                              <span className="font-medium">Completed:</span> {lastRefreshDetails[table.name].endTimeLocal?.slice(-8)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
