@@ -380,6 +380,33 @@ export default function Settings() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 overflow-auto max-h-[70vh]">
+                      {/* Heat Map Status - Moved to top */}
+                      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-gray-900">Heat Map Status</h5>
+                          {heatMapLoading && (
+                            <div className="flex items-center gap-2 text-sm text-blue-600">
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </div>
+                          )}
+                        </div>
+                        <RefreshStatusIndicator
+                          lastRefreshed={dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : new Date().toISOString()}
+                          refreshStatus={heatMapLoading ? "loading" : (heatMapActivity?.fromCache ? "cached" : "fresh")}
+                          ageMinutes={dataUpdatedAt ? Math.floor((Date.now() - dataUpdatedAt) / 60000) : 0}
+                          recordCount={heatMapActivity?.metadata?.totalRecords || heatMapActivity?.records?.length || 0}
+                          duration={heatMapActivity?.metadata?.performanceMetrics?.totalQueryTime || heatMapActivity?.queryTime}
+                          compact={false}
+                        />
+                        {heatMapActivity?.metadata && (
+                          <div className="mt-2 text-xs text-gray-600">
+                            <div>Aggregation: <span className="font-medium">{heatMapActivity.metadata.aggregationLevel}</span></div>
+                            <div>Performance: {heatMapActivity.metadata.performanceMetrics?.totalQueryTime}ms total</div>
+                          </div>
+                        )}
+                      </div>
+                      
                       <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-purple-900">Dynamic Aggregation Performance Tiers:</h4>
@@ -414,33 +441,6 @@ export default function Settings() {
                       </div>
                       <div className="space-y-4">
                         <TddfJsonActivityHeatMap key={heatMapRefreshKey} />
-                        
-                        {/* Refresh Status Indicator */}
-                        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <h5 className="font-medium text-gray-900">Heat Map Status</h5>
-                            {heatMapLoading && (
-                              <div className="flex items-center gap-2 text-sm text-blue-600">
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                                Loading...
-                              </div>
-                            )}
-                          </div>
-                          <RefreshStatusIndicator
-                            lastRefreshed={dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : new Date().toISOString()}
-                            refreshStatus={heatMapLoading ? "loading" : (heatMapActivity?.fromCache ? "cached" : "fresh")}
-                            ageMinutes={dataUpdatedAt ? Math.floor((Date.now() - dataUpdatedAt) / 60000) : 0}
-                            recordCount={heatMapActivity?.metadata?.totalRecords || heatMapActivity?.records?.length || 0}
-                            duration={heatMapActivity?.metadata?.performanceMetrics?.totalQueryTime || heatMapActivity?.queryTime}
-                            compact={false}
-                          />
-                          {heatMapActivity?.metadata && (
-                            <div className="mt-2 text-xs text-gray-600">
-                              <div>Aggregation: <span className="font-medium">{heatMapActivity.metadata.aggregationLevel}</span></div>
-                              <div>Performance: {heatMapActivity.metadata.performanceMetrics?.totalQueryTime}ms total</div>
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
                     <DialogFooter>
