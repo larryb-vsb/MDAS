@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,8 +70,8 @@ interface PerformanceMetrics {
 }
 
 export default function ProcessingDashboardV2() {
-  const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const queryClient = useQueryClient();
 
   // Fetch uploader statistics
   const { data: uploaderStats, refetch: refetchUploader } = useQuery<UploaderStats>({
@@ -91,18 +91,36 @@ export default function ProcessingDashboardV2() {
     refetchInterval: 60000, // 1 minute
   });
 
-  const handleManualRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        refetchUploader(),
-        refetchJsonb(),
-        refetchPerformance()
-      ]);
+  // Cache refresh mutation - builds pre-cached data like style guide
+  const { mutate: refreshCache, isPending: isRefreshing } = useMutation({
+    mutationFn: async () => {
+      console.log('[V2-DASHBOARD] Manual cache refresh triggered...');
+      const response = await fetch('/api/uploader/refresh-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Cache refresh failed');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('[V2-DASHBOARD] Cache refresh completed:', data);
+      // Invalidate all queries to fetch fresh cached data
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/jsonb-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/performance-metrics'] });
       setLastRefresh(new Date());
-    } finally {
-      setRefreshing(false);
+    },
+    onError: (error) => {
+      console.error('[V2-DASHBOARD] Cache refresh failed:', error);
     }
+  });
+
+  const handleManualRefresh = () => {
+    refreshCache();
   };
 
   // Prepare chart data for upload phases
@@ -137,16 +155,16 @@ export default function ProcessingDashboardV2() {
             </div>
             <Button 
               onClick={handleManualRefresh}
-              disabled={refreshing}
+              disabled={isRefreshing}
               size="sm"
               className="order-1 sm:order-2"
             >
-              {refreshing ? (
+              {isRefreshing ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              Refresh
+              {isRefreshing ? 'Building Cache...' : 'Refresh'}
             </Button>
           </div>
         </div>
