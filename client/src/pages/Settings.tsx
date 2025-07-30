@@ -29,6 +29,7 @@ import BackupUploadRestore from "@/components/settings/BackupUploadRestore";
 import HierarchicalTddfMigration from "@/components/migration/HierarchicalTddfMigration";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
+import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -54,6 +55,20 @@ export default function Settings() {
   const [isClearingTddfJson, setIsClearingTddfJson] = useState(false);
   const [showClearConfirmDialog, setShowClearConfirmDialog] = useState(false);
   const [showHeatMapTest, setShowHeatMapTest] = useState(false);
+  const [heatMapRefreshKey, setHeatMapRefreshKey] = useState(0);
+  
+  // Query for heat map refresh status tracking
+  const { data: heatMapActivity, isLoading: heatMapLoading, dataUpdatedAt } = useQuery({
+    queryKey: ['/api/tddf-json/activity', new Date().getFullYear(), heatMapRefreshKey],
+    queryFn: async () => {
+      const response = await fetch(`/api/tddf-json/activity?year=${new Date().getFullYear()}&recordType=DT`);
+      if (!response.ok) throw new Error('Failed to fetch TDDF JSON activity data');
+      return response.json();
+    },
+    enabled: showHeatMapTest,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -366,7 +381,18 @@ export default function Settings() {
                     </DialogHeader>
                     <div className="py-4 overflow-auto max-h-[70vh]">
                       <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                        <h4 className="font-medium text-purple-900 mb-2">Dynamic Aggregation Performance Tiers:</h4>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-purple-900">Dynamic Aggregation Performance Tiers:</h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setHeatMapRefreshKey(prev => prev + 1)}
+                            className="text-purple-700 border-purple-200 hover:bg-purple-100"
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh Heat Map
+                          </Button>
+                        </div>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div className="flex items-center gap-2">
                             <div className="w-3 h-3 bg-green-500 rounded"></div>
@@ -386,7 +412,36 @@ export default function Settings() {
                           </div>
                         </div>
                       </div>
-                      <TddfJsonActivityHeatMap />
+                      <div className="space-y-4">
+                        <TddfJsonActivityHeatMap key={heatMapRefreshKey} />
+                        
+                        {/* Refresh Status Indicator */}
+                        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="font-medium text-gray-900">Heat Map Status</h5>
+                            {heatMapLoading && (
+                              <div className="flex items-center gap-2 text-sm text-blue-600">
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                Loading...
+                              </div>
+                            )}
+                          </div>
+                          <RefreshStatusIndicator
+                            lastRefreshed={dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : new Date().toISOString()}
+                            refreshStatus={heatMapLoading ? "loading" : (heatMapActivity?.fromCache ? "cached" : "fresh")}
+                            ageMinutes={dataUpdatedAt ? Math.floor((Date.now() - dataUpdatedAt) / 60000) : 0}
+                            recordCount={heatMapActivity?.metadata?.totalRecords || heatMapActivity?.records?.length || 0}
+                            duration={heatMapActivity?.metadata?.performanceMetrics?.totalQueryTime || heatMapActivity?.queryTime}
+                            compact={false}
+                          />
+                          {heatMapActivity?.metadata && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              <div>Aggregation: <span className="font-medium">{heatMapActivity.metadata.aggregationLevel}</span></div>
+                              <div>Performance: {heatMapActivity.metadata.performanceMetrics?.totalQueryTime}ms total</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button
