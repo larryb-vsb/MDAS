@@ -237,8 +237,12 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
           </Button>
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-600">
-          <span>{totalDays} active {aggregationLevel === 'daily' ? 'days' : `${aggregationLevel} periods`}</span>
-          <span>{totalTransactions?.toLocaleString() || 0} total transactions</span>
+          <span 
+            title={`${totalTransactions?.toLocaleString() || 0} total transactions across ${totalDays} ${aggregationLevel === 'daily' ? 'days' : `${aggregationLevel} periods`}`}
+            className="cursor-help"
+          >
+            {totalDays} active {aggregationLevel === 'daily' ? 'days' : `${aggregationLevel} periods`}
+          </span>
           {totalRecords > 100000 && (
             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
               {aggregationLevel} aggregation

@@ -801,8 +801,10 @@ export default function MMSUploader() {
           </Card>
           
           <Card className="p-4">
-            <div className="text-2xl font-bold text-blue-600">{totalUploads}</div>
-            <div className="text-sm text-muted-foreground">Total Uploads</div>
+            <div className="text-2xl font-bold text-blue-600" title={`API shows ${totalUploads} recent uploads, Storage shows ${storageConfig?.fileCount || 0} total files`}>
+              {storageConfig?.fileCount || totalUploads}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Files</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-green-600">{completedUploads}</div>
