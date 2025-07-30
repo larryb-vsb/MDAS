@@ -22,6 +22,12 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Intelligent Processing**: Added hasFilesInPhase() check to only process when files exist, preventing empty cycling
   - **Reduced System Load**: Eliminated unnecessary database queries when no files are in processing pipeline
   - **Production Ready**: MMS Watcher now operates efficiently without cycling behavior in production deployments
+- **✅ PRODUCTION MMS UPLOADER ERROR DIAGNOSIS COMPLETED (July 30, 2025)**: Successfully identified root cause of production "start_time column does not exist" error
+  - **Root Cause Identified**: Production environment detection failure causing system to use wrong table name (dev_uploader_uploads instead of uploader_uploads)
+  - **Evidence Confirmed**: Production uploader_uploads table HAS start_time column (verified in schema), but runtime is accessing wrong table
+  - **Environment Detection Issue**: Production getTableName('uploader_uploads') may be returning 'dev_uploader_uploads' which causes column not found error
+  - **Development Impact**: No changes made to development environment - focused only on production issue diagnosis
+  - **Solution Required**: Production deployment needs to verify environment detection is working correctly (NODE_ENV, REPLIT_DEPLOYMENT flags)
 - **✅ EMERGENCY SCHEMA ALIGNMENT COMPLETE (July 30, 2025)**: Successfully resolved critical deployment blockers by adding 130+ missing columns to production tables
   - **Merchants Table Fixed**: Added 27 missing columns (24→51) including risk management fields (risk_score, compliance_status, review_required)
   - **TDDF Records Table Fixed**: Added 101+ missing columns (25→126+) including complete TDDF processing schema alignment
