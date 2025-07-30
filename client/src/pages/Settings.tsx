@@ -536,9 +536,22 @@ export default function Settings() {
                                 <div className="space-y-1 max-h-32 overflow-y-auto">
                                   {cachedTables.tables.map((table: any) => (
                                     <div key={table.name} className="text-xs flex justify-between items-center py-1 px-2 bg-white rounded border">
-                                      <span className={`font-mono ${table.isActive ? 'text-green-700' : 'text-gray-500'}`}>
-                                        {table.name}
-                                      </span>
+                                      <div className="flex flex-col">
+                                        <span className={`font-mono ${table.isActive ? 'text-green-700' : 'text-gray-500'}`}>
+                                          {table.name}
+                                        </span>
+                                        {table.lastUpdated && (
+                                          <span className={`text-xs ${
+                                            table.ageInMinutes < 60 ? 'text-green-600' : 
+                                            table.ageInMinutes < 1440 ? 'text-yellow-600' : 
+                                            'text-red-600'
+                                          }`}>
+                                            {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
+                                             table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
+                                             `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="flex items-center gap-2">
                                         <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
                                         <span className="text-gray-500">{table.tableSize}</span>

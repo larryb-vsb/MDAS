@@ -7515,13 +7515,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 n_tup_ins,
                 n_tup_upd,
                 n_tup_del,
-                last_vacuum,
-                last_autovacuum,
-                last_analyze,
-                last_autoanalyze
+                last_autoanalyze,
+                last_autovacuum
               FROM pg_stat_user_tables 
               WHERE relname = $1
             `, [table.tablename]);
+
+            // Try to get the most recent timestamp from the table itself
+            let lastUpdated = null;
+            let ageInMinutes = null;
+            
+            try {
+              // Try common timestamp column names
+              const timestampColumns = ['updated_at', 'created_at', 'last_updated', 'timestamp', 'date_created'];
+              
+              for (const column of timestampColumns) {
+                try {
+                  const timestampResult = await pool.query(`
+                    SELECT MAX(${column}) as max_timestamp
+                    FROM ${table.tablename}
+                    WHERE ${column} IS NOT NULL
+                    LIMIT 1
+                  `);
+                  
+                  if (timestampResult.rows[0]?.max_timestamp) {
+                    lastUpdated = timestampResult.rows[0].max_timestamp;
+                    ageInMinutes = Math.floor((Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60));
+                    break;
+                  }
+                } catch (columnError) {
+                  // Column doesn't exist, try next one
+                  continue;
+                }
+              }
+            } catch (timestampError) {
+              // No timestamp available
+            }
             
             const stats = statsResult.rows[0];
             const timeStats = timeResult.rows[0] || {};
@@ -7536,8 +7565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               insertions: parseInt(timeStats.n_tup_ins || 0),
               updates: parseInt(timeStats.n_tup_upd || 0),
               deletions: parseInt(timeStats.n_tup_del || 0),
-              lastVacuum: timeStats.last_vacuum,
-              lastAnalyze: timeStats.last_analyze,
+              lastVacuum: timeStats.last_autovacuum,
+              lastAnalyze: timeStats.last_autoanalyze,
+              lastUpdated: lastUpdated,
+              ageInMinutes: ageInMinutes,
               isActive: parseInt(stats.row_count || 0) > 0
             };
           } catch (error) {
@@ -7554,6 +7585,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               deletions: 0,
               lastVacuum: null,
               lastAnalyze: null,
+              lastUpdated: null,
+              ageInMinutes: null,
               isActive: false,
               error: 'Stats unavailable'
             };
