@@ -1476,4 +1476,20 @@ export const DevUpload = typeof devUploads.$inferSelect;
 export const insertDevUploadSchema = createInsertSchema(devUploads);
 export type InsertDevUpload = z.infer<typeof insertDevUploadSchema>;
 
+// Dashboard cache table for pre-computed metrics
+export const dashboardCache = pgTable(getTableName("dashboard_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'main_metrics', 'additional_metrics', etc.
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed metrics in JSON format
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(), // TTL for cache invalidation
+  build_time_ms: integer("build_time_ms"), // Time taken to build the cache
+  record_count: integer("record_count"), // Number of records processed
+});
+
+export type DashboardCache = typeof dashboardCache.$inferSelect;
+export const insertDashboardCacheSchema = createInsertSchema(dashboardCache);
+export type InsertDashboardCache = z.infer<typeof insertDashboardCacheSchema>;
+
 // Remove duplicate Terminal type declarations - they are defined below

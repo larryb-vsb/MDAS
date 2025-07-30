@@ -8103,32 +8103,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Pre-cached dashboard metrics endpoint
-  let dashboardCache: any = null;
-  let dashboardCacheTimestamp = 0;
+  // Pre-cached dashboard metrics endpoint with JSONB database storage
   const DASHBOARD_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
   app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
     try {
-      const now = Date.now();
+      const tableName = getTableName('dashboard_cache');
       
-      // Return cached data if available and not expired
-      if (dashboardCache && (now - dashboardCacheTimestamp < DASHBOARD_CACHE_TTL)) {
-        console.log('[DASHBOARD-CACHE] Serving cached metrics');
+      // Check if cached data exists and is fresh
+      const cacheQuery = `
+        SELECT cache_data, build_time_ms, created_at, updated_at, expires_at 
+        FROM ${tableName} 
+        WHERE cache_key = 'main_metrics' 
+        AND expires_at > NOW()
+        ORDER BY updated_at DESC 
+        LIMIT 1
+      `;
+      
+      const cacheResult = await pool.query(cacheQuery);
+      
+      if (cacheResult.rows.length > 0) {
+        const cachedData = cacheResult.rows[0];
+        const age = Date.now() - new Date(cachedData.updated_at).getTime();
+        
+        console.log(`[DASHBOARD-CACHE] Serving cached metrics (${Math.round(age / 1000)}s old)`);
+        
         return res.json({
-          ...dashboardCache,
+          ...cachedData.cache_data,
           cacheMetadata: {
-            ...dashboardCache.cacheMetadata,
-            fromCache: true
+            fromCache: true,
+            age: age,
+            lastRefresh: cachedData.updated_at,
+            nextRefresh: cachedData.expires_at,
+            buildTimeMs: cachedData.build_time_ms
           }
         });
       }
-      
+
       // Build fresh cache if none exists or expired
       console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
-      await buildDashboardCache();
+      const metrics = await buildDashboardCache();
       
-      res.json(dashboardCache);
+      res.json(metrics);
       
     } catch (error: any) {
       console.error('[DASHBOARD-CACHE] Error serving cached metrics:', error);
@@ -8136,20 +8152,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual refresh cache endpoint
+  // Manual refresh cache endpoint with JSONB storage
   app.post("/api/dashboard/refresh-cache", isAuthenticated, async (req, res) => {
     try {
       console.log('[DASHBOARD-REFRESH] Manual cache refresh requested');
       const startTime = Date.now();
       
-      await buildDashboardCache();
+      const metrics = await buildDashboardCache();
       
       const buildTime = Date.now() - startTime;
       
       res.json({
         success: true,
         buildTime,
-        message: 'Dashboard cache refreshed successfully'
+        lastRefresh: new Date().toISOString(),
+        message: 'Dashboard cache refreshed successfully',
+        recordCount: metrics.totalMerchants.total + metrics.totalTerminals.total
       });
       
     } catch (error: any) {
@@ -8166,12 +8184,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Merchants data
       const merchantsQuery = `SELECT COUNT(*) as total FROM ${getTableName('merchants')}`;
-      const merchantsResult = await db.query(merchantsQuery);
+      const merchantsResult = await pool.query(merchantsQuery);
       const totalMerchants = parseInt(merchantsResult.rows[0]?.total || '0');
       
       // Terminals data
       const terminalsQuery = `SELECT COUNT(*) as total FROM ${getTableName('terminals')}`;
-      const terminalsResult = await db.query(terminalsQuery);
+      const terminalsResult = await pool.query(terminalsQuery);
       const totalTerminals = parseInt(terminalsResult.rows[0]?.total || '0');
       
       // TDDF transaction data
@@ -8182,13 +8200,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${getTableName('tddf_jsonb')} 
         WHERE record_type = 'DT'
       `;
-      const tddfResult = await db.query(tddfQuery);
+      const tddfResult = await pool.query(tddfQuery);
       const tddfTransactions = parseInt(tddfResult.rows[0]?.total_transactions || '0');
       const tddfAmount = parseFloat(tddfResult.rows[0]?.total_amount || '0');
       
       // Regular transactions data
       const transactionsQuery = `SELECT COUNT(*) as total FROM ${getTableName('transactions')}`;
-      const transactionsResult = await db.query(transactionsQuery);
+      const transactionsResult = await pool.query(transactionsQuery);
       const regularTransactions = parseInt(transactionsResult.rows[0]?.total || '0');
       
       // Today's transactions (both TDDF and regular)
@@ -8198,7 +8216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE record_type = 'DT' 
         AND CAST(extracted_fields->>'transactionDate' AS DATE) = CURRENT_DATE
       `;
-      const todayTddfResult = await db.query(todayTddfQuery);
+      const todayTddfResult = await pool.query(todayTddfQuery);
       const todayTddfCount = parseInt(todayTddfResult.rows[0]?.today_count || '0');
       
       // Build metrics object
@@ -8252,11 +8270,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      // Update cache
-      dashboardCache = metrics;
-      dashboardCacheTimestamp = Date.now();
+      // Store in JSONB database table
+      const tableName = getTableName('dashboard_cache');
+      const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
+      const buildTime = Date.now() - startTime;
       
-      console.log(`[DASHBOARD-BUILD] ✅ Cache built in ${metrics.cacheMetadata.buildTime}ms`);
+      const upsertQuery = `
+        INSERT INTO ${tableName} (cache_key, cache_data, expires_at, build_time_ms, record_count)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (cache_key) 
+        DO UPDATE SET 
+          cache_data = EXCLUDED.cache_data,
+          updated_at = NOW(),
+          expires_at = EXCLUDED.expires_at,
+          build_time_ms = EXCLUDED.build_time_ms,
+          record_count = EXCLUDED.record_count
+      `;
+      
+      await pool.query(upsertQuery, [
+        'main_metrics',
+        JSON.stringify(metrics),
+        expiresAt,
+        buildTime,
+        totalMerchants + totalTerminals
+      ]);
+      
+      console.log(`[DASHBOARD-BUILD] ✅ Cache built and stored in database in ${buildTime}ms`);
+      return metrics;
       
     } catch (error) {
       console.error('[DASHBOARD-BUILD] Error building cache:', error);
