@@ -9,6 +9,7 @@ import { AlertTriangle, Database, HardDrive, Trash2, Search, RefreshCw, FileX, C
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import MainLayout from '@/components/layout/MainLayout';
 
 interface MasterObjectStats {
   masterKeys: {
@@ -181,7 +182,8 @@ export default function StorageManagement() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <MainLayout>
+      <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Storage Management</h1>
@@ -575,6 +577,7 @@ export default function StorageManagement() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </MainLayout>
   );
 }
