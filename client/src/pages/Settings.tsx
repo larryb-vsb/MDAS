@@ -32,6 +32,7 @@ import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
 import UploaderDataStatus from "@/components/settings/UploaderDataStatus";
+import TddfJsonRecordCounts from "@/components/settings/TddfJsonRecordCounts";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -1106,6 +1107,11 @@ export default function Settings() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SchemaVersionInfo />
             <FileProcessingHistory />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <UploaderDataStatus />
+            <TddfJsonRecordCounts />
           </div>
           
           <div className="grid grid-cols-1 gap-6">

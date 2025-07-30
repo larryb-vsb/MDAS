@@ -1712,6 +1712,36 @@ export const heatMapTestingCache2025 = pgTable(getTableName("heat_map_testing_ca
   performanceTierIdx: index("heat_map_testing_cache_2025_performance_tier_idx").on(table.performance_tier)
 }));
 
+// TDDF JSON Record Type Counts Pre-Cache Table for Settings Page
+export const tddfJsonRecordTypeCountsPreCache = pgTable(getTableName("tddf_json_record_type_counts_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'tddf_json_record_type_counts'
+  page_name: text("page_name").notNull().default("Settings"),
+  total_records: integer("total_records").notNull().default(0),
+  dt_count: integer("dt_count").notNull().default(0),
+  bh_count: integer("bh_count").notNull().default(0),
+  p1_count: integer("p1_count").notNull().default(0),
+  p2_count: integer("p2_count").notNull().default(0),
+  e1_count: integer("e1_count").notNull().default(0),
+  g2_count: integer("g2_count").notNull().default(0),
+  ad_count: integer("ad_count").notNull().default(0),
+  dr_count: integer("dr_count").notNull().default(0),
+  other_count: integer("other_count").notNull().default(0),
+  cache_data: jsonb("cache_data").notNull(), // Complete record type breakdown with metadata
+  data_sources: jsonb("data_sources"), // Source table and query info
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Additional stats and processing info
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("tddf_json_record_type_counts_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("tddf_json_record_type_counts_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("tddf_json_record_type_counts_pre_cache_expires_at_idx").on(table.expires_at),
+  totalRecordsIdx: index("tddf_json_record_type_counts_pre_cache_total_records_idx").on(table.total_records)
+}));
+
 // Pre-Cache Table Types and Schemas
 export type DashboardPagePreCache = typeof dashboardPagePreCache.$inferSelect;
 export type MerchantsPagePreCache = typeof merchantsPagePreCache.$inferSelect;
@@ -1721,6 +1751,7 @@ export type ProcessingPagePreCache = typeof processingPagePreCache.$inferSelect;
 export type UploaderPagePreCache = typeof uploaderPagePreCache.$inferSelect;
 export type SettingsPagePreCache = typeof settingsPagePreCache.$inferSelect;
 export type HeatMapTestingCache2025 = typeof heatMapTestingCache2025.$inferSelect;
+export type TddfJsonRecordTypeCountsPreCache = typeof tddfJsonRecordTypeCountsPreCache.$inferSelect;
 
 // Insert schemas for pre-cache tables
 export const insertDashboardPagePreCacheSchema = createInsertSchema(dashboardPagePreCache).omit({ id: true, created_at: true });
@@ -1731,5 +1762,6 @@ export const insertProcessingPagePreCacheSchema = createInsertSchema(processingP
 export const insertUploaderPagePreCacheSchema = createInsertSchema(uploaderPagePreCache).omit({ id: true, created_at: true });
 export const insertSettingsPagePreCacheSchema = createInsertSchema(settingsPagePreCache).omit({ id: true, created_at: true });
 export const insertHeatMapTestingCache2025Schema = createInsertSchema(heatMapTestingCache2025).omit({ id: true, created_at: true });
+export const insertTddfJsonRecordTypeCountsPreCacheSchema = createInsertSchema(tddfJsonRecordTypeCountsPreCache).omit({ id: true, created_at: true });
 
 // Remove duplicate Terminal type declarations - they are defined below

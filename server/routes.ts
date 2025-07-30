@@ -7652,6 +7652,274 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF JSON Record Type Counts Pre-Cache API - for Settings page widget
+  app.get("/api/settings/tddf-json-record-counts", isAuthenticated, async (req, res) => {
+    try {
+      const cacheTableName = getTableName('tddf_json_record_type_counts_pre_cache');
+      
+      console.log(`[TDDF-RECORD-COUNTS] Fetching cached record type counts from ${cacheTableName}`);
+      const startTime = Date.now();
+      
+      // First check if cache table exists and has data
+      const cacheResult = await pool.query(`
+        SELECT 
+          total_records,
+          dt_count,
+          bh_count,
+          p1_count,
+          p2_count,
+          e1_count,
+          g2_count,
+          ad_count,
+          dr_count,
+          other_count,
+          cache_data,
+          processing_time_ms,
+          last_update_datetime,
+          expires_at,
+          metadata
+        FROM ${cacheTableName}
+        WHERE cache_key = 'tddf_json_record_type_counts'
+          AND expires_at > NOW()
+        ORDER BY last_update_datetime DESC
+        LIMIT 1
+      `);
+      
+      const queryTime = Date.now() - startTime;
+      
+      if (cacheResult.rows.length > 0) {
+        const cache = cacheResult.rows[0];
+        console.log(`[TDDF-RECORD-COUNTS] Served from cache: ${cache.total_records} total records in ${queryTime}ms`);
+        
+        // Calculate age of cache in minutes
+        const cacheAge = (Date.now() - new Date(cache.last_update_datetime).getTime()) / (1000 * 60);
+        
+        res.json({
+          totalRecords: cache.total_records,
+          recordTypes: {
+            DT: cache.dt_count,
+            BH: cache.bh_count,
+            P1: cache.p1_count,
+            P2: cache.p2_count,
+            E1: cache.e1_count,
+            G2: cache.g2_count,
+            AD: cache.ad_count,
+            DR: cache.dr_count,
+            Other: cache.other_count
+          },
+          fromCache: true,
+          lastRefreshed: cache.last_update_datetime,
+          cacheAgeMinutes: Math.round(cacheAge * 10) / 10,
+          processingTimeMs: cache.processing_time_ms,
+          queryTimeMs: queryTime,
+          metadata: cache.metadata
+        });
+      } else {
+        // Cache miss - build fresh data
+        console.log(`[TDDF-RECORD-COUNTS] Cache miss - building fresh record type counts`);
+        const buildStartTime = Date.now();
+        
+        const tddfJsonbTableName = getTableName('tddf_jsonb');
+        const countsResult = await pool.query(`
+          SELECT 
+            record_type,
+            COUNT(*) as count
+          FROM ${tddfJsonbTableName}
+          GROUP BY record_type
+          ORDER BY count DESC
+        `);
+        
+        // Calculate totals and organize by record type
+        let totalRecords = 0;
+        const recordTypes = {
+          DT: 0, BH: 0, P1: 0, P2: 0, E1: 0, G2: 0, AD: 0, DR: 0, Other: 0
+        };
+        
+        countsResult.rows.forEach(row => {
+          const count = parseInt(row.count);
+          totalRecords += count;
+          
+          if (recordTypes.hasOwnProperty(row.record_type)) {
+            recordTypes[row.record_type as keyof typeof recordTypes] = count;
+          } else {
+            recordTypes.Other += count;
+          }
+        });
+        
+        const processingTime = Date.now() - buildStartTime;
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        
+        // Store in cache
+        try {
+          await pool.query(`
+            INSERT INTO ${cacheTableName} (
+              cache_key, page_name, total_records, dt_count, bh_count, p1_count, p2_count,
+              e1_count, g2_count, ad_count, dr_count, other_count, cache_data, data_sources,
+              processing_time_ms, last_update_datetime, expires_at, metadata, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            ON CONFLICT (cache_key) DO UPDATE SET
+              total_records = EXCLUDED.total_records,
+              dt_count = EXCLUDED.dt_count,
+              bh_count = EXCLUDED.bh_count,
+              p1_count = EXCLUDED.p1_count,
+              p2_count = EXCLUDED.p2_count,
+              e1_count = EXCLUDED.e1_count,
+              g2_count = EXCLUDED.g2_count,
+              ad_count = EXCLUDED.ad_count,
+              dr_count = EXCLUDED.dr_count,
+              other_count = EXCLUDED.other_count,
+              cache_data = EXCLUDED.cache_data,
+              processing_time_ms = EXCLUDED.processing_time_ms,
+              last_update_datetime = EXCLUDED.last_update_datetime,
+              expires_at = EXCLUDED.expires_at,
+              metadata = EXCLUDED.metadata
+          `, [
+            'tddf_json_record_type_counts',
+            'Settings',
+            totalRecords,
+            recordTypes.DT,
+            recordTypes.BH,
+            recordTypes.P1,
+            recordTypes.P2,
+            recordTypes.E1,
+            recordTypes.G2,
+            recordTypes.AD,
+            recordTypes.DR,
+            recordTypes.Other,
+            JSON.stringify({ recordTypes, totalRecords, buildTime: processingTime }),
+            JSON.stringify({ sourceTable: tddfJsonbTableName, queryType: 'record_type_aggregation' }),
+            processingTime,
+            new Date(),
+            expiresAt,
+            JSON.stringify({ 
+              environment: process.env.NODE_ENV || 'development',
+              cacheVersion: '1.0',
+              buildMethod: 'fresh_query'
+            }),
+            'system'
+          ]);
+          
+          console.log(`[TDDF-RECORD-COUNTS] Cached fresh data: ${totalRecords} records in ${processingTime}ms`);
+        } catch (cacheError) {
+          console.error('[TDDF-RECORD-COUNTS] Failed to cache data:', cacheError);
+        }
+        
+        res.json({
+          totalRecords,
+          recordTypes,
+          fromCache: false,
+          lastRefreshed: new Date().toISOString(),
+          cacheAgeMinutes: 0,
+          processingTimeMs: processingTime,
+          queryTimeMs: Date.now() - startTime,
+          metadata: {
+            environment: process.env.NODE_ENV || 'development',
+            buildMethod: 'fresh_query'
+          }
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error fetching TDDF JSON record type counts:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch record type counts'
+      });
+    }
+  });
+
+  // Refresh TDDF JSON Record Type Counts Cache
+  app.post("/api/settings/refresh-tddf-json-record-counts", isAuthenticated, async (req, res) => {
+    try {
+      const cacheTableName = getTableName('tddf_json_record_type_counts_pre_cache');
+      
+      console.log(`[TDDF-RECORD-COUNTS-REFRESH] Refreshing record type counts cache`);
+      const startTime = Date.now();
+      
+      // Clear existing cache
+      await pool.query(`DELETE FROM ${cacheTableName} WHERE cache_key = 'tddf_json_record_type_counts'`);
+      
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const countsResult = await pool.query(`
+        SELECT 
+          record_type,
+          COUNT(*) as count
+        FROM ${tddfJsonbTableName}
+        GROUP BY record_type
+        ORDER BY count DESC
+      `);
+      
+      // Calculate totals and organize by record type
+      let totalRecords = 0;
+      const recordTypes = {
+        DT: 0, BH: 0, P1: 0, P2: 0, E1: 0, G2: 0, AD: 0, DR: 0, Other: 0
+      };
+      
+      countsResult.rows.forEach(row => {
+        const count = parseInt(row.count);
+        totalRecords += count;
+        
+        if (recordTypes.hasOwnProperty(row.record_type)) {
+          recordTypes[row.record_type as keyof typeof recordTypes] = count;
+        } else {
+          recordTypes.Other += count;
+        }
+      });
+      
+      const processingTime = Date.now() - startTime;
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      
+      // Store fresh cache
+      await pool.query(`
+        INSERT INTO ${cacheTableName} (
+          cache_key, page_name, total_records, dt_count, bh_count, p1_count, p2_count,
+          e1_count, g2_count, ad_count, dr_count, other_count, cache_data, data_sources,
+          processing_time_ms, last_update_datetime, expires_at, metadata, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      `, [
+        'tddf_json_record_type_counts',
+        'Settings',
+        totalRecords,
+        recordTypes.DT,
+        recordTypes.BH,
+        recordTypes.P1,
+        recordTypes.P2,
+        recordTypes.E1,
+        recordTypes.G2,
+        recordTypes.AD,
+        recordTypes.DR,
+        recordTypes.Other,
+        JSON.stringify({ recordTypes, totalRecords, buildTime: processingTime }),
+        JSON.stringify({ sourceTable: tddfJsonbTableName, queryType: 'record_type_aggregation' }),
+        processingTime,
+        new Date(),
+        expiresAt,
+        JSON.stringify({ 
+          environment: process.env.NODE_ENV || 'development',
+          cacheVersion: '1.0',
+          buildMethod: 'manual_refresh'
+        }),
+        'system'
+      ]);
+      
+      console.log(`[TDDF-RECORD-COUNTS-REFRESH] Successfully refreshed cache with ${totalRecords} records in ${processingTime}ms`);
+      
+      res.json({
+        success: true,
+        totalRecords,
+        recordTypes,
+        refreshTimeMs: processingTime,
+        message: 'TDDF JSON record type counts refreshed successfully',
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Error refreshing TDDF JSON record type counts:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to refresh record type counts'
+      });
+    }
+  });
+
   // Dedicated Heat Map Testing endpoint - only loads from pre-cache table
   app.get("/api/heat-map-testing/cached", isAuthenticated, async (req, res) => {
     try {
