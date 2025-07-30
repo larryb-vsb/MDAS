@@ -378,6 +378,25 @@ export default function MMSUploader() {
     }
   });
 
+  // Manual encoding mutation for progressing identified files to encoded
+  const manualEncodeMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/manual-encode', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      console.log('[MANUAL-ENCODE] Files successfully queued for encoding');
+    },
+    onError: (error) => {
+      console.error('Error with manual encoding:', error);
+    }
+  });
+
   // Filter uploads based on status and file type
   const filteredUploads = uploads.filter(upload => {
     const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
@@ -437,6 +456,28 @@ export default function MMSUploader() {
       await manualIdentifyMutation.mutateAsync(uploadedFiles);
     } catch (error) {
       console.error('Manual identify error:', error);
+    }
+  };
+
+  // Manual encoding handler for identified files
+  const handleManualEncode = async () => {
+    // Filter selected uploads to only include those in "identified" phase
+    const identifiedFiles = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      return upload && upload.currentPhase === 'identified';
+    });
+    
+    if (identifiedFiles.length === 0) {
+      console.log('[MANUAL-ENCODE] No identified files selected');
+      return;
+    }
+    
+    console.log(`[MANUAL-ENCODE] Encoding ${identifiedFiles.length} identified files`);
+    
+    try {
+      await manualEncodeMutation.mutateAsync(identifiedFiles);
+    } catch (error) {
+      console.error('Manual encode error:', error);
     }
   };
 
@@ -1180,7 +1221,7 @@ export default function MMSUploader() {
                     <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded border-l-4 border-gray-500">
                       <strong>Manual Processing:</strong> Files will stop at "uploaded" phase and require manual triggering for identification and encoding steps.
                       <br/>
-                      <span className="text-blue-600 font-medium">→ Go to Files tab and select uploaded files to see the green "Identify" button.</span>
+                      <span className="text-blue-600 font-medium">→ Go to Files tab and select uploaded files to see the green "Identify" button, then select identified files to see the blue "Encode" button.</span>
                     </div>
                   )}
                 </div>
@@ -1708,6 +1749,26 @@ export default function MMSUploader() {
                           {manualIdentifyMutation.isPending ? 'Identifying...' : `Identify ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
                             return upload && upload.currentPhase === 'uploaded';
+                          }).length}`}
+                        </Button>
+                      )}
+
+                      {/* Manual Encode Button - only show when Auto 4-5 is disabled and identified files are selected */}
+                      {!auto45Enabled && selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'identified';
+                      }) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleManualEncode}
+                          disabled={manualEncodeMutation.isPending}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Database className="h-4 w-4 mr-2" />
+                          {manualEncodeMutation.isPending ? 'Encoding...' : `Encode ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'identified';
                           }).length}`}
                         </Button>
                       )}

@@ -13,7 +13,8 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
-    this.auto45Enabled = true; // Auto 4-5 processing enabled for automated identification and encoding
+    this.auto45Enabled = false; // Auto 4-5 processing disabled by default - controlled via API
+    this.manual45Queue = new Set(); // Manual processing queue for single-step progression
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
 
@@ -31,29 +32,37 @@ class MMSWatcher {
       this.cleanupOrphanedSessions();
     }, 3600000); // Check every hour (3600000ms) for orphaned sessions
     
-    // Start Stage 4 identification service with reduced frequency
+    // Dual processing system: Auto 4-5 and Manual 4-5 queues
     this.identificationIntervalId = setInterval(async () => {
-      if (!this.auto45Enabled) {
-        console.log('[MMS-WATCHER] Auto 4-5 disabled - skipping identification processing');
-        return;
+      // Process Auto 4-5 queue (continuous automatic processing)
+      if (this.auto45Enabled) {
+        const hasAutoFiles = await this.hasFilesInPhase('uploaded');
+        if (hasAutoFiles) {
+          console.log('[MMS-WATCHER] [AUTO-45] Processing uploaded files automatically');
+          await this.processUploadedFiles();
+        }
       }
-      const hasFiles = await this.hasFilesInPhase('uploaded');
-      if (hasFiles) {
-        this.processUploadedFiles();
+      
+      // Process Manual 4-5 queue (single-step user-triggered processing)
+      if (this.manual45Queue.size > 0) {
+        console.log(`[MMS-WATCHER] [MANUAL-45] Processing ${this.manual45Queue.size} files in manual queue`);
+        await this.processManualQueue();
       }
-    }, 30000); // Check every 30 seconds (reduced from 10s) for uploaded files
+    }, 15000); // Check every 15 seconds for both queues
     
-    // Start Stage 5 encoding service with reduced frequency
+    // Encoding service for both Auto and Manual modes
     this.encodingIntervalId = setInterval(async () => {
-      if (!this.auto45Enabled) {
-        console.log('[MMS-WATCHER] Auto 4-5 disabled - skipping encoding processing');
-        return;
+      // Auto 4-5 encoding (continuous)
+      if (this.auto45Enabled) {
+        const hasAutoFiles = await this.hasFilesInPhase('identified');
+        if (hasAutoFiles) {
+          console.log('[MMS-WATCHER] [AUTO-45] Processing identified files for encoding');
+          await this.processIdentifiedFiles();
+        }
       }
-      const hasFiles = await this.hasFilesInPhase('identified');
-      if (hasFiles) {
-        this.processIdentifiedFiles();
-      }
-    }, 20000); // Check every 20 seconds (reduced from 5s) for identified files
+      
+      // Manual encoding will be handled separately via manual queue
+    }, 20000); // Check every 20 seconds for auto encoding
     
     // Start JSONB duplicate cleanup service (during legacy import)
     this.duplicateCleanupIntervalId = setInterval(() => {
@@ -207,6 +216,128 @@ class MMSWatcher {
       console.error(`[MMS-WATCHER] Error checking for files in phase ${phase}:`, error);
       return false;
     }
+  }
+
+  // Process manual queue - single step progression only
+  async processManualQueue() {
+    const filesToProcess = Array.from(this.manual45Queue);
+    
+    for (const uploadId of filesToProcess) {
+      try {
+        // Get current file status
+        const upload = await this.storage.getUploaderUpload(uploadId);
+        if (!upload) {
+          console.log(`[MMS-WATCHER] [MANUAL-45] File ${uploadId} not found, removing from queue`);
+          this.manual45Queue.delete(uploadId);
+          continue;
+        }
+
+        console.log(`[MMS-WATCHER] [MANUAL-45] Processing ${upload.filename} (${upload.currentPhase})`);
+
+        // Single-step progression based on current phase
+        if (upload.currentPhase === 'uploaded') {
+          // Manual identify: uploaded → identified
+          await this.storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'identified',
+            identifiedAt: new Date().toISOString(),
+            processingNotes: JSON.stringify({
+              ...JSON.parse(upload.processingNotes || '{}'),
+              manualIdentificationAt: new Date().toISOString(),
+              identificationMethod: 'manual_watcher_triggered'
+            })
+          });
+          console.log(`[MMS-WATCHER] [MANUAL-45] ${upload.filename}: uploaded → identified`);
+          this.manual45Queue.delete(uploadId);
+          
+        } else if (upload.currentPhase === 'identified') {
+          // Manual encode: identified → encoding → encoded
+          await this.processIdentifiedFileManual(upload);
+          this.manual45Queue.delete(uploadId);
+          
+        } else {
+          // File in unexpected phase, remove from queue
+          console.log(`[MMS-WATCHER] [MANUAL-45] File ${upload.filename} in unexpected phase ${upload.currentPhase}, removing from queue`);
+          this.manual45Queue.delete(uploadId);
+        }
+
+      } catch (error) {
+        console.error(`[MMS-WATCHER] [MANUAL-45] Error processing ${uploadId}:`, error);
+        this.manual45Queue.delete(uploadId); // Remove failed files from queue
+      }
+    }
+  }
+
+  // Manual encoding process for single files
+  async processIdentifiedFileManual(upload) {
+    try {
+      console.log(`[MMS-WATCHER] [MANUAL-45] Starting encoding for ${upload.filename}`);
+      
+      // Update to encoding phase
+      await this.storage.updateUploaderUpload(upload.id, {
+        currentPhase: 'encoding',
+        processingNotes: JSON.stringify({
+          ...JSON.parse(upload.processingNotes || '{}'),
+          manualEncodingStartedAt: new Date().toISOString(),
+          encodingMethod: 'manual_watcher_triggered'
+        })
+      });
+
+      // Perform TDDF encoding (same as auto process)
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.storageKey);
+      
+      if (!fileContent) {
+        throw new Error('File content not accessible');
+      }
+
+      // Encode TDDF to JSONB
+      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.js');
+      const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);
+
+      // Update to encoded phase
+      await this.storage.updateUploaderUpload(upload.id, {
+        currentPhase: 'encoded',
+        processingNotes: JSON.stringify({
+          ...JSON.parse(upload.processingNotes || '{}'),
+          manualEncodingCompletedAt: new Date().toISOString(),
+          encodingResult: encodingResult,
+          totalRecordsEncoded: encodingResult.totalRecords || 0
+        })
+      });
+
+      console.log(`[MMS-WATCHER] [MANUAL-45] ${upload.filename}: identified → encoding → encoded (${encodingResult.totalRecords || 0} records)`);
+
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [MANUAL-45] Encoding failed for ${upload.filename}:`, error);
+      
+      // Update to failed state
+      await this.storage.updateUploaderUpload(upload.id, {
+        currentPhase: 'failed',
+        processingNotes: JSON.stringify({
+          ...JSON.parse(upload.processingNotes || '{}'),
+          manualEncodingFailedAt: new Date().toISOString(),
+          encodingError: error.message
+        })
+      });
+    }
+  }
+
+  // Add files to manual processing queue
+  addToManualQueue(uploadIds) {
+    if (Array.isArray(uploadIds)) {
+      uploadIds.forEach(id => this.manual45Queue.add(id));
+    } else {
+      this.manual45Queue.add(uploadIds);
+    }
+    console.log(`[MMS-WATCHER] [MANUAL-45] Added ${Array.isArray(uploadIds) ? uploadIds.length : 1} files to manual queue. Queue size: ${this.manual45Queue.size}`);
+  }
+
+  // Get manual queue status
+  getManualQueueStatus() {
+    return {
+      queueSize: this.manual45Queue.size,
+      filesInQueue: Array.from(this.manual45Queue)
+    };
   }
 
   // Session-based system: Phases 1-3 controlled by user sessions

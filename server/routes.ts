@@ -7270,63 +7270,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`[MANUAL-IDENTIFY] Processing ${uploadIds.length} files for identification`);
+      console.log(`[MANUAL-IDENTIFY] Adding ${uploadIds.length} files to manual processing queue`);
       
-      const results = [];
+      // Get MMS Watcher instance to add files to manual queue
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          success: false,
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Validate files are in correct phase before adding to queue
+      const validFiles = [];
+      const errors = [];
       
       for (const uploadId of uploadIds) {
         try {
-          // Get the upload record
           const upload = await storage.getUploaderUpload(uploadId);
           if (!upload) {
-            results.push({ uploadId, success: false, error: "Upload not found" });
+            errors.push({ uploadId, error: "Upload not found" });
             continue;
           }
           
-          // Only process files in "uploaded" phase
           if (upload.currentPhase !== 'uploaded') {
-            results.push({ 
+            errors.push({ 
               uploadId, 
-              success: false, 
               error: `File is in '${upload.currentPhase}' phase, only 'uploaded' files can be identified` 
             });
             continue;
           }
           
-          // Update to identified phase
-          await storage.updateUploaderUpload(uploadId, {
-            currentPhase: 'identified',
-            identifiedAt: new Date().toISOString(),
-            processingNotes: JSON.stringify({
-              ...JSON.parse(upload.processingNotes || '{}'),
-              manualIdentificationAt: new Date().toISOString(),
-              identificationMethod: 'manual_user_triggered'
-            })
-          });
-          
-          console.log(`[MANUAL-IDENTIFY] Successfully identified: ${upload.filename} (${uploadId})`);
-          results.push({ uploadId, success: true, filename: upload.filename });
+          validFiles.push({ uploadId, filename: upload.filename });
           
         } catch (error) {
-          console.error(`[MANUAL-IDENTIFY] Error processing ${uploadId}:`, error);
-          results.push({ 
+          console.error(`[MANUAL-IDENTIFY] Error validating ${uploadId}:`, error);
+          errors.push({ 
             uploadId, 
-            success: false, 
             error: error instanceof Error ? error.message : "Unknown error" 
           });
         }
       }
+
+      // Add valid files to manual processing queue
+      if (validFiles.length > 0) {
+        const validUploadIds = validFiles.map(f => f.uploadId);
+        mmsWatcher.addToManualQueue(validUploadIds);
+      }
       
-      const successCount = results.filter(r => r.success).length;
-      const errorCount = results.filter(r => !r.success).length;
+      console.log(`[MANUAL-IDENTIFY] Added ${validFiles.length} files to manual queue, ${errors.length} validation errors`);
       
       res.json({
         success: true,
         processedCount: uploadIds.length,
-        successCount,
-        errorCount,
-        results,
-        message: `Successfully identified ${successCount} file(s), ${errorCount} errors`
+        successCount: validFiles.length,
+        errorCount: errors.length,
+        validFiles,
+        errors,
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        message: `Added ${validFiles.length} file(s) to manual processing queue, ${errors.length} errors`,
+        note: 'Files will be processed by MMS Watcher within 15 seconds'
       });
       
     } catch (error) {
@@ -7334,6 +7337,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Manual encoding endpoint - adds identified files to manual encoding queue
+  app.post("/api/uploader/manual-encode", isAuthenticated, async (req, res) => {
+    console.log("[MANUAL-ENCODE-DEBUG] API endpoint reached with body:", req.body);
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[MANUAL-ENCODE] Adding ${uploadIds.length} files to manual encoding queue`);
+      
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          success: false,
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Validate files are in correct phase before adding to queue
+      const validFiles = [];
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUpload(uploadId);
+          if (!upload) {
+            errors.push({ uploadId, error: "Upload not found" });
+            continue;
+          }
+          
+          if (upload.currentPhase !== 'identified') {
+            errors.push({ 
+              uploadId, 
+              error: `File is in '${upload.currentPhase}' phase, only 'identified' files can be encoded` 
+            });
+            continue;
+          }
+          
+          validFiles.push({ uploadId, filename: upload.filename });
+          
+        } catch (error) {
+          console.error(`[MANUAL-ENCODE] Error validating ${uploadId}:`, error);
+          errors.push({ 
+            uploadId, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+
+      // Add valid files to manual processing queue
+      if (validFiles.length > 0) {
+        const validUploadIds = validFiles.map(f => f.uploadId);
+        mmsWatcher.addToManualQueue(validUploadIds);
+      }
+      
+      console.log(`[MANUAL-ENCODE] Added ${validFiles.length} files to manual encoding queue, ${errors.length} validation errors`);
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount: validFiles.length,
+        errorCount: errors.length,
+        validFiles,
+        errors,
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        message: `Added ${validFiles.length} file(s) to manual encoding queue, ${errors.length} errors`,
+        note: 'Files will be processed by MMS Watcher within 15 seconds'
+      });
+      
+    } catch (error) {
+      console.error("[MANUAL-ENCODE] Error in manual encoding:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Internal server error"
+      });
+    }
+  });
+
+  // Manual queue status endpoint
+  app.get("/api/mms-watcher/manual-queue-status", isAuthenticated, async (req, res) => {
+    try {
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          success: false,
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      const status = mmsWatcher.getManualQueueStatus();
+      
+      res.json({
+        success: true,
+        ...status,
+        auto45Status: mmsWatcher.auto45Enabled
+      });
+
+    } catch (error) {
+      console.error('[MANUAL-QUEUE-STATUS-API] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get manual queue status',
+        details: error.message
       });
     }
   });
