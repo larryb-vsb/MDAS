@@ -11090,11 +11090,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Uploader Dashboard Metrics API
-  app.get("/api/uploader/dashboard-metrics", async (req, res) => {
+  app.get("/api/uploader/dashboard-metrics", isAuthenticated, async (req, res) => {
     try {
       const startTime = Date.now();
+      const uploaderTableName = getTableName('uploader_uploads');
       
-      // Get cached metrics from uploader dashboard cache
+      // Try to get cached metrics from uploader dashboard cache first
       const cacheResult = await pool.query(`
         SELECT cache_data, refresh_state, last_manual_refresh, created_at, build_time_ms
         FROM ${getTableName('uploader_dashboard_cache')}
@@ -11118,38 +11119,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Generate fresh metrics if no cache
-      const uploaderTableName = getTableName('uploader_uploads');
-      const [totalFiles, completedFiles, failedFiles, processingFiles] = await Promise.all([
+      // Generate fresh metrics from uploader tables
+      const [totalFiles, completedFiles, failedFiles, processingFiles, lastUploadResult, recentFilesResult] = await Promise.all([
         pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName}`),
-        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status = 'completed'`),
-        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status = 'failed'`),
-        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status IN ('started', 'uploading', 'processing')`)
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE phase IN ('uploaded', 'identified', 'encoded')`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE phase = 'failed'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE phase IN ('started', 'uploading', 'processing')`),
+        pool.query(`
+          SELECT MAX(created_at) as last_upload_date,
+                 MAX(CASE WHEN phase IN ('uploaded', 'identified', 'encoded') THEN created_at END) as last_completed_upload
+          FROM ${uploaderTableName}
+        `),
+        pool.query(`
+          SELECT COUNT(*) as count 
+          FROM ${uploaderTableName} 
+          WHERE created_at > NOW() - INTERVAL '24 hours'
+        `)
       ]);
 
+      const totalCount = parseInt(totalFiles.rows[0]?.count || 0);
+      const completedCount = parseInt(completedFiles.rows[0]?.count || 0);
+      const failedCount = parseInt(failedFiles.rows[0]?.count || 0);
+      const processingCount = parseInt(processingFiles.rows[0]?.count || 0);
+      const recentCount = parseInt(recentFilesResult.rows[0]?.count || 0);
+      
+      const lastUploadData = lastUploadResult.rows[0];
+      const lastUploadDate = lastUploadData?.last_upload_date;
+      const lastCompletedUpload = lastUploadData?.last_completed_upload;
+
       const metrics = {
-        totalFiles: parseInt(totalFiles.rows[0].count),
-        completedFiles: parseInt(completedFiles.rows[0].count),
-        failedFiles: parseInt(failedFiles.rows[0].count),
-        processingFiles: parseInt(processingFiles.rows[0].count),
-        refreshState: 'paused',
+        totalFiles: totalCount,
+        completedFiles: completedCount,
+        failedFiles: failedCount,
+        processingFiles: processingCount,
+        recentFiles: recentCount,
+        lastUploadDate: lastUploadDate,
+        lastCompletedUpload: lastCompletedUpload,
+        newDataReady: recentCount > 0 || processingCount > 0,
+        storageService: 'Replit Object Storage',
+        refreshState: 'active',
         lastRefreshTime: new Date().toISOString()
       };
 
       const buildTime = Date.now() - startTime;
 
-      // Cache the results
-      await pool.query(`
-        INSERT INTO ${getTableName('uploader_dashboard_cache')} 
-        (cache_key, cache_data, expires_at, build_time_ms, refresh_state)
-        VALUES ($1, $2, NOW() + INTERVAL '5 minutes', $3, 'paused')
-        ON CONFLICT (cache_key) 
-        DO UPDATE SET 
-          cache_data = $2,
-          expires_at = NOW() + INTERVAL '5 minutes',
-          build_time_ms = $3,
-          updated_at = NOW()
-      `, ['uploader_stats', JSON.stringify(metrics), buildTime]);
+      // Cache the results for future requests
+      try {
+        await pool.query(`
+          INSERT INTO ${getTableName('uploader_dashboard_cache')} 
+          (cache_key, cache_data, expires_at, build_time_ms, refresh_state)
+          VALUES ($1, $2, NOW() + INTERVAL '5 minutes', $3, 'active')
+          ON CONFLICT (cache_key) 
+          DO UPDATE SET 
+            cache_data = $2,
+            expires_at = NOW() + INTERVAL '5 minutes',
+            build_time_ms = $3,
+            updated_at = NOW()
+        `, ['uploader_stats', JSON.stringify(metrics), buildTime]);
+      } catch (cacheError) {
+        console.warn('Failed to cache uploader metrics, continuing without cache:', cacheError);
+      }
 
       res.json({
         ...metrics,
@@ -11161,7 +11190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error getting uploader dashboard metrics:', error);
-      res.status(500).json({ error: 'Failed to get uploader dashboard metrics' });
+      res.status(500).json({ 
+        error: 'Failed to get uploader dashboard metrics',
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

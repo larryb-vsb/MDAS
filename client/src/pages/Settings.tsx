@@ -31,6 +31,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
 import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
+import UploaderDataStatus from "@/components/settings/UploaderDataStatus";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -469,6 +470,20 @@ export default function Settings() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 overflow-auto max-h-[70vh]">
+                      {/* Last New Data Status - New section at top */}
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-blue-900">Last New Data Status</h5>
+                          <div className="flex items-center gap-2 text-sm text-blue-600">
+                            <DownloadCloud className="h-4 w-4" />
+                            Uploader Data
+                          </div>
+                        </div>
+                        
+                        {/* Query uploader dashboard metrics for last upload info */}
+                        <UploaderDataStatus />
+                      </div>
+
                       {/* Heat Map Status - Moved to top */}
                       <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
