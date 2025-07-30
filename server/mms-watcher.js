@@ -243,8 +243,8 @@ class MMSWatcher {
     const { ReplitStorageService } = await import('./replit-storage-service.js');
     const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
     
-    // Analyze file structure and content
-    const identification = await this.analyzeFileContent(fileContent, upload.filename);
+    // Analyze file structure and content, considering user's original file type selection
+    const identification = await this.analyzeFileContent(fileContent, upload.filename, upload.fileType);
     
     // Update upload record with identification results
     await this.storage.updateUploaderUpload(upload.id, {
@@ -262,7 +262,7 @@ class MMSWatcher {
     console.log(`[MMS-WATCHER] ✅ File identified: ${upload.filename} -> ${identification.detectedType} (${identification.lineCount} lines)`);
   }
 
-  async analyzeFileContent(fileContent, filename) {
+  async analyzeFileContent(fileContent, filename, userSelectedFileType) {
     const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
     const lineCount = lines.length;
     
@@ -280,12 +280,26 @@ class MMSWatcher {
         hasHeaders = false; // TDDF files don't have header rows
         console.log('[MMS-WATCHER] Detected TDDF format');
       }
-      // CSV file detection
+      // CSV file detection - respect user's file type selection
       else if (this.detectCsvPattern(lines)) {
-        detectedType = 'transaction_csv';
         format = 'csv';
         hasHeaders = this.detectCsvHeaders(lines);
-        console.log('[MMS-WATCHER] Detected CSV format with headers:', hasHeaders);
+        
+        // Check if user selected a specific merchant file type
+        if (userSelectedFileType === 'ach_merchant' || userSelectedFileType === 'merchant') {
+          detectedType = 'merchant_csv';
+          console.log('[MMS-WATCHER] Detected merchant CSV format (user selected ach_merchant) with headers:', hasHeaders);
+        }
+        // Check for merchant demographic patterns in CSV content
+        else if (this.detectMerchantDemographicPatterns(lines)) {
+          detectedType = 'merchant_csv';
+          console.log('[MMS-WATCHER] Detected merchant demographic CSV format with headers:', hasHeaders);
+        }
+        // Default to transaction CSV for other CSV files
+        else {
+          detectedType = 'transaction_csv';
+          console.log('[MMS-WATCHER] Detected transaction CSV format with headers:', hasHeaders);
+        }
       }
       // JSON file detection
       else if (this.detectJsonPattern(fileContent)) {
@@ -389,6 +403,29 @@ class MMSWatcher {
     return headerKeywords.some(keyword => firstLine.includes(keyword));
   }
 
+  detectMerchantDemographicPatterns(lines) {
+    if (lines.length === 0) return false;
+    
+    const firstLine = lines[0].toLowerCase();
+    
+    // Look for merchant demographic field patterns from field-mappings.ts
+    const merchantKeywords = [
+      'clientmid', 'client mid', 'clientnumber', 'client number',
+      'clientlegalname', 'client legal name', 'merchanttype', 'merchant type',
+      'mid2', 'parent mid', 'otherclientnumber2', 'association',
+      'mcc', 'pos merchant', 'clientsince', 'asofdate', 'as of date',
+      'clientpaddress', 'client address', 'mtype'
+    ];
+    
+    // Count how many merchant-specific keywords are found
+    const keywordCount = merchantKeywords.filter(keyword => firstLine.includes(keyword)).length;
+    
+    console.log(`[MMS-WATCHER] Merchant keyword analysis: found ${keywordCount} merchant keywords in header`);
+    
+    // If we find 3 or more merchant-specific keywords, it's likely merchant data
+    return keywordCount >= 3;
+  }
+
   async markIdentificationFailed(upload, errorMessage) {
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
@@ -411,18 +448,19 @@ class MMSWatcher {
         return; // No files to process
       }
 
-      // Filter for TDDF files only (other file types need different processing)
-      const tddfFiles = identifiedFiles.filter(upload => 
-        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf'
+      // Filter for files that need encoding (TDDF files and merchant CSV files)
+      const encodableFiles = identifiedFiles.filter(upload => 
+        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' ||
+        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv'
       );
 
-      if (tddfFiles.length === 0) {
-        return; // No TDDF files to encode
+      if (encodableFiles.length === 0) {
+        return; // No files to encode
       }
 
-      console.log(`[MMS-WATCHER] Stage 5: Processing ${tddfFiles.length} identified TDDF files for encoding...`);
+      console.log(`[MMS-WATCHER] Stage 5: Processing ${encodableFiles.length} identified files for encoding...`);
 
-      for (const upload of tddfFiles) {
+      for (const upload of encodableFiles) {
         // Skip files in review mode unless specifically marked for processing
         if (upload.keepForReview && !upload.processingNotes?.includes('FORCE_ENCODING')) {
           console.log(`[MMS-WATCHER] Skipping file in review mode: ${upload.filename}`);
@@ -455,23 +493,63 @@ class MMSWatcher {
       const { ReplitStorageService } = await import('./replit-storage-service.js');
       const fileContent = await ReplitStorageService.getFileContent(upload.s3Key);
       
-      // Import and use the TDDF JSON encoder
-      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.ts');
+      // Determine file type and process accordingly
+      const fileType = upload.finalFileType || upload.detectedFileType;
+      let encodingResults;
       
-      // Perform encoding
-      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
-      
-      // Update to encoded phase with results
-      await this.storage.updateUploaderPhase(upload.id, 'encoded', {
-        encodingCompletedAt: new Date(),
-        encodingStatus: 'completed',
-        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
-        jsonRecordsCreated: encodingResults.totalRecords,
-        recordTypeBreakdown: encodingResults.recordCounts.byType,
-        processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
-      });
+      if (fileType === 'tddf') {
+        // Import and use the TDDF JSON encoder
+        const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.ts');
+        encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
+        
+        // Update to encoded phase with TDDF results
+        await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          encodingCompletedAt: new Date(),
+          encodingStatus: 'completed',
+          encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+          jsonRecordsCreated: encodingResults.totalRecords,
+          recordTypeBreakdown: encodingResults.recordCounts.byType,
+          processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
+        });
 
-      console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
+        console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
+      } 
+      else if (fileType === 'merchant_csv') {
+        // Save content to temporary file for CSV processing
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const tempFilePath = path.join(os.tmpdir(), `temp_merchant_${upload.id}_${Date.now()}.csv`);
+        fs.writeFileSync(tempFilePath, fileContent);
+        
+        try {
+          // Process merchant CSV file using existing storage method
+          const processingResults = await this.storage.processMerchantFile(tempFilePath);
+          
+          // Update to encoded phase with merchant results
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `Successfully processed ${processingResults.merchantsCreated || 0} merchant records from CSV`,
+            merchantsProcessed: processingResults.merchantsCreated || 0,
+            merchantsUpdated: processingResults.merchantsUpdated || 0,
+            processingNotes: `Auto-processed by MMS Watcher: ${processingResults.rowsProcessed || 0} rows processed, ${processingResults.merchantsCreated || 0} merchants created`
+          });
+
+          console.log(`[MMS-WATCHER] ✅ Merchant CSV processed: ${upload.filename} -> ${processingResults.merchantsCreated || 0} merchants created, ${processingResults.merchantsUpdated || 0} updated`);
+        } finally {
+          // Clean up temp file
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (err) {
+            console.warn(`[MMS-WATCHER] Warning: Could not delete temp file ${tempFilePath}:`, err);
+          }
+        }
+      }
+      else {
+        throw new Error(`Unsupported file type for encoding: ${fileType}`);
+      }
       
     } catch (error) {
       console.error(`[MMS-WATCHER] Encoding failed for ${upload.filename}:`, error);
