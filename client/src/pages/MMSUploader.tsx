@@ -1681,6 +1681,7 @@ export default function MMSUploader() {
                         {selectedUploads.length} selected
                       </div>
                       
+                      {/* Delete Button */}
                       <Button
                         variant="destructive"
                         size="sm"
@@ -1704,61 +1705,80 @@ export default function MMSUploader() {
                           className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Search className="h-4 w-4 mr-2" />
-                          {manualIdentifyMutation.isPending ? 'Identifying...' : 'Identify'}
+                          {manualIdentifyMutation.isPending ? 'Identifying...' : `Identify ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'uploaded';
+                          }).length}`}
                         </Button>
                       )}
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // Filter selected uploads to only include those that can be moved back
-                          const eligibleUploads = selectedUploads.filter(id => {
+                      {/* Encode Button - show when identified TDDF files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
+                      }) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleGroupSelectedEncode}
+                          disabled={bulkEncodeMutation.isPending}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Database className="h-4 w-4 mr-2" />
+                          {bulkEncodeMutation.isPending ? 'Encoding...' : `Encode ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
+                          }).length}`}
+                        </Button>
+                      )}
+
+                      {/* Set Previous Level Button - show when eligible files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+                      }) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const eligibleUploads = selectedUploads.filter(id => {
+                              const upload = uploads.find(u => u.id === id);
+                              return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+                            });
+                            if (eligibleUploads.length > 0) {
+                              handleSetPreviousLevelSelected();
+                            }
+                          }}
+                          disabled={setPreviousLevelMutation.isPending}
+                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-2" />
+                          {setPreviousLevelMutation.isPending ? 'Setting...' : `Set Previous ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
                             return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
-                          });
-                          
-                          if (eligibleUploads.length > 0) {
-                            handleSetPreviousLevelSelected();
-                          }
-                        }}
-                        disabled={setPreviousLevelMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find(u => u.id === id);
-                          return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
-                        })}
-                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                      >
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        {setPreviousLevelMutation.isPending ? 'Setting...' : 'Set Previous Level'}
-                      </Button>
+                          }).length}`}
+                        </Button>
+                      )}
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancelEncoding}
-                        disabled={cancelEncodingMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find(u => u.id === id);
-                          return upload && upload.currentPhase === 'encoding';
-                        })}
-                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        {cancelEncodingMutation.isPending ? 'Canceling...' : 'Cancel Encoding'}
-                      </Button>
-
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleGroupSelectedEncode}
-                        disabled={bulkEncodeMutation.isPending || !selectedUploads.some(id => {
-                          const upload = uploads.find(u => u.id === id);
-                          return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
-                        })}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        <Database className="h-4 w-4 mr-2" />
-                        {bulkEncodeMutation.isPending ? 'Encoding...' : 'Group Selected Encode'}
-                      </Button>
+                      {/* Cancel Encoding Button - show when encoding files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'encoding';
+                      }) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelEncoding}
+                          disabled={cancelEncodingMutation.isPending}
+                          className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          {cancelEncodingMutation.isPending ? 'Canceling...' : `Cancel ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && upload.currentPhase === 'encoding';
+                          }).length}`}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
