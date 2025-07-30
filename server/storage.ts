@@ -3740,23 +3740,23 @@ export class DatabaseStorage implements IStorage {
               // Always update the edit date to current date/time
               const updateData = {
                 name: merchant.name,
-                clientMID: merchant.clientMID,
-                otherClientNumber1: merchant.otherClientNumber1,
-                otherClientNumber2: merchant.otherClientNumber2,
-                clientSinceDate: merchant.clientSinceDate,
+                client_mid: merchant.clientMID,
+                other_client_number1: merchant.otherClientNumber1,
+                other_client_number2: merchant.otherClientNumber2,
+                client_since_date: merchant.clientSinceDate,
                 status: merchant.status,
-                merchantType: merchant.merchantType,
-                salesChannel: merchant.salesChannel,
+                merchant_type: merchant.merchantType,
+                sales_channel: merchant.salesChannel,
                 address: merchant.address,
                 city: merchant.city,
                 state: merchant.state,
-                zipCode: merchant.zipCode,
+                zip_code: merchant.zipCode,
                 country: merchant.country,
                 category: merchant.category,
-                lastUploadDate: merchant.lastUploadDate,
-                asOfDate: merchant.asOfDate,
-                editDate: new Date(), // Always update the edit date
-                updatedBy: "system" // Set updatedBy to system
+                last_upload_date: merchant.lastUploadDate,
+                as_of_date: merchant.asOfDate,
+                edit_date: new Date(), // Always update the edit date
+                updated_by: "system" // Set updatedBy to system
               };
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);
@@ -3826,7 +3826,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Process a merchant demographics CSV file
-  async processMerchantFile(filePath: string): Promise<void> {
+  async processMerchantFile(filePath: string): Promise<{ rowsProcessed: number; merchantsCreated: number; merchantsUpdated: number; errors: number }> {
     console.log(`=================== MERCHANT FILE PROCESSING ===================`);
     console.log(`Processing merchant file: ${filePath}`);
     
@@ -4043,23 +4043,23 @@ export class DatabaseStorage implements IStorage {
               // Always update the edit date to current date/time
               const updateData = {
                 name: merchant.name,
-                clientMID: merchant.clientMID,
-                otherClientNumber1: merchant.otherClientNumber1,
-                otherClientNumber2: merchant.otherClientNumber2,
-                clientSinceDate: merchant.clientSinceDate,
+                client_mid: merchant.clientMID,
+                other_client_number1: merchant.otherClientNumber1,
+                other_client_number2: merchant.otherClientNumber2,
+                client_since_date: merchant.clientSinceDate,
                 status: merchant.status,
-                merchantType: merchant.merchantType,
-                salesChannel: merchant.salesChannel,
+                merchant_type: merchant.merchantType,
+                sales_channel: merchant.salesChannel,
                 address: merchant.address,
                 city: merchant.city,
                 state: merchant.state,
-                zipCode: merchant.zipCode,
+                zip_code: merchant.zipCode,
                 country: merchant.country,
                 category: merchant.category,
-                lastUploadDate: merchant.lastUploadDate,
-                asOfDate: merchant.asOfDate,
-                editDate: new Date(), // Always update the edit date
-                updatedBy: "system" // Set updatedBy to system
+                last_upload_date: merchant.lastUploadDate,
+                as_of_date: merchant.asOfDate,
+                edit_date: new Date(), // Always update the edit date
+                updated_by: "system" // Set updatedBy to system
               };
               
               console.log(`Update data: ${JSON.stringify(updateData)}`);
@@ -4091,8 +4091,31 @@ export class DatabaseStorage implements IStorage {
               // @DEPLOYMENT-CHECK - Uses environment-aware table naming
               const merchantsTableName2 = getTableName('merchants');
               
-              const insertColumns = Object.keys(merchant);
-              const insertValues = Object.values(merchant);
+              // Map merchant object to database column names
+              const merchantForInsert = {
+                id: merchant.id,
+                name: merchant.name,
+                client_mid: merchant.clientMID,
+                other_client_number1: merchant.otherClientNumber1,
+                other_client_number2: merchant.otherClientNumber2,
+                client_since_date: merchant.clientSinceDate,
+                status: merchant.status,
+                merchant_type: merchant.merchantType,
+                sales_channel: merchant.salesChannel,
+                address: merchant.address,
+                city: merchant.city,
+                state: merchant.state,
+                zip_code: merchant.zipCode,
+                country: merchant.country,
+                category: merchant.category,
+                last_upload_date: merchant.lastUploadDate,
+                as_of_date: merchant.asOfDate,
+                edit_date: new Date(),
+                updated_by: "system"
+              };
+              
+              const insertColumns = Object.keys(merchantForInsert);
+              const insertValues = Object.values(merchantForInsert);
               const placeholders = insertValues.map((_, index) => `$${index + 1}`).join(', ');
               
               const insertQuery = `
