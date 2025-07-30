@@ -7440,7 +7440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           transaction_date::date as transaction_date,
           COUNT(*) as transaction_count
         FROM ${tddfRecordsTableName}
-        WHERE record_type = 'DT'
+        WHERE record_identifier = 'DT'
           AND transaction_date IS NOT NULL
           AND EXTRACT(YEAR FROM transaction_date::date) = $1
         GROUP BY transaction_date::date
