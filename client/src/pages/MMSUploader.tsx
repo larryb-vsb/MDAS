@@ -1179,6 +1179,8 @@ export default function MMSUploader() {
                   {!auto45Enabled && (
                     <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded border-l-4 border-gray-500">
                       <strong>Manual Processing:</strong> Files will stop at "uploaded" phase and require manual triggering for identification and encoding steps.
+                      <br/>
+                      <span className="text-blue-600 font-medium">→ Go to Files tab and select uploaded files to see the green "Identify" button.</span>
                     </div>
                   )}
                 </div>
