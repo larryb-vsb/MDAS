@@ -30,6 +30,7 @@ import HierarchicalTddfMigration from "@/components/migration/HierarchicalTddfMi
 import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
 import RefreshStatusIndicator from "@/components/shared/RefreshStatusIndicator";
+import TddfObjectStorageReport from "@/components/reports/TddfObjectStorageReport";
 
 interface DatabaseStats {
   connectionStatus: "connected" | "error";
@@ -1031,6 +1032,9 @@ export default function Settings() {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                    
+                    {/* TDDF Object Storage Report Button */}
+                    <TddfObjectStorageReport />
                   </div>
                 )}
               </CardFooter>
