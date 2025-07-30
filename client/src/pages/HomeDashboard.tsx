@@ -1,7 +1,9 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -17,11 +19,16 @@ import {
   Building2,
   Terminal,
   CreditCard,
-  TrendingUp
+  TrendingUp,
+  RefreshCw,
+  Database,
+  Clock
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 
-// Interface for dashboard metrics
+// Interface for dashboard metrics with cache metadata
 interface DashboardMetrics {
   merchants: {
     total: number;
@@ -63,6 +70,12 @@ interface DashboardMetrics {
     total: number;
     ach: number;
     mmc: number;
+  };
+  cacheMetadata?: {
+    lastRefreshed: string;
+    refreshedBy: string;
+    buildTime: number;
+    fromCache: boolean;
   };
 }
 
@@ -145,10 +158,45 @@ function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, form
 }
 
 export default function HomeDashboard() {
-  // Fetch real dashboard metrics from API
-  const { data: dashboardMetrics, isLoading } = useQuery<DashboardMetrics>({
-    queryKey: ['/api/dashboard/metrics'],
-    refetchInterval: 30000, // Refresh every 30 seconds
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch pre-cached dashboard metrics
+  const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
+    queryKey: ['/api/dashboard/cached-metrics'],
+    refetchOnWindowFocus: false,
+    staleTime: 30 * 60 * 1000, // 30 minutes - data refreshed only when needed
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Manual refresh mutation
+  const refreshMutation = useMutation({
+    mutationFn: () => apiRequest('/api/dashboard/refresh-cache', {
+      method: 'POST',
+    }),
+    onMutate: () => {
+      setIsRefreshing(true);
+    },
+    onSuccess: (data: any) => {
+      // Invalidate and refetch the cached metrics
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/cached-metrics'] });
+      
+      toast({
+        title: "Dashboard Refreshed",
+        description: `Cache updated in ${data.buildTime}ms. Fresh data loaded.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh dashboard cache. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsRefreshing(false);
+    },
   });
 
   // Fallback data while loading
@@ -169,18 +217,82 @@ export default function HomeDashboard() {
   return (
     <MainLayout>
       <div className="space-y-6 p-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
-          <p className="text-muted-foreground">
-            Manage your merchants, upload data, and view statistics
-          </p>
+        {/* Header with Refresh Controls */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
+            <p className="text-muted-foreground">
+              Manage your merchants, upload data, and view statistics
+            </p>
+            {/* Cache Status */}
+            {metrics?.cacheMetadata && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                <Database className="h-3 w-3" />
+                <span>
+                  Last refreshed: {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleDateString()} {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleTimeString()}
+                </span>
+                {metrics.cacheMetadata.fromCache && (
+                  <Badge variant="outline" className="text-xs">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Cached
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Refresh Button */}
+          <Button
+            onClick={() => refreshMutation.mutate()}
+            disabled={isRefreshing || refreshMutation.isPending}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${(isRefreshing || refreshMutation.isPending) ? 'animate-spin' : ''}`} />
+            {isRefreshing || refreshMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
+          </Button>
         </div>
 
         {/* Key Performance Indicators */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Key Performance Indicators</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <Skeleton className="h-4 w-[100px]" />
+                    <Skeleton className="h-4 w-4" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-8 w-[80px] mb-3" />
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-[40px]" />
+                        <Skeleton className="h-4 w-[60px]" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-[70px]" />
+                        <Skeleton className="h-4 w-[60px]" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Failed to load dashboard metrics</p>
+              <Button
+                onClick={() => refreshMutation.mutate()}
+                className="mt-2"
+                variant="outline"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Merchants Total */}
             <MetricCard
               title="Merchants Total"
@@ -225,12 +337,38 @@ export default function HomeDashboard() {
               mmcTooltip="from TDDF and csv update"
             />
           </div>
+          )}
         </div>
 
         {/* Additional Metrics */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Additional Metrics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <Skeleton className="h-4 w-[120px]" />
+                    <Skeleton className="h-4 w-4" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-8 w-[80px] mb-3" />
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-[40px]" />
+                        <Skeleton className="h-4 w-[60px]" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-[70px]" />
+                        <Skeleton className="h-4 w-[60px]" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Average Transaction Value */}
             <MetricCard
               title="Avg Trans Value"
@@ -285,6 +423,7 @@ export default function HomeDashboard() {
               mmcTooltip="from TDDF and csv update"
             />
           </div>
+          )}
         </div>
       </div>
     </MainLayout>
