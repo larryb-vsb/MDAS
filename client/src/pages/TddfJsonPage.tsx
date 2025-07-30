@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import MainLayout from "@/components/layout/MainLayout";
@@ -726,7 +726,12 @@ export default function TddfJsonPage() {
             </p>
           </div>
           <Button 
-            onClick={() => window.location.reload()} 
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/batch-relationships'] });
+            }} 
             variant="outline"
             className="flex items-center gap-2"
           >
