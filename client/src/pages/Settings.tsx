@@ -547,8 +547,25 @@ export default function Settings() {
                               </div>
                             </div>
                             {preCacheStatus.summary && preCacheStatus.summary.available > 0 && (
-                              <div className="mt-2 text-xs text-gray-600">
-                                Tables: dashboard_cache, duplicate_finder_cache, uploader_dashboard_cache + 2 more
+                              <div className="mt-2 space-y-1">
+                                <div className="text-xs text-gray-600 font-medium">
+                                  Cache Naming: target-source_cache_yyyy format
+                                </div>
+                                <div className="grid grid-cols-1 gap-1 text-xs">
+                                  <div className="flex justify-between items-center bg-white rounded px-2 py-1 border border-gray-100">
+                                    <span className="font-mono text-blue-600">dashboard-merchants_cache_2025</span>
+                                    <span className="text-gray-500">Dashboard metrics</span>
+                                  </div>
+                                  <div className="flex justify-between items-center bg-white rounded px-2 py-1 border border-gray-100">
+                                    <span className="font-mono text-green-600">heat_map-tddf_jsonb_cache_2025</span>
+                                    <span className="text-gray-500">Heat map data</span>
+                                  </div>
+                                  {preCacheStatus.summary.totalTables > 2 && (
+                                    <div className="text-xs text-center text-gray-400 py-1">
+                                      + {preCacheStatus.summary.totalTables - 2} more cache tables
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>

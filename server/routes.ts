@@ -25,6 +25,12 @@ import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName } from "./table-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 
+// Cache naming utility following target-source_cache_yyyy format
+function getCacheTableName(target: string, source: string, year?: number): string {
+  const cacheYear = year || new Date().getFullYear();
+  return getTableName(`${target}-${source}_cache_${cacheYear}`);
+}
+
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   console.log(`[AUTH-DEBUG] Checking authentication for ${req.method} ${req.path}`);
@@ -7526,6 +7532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             let ageInMinutes = null;
             let status = 'unknown';
             
+            const stats = statsResult.rows[0];
+            const timeStats = timeResult.rows[0] || {};
+            
             try {
               // Try common timestamp column names
               const timestampColumns = ['updated_at', 'created_at', 'last_updated', 'timestamp', 'date_created'];
@@ -7570,9 +7579,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const rowCount = parseInt(stats.row_count || 0);
               status = rowCount > 0 ? 'active' : 'empty';
             }
-            
-            const stats = statsResult.rows[0];
-            const timeStats = timeResult.rows[0] || {};
             
             return {
               name: table.tablename,
@@ -8550,7 +8556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
     try {
-      const tableName = getTableName('dashboard_cache');
+      const tableName = getCacheTableName('dashboard', 'merchants');
       
       // Check for valid cache (not expired)
       const cacheQuery = `
@@ -8672,11 +8678,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const cacheTableStatus: Record<string, any> = {};
       const cacheTableNames = [
-        'dashboard_cache',
-        'duplicate_finder_cache', 
-        'merchant_transaction_cache_orphan_20250729',
-        'tddf_merchants_cache_orphan_20250729',
-        'uploader_dashboard_cache'
+        getCacheTableName('dashboard', 'merchants'),
+        getCacheTableName('duplicates', 'tddf_records'), 
+        getCacheTableName('merchant_transactions', 'tddf_records'),
+        getCacheTableName('tddf_merchants', 'tddf_records'),
+        getCacheTableName('uploader_dashboard', 'uploaded_files'),
+        getCacheTableName('heat_map', 'tddf_jsonb')
       ];
       
       // Check each cache table for status
@@ -8754,6 +8761,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Individual cache table refresh endpoint using new naming convention
+  app.post("/api/settings/refresh-cache-table", isAuthenticated, async (req, res) => {
+    try {
+      const { target, source, year } = req.body;
+      
+      if (!target || !source) {
+        return res.status(400).json({ 
+          error: 'Missing required parameters', 
+          required: ['target', 'source'],
+          optional: ['year']
+        });
+      }
+      
+      const startTime = Date.now();
+      const cacheYear = year || new Date().getFullYear();
+      const cacheTableName = getCacheTableName(target, source, cacheYear);
+      
+      console.log(`[CACHE-REFRESH] Refreshing ${target}-${source}_cache_${cacheYear}...`);
+      
+      let refreshResult = null;
+      
+      // Handle different cache types with specific refresh logic
+      switch (target) {
+        case 'dashboard':
+          if (source === 'merchants') {
+            refreshResult = await buildDashboardCache();
+            console.log(`[CACHE-REFRESH] Dashboard-merchants cache refreshed successfully`);
+          }
+          break;
+          
+        case 'heat_map':
+          if (source === 'tddf_jsonb') {
+            // Refresh heat map cache by clearing existing cache entries
+            await pool.query(`DELETE FROM ${cacheTableName} WHERE cache_key LIKE 'activity_%'`);
+            refreshResult = { 
+              message: 'Heat map cache cleared successfully',
+              cacheCleared: true,
+              recordsDeleted: 'All activity cache entries'
+            };
+            console.log(`[CACHE-REFRESH] Heat map-tddf_jsonb cache cleared successfully`);
+          }
+          break;
+          
+        case 'duplicates':
+          if (source === 'tddf_records') {
+            // Clear duplicates cache
+            await pool.query(`DELETE FROM ${cacheTableName} WHERE cache_key = 'duplicate_stats'`);
+            refreshResult = { 
+              message: 'Duplicates cache cleared successfully',
+              cacheCleared: true,
+              recordsDeleted: 'duplicate_stats entries'
+            };
+            console.log(`[CACHE-REFRESH] Duplicates-tddf_records cache cleared successfully`);
+          }
+          break;
+          
+        case 'uploader_dashboard':
+          if (source === 'uploaded_files') {
+            // Clear uploader dashboard cache
+            await pool.query(`DELETE FROM ${cacheTableName} WHERE cache_key = 'uploader_stats'`);
+            refreshResult = { 
+              message: 'Uploader dashboard cache cleared successfully',
+              cacheCleared: true,
+              recordsDeleted: 'uploader_stats entries'
+            };
+            console.log(`[CACHE-REFRESH] Uploader dashboard-uploaded_files cache cleared successfully`);
+          }
+          break;
+          
+        default:
+          return res.status(400).json({ 
+            error: 'Unsupported cache type', 
+            target, 
+            source,
+            supportedTypes: [
+              { target: 'dashboard', source: 'merchants' },
+              { target: 'heat_map', source: 'tddf_jsonb' },
+              { target: 'duplicates', source: 'tddf_records' },
+              { target: 'uploader_dashboard', source: 'uploaded_files' }
+            ]
+          });
+      }
+      
+      const buildTime = Date.now() - startTime;
+      const currentTime = new Date();
+      
+      res.json({
+        success: true,
+        cacheTable: `${target}-${source}_cache_${cacheYear}`,
+        target,
+        source,
+        year: cacheYear,
+        buildTime,
+        buildTimeFormatted: `${(buildTime / 1000).toFixed(2)}s`,
+        lastRefreshed: currentTime.toISOString(),
+        lastFinished: currentTime.toISOString(),
+        refreshedBy: (req.user as any)?.username || 'system',
+        refreshStatus: 'manual_refresh',
+        ageMinutes: 0,
+        refreshResult: refreshResult || { message: 'Cache refresh completed successfully' }
+      });
+      
+    } catch (error: any) {
+      console.error('[CACHE-REFRESH] Error refreshing individual cache table:', error);
+      res.status(500).json({ 
+        error: 'Failed to refresh cache table',
+        message: error.message
+      });
+    }
+  });
+
   // Universal refresh status endpoint for all Processing pages
   app.get("/api/processing/refresh-status", isAuthenticated, async (req, res) => {
     try {
@@ -8771,8 +8889,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Dashboard cache status
       const dashboardCacheResult = await pool.query(`
         SELECT updated_at, build_time_ms, expires_at, record_count 
-        FROM ${getTableName('dashboard_cache')} 
-        WHERE cache_key = 'dashboard_metrics' 
+        FROM ${getCacheTableName('dashboard', 'merchants')} 
+        WHERE cache_key = 'main_metrics' 
         ORDER BY updated_at DESC LIMIT 1
       `);
       
@@ -8942,7 +9060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Store in JSONB database table
-      const tableName = getTableName('dashboard_cache');
+      const tableName = getCacheTableName('dashboard', 'merchants');
       const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
       const buildTime = Date.now() - startTime;
       

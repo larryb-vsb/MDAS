@@ -1483,8 +1483,8 @@ export const DevUpload = typeof devUploads.$inferSelect;
 export const insertDevUploadSchema = createInsertSchema(devUploads);
 export type InsertDevUpload = z.infer<typeof insertDevUploadSchema>;
 
-// Dashboard cache table for pre-computed metrics
-export const dashboardCache = pgTable(getTableName("dashboard_cache"), {
+// Dashboard cache table for pre-computed metrics using target-source naming
+export const dashboardCache = pgTable(getTableName("dashboard-merchants_cache_2025"), {
   id: serial("id").primaryKey(),
   cache_key: text("cache_key").notNull().unique(), // 'main_metrics', 'additional_metrics', etc.
   cache_data: jsonb("cache_data").notNull(), // Pre-computed metrics in JSON format
