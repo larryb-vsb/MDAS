@@ -60,16 +60,16 @@ export default function Settings() {
   const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
   const [lastRefreshDetails, setLastRefreshDetails] = useState<{[key: string]: any}>({});
   
-  // Query for heat map refresh status tracking
+  // Query for heat map testing - uses dedicated pre-cache table
   const { data: heatMapActivity, isLoading: heatMapLoading, dataUpdatedAt } = useQuery({
-    queryKey: ['/api/tddf-json/activity', new Date().getFullYear(), heatMapRefreshKey],
+    queryKey: ['/api/heat-map-testing/cached', new Date().getFullYear(), heatMapRefreshKey],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/activity?year=${new Date().getFullYear()}&recordType=DT`);
-      if (!response.ok) throw new Error('Failed to fetch TDDF JSON activity data');
+      const response = await fetch(`/api/heat-map-testing/cached?year=${new Date().getFullYear()}`);
+      if (!response.ok) throw new Error('Failed to fetch heat map testing cache data');
       return response.json();
     },
     enabled: showHeatMapTest,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds - faster refresh for testing
     refetchOnWindowFocus: false,
   });
 

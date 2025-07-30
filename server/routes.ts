@@ -7579,6 +7579,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dedicated Heat Map Testing endpoint - only loads from pre-cache table
+  app.get("/api/heat-map-testing/cached", isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const tableName = `heat_map_testing_cache_${year}`;
+      
+      console.log(`[HEAT-MAP-TESTING] Fetching cached data for year ${year} from ${tableName}`);
+      
+      const startTime = Date.now();
+      const result = await pool.query(`
+        SELECT transaction_date, transaction_count 
+        FROM ${tableName} 
+        ORDER BY transaction_date
+      `);
+      const queryTime = Date.now() - startTime;
+      
+      console.log(`[HEAT-MAP-TESTING] Retrieved ${result.rows.length} cached days in ${queryTime}ms`);
+      
+      // Transform data for heat map component
+      const records = result.rows.map(row => ({
+        transaction_date: row.transaction_date.toISOString().split('T')[0],
+        transaction_count: parseInt(row.transaction_count)
+      }));
+      
+      res.json({
+        records,
+        cached: true,
+        buildTime: queryTime,
+        year: year,
+        source: tableName,
+        lastRefreshed: new Date().toISOString(),
+        fromCache: true,
+        metadata: {
+          year,
+          recordType: 'DT',
+          totalRecords: records.reduce((sum, r) => sum + r.transaction_count, 0),
+          aggregationLevel: 'daily',
+          recordCount: result.rows.length,
+          cacheStatus: 'available'
+        }
+      });
+    } catch (error) {
+      console.error('[HEAT-MAP-TESTING] Error:', error);
+      res.status(500).json({ error: 'Failed to fetch heat map testing cache data' });
+    }
+  });
+
   // Get list of cached tables with age information
   app.get("/api/settings/cached-tables", isAuthenticated, async (req, res) => {
     try {
