@@ -1246,12 +1246,18 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   extractedFields: jsonb("extracted_fields").notNull(), // Parsed TDDF fields as JSONB
   recordIdentifier: text("record_identifier"), // Extracted record identifier for highlighting
   processingTimeMs: integer("processing_time_ms").default(0), // Processing duration
+  // Universal TDDF processing datetime fields extracted from filename
+  tddfProcessingDatetime: timestamp("tddf_processing_datetime"), // Full datetime from filename (e.g., 2025-07-14T08:33:32)
+  tddfProcessingDate: date("tddf_processing_date"), // Date portion for sorting/pagination
   createdAt: timestamp("created_at").defaultNow().notNull()
 }, (table) => ({
   uploadIdIdx: index("tddf_jsonb_upload_id_idx").on(table.uploadId),
   recordTypeIdx: index("tddf_jsonb_record_type_idx").on(table.recordType),
   lineNumberIdx: index("tddf_jsonb_line_number_idx").on(table.lineNumber),
-  recordIdentifierIdx: index("tddf_jsonb_record_identifier_idx").on(table.recordIdentifier)
+  recordIdentifierIdx: index("tddf_jsonb_record_identifier_idx").on(table.recordIdentifier),
+  // Indexes for universal TDDF processing datetime sorting and pagination
+  tddfProcessingDatetimeIdx: index("tddf_jsonb_processing_datetime_idx").on(table.tddfProcessingDatetime),
+  tddfProcessingDateIdx: index("tddf_jsonb_processing_date_idx").on(table.tddfProcessingDate)
 }));
 
 // MasterCard Data Integrity records table for future expansion

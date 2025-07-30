@@ -8106,6 +8106,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pre-cached dashboard metrics endpoint with JSONB database storage
   const DASHBOARD_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+  // Get last TDDF processing datetime for dashboard display
+  app.get("/api/tddf-json/last-processing-datetime", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('tddf_jsonb');
+      
+      const result = await pool.query(`
+        SELECT 
+          tddf_processing_datetime,
+          tddf_processing_date,
+          filename,
+          record_type,
+          created_at
+        FROM ${tableName}
+        WHERE tddf_processing_datetime IS NOT NULL
+        ORDER BY tddf_processing_datetime DESC
+        LIMIT 1
+      `);
+      
+      if (result.rows.length === 0) {
+        return res.json({ 
+          lastProcessingDatetime: null,
+          message: "No TDDF records with processing datetime found" 
+        });
+      }
+      
+      const record = result.rows[0];
+      const environment = process.env.NODE_ENV || 'development';
+      
+      res.json({
+        lastProcessingDatetime: record.tddf_processing_datetime,
+        lastProcessingDate: record.tddf_processing_date,
+        filename: record.filename,
+        recordType: record.record_type,
+        createdAt: record.created_at,
+        environment: environment
+      });
+      
+    } catch (error: any) {
+      console.error('Error fetching last TDDF processing datetime:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch last TDDF processing datetime" });
+    }
+  });
+
   app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
     try {
       const tableName = getTableName('dashboard_cache');

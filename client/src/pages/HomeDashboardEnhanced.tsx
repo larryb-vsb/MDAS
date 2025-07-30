@@ -114,6 +114,16 @@ interface DuplicateFinderMetrics {
   cooldownUntil?: string;
 }
 
+// Interface for TDDF processing datetime
+interface TddfProcessingDatetime {
+  lastProcessingDatetime: string | null;
+  lastProcessingDate: string | null;
+  filename: string;
+  recordType: string;
+  createdAt: string;
+  environment: string;
+}
+
 // Enhanced MetricCard with clickable navigation
 interface ClickableMetricCardProps {
   title: string;
@@ -497,6 +507,56 @@ function ObjectStorageWidget() {
   );
 }
 
+// TDDF Processing Datetime Widget
+function TddfProcessingDatetimeWidget() {
+  const { data: tddfDatetimeData, isLoading } = useQuery<TddfProcessingDatetime>({
+    queryKey: ['/api/tddf-json/last-processing-datetime'],
+    refetchInterval: 60000 // 1 minute
+  });
+
+  const formatDatetime = (datetime: string | null) => {
+    if (!datetime) return 'No records found';
+    const date = new Date(datetime);
+    return date.toLocaleString();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          Last TDDF Processing
+        </CardTitle>
+        <Clock className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          ) : tddfDatetimeData?.lastProcessingDatetime ? (
+            <>
+              <div className="text-sm font-medium">
+                {formatDatetime(tddfDatetimeData.lastProcessingDatetime)}
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>File: {tddfDatetimeData.filename}</div>
+                <div>Type: <Badge variant="outline" className="text-xs">{tddfDatetimeData.recordType}</Badge></div>
+                <div>Env: <Badge variant="secondary" className="text-xs">{tddfDatetimeData.environment}</Badge></div>
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No TDDF records with processing datetime found
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function HomeDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
@@ -786,10 +846,11 @@ export default function HomeDashboard() {
         {/* System Widgets */}
         <div>
           <h2 className="text-xl font-semibold mb-4">System Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <UploaderDashboardWidget />
             <DuplicateFinderWidget />
             <ObjectStorageWidget />
+            <TddfProcessingDatetimeWidget />
           </div>
         </div>
       </div>

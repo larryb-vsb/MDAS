@@ -1,9 +1,67 @@
 /**
  * TDDF to JSON/JSONB Encoder
  * Uses TDDF Record type schema definitions for structured field extraction
+ * Includes universal TDDF processing datetime extraction from filenames
  */
 
 import { UploaderUpload } from '@shared/schema';
+
+/**
+ * Extract processing datetime from TDDF filename
+ * Pattern: VERMNTSB.6759_TDDF_830_07142025_083332.TSYSO
+ * Returns: { processingDate: '2025-07-14', processingTime: '08:33:32', processingDatetime: '2025-07-14T08:33:32' }
+ */
+function extractTddfProcessingDatetime(filename: string): {
+  processingDate: string | null;
+  processingTime: string | null;
+  processingDatetime: string | null;
+  isValidTddfFilename: boolean;
+} {
+  const result = {
+    processingDate: null as string | null,
+    processingTime: null as string | null,
+    processingDatetime: null as string | null,
+    isValidTddfFilename: false
+  };
+
+  try {
+    // Match TDDF filename pattern: [PREFIX]_TDDF_[SYSTEM]_[MMDDYYYY]_[HHMMSS].TSYSO
+    const tddfPattern = /.*_TDDF_\d+_(\d{8})_(\d{6})\.TSYSO$/i;
+    const match = filename.match(tddfPattern);
+    
+    if (match) {
+      const dateStr = match[1]; // MMDDYYYY format: 07142025
+      const timeStr = match[2]; // HHMMSS format: 083332
+      
+      // Parse date: 07142025 -> 2025-07-14
+      const month = dateStr.substring(0, 2);
+      const day = dateStr.substring(2, 4);
+      const year = dateStr.substring(4, 8);
+      
+      // Parse time: 083332 -> 08:33:32
+      const hour = timeStr.substring(0, 2);
+      const minute = timeStr.substring(2, 4);
+      const second = timeStr.substring(4, 6);
+      
+      const processingDate = `${year}-${month}-${day}`;
+      const processingTime = `${hour}:${minute}:${second}`;
+      const processingDatetime = `${processingDate}T${processingTime}`;
+      
+      // Validate the constructed datetime
+      const testDate = new Date(processingDatetime);
+      if (!isNaN(testDate.getTime())) {
+        result.processingDate = processingDate;
+        result.processingTime = processingTime;
+        result.processingDatetime = processingDatetime;
+        result.isValidTddfFilename = true;
+      }
+    }
+  } catch (error) {
+    console.warn(`[TDDF-DATETIME] Failed to extract datetime from filename ${filename}:`, error);
+  }
+
+  return result;
+}
 
 // TDDF Record Type Field Definitions based on schema
 export interface TddfFieldDefinition {
@@ -266,6 +324,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
   const startTime = Date.now();
   const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
   
+  // Extract universal TDDF processing datetime from filename
+  const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
+  console.log(`[TDDF-DATETIME] Extracted from ${upload.filename}:`, tddfDatetime);
+  
   // Determine table name based on environment
   const environment = process.env.NODE_ENV || 'development';
   const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
@@ -310,11 +372,18 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         const lineNumber = batchStart + i + 1;
         const jsonRecord = encodeTddfLineToJson(batch[i], lineNumber);
         
+        // Add universal TDDF processing datetime to extracted fields
+        if (tddfDatetime.isValidTddfFilename) {
+          jsonRecord.extractedFields.tddfProcessingDate = tddfDatetime.processingDate;
+          jsonRecord.extractedFields.tddfProcessingTime = tddfDatetime.processingTime;
+          jsonRecord.extractedFields.tddfProcessingDatetime = tddfDatetime.processingDatetime;
+        }
+        
         // Track individual record processing time
         const recordStartTime = Date.now();
         const recordProcessingTime = Date.now() - recordStartTime;
         
-        // Prepare database record with timing data
+        // Prepare database record with timing data and universal TDDF datetime
         const dbRecord = {
           upload_id: upload.id,
           filename: upload.filename,
@@ -323,7 +392,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           raw_line: batch[i],
           extracted_fields: JSON.stringify(jsonRecord.extractedFields),
           record_identifier: jsonRecord.extractedFields.recordIdentifier || jsonRecord.recordType,
-          processing_time_ms: recordProcessingTime
+          processing_time_ms: recordProcessingTime,
+          // Add universal TDDF processing datetime fields for sorting/pagination
+          tddf_processing_datetime: tddfDatetime.processingDatetime,
+          tddf_processing_date: tddfDatetime.processingDate
         };
         
         batchRecords.push(dbRecord);
