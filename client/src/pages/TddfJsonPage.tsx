@@ -190,7 +190,7 @@ function BatchRelationshipsView() {
                       <span className="font-medium text-green-800">Net Deposit:</span>
                       <div className="font-mono text-green-600 font-semibold">
                         {batch.batch_fields?.netDeposit ? 
-                          formatAmount(batch.batch_fields.netDeposit) : '-'}
+                          formatAmount(batch.batch_fields.netDeposit) : <span className="text-gray-400 text-xs">-</span>}
                       </div>
                     </div>
                     <div>
@@ -378,8 +378,8 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
 
   if (!terminalId) {
     return (
-      <span className="text-xs text-muted-foreground font-mono">
-        N/A
+      <span className="text-xs text-gray-400">
+        -
       </span>
     );
   }
@@ -660,6 +660,21 @@ export default function TddfJsonPage() {
     } catch {
       return dateStr;
     }
+  };
+
+  // Function to get merchant name from DT records based on merchant account number
+  const getMerchantNameFromDT = (merchantAccountNumber: string) => {
+    if (!merchantAccountNumber || !recordsData?.records) return null;
+    
+    // Find a DT record with matching merchant account number that has merchant name
+    const dtRecord = recordsData.records.find(r => 
+      r.record_type === 'DT' && 
+      r.extracted_fields?.merchantAccountNumber === merchantAccountNumber &&
+      r.extracted_fields?.merchantName &&
+      r.extracted_fields?.merchantName !== '-'
+    );
+    
+    return dtRecord?.extracted_fields?.merchantName || null;
   };
 
   const getRecordTypeBadgeClass = (recordType: string): string => {
@@ -1106,7 +1121,7 @@ export default function TddfJsonPage() {
                             </div>
                             <div className="font-medium text-green-600">
                               {record.extracted_fields?.netDeposit ? 
-                                formatAmount(record.extracted_fields.netDeposit) : '-'}
+                                formatAmount(record.extracted_fields.netDeposit) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
                             <div>
                               <Button
@@ -1144,26 +1159,31 @@ export default function TddfJsonPage() {
                               {formatAmount(record.extracted_fields?.transactionAmount)}
                             </div>
                             <div className="truncate">
-                              {record.extracted_fields?.merchantName || '-'}
+
+                              {getMerchantNameFromDT(record.extracted_fields?.merchantAccountNumber) || record.extracted_fields?.merchantName || '-'}
+
                             </div>
                             <div>
                               <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
                             </div>
                             <div>
                               {record.extracted_fields?.cardType ? (
-                                (() => {
-                                  const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
-                                  return cardBadge ? (
-                                    <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
-                                      {cardBadge.label}
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      {record.extracted_fields.cardType}
-                                    </Badge>
-                                  );
-                                })()
-                              ) : '-'}
+                                <div className="flex flex-col">
+                                  {(() => {
+                                    const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                    return cardBadge ? (
+                                      <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                        {cardBadge.label}
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        {record.extracted_fields.cardType}
+                                      </Badge>
+                                    );
+                                  })()}
+                                  <span className="text-[10px] text-gray-500 mt-1">(253-254) AN 2</span>
+                                </div>
+                              ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
                             <div>
                               <Button
@@ -1230,26 +1250,31 @@ export default function TddfJsonPage() {
                               {formatAmount(record.extracted_fields?.transactionAmount)}
                             </div>
                             <div className="truncate">
-                              {record.extracted_fields?.merchantName || '-'}
+
+                              {getMerchantNameFromDT(record.extracted_fields?.merchantAccountNumber) || record.extracted_fields?.merchantName || '-'}
+
                             </div>
                             <div>
                               <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
                             </div>
                             <div>
                               {record.extracted_fields?.cardType ? (
-                                (() => {
-                                  const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
-                                  return cardBadge ? (
-                                    <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
-                                      {cardBadge.label}
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      {record.extracted_fields.cardType}
-                                    </Badge>
-                                  );
-                                })()
-                              ) : '-'}
+                                <div className="flex flex-col">
+                                  {(() => {
+                                    const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                    return cardBadge ? (
+                                      <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                        {cardBadge.label}
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        {record.extracted_fields.cardType}
+                                      </Badge>
+                                    );
+                                  })()}
+                                  <span className="text-[10px] text-gray-500 mt-1">(253-254) AN 2</span>
+                                </div>
+                              ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
                             <div>
                               <Button
