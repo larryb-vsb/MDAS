@@ -95,6 +95,19 @@ export default function Settings() {
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Query for cached tables list with age information
+  const { data: cachedTables, isLoading: cachedTablesLoading } = useQuery({
+    queryKey: ['/api/settings/cached-tables', heatMapRefreshKey],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/cached-tables');
+      if (!response.ok) throw new Error('Failed to fetch cached tables');
+      return response.json();
+    },
+    enabled: showHeatMapTest,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -487,6 +500,52 @@ export default function Settings() {
                             {preCacheStatus.summary && preCacheStatus.summary.available > 0 && (
                               <div className="mt-2 text-xs text-gray-600">
                                 Tables: dashboard_cache, duplicate_finder_cache, uploader_dashboard_cache + 2 more
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Cached Tables List */}
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-blue-900">Cached Tables</h5>
+                          {cachedTablesLoading && (
+                            <RefreshCw className="animate-spin h-4 w-4 text-blue-600" />
+                          )}
+                        </div>
+                        {cachedTables && (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span><strong>Active:</strong> {cachedTables.summary?.activeTables || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span><strong>Inactive:</strong> {cachedTables.summary?.inactiveTables || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span><strong>Total:</strong> {cachedTables.summary?.totalTables || 0}</span>
+                              </div>
+                            </div>
+                            {cachedTables.tables && cachedTables.tables.length > 0 && (
+                              <div className="mt-2">
+                                <div className="text-xs text-blue-700 font-medium mb-1">Table Details:</div>
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                  {cachedTables.tables.map((table: any) => (
+                                    <div key={table.name} className="text-xs flex justify-between items-center py-1 px-2 bg-white rounded border">
+                                      <span className={`font-mono ${table.isActive ? 'text-green-700' : 'text-gray-500'}`}>
+                                        {table.name}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>
+                                        <span className="text-gray-500">{table.tableSize}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>

@@ -7425,25 +7425,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simple heat map API for daily DT records only
+  // Simple heat map API for daily DT records only - using regular TDDF records table
   app.get("/api/tddf-json/heatmap-simple", isAuthenticated, async (req, res) => {
     try {
-      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const tddfRecordsTableName = getTableName('tddf_records');
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
       
-      console.log(`[SIMPLE-HEATMAP] Fetching daily DT records for year ${year}`);
+      console.log(`[SIMPLE-HEATMAP] Fetching daily DT records for year ${year} from ${tddfRecordsTableName}`);
       const startTime = Date.now();
       
-      // Simple daily aggregation for DT records only
+      // Simple daily aggregation for DT records only using regular TDDF records table
       const result = await pool.query(`
         SELECT 
-          (extracted_fields->>'transactionDate')::date as transaction_date,
+          transaction_date::date as transaction_date,
           COUNT(*) as transaction_count
-        FROM ${tddfJsonbTableName}
+        FROM ${tddfRecordsTableName}
         WHERE record_type = 'DT'
-          AND extracted_fields->>'transactionDate' IS NOT NULL
-          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
-        GROUP BY (extracted_fields->>'transactionDate')::date
+          AND transaction_date IS NOT NULL
+          AND EXTRACT(YEAR FROM transaction_date::date) = $1
+        GROUP BY transaction_date::date
         ORDER BY transaction_date
       `, [year]);
       
@@ -7472,6 +7472,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching simple heat map data:', error);
       res.status(500).json({ error: 'Failed to fetch simple heat map data' });
+    }
+  });
+
+  // Get list of cached tables with age information
+  app.get("/api/settings/cached-tables", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[CACHED-TABLES] Fetching cached tables list with age information...');
+      
+      // Query to find all cache tables and their metadata
+      const result = await pool.query(`
+        SELECT 
+          schemaname,
+          tablename,
+          tableowner,
+          hasindexes,
+          hasrules,
+          hastriggers,
+          rowsecurity
+        FROM pg_tables 
+        WHERE tablename LIKE '%cache%' 
+           OR tablename LIKE '%_cache_%'
+        ORDER BY tablename
+      `);
+      
+      // Get additional stats for each cache table
+      const tablesWithStats = await Promise.all(
+        result.rows.map(async (table: any) => {
+          try {
+            // Get row count and size
+            const statsResult = await pool.query(`
+              SELECT 
+                COUNT(*) as row_count,
+                pg_size_pretty(pg_total_relation_size($1)) as table_size,
+                pg_total_relation_size($1) as size_bytes
+              FROM ${table.tablename}
+            `, [table.tablename]);
+            
+            // Try to get creation/modification time from pg_stat_user_tables
+            const timeResult = await pool.query(`
+              SELECT 
+                n_tup_ins,
+                n_tup_upd,
+                n_tup_del,
+                last_vacuum,
+                last_autovacuum,
+                last_analyze,
+                last_autoanalyze
+              FROM pg_stat_user_tables 
+              WHERE relname = $1
+            `, [table.tablename]);
+            
+            const stats = statsResult.rows[0];
+            const timeStats = timeResult.rows[0] || {};
+            
+            return {
+              name: table.tablename,
+              schema: table.schemaname,
+              rowCount: parseInt(stats.row_count || 0),
+              tableSize: stats.table_size,
+              sizeBytes: parseInt(stats.size_bytes || 0),
+              hasIndexes: table.hasindexes,
+              insertions: parseInt(timeStats.n_tup_ins || 0),
+              updates: parseInt(timeStats.n_tup_upd || 0),
+              deletions: parseInt(timeStats.n_tup_del || 0),
+              lastVacuum: timeStats.last_vacuum,
+              lastAnalyze: timeStats.last_analyze,
+              isActive: parseInt(stats.row_count || 0) > 0
+            };
+          } catch (error) {
+            console.error(`[CACHED-TABLES] Error getting stats for ${table.tablename}:`, error);
+            return {
+              name: table.tablename,
+              schema: table.schemaname,
+              rowCount: 0,
+              tableSize: 'Unknown',
+              sizeBytes: 0,
+              hasIndexes: table.hasindexes,
+              insertions: 0,
+              updates: 0,
+              deletions: 0,
+              lastVacuum: null,
+              lastAnalyze: null,
+              isActive: false,
+              error: 'Stats unavailable'
+            };
+          }
+        })
+      );
+      
+      // Calculate summary statistics
+      const summary = {
+        totalTables: tablesWithStats.length,
+        activeTables: tablesWithStats.filter(t => t.isActive).length,
+        inactiveTables: tablesWithStats.filter(t => !t.isActive).length,
+        totalRows: tablesWithStats.reduce((sum, t) => sum + t.rowCount, 0),
+        totalSizeBytes: tablesWithStats.reduce((sum, t) => sum + t.sizeBytes, 0)
+      };
+      
+      console.log(`[CACHED-TABLES] Found ${tablesWithStats.length} cache tables`);
+      
+      res.json({
+        success: true,
+        tables: tablesWithStats,
+        summary,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('[CACHED-TABLES] Error fetching cached tables:', error);
+      res.status(500).json({ error: 'Failed to fetch cached tables list' });
     }
   });
 
