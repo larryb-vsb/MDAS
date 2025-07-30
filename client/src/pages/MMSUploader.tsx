@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -914,10 +915,21 @@ export default function MMSUploader() {
       <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">MMS Uploader</h1>
-          <p className="text-muted-foreground">
-            Session-controlled 3-phase upload system (started → uploading → uploaded)
-          </p>
+          <div className="flex items-center gap-4 mb-2">
+            <div>
+              <h1 className="text-3xl font-bold">MMS Uploader</h1>
+              <p className="text-muted-foreground">
+                Session-controlled 3-phase upload system (started → uploading → uploaded)
+              </p>
+            </div>
+            <Link href="/storage-management">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+                <HardDrive className="h-4 w-4" />
+                Storage Management
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </Link>
+          </div>
         </div>
         
         <div className="flex gap-4">
