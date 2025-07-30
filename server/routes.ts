@@ -8339,6 +8339,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pre-Cache Uploader Metrics - DATA ISOLATION for New Data Status Widget
+  // MUST BE BEFORE /api/uploader/:id to prevent route collision
+  app.get("/api/uploader/pre-cache-metrics", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`[UPLOADER-PRE-CACHE] Fetching uploader metrics from pre-cache table only`);
+      
+      const uploaderPagePreCacheTable = getTableName('uploader_page_pre_cache_2025');
+      console.log(`[UPLOADER-PRE-CACHE] Using table name: ${uploaderPagePreCacheTable}`);
+      
+      // Query the pre-cache table for uploader metrics
+      const cacheResult = await db.execute(sql`
+        SELECT 
+          cache_data,
+          total_files_uploaded,
+          completed_files,
+          failed_files,
+          processing_files,
+          new_data_ready,
+          last_upload_datetime,
+          storage_service,
+          last_update_datetime,
+          processing_time_ms
+        FROM ${sql.identifier(uploaderPagePreCacheTable)}
+        WHERE cache_key = 'uploader_session_metrics'
+        ORDER BY last_update_datetime DESC
+        LIMIT 1
+      `);
+      
+      console.log(`[UPLOADER-PRE-CACHE] Query executed, rows found: ${cacheResult.length || (cacheResult as any).rows?.length || 0}`);
+      const cacheData = (cacheResult as any).rows?.[0] || cacheResult[0];
+      
+      if (!cacheData) {
+        // Return default values if no cache exists yet
+        return res.json({
+          totalFiles: 0,
+          completedFiles: 0,
+          recentFiles: 0,
+          newDataReady: false,
+          storageService: 'Replit Object Storage',
+          lastUploadDate: null,
+          lastCompletedUpload: null,
+          lastProcessingDate: null,
+          lastCacheUpdate: null,
+          processingTimeMs: 0
+        });
+      }
+      
+      // Extract data from pre-cache table
+      const metrics = {
+        totalFiles: cacheData.total_files_uploaded || 0,
+        completedFiles: cacheData.completed_files || 0,
+        recentFiles: cacheData.processing_files || 0,
+        newDataReady: cacheData.new_data_ready || false,
+        storageService: cacheData.storage_service || 'Replit Object Storage',
+        lastUploadDate: cacheData.last_upload_datetime,
+        lastCompletedUpload: cacheData.last_upload_datetime,
+        lastProcessingDate: cacheData.last_upload_datetime, // Same for pre-cache
+        lastCacheUpdate: cacheData.last_update_datetime,
+        processingTimeMs: cacheData.processing_time_ms || 0
+      };
+      
+      console.log(`[UPLOADER-PRE-CACHE] Served metrics from pre-cache table: ${metrics.totalFiles} files, cache age: ${new Date(cacheData.last_update_datetime).toISOString()}`);
+      
+      res.json(metrics);
+      
+    } catch (error) {
+      console.error('[UPLOADER-PRE-CACHE] Error fetching pre-cached uploader metrics:', error);
+      
+      // Return default values on error
+      res.json({
+        totalFiles: 0,
+        completedFiles: 0,
+        recentFiles: 0,
+        newDataReady: false,
+        storageService: 'Replit Object Storage',
+        lastUploadDate: null,
+        lastCompletedUpload: null,
+        lastProcessingDate: null,
+        lastCacheUpdate: null,
+        processingTimeMs: 0
+      });
+    }
+  });
+
   app.get("/api/uploader/:id", isAuthenticated, async (req, res) => {
     try {
       const upload = await storage.getUploaderUploadById(req.params.id);
@@ -11089,87 +11173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Uploader Dashboard Metrics API
-  // Pre-Cache Uploader Metrics - DATA ISOLATION for New Data Status Widget
-  app.get("/api/uploader/pre-cache-metrics", isAuthenticated, async (req, res) => {
-    try {
-      console.log(`[UPLOADER-PRE-CACHE] Fetching uploader metrics from pre-cache table only`);
-      
-      const uploaderPagePreCacheTable = getTableName('uploader_page_pre_cache_2025');
-      
-      // Query the pre-cache table for uploader metrics
-      const cacheResult = await db.execute(sql`
-        SELECT 
-          cache_data,
-          total_files_uploaded,
-          completed_files,
-          failed_files,
-          processing_files,
-          new_data_ready,
-          last_upload_datetime,
-          storage_service,
-          last_update_datetime,
-          processing_time_ms
-        FROM ${sql.identifier(uploaderPagePreCacheTable)}
-        WHERE cache_key = 'uploader_session_metrics'
-        ORDER BY last_update_datetime DESC
-        LIMIT 1
-      `);
-      
-      const cacheData = (cacheResult as any).rows[0];
-      
-      if (!cacheData) {
-        // Return default values if no cache exists yet
-        return res.json({
-          totalFiles: 0,
-          completedFiles: 0,
-          recentFiles: 0,
-          newDataReady: false,
-          storageService: 'Replit Object Storage',
-          lastUploadDate: null,
-          lastCompletedUpload: null,
-          lastProcessingDate: null,
-          lastCacheUpdate: null,
-          processingTimeMs: 0
-        });
-      }
-      
-      // Extract data from pre-cache table
-      const metrics = {
-        totalFiles: cacheData.total_files_uploaded || 0,
-        completedFiles: cacheData.completed_files || 0,
-        recentFiles: cacheData.processing_files || 0,
-        newDataReady: cacheData.new_data_ready || false,
-        storageService: cacheData.storage_service || 'Replit Object Storage',
-        lastUploadDate: cacheData.last_upload_datetime,
-        lastCompletedUpload: cacheData.last_upload_datetime,
-        lastProcessingDate: cacheData.last_upload_datetime, // Same for pre-cache
-        lastCacheUpdate: cacheData.last_update_datetime,
-        processingTimeMs: cacheData.processing_time_ms || 0
-      };
-      
-      console.log(`[UPLOADER-PRE-CACHE] Served metrics from pre-cache table: ${metrics.totalFiles} files, cache age: ${new Date(cacheData.last_update_datetime).toISOString()}`);
-      
-      res.json(metrics);
-      
-    } catch (error) {
-      console.error('[UPLOADER-PRE-CACHE] Error fetching pre-cached uploader metrics:', error);
-      
-      // Return default values on error
-      res.json({
-        totalFiles: 0,
-        completedFiles: 0,
-        recentFiles: 0,
-        newDataReady: false,
-        storageService: 'Replit Object Storage',
-        lastUploadDate: null,
-        lastCompletedUpload: null,
-        lastProcessingDate: null,
-        lastCacheUpdate: null,
-        processingTimeMs: 0
-      });
-    }
-  });
+
 
   // Pre-Cache Builder API - Populate all pre-cache tables
   app.post("/api/system/build-pre-cache", isAuthenticated, async (req, res) => {
