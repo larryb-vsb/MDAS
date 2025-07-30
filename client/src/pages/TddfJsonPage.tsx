@@ -1048,7 +1048,7 @@ export default function TddfJsonPage() {
                             { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction Amount' },
                             { key: 'merchant_name', label: 'Merchant Name', tooltip: 'Merchant Business Name' },
                             { key: 'terminal_id', label: 'Terminal', tooltip: 'Terminal ID' },
-                            { key: 'card_type', label: 'Card Type', tooltip: 'Card Brand Type' }
+                            { key: 'card_type', label: 'Card Type', tooltip: 'Card Brand Type (253-254) AN 2' }
                           ].map(({ key, label, tooltip }) => (
                             tooltip ? (
                               <TooltipProvider key={key}>
@@ -1181,7 +1181,6 @@ export default function TddfJsonPage() {
                                       </Badge>
                                     );
                                   })()}
-                                  <span className="text-[10px] text-gray-500 mt-1">(253-254) AN 2</span>
                                 </div>
                               ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
@@ -1272,7 +1271,6 @@ export default function TddfJsonPage() {
                                       </Badge>
                                     );
                                   })()}
-                                  <span className="text-[10px] text-gray-500 mt-1">(253-254) AN 2</span>
                                 </div>
                               ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
