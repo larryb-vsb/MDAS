@@ -8193,7 +8193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cacheMetadata: {
               fromCache: true,
               age: age,
-              lastRefresh: cachedData.updated_at,
+              lastRefreshed: cachedData.updated_at,
               nextRefresh: cachedData.expires_at,
               buildTimeMs: cachedData.build_time_ms,
               recordCount: cachedRecordCount,
