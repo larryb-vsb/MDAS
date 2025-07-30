@@ -359,6 +359,25 @@ export default function MMSUploader() {
     }
   });
 
+  // Manual identify mutation for progressing uploaded files to identified
+  const manualIdentifyMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/manual-identify', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      console.log('[MANUAL-IDENTIFY] Files successfully identified');
+    },
+    onError: (error) => {
+      console.error('Error with manual identification:', error);
+    }
+  });
+
   // Filter uploads based on status and file type
   const filteredUploads = uploads.filter(upload => {
     const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
@@ -396,6 +415,28 @@ export default function MMSUploader() {
       await cancelEncodingMutation.mutateAsync(encodingUploads);
     } catch (error) {
       console.error('Cancel encoding error:', error);
+    }
+  };
+
+  // Manual identify handler for uploaded files
+  const handleManualIdentify = async () => {
+    // Filter selected uploads to only include those in "uploaded" phase
+    const uploadedFiles = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      return upload && upload.currentPhase === 'uploaded';
+    });
+    
+    if (uploadedFiles.length === 0) {
+      console.log('[MANUAL-IDENTIFY] No uploaded files selected');
+      return;
+    }
+    
+    console.log(`[MANUAL-IDENTIFY] Identifying ${uploadedFiles.length} uploaded files`);
+    
+    try {
+      await manualIdentifyMutation.mutateAsync(uploadedFiles);
+    } catch (error) {
+      console.error('Manual identify error:', error);
     }
   };
 
@@ -1647,6 +1688,23 @@ export default function MMSUploader() {
                         <Trash2 className="h-4 w-4 mr-2" />
                         {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selectedUploads.length}`}
                       </Button>
+
+                      {/* Identify Button - only show when Auto 4-5 is disabled and uploaded files are selected */}
+                      {!auto45Enabled && selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && upload.currentPhase === 'uploaded';
+                      }) && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleManualIdentify}
+                          disabled={manualIdentifyMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          {manualIdentifyMutation.isPending ? 'Identifying...' : 'Identify'}
+                        </Button>
+                      )}
 
                       <Button
                         variant="outline"

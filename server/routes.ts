@@ -11029,6 +11029,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual identification endpoint for progressing uploaded files
+  app.post("/api/uploader/manual-identify", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "uploadIds must be a non-empty array"
+        });
+      }
+      
+      console.log(`[MANUAL-IDENTIFY] Processing ${uploadIds.length} files for identification`);
+      
+      const results = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          // Get the upload record
+          const upload = await storage.getUploaderUpload(uploadId);
+          if (!upload) {
+            results.push({ uploadId, success: false, error: "Upload not found" });
+            continue;
+          }
+          
+          // Only process files in "uploaded" phase
+          if (upload.currentPhase !== 'uploaded') {
+            results.push({ 
+              uploadId, 
+              success: false, 
+              error: `File is in '${upload.currentPhase}' phase, only 'uploaded' files can be identified` 
+            });
+            continue;
+          }
+          
+          // Update to identified phase
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'identified',
+            identifiedAt: new Date().toISOString(),
+            processingNotes: JSON.stringify({
+              ...JSON.parse(upload.processingNotes || '{}'),
+              manualIdentificationAt: new Date().toISOString(),
+              identificationMethod: 'manual_user_triggered'
+            })
+          });
+          
+          console.log(`[MANUAL-IDENTIFY] Successfully identified: ${upload.filename} (${uploadId})`);
+          results.push({ uploadId, success: true, filename: upload.filename });
+          
+        } catch (error) {
+          console.error(`[MANUAL-IDENTIFY] Error processing ${uploadId}:`, error);
+          results.push({ 
+            uploadId, 
+            success: false, 
+            error: error instanceof Error ? error.message : "Unknown error" 
+          });
+        }
+      }
+      
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+      
+      res.json({
+        success: true,
+        processedCount: uploadIds.length,
+        successCount,
+        errorCount,
+        results,
+        message: `Successfully identified ${successCount} files${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+      });
+      
+    } catch (error) {
+      console.error("[MANUAL-IDENTIFY] Error in manual identification:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to identify files" 
+      });
+    }
+  });
+
   // Auto 4-5 Toggle Control API endpoints
   app.get("/api/mms-watcher/auto45-status", isAuthenticated, async (req, res) => {
     try {
