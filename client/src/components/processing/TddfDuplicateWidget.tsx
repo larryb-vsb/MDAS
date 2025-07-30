@@ -76,7 +76,7 @@ export default function TddfDuplicateWidget() {
 
   // Cleanup duplicates mutation
   const cleanupMutation = useMutation({
-    mutationFn: () => apiRequest('/api/tddf-json/cleanup-duplicates', {
+    mutationFn: (): Promise<CleanupResponse> => apiRequest('/api/tddf-json/cleanup-duplicates', {
       method: 'POST',
     }),
     onSuccess: (data: CleanupResponse) => {
@@ -336,7 +336,7 @@ export default function TddfDuplicateWidget() {
                         {pattern.duplicate_key}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Files: {[...new Set(pattern.filenames)].slice(0, 2).join(', ')}
+                        Files: {Array.from(new Set(pattern.filenames)).slice(0, 2).join(', ')}
                         {pattern.filenames.length > 2 && ` +${pattern.filenames.length - 2} more`}
                       </div>
                     </div>
@@ -366,10 +366,32 @@ export default function TddfDuplicateWidget() {
           </Alert>
         )}
 
-        {/* Last Scan Time */}
+        {/* Last Scan Time - Enhanced Display */}
         {duplicateData?.lastScanTime && (
-          <div className="text-xs text-muted-foreground text-center pt-2">
-            Last scanned: {new Date(duplicateData.lastScanTime).toLocaleString()}
+          <div className="pt-3 border-t">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Last Scan Completed:</span>
+              <div className="text-right">
+                <div className="font-mono text-sm">
+                  {new Date(duplicateData.lastScanTime).toLocaleString()}
+                </div>
+                <div className="text-muted-foreground">
+                  {(() => {
+                    const scanTime = new Date(duplicateData.lastScanTime);
+                    const now = new Date();
+                    const diffMs = now.getTime() - scanTime.getTime();
+                    const diffMinutes = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMinutes / 60);
+                    
+                    if (diffMinutes < 1) return 'Just now';
+                    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+                    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                    const diffDays = Math.floor(diffHours / 24);
+                    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                  })()}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
