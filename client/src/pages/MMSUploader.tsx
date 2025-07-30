@@ -744,9 +744,9 @@ export default function MMSUploader() {
 
   // Calculate overall statistics for MMS uploads only
   const totalUploads = uploads.length;
-  const completedUploads = uploadsByPhase.completed?.length || 0;
-  const warningUploads = uploadsByPhase.warning?.length || 0;
-  const activeUploads = totalUploads - completedUploads - warningUploads;
+  const completedUploads = (uploadsByPhase.completed?.length || 0) + (uploadsByPhase.encoded?.length || 0);
+  const warningUploads = (uploadsByPhase.warning?.length || 0) + (uploadsByPhase.failed?.length || 0) + (uploadsByPhase.error?.length || 0);
+  const activeUploads = (uploadsByPhase.started?.length || 0) + (uploadsByPhase.uploading?.length || 0) + (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.processing?.length || 0);
 
   // Reset page when filters change
   React.useEffect(() => {
