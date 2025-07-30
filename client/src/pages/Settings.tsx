@@ -556,7 +556,7 @@ export default function Settings() {
                         </div>
                         {cachedTables && (
                           <div className="space-y-2">
-                            <div className="grid grid-cols-4 gap-2 text-sm">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span><strong>Fresh:</strong> {cachedTables.summary?.freshTables || 0}</span>
@@ -571,6 +571,14 @@ export default function Settings() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span><strong>Active:</strong> {cachedTables.summary?.activeNoTimestamp || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                                <span><strong>Empty:</strong> {cachedTables.summary?.emptyTables || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                                 <span><strong>Total:</strong> {cachedTables.summary?.totalTables || 0}</span>
                               </div>
                             </div>
@@ -586,6 +594,8 @@ export default function Settings() {
                                             table.status === 'fresh' ? 'bg-green-500' :
                                             table.status === 'stale' ? 'bg-yellow-500' :
                                             table.status === 'expired' ? 'bg-red-500' :
+                                            table.status === 'active' ? 'bg-blue-500' :
+                                            table.status === 'empty' ? 'bg-gray-300' :
                                             'bg-gray-400'
                                           }`}></div>
                                           <span className={`font-mono font-medium ${table.isActive ? 'text-blue-700' : 'text-gray-500'}`}>
@@ -593,7 +603,7 @@ export default function Settings() {
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-3 mt-1">
-                                          {table.lastUpdated && (
+                                          {table.lastUpdated ? (
                                             <span className={`text-xs ${
                                               table.ageInMinutes < 30 ? 'text-green-600' : 
                                               table.ageInMinutes < 120 ? 'text-yellow-600' : 
@@ -602,6 +612,16 @@ export default function Settings() {
                                               {table.ageInMinutes < 60 ? `${table.ageInMinutes}m ago` :
                                                table.ageInMinutes < 1440 ? `${Math.floor(table.ageInMinutes / 60)}h ago` :
                                                `${Math.floor(table.ageInMinutes / 1440)}d ago`}
+                                            </span>
+                                          ) : (
+                                            <span className={`text-xs ${
+                                              table.status === 'active' ? 'text-blue-600' :
+                                              table.status === 'empty' ? 'text-gray-500' :
+                                              'text-gray-400'
+                                            }`}>
+                                              {table.status === 'active' ? 'Active (no timestamp)' :
+                                               table.status === 'empty' ? 'Empty table' :
+                                               'No age info'}
                                             </span>
                                           )}
                                           <span className="text-gray-600">{table.rowCount.toLocaleString()} rows</span>

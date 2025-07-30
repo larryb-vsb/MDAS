@@ -7555,8 +7555,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   continue;
                 }
               }
+              
+              // If no timestamp found, determine status based on row count and table activity
+              if (!lastUpdated) {
+                const rowCount = parseInt(stats.row_count || 0);
+                if (rowCount > 0) {
+                  status = 'active'; // Has data but no timestamp tracking
+                } else {
+                  status = 'empty'; // No data
+                }
+              }
             } catch (timestampError) {
-              // No timestamp available
+              // No timestamp available, use table activity as fallback
+              const rowCount = parseInt(stats.row_count || 0);
+              status = rowCount > 0 ? 'active' : 'empty';
             }
             
             const stats = statsResult.rows[0];
@@ -7611,6 +7623,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         freshTables: tablesWithStats.filter(t => t.status === 'fresh').length,
         staleTables: tablesWithStats.filter(t => t.status === 'stale').length,
         expiredTables: tablesWithStats.filter(t => t.status === 'expired').length,
+        activeNoTimestamp: tablesWithStats.filter(t => t.status === 'active').length,
+        emptyTables: tablesWithStats.filter(t => t.status === 'empty').length,
         totalRows: tablesWithStats.reduce((sum, t) => sum + t.rowCount, 0),
         totalSizeBytes: tablesWithStats.reduce((sum, t) => sum + t.sizeBytes, 0)
       };
