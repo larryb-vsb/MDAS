@@ -30,6 +30,7 @@ import MMSUploader from "@/pages/MMSUploader";
 import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
+import StorageManagement from "@/pages/StorageManagement";
 function Router() {
   return (
     <Switch>
@@ -57,6 +58,7 @@ function Router() {
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
+      <ProtectedRoute path="/storage-management" component={StorageManagement} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />

@@ -12023,6 +12023,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Master Object Keys API Endpoints
+  
+  // Get Master Object Keys Statistics
+  app.get("/api/storage/master-keys/stats", isAuthenticated, async (req, res) => {
+    try {
+      const masterKeysTable = getTableName('master_object_keys');
+      const purgeQueueTable = getTableName('object_purge_queue');
+      
+      // Get master object keys stats
+      const masterStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_objects,
+          COUNT(CASE WHEN marked_for_purge = true THEN 1 END) as marked_for_purge,
+          COUNT(CASE WHEN processing_status = 'complete' THEN 1 END) as processing_complete,
+          COUNT(CASE WHEN processing_status = 'orphaned' THEN 1 END) as orphaned_objects,
+          SUM(COALESCE(file_size, 0)) as total_storage_bytes,
+          SUM(COALESCE(line_count, 0)) as total_lines,
+          COUNT(CASE WHEN upload_id IS NOT NULL THEN 1 END) as linked_to_uploads
+        FROM ${masterKeysTable}
+      `);
+      
+      const stats = masterStats.rows[0];
+      
+      // Get purge queue stats
+      let queueStats = { total_queued: 0, orphaned_queued: 0, expired_queued: 0, ready_for_purge: 0, already_purged: 0 };
+      try {
+        const queueResult = await pool.query(`
+          SELECT 
+            COUNT(*) as total_queued,
+            COUNT(CASE WHEN purge_type = 'orphaned' THEN 1 END) as orphaned_queued,
+            COUNT(CASE WHEN purge_type = 'expired' THEN 1 END) as expired_queued,
+            COUNT(CASE WHEN scheduled_purge_date <= NOW() THEN 1 END) as ready_for_purge,
+            COUNT(CASE WHEN purged_at IS NOT NULL THEN 1 END) as already_purged
+          FROM ${purgeQueueTable}
+        `);
+        queueStats = queueResult.rows[0];
+      } catch (error) {
+        console.warn('Purge queue table not accessible:', error.message);
+      }
+      
+      // Get recent activity
+      const recentActivity = await pool.query(`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as objects_created
+        FROM ${masterKeysTable}
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 7
+      `);
+      
+      res.json({
+        masterKeys: {
+          totalObjects: parseInt(stats.total_objects || 0),
+          linkedToUploads: parseInt(stats.linked_to_uploads || 0),
+          processingComplete: parseInt(stats.processing_complete || 0),
+          orphanedObjects: parseInt(stats.orphaned_objects || 0),
+          markedForPurge: parseInt(stats.marked_for_purge || 0),
+          totalStorageBytes: parseInt(stats.total_storage_bytes || 0),
+          totalStorageMB: (parseInt(stats.total_storage_bytes || 0) / 1024 / 1024),
+          totalLines: parseInt(stats.total_lines || 0)
+        },
+        purgeQueue: {
+          totalQueued: parseInt(queueStats.total_queued || 0),
+          orphanedQueued: parseInt(queueStats.orphaned_queued || 0),
+          expiredQueued: parseInt(queueStats.expired_queued || 0),
+          readyForPurge: parseInt(queueStats.ready_for_purge || 0),
+          alreadyPurged: parseInt(queueStats.already_purged || 0)
+        },
+        recentActivity: recentActivity.rows,
+        lastUpdated: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Error getting master object keys stats:', error);
+      res.status(500).json({ 
+        error: 'Failed to get storage statistics',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Scan for Orphaned Objects
+  app.post("/api/storage/master-keys/scan-orphaned", isAuthenticated, async (req, res) => {
+    try {
+      const { populateMasterObjectKeys } = require('../scripts/populate-master-object-keys.cjs');
+      
+      console.log('[STORAGE-SCAN] Starting orphaned object scan...');
+      await populateMasterObjectKeys();
+      
+      res.json({
+        success: true,
+        message: 'Orphaned object scan completed successfully',
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[STORAGE-SCAN] Scan failed:', error);
+      res.status(500).json({
+        error: 'Failed to scan for orphaned objects',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Execute Purge Operation
+  app.post("/api/storage/master-keys/purge", isAuthenticated, async (req, res) => {
+    try {
+      const { dryRun = true } = req.body;
+      const { ObjectPurgeTask } = require('../scripts/object-purge-task.cjs');
+      
+      const purgeTask = new ObjectPurgeTask();
+      
+      try {
+        console.log(`[STORAGE-PURGE] ${dryRun ? 'DRY RUN' : 'Executing'} purge operation...`);
+        await purgeTask.executePurge(dryRun);
+        
+        res.json({
+          success: true,
+          message: `Purge operation ${dryRun ? 'simulation' : 'execution'} completed successfully`,
+          dryRun,
+          timestamp: new Date().toISOString()
+        });
+        
+      } finally {
+        await purgeTask.close();
+      }
+      
+    } catch (error) {
+      console.error('[STORAGE-PURGE] Purge failed:', error);
+      res.status(500).json({
+        error: 'Failed to execute purge operation',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Get Master Object Keys List
+  app.get("/api/storage/master-keys/list", isAuthenticated, async (req, res) => {
+    try {
+      const { limit = 50, offset = 0, status = 'all', search = '' } = req.query;
+      const masterKeysTable = getTableName('master_object_keys');
+      
+      let whereClause = 'WHERE 1=1';
+      const params = [];
+      let paramCount = 0;
+      
+      if (status !== 'all') {
+        paramCount++;
+        whereClause += ` AND processing_status = $${paramCount}`;
+        params.push(status);
+      }
+      
+      if (search) {
+        paramCount++;
+        whereClause += ` AND (original_filename ILIKE $${paramCount} OR object_key ILIKE $${paramCount})`;
+        params.push(`%${search}%`);
+      }
+      
+      const countQuery = `SELECT COUNT(*) as total FROM ${masterKeysTable} ${whereClause}`;
+      const listQuery = `
+        SELECT 
+          id, object_key, original_filename, file_type, file_size, line_count,
+          upload_id, current_phase, processing_status, marked_for_purge,
+          created_at, last_accessed_at, last_modified_at, purge_after_date
+        FROM ${masterKeysTable} 
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+      `;
+      
+      params.push(parseInt(limit as string), parseInt(offset as string));
+      
+      const [countResult, listResult] = await Promise.all([
+        pool.query(countQuery, params.slice(0, paramCount)),
+        pool.query(listQuery, params)
+      ]);
+      
+      res.json({
+        objects: listResult.rows,
+        pagination: {
+          total: parseInt(countResult.rows[0].total),
+          limit: parseInt(limit as string),
+          offset: parseInt(offset as string),
+          hasMore: (parseInt(offset as string) + parseInt(limit as string)) < parseInt(countResult.rows[0].total)
+        },
+        filters: { status, search },
+        lastUpdated: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('Error getting master object keys list:', error);
+      res.status(500).json({ 
+        error: 'Failed to get master object keys list',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Duplicate Finder Status API
   app.get("/api/duplicates/status", async (req, res) => {
     try {

@@ -25,7 +25,8 @@ import {
   Database,
   ChevronDown,
   ChevronRight,
-  Archive
+  Archive,
+  HardDrive
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,11 @@ const navItems = [
     icon: <Zap className="h-5 w-5 text-orange-400" />,
     label: "MMS Uploader",
     href: "/uploader"
+  },
+  {
+    icon: <HardDrive className="h-5 w-5 text-purple-400" />,
+    label: "Storage Management",
+    href: "/storage-management"
   },
   {
     icon: <Archive className="h-5 w-5 text-amber-400" />,
