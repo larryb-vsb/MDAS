@@ -236,10 +236,10 @@ class JsonbDuplicateCleanup {
   }
 
   /**
-   * Run full duplicate cleanup scan
+   * Run full duplicate cleanup scan with actual removal
    */
   async runCleanupScan() {
-    console.log(`[JSONB-CLEANUP] Starting duplicate cleanup scan...`);
+    console.log(`[JSONB-CLEANUP] Starting duplicate cleanup scan with removal...`);
     
     try {
       // Get current stats
@@ -251,17 +251,24 @@ class JsonbDuplicateCleanup {
       // Find duplicates
       const duplicates = await this.findDuplicates();
       
-      // Log duplicates
+      // Perform actual cleanup (remove duplicates)
+      const cleanupResult = await this.removeDuplicates(duplicates);
+      
+      // Log duplicates (now includes removal information)
       const summary = await this.logDuplicates(duplicates);
       
-      console.log(`[JSONB-CLEANUP] Cleanup scan completed`);
-      console.log(`[JSONB-CLEANUP] Status: Legacy import ongoing - duplicates tracked but not removed`);
+      console.log(`[JSONB-CLEANUP] Cleanup scan completed with ${cleanupResult.recordsRemoved} records removed`);
+      console.log(`[JSONB-CLEANUP] Status: Duplicates removed - keeping earliest records`);
       
       return {
         success: true,
         stats,
-        duplicates: summary,
-        message: 'Duplicate scan completed - duplicates logged for post-import cleanup'
+        duplicates: {
+          ...summary,
+          recordsRemoved: cleanupResult.recordsRemoved,
+          patternsProcessed: cleanupResult.patternsProcessed
+        },
+        message: `Duplicate cleanup completed - ${cleanupResult.recordsRemoved} duplicate records removed`
       };
       
     } catch (error) {
@@ -270,6 +277,54 @@ class JsonbDuplicateCleanup {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Remove duplicate records (keeping the earliest record for each pattern)
+   */
+  async removeDuplicates(duplicates) {
+    const client = await this.pool.connect();
+    let totalRecordsRemoved = 0;
+    let patternsProcessed = 0;
+    
+    try {
+      console.log(`[JSONB-CLEANUP] Starting removal of ${duplicates.length} duplicate patterns...`);
+      
+      for (const duplicate of duplicates) {
+        if (duplicate.record_ids && duplicate.record_ids.length > 1) {
+          // Keep the first record (earliest), remove the rest
+          const idsToRemove = duplicate.record_ids.slice(1);
+          
+          if (idsToRemove.length > 0) {
+            const placeholders = idsToRemove.map((_, i) => `$${i + 1}`).join(',');
+            
+            const deleteResult = await client.query(
+              `DELETE FROM ${this.tableName} WHERE id IN (${placeholders})`,
+              idsToRemove
+            );
+            
+            const removedCount = deleteResult.rowCount || 0;
+            totalRecordsRemoved += removedCount;
+            patternsProcessed++;
+            
+            console.log(`[JSONB-CLEANUP] Removed ${removedCount} duplicates for ${duplicate.duplicate_type} pattern: ${duplicate.duplicate_key.substring(0, 30)}...`);
+          }
+        }
+      }
+      
+      console.log(`[JSONB-CLEANUP] Duplicate removal completed: ${totalRecordsRemoved} records removed from ${patternsProcessed} patterns`);
+      
+      return {
+        recordsRemoved: totalRecordsRemoved,
+        patternsProcessed: patternsProcessed
+      };
+      
+    } catch (error) {
+      console.error('[JSONB-CLEANUP] Error removing duplicates:', error);
+      throw error;
+    } finally {
+      client.release();
     }
   }
 }
