@@ -22,11 +22,18 @@ import {
   TrendingUp,
   RefreshCw,
   Database,
-  Clock
+  Clock,
+  Upload,
+  Search,
+  Lightbulb,
+  Cloud,
+  HardDrive,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
+import { Link } from 'wouter';
 
 // Interface for dashboard metrics with cache metadata
 interface DashboardMetrics {

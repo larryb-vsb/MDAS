@@ -1492,4 +1492,40 @@ export type DashboardCache = typeof dashboardCache.$inferSelect;
 export const insertDashboardCacheSchema = createInsertSchema(dashboardCache);
 export type InsertDashboardCache = z.infer<typeof insertDashboardCacheSchema>;
 
+// Uploader dashboard cache table for MMS Uploader metrics
+export const uploaderDashboardCache = pgTable(getTableName("uploader_dashboard_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'uploader_stats'
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed uploader metrics
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  build_time_ms: integer("build_time_ms"),
+  refresh_state: text("refresh_state").notNull().default("paused"), // paused, green_30s, blue_1min, off, red_issues
+  last_manual_refresh: timestamp("last_manual_refresh"),
+});
+
+export type UploaderDashboardCache = typeof uploaderDashboardCache.$inferSelect;
+export const insertUploaderDashboardCacheSchema = createInsertSchema(uploaderDashboardCache);
+export type InsertUploaderDashboardCache = z.infer<typeof insertUploaderDashboardCacheSchema>;
+
+// Duplicate finder cache table for TDDF record deduplication status
+export const duplicateFinderCache = pgTable(getTableName("duplicate_finder_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'duplicate_scan_status'
+  scan_status: text("scan_status").notNull().default("gray"), // gray, red, green
+  duplicate_count: integer("duplicate_count").notNull().default(0),
+  total_scanned: integer("total_scanned").notNull().default(0),
+  last_scan_date: timestamp("last_scan_date"),
+  scan_in_progress: boolean("scan_in_progress").notNull().default(false),
+  cooldown_until: timestamp("cooldown_until"), // 6-minute cooldown timer
+  scan_history: jsonb("scan_history"), // Array of historical scan results
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type DuplicateFinderCache = typeof duplicateFinderCache.$inferSelect;
+export const insertDuplicateFinderCacheSchema = createInsertSchema(duplicateFinderCache);
+export type InsertDuplicateFinderCache = z.infer<typeof insertDuplicateFinderCacheSchema>;
+
 // Remove duplicate Terminal type declarations - they are defined below

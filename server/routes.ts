@@ -9911,6 +9911,366 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced Dashboard API Endpoints
+
+  // Uploader Dashboard Metrics API
+  app.get("/api/uploader/dashboard-metrics", async (req, res) => {
+    try {
+      const startTime = Date.now();
+      
+      // Get cached metrics from uploader dashboard cache
+      const cacheResult = await pool.query(`
+        SELECT cache_data, refresh_state, last_manual_refresh, created_at, build_time_ms
+        FROM ${getTableName('uploader_dashboard_cache')}
+        WHERE cache_key = 'uploader_stats' 
+        AND expires_at > NOW()
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `);
+
+      if (cacheResult.rows.length > 0) {
+        const cached = cacheResult.rows[0];
+        return res.json({
+          ...cached.cache_data,
+          refreshState: cached.refresh_state,
+          lastRefreshTime: cached.last_manual_refresh || cached.created_at,
+          cacheMetadata: {
+            lastRefreshed: cached.created_at,
+            buildTime: cached.build_time_ms,
+            fromCache: true
+          }
+        });
+      }
+
+      // Generate fresh metrics if no cache
+      const uploaderTableName = getTableName('uploader_uploads');
+      const [totalFiles, completedFiles, failedFiles, processingFiles] = await Promise.all([
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status = 'completed'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status = 'failed'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${uploaderTableName} WHERE upload_status IN ('started', 'uploading', 'processing')`)
+      ]);
+
+      const metrics = {
+        totalFiles: parseInt(totalFiles.rows[0].count),
+        completedFiles: parseInt(completedFiles.rows[0].count),
+        failedFiles: parseInt(failedFiles.rows[0].count),
+        processingFiles: parseInt(processingFiles.rows[0].count),
+        refreshState: 'paused',
+        lastRefreshTime: new Date().toISOString()
+      };
+
+      const buildTime = Date.now() - startTime;
+
+      // Cache the results
+      await pool.query(`
+        INSERT INTO ${getTableName('uploader_dashboard_cache')} 
+        (cache_key, cache_data, expires_at, build_time_ms, refresh_state)
+        VALUES ($1, $2, NOW() + INTERVAL '5 minutes', $3, 'paused')
+        ON CONFLICT (cache_key) 
+        DO UPDATE SET 
+          cache_data = $2,
+          expires_at = NOW() + INTERVAL '5 minutes',
+          build_time_ms = $3,
+          updated_at = NOW()
+      `, ['uploader_stats', JSON.stringify(metrics), buildTime]);
+
+      res.json({
+        ...metrics,
+        cacheMetadata: {
+          lastRefreshed: new Date().toISOString(),
+          buildTime,
+          fromCache: false
+        }
+      });
+    } catch (error) {
+      console.error('Error getting uploader dashboard metrics:', error);
+      res.status(500).json({ error: 'Failed to get uploader dashboard metrics' });
+    }
+  });
+
+  // Update Uploader Dashboard Refresh State
+  app.post("/api/uploader/dashboard-refresh-state", async (req, res) => {
+    try {
+      const { refreshState } = req.body;
+      
+      if (!['paused', 'green_30s', 'blue_1min', 'off', 'red_issues'].includes(refreshState)) {
+        return res.status(400).json({ error: 'Invalid refresh state' });
+      }
+
+      await pool.query(`
+        UPDATE ${getTableName('uploader_dashboard_cache')} 
+        SET refresh_state = $1, last_manual_refresh = NOW(), updated_at = NOW()
+        WHERE cache_key = 'uploader_stats'
+      `, [refreshState]);
+
+      res.json({ success: true, refreshState });
+    } catch (error) {
+      console.error('Error updating refresh state:', error);
+      res.status(500).json({ error: 'Failed to update refresh state' });
+    }
+  });
+
+  // Duplicate Finder Status API
+  app.get("/api/duplicates/status", async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT scan_status, duplicate_count, total_scanned, last_scan_date, 
+               scan_in_progress, cooldown_until, scan_history
+        FROM ${getTableName('duplicate_finder_cache')}
+        WHERE cache_key = 'duplicate_scan_status'
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `);
+
+      if (result.rows.length === 0) {
+        // Initialize default status
+        await pool.query(`
+          INSERT INTO ${getTableName('duplicate_finder_cache')} 
+          (cache_key, scan_status, duplicate_count, total_scanned)
+          VALUES ('duplicate_scan_status', 'gray', 0, 0)
+        `);
+        
+        return res.json({
+          status: 'gray',
+          duplicateCount: 0,
+          totalScanned: 0,
+          scanInProgress: false
+        });
+      }
+
+      const status = result.rows[0];
+      res.json({
+        status: status.scan_status,
+        duplicateCount: status.duplicate_count,
+        totalScanned: status.total_scanned,
+        lastScanDate: status.last_scan_date,
+        scanInProgress: status.scan_in_progress,
+        cooldownUntil: status.cooldown_until,
+        scanHistory: status.scan_history
+      });
+    } catch (error) {
+      console.error('Error getting duplicate finder status:', error);
+      res.status(500).json({ error: 'Failed to get duplicate finder status' });
+    }
+  });
+
+  // Start Duplicate Scan
+  app.post("/api/duplicates/scan", async (req, res) => {
+    try {
+      // Check if scan is already in progress or in cooldown
+      const statusResult = await pool.query(`
+        SELECT scan_in_progress, cooldown_until
+        FROM ${getTableName('duplicate_finder_cache')}
+        WHERE cache_key = 'duplicate_scan_status'
+      `);
+
+      if (statusResult.rows.length > 0) {
+        const status = statusResult.rows[0];
+        if (status.scan_in_progress) {
+          return res.status(409).json({ error: 'Scan already in progress' });
+        }
+        if (status.cooldown_until && new Date() < new Date(status.cooldown_until)) {
+          return res.status(429).json({ error: 'Scan is in cooldown period' });
+        }
+      }
+
+      // Mark scan as in progress
+      await pool.query(`
+        UPDATE ${getTableName('duplicate_finder_cache')} 
+        SET scan_in_progress = TRUE, scan_status = 'red', updated_at = NOW()
+        WHERE cache_key = 'duplicate_scan_status'
+      `);
+
+      // Perform duplicate scan (simplified version)
+      const tddfTableName = getTableName('tddf_jsonb');
+      const duplicateResult = await pool.query(`
+        SELECT COUNT(*) as duplicate_count
+        FROM (
+          SELECT extracted_fields->>'referenceNumber', COUNT(*) as cnt
+          FROM ${tddfTableName}
+          WHERE record_type = 'DT' 
+          AND extracted_fields->>'referenceNumber' IS NOT NULL
+          GROUP BY extracted_fields->>'referenceNumber'
+          HAVING COUNT(*) > 1
+        ) duplicates
+      `);
+
+      const totalResult = await pool.query(`
+        SELECT COUNT(*) as total FROM ${tddfTableName} WHERE record_type = 'DT'
+      `);
+
+      const duplicateCount = parseInt(duplicateResult.rows[0].duplicate_count || '0');
+      const totalScanned = parseInt(totalResult.rows[0].total || '0');
+      const scanStatus = duplicateCount > 0 ? 'red' : 'green';
+
+      // Update scan results with 6-minute cooldown
+      await pool.query(`
+        UPDATE ${getTableName('duplicate_finder_cache')} 
+        SET scan_status = $1, 
+            duplicate_count = $2, 
+            total_scanned = $3,
+            last_scan_date = NOW(),
+            scan_in_progress = FALSE,
+            cooldown_until = NOW() + INTERVAL '6 minutes',
+            updated_at = NOW()
+        WHERE cache_key = 'duplicate_scan_status'
+      `, [scanStatus, duplicateCount, totalScanned]);
+
+      res.json({
+        success: true,
+        duplicateCount,
+        totalScanned,
+        scanStatus
+      });
+    } catch (error) {
+      console.error('Error starting duplicate scan:', error);
+      
+      // Reset scan in progress flag on error
+      await pool.query(`
+        UPDATE ${getTableName('duplicate_finder_cache')} 
+        SET scan_in_progress = FALSE, scan_status = 'red', updated_at = NOW()
+        WHERE cache_key = 'duplicate_scan_status'
+      `).catch(console.error);
+      
+      res.status(500).json({ error: 'Failed to start duplicate scan' });
+    }
+  });
+
+  // Enhanced Dashboard Cache Refresh with corrected MCC count
+  app.post("/api/dashboard/refresh-cache", isAuthenticated, async (req, res) => {
+    try {
+      const startTime = Date.now();
+      
+      // Get corrected metrics with fixed MCC count of 480
+      const merchantsTableName = getTableName('merchants');
+      const transactionsTableName = getTableName('transactions');
+      const tddfRecordsTableName = getTableName('tddf_records');
+      const terminalsTableName = getTableName('terminals');
+      
+      // Run all queries in parallel for better performance
+      const [
+        totalMerchants,
+        achMerchants,
+        newMerchants30Day,
+        newAchMerchants30Day,
+        monthlyProcessingACH,
+        monthlyProcessingTDDF,
+        todayTransactionsACH,
+        todayTransactionsTDDF,
+        avgTransValueACH,
+        avgTransValueTDDF,
+        dailyProcessingACH,
+        dailyProcessingTDDF,
+        todayTotalTransactionACH,
+        todayTotalTransactionTDDF,
+        totalRecordsACH,
+        totalRecordsTDDF,
+        totalTerminals,
+        achTerminals
+      ] = await Promise.all([
+        pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName}`), // All are ACH for now
+        pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= NOW() - INTERVAL '30 days'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${merchantsTableName} WHERE created_at >= NOW() - INTERVAL '30 days'`),
+        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE_TRUNC('month', transaction_date) = DATE_TRUNC('month', NOW())`),
+        pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE_TRUNC('month', CAST(extracted_fields->>'transactionDate' AS DATE)) = DATE_TRUNC('month', NOW())`),
+        pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(AVG(amount), 0) as avg FROM ${transactionsTableName}`),
+        pool.query(`SELECT COALESCE(AVG(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as avg FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT'`),
+        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM ${transactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
+        pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
+        pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT'`),
+        pool.query(`SELECT COUNT(*) as count FROM ${terminalsTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${terminalsTableName}`)
+      ]);
+
+      const metrics = {
+        merchants: {
+          total: parseInt(totalMerchants.rows[0].count),
+          ach: parseInt(achMerchants.rows[0].count),
+          mmc: 480 // Fixed MCC count as requested
+        },
+        newMerchants30Day: {
+          total: parseInt(newMerchants30Day.rows[0].count) + 480, // Include MCC count
+          ach: parseInt(newAchMerchants30Day.rows[0].count),
+          mmc: 480
+        },
+        monthlyProcessingAmount: {
+          ach: `$${parseFloat(monthlyProcessingACH.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${parseFloat(monthlyProcessingTDDF.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        todayTransactions: {
+          total: parseInt(todayTransactionsACH.rows[0].count) + parseInt(todayTransactionsTDDF.rows[0].count),
+          ach: parseInt(todayTransactionsACH.rows[0].count),
+          mmc: parseInt(todayTransactionsTDDF.rows[0].count)
+        },
+        avgTransValue: {
+          total: Math.round((parseFloat(avgTransValueACH.rows[0].avg || '0') + parseFloat(avgTransValueTDDF.rows[0].avg || '0')) / 2),
+          ach: Math.round(parseFloat(avgTransValueACH.rows[0].avg || '0')),
+          mmc: Math.round(parseFloat(avgTransValueTDDF.rows[0].avg || '0'))
+        },
+        dailyProcessingAmount: {
+          ach: `$${parseFloat(dailyProcessingACH.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${parseFloat(dailyProcessingTDDF.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        todayTotalTransaction: {
+          ach: `$${parseFloat(todayTotalTransactionACH.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${parseFloat(todayTotalTransactionTDDF.rows[0].total || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        },
+        totalRecords: {
+          ach: parseInt(totalRecordsACH.rows[0].count).toLocaleString(),
+          mmc: parseInt(totalRecordsTDDF.rows[0].count).toLocaleString()
+        },
+        totalTerminals: {
+          total: parseInt(totalTerminals.rows[0].count),
+          ach: parseInt(achTerminals.rows[0].count),
+          mmc: 0 // TDDF terminals handled separately
+        }
+      };
+
+      const buildTime = Date.now() - startTime;
+
+      // Cache the results
+      await pool.query(`
+        INSERT INTO ${getTableName('dashboard_cache')} 
+        (cache_key, cache_data, expires_at, build_time_ms, record_count)
+        VALUES ($1, $2, NOW() + INTERVAL '30 minutes', $3, $4)
+        ON CONFLICT (cache_key) 
+        DO UPDATE SET 
+          cache_data = $2,
+          expires_at = NOW() + INTERVAL '30 minutes',
+          build_time_ms = $3,
+          record_count = $4,
+          updated_at = NOW()
+      `, [
+        'main_metrics', 
+        JSON.stringify(metrics), 
+        buildTime,
+        metrics.merchants.total + metrics.merchants.mmc
+      ]);
+
+      res.json({
+        success: true,
+        buildTime,
+        metrics,
+        cacheMetadata: {
+          lastRefreshed: new Date().toISOString(),
+          refreshedBy: (req.user as any)?.username || 'system',
+          buildTime,
+          fromCache: false
+        }
+      });
+    } catch (error) {
+      console.error('Error refreshing dashboard cache:', error);
+      res.status(500).json({ error: 'Failed to refresh dashboard cache' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
