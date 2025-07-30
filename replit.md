@@ -16,12 +16,18 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 30, 2025 - CLEAR TDDF JSON DATABASE FUNCTIONALITY IMPLEMENTATION - **✅ CLEAR TDDF JSON DATABASE BUTTON COMPLETED (July 30, 2025)**: Successfully implemented "Clear TDDF - JSON Database" button on Settings page with comprehensive warning dialog and backend API endpoint
+- Current session: July 30, 2025 - CLEAR TDDF JSON DATABASE FUNCTIONALITY AND CARD TYPE FIELD FIX IMPLEMENTATION - **✅ CLEAR TDDF JSON DATABASE BUTTON COMPLETED (July 30, 2025)**: Successfully implemented "Clear TDDF - JSON Database" button on Settings page with comprehensive warning dialog and backend API endpoint
   - **Frontend Implementation**: Added red destructive button with warning dialog requiring user confirmation before clearing database
   - **Backend API Endpoint**: Created DELETE /api/tddf-json/clear-database endpoint with authentication and environment-aware table handling
   - **Warning Dialog Features**: Comprehensive warning with detailed list of data types being deleted, proper DOM structure without nesting warnings
   - **Safety Features**: TRUNCATE TABLE approach preserves indexes while clearing all records, progress indicators, success/error handling
   - **Database Integration**: Environment-aware table selection (dev_tddf_jsonb vs tddf_jsonb), record count before deletion, automatic stats refresh
+- **✅ TDDF DT CARD TYPE FIELD POSITION FIX COMPLETED (July 30, 2025)**: Successfully corrected TDDF DT Card Type field extraction to proper AN 2 format (positions 253-254) instead of incorrect 6-character extraction
+  - **Field Definition Fixed**: Updated server/tddf-json-encoder.ts Card Type field positions from [251, 256] to [253, 254] for proper 2-character extraction
+  - **Existing Data Corrected**: Created and executed fix-card-type-field-positions.cjs script to update 73 existing DT records with corrected card type values
+  - **Data Validation**: Verified all card types now properly formatted as 2 characters (VD, VS, MD, VB, MC, AM, MB, DB, DS) matching TDDF specification
+  - **Specification Compliance**: Card Type field now correctly extracts positions 253-254 as required by TDDF AN 2 format specification
+  - **Production Ready**: Future TDDF JSON encodings will automatically use correct 2-character card type format, existing data cleaned up
 - **✅ P1 BADGE INTEGRATION COMPLETED (July 30, 2025)**: Successfully implemented P1Badge component that displays orange "P1" badges next to DT records that have associated P1 purchasing card extensions - **✅ DT-P1 TABBED MODAL INTERFACE COMPLETED (July 30, 2025)**: Successfully implemented comprehensive tabbed interface with value truncation, hover tooltips, P1 raw line display, and N/A value removal
   - **Root Cause Fixed**: Multiple frequent interval timers (5s, 10s, 15min, 1hr) running simultaneously causing excessive database polling
   - **Optimized Intervals**: Stage 4 identification reduced from 10s to 30s, Stage 5 encoding reduced from 5s to 20s
