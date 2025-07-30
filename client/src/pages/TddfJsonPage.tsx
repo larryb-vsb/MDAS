@@ -429,6 +429,28 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   );
 }
 
+// P1 Badge Component
+function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, checkForP1Extension: (id: number) => Promise<any> }) {
+  const [hasP1, setHasP1] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkP1 = async () => {
+      const p1Record = await checkForP1Extension(dtRecordId);
+      setHasP1(!!p1Record);
+    };
+    checkP1();
+  }, [dtRecordId, checkForP1Extension]);
+
+  if (hasP1 === null) return null;
+  if (!hasP1) return null;
+
+  return (
+    <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
+      P1
+    </Badge>
+  );
+}
+
 interface TddfJsonStats {
   totalRecords: number;
   recordTypeBreakdown: {
@@ -477,6 +499,8 @@ export default function TddfJsonPage() {
   const [selectedRecord, setSelectedRecord] = useState<TddfJsonRecord | null>(null);
   const [associatedP1Record, setAssociatedP1Record] = useState<any | null>(null);
   const [loadingP1, setLoadingP1] = useState(false);
+  const [p1Records, setP1Records] = useState<Map<number, any>>(new Map());
+  const [activeTab, setActiveTab] = useState<'dt' | 'p1'>('dt');
   const [dateFilter, setDateFilter] = useState<string>('');
 
 
@@ -532,6 +556,9 @@ export default function TddfJsonPage() {
     setAssociatedP1Record(null);
     setLoadingP1(false);
     
+    // Set default tab based on record type
+    setActiveTab(record.record_type === 'P1' ? 'p1' : 'dt');
+    
     // If this is a DT record, look for associated P1 record
     if (record.record_type === 'DT') {
       setLoadingP1(true);
@@ -544,6 +571,26 @@ export default function TddfJsonPage() {
       } finally {
         setLoadingP1(false);
       }
+    }
+  };
+
+  // Function to check if a DT record has P1 extension
+  const checkForP1Extension = async (dtRecordId: number) => {
+    if (p1Records.has(dtRecordId)) {
+      return p1Records.get(dtRecordId);
+    }
+    
+    try {
+      const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`);
+      const data = await response.json();
+      const p1Record = data.p1Record;
+      
+      // Cache the result (even if null)
+      setP1Records(prev => new Map(prev.set(dtRecordId, p1Record)));
+      return p1Record;
+    } catch (error) {
+      console.error('Error checking P1 record:', error);
+      return null;
     }
   };
 
@@ -1138,10 +1185,13 @@ export default function TddfJsonPage() {
                         ) : (
                           /* All other record types - Show normalized common data */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-8 gap-4 border-t items-center text-sm">
-                            <div>
+                            <div className="flex items-center gap-1">
                               <Badge className={getRecordTypeBadgeClass(record.record_type)}>
                                 {record.record_type}
                               </Badge>
+                              {record.record_type === 'DT' && (
+                                <P1Badge dtRecordId={record.id} checkForP1Extension={checkForP1Extension} />
+                              )}
                             </div>
                             <div className="font-mono text-xs">
                               {record.extracted_fields?.merchantAccountNumber || 'N/A'}
