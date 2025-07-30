@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -1875,20 +1875,32 @@ export default function MMSUploader() {
                           {upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf' && (
                             <div className="flex items-center gap-2">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
+                                className="h-8 w-8 p-0 text-green-600 hover:bg-green-50"
                                 onClick={() => {
                                   setSelectedUploadForJsonb(upload);
                                   setJsonbViewerOpen(true);
                                 }}
-                                title="View JSONB data with highlighted Record Identifier fields"
+                                title="View JSONB"
                               >
-                                <Eye className="h-3 w-3 mr-1" />
-                                View JSONB
+                                <Eye className="h-4 w-4" />
                               </Button>
-                              
+                            </div>
+                          )}
 
+                          {/* No JSONB available - show grey closed eye for alignment */}
+                          {!(upload.currentPhase === 'encoded' && upload.finalFileType === 'tddf') && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-gray-400 cursor-not-allowed"
+                                disabled
+                                title="No JSONB data available"
+                              >
+                                <EyeOff className="h-4 w-4" />
+                              </Button>
                             </div>
                           )}
 
