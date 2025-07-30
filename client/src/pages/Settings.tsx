@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, ArchiveRestore, Database, Download, DownloadCloud, HardDrive, Info, List, RefreshCw, ScrollText, Server } from "lucide-react";
+import { AlertCircle, ArchiveRestore, Database, Download, DownloadCloud, HardDrive, Info, List, RefreshCw, ScrollText, Server, Trash2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -49,6 +50,8 @@ export default function Settings() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [useS3Storage, setUseS3Storage] = useState(false);
+  const [isClearingTddfJson, setIsClearingTddfJson] = useState(false);
+  const [showClearConfirmDialog, setShowClearConfirmDialog] = useState(false);
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -161,6 +164,43 @@ export default function Settings() {
   const downloadBackup = () => {
     // Create a direct download link to the backup file
     window.location.href = "/api/settings/backup/download";
+  };
+
+  const clearTddfJsonDatabase = async () => {
+    try {
+      setIsClearingTddfJson(true);
+      setShowClearConfirmDialog(false);
+      
+      console.log('[SETTINGS] Starting TDDF JSON database clear...');
+      
+      const response = await apiRequest('DELETE', '/api/tddf-json/clear-database');
+      
+      if (response.success) {
+        toast({
+          title: "TDDF JSON Database Cleared",
+          description: `Successfully cleared ${response.recordsDeleted || 0} records from TDDF JSON database`,
+          variant: "default",
+        });
+        
+        console.log(`[SETTINGS] TDDF JSON database cleared: ${response.recordsDeleted} records deleted`);
+        
+        // Refresh database statistics
+        refetch();
+        
+      } else {
+        throw new Error(response.error || "Failed to clear TDDF JSON database");
+      }
+      
+    } catch (error) {
+      console.error('[SETTINGS] Error clearing TDDF JSON database:', error);
+      toast({
+        title: "Clear Failed",
+        description: error instanceof Error ? error.message : "Failed to clear TDDF JSON database. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClearingTddfJson(false);
+    }
   };
   
   const formatBytes = (bytes: number) => {
@@ -471,24 +511,100 @@ export default function Settings() {
                 
                 {/* Link to view backups page */}
                 {!isBackingUp && (
-                  <div className="flex gap-2 w-full">
-                    <Button 
-                      className="flex-1" 
-                      variant="outline" 
-                      onClick={downloadBackup}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Latest Backup
-                    </Button>
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="flex gap-2 w-full">
+                      <Button 
+                        className="flex-1" 
+                        variant="outline" 
+                        onClick={downloadBackup}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Latest Backup
+                      </Button>
+                      
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        onClick={() => navigate("/backups")}
+                      >
+                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                        View Backup Management
+                      </Button>
+                    </div>
                     
-                    <Button
-                      className="flex-1"
-                      variant="outline"
-                      onClick={() => navigate("/backups")}
-                    >
-                      <ArchiveRestore className="mr-2 h-4 w-4" />
-                      View Backup Management
-                    </Button>
+                    {/* Clear TDDF JSON Database Button with Warning Dialog */}
+                    <Dialog open={showClearConfirmDialog} onOpenChange={setShowClearConfirmDialog}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          className="w-full"
+                          disabled={isClearingTddfJson}
+                        >
+                          {isClearingTddfJson ? (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                              Clearing TDDF JSON Database...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Clear TDDF - JSON Database
+                            </>
+                          )}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center text-destructive">
+                            <AlertTriangle className="mr-2 h-5 w-5" />
+                            Clear TDDF JSON Database
+                          </DialogTitle>
+                          <DialogDescription className="space-y-3">
+                            <p className="font-medium text-destructive">
+                              ⚠️ WARNING: This action cannot be undone!
+                            </p>
+                            <p>
+                              This will permanently delete all records from the TDDF JSON database table, including:
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              <li>All DT (transaction) records</li>
+                              <li>All BH (batch header) records</li>
+                              <li>All P1 (purchasing card) records</li>
+                              <li>All other TDDF record types</li>
+                              <li>All extracted field data</li>
+                            </ul>
+                            <p className="text-sm text-muted-foreground">
+                              You will need to re-process and re-encode your TDDF files to restore this data.
+                            </p>
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowClearConfirmDialog(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={clearTddfJsonDatabase}
+                            disabled={isClearingTddfJson}
+                          >
+                            {isClearingTddfJson ? (
+                              <>
+                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                Clearing...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Clear Database
+                              </>
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 )}
               </CardFooter>

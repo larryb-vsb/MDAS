@@ -8960,6 +8960,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear TDDF JSON Database endpoint
+  app.delete("/api/tddf-json/clear-database", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF-JSON-CLEAR] Starting database clear operation...');
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      
+      // Get record count before deletion
+      const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+      const recordsToDelete = parseInt(countResult.rows[0].count);
+      
+      console.log(`[TDDF-JSON-CLEAR] Found ${recordsToDelete} records to delete from ${tableName}`);
+      
+      // Clear all records from the TDDF JSON table
+      const deleteResult = await pool.query(`TRUNCATE TABLE ${tableName} RESTART IDENTITY`);
+      
+      console.log(`[TDDF-JSON-CLEAR] Successfully cleared ${recordsToDelete} records from TDDF JSON database`);
+      
+      res.json({
+        success: true,
+        recordsDeleted: recordsToDelete,
+        tableName: tableName,
+        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database`
+      });
+      
+    } catch (error) {
+      console.error('[TDDF-JSON-CLEAR] Error clearing TDDF JSON database:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear TDDF JSON database"
+      });
+    }
+  });
+
   app.get("/api/tddf-json/performance-stats", isAuthenticated, async (req, res) => {
     try {
       const environment = process.env.NODE_ENV || 'development';
