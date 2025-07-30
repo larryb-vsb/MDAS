@@ -111,6 +111,9 @@ export default function MMSUploader() {
   // Review mode state
   const [keep, setKeep] = useState<boolean>(false);
   
+  // Auto 4-5 processing toggle state
+  const [auto45Enabled, setAuto45Enabled] = useState<boolean>(true);
+  
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
@@ -200,6 +203,28 @@ export default function MMSUploader() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+  });
+
+  // Get Auto 4-5 processing status
+  const { data: auto45Status } = useQuery<{
+    success: boolean;
+    enabled: boolean;
+    status: string;
+    message: string;
+  }>({
+    queryKey: ['/api/mms-watcher/auto45-status'],
+    queryFn: async () => {
+      const response = await fetch('/api/mms-watcher/auto45-status', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch Auto 4-5 status');
+      return response.json();
+    },
+    refetchInterval: 5000, // Check status every 5 seconds
+    onSuccess: (data) => {
+      // Sync the local state with the server state
+      setAuto45Enabled(data.enabled);
+    }
   });
 
   // Start upload mutation
@@ -308,6 +333,29 @@ export default function MMSUploader() {
     },
     onError: (error) => {
       console.error('Error with bulk encoding:', error);
+    }
+  });
+
+  // Auto 4-5 toggle mutation
+  const auto45ToggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const response = await apiRequest('/api/mms-watcher/auto45-toggle', {
+        method: 'POST',
+        body: { enabled }
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      // Update local state
+      setAuto45Enabled(data.enabled);
+      // Invalidate the status query to refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/mms-watcher/auto45-status'] });
+      console.log(`[AUTO45-TOGGLE] ${data.message}`);
+    },
+    onError: (error) => {
+      console.error('Error toggling Auto 4-5:', error);
+      // Revert the switch state on error
+      setAuto45Enabled(!auto45Enabled);
     }
   });
 
@@ -1058,6 +1106,38 @@ export default function MMSUploader() {
                   {keep && (
                     <div className="text-xs text-amber-700 bg-amber-100 p-2 rounded border-l-4 border-amber-500">
                       <strong>Review Mode Active:</strong> Files will be uploaded but held at "uploaded" phase for manual review and approval before processing.
+                    </div>
+                  )}
+                </div>
+
+                {/* Auto 4-5 Toggle Button */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Lightbulb className={`h-5 w-5 ${auto45Enabled ? 'text-green-600' : 'text-gray-400'}`} />
+                      <div>
+                        <div className="font-medium text-blue-800">Auto 4-5</div>
+                        <div className="text-sm text-blue-600">
+                          Automatic identification and encoding (steps 4-5)
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={auto45Enabled}
+                      onCheckedChange={(enabled) => {
+                        // Update local state immediately for responsive UI
+                        setAuto45Enabled(enabled);
+                        // Make API call to sync with server
+                        auto45ToggleMutation.mutate(enabled);
+                      }}
+                      className="data-[state=checked]:bg-green-500"
+                      disabled={auto45ToggleMutation.isPending}
+                    />
+                  </div>
+                  
+                  {!auto45Enabled && (
+                    <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded border-l-4 border-gray-500">
+                      <strong>Manual Processing:</strong> Files will stop at "uploaded" phase and require manual triggering for identification and encoding steps.
                     </div>
                   )}
                 </div>

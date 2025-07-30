@@ -13,6 +13,7 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
+    this.auto45Enabled = true; // Auto 4-5 processing enabled by default
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
 
@@ -32,6 +33,10 @@ class MMSWatcher {
     
     // Start Stage 4 identification service with reduced frequency
     this.identificationIntervalId = setInterval(async () => {
+      if (!this.auto45Enabled) {
+        console.log('[MMS-WATCHER] Auto 4-5 disabled - skipping identification processing');
+        return;
+      }
       const hasFiles = await this.hasFilesInPhase('uploaded');
       if (hasFiles) {
         this.processUploadedFiles();
@@ -40,6 +45,10 @@ class MMSWatcher {
     
     // Start Stage 5 encoding service with reduced frequency
     this.encodingIntervalId = setInterval(async () => {
+      if (!this.auto45Enabled) {
+        console.log('[MMS-WATCHER] Auto 4-5 disabled - skipping encoding processing');
+        return;
+      }
       const hasFiles = await this.hasFilesInPhase('identified');
       if (hasFiles) {
         this.processIdentifiedFiles();
@@ -619,6 +628,19 @@ class MMSWatcher {
         error: error.message
       };
     }
+  }
+
+  // Auto 4-5 Control Methods
+  setAuto45Enabled(enabled) {
+    this.auto45Enabled = enabled;
+    console.log(`[MMS-WATCHER] Auto 4-5 processing ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  getAuto45Status() {
+    return {
+      enabled: this.auto45Enabled,
+      status: this.auto45Enabled ? 'enabled' : 'disabled'
+    };
   }
 }
 

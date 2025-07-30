@@ -11029,6 +11029,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto 4-5 Toggle Control API endpoints
+  app.get("/api/mms-watcher/auto45-status", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[AUTO45-API] Getting Auto 4-5 processing status...");
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      const status = mmsWatcher.getAuto45Status();
+      
+      res.json({
+        success: true,
+        enabled: status.enabled,
+        status: status.status,
+        message: `Auto 4-5 processing is currently ${status.status}`
+      });
+    } catch (error) {
+      console.error("[AUTO45-API] Error getting Auto 4-5 status:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get Auto 4-5 status" 
+      });
+    }
+  });
+
+  app.post("/api/mms-watcher/auto45-toggle", isAuthenticated, async (req, res) => {
+    try {
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid enabled parameter - must be boolean"
+        });
+      }
+      
+      console.log(`[AUTO45-API] Setting Auto 4-5 processing to: ${enabled}`);
+      
+      const mmsWatcher = getMmsWatcherInstance();
+      if (!mmsWatcher) {
+        return res.status(503).json({
+          success: false,
+          error: "MMS Watcher service not available"
+        });
+      }
+      
+      mmsWatcher.setAuto45Enabled(enabled);
+      const status = mmsWatcher.getAuto45Status();
+      
+      res.json({
+        success: true,
+        enabled: status.enabled,
+        status: status.status,
+        message: `Auto 4-5 processing ${enabled ? 'enabled' : 'disabled'} successfully`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("[AUTO45-API] Error toggling Auto 4-5:", error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to toggle Auto 4-5" 
+      });
+    }
+  });
+
   // ===========================
   // HEAT MAP PERFORMANCE OPTIMIZATION ENDPOINTS
   // ===========================
