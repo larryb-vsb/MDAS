@@ -14,11 +14,12 @@ interface UploaderMetrics {
 }
 
 const UploaderDataStatus = () => {
-  // Query uploader dashboard metrics
+  // DATA ISOLATION: Query ONLY from Uploader Page Pre-Cache table 
+  // This ensures instant loading and no dynamic processing interference
   const { data: uploaderMetrics, isLoading } = useQuery({
-    queryKey: ['/api/uploader/dashboard-metrics'],
+    queryKey: ['/api/uploader/pre-cache-metrics'],
     queryFn: async () => {
-      const response = await fetch('/api/uploader/dashboard-metrics');
+      const response = await fetch('/api/uploader/pre-cache-metrics');
       if (!response.ok) {
         // If 404, return default values
         if (response.status === 404) {
@@ -27,27 +28,21 @@ const UploaderDataStatus = () => {
             completedFiles: 0,
             recentFiles: 0,
             newDataReady: false,
-            storageService: 'Unknown'
+            storageService: 'Replit Object Storage',
+            lastUploadDate: null,
+            lastCompletedUpload: null,
+            lastProcessingDate: null
           };
         }
-        throw new Error('Failed to fetch uploader metrics');
+        throw new Error('Failed to fetch uploader pre-cache metrics');
       }
       return response.json();
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000, // 30 seconds - faster refresh for pre-cached data
     refetchInterval: 60 * 1000, // Refresh every minute
   });
 
-  // Query last TDDF JSON processing datetime
-  const { data: lastProcessingData } = useQuery({
-    queryKey: ['/api/tddf-json/last-processing-datetime'],
-    queryFn: async () => {
-      const response = await fetch('/api/tddf-json/last-processing-datetime');
-      if (!response.ok) throw new Error('Failed to fetch last processing datetime');
-      return response.json();
-    },
-    staleTime: 30 * 1000,
-  });
+  // DATA ISOLATION: No separate processing date query - all data comes from pre-cache table
 
   if (isLoading) {
     return (
@@ -115,14 +110,14 @@ const UploaderDataStatus = () => {
       )}
 
       {/* Last Processing Date */}
-      {lastProcessingData?.lastProcessingDateTime && (
+      {metrics?.lastProcessingDate && (
         <div className="flex items-center justify-between p-2 bg-white rounded border border-blue-200">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-blue-900">Last Processing</span>
           </div>
           <div className="text-sm text-purple-700">
-            {new Date(lastProcessingData.lastProcessingDateTime).toLocaleString('en-US', {
+            {new Date(metrics.lastProcessingDate).toLocaleString('en-US', {
               timeZone: 'America/Chicago',
               month: 'short',
               day: 'numeric',

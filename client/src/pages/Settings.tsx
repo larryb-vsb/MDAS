@@ -56,7 +56,7 @@ export default function Settings() {
   const [useS3Storage, setUseS3Storage] = useState(false);
   const [isClearingTddfJson, setIsClearingTddfJson] = useState(false);
   const [showClearConfirmDialog, setShowClearConfirmDialog] = useState(false);
-  const [showHeatMapTest, setShowHeatMapTest] = useState(false);
+  const [showPerformanceTest, setShowPerformanceTest] = useState(false);
   const [heatMapRefreshKey, setHeatMapRefreshKey] = useState(0);
   const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
   const [lastRefreshDetails, setLastRefreshDetails] = useState<{[key: string]: any}>({});
@@ -69,7 +69,7 @@ export default function Settings() {
       if (!response.ok) throw new Error('Failed to fetch heat map testing cache data');
       return response.json();
     },
-    enabled: showHeatMapTest,
+    enabled: showPerformanceTest,
     staleTime: 30 * 1000, // 30 seconds - faster refresh for testing
     refetchOnWindowFocus: false,
   });
@@ -82,7 +82,7 @@ export default function Settings() {
       if (!response.ok) throw new Error('Failed to fetch last new data date');
       return response.json();
     },
-    enabled: showHeatMapTest,
+    enabled: showPerformanceTest,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -95,7 +95,7 @@ export default function Settings() {
       if (!response.ok) throw new Error('Failed to fetch pre-cache status');
       return response.json();
     },
-    enabled: showHeatMapTest,
+    enabled: showPerformanceTest,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false,
   });
@@ -108,7 +108,7 @@ export default function Settings() {
       if (!response.ok) throw new Error('Failed to fetch cached tables');
       return response.json();
     },
-    enabled: showHeatMapTest,
+    enabled: showPerformanceTest,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
@@ -449,24 +449,24 @@ export default function Settings() {
               
               {/* Heat Map Performance Testing Button */}
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <Dialog open={showHeatMapTest} onOpenChange={setShowHeatMapTest}>
+                <Dialog open={showPerformanceTest} onOpenChange={setShowPerformanceTest}>
                   <DialogTrigger asChild>
                     <Button 
                       variant="outline" 
                       className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 bg-purple-50"
                     >
                       <Activity className="mr-2 h-4 w-4" />
-                      Test Dynamic Heat Map System
+                      UI Performance Test Page
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
                     <DialogHeader>
                       <DialogTitle className="flex items-center text-purple-700">
                         <Activity className="mr-2 h-5 w-5" />
-                        Heat Map Testing
+                        UI Performance Test Page
                       </DialogTitle>
                       <DialogDescription>
-                        Test the heat map system with simple daily calculations using DT records only.
+                        Test UI performance system with dedicated pre-caching tables and performance metrics.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 overflow-auto max-h-[70vh]">
@@ -487,7 +487,7 @@ export default function Settings() {
                       {/* Heat Map Status - Moved to top */}
                       <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
-                          <h5 className="font-medium text-gray-900">Heat Map Status</h5>
+                          <h5 className="font-medium text-gray-900">Performance Page - Pre-Cache Status</h5>
                           {heatMapLoading && (
                             <div className="flex items-center gap-2 text-sm text-blue-600">
                               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -586,6 +586,47 @@ export default function Settings() {
                             )}
                           </div>
                         )}
+                      </div>
+                      
+                      {/* Pre-Cache Builder Section */}
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-green-900">Pre-Cache Builder</h5>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch('/api/system/build-pre-cache', {
+                                    method: 'POST',
+                                    credentials: 'include'
+                                  });
+                                  const result = await response.json();
+                                  if (result.success) {
+                                    toast({
+                                      title: "Pre-cache built successfully",
+                                      description: `Built in ${result.buildTimeMs}ms`,
+                                    });
+                                    refetchPreCacheStatus();
+                                  } else {
+                                    throw new Error(result.error || 'Failed to build pre-cache');
+                                  }
+                                } catch (error) {
+                                  toast({
+                                    title: "Pre-cache build failed",
+                                    description: error.message,
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                            >
+                              Build Pre-Cache Tables
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-sm text-green-700">
+                          Build comprehensive pre-cache tables for all pages to ensure instant loading performance.
+                        </div>
                       </div>
                       
                       {/* Cached Tables List */}
@@ -766,7 +807,7 @@ export default function Settings() {
                     <DialogFooter>
                       <Button
                         variant="outline"
-                        onClick={() => setShowHeatMapTest(false)}
+                        onClick={() => setShowPerformanceTest(false)}
                       >
                         Close Testing Panel
                       </Button>

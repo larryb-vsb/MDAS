@@ -11090,6 +11090,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Uploader Dashboard Metrics API
+  // Pre-Cache Uploader Metrics - DATA ISOLATION for New Data Status Widget
+  app.get("/api/uploader/pre-cache-metrics", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`[UPLOADER-PRE-CACHE] Fetching uploader metrics from pre-cache table only`);
+      
+      const uploaderPagePreCacheTable = getTableName('uploader_page_pre_cache_2025');
+      
+      // Query the pre-cache table for uploader metrics
+      const cacheResult = await db.execute(sql`
+        SELECT 
+          cache_data,
+          total_files_uploaded,
+          completed_files,
+          failed_files,
+          processing_files,
+          new_data_ready,
+          last_upload_datetime,
+          storage_service,
+          last_update_datetime,
+          processing_time_ms
+        FROM ${sql.identifier(uploaderPagePreCacheTable)}
+        WHERE cache_key = 'uploader_metrics_data'
+        ORDER BY last_update_datetime DESC
+        LIMIT 1
+      `);
+      
+      const cacheData = (cacheResult as any).rows[0];
+      
+      if (!cacheData) {
+        // Return default values if no cache exists yet
+        return res.json({
+          totalFiles: 0,
+          completedFiles: 0,
+          recentFiles: 0,
+          newDataReady: false,
+          storageService: 'Replit Object Storage',
+          lastUploadDate: null,
+          lastCompletedUpload: null,
+          lastProcessingDate: null,
+          lastCacheUpdate: null,
+          processingTimeMs: 0
+        });
+      }
+      
+      // Extract data from pre-cache table
+      const metrics = {
+        totalFiles: cacheData.total_files_uploaded || 0,
+        completedFiles: cacheData.completed_files || 0,
+        recentFiles: cacheData.processing_files || 0,
+        newDataReady: cacheData.new_data_ready || false,
+        storageService: cacheData.storage_service || 'Replit Object Storage',
+        lastUploadDate: cacheData.last_upload_datetime,
+        lastCompletedUpload: cacheData.last_upload_datetime,
+        lastProcessingDate: cacheData.last_upload_datetime, // Same for pre-cache
+        lastCacheUpdate: cacheData.last_update_datetime,
+        processingTimeMs: cacheData.processing_time_ms || 0
+      };
+      
+      console.log(`[UPLOADER-PRE-CACHE] Served metrics from pre-cache table: ${metrics.totalFiles} files, cache age: ${new Date(cacheData.last_update_datetime).toISOString()}`);
+      
+      res.json(metrics);
+      
+    } catch (error) {
+      console.error('[UPLOADER-PRE-CACHE] Error fetching pre-cached uploader metrics:', error);
+      
+      // Return default values on error
+      res.json({
+        totalFiles: 0,
+        completedFiles: 0,
+        recentFiles: 0,
+        newDataReady: false,
+        storageService: 'Replit Object Storage',
+        lastUploadDate: null,
+        lastCompletedUpload: null,
+        lastProcessingDate: null,
+        lastCacheUpdate: null,
+        processingTimeMs: 0
+      });
+    }
+  });
+
+  // Pre-Cache Builder API - Populate all pre-cache tables
+  app.post("/api/system/build-pre-cache", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`[PRE-CACHE-BUILDER] Starting comprehensive pre-cache build...`);
+      
+      const startTime = Date.now();
+      const results = {};
+      
+      // Build Uploader Page Pre-Cache
+      try {
+        const uploaderTableName = getTableName('uploader_uploads');
+        const uploaderPagePreCacheTable = getTableName('uploader_page_pre_cache_2025');
+        
+        // Get uploader metrics from main table
+        const [totalFiles, completedFiles, failedFiles, processingFiles, lastUploadResult] = await Promise.all([
+          db.execute(sql`SELECT COUNT(*) as count FROM ${sql.identifier(uploaderTableName)}`),
+          db.execute(sql`SELECT COUNT(*) as count FROM ${sql.identifier(uploaderTableName)} WHERE current_phase IN ('uploaded', 'identified', 'encoded')`),
+          db.execute(sql`SELECT COUNT(*) as count FROM ${sql.identifier(uploaderTableName)} WHERE current_phase = 'failed'`),
+          db.execute(sql`SELECT COUNT(*) as count FROM ${sql.identifier(uploaderTableName)} WHERE current_phase IN ('started', 'uploading', 'processing')`),
+          db.execute(sql`
+            SELECT MAX(start_time) as last_upload_date,
+                   MAX(CASE WHEN current_phase IN ('uploaded', 'identified', 'encoded') THEN start_time END) as last_completed_upload
+            FROM ${sql.identifier(uploaderTableName)}
+          `)
+        ]);
+        
+        const totalCount = parseInt(String((totalFiles as any).rows[0]?.count || 0));
+        const completedCount = parseInt(String((completedFiles as any).rows[0]?.count || 0));
+        const failedCount = parseInt(String((failedFiles as any).rows[0]?.count || 0));
+        const processingCount = parseInt(String((processingFiles as any).rows[0]?.count || 0));
+        
+        const lastUploadData = (lastUploadResult as any).rows[0];
+        const lastUploadDate = lastUploadData?.last_upload_date;
+        
+        // Insert or update pre-cache entry
+        await db.execute(sql`
+          INSERT INTO ${sql.identifier(uploaderPagePreCacheTable)} (
+            cache_key, page_name, cache_data, record_count, data_sources,
+            processing_time_ms, last_update_datetime, expires_at, metadata,
+            total_files_uploaded, completed_files, failed_files, processing_files,
+            new_data_ready, last_upload_datetime, storage_service, created_by
+          ) VALUES (
+            'uploader_metrics_data', 'Uploader', 
+            ${JSON.stringify({
+              totalFiles: totalCount,
+              completedFiles: completedCount,
+              failedFiles: failedCount,
+              processingFiles: processingCount,
+              completionRate: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+            })},
+            ${totalCount}, 
+            ${JSON.stringify(['uploader_uploads'])},
+            ${Date.now() - startTime},
+            NOW(),
+            NOW() + INTERVAL '1 hour',
+            ${JSON.stringify({ buildSource: 'pre-cache-builder', buildType: 'comprehensive' })},
+            ${totalCount}, ${completedCount}, ${failedCount}, ${processingCount},
+            ${processingCount > 0 || totalCount > completedCount},
+            ${lastUploadDate ? `'${lastUploadDate}'` : 'NULL'},
+            'Replit Object Storage',
+            'system-pre-cache-builder'
+          )
+          ON CONFLICT (cache_key) DO UPDATE SET
+            cache_data = EXCLUDED.cache_data,
+            record_count = EXCLUDED.record_count,
+            processing_time_ms = EXCLUDED.processing_time_ms,
+            last_update_datetime = EXCLUDED.last_update_datetime,
+            expires_at = EXCLUDED.expires_at,
+            total_files_uploaded = EXCLUDED.total_files_uploaded,
+            completed_files = EXCLUDED.completed_files,
+            failed_files = EXCLUDED.failed_files,
+            processing_files = EXCLUDED.processing_files,
+            new_data_ready = EXCLUDED.new_data_ready,
+            last_upload_datetime = EXCLUDED.last_upload_datetime
+        `);
+        
+        results.uploader = { 
+          totalFiles: totalCount, 
+          completedFiles: completedCount, 
+          status: 'success' 
+        };
+        
+      } catch (error) {
+        console.error('[PRE-CACHE-BUILDER] Error building uploader cache:', error);
+        results.uploader = { status: 'error', error: error.message };
+      }
+      
+      const totalTime = Date.now() - startTime;
+      
+      console.log(`[PRE-CACHE-BUILDER] Pre-cache build completed in ${totalTime}ms`);
+      
+      res.json({
+        success: true,
+        message: 'Pre-cache tables built successfully',
+        buildTimeMs: totalTime,
+        results: results,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[PRE-CACHE-BUILDER] Error building pre-cache tables:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to build pre-cache tables" 
+      });
+    }
+  });
+
   app.get("/api/uploader/dashboard-metrics", isAuthenticated, async (req, res) => {
     try {
       const startTime = Date.now();

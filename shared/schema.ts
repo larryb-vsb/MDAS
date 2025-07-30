@@ -1,9 +1,9 @@
 /**
  * MMS Database Schema
- * Version: 2.7.1 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
- * Last Updated: July 28, 2025
+ * Version: 2.8.0 (follows Semantic Versioning - see SCHEMA_VERSIONING_POLICY.md)
+ * Last Updated: July 30, 2025
  * 
- * MINOR VERSION: MMS Merchant Risk Report Schema Expansion
+ * MINOR VERSION: Comprehensive Pre-Caching Tables System for Performance Optimization
  * New Features: Comprehensive TSYS merchant risk report fields integration including bank identifiers, risk assessment metrics, bypass controls, amount thresholds, compliance status, and enhanced risk management capabilities
  * 
  * Version History:
@@ -21,7 +21,8 @@
  * - 2.5.0: MINOR FEATURE - Emergency Processing Recovery & Zero Backlog Achievement with SQL batch processing, load management, duplicate conflict resolution, and production-ready emergency protocols
  * - 2.6.0: MINOR FEATURE - Complete AD/DR Record Type Frontend Implementation with comprehensive tabbed interface, pagination, detailed view modals, and professional styling
  * - 2.7.0: MINOR FEATURE - Production Deployment Schema Synchronization with complete P1 purchasing extension fields (34 total fields), missing production tables creation, and comprehensive schema alignment for seamless deployment
- * - 2.7.1: PATCH - Pre-deployment validation and schema synchronization fix for production readiness with comprehensive environment detection improvements
+ * - 2.7.1: PATCH - Pre-deployment validation and schema synchronization fix for production readiness with comprehensive environment detection improvements  
+ * - 2.8.0: MINOR FEATURE - Comprehensive Pre-Caching Tables System with dedicated page-specific tables, last update date/time tracking, metadata capture, and standardized performance optimization architecture
  */
 import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -1534,5 +1535,201 @@ export const duplicateFinderCache = pgTable(getTableName("duplicate_finder_cache
 export type DuplicateFinderCache = typeof duplicateFinderCache.$inferSelect;
 export const insertDuplicateFinderCacheSchema = createInsertSchema(duplicateFinderCache);
 export type InsertDuplicateFinderCache = z.infer<typeof insertDuplicateFinderCacheSchema>;
+
+// Dedicated Pre-Caching Tables System - Every page has its own pre-cache table
+// with last update date/time and comprehensive metadata capture
+
+// Dashboard Page Pre-Cache Table
+export const dashboardPagePreCache = pgTable(getTableName("dashboard_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'dashboard_main_metrics'
+  page_name: text("page_name").notNull().default("Dashboard"), // Page identifier
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed dashboard data
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // Array of tables/sources used
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Additional page-specific metadata
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"), // System or user identifier
+}, (table) => ({
+  pageNameIdx: index("dashboard_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("dashboard_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("dashboard_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// Merchants Page Pre-Cache Table
+export const merchantsPagePreCache = pgTable(getTableName("merchants_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'merchants_list_data'
+  page_name: text("page_name").notNull().default("Merchants"), 
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed merchants data
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // merchant tables, tddf_records, etc.
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Merchant count, filter options, etc.
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("merchants_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("merchants_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("merchants_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// Terminals Page Pre-Cache Table  
+export const terminalsPagePreCache = pgTable(getTableName("terminals_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'terminals_list_data'
+  page_name: text("page_name").notNull().default("Terminals"),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed terminals data
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // terminals table, transaction counts
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Terminal counts, activity metrics
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("terminals_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("terminals_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("terminals_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// TDDF JSON Page Pre-Cache Table
+export const tddfJsonPagePreCache = pgTable(getTableName("tddf_json_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'tddf_json_records_data'
+  page_name: text("page_name").notNull().default("TDDF JSON"),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed TDDF JSON data
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // tddf_jsonb table
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Record type breakdown, file counts
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("tddf_json_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("tddf_json_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("tddf_json_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// Processing Page Pre-Cache Table
+export const processingPagePreCache = pgTable(getTableName("processing_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'processing_status_data'
+  page_name: text("page_name").notNull().default("Processing"),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed processing metrics
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // uploaded_files, processing queues
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Queue status, processing rates
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("processing_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("processing_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("processing_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// Uploader Page Pre-Cache Table - CRITICAL for New Data Status Widget
+export const uploaderPagePreCache = pgTable(getTableName("uploader_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'uploader_metrics_data'
+  page_name: text("page_name").notNull().default("Uploader"),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed uploader metrics
+  record_count: integer("record_count").notNull().default(0), // Total files uploaded
+  data_sources: jsonb("data_sources"), // uploader_uploads table
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Upload counts, completion rates, storage info
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+  // Additional uploader-specific fields
+  total_files_uploaded: integer("total_files_uploaded").notNull().default(0),
+  completed_files: integer("completed_files").notNull().default(0),
+  failed_files: integer("failed_files").notNull().default(0),
+  processing_files: integer("processing_files").notNull().default(0),
+  new_data_ready: boolean("new_data_ready").notNull().default(false),
+  last_upload_datetime: timestamp("last_upload_datetime"),
+  storage_service: text("storage_service").default("Replit Object Storage"),
+}, (table) => ({
+  pageNameIdx: index("uploader_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("uploader_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("uploader_page_pre_cache_expires_at_idx").on(table.expires_at),
+  newDataReadyIdx: index("uploader_page_pre_cache_new_data_ready_idx").on(table.new_data_ready),
+  lastUploadIdx: index("uploader_page_pre_cache_last_upload_idx").on(table.last_upload_datetime)
+}));
+
+// Settings Page Pre-Cache Table
+export const settingsPagePreCache = pgTable(getTableName("settings_page_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'settings_system_info'
+  page_name: text("page_name").notNull().default("Settings"),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed system metrics
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // system tables, schema info
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // System info, database stats
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  created_by: text("created_by"),
+}, (table) => ({
+  pageNameIdx: index("settings_page_pre_cache_page_name_idx").on(table.page_name),
+  lastUpdateIdx: index("settings_page_pre_cache_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("settings_page_pre_cache_expires_at_idx").on(table.expires_at)
+}));
+
+// Heat Map Pre-Cache Tables for Performance Testing
+export const heatMapTestingCache2025 = pgTable(getTableName("heat_map_testing_cache_2025"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'heat_map_2025_data'
+  year: integer("year").notNull().default(2025),
+  cache_data: jsonb("cache_data").notNull(), // Pre-computed heat map data
+  record_count: integer("record_count").notNull().default(0),
+  data_sources: jsonb("data_sources"), // tddf_jsonb, activity sources
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_update_datetime: timestamp("last_update_datetime").defaultNow().notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  metadata: jsonb("metadata"), // Heat map specific metrics
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  aggregation_level: text("aggregation_level").notNull().default("daily"), // daily, weekly, monthly
+  performance_tier: text("performance_tier").notNull().default("standard"), // standard, large, enterprise
+}, (table) => ({
+  yearIdx: index("heat_map_testing_cache_2025_year_idx").on(table.year),
+  lastUpdateIdx: index("heat_map_testing_cache_2025_last_update_idx").on(table.last_update_datetime),
+  expiresAtIdx: index("heat_map_testing_cache_2025_expires_at_idx").on(table.expires_at),
+  aggregationIdx: index("heat_map_testing_cache_2025_aggregation_idx").on(table.aggregation_level),
+  performanceTierIdx: index("heat_map_testing_cache_2025_performance_tier_idx").on(table.performance_tier)
+}));
+
+// Pre-Cache Table Types and Schemas
+export type DashboardPagePreCache = typeof dashboardPagePreCache.$inferSelect;
+export type MerchantsPagePreCache = typeof merchantsPagePreCache.$inferSelect;
+export type TerminalsPagePreCache = typeof terminalsPagePreCache.$inferSelect;
+export type TddfJsonPagePreCache = typeof tddfJsonPagePreCache.$inferSelect;
+export type ProcessingPagePreCache = typeof processingPagePreCache.$inferSelect;
+export type UploaderPagePreCache = typeof uploaderPagePreCache.$inferSelect;
+export type SettingsPagePreCache = typeof settingsPagePreCache.$inferSelect;
+export type HeatMapTestingCache2025 = typeof heatMapTestingCache2025.$inferSelect;
+
+// Insert schemas for pre-cache tables
+export const insertDashboardPagePreCacheSchema = createInsertSchema(dashboardPagePreCache).omit({ id: true, created_at: true });
+export const insertMerchantsPagePreCacheSchema = createInsertSchema(merchantsPagePreCache).omit({ id: true, created_at: true });
+export const insertTerminalsPagePreCacheSchema = createInsertSchema(terminalsPagePreCache).omit({ id: true, created_at: true });
+export const insertTddfJsonPagePreCacheSchema = createInsertSchema(tddfJsonPagePreCache).omit({ id: true, created_at: true });
+export const insertProcessingPagePreCacheSchema = createInsertSchema(processingPagePreCache).omit({ id: true, created_at: true });
+export const insertUploaderPagePreCacheSchema = createInsertSchema(uploaderPagePreCache).omit({ id: true, created_at: true });
+export const insertSettingsPagePreCacheSchema = createInsertSchema(settingsPagePreCache).omit({ id: true, created_at: true });
+export const insertHeatMapTestingCache2025Schema = createInsertSchema(heatMapTestingCache2025).omit({ id: true, created_at: true });
 
 // Remove duplicate Terminal type declarations - they are defined below
