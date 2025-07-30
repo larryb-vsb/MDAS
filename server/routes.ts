@@ -8861,6 +8861,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cache statistics and performance monitoring endpoint
+  // TDDF JSON Duplicate Detection API endpoints
+  app.get("/api/tddf-json/duplicate-stats", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF-JSON-DUPLICATES] Getting duplicate statistics...');
+      
+      const { JsonbDuplicateCleanup } = await import("./jsonb-duplicate-cleanup.js");
+      const duplicateCleanup = new JsonbDuplicateCleanup();
+      
+      // Get current duplicate statistics
+      const stats = await duplicateCleanup.getDuplicateStats();
+      
+      // Find actual duplicates for detailed analysis
+      const duplicates = await duplicateCleanup.findDuplicates();
+      
+      // Calculate summary statistics
+      let totalDuplicateRecords = 0;
+      let referenceBasedDuplicates = 0;
+      let lineBasedDuplicates = 0;
+      
+      duplicates.forEach(dup => {
+        totalDuplicateRecords += (dup.duplicate_count - 1);
+        if (dup.duplicate_type === 'reference') {
+          referenceBasedDuplicates += (dup.duplicate_count - 1);
+        } else {
+          lineBasedDuplicates += (dup.duplicate_count - 1);
+        }
+      });
+      
+      console.log(`[TDDF-JSON-DUPLICATES] Stats: ${totalDuplicateRecords} total duplicates, ${duplicates.length} patterns`);
+      
+      res.json({
+        success: true,
+        stats: {
+          ...stats,
+          totalDuplicateRecords,
+          referenceBasedDuplicates,
+          lineBasedDuplicates,
+          duplicatePatterns: duplicates.length,
+          duplicateDetails: duplicates.slice(0, 10) // Show first 10 patterns for UI display
+        },
+        lastScanTime: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[TDDF-JSON-DUPLICATES] Error getting duplicate stats:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get duplicate statistics"
+      });
+    }
+  });
+
+  app.post("/api/tddf-json/cleanup-duplicates", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF-JSON-DUPLICATES] Starting manual duplicate cleanup...');
+      
+      const { JsonbDuplicateCleanup } = await import("./jsonb-duplicate-cleanup.js");
+      const duplicateCleanup = new JsonbDuplicateCleanup();
+      
+      // Run comprehensive cleanup scan
+      const result = await duplicateCleanup.runCleanupScan();
+      
+      if (result.success) {
+        console.log(`[TDDF-JSON-DUPLICATES] Cleanup completed: ${result.duplicates?.totalDuplicateRecords || 0} duplicates processed`);
+        
+        res.json({
+          success: true,
+          message: "Duplicate cleanup scan completed successfully",
+          result: {
+            totalPatterns: result.duplicates?.totalPatterns || 0,
+            totalDuplicateRecords: result.duplicates?.totalDuplicateRecords || 0,
+            referenceBasedDuplicates: result.duplicates?.referenceBasedDuplicates || 0,
+            lineBasedDuplicates: result.duplicates?.lineBasedDuplicates || 0,
+            stats: result.stats
+          },
+          completedAt: new Date().toISOString()
+        });
+      } else {
+        console.error(`[TDDF-JSON-DUPLICATES] Cleanup failed:`, result.error);
+        res.status(500).json({
+          success: false,
+          error: result.error || "Duplicate cleanup failed"
+        });
+      }
+      
+    } catch (error) {
+      console.error('[TDDF-JSON-DUPLICATES] Error during cleanup:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to cleanup duplicates"
+      });
+    }
+  });
+
   app.get("/api/tddf-json/performance-stats", isAuthenticated, async (req, res) => {
     try {
       const environment = process.env.NODE_ENV || 'development';

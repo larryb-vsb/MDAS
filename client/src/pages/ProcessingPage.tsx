@@ -8,6 +8,7 @@ import { AlertCircle, Activity, Database, Zap, TrendingUp, Clock, FileText, Serv
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ProcessingStatus from "@/components/settings/ProcessingStatus";
 import MainLayout from "@/components/layout/MainLayout";
+import TddfDuplicateWidget from "@/components/processing/TddfDuplicateWidget";
 
 // Processing Status Widget
 function ProcessingStatusWidget() {
@@ -454,6 +455,12 @@ export default function ProcessingPage() {
           <ScanlyWatcherWidget />
           <RealTimeStatsWidget />
           <FileProcessorStatusWidget />
+        </div>
+
+        {/* TDDF JSON Data Management */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TddfDuplicateWidget />
+          {/* Additional TDDF widgets can be added here */}
         </div>
       </div>
     </MainLayout>
