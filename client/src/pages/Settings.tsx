@@ -69,6 +69,19 @@ export default function Settings() {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  // Query for comprehensive pre-cache table tracking
+  const { data: preCacheStatus, isLoading: preCacheLoading } = useQuery({
+    queryKey: ['/api/settings/pre-cache-status', heatMapRefreshKey],
+    queryFn: async () => {
+      const response = await fetch('/api/settings/pre-cache-status');
+      if (!response.ok) throw new Error('Failed to fetch pre-cache status');
+      return response.json();
+    },
+    enabled: showHeatMapTest,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false,
+  });
   
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -403,6 +416,44 @@ export default function Settings() {
                           <div className="mt-2 text-xs text-gray-600">
                             <div>Aggregation: <span className="font-medium">{heatMapActivity.metadata.aggregationLevel}</span></div>
                             <div>Performance: {heatMapActivity.metadata.performanceMetrics?.totalQueryTime}ms total</div>
+                          </div>
+                        )}
+                        
+                        {/* Pre-Cache Tables Status */}
+                        {preCacheStatus && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h6 className="text-sm font-medium text-gray-800">Pre-Cache Tables ({preCacheStatus.summary?.available}/{preCacheStatus.summary?.totalTables})</h6>
+                              {preCacheLoading && (
+                                <div className="flex items-center gap-1 text-xs text-blue-600">
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                  Checking...
+                                </div>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span>Fresh: {preCacheStatus.summary?.fresh || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                <span>Stale: {preCacheStatus.summary?.stale || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                <span>Expired: {preCacheStatus.summary?.expired || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span>Unavailable: {preCacheStatus.summary?.unavailable || 0}</span>
+                              </div>
+                            </div>
+                            {preCacheStatus.summary && preCacheStatus.summary.available > 0 && (
+                              <div className="mt-2 text-xs text-gray-600">
+                                Tables: dashboard_cache, duplicate_finder_cache, uploader_dashboard_cache + 2 more
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

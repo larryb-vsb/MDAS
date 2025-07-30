@@ -8266,6 +8266,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pre-cache status endpoint for comprehensive testing coverage
+  app.get("/api/settings/pre-cache-status", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[PRE-CACHE-STATUS] Checking all pre-cache tables...');
+      
+      const cacheTableStatus: Record<string, any> = {};
+      const cacheTableNames = [
+        'dashboard_cache',
+        'duplicate_finder_cache', 
+        'merchant_transaction_cache_orphan_20250729',
+        'tddf_merchants_cache_orphan_20250729',
+        'uploader_dashboard_cache'
+      ];
+      
+      // Check each cache table for status
+      for (const tableName of cacheTableNames) {
+        try {
+          const fullTableName = getTableName(tableName);
+          const statusQuery = `
+            SELECT 
+              COUNT(*) as record_count,
+              MAX(updated_at) as last_updated,
+              MAX(created_at) as created_at,
+              MAX(expires_at) as expires_at
+            FROM ${fullTableName}
+          `;
+          
+          const result = await pool.query(statusQuery);
+          const row = result.rows[0];
+          
+          if (row) {
+            const age = row.last_updated ? Date.now() - new Date(row.last_updated).getTime() : null;
+            const isExpired = row.expires_at ? new Date(row.expires_at) < new Date() : false;
+            
+            cacheTableStatus[tableName] = {
+              recordCount: parseInt(row.record_count),
+              lastUpdated: row.last_updated,
+              created: row.created_at,
+              expires: row.expires_at,
+              ageMinutes: age ? Math.floor(age / 60000) : null,
+              status: isExpired ? 'expired' : (age && age > 1800000 ? 'stale' : 'fresh'), // 30 min threshold
+              tableName: fullTableName
+            };
+          }
+        } catch (error: any) {
+          console.log(`[PRE-CACHE-STATUS] Table ${tableName} not accessible:`, error.message);
+          cacheTableStatus[tableName] = {
+            status: 'unavailable',
+            error: error.message,
+            tableName: getTableName(tableName)
+          };
+        }
+      }
+      
+      // Add special tracking for TDDF JSON activity cache (in-memory)
+      const tddfJsonStatus = {
+        status: 'in-memory',
+        description: 'TDDF JSON activity data cached with dynamic aggregation',
+        ageMinutes: 0 // In-memory cache age is tracked separately
+      };
+      
+      const summary = {
+        totalTables: cacheTableNames.length,
+        available: Object.values(cacheTableStatus).filter((s: any) => s.status !== 'unavailable').length,
+        fresh: Object.values(cacheTableStatus).filter((s: any) => s.status === 'fresh').length,
+        stale: Object.values(cacheTableStatus).filter((s: any) => s.status === 'stale').length,
+        expired: Object.values(cacheTableStatus).filter((s: any) => s.status === 'expired').length,
+        unavailable: Object.values(cacheTableStatus).filter((s: any) => s.status === 'unavailable').length
+      };
+      
+      console.log(`[PRE-CACHE-STATUS] Summary: ${summary.available}/${summary.totalTables} tables available`);
+      
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        cacheTableStatus,
+        tddfJsonStatus,
+        summary
+      });
+      
+    } catch (error: any) {
+      console.error('[PRE-CACHE-STATUS] Error checking pre-cache status:', error);
+      res.status(500).json({ 
+        error: 'Failed to check pre-cache status',
+        message: error.message 
+      });
+    }
+  });
+
   // Universal refresh status endpoint for all Processing pages
   app.get("/api/processing/refresh-status", isAuthenticated, async (req, res) => {
     try {
