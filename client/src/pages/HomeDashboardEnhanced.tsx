@@ -659,12 +659,31 @@ export default function HomeDashboard() {
                   )}
                 </div>
                 
-                <span>
-                  Last refreshed: {(() => {
-                    const date = new Date(metrics.cacheMetadata.lastRefreshed);
-                    return isNaN(date.getTime()) ? 'Invalid date' : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-                  })()}
-                </span>
+                <div className="space-y-1">
+                  <span>
+                    Last refreshed: {(() => {
+                      const date = new Date(metrics.cacheMetadata.lastRefreshed);
+                      return isNaN(date.getTime()) ? 'Invalid date' : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                    })()}
+                  </span>
+                  {metrics.cacheMetadata.duration && (
+                    <div className="text-xs text-muted-foreground">
+                      Duration: {metrics.cacheMetadata.duration}ms • {metrics.cacheMetadata.ageMinutes || 0} min ago
+                    </div>
+                  )}
+                  {metrics.cacheMetadata.refreshStatus && (
+                    <div className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        metrics.cacheMetadata.refreshStatus === 'fresh' ? 'bg-green-500' :
+                        metrics.cacheMetadata.refreshStatus === 'cached' ? 'bg-blue-500' :
+                        'bg-orange-500'
+                      }`}></div>
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {metrics.cacheMetadata.refreshStatus.replace('_', ' ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 
                 {metrics.cacheMetadata.fromCache && (
                   <Badge variant="outline" className="text-xs">

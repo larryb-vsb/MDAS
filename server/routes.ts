@@ -8157,7 +8157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cacheQuery = `
         SELECT cache_data, build_time_ms, created_at, updated_at, expires_at, record_count
         FROM ${tableName} 
-        WHERE cache_key = 'main_metrics' 
+        WHERE cache_key = 'dashboard_metrics' 
         AND expires_at > NOW()
         ORDER BY updated_at DESC 
         LIMIT 1
@@ -8194,10 +8194,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               fromCache: true,
               age: age,
               lastRefreshed: cachedData.updated_at,
+              lastFinished: cachedData.updated_at,
+              duration: cachedData.build_time_ms,
               nextRefresh: cachedData.expires_at,
               buildTimeMs: cachedData.build_time_ms,
               recordCount: cachedRecordCount,
-              dataChangeDetected: false
+              dataChangeDetected: false,
+              refreshStatus: 'cached',
+              ageMinutes: Math.round(age / 60000)
             }
           });
         } else {
@@ -8209,12 +8213,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
       const metrics = await buildDashboardCache();
       
+      const buildTime = Date.now() - startTime;
+      const currentTime = new Date().toISOString();
+      
       res.json({
         ...metrics,
         cacheMetadata: {
           ...metrics.cacheMetadata,
           fromCache: false,
-          dataChangeDetected: cacheResult.rows.length > 0
+          dataChangeDetected: cacheResult.rows.length > 0,
+          lastRefreshed: currentTime,
+          lastFinished: currentTime,
+          duration: buildTime,
+          refreshStatus: 'fresh',
+          ageMinutes: 0
         }
       });
       
@@ -8233,18 +8245,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const metrics = await buildDashboardCache();
       
       const buildTime = Date.now() - startTime;
+      const currentTime = new Date().toISOString();
       
       res.json({
         success: true,
         buildTime,
-        lastRefresh: new Date().toISOString(),
+        lastRefresh: currentTime,
+        lastFinished: currentTime,
+        duration: buildTime,
         message: 'Dashboard cache refreshed successfully',
-        recordCount: metrics.totalMerchants.total + metrics.totalTerminals.total
+        recordCount: metrics.merchants.total + metrics.merchants.mmc,
+        refreshStatus: 'manual_refresh',
+        ageMinutes: 0
       });
       
     } catch (error: any) {
       console.error('[DASHBOARD-REFRESH] Error refreshing cache:', error);
       res.status(500).json({ error: 'Failed to refresh dashboard cache' });
+    }
+  });
+
+  // Universal refresh status endpoint for all Processing pages
+  app.get("/api/processing/refresh-status", isAuthenticated, async (req, res) => {
+    try {
+      const { page } = req.query;
+      const currentTime = new Date();
+      
+      const refreshStatus = {
+        dashboard: null,
+        kpis: null,
+        charts: null,
+        tddfJson: null,
+        uploader: null
+      };
+      
+      // Dashboard cache status
+      const dashboardCacheResult = await pool.query(`
+        SELECT updated_at, build_time_ms, expires_at, record_count 
+        FROM ${getTableName('dashboard_cache')} 
+        WHERE cache_key = 'dashboard_metrics' 
+        ORDER BY updated_at DESC LIMIT 1
+      `);
+      
+      if (dashboardCacheResult.rows.length > 0) {
+        const cache = dashboardCacheResult.rows[0];
+        const age = currentTime.getTime() - new Date(cache.updated_at).getTime();
+        refreshStatus.dashboard = {
+          lastRefreshed: cache.updated_at,
+          lastFinished: cache.updated_at,
+          duration: cache.build_time_ms,
+          ageMinutes: Math.round(age / 60000),
+          recordCount: cache.record_count,
+          status: age > 1800000 ? 'stale' : 'fresh' // 30 minutes
+        };
+      }
+      
+      // KPIs status (based on performance metrics cache)
+      const kpiCacheResult = await pool.query(`
+        SELECT MAX(created_at) as last_update FROM ${getTableName('system_logs')} 
+        WHERE log_type = 'performance_metrics' AND created_at > NOW() - INTERVAL '1 hour'
+      `);
+      
+      if (kpiCacheResult.rows[0].last_update) {
+        const age = currentTime.getTime() - new Date(kpiCacheResult.rows[0].last_update).getTime();
+        refreshStatus.kpis = {
+          lastRefreshed: kpiCacheResult.rows[0].last_update,
+          ageMinutes: Math.round(age / 60000),
+          status: age > 300000 ? 'stale' : 'fresh' // 5 minutes
+        };
+      }
+      
+      // TDDF JSON cache status
+      const tddfCacheResult = await pool.query(`
+        SELECT cache_key, created_at, expires_at 
+        FROM ${getTableName('tddf_jsonb')} 
+        WHERE cache_key LIKE 'activity_%' 
+        ORDER BY created_at DESC LIMIT 1
+      `);
+      
+      if (tddfCacheResult.rows.length > 0) {
+        const cache = tddfCacheResult.rows[0];
+        const age = currentTime.getTime() - new Date(cache.created_at).getTime();
+        refreshStatus.tddfJson = {
+          lastRefreshed: cache.created_at,
+          ageMinutes: Math.round(age / 60000),
+          status: age > 900000 ? 'stale' : 'fresh' // 15 minutes
+        };
+      }
+      
+      res.json({
+        success: true,
+        timestamp: currentTime.toISOString(),
+        refreshStatus,
+        page: page || 'all'
+      });
+      
+    } catch (error: any) {
+      console.error('[REFRESH-STATUS] Error getting refresh status:', error);
+      res.status(500).json({ error: 'Failed to get refresh status' });
     }
   });
 
@@ -10352,7 +10450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_count = $4,
           updated_at = NOW()
       `, [
-        'main_metrics', 
+        'dashboard_metrics', 
         JSON.stringify(metrics), 
         buildTime,
         metrics.merchants.total + metrics.merchants.mmc

@@ -20,6 +20,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { format } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
+import RefreshStatusIndicator from '@/components/shared/RefreshStatusIndicator';
 
 interface UploaderStats {
   totalUploads: number;
