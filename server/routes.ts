@@ -7425,6 +7425,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Simple heat map API for daily DT records only
+  app.get("/api/tddf-json/heatmap-simple", isAuthenticated, async (req, res) => {
+    try {
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      
+      console.log(`[SIMPLE-HEATMAP] Fetching daily DT records for year ${year}`);
+      const startTime = Date.now();
+      
+      // Simple daily aggregation for DT records only
+      const result = await pool.query(`
+        SELECT 
+          (extracted_fields->>'transactionDate')::date as transaction_date,
+          COUNT(*) as transaction_count
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
+        GROUP BY (extracted_fields->>'transactionDate')::date
+        ORDER BY transaction_date
+      `, [year]);
+      
+      const queryTime = Date.now() - startTime;
+      
+      console.log(`[SIMPLE-HEATMAP] Found ${result.rows.length} days with DT transactions in ${queryTime}ms`);
+      
+      // Transform data for heat map component
+      const records = result.rows.map(row => ({
+        transaction_date: row.transaction_date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        transaction_count: parseInt(row.transaction_count)
+      }));
+      
+      res.json({
+        records,
+        queryTime,
+        fromCache: false,
+        metadata: {
+          year,
+          recordType: 'DT',
+          totalRecords: records.reduce((sum, r) => sum + r.transaction_count, 0),
+          aggregationLevel: 'daily',
+          recordCount: result.rows.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching simple heat map data:', error);
+      res.status(500).json({ error: 'Failed to fetch simple heat map data' });
+    }
+  });
+
   // JSONB processing statistics with cache building
   app.get("/api/uploader/jsonb-stats", isAuthenticated, async (req, res) => {
     try {

@@ -399,10 +399,10 @@ export default function Settings() {
                     <DialogHeader>
                       <DialogTitle className="flex items-center text-purple-700">
                         <Activity className="mr-2 h-5 w-5" />
-                        Dynamic Aggregation Heat Map Testing
+                        Heat Map Testing
                       </DialogTitle>
                       <DialogDescription>
-                        Test the new intelligent aggregation system that automatically switches between daily, weekly, monthly, and quarterly views based on dataset size.
+                        Test the heat map system with simple daily calculations using DT records only.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 overflow-auto max-h-[70vh]">

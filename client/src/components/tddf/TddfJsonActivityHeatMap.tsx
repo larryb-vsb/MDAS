@@ -106,14 +106,14 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/activity', currentYear],
+    queryKey: ['/api/tddf-json/heatmap-simple', currentYear],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/activity?year=${currentYear}&recordType=DT`);
-      if (!response.ok) throw new Error('Failed to fetch TDDF JSON activity data');
+      const response = await fetch(`/api/tddf-json/heatmap-simple?year=${currentYear}`);
+      if (!response.ok) throw new Error('Failed to fetch simple heat map data');
       return response.json();
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // Dynamic cache from backend (5-15 mins)
+    staleTime: 5 * 60 * 1000, // 5 minute cache
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 
