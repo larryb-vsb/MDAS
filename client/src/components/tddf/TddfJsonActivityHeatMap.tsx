@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ActivityData {
@@ -44,18 +44,18 @@ interface DaySquareProps {
   activity?: ActivityData;
   isCurrentMonth?: boolean;
   onDateSelect?: (date: string) => void;
-  selectedDate?: string | null;
+  selectedDates?: string[];
 }
 
-const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true, onDateSelect, selectedDate }) => {
+const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = true, onDateSelect, selectedDates = [] }) => {
   const count = activity?.transaction_count || 0;
   const dateString = date.toISOString().split('T')[0];
-  const isSelected = selectedDate === dateString;
+  const isSelected = selectedDates.includes(dateString);
   
   // Enhanced gradient mapping for TDDF JSON data
   const getBackgroundColor = (count: number, isSelected: boolean) => {
     if (isSelected) {
-      return 'bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-600 ring-offset-1';
+      return 'bg-red-500 hover:bg-red-600 ring-2 ring-red-600 ring-offset-1';
     }
     
     if (count === 0) {
@@ -116,6 +116,33 @@ interface TddfJsonActivityHeatMapProps {
 
 const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
+  
+  // Use internal state if no external state is provided
+  const selectedDates = selectedDate ? [selectedDate] : internalSelectedDates;
+  
+  const handleDateSelect = (date: string) => {
+    if (onDateSelect) {
+      onDateSelect(date);
+    } else {
+      // Toggle date selection in internal state
+      setInternalSelectedDates(prev => {
+        if (prev.includes(date)) {
+          return prev.filter(d => d !== date);
+        } else {
+          return [...prev, date];
+        }
+      });
+    }
+  };
+  
+  const clearSelection = () => {
+    if (onDateSelect) {
+      onDateSelect('');
+    } else {
+      setInternalSelectedDates([]);
+    }
+  };
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/heatmap-cached', currentYear],
@@ -323,8 +350,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
                       key={`${monthIndex}-${weekIndex}-${dayIndex}`}
                       date={day.date}
                       activity={day.activity}
-                      onDateSelect={onDateSelect}
-                      selectedDate={selectedDate}
+                      onDateSelect={handleDateSelect}
+                      selectedDates={selectedDates}
                     />
                   ))}
                   {/* Fill empty spots in the last week */}
@@ -382,6 +409,44 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
           </span>
         </div>
       </div>
+      
+      {/* Raw Output Display Box */}
+      {selectedDates.length > 0 && (
+        <div className="mt-4 border border-red-200 rounded-lg p-4 bg-red-50">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-red-900">Selected Dates ({selectedDates.length})</h4>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearSelection}
+              className="h-6 px-2 text-xs border-red-300 text-red-700 hover:bg-red-100"
+            >
+              <X className="h-3 w-3 mr-1" />Clear Selection
+            </Button>
+          </div>
+          <div className="bg-white border border-red-200 rounded p-3 max-h-32 overflow-y-auto">
+            <div className="text-sm font-mono text-gray-800 space-y-1">
+              {selectedDates.sort().map((date, index) => {
+                const activity = activityMap.get(date);
+                const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                });
+                return (
+                  <div key={index} className="flex justify-between">
+                    <span>{formattedDate}</span>
+                    <span className="text-blue-600 font-medium">
+                      {activity?.transaction_count?.toLocaleString() || 0} records
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
