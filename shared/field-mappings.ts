@@ -15,7 +15,7 @@ export const merchantFieldMappings = {
   name: "ClientLegalName",
   clientMID: "ClientNumber", // Map to clientMID
   otherClientNumber1: null, // Not in current import
-  otherClientNumber2: null, // Not in current import
+  otherClientNumber2: "MID2", // Parent MID from CSV
   status: "Status", // Merchant status field (Open = Active, Delete = Inactive)
   merchantType: "Mtype", // Merchant Type field (numeric: 1=Online, 2=Retail, 3=Mixed, 4=B2B, 5=Wholesale)
   association: "Association", // Business association field
@@ -36,6 +36,7 @@ export const merchantFieldMappingsAlt = {
   id: "Client ID",
   name: "Client Legal Name",
   clientMID: "Client MID",
+  otherClientNumber2: "Parent MID", // Alternative header name for Parent MID
   address: "Client Primary Address",
   city: "Client City", 
   state: "Client State",

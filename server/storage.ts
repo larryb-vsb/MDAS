@@ -3652,6 +3652,12 @@ export class DatabaseStorage implements IStorage {
             merchantData.clientMID = row["Client MID"];
           }
           
+          // Handle spaced headers for Parent MID
+          if (!merchantData.otherClientNumber2 && row["Parent MID"]) {
+            merchantData.otherClientNumber2 = row["Parent MID"];
+            console.log(`Parent MID mapped from spaced header: ${row["Parent MID"]}`);
+          }
+          
           // Apply default values for any missing fields
           for (const [dbField, defaultValue] of Object.entries(defaultMerchantValues)) {
             if (merchantData[dbField as keyof InsertMerchant] === undefined) {
