@@ -559,23 +559,25 @@ export default function Settings() {
                             <AlertTriangle className="mr-2 h-5 w-5" />
                             Clear TDDF JSON Database
                           </DialogTitle>
-                          <DialogDescription className="space-y-3">
-                            <p className="font-medium text-destructive">
-                              ⚠️ WARNING: This action cannot be undone!
-                            </p>
-                            <p>
-                              This will permanently delete all records from the TDDF JSON database table, including:
-                            </p>
-                            <ul className="list-disc list-inside space-y-1 text-sm">
-                              <li>All DT (transaction) records</li>
-                              <li>All BH (batch header) records</li>
-                              <li>All P1 (purchasing card) records</li>
-                              <li>All other TDDF record types</li>
-                              <li>All extracted field data</li>
-                            </ul>
-                            <p className="text-sm text-muted-foreground">
-                              You will need to re-process and re-encode your TDDF files to restore this data.
-                            </p>
+                          <DialogDescription>
+                            <div className="space-y-3">
+                              <div className="font-medium text-destructive">
+                                ⚠️ WARNING: This action cannot be undone!
+                              </div>
+                              <div>
+                                This will permanently delete all records from the TDDF JSON database table, including:
+                              </div>
+                              <ul className="list-disc list-inside space-y-1 text-sm">
+                                <li>All DT (transaction) records</li>
+                                <li>All BH (batch header) records</li>
+                                <li>All P1 (purchasing card) records</li>
+                                <li>All other TDDF record types</li>
+                                <li>All extracted field data</li>
+                              </ul>
+                              <div className="text-sm text-muted-foreground">
+                                You will need to re-process and re-encode your TDDF files to restore this data.
+                              </div>
+                            </div>
                           </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="flex gap-2">
