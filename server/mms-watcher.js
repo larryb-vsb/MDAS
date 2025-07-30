@@ -13,7 +13,7 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
-    this.auto45Enabled = true; // Auto 4-5 processing enabled by default
+    this.auto45Enabled = false; // Auto 4-5 processing disabled by default
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
 
