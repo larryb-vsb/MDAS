@@ -84,10 +84,20 @@ interface DashboardMetrics {
   };
   cacheMetadata?: {
     lastRefreshed: string;
-    refreshedBy: string;
-    buildTime: number;
+    refreshedBy?: string;
+    buildTime?: number;
     fromCache: boolean;
+    recordCount?: number;
+    dataChangeDetected?: boolean;
   };
+}
+
+// Interface for object storage config
+interface ObjectStorageConfig {
+  available: boolean;
+  service: string;
+  bucketName: string;
+  fileCount: number;
 }
 
 // Interface for uploader dashboard metrics
@@ -256,7 +266,7 @@ function ClickableMetricCard({
 function UploaderDashboardWidget() {
   const [refreshState, setRefreshState] = useState<'paused' | 'green_30s' | 'blue_1min' | 'off' | 'red_issues'>('paused');
 
-  const { data: uploaderMetrics, isLoading } = useQuery({
+  const { data: uploaderMetrics, isLoading } = useQuery<UploaderDashboardMetrics>({
     queryKey: ['/api/uploader/dashboard-metrics'],
     refetchInterval: refreshState === 'green_30s' ? 30000 : refreshState === 'blue_1min' ? 60000 : false,
   });
@@ -343,7 +353,7 @@ function DuplicateFinderWidget() {
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
 
-  const { data: duplicateMetrics, refetch } = useQuery({
+  const { data: duplicateMetrics, refetch } = useQuery<DuplicateFinderMetrics>({
     queryKey: ['/api/duplicates/status'],
     refetchInterval: 30000, // Check every 30 seconds
   });
@@ -452,7 +462,7 @@ function DuplicateFinderWidget() {
 
 // Object Storage Status Widget
 function ObjectStorageWidget() {
-  const { data: storageConfig, refetch } = useQuery({
+  const { data: storageConfig, refetch } = useQuery<ObjectStorageConfig>({
     queryKey: ['/api/uploader/storage-config'],
   });
 
@@ -517,6 +527,7 @@ function TddfProcessingDatetimeWidget() {
   const formatDatetime = (datetime: string | null) => {
     if (!datetime) return 'No records found';
     const date = new Date(datetime);
+    if (isNaN(date.getTime())) return 'Invalid date format';
     return date.toLocaleString();
   };
 
@@ -563,7 +574,7 @@ export default function HomeDashboard() {
   const { toast } = useToast();
 
   // Main dashboard metrics query
-  const { data: dashboardMetrics, isLoading, error } = useQuery({
+  const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/cached-metrics'],
     refetchOnWindowFocus: false,
     staleTime: 30 * 60 * 1000, // 30 minutes
@@ -649,7 +660,10 @@ export default function HomeDashboard() {
                 </div>
                 
                 <span>
-                  Last refreshed: {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleDateString()} {new Date(metrics.cacheMetadata.lastRefreshed).toLocaleTimeString()}
+                  Last refreshed: {(() => {
+                    const date = new Date(metrics.cacheMetadata.lastRefreshed);
+                    return isNaN(date.getTime()) ? 'Invalid date' : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                  })()}
                 </span>
                 
                 {metrics.cacheMetadata.fromCache && (
