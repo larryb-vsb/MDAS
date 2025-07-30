@@ -11111,7 +11111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           last_update_datetime,
           processing_time_ms
         FROM ${sql.identifier(uploaderPagePreCacheTable)}
-        WHERE cache_key = 'uploader_metrics_data'
+        WHERE cache_key = 'uploader_session_metrics'
         ORDER BY last_update_datetime DESC
         LIMIT 1
       `);
