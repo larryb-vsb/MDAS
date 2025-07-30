@@ -7361,6 +7361,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[V2-DASHBOARD] Storage file count unavailable');
       }
       
+      // Get last new data date (most recent upload that completed)
+      const lastDataResult = await pool.query(`
+        SELECT MAX(created_at) as last_new_data_date
+        FROM ${uploaderTableName}
+        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        AND created_at IS NOT NULL
+      `);
+      
+      const lastNewDataDate = lastDataResult.rows[0]?.last_new_data_date || null;
+      
       const dashboardStats = {
         totalUploads: parseInt(totals.total_uploads || 0),
         completedUploads: parseInt(totals.completed_uploads || 0),
@@ -7373,6 +7383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           completedSessions: parseInt(sessionStats.completed_sessions || 0),
           avgFilesPerSession: parseFloat(sessionStats.avg_files_per_session || 0)
         },
+        lastNewDataDate: lastNewDataDate,
         lastUpdated: new Date().toISOString(),
         buildTime: Date.now()
       };
@@ -7382,6 +7393,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching uploader dashboard stats:', error);
       res.status(500).json({ error: 'Failed to fetch uploader dashboard statistics' });
+    }
+  });
+
+  // Get last new data date from uploader uploads
+  app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Get last new data date and count (most recent upload that completed)
+      const lastDataResult = await pool.query(`
+        SELECT 
+          MAX(created_at) as last_new_data_date,
+          COUNT(*) as total_count
+        FROM ${uploaderTableName}
+        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        AND created_at IS NOT NULL
+      `);
+      
+      const lastNewDataDate = lastDataResult.rows[0]?.last_new_data_date || null;
+      const totalCount = parseInt(lastDataResult.rows[0]?.total_count || 0);
+      
+      res.json({
+        date: lastNewDataDate,
+        count: totalCount,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error fetching last new data date:', error);
+      res.status(500).json({ error: 'Failed to fetch last new data date' });
     }
   });
 
@@ -10216,6 +10256,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced Dashboard API Endpoints
+
+  // Last New Data Date API - get most recent upload date
+  app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Get last new data date (most recent upload that completed)
+      const lastDataResult = await pool.query(`
+        SELECT MAX(created_at) as last_new_data_date
+        FROM ${uploaderTableName}
+        WHERE phase IN ('uploaded', 'identified', 'encoded')
+        AND created_at IS NOT NULL
+      `);
+      
+      const lastNewDataDate = lastDataResult.rows[0]?.last_new_data_date || null;
+      
+      res.json({
+        lastNewDataDate: lastNewDataDate,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error getting last new data date:', error);
+      res.status(500).json({ error: 'Failed to get last new data date' });
+    }
+  });
 
   // Uploader Dashboard Metrics API
   app.get("/api/uploader/dashboard-metrics", async (req, res) => {

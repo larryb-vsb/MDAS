@@ -190,6 +190,18 @@ export default function MMSUploader() {
     refetchInterval: 5000 // Check storage status every 5 seconds
   });
 
+  // Get last new data date for Uploader page
+  const { data: lastNewDataDate } = useQuery({
+    queryKey: ['/api/uploader/last-new-data-date'],
+    queryFn: async () => {
+      const response = await fetch('/api/uploader/last-new-data-date');
+      if (!response.ok) throw new Error('Failed to fetch last new data date');
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  });
+
   // Start upload mutation
   const startUploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1159,6 +1171,29 @@ export default function MMSUploader() {
                 <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                   <div className="text-2xl font-bold text-orange-600">{uploadsByPhase.started?.length || 0}</div>
                   <div className="text-sm text-orange-700">Pending Sessions</div>
+                </div>
+              </div>
+
+              {/* Last New Data Date Display */}
+              <div className="flex justify-center">
+                <div className="text-center p-4 bg-teal-50 rounded-lg border border-teal-200 min-w-[250px]">
+                  <div className="text-lg font-bold text-teal-600">
+                    {lastNewDataDate ? (
+                      new Date(lastNewDataDate.date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    ) : 'No data'}
+                  </div>
+                  <div className="text-sm text-teal-700">Last New Data Date</div>
+                  {lastNewDataDate?.count && (
+                    <div className="text-xs text-teal-600 mt-1">
+                      ({lastNewDataDate.count} total uploads)
+                    </div>
+                  )}
                 </div>
               </div>
 

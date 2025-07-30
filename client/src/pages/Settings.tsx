@@ -70,6 +70,19 @@ export default function Settings() {
     refetchOnWindowFocus: false,
   });
 
+  // Query for last new data date
+  const { data: lastNewDataDate } = useQuery({
+    queryKey: ['/api/uploader/last-new-data-date', heatMapRefreshKey],
+    queryFn: async () => {
+      const response = await fetch('/api/uploader/last-new-data-date');
+      if (!response.ok) throw new Error('Failed to fetch last new data date');
+      return response.json();
+    },
+    enabled: showHeatMapTest,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   // Query for comprehensive pre-cache table tracking
   const { data: preCacheStatus, isLoading: preCacheLoading } = useQuery({
     queryKey: ['/api/settings/pre-cache-status', heatMapRefreshKey],
@@ -416,6 +429,28 @@ export default function Settings() {
                           <div className="mt-2 text-xs text-gray-600">
                             <div>Aggregation: <span className="font-medium">{heatMapActivity.metadata.aggregationLevel}</span></div>
                             <div>Performance: {heatMapActivity.metadata.performanceMetrics?.totalQueryTime}ms total</div>
+                          </div>
+                        )}
+                        
+                        {/* Last New Data Date */}
+                        {lastNewDataDate?.lastNewDataDate && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <div className="text-xs text-gray-600">
+                              <div className="flex items-center justify-between">
+                                <span>Last New Data:</span>
+                                <span className="font-medium text-green-700">
+                                  {new Date(lastNewDataDate.lastNewDataDate).toLocaleString('en-US', {
+                                    timeZone: 'America/Chicago',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true
+                                  })} CST
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         )}
                         
