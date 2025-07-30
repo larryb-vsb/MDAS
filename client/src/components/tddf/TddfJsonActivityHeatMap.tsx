@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ActivityData {
@@ -117,6 +117,9 @@ interface TddfJsonActivityHeatMapProps {
 const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const queryClient = useQueryClient();
   
   // Use internal state if no external state is provided
   const selectedDates = selectedDate ? [selectedDate] : internalSelectedDates;
@@ -142,6 +145,35 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     } else {
       setInternalSelectedDates([]);
     }
+  };
+  
+  const handleCacheRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Invalidate the cache and refetch
+      await queryClient.invalidateQueries({
+        queryKey: ['/api/tddf-json/heatmap-cached', currentYear]
+      });
+      setLastRefreshTime(new Date());
+    } catch (error) {
+      console.error('Cache refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
+  // Calculate time since last refresh
+  const getTimeSinceRefresh = () => {
+    if (!lastRefreshTime) return null;
+    const now = new Date();
+    const diffMs = now.getTime() - lastRefreshTime.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ${diffMinutes % 60}m ago`;
+    return lastRefreshTime.toLocaleDateString();
   };
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
@@ -233,7 +265,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
 
   return (
     <div className="bg-gray-50 rounded-lg p-4">
-      {/* Header with year navigation */}
+      {/* Header with year navigation and cache refresh */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Button
@@ -254,6 +286,25 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+          
+          {/* Cache Refresh Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCacheRefresh}
+            disabled={isRefreshing}
+            className="ml-4 h-8 px-3 text-xs"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Cache'}
+          </Button>
+          
+          {/* Last Refresh Info */}
+          {lastRefreshTime && (
+            <div className="ml-2 text-xs text-gray-500">
+              <span>Last refresh: {getTimeSinceRefresh()}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <span 
@@ -304,7 +355,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
               <span className="text-sm text-blue-700 font-medium">Using Cached Data</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-blue-600">Cache Table:</span>
               <div className="font-mono text-blue-800">{activityResponse.cacheInfo.tableName}</div>
@@ -323,6 +374,20 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
               <span className="text-blue-600">Total Days:</span>
               <div className="font-medium text-blue-800">
                 {activityResponse.cacheInfo.recordCount} cached days
+              </div>
+            </div>
+            <div>
+              <span className="text-blue-600">Cache Created:</span>
+              <div className="font-medium text-blue-800">
+                {new Date(activityResponse.cacheInfo.lastUpdated).toLocaleString()}
+              </div>
+            </div>
+            <div>
+              <span className="text-blue-600">Cache Age:</span>
+              <div className="font-medium text-blue-800">
+                {activityResponse.cacheInfo.ageMinutes < 60 
+                  ? `${Math.round(activityResponse.cacheInfo.ageMinutes)}m old`
+                  : `${Math.round(activityResponse.cacheInfo.ageMinutes / 60)}h old`}
               </div>
             </div>
           </div>
