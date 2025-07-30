@@ -829,9 +829,9 @@ export default function MerchantDetail() {
                         name="otherClientNumber2"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Other Client Number 2</FormLabel>
+                            <FormLabel>Parent MID</FormLabel>
                             <FormControl>
-                              <Input {...field} value={field.value || ''} placeholder="Enter other client number" />
+                              <Input {...field} value={field.value || ''} placeholder="Enter parent MID" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
