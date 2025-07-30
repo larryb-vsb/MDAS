@@ -112,7 +112,7 @@ export default function MMSUploader() {
   const [keep, setKeep] = useState<boolean>(false);
   
   // Auto 4-5 processing toggle state
-  const [auto45Enabled, setAuto45Enabled] = useState<boolean>(true);
+  const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
   
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
