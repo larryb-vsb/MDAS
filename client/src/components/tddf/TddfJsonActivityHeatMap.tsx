@@ -150,10 +150,24 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const handleCacheRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Invalidate the cache and refetch
+      // Call the API to refresh cache for the current year only
+      const response = await fetch(`/api/tddf-json/refresh-year-cache/${currentYear}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Cache refresh failed: ${response.statusText}`);
+      }
+      
+      // Invalidate only the current year's cache
       await queryClient.invalidateQueries({
         queryKey: ['/api/tddf-json/heatmap-cached', currentYear]
       });
+      
       setLastRefreshTime(new Date());
     } catch (error) {
       console.error('Cache refresh failed:', error);
@@ -294,9 +308,10 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
             onClick={handleCacheRefresh}
             disabled={isRefreshing}
             className="ml-4 h-8 px-3 text-xs"
+            title={`Refresh cache data for ${currentYear} only`}
           >
             <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh Cache'}
+            {isRefreshing ? `Refreshing ${currentYear}...` : `Refresh ${currentYear}`}
           </Button>
           
           {/* Last Refresh Info */}

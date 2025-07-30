@@ -7579,6 +7579,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh cache for specific year - TDDF JSON heat map
+  app.post("/api/tddf-json/refresh-year-cache/:year", isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.params.year);
+      const cacheTableName = `heat_map_cache_${year}`;
+      
+      console.log(`[CACHE-REFRESH] Refreshing heat map cache for year ${year} (table: ${cacheTableName})`);
+      const startTime = Date.now();
+      
+      // First, clear the existing cache for this year
+      const tableExistsResult = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = $1
+        )
+      `, [cacheTableName]);
+      
+      if (tableExistsResult.rows[0].exists) {
+        await pool.query(`DELETE FROM ${cacheTableName}`);
+        console.log(`[CACHE-REFRESH] Cleared existing cache table ${cacheTableName}`);
+      } else {
+        // Create the cache table if it doesn't exist
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS ${cacheTableName} (
+            date DATE PRIMARY KEY,
+            dt_count INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          )
+        `);
+        console.log(`[CACHE-REFRESH] Created new cache table ${cacheTableName}`);
+      }
+      
+      // Rebuild cache with fresh data from TDDF JSONB table
+      const tddfJsonbTableName = getTableName('tddf_jsonb');
+      const rebuildResult = await pool.query(`
+        INSERT INTO ${cacheTableName} (date, dt_count, created_at, updated_at)
+        SELECT 
+          DATE((extracted_fields->>'transactionDate')::date) as date,
+          COUNT(*) as dt_count,
+          NOW() as created_at,
+          NOW() as updated_at
+        FROM ${tddfJsonbTableName}
+        WHERE record_type = 'DT'
+          AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+        GROUP BY DATE((extracted_fields->>'transactionDate')::date)
+        ORDER BY DATE((extracted_fields->>'transactionDate')::date)
+      `, [year]);
+      
+      const refreshTime = Date.now() - startTime;
+      const recordsInserted = rebuildResult.rowCount || 0;
+      
+      console.log(`[CACHE-REFRESH] Successfully refreshed ${cacheTableName} with ${recordsInserted} records in ${refreshTime}ms`);
+      
+      res.json({
+        success: true,
+        year,
+        tableName: cacheTableName,
+        recordsRefreshed: recordsInserted,
+        refreshTimeMs: refreshTime,
+        message: `Cache for year ${year} refreshed successfully`,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error(`Error refreshing year cache:`, error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to refresh year cache'
+      });
+    }
+  });
+
   // Dedicated Heat Map Testing endpoint - only loads from pre-cache table
   app.get("/api/heat-map-testing/cached", isAuthenticated, async (req, res) => {
     try {
