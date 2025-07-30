@@ -889,7 +889,8 @@ export default function MMSUploader() {
   const totalUploads = uploads.length;
   const completedUploads = (uploadsByPhase.completed?.length || 0) + (uploadsByPhase.encoded?.length || 0);
   const warningUploads = (uploadsByPhase.warning?.length || 0) + (uploadsByPhase.failed?.length || 0) + (uploadsByPhase.error?.length || 0);
-  const activeUploads = (uploadsByPhase.started?.length || 0) + (uploadsByPhase.uploading?.length || 0) + (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.processing?.length || 0);
+  const activeUploads = (uploadsByPhase.started?.length || 0) + (uploadsByPhase.uploading?.length || 0); // Only truly uploading files
+  const processingUploads = (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.processing?.length || 0); // Files waiting for or undergoing processing
 
   // Reset page when filters change
   React.useEffect(() => {
@@ -970,13 +971,19 @@ export default function MMSUploader() {
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-purple-600">{activeUploads}</div>
-            <div className="text-sm text-muted-foreground">Processing</div>
+            <div className="text-sm text-muted-foreground">Actively Uploading</div>
           </Card>
+          {processingUploads > 0 && (
+            <Card className="p-4">
+              <div className="text-2xl font-bold text-orange-600">{processingUploads}</div>
+              <div className="text-sm text-muted-foreground">Pending Processing</div>
+            </Card>
+          )}
         </div>
       </div>
 
       {/* Real-time Upload Progress Banner */}
-      {activeUploads > 0 && (
+      {(activeUploads > 0 || processingUploads > 0) && (
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -984,11 +991,13 @@ export default function MMSUploader() {
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                   <span className="font-medium text-blue-800">
-                    {activeUploads} files actively uploading
+                    {activeUploads > 0 && `${activeUploads} files actively uploading`}
+                    {activeUploads > 0 && processingUploads > 0 && ', '}
+                    {processingUploads > 0 && `${processingUploads} files pending processing`}
                   </span>
                 </div>
                 <div className="text-sm text-blue-600">
-                  Auto-upload system processing files in background
+                  Auto-upload system {activeUploads > 0 ? 'uploading' : 'monitoring'} files in background
                 </div>
               </div>
               <div className="flex items-center gap-2">
