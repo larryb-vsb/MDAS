@@ -118,9 +118,9 @@ function BatchRelationshipsView() {
 
   // Format amount utility function
   const formatAmount = (amount: string | number | undefined): string => {
-    if (!amount) return 'N/A';
+    if (!amount) return '-';
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numAmount)) return 'N/A';
+    if (isNaN(numAmount)) return '-';
     return `$${numAmount.toFixed(2)}`;
   };
 
@@ -183,23 +183,23 @@ function BatchRelationshipsView() {
                     <div>
                       <span className="font-medium text-green-800">Entry Run #:</span>
                       <div className="font-mono bg-blue-100 px-2 py-1 rounded text-blue-800 font-semibold">
-                        {batch.batch_fields?.entryRunNumber || batch.batch_fields?.batchId || 'N/A'}
+                        {batch.batch_fields?.entryRunNumber || batch.batch_fields?.batchId || '-'}
                       </div>
                     </div>
                     <div>
                       <span className="font-medium text-green-800">Net Deposit:</span>
                       <div className="font-mono text-green-600 font-semibold">
                         {batch.batch_fields?.netDeposit ? 
-                          formatAmount(batch.batch_fields.netDeposit) : 'N/A'}
+                          formatAmount(batch.batch_fields.netDeposit) : '-'}
                       </div>
                     </div>
                     <div>
                       <span className="font-medium text-green-800">Batch Date:</span>
-                      <div className="font-mono">{batch.batch_fields?.batchDate || 'N/A'}</div>
+                      <div className="font-mono">{batch.batch_fields?.batchDate || '-'}</div>
                     </div>
                     <div>
                       <span className="font-medium text-green-800">Merchant Account:</span>
-                      <div className="font-mono text-xs">{batch.batch_fields?.merchantAccountNumber || 'N/A'}</div>
+                      <div className="font-mono text-xs">{batch.batch_fields?.merchantAccountNumber || '-'}</div>
                     </div>
                   </div>
                 </div>
@@ -275,19 +275,19 @@ function BatchRelationshipsView() {
                                 <span className="font-medium text-blue-800">Amount:</span>
                                 <div className="font-mono font-semibold">
                                   {transaction.extracted_fields?.transactionAmount ? 
-                                    `$${transaction.extracted_fields.transactionAmount}` : 'N/A'}
+                                    `$${transaction.extracted_fields.transactionAmount}` : '-'}
                                 </div>
                               </div>
                               <div>
                                 <span className="font-medium text-blue-800">Date:</span>
-                                <div className="font-mono">{transaction.extracted_fields?.transactionDate || 'N/A'}</div>
+                                <div className="font-mono">{transaction.extracted_fields?.transactionDate || '-'}</div>
                               </div>
                               <div>
                                 <span className="font-medium text-blue-800">Card:</span>
                                 <div className="flex items-center gap-1">
                                   {(() => {
                                     const cardType = transaction.extracted_fields?.cardType;
-                                    if (!cardType || cardType === 'N/A') return <span className="font-mono">N/A</span>;
+                                    if (!cardType || cardType === 'N/A') return <span className="text-gray-400 text-xs">-</span>;
                                     
                                     const getCardBadgeStyle = (type: string) => {
                                       const upperType = type.toUpperCase();
@@ -314,7 +314,7 @@ function BatchRelationshipsView() {
                               </div>
                               <div>
                                 <span className="font-medium text-blue-800">Reference:</span>
-                                <div className="font-mono text-[10px]">{transaction.extracted_fields?.referenceNumber || 'N/A'}</div>
+                                <div className="font-mono text-[10px]">{transaction.extracted_fields?.referenceNumber || '-'}</div>
                               </div>
                             </div>
                           </div>
@@ -453,7 +453,10 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
 
 // Value truncation component with hover tooltip
 function TruncatedValue({ value, maxLength = 20 }: { value: string | undefined | null, maxLength?: number }) {
-  if (!value) return <span className="text-muted-foreground">N/A</span>;
+  // Hide N/A, null, undefined, empty values
+  if (!value || value === 'undefined' || value === 'null' || value === 'N/A' || value.trim() === '') {
+    return <span className="text-gray-400 text-xs">-</span>;
+  }
   
   if (value.length <= maxLength) {
     return <span className="font-mono text-xs">{value}</span>;
@@ -644,14 +647,14 @@ export default function TddfJsonPage() {
 
 
   const formatAmount = (amount: string | number | undefined): string => {
-    if (!amount) return 'N/A';
+    if (!amount) return '-';
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numAmount)) return 'N/A';
+    if (isNaN(numAmount)) return '-';
     return `$${numAmount.toFixed(2)}`;
   };
 
   const formatDate = (dateStr: string | undefined): string => {
-    if (!dateStr) return 'N/A';
+    if (!dateStr) return '-';
     try {
       return format(new Date(dateStr), 'MMM dd, yyyy');
     } catch {
@@ -1088,22 +1091,22 @@ export default function TddfJsonPage() {
                           /* BH Records - Show authentic TDDF header fields plus Net Deposit */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || 'N/A'}
+                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
                             </div>
                             <div className="font-mono text-xs font-medium text-blue-600">
-                              {record.extracted_fields?.entryRunNumber || 'N/A'}
+                              {record.extracted_fields?.entryRunNumber || '-'}
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                              {record.extracted_fields?.sequenceWithinRun || '-'}
                             </div>
                             <div className="font-mono text-xs">
                               <Badge className="bg-green-100 text-green-800 border-green-300">
-                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                                {record.extracted_fields?.recordIdentifier || '-'}
                               </Badge>
                             </div>
                             <div className="font-medium text-green-600">
                               {record.extracted_fields?.netDeposit ? 
-                                formatAmount(record.extracted_fields.netDeposit) : 'N/A'}
+                                formatAmount(record.extracted_fields.netDeposit) : '-'}
                             </div>
                             <div>
                               <Button
@@ -1121,17 +1124,17 @@ export default function TddfJsonPage() {
                           /* DT Records - Show TDDF header fields plus original DT fields */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || 'N/A'}
+                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
                             </div>
                             <div className="font-mono text-xs font-medium text-blue-600">
-                              {record.extracted_fields?.entryRunNumber || 'N/A'}
+                              {record.extracted_fields?.entryRunNumber || '-'}
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                              {record.extracted_fields?.sequenceWithinRun || '-'}
                             </div>
                             <div className="font-mono text-xs">
                               <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                                {record.extracted_fields?.recordIdentifier || '-'}
                               </Badge>
                             </div>
                             <div>
@@ -1141,7 +1144,7 @@ export default function TddfJsonPage() {
                               {formatAmount(record.extracted_fields?.transactionAmount)}
                             </div>
                             <div className="truncate">
-                              {record.extracted_fields?.merchantName || 'N/A'}
+                              {record.extracted_fields?.merchantName || '-'}
                             </div>
                             <div>
                               <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
@@ -1160,7 +1163,7 @@ export default function TddfJsonPage() {
                                     </Badge>
                                   );
                                 })()
-                              ) : 'N/A'}
+                              ) : '-'}
                             </div>
                             <div>
                               <Button
@@ -1178,21 +1181,21 @@ export default function TddfJsonPage() {
                           /* P1 Records - Show TDDF header fields matching specification */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumber || 'N/A'}
+                              {record.extracted_fields?.sequenceNumber || '-'}
                             </div>
                             <div className="font-mono text-xs font-medium text-blue-600">
-                              {record.extracted_fields?.entryRunNumber || 'N/A'}
+                              {record.extracted_fields?.entryRunNumber || '-'}
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceWithinRun || 'N/A'}
+                              {record.extracted_fields?.sequenceWithinRun || '-'}
                             </div>
                             <div className="font-mono text-xs">
                               <Badge className="bg-orange-100 text-orange-800 border-orange-300">
-                                {record.extracted_fields?.recordIdentifier || 'N/A'}
+                                {record.extracted_fields?.recordIdentifier || '-'}
                               </Badge>
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                              {record.extracted_fields?.merchantAccountNumber || '-'}
                             </div>
                             <div>
                               <Button
@@ -1218,7 +1221,7 @@ export default function TddfJsonPage() {
                               )}
                             </div>
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                              {record.extracted_fields?.merchantAccountNumber || '-'}
                             </div>
                             <div>
                               {formatDate(record.extracted_fields?.transactionDate)}
@@ -1227,7 +1230,7 @@ export default function TddfJsonPage() {
                               {formatAmount(record.extracted_fields?.transactionAmount)}
                             </div>
                             <div className="truncate">
-                              {record.extracted_fields?.merchantName || 'N/A'}
+                              {record.extracted_fields?.merchantName || '-'}
                             </div>
                             <div>
                               <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
@@ -1246,7 +1249,7 @@ export default function TddfJsonPage() {
                                     </Badge>
                                   );
                                 })()
-                              ) : 'N/A'}
+                              ) : '-'}
                             </div>
                             <div>
                               <Button
@@ -1361,7 +1364,7 @@ export default function TddfJsonPage() {
                         <div className="space-y-3 text-sm">
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Transaction Date:</span>
-                            <TruncatedValue value={formatDate(selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.transactionDate : 'N/A')} />
+                            <TruncatedValue value={formatDate(selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.transactionDate : undefined)} />
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Amount:</span>
@@ -1369,15 +1372,15 @@ export default function TddfJsonPage() {
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Card Type:</span>
-                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.cardType || 'N/A' : 'N/A'} />
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.cardType : undefined} />
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Merchant Name:</span>
-                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantName : 'N/A'} maxLength={20} />
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantName : undefined} maxLength={20} />
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Merchant Account:</span>
-                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantAccountNumber : 'N/A'} />
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.merchantAccountNumber : undefined} />
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Terminal ID:</span>
@@ -1387,11 +1390,11 @@ export default function TddfJsonPage() {
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Auth Number:</span>
-                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.authorizationNumber : 'N/A'} />
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.authorizationNumber : undefined} />
                           </div>
                           <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Reference Number:</span>
-                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.referenceNumber : 'N/A'} />
+                            <TruncatedValue value={selectedRecord.record_type === 'DT' ? selectedRecord.extracted_fields?.referenceNumber : undefined} />
                           </div>
                         </div>
                       </div>
