@@ -8016,7 +8016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         AND EXTRACT(YEAR FROM CAST(extracted_fields->>'transactionDate' AS DATE)) = $1
       `;
       
-      const sizeResult = await db.query(datasetSizeQuery, [year]);
+      const sizeResult = await pool.query(datasetSizeQuery, [year]);
       const totalRecords = parseInt(sizeResult.rows[0]?.total_count || '0');
       
       // Determine aggregation level based on dataset size
@@ -8065,7 +8065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const aggregationStartTime = Date.now();
-      const result = await db.query(aggregationQuery, [year]);
+      const result = await pool.query(aggregationQuery, [year]);
       const aggregationTime = Date.now() - aggregationStartTime;
       
       const records = result.rows.map(row => ({
