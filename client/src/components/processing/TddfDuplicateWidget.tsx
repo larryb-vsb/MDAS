@@ -228,24 +228,24 @@ export default function TddfDuplicateWidget() {
           <>
             <Separator />
             
-            {/* Duplicate Breakdown */}
+            {/* Duplicate Breakdown - Line-Based Priority */}
             <div className="space-y-2">
-              <div className="text-sm font-medium">Duplicate Breakdown:</div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="text-sm font-medium">TDDF Line Analysis:</div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between p-2 bg-blue-50 rounded border border-blue-200">
+                  <span className="font-medium text-blue-700">Line Duplicates (Primary):</span>
+                  <span className="font-mono text-blue-800">{stats.lineBasedDuplicates}</span>
+                </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reference-based:</span>
+                  <span className="text-muted-foreground">Reference Duplicates (Side Effect):</span>
                   <span className="font-mono">{stats.referenceBasedDuplicates}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Line-based:</span>
-                  <span className="font-mono">{stats.lineBasedDuplicates}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Patterns:</span>
+                  <span className="text-muted-foreground">Duplicate Patterns:</span>
                   <span className="font-mono">{stats.duplicatePatterns}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Files:</span>
+                  <span className="text-muted-foreground">Files Processed:</span>
                   <span className="font-mono">{stats.totalFiles}</span>
                 </div>
               </div>
@@ -268,7 +268,7 @@ export default function TddfDuplicateWidget() {
                   />
                   {((stats.totalDuplicateRecords / stats.totalRecords) * 100) > 95 && (
                     <div className="text-xs text-red-600 mt-1 font-medium bg-red-50 p-2 rounded border border-red-200">
-                      ⚠️ Critical Data Quality Issue: Only {stats.totalRecords - stats.totalDuplicateRecords} unique record(s) in dataset
+                      ⚠️ Critical Data Quality Issue: Only {stats.totalRecords - stats.totalDuplicateRecords} unique lines in TDDF dataset
                     </div>
                   )}
                 </div>

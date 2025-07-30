@@ -8875,31 +8875,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find actual duplicates for detailed analysis
       const duplicates = await duplicateCleanup.findDuplicates();
       
-      // Calculate summary statistics - CORRECTED LOGIC
-      let totalDuplicateRecords = 0;
+      // Calculate summary statistics - LINE-BASED PRIORITY
+      let totalLineDuplicates = 0;
       let referenceBasedDuplicates = 0;
       let lineBasedDuplicates = 0;
       
-      // Correct calculation: only count the excess records (not the originals)
+      // Separate line and reference duplicates - prioritize line duplicates as primary metric
       duplicates.forEach(dup => {
         const excessRecords = dup.duplicate_count - 1; // Only count duplicates, not originals
-        totalDuplicateRecords += excessRecords;
         
         if (dup.duplicate_type === 'reference') {
           referenceBasedDuplicates += excessRecords;
         } else {
+          // Line duplicates are the primary concern for TDDF file processing
           lineBasedDuplicates += excessRecords;
+          totalLineDuplicates += excessRecords;
         }
       });
       
-      console.log(`[TDDF-JSON-DUPLICATES] CORRECTED Stats: ${totalDuplicateRecords} actual duplicates from ${duplicates.length} patterns`);
+      console.log(`[TDDF-JSON-DUPLICATES] LINE-BASED Stats: ${lineBasedDuplicates} line duplicates (primary), ${referenceBasedDuplicates} reference duplicates (side effect)`);
       
       res.json({
         success: true,
         stats: {
           ...stats,
-          totalDuplicateRecords,
-          referenceBasedDuplicates,
+          totalDuplicateRecords: lineBasedDuplicates, // Primary metric: line duplicates only
+          totalLineDuplicates: lineBasedDuplicates,
+          referenceBasedDuplicates, // Side effect metric
           lineBasedDuplicates,
           duplicatePatterns: duplicates.length,
           duplicateDetails: duplicates.slice(0, 10) // Show first 10 patterns for UI display
