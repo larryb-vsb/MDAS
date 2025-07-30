@@ -23,16 +23,7 @@ async function analyzeStorageRecordTypes() {
     
     let totalFilesAnalyzed = 0;
     let totalRecordsAnalyzed = 0;
-    const recordTypeBreakdown = {
-      DT: 0, // Detail Transaction
-      BH: 0, // Batch Header  
-      P1: 0, // Purchasing Card 1
-      P2: 0, // Purchasing Card 2
-      E1: 0, // Electronic Check
-      G2: 0, // General 2
-      AD: 0, // Adjustment
-      OTHER: 0
-    };
+    const recordTypeBreakdown = {}; // Dynamic tracking of all record types
     
     const fileAnalysis = [];
     
@@ -56,21 +47,22 @@ async function analyzeStorageRecordTypes() {
         const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
         
         // Count record types in this file
-        const fileRecordTypes = {
-          DT: 0, BH: 0, P1: 0, P2: 0, E1: 0, G2: 0, AD: 0, OTHER: 0
-        };
+        const fileRecordTypes = {};
         
         for (const line of lines) {
           if (line.length >= 19) {
             const recordType = line.substring(17, 19); // Positions 18-19 (0-based)
             
-            if (fileRecordTypes.hasOwnProperty(recordType)) {
-              fileRecordTypes[recordType]++;
-              recordTypeBreakdown[recordType]++;
-            } else {
-              fileRecordTypes.OTHER++;
-              recordTypeBreakdown.OTHER++;
+            // Initialize record type counters if not seen before
+            if (!fileRecordTypes[recordType]) {
+              fileRecordTypes[recordType] = 0;
             }
+            if (!recordTypeBreakdown[recordType]) {
+              recordTypeBreakdown[recordType] = 0;
+            }
+            
+            fileRecordTypes[recordType]++;
+            recordTypeBreakdown[recordType]++;
             totalRecordsAnalyzed++;
           }
         }
@@ -113,10 +105,32 @@ async function analyzeStorageRecordTypes() {
     console.log(`Average Records per File: ${Math.round(totalRecordsAnalyzed / totalFilesAnalyzed).toLocaleString()}`);
     
     console.log('\n🏷️ RECORD TYPE BREAKDOWN:');
-    Object.entries(recordTypeBreakdown).forEach(([type, count]) => {
+    // Sort record types by count (descending) for better readability
+    const sortedRecordTypes = Object.entries(recordTypeBreakdown)
+      .sort(([,a], [,b]) => b - a);
+    
+    sortedRecordTypes.forEach(([type, count]) => {
       const percentage = ((count / totalRecordsAnalyzed) * 100).toFixed(1);
-      console.log(`   ${type}: ${count.toLocaleString()} records (${percentage}%)`);
+      const description = getRecordTypeDescription(type);
+      console.log(`   ${type}: ${count.toLocaleString()} records (${percentage}%) - ${description}`);
     });
+    
+    function getRecordTypeDescription(type) {
+      const descriptions = {
+        'DT': 'Detail Transaction',
+        'BH': 'Batch Header',
+        'P1': 'Purchasing Card 1',
+        'P2': 'Purchasing Card 2', 
+        'E1': 'Electronic Check',
+        'G2': 'General 2',
+        'AD': 'Adjustment',
+        'TH': 'Transaction Header',
+        'TF': 'Transaction Footer',
+        'FH': 'File Header',
+        'FF': 'File Footer'
+      };
+      return descriptions[type] || 'Unknown Type';
+    }
     
     console.log('\n📋 TOP FILES BY RECORD COUNT:');
     fileAnalysis
@@ -125,7 +139,14 @@ async function analyzeStorageRecordTypes() {
       .forEach((file, i) => {
         console.log(`   ${i+1}. ${file.filename}`);
         console.log(`      Records: ${file.total_records.toLocaleString()} | Size: ${(file.file_size / 1024 / 1024).toFixed(1)}MB`);
-        console.log(`      Types: DT(${file.record_types.DT}) BH(${file.record_types.BH}) P1(${file.record_types.P1}) P2(${file.record_types.P2}) OTHER(${file.record_types.OTHER})`);
+        
+        // Show top 5 record types for this file
+        const topTypes = Object.entries(file.record_types)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .map(([type, count]) => `${type}(${count})`)
+          .join(' ');
+        console.log(`      Types: ${topTypes}`);
       });
     
     console.log(`\n✅ Record type analysis completed and logged to master object keys database!`);
