@@ -929,6 +929,7 @@ export const users = pgTable(getTableName("users"), {
   firstName: text("first_name"),
   lastName: text("last_name"),
   role: text("role").default("user").notNull(),
+  developerFlag: boolean("developer_flag").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastLogin: timestamp("last_login")
 });

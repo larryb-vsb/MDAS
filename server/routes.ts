@@ -8211,9 +8211,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Build fresh cache if none exists, expired, or data changed
       console.log('[DASHBOARD-CACHE] Cache miss or expired, building fresh data...');
+      const buildStartTime = Date.now();
       const metrics = await buildDashboardCache();
       
-      const buildTime = Date.now() - startTime;
+      const buildTime = Date.now() - buildStartTime;
       const currentTime = new Date().toISOString();
       
       res.json({
