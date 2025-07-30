@@ -12023,6 +12023,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF Object Totals API - comprehensive storage analytics with pre-cached data
+  app.get("/api/storage/tddf-object-totals", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF-OBJECT-TOTALS] Fetching comprehensive storage analytics from cache...');
+      
+      const cacheResult = await pool.query(`
+        SELECT 
+          scan_date,
+          scan_completion_time,
+          scan_status,
+          total_objects,
+          analyzed_objects,
+          total_records,
+          total_file_size,
+          record_type_breakdown,
+          scan_duration_seconds,  
+          average_records_per_file,
+          largest_file_records,
+          largest_file_name,
+          cache_expires_at,
+          created_at
+        FROM dev_tddf_object_totals_cache_2025
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      
+      if (cacheResult.rows.length === 0) {
+        console.log('[TDDF-OBJECT-TOTALS] No cache found - returning empty state');
+        return res.json({
+          success: false,
+          message: 'No TDDF object totals cache available',
+          requiresScan: true
+        });
+      }
+      
+      const cacheData = cacheResult.rows[0];
+      const isExpired = new Date() > new Date(cacheData.cache_expires_at);
+      
+      console.log(`[TDDF-OBJECT-TOTALS] Serving cache data - Status: ${cacheData.scan_status}, Expired: ${isExpired}`);
+      
+      // Format response with comprehensive analytics
+      const response = {
+        success: true,
+        data: {
+          scanInfo: {
+            lastScanDate: cacheData.scan_date,
+            scanCompletionTime: cacheData.scan_completion_time,
+            scanStatus: cacheData.scan_status,
+            scanDurationSeconds: cacheData.scan_duration_seconds,
+            cacheExpiresAt: cacheData.cache_expires_at,
+            isExpired: isExpired
+          },
+          storageStats: {
+            totalObjects: cacheData.total_objects,
+            analyzedObjects: cacheData.analyzed_objects,
+            analysisPercentage: ((cacheData.analyzed_objects / cacheData.total_objects) * 100).toFixed(1),
+            totalFileSize: cacheData.total_file_size,
+            totalFileSizeGB: (cacheData.total_file_size / (1024*1024*1024)).toFixed(2)
+          },
+          recordStats: {
+            totalRecords: cacheData.total_records,
+            averageRecordsPerFile: cacheData.average_records_per_file,
+            largestFileRecords: cacheData.largest_file_records,
+            largestFileName: cacheData.largest_file_name,
+            recordTypeBreakdown: cacheData.record_type_breakdown
+          }
+        },
+        cache: {
+          lastUpdated: cacheData.created_at,
+          expiresAt: cacheData.cache_expires_at,
+          isExpired: isExpired
+        }
+      };
+      
+      res.json(response);
+      
+    } catch (error) {
+      console.error('[TDDF-OBJECT-TOTALS] Error fetching data:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch TDDF object totals',
+        message: error.message
+      });
+    }
+  });
+
   // Master Object Keys API Endpoints
   
   // Get Master Object Keys Statistics

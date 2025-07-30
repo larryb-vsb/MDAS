@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
+import TddfObjectTotals from '@/components/storage/TddfObjectTotals';
 
 interface MasterObjectStats {
   masterKeys: {
@@ -213,6 +214,9 @@ export default function StorageManagement() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* TDDF Object Totals Section */}
+          <TddfObjectTotals />
+          
           {statsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
