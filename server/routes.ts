@@ -8278,6 +8278,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get associated P1 record for a DT record
+  app.get("/api/tddf-json/records/:id/p1", isAuthenticated, async (req, res) => {
+    try {
+      const recordId = parseInt(req.params.id);
+      const p1Record = await storage.getAssociatedP1Record(recordId);
+      
+      if (!p1Record) {
+        return res.json({ p1Record: null });
+      }
+      
+      res.json({ p1Record });
+    } catch (error) {
+      console.error('Error fetching associated P1 record:', error);
+      res.status(500).json({ error: 'Failed to fetch P1 record' });
+    }
+  });
+
   // TDDF JSON API endpoints (using dev_tddf_jsonb table from Stage 5 encoding)
   // Add in-memory cache for statistics (5 minute TTL)
   let statsCache: { data: any; timestamp: number } | null = null;

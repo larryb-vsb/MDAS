@@ -475,6 +475,8 @@ export default function TddfJsonPage() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedRecord, setSelectedRecord] = useState<TddfJsonRecord | null>(null);
+  const [associatedP1Record, setAssociatedP1Record] = useState<any | null>(null);
+  const [loadingP1, setLoadingP1] = useState(false);
   const [dateFilter, setDateFilter] = useState<string>('');
 
 
@@ -525,8 +527,24 @@ export default function TddfJsonPage() {
     enabled: !!stats, // Only load after basic stats are loaded
   });
 
-  const handleRecordClick = (record: TddfJsonRecord) => {
+  const handleRecordClick = async (record: TddfJsonRecord) => {
     setSelectedRecord(record);
+    setAssociatedP1Record(null);
+    setLoadingP1(false);
+    
+    // If this is a DT record, look for associated P1 record
+    if (record.record_type === 'DT') {
+      setLoadingP1(true);
+      try {
+        const response = await fetch(`/api/tddf-json/records/${record.id}/p1`);
+        const data = await response.json();
+        setAssociatedP1Record(data.p1Record);
+      } catch (error) {
+        console.error('Error fetching P1 record:', error);
+      } finally {
+        setLoadingP1(false);
+      }
+    }
   };
 
   const handleDateSelect = (date: string) => {
@@ -999,7 +1017,7 @@ export default function TddfJsonPage() {
                           /* BH Records - Show authentic TDDF header fields plus Net Deposit */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-6 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || 'N/A'}
+                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || 'N/A'}
                             </div>
                             <div className="font-mono text-xs font-medium text-blue-600">
                               {record.extracted_fields?.entryRunNumber || 'N/A'}
@@ -1032,7 +1050,7 @@ export default function TddfJsonPage() {
                           /* DT Records - Show TDDF header fields plus original DT fields */
                           <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || 'N/A'}
+                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || 'N/A'}
                             </div>
                             <div className="font-mono text-xs font-medium text-blue-600">
                               {record.extracted_fields?.entryRunNumber || 'N/A'}
@@ -1249,7 +1267,91 @@ export default function TddfJsonPage() {
                     </div>
                   </div>
 
-{selectedRecord.record_type === 'P1' ? (
+{selectedRecord.record_type === 'DT' && associatedP1Record ? (
+                    <div>
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        DT Transaction with P1 Extension
+                        <Badge className="bg-green-100 text-green-800 border-green-300">Has P1 Details</Badge>
+                      </h3>
+                      <ScrollArea className="h-64">
+                        <div className="space-y-3 text-sm">
+                          {/* DT Transaction Info */}
+                          <div className="border-b pb-2">
+                            <h4 className="font-medium text-blue-700 mb-2">DT Transaction Details</h4>
+                            <div className="space-y-1">
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Transaction Date:</span>
+                                <span className="font-mono text-xs">{formatDate(selectedRecord.extracted_fields?.transactionDate)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Amount:</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.transactionAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Card Type:</span>
+                                <span className="font-mono text-xs">{selectedRecord.extracted_fields?.cardType || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Terminal ID:</span>
+                                <div>
+                                  <TerminalIdDisplay terminalId={selectedRecord.extracted_fields?.terminalId} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* P1 Extension Details */}
+                          <div className="border-b pb-2">
+                            <h4 className="font-medium text-orange-700 mb-2">P1 Purchasing Card Extension</h4>
+                            <div className="space-y-1">
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Customer Code (101-125):</span>
+                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.customerCode || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Purchase ID (76-100):</span>
+                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.purchaseIdentifier || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Tax Amount (56-67):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.taxAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Tax Rate (68-74):</span>
+                                <span className="font-mono text-xs">{associatedP1Record.extracted_fields?.taxRate || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Freight Amount (226-237):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.freightAmount)}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Duty Amount (238-249):</span>
+                                <span className="font-mono text-xs text-green-600">{formatAmount(associatedP1Record.extracted_fields?.dutyAmount)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  ) : selectedRecord.record_type === 'DT' && loadingP1 ? (
+                    <div>
+                      <h3 className="font-semibold mb-2">DT Transaction Details</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Transaction Date:</span>
+                          <span className="font-mono text-xs">{formatDate(selectedRecord.extracted_fields?.transactionDate)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Amount:</span>
+                          <span className="font-mono text-xs text-green-600">{formatAmount(selectedRecord.extracted_fields?.transactionAmount)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-4 p-3 bg-gray-50 rounded-lg">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                          <span className="text-gray-600">Looking for associated P1 purchasing card details...</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedRecord.record_type === 'P1' ? (
                     <div>
                       <h3 className="font-semibold mb-2">P1 Purchasing Card Extension Fields</h3>
                       <ScrollArea className="h-64">

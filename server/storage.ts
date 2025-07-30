@@ -13568,6 +13568,63 @@ export class DatabaseStorage implements IStorage {
       };
     }
   }
+
+  async getAssociatedP1Record(dtRecordId: number): Promise<any | null> {
+    try {
+      const tddfJsonTableName = getTableName('tddf_jsonb');
+      
+      // First get the DT record details
+      const dtResult = await pool.query(`
+        SELECT 
+          filename,
+          line_number,
+          extracted_fields->>'merchantAccountNumber' as merchant_account,
+          extracted_fields->>'entryRunNumber' as entry_run
+        FROM ${tddfJsonTableName}
+        WHERE id = $1 AND record_type = 'DT'
+      `, [dtRecordId]);
+      
+      if (!dtResult.rows[0]) {
+        console.log(`[P1-LOOKUP] DT record ${dtRecordId} not found`);
+        return null;
+      }
+      
+      const dtRecord = dtResult.rows[0];
+      
+      // Look for P1 record with line_number = dt_line + 1, same filename, merchant, and entry run
+      const p1Result = await pool.query(`
+        SELECT 
+          id,
+          filename,
+          line_number,
+          raw_line,
+          extracted_fields
+        FROM ${tddfJsonTableName}
+        WHERE filename = $1
+          AND line_number = $2
+          AND record_type = 'P1'
+          AND extracted_fields->>'merchantAccountNumber' = $3
+          AND extracted_fields->>'entryRunNumber' = $4
+      `, [
+        dtRecord.filename,
+        dtRecord.line_number + 1,
+        dtRecord.merchant_account,
+        dtRecord.entry_run
+      ]);
+      
+      if (p1Result.rows.length === 0) {
+        console.log(`[P1-LOOKUP] No P1 record found for DT ${dtRecordId} (line ${dtRecord.line_number})`);
+        return null;
+      }
+      
+      console.log(`[P1-LOOKUP] Found P1 record for DT ${dtRecordId}: P1 line ${p1Result.rows[0].line_number}`);
+      return p1Result.rows[0];
+      
+    } catch (error) {
+      console.error('[P1-LOOKUP] Error fetching associated P1 record:', error);
+      throw error;
+    }
+  }
 }
 
 // Default to database storage
