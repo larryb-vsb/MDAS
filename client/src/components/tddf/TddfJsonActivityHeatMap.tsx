@@ -13,15 +13,27 @@ interface ActivityResponse {
   records: ActivityData[];
   queryTime: number;
   fromCache?: boolean;
+  cacheInfo?: {
+    tableName: string;
+    recordCount: number;
+    totalTransactions: number;
+    dateRange: {
+      earliest: string;
+      latest: string;
+    };
+    lastUpdated: string;
+    ageMinutes: number;
+  };
   metadata?: {
     year: number;
     recordType: string;
     totalRecords: number;
     aggregationLevel: string;
     recordCount: number;
+    cacheStatus?: string;
     performanceMetrics: {
-      sizeCheckTime: number;
-      aggregationTime: number;
+      sizeCheckTime?: number;
+      aggregationTime?: number;
       totalQueryTime: number;
     };
   };
@@ -106,15 +118,17 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/heatmap-simple', currentYear],
+    queryKey: ['/api/tddf-json/heatmap-cached', currentYear],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/heatmap-simple?year=${currentYear}`);
-      if (!response.ok) throw new Error('Failed to fetch simple heat map data');
+      const response = await fetch(`/api/tddf-json/heatmap-cached?year=${currentYear}`);
+      if (!response.ok) throw new Error('Failed to fetch cached heat map data');
       return response.json();
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minute cache
+    staleTime: Infinity, // Never auto-refresh - use cached data only
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: false, // Don't refresh when component mounts
+    refetchOnReconnect: false, // Don't refresh on reconnect
   });
 
   // Create a map for quick lookup of activity data by date
@@ -171,34 +185,12 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const queryTime = metadata?.performanceMetrics?.totalQueryTime || activityResponse?.queryTime || 0;
   const fromCache = activityResponse?.fromCache || false;
 
-  // Progressive loading states
-  if (isLoading || isFetching) {
+  // Show simple loading message only during initial load
+  if (isLoading) {
     return (
       <div className="bg-gray-50 rounded-lg p-6">
-        <div className="animate-pulse">
-          <div className="flex items-center justify-between mb-4">
-            <div className="h-4 bg-gray-200 rounded w-32"></div>
-            <div className="h-4 bg-gray-200 rounded w-48"></div>
-          </div>
-          {/* Visual Loading State Indicator */}
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <div className="text-sm text-blue-700 font-medium">
-                {isLoading ? `Loading ${currentYear} activity data...` : 'Refreshing heat map...'}
-              </div>
-            </div>
-            {totalRecords > 500000 && (
-              <div className="text-xs text-blue-600 mt-1">
-                Processing {totalRecords.toLocaleString()} records • Using smart aggregation for optimal performance
-              </div>
-            )}
-          </div>
-          <div className="grid grid-cols-12 gap-2">
-            {Array.from({ length: 365 }, (_, i) => (
-              <div key={i} className="w-4 h-4 bg-gray-200 rounded-sm"></div>
-            ))}
-          </div>
+        <div className="flex items-center justify-center">
+          <div className="text-sm text-gray-600">Loading cached heat map data...</div>
         </div>
       </div>
     );
@@ -274,6 +266,41 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
           </div>
         </div>
       </div>
+
+      {/* Cache Information Display */}
+      {activityResponse?.cacheInfo && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="font-medium text-blue-900">Cache Status</h5>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-blue-700 font-medium">Using Cached Data</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-blue-600">Cache Table:</span>
+              <div className="font-mono text-blue-800">{activityResponse.cacheInfo.tableName}</div>
+            </div>
+            <div>
+              <span className="text-blue-600">Query Time:</span>
+              <div className="font-medium text-blue-800">{queryTime}ms</div>
+            </div>
+            <div>
+              <span className="text-blue-600">Date Range:</span>
+              <div className="font-medium text-blue-800">
+                {activityResponse.cacheInfo.dateRange.earliest} to {activityResponse.cacheInfo.dateRange.latest}
+              </div>
+            </div>
+            <div>
+              <span className="text-blue-600">Total Days:</span>
+              <div className="font-medium text-blue-800">
+                {activityResponse.cacheInfo.recordCount} cached days
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Calendar grid */}
       <div className="space-y-2">

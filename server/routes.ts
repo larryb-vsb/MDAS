@@ -7481,6 +7481,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cached heat map API for testing page - uses pre-cached data with timing information
+  app.get("/api/tddf-json/heatmap-cached", isAuthenticated, async (req, res) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const cacheTableName = `heat_map_cache_${year}`;
+      
+      console.log(`[CACHED-HEATMAP] Fetching cached data for year ${year} from ${cacheTableName}`);
+      const startTime = Date.now();
+      
+      // Check if cache table exists
+      const tableExistsResult = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = $1
+        )
+      `, [cacheTableName]);
+      
+      if (!tableExistsResult.rows[0].exists) {
+        return res.json({
+          records: [],
+          queryTime: Date.now() - startTime,
+          fromCache: true,
+          error: `Cache table ${cacheTableName} does not exist`,
+          metadata: {
+            year,
+            recordType: 'DT',
+            totalRecords: 0,
+            aggregationLevel: 'daily',
+            recordCount: 0,
+            cacheStatus: 'missing'
+          }
+        });
+      }
+      
+      // Get cache metadata (last update time)
+      const metadataResult = await pool.query(`
+        SELECT 
+          COUNT(*) as record_count,
+          SUM(dt_count) as total_transactions,
+          MIN(date) as earliest_date,
+          MAX(date) as latest_date
+        FROM ${cacheTableName}
+      `);
+      
+      // Get actual cached data
+      const result = await pool.query(`
+        SELECT 
+          date as transaction_date,
+          dt_count as transaction_count
+        FROM ${cacheTableName}
+        ORDER BY date
+      `);
+      
+      const queryTime = Date.now() - startTime;
+      
+      console.log(`[CACHED-HEATMAP] Retrieved ${result.rows.length} cached days in ${queryTime}ms`);
+      
+      // Transform data for heat map component
+      const records = result.rows.map(row => ({
+        transaction_date: row.transaction_date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        transaction_count: parseInt(row.transaction_count)
+      }));
+      
+      const metadata = metadataResult.rows[0];
+      
+      res.json({
+        records,
+        queryTime,
+        fromCache: true,
+        cacheInfo: {
+          tableName: cacheTableName,
+          recordCount: parseInt(metadata.record_count),
+          totalTransactions: parseInt(metadata.total_transactions || 0),
+          dateRange: {
+            earliest: metadata.earliest_date,
+            latest: metadata.latest_date
+          },
+          lastUpdated: new Date().toISOString(), // We'll improve this later
+          ageMinutes: 0 // Placeholder - will be calculated from actual cache timestamp
+        },
+        metadata: {
+          year,
+          recordType: 'DT',
+          totalRecords: parseInt(metadata.total_transactions || 0),
+          aggregationLevel: 'daily',
+          recordCount: result.rows.length,
+          cacheStatus: 'available',
+          performanceMetrics: {
+            totalQueryTime: queryTime
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching cached heat map data:', error);
+      res.status(500).json({ error: 'Failed to fetch cached heat map data' });
+    }
+  });
+
   // Get list of cached tables with age information
   app.get("/api/settings/cached-tables", isAuthenticated, async (req, res) => {
     try {
