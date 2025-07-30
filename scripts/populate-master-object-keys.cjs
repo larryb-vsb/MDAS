@@ -20,7 +20,7 @@ async function populateMasterObjectKeys() {
     console.log('📋 Fetching existing upload records...');
     const uploadsResult = await pool.query(`
       SELECT id, filename, final_file_type, file_size, line_count, 
-             current_phase, created_at, storage_key
+             current_phase, created_at, storage_key, storage_path
       FROM dev_uploader_uploads 
       WHERE final_file_type = 'tddf'
       ORDER BY created_at DESC
@@ -33,7 +33,12 @@ async function populateMasterObjectKeys() {
     let storageObjects = [];
     try {
       const listResult = await storageClient.list({ prefix: 'dev-uploader/' });
-      storageObjects = Array.isArray(listResult) ? listResult : [];
+      // Handle the result structure from Replit Object Storage
+      if (listResult && listResult.ok && Array.isArray(listResult.value)) {
+        storageObjects = listResult.value;
+      } else if (Array.isArray(listResult)) {
+        storageObjects = listResult;
+      }
       console.log(`Found ${storageObjects.length} objects in storage`);
     } catch (error) {
       console.log('⚠️ Could not list storage objects:', error.message);
@@ -44,7 +49,11 @@ async function populateMasterObjectKeys() {
     const objectsByKey = new Map();
     if (storageObjects.length > 0) {
       storageObjects.forEach(obj => {
-        objectsByKey.set(obj.key, obj);
+        // Storage objects use 'name' property, not 'key'
+        const objectKey = obj.name || obj.key;
+        if (objectKey) {
+          objectsByKey.set(objectKey, obj);
+        }
       });
     }
     
@@ -55,7 +64,7 @@ async function populateMasterObjectKeys() {
     
     for (const upload of uploadsResult.rows) {
       // Try to find matching storage object
-      let storageKey = upload.storage_key;
+      let storageKey = upload.storage_key || upload.storage_path;
       let storageObject = null;
       
       // If no storage key, try to find by filename pattern
