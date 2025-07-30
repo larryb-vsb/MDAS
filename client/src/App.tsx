@@ -30,11 +30,11 @@ import MMSUploader from "@/pages/MMSUploader";
 import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
-
 function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={HomeDashboardEnhanced} />
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/merchant-management" component={Dashboard} />
       <ProtectedRoute path="/merchants" component={Merchants} />
       <ProtectedRoute path="/merchants/new" component={NewMerchant} />

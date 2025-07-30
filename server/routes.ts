@@ -25,10 +25,10 @@ import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName } from "./table-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 
-// Cache naming utility following target-source_cache_yyyy format
+// Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
   const cacheYear = year || new Date().getFullYear();
-  return getTableName(`${target}-${source}_cache_${cacheYear}`);
+  return getTableName(`${target}_${source}_cache_${cacheYear}`);
 }
 
 // Authentication middleware
@@ -8654,7 +8654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
     try {
-      const tableName = getCacheTableName('dashboard', 'merchants');
+      const tableName = getTableName('dashboard_cache');
       
       // Check for valid cache (not expired)
       const cacheQuery = `
