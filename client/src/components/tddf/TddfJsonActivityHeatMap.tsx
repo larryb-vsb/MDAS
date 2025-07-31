@@ -193,7 +193,9 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/heatmap-cached', currentYear],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/heatmap-cached?year=${currentYear}`);
+      const response = await fetch(`/api/tddf-json/heatmap-cached?year=${currentYear}`, {
+        credentials: 'include' // Add authentication credentials
+      });
       if (!response.ok) throw new Error('Failed to fetch cached heat map data');
       return response.json();
     },
@@ -203,6 +205,12 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     refetchOnMount: false, // Don't refresh when component mounts
     refetchOnReconnect: false, // Don't refresh on reconnect
   });
+
+  // Add debugging to heat map data
+  console.log('[TDDF-JSON-HEATMAP] Activity response:', activityResponse);
+  console.log('[TDDF-JSON-HEATMAP] Current year:', currentYear);
+  console.log('[TDDF-JSON-HEATMAP] Loading:', isLoading);
+  console.log('[TDDF-JSON-HEATMAP] Error:', error);
 
   // Create a map for quick lookup of activity data by date
   const activityMap = new Map<string, ActivityData>();

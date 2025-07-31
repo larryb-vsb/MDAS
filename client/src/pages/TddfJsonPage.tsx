@@ -534,12 +534,17 @@ export default function TddfJsonPage() {
   const { toast } = useToast();
 
   // Fetch TDDF JSON statistics with caching optimization
-  const { data: stats, isLoading: statsLoading } = useQuery<TddfStatsResponse>({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<TddfStatsResponse>({
     queryKey: ['/api/tddf-json/stats'],
     queryFn: () => apiRequest('/api/tddf-json/stats'),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes to reduce load
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
+
+  // Add debugging to see what's happening
+  console.log('[TDDF-JSON-PAGE] Stats data:', stats);
+  console.log('[TDDF-JSON-PAGE] Stats loading:', statsLoading);
+  console.log('[TDDF-JSON-PAGE] Stats error:', statsError);
 
   // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
