@@ -32,6 +32,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
+import { HeatMapProcessingStats } from "@/components/cache/HeatMapProcessingStats";
 
 interface PreCacheSettings {
   id: number;
@@ -1041,6 +1042,9 @@ function CacheConfigurationManagement() {
               <HeatMapCacheMonitor />
             </CardContent>
           </Card>
+
+          {/* Heat Map Processing Statistics */}
+          <HeatMapProcessingStats />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">

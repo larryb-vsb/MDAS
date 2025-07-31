@@ -27,6 +27,7 @@ import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
+import { heatMapCacheProcessingStats } from "@shared/schema";
 
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
@@ -8239,6 +8240,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'Failed to get heat map cache status',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // Get heat map cache processing statistics
+  app.get("/api/heat-map-cache/processing-stats", isAuthenticated, async (req, res) => {
+    try {
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      let query = db.select().from(heatMapCacheProcessingStats);
+      
+      if (year) {
+        query = query.where(eq(heatMapCacheProcessingStats.year, year));
+      }
+      
+      const stats = await query
+        .orderBy(desc(heatMapCacheProcessingStats.started_at))
+        .limit(limit);
+      
+      res.json({
+        success: true,
+        stats: stats,
+        count: stats.length
+      });
+    } catch (error) {
+      console.error('[HEAT-MAP-CACHE-API] Error getting processing stats:', error);
+      res.status(500).json({ error: 'Failed to get processing stats' });
     }
   });
 
