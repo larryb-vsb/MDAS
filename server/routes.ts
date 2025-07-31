@@ -9743,6 +9743,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           0,
           0
         ]);
+        
+        // ALSO create/update cache configuration entry
+        const configTableName = getTableName('cache_configuration');
+        try {
+          await pool.query(`
+            INSERT INTO ${configTableName} 
+            (cache_name, cache_type, page_name, table_name, default_expiration_minutes, expiration_policy, 
+             current_expiration_minutes, auto_refresh_enabled, refresh_interval_minutes, refresh_on_startup, 
+             priority_level, enable_compression, description, environment_specific, is_active, 
+             created_by, last_modified_by, cache_update_policy)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            ON CONFLICT (cache_name) DO UPDATE SET
+              current_expiration_minutes = EXCLUDED.current_expiration_minutes,
+              expiration_policy = EXCLUDED.expiration_policy,
+              last_modified_by = EXCLUDED.last_modified_by,
+              updated_at = NOW()
+          `, [
+            'dashboard_cache', 'dashboard', 'Dashboard', tableName, 
+            never ? 525600 : minutes, // default expiration
+            never ? 'never' : 'fixed', // policy
+            never ? 525600 : minutes, // current expiration
+            true, 60, false, 5, false, 'Main dashboard cache', true, true,
+            'system', 'admin', 'manual'
+          ]);
+          console.log(`[CACHE-EXPIRATION] Created/updated cache configuration for dashboard_cache`);
+        } catch (configError) {
+          console.error('[CACHE-EXPIRATION] Error creating cache configuration:', configError);
+        }
       } else {
         // Update existing cache expiration
         const expiresAt = never 
@@ -9754,6 +9782,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SET expires_at = ${expiresAt}
           WHERE cache_key = 'dashboard3_metrics'
         `);
+      }
+      
+      // ALSO update the cache configuration table for consistency
+      const configTableName = getTableName('cache_configuration');
+      try {
+        const configUpdateResult = await pool.query(`
+          UPDATE ${configTableName}
+          SET 
+            current_expiration_minutes = $1,
+            expiration_policy = $2,
+            last_modified_by = $3,
+            updated_at = NOW()
+          WHERE cache_name LIKE '%dashboard%'
+        `, [
+          never ? 525600 : minutes, // 1 year for never expire
+          never ? 'never' : 'fixed',
+          'admin'
+        ]);
+        
+        console.log(`[CACHE-EXPIRATION] Updated ${configUpdateResult.rowCount} cache configuration records`);
+      } catch (configError) {
+        console.error('[CACHE-EXPIRATION] Error updating cache configuration:', configError);
+        // Don't fail the whole operation if config update fails
       }
       
       // Get updated cache info
