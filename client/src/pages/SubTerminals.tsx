@@ -103,7 +103,7 @@ export default function SubTerminals() {
               <strong>Data Source:</strong> {sourceFile} | <strong>Upload Date:</strong> {new Date(uploadDate).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })} CST
             </p>
             <p className="text-sm text-blue-800 mt-1">
-              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | VNumber + Details = Shows VNumber with decoded merchant name and status when Terminal_number matches D_Number
+              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | Merchant_name_d = Decoded merchant name | Status_d = Decoded status with color coding | VNumber = Matching terminal VNumber
             </p>
           </div>
         </div>
@@ -547,7 +547,9 @@ export default function SubTerminals() {
                       <TableHead>Id</TableHead>
                       <TableHead>DeviceName</TableHead>
                       <TableHead>D_Number</TableHead>
-                      <TableHead>VNumber + Details</TableHead>
+                      <TableHead>Merchant_name_d</TableHead>
+                      <TableHead>Status_d</TableHead>
+                      <TableHead>VNumber</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -560,15 +562,22 @@ export default function SubTerminals() {
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.dNumber}</TableCell>
+                        <TableCell className="text-sm font-medium text-gray-700">
+                          {terminal.deviceMerchant}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            terminal.deviceStatus === 'DECOMMISSIONED' ? 'bg-red-100 text-red-700' :
+                            terminal.deviceStatus === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                            terminal.deviceStatus === 'INACTIVE' ? 'bg-gray-100 text-gray-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {terminal.deviceStatus}
+                          </span>
+                        </TableCell>
                         <TableCell className="font-mono text-sm">
                           {terminal.vNumber ? (
-                            <div className="space-y-1">
-                              <div className="text-green-600 font-bold">{terminal.vNumber}</div>
-                              <div className="text-xs text-gray-600">
-                                <div className="font-medium">{terminal.deviceMerchant}</div>
-                                <div className="text-orange-600">({terminal.deviceStatus})</div>
-                              </div>
-                            </div>
+                            <span className="text-green-600 font-bold">{terminal.vNumber}</span>
                           ) : (
                             <span className="text-gray-400">No Match</span>
                           )}
