@@ -178,20 +178,28 @@ export default function TddfObjectTotals() {
     }
   };
 
-  // Sort record types by count for display - show storage breakdown with purple styling
+  // Sort record types by count for display - show both storage and JSONB data
   const sortedRecordTypes = (() => {
-    // Always use storage breakdown data for purple styling consistency
-    const breakdown = data.recordStats.recordTypeBreakdown || {};
+    // Use storage breakdown for main display and sorting
+    const storageBreakdown = data.recordStats.recordTypeBreakdown || {};
+    const jsonbBreakdown = data.recordStats.recordTypeBreakdownFromCache || {};
     const total = data.recordStats.totalRecords;
     
-    return Object.entries(breakdown)
-      .filter(([type, count]) => Number(count) > 0) // Only show types with counts > 0
-      .sort(([,a], [,b]) => Number(b) - Number(a))
-      .map(([type, count]) => ({
+    // Combine all record types from both sources
+    const allTypes = new Set([
+      ...Object.keys(storageBreakdown),
+      ...Object.keys(jsonbBreakdown)
+    ]);
+    
+    return Array.from(allTypes)
+      .map(type => ({
         type,
-        count: Number(count),
-        percentage: ((Number(count) / total) * 100).toFixed(1)
-      }));
+        count: Number(storageBreakdown[type] || 0),
+        jsonbCount: Number(jsonbBreakdown[type] || 0),
+        percentage: ((Number(storageBreakdown[type] || 0) / total) * 100).toFixed(1)
+      }))
+      .filter(item => item.count > 0 || item.jsonbCount > 0) // Show if either has data
+      .sort((a, b) => Math.max(b.count, b.jsonbCount) - Math.max(a.count, a.jsonbCount)); // Sort by highest count from either source
   })();
 
   // Get record type description with dynamic discovery
@@ -347,35 +355,47 @@ export default function TddfObjectTotals() {
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="text-right">Count</TableHead>
+                <TableHead className="text-right">Storage Objects</TableHead>
+                <TableHead className="text-right">JSONB Records</TableHead>
                 <TableHead className="text-right">Percentage</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedRecordTypes.map(({ type, count, percentage }) => (
-                <TableRow key={type}>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono">
-                      {type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-gray-600">
-                    {getRecordTypeDescription(type)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    <div className="bg-purple-50 px-2 py-1 rounded border border-purple-200">
-                      <span className="text-purple-800 font-semibold">
-                        {count.toLocaleString()}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="secondary">
-                      {percentage}%
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {sortedRecordTypes.map(({ type, count, percentage }) => {
+                // Get JSONB count for this record type
+                const jsonbCount = data.recordStats.recordTypeBreakdownFromCache?.[type] || 0;
+                return (
+                  <TableRow key={type}>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {getRecordTypeDescription(type)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      <div className="bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                        <span className="text-purple-800 font-semibold">
+                          {count.toLocaleString()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      <div className="bg-green-50 px-2 py-1 rounded border border-green-200">
+                        <span className="text-green-800 font-semibold">
+                          {jsonbCount.toLocaleString()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">
+                        {percentage}%
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
