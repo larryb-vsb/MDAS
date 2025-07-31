@@ -11529,20 +11529,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
         case 'monthly':
           selectClause = `
-            DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date) as transaction_date,
-            COUNT(*) as transaction_count,
-            'monthly' as aggregation_level
+            DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date) as date,
+            COUNT(*) as transaction_count
           `;
           groupByClause = `GROUP BY DATE_TRUNC('month', (extracted_fields->>'transactionDate')::date)`;
-          break;
-          
-        case 'weekly':
-          selectClause = `
-            DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date) as transaction_date,
-            COUNT(*) as transaction_count,
-            'weekly' as aggregation_level
-          `;
-          groupByClause = `GROUP BY DATE_TRUNC('week', (extracted_fields->>'transactionDate')::date)`;
           break;
           
         default: // daily
@@ -11554,9 +11544,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY'))
               WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
               THEN DATE(TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY'))
-            END as transaction_date,
-            COUNT(*) as transaction_count,
-            'daily' as aggregation_level
+            END as date,
+            COUNT(*) as transaction_count
           `;
           groupByClause = `GROUP BY CASE 
             WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
@@ -11568,11 +11557,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           END`;
       }
       
-      // Execute dynamic aggregation query with robust date parsing
-      const aggregationStartTime = Date.now();
-      const activityResult = await pool.query(`
+      // Execute fallback query
+      const fallbackQuery = `
         SELECT ${selectClause}
-        FROM ${tableName}
+        FROM ${fallbackTableName}
         WHERE record_type = $1
         AND CASE 
           WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
@@ -11586,50 +11574,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         AND extracted_fields->>'transactionDate' IS NOT NULL
         AND extracted_fields->>'transactionDate' != ''
         ${groupByClause}
-        ORDER BY transaction_date DESC
-      `, [recordType, year]);
+        ORDER BY date DESC
+        LIMIT 500
+      `;
       
-      const aggregationTime = Date.now() - aggregationStartTime;
-      const totalQueryTime = Date.now() - startTime;
+      const fallbackResult = await pool.query(fallbackQuery, [recordType, year]);
+      const fallbackTime = Date.now() - startTime;
       
-      console.log(`[TDDF-JSON-ACTIVITY] Dynamic aggregation completed: ${aggregationTime}ms (total: ${totalQueryTime}ms)`);
+      console.log(`[TDDF-JSON-ACTIVITY] Fallback query completed in ${fallbackTime}ms`);
       
-      const responseData = {
-        records: activityResult.rows,
-        metadata: {
-          year: year,
-          recordType: recordType,
-          totalRecords: totalRecords,
-          aggregationLevel: aggregationLevel,
-          recordCount: activityResult.rows.length,
-          performanceMetrics: {
-            sizeCheckTime: sizeCheckTime,
-            aggregationTime: aggregationTime,
-            totalQueryTime: totalQueryTime
-          }
-        },
-        queryTime: totalQueryTime
+      const fallbackResponseData = {
+        records: fallbackResult.rows,
+        totalRecords: totalRecords,
+        aggregationLevel: aggregationLevel,
+        queryTime: fallbackTime,
+        fromPreCache: false,
+        lastUpdated: new Date().toISOString(),
+        buildTime: fallbackTime,
+        year: year,
+        recordType: recordType
       };
-
-      // Cache with dynamic TTL based on dataset size
-      activityCache.set(cacheKey, {
-        data: responseData,
-        timestamp: Date.now(),
-        ttl: cacheTtl
-      });
       
-      // Cleanup old cache entries (keep max 50 entries)
-      if (activityCache.size > 50) {
-        const oldestKey = activityCache.keys().next().value;
-        activityCache.delete(oldestKey);
-      }
-      
-      res.json(responseData);
+      return res.json(fallbackResponseData);
     } catch (error) {
-      console.error('Error in dynamic TDDF JSON activity aggregation:', error);
+      console.error('Error in TDDF JSON activity pre-cache/fallback:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch TDDF JSON activity data",
-        aggregationLevel: 'error'
+        fromPreCache: false
       });
     }
   });
