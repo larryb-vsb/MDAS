@@ -10041,7 +10041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Store in JSONB database table
-      const tableName = getCacheTableName('dashboard', 'merchants');
+      const tableName = getTableName('dashboard_cache');
       const expiresAt = new Date(Date.now() + DASHBOARD_CACHE_TTL);
       const buildTime = Date.now() - startTime;
       
@@ -10060,7 +10060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       await pool.query(upsertQuery, [
-        'main_metrics',
+        'dashboard_metrics',
         JSON.stringify(metrics),
         expiresAt,
         buildTime,
