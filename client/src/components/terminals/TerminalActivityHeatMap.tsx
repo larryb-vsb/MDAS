@@ -130,8 +130,7 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
     }
   };
 
-  const monthLabels = ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'];
-  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   if (isLoading) {
     return (
@@ -153,31 +152,46 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          </div>
           <p className="text-sm text-gray-600">{description}</p>
         </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg p-6">
-        {/* Year Navigation */}
-        <div className="flex justify-between items-center mb-6">
+        {/* Year Navigation - GitHub Style */}
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => navigateYear('prev')}
+              className="h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="font-medium text-lg min-w-[80px] text-center">{currentYear}</span>
+            <span className="font-semibold text-lg min-w-[80px] text-center">{currentYear}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigateYear('next')}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigateYear('next')}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="ml-4 h-8 px-3 text-xs"
             >
-              <ChevronRight className="h-4 w-4" />
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh {currentYear}
             </Button>
           </div>
           <div className="flex items-center gap-4">
@@ -186,37 +200,41 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
               <span className="mx-2">•</span>
               <span>Peak day: <span className="font-medium">{maxCount}</span> transactions</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
           </div>
         </div>
 
-        {/* Month Labels */}
-        <div className="mb-2 overflow-x-auto">
-          <div className="flex justify-between text-xs text-gray-600 font-medium" style={{ marginLeft: '32px', width: `${53 * 16}px` }}>
-            {monthLabels.map((month) => (
-              <span key={month}>{month}</span>
-            ))}
+        {/* Month Labels - GitHub Style */}
+        <div className="mb-3 overflow-x-auto">
+          <div className="relative" style={{ minWidth: `${53 * 15 + 30}px` }}>
+            <div className="flex justify-between text-xs text-gray-600 font-medium absolute w-full" style={{ left: '30px', top: '0' }}>
+              <span>Jan</span>
+              <span>Feb</span>
+              <span>Mar</span>
+              <span>Apr</span>
+              <span>May</span>
+              <span>Jun</span>
+              <span>Jul</span>
+              <span>Aug</span>
+              <span>Sep</span>
+              <span>Oct</span>
+              <span>Nov</span>
+              <span>Dec</span>
+            </div>
           </div>
         </div>
 
-        {/* Heat Map Grid */}
+        {/* Heat Map Grid - GitHub Style */}
         <div className="mb-6 overflow-x-auto">
-          <div className="flex gap-1 min-w-fit">
+          <div className="flex" style={{ minWidth: `${53 * 15 + 30}px` }}>
             {/* Day Labels */}
-            <div className="flex flex-col gap-1 mr-2">
-              {dayNames.map((day, i) => (
-                <div key={i} className="text-xs text-gray-600 font-medium h-3 flex items-center w-6">
-                  {i % 2 === 1 ? day : ''}
-                </div>
-              ))}
+            <div className="flex flex-col justify-between text-xs text-gray-600 font-medium mr-2" style={{ height: '105px', width: '25px' }}>
+              <div></div>
+              <div>Mon</div>
+              <div></div>
+              <div>Wed</div>
+              <div></div>
+              <div>Fri</div>
+              <div></div>
             </div>
             
             {/* Grid */}
@@ -252,22 +270,26 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
         </div>
         
-        {/* Legend */}
-        <div className="flex justify-end">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>Less</span>
+        {/* Legend - GitHub Style */}
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <span className="text-xs">Less</span>
             <div className="flex gap-1">
-              <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-              <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
-              <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-              <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-              <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
-              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-              <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
-              <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
-              <div className="w-3 h-3 bg-purple-800 rounded-sm"></div>
+              {[0, 1, 2, 3, 4].map((level) => (
+                <div
+                  key={level}
+                  className={`w-3 h-3 rounded-sm ${getBackgroundColor(level === 0 ? 0 : Math.ceil(maxCount * (level / 4)), false)}`}
+                />
+              ))}
             </div>
-            <span>More</span>
+            <span className="text-xs">More</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            Peak: <span className="font-medium">{maxCount} transactions/day</span>
+            <span className="mx-2">•</span>
+            daily aggregation
+            <span className="mx-2">•</span>
+            Cache TTL: 5 minutes
           </div>
         </div>
 
