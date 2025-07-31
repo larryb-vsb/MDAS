@@ -44,6 +44,7 @@ class MMSWatcher {
       }
       
       // Process Manual 4-5 queue (single-step user-triggered processing)
+      console.log(`[MMS-WATCHER] [MANUAL-45] Checking manual queue - size: ${this.manual45Queue.size}`);
       if (this.manual45Queue.size > 0) {
         console.log(`[MMS-WATCHER] [MANUAL-45] Processing ${this.manual45Queue.size} files in manual queue`);
         await this.processManualQueue();
@@ -226,7 +227,7 @@ class MMSWatcher {
     for (const uploadId of filesToProcess) {
       try {
         // Get current file status
-        const upload = await this.storage.getUploaderUpload(uploadId);
+        const upload = await this.storage.getUploaderUploadById(uploadId);
         if (!upload) {
           console.log(`[MMS-WATCHER] [MANUAL-45] File ${uploadId} not found, removing from queue`);
           this.manual45Queue.delete(uploadId);
@@ -325,12 +326,14 @@ class MMSWatcher {
 
   // Add files to manual processing queue
   addToManualQueue(uploadIds) {
+    console.log(`[MMS-WATCHER] [MANUAL-45] addToManualQueue called with:`, uploadIds);
     if (Array.isArray(uploadIds)) {
       uploadIds.forEach(id => this.manual45Queue.add(id));
     } else {
       this.manual45Queue.add(uploadIds);
     }
     console.log(`[MMS-WATCHER] [MANUAL-45] Added ${Array.isArray(uploadIds) ? uploadIds.length : 1} files to manual queue. Queue size: ${this.manual45Queue.size}`);
+    console.log(`[MMS-WATCHER] [MANUAL-45] Current queue contents:`, Array.from(this.manual45Queue));
   }
 
   // Get manual queue status
