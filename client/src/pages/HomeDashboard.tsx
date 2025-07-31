@@ -28,7 +28,8 @@ import {
   Lightbulb,
   Cloud,
   HardDrive,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -256,16 +257,23 @@ export default function HomeDashboard() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
+              {/* Environmental Badge - Always show with fallback */}
               <Badge 
                 variant="outline" 
                 className={
                   systemInfo?.environment?.name === 'production' 
-                    ? "bg-orange-50 text-orange-700 border-orange-200 font-medium px-3 py-1"
-                    : "bg-blue-50 text-blue-700 border-blue-200 font-medium px-3 py-1"
+                    ? "bg-orange-100 text-orange-800 border-orange-300 font-semibold px-3 py-1 shadow-sm"
+                    : "bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
                 }
               >
-                {systemInfo?.environment?.name === 'production' ? 'Production' : 'Development'}
+                {systemInfo?.environment?.name === 'production' ? '🟠 Production' : '🔵 Development'}
               </Badge>
+              {/* Loading badge if system info not loaded yet */}
+              {!systemInfo && (
+                <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 animate-pulse px-3 py-1">
+                  ⚪ Loading...
+                </Badge>
+              )}
             </div>
             <p className="text-muted-foreground">
               Manage your merchants, upload data, and view statistics
@@ -298,13 +306,71 @@ export default function HomeDashboard() {
           </Button>
         </div>
 
+        {/* Loading/Error State Banner */}
+        {(isLoading || error || !dashboardMetrics) && (
+          <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-800">Loading Dashboard Data...</p>
+                      <p className="text-sm text-blue-600">
+                        Building comprehensive metrics from database - typically takes 30-180 seconds for complete data compilation
+                      </p>
+                    </div>
+                  </>
+                ) : error ? (
+                  <>
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <div className="flex-1">
+                      <p className="font-medium text-red-800">Failed to Load Dashboard Data</p>
+                      <p className="text-sm text-red-600">
+                        Unable to connect to dashboard API. Click "Refresh Data" to retry.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => refreshMutation.mutate()}
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Retry Now
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-5 w-5 text-amber-600" />
+                    <div className="flex-1">
+                      <p className="font-medium text-amber-800">Dashboard Cache Building...</p>
+                      <p className="text-sm text-amber-600">
+                        First-time setup detected. Cache is being built from {metrics.merchants?.total || 0} merchants and transaction data.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => refreshMutation.mutate()}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Build Cache
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Key Performance Indicators */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Key Performance Indicators</h2>
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
+                <Card key={index} className="animate-pulse">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <Skeleton className="h-4 w-[100px]" />
                     <Skeleton className="h-4 w-4" />
@@ -324,18 +390,6 @@ export default function HomeDashboard() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Failed to load dashboard metrics</p>
-              <Button
-                onClick={() => refreshMutation.mutate()}
-                className="mt-2"
-                variant="outline"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
