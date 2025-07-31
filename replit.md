@@ -16,12 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - CACHE REFRESH CONTROL ENFORCEMENT
-- **✅ CACHE REFRESH CONTROL ENFORCEMENT COMPLETED (July 31, 2025)**: Successfully disabled all manual refresh triggers from dashboard pages respecting user's "never expire" cache setting
+- Current session: July 31, 2025 - DASHBOARD CACHE CONTROL UNIFICATION COMPLETED
+- **✅ DASHBOARD CACHE CONTROL UNIFICATION COMPLETED (July 31, 2025)**: Successfully unified all dashboard cache interfaces to respect "never expire" preference and removed inconsistent cache controls
   - **Manual Refresh Disabled**: Removed refresh buttons, mutations, and cache invalidation triggers from HomeDashboard.tsx and HomeDashboardEnhanced.tsx
   - **Cache Control Enforced**: System now respects user preference for cache to only refresh once daily on server restart, not through manual triggers
+  - **Dashboard3 Cache Controls Removed**: Eliminated cache expiration dropdown and "Set" button from Dashboard3 Cache Status widget that was overriding "never expire" setting
+  - **Unified Cache Interface**: Both main dashboards and Dashboard3 now display identical "Cache refreshes once daily on server restart" message
   - **Cache Status Simplified**: Cleaned up cache metadata interface, removed problematic refresh status indicators and refresh-related properties
-  - **LSP Errors Resolved**: Fixed all TypeScript errors by removing references to disabled refresh functionality and unused imports
+  - **LSP Errors Resolved**: Fixed all TypeScript errors by removing references to disabled refresh functionality, unused imports, and cache mutation code
   - **User Interface Updated**: Replaced refresh buttons with informational text stating "Cache refreshes once daily on server restart"
   - **Performance Maintained**: Dashboard loading remains optimized from 164+ seconds to sub-second with lightweight endpoints and proper cache separation
 - **✅ DASHBOARD3 CLEAN START COMPLETED (July 31, 2025)**: Successfully created new `/dashboard3` page with clean widget framework, dark/light mode control, and "MMS Dashboard 3" title with environment badge
