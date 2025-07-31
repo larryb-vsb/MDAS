@@ -8241,6 +8241,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed heat map cache processing status with month progress
+  app.get("/api/heat-map-cache/processing-status", isAuthenticated, async (req, res) => {
+    try {
+      const jobs = HeatMapCacheBuilder.getAllActiveJobs();
+      const runningJobs = jobs.filter(job => job.status === 'running');
+      
+      if (runningJobs.length > 0) {
+        const activeJob = runningJobs[0];
+        const currentMonth = activeJob.monthProgress.find(m => m.status === 'building');
+        
+        res.json({
+          isProcessing: true,
+          currentMonth: currentMonth ? `${activeJob.year}-${currentMonth.month.toString().padStart(2, '0')}` : null,
+          progress: {
+            completedMonths: activeJob.completedMonths,
+            totalMonths: activeJob.totalMonths,
+            percentage: Math.round((activeJob.completedMonths / activeJob.totalMonths) * 100)
+          },
+          year: activeJob.year,
+          recordType: activeJob.recordType,
+          totalRecords: activeJob.totalRecords
+        });
+      } else {
+        res.json({
+          isProcessing: false,
+          currentMonth: null,
+          progress: null,
+          year: null,
+          recordType: null
+        });
+      }
+    } catch (error) {
+      console.error('Error getting heat map processing status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get heat map processing status' 
+      });
+    }
+  });
+
   app.post('/api/heat-map-cache/refresh', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = (req as any).user;

@@ -242,7 +242,19 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     refreshMutation.mutate();
   };
   
-  // Removed old time tracking - using admin controls with cooldown
+  // Get processing status to show current month being processed
+  const { data: processingStatus } = useQuery({
+    queryKey: ['/api/heat-map-cache/processing-status'],
+    queryFn: async () => {
+      const response = await fetch('/api/heat-map-cache/processing-status', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch processing status');
+      return response.json();
+    },
+    refetchInterval: 2000, // Check every 2 seconds for processing updates
+    enabled: true
+  });
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/activity', currentYear, 'DT'],
@@ -329,18 +341,35 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
 
   // Show enhanced loading message for large dataset processing
   if (isLoading && !activityResponse) {
+    const currentProcessingMonth = processingStatus?.isProcessing ? processingStatus.currentMonth : null;
+    const progressPct = processingStatus?.progress?.percentage || 0;
+    
     return (
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="flex flex-col items-center justify-center py-8 space-y-3">
           <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
           <div className="text-center">
-            <div className="font-medium text-gray-900">Processing Complete Dataset</div>
-            <div className="text-sm text-gray-500 mt-1">
-              Loading 2.7M+ transaction records - Please wait up to 10 minutes
-            </div>
-            <div className="text-xs text-gray-400 mt-2">
-              Bypassing incomplete pre-cache for accurate results
-            </div>
+            {currentProcessingMonth ? (
+              <>
+                <div className="font-medium text-gray-900">Building Cache: {currentProcessingMonth}</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Processing month {currentProcessingMonth} ({progressPct}% complete)
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  Building heat map cache month-by-month for optimal performance
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-medium text-gray-900">Processing Complete Dataset</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Loading 2.7M+ transaction records - Please wait up to 10 minutes
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  Bypassing incomplete pre-cache for accurate results
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

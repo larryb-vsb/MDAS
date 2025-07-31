@@ -209,7 +209,7 @@ export class HeatMapCacheBuilder {
     // Create table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ${cacheTableName} (
-        date DATE PRIMARY KEY,
+        date DATE NOT NULL PRIMARY KEY,
         dt_count BIGINT NOT NULL DEFAULT 0
       )
     `);
