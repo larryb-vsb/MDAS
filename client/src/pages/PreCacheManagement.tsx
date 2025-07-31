@@ -31,6 +31,7 @@ import {
   Save,
   RotateCcw
 } from "lucide-react";
+import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
 
 interface PreCacheSettings {
   id: number;
@@ -912,10 +913,11 @@ function CacheConfigurationManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          <TabsTrigger value="heat-map">Heat Map Cache</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="errors">Errors</TabsTrigger>
@@ -1022,6 +1024,23 @@ function CacheConfigurationManagement() {
 
         <TabsContent value="configuration" className="space-y-6">
           <CacheConfigurationManagement />
+        </TabsContent>
+
+        <TabsContent value="heat-map" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Heat Map Cache Management
+              </CardTitle>
+              <CardDescription>
+                Monitor and control heat map cache rebuilding with month-by-month progress tracking
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <HeatMapCacheMonitor />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">

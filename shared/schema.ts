@@ -1619,6 +1619,25 @@ export const tddfJsonPagePreCache = pgTable(getTableName("tddf_json_page_pre_cac
   expiresAtIdx: index("tddf_json_page_pre_cache_expires_at_idx").on(table.expires_at)
 }));
 
+// TDDF JSON Activity Pre-Cache Table (Month-by-Month Heat Map Data)
+export const tddfJsonActivityPreCache = pgTable(getTableName("tddf_json_activity_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cache_key: text("cache_key").notNull().unique(), // 'activity_2024_01_DT'
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  record_type: text("record_type").notNull().default("DT"),
+  cache_data: jsonb("cache_data").notNull(), // Daily aggregated data for the month
+  record_count: integer("record_count").notNull().default(0),
+  build_time_ms: integer("build_time_ms").notNull().default(0),
+  expires_at: timestamp("expires_at").notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  yearMonthTypeIdx: index("tddf_json_activity_year_month_type_idx").on(table.year, table.month, table.record_type),
+  expiresAtIdx: index("tddf_json_activity_expires_at_idx").on(table.expires_at),
+  cacheKeyIdx: index("tddf_json_activity_cache_key_idx").on(table.cache_key)
+}));
+
 // Processing Page Pre-Cache Table
 export const processingPagePreCache = pgTable(getTableName("processing_page_pre_cache"), {
   id: serial("id").primaryKey(),

@@ -9,6 +9,7 @@ import {
   InsertProcessingMetrics
 } from "@shared/schema";
 import { storage } from "../storage";
+import { HeatMapCacheBuilder } from "./heat-map-cache-builder";
 
 interface ProcessingMetrics {
   totalFiles: number;
@@ -69,6 +70,7 @@ export class ScanlyWatcher {
   private processingStatusCache: any = null;
   private lastProcessingStatusUpdate: Date | null = null;
   private performanceRecordingInterval: NodeJS.Timeout | null = null;
+  private heatMapCacheCheckInterval: NodeJS.Timeout | null = null;
 
   start(): void {
     if (this.isRunning) {
@@ -87,6 +89,9 @@ export class ScanlyWatcher {
     
     // Start orphaned file cleanup (every 2 minutes)
     this.startOrphanedFileCleanup();
+    
+    // Start heat map cache monitoring (every 5 minutes)
+    this.startHeatMapCacheMonitoring();
     
     // Run initial check
     this.performHealthCheck();
@@ -109,6 +114,10 @@ export class ScanlyWatcher {
     if (this.performanceRecordingInterval) {
       clearInterval(this.performanceRecordingInterval);
       this.performanceRecordingInterval = null;
+    }
+    if (this.heatMapCacheCheckInterval) {
+      clearInterval(this.heatMapCacheCheckInterval);
+      this.heatMapCacheCheckInterval = null;
     }
     this.isRunning = false;
     this.tddfBacklogHistory = []; // Clear backlog history
@@ -1656,6 +1665,76 @@ export class ScanlyWatcher {
         timestamp: new Date()
       });
       return { success: false, actionsPerformed };
+    }
+  }
+
+  private startHeatMapCacheMonitoring(): void {
+    console.log('[SCANLY-WATCHER] Starting heat map cache monitoring (every 5 minutes)');
+    
+    // Initial cache check
+    this.checkHeatMapCacheStatus();
+    
+    // Set up 5-minute monitoring interval
+    this.heatMapCacheCheckInterval = setInterval(async () => {
+      if (!this.isRunning) {
+        if (this.heatMapCacheCheckInterval) {
+          clearInterval(this.heatMapCacheCheckInterval);
+          this.heatMapCacheCheckInterval = null;
+        }
+        return;
+      }
+      await this.checkHeatMapCacheStatus();
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
+  private async checkHeatMapCacheStatus(): Promise<void> {
+    try {
+      console.log('[SCANLY-WATCHER] Checking heat map cache status...');
+      
+      // Check for stale cache entries
+      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
+      const cacheTableName = getTableName('tddf_json_activity_pre_cache');
+      
+      const staleResult = await pool.query(`
+        SELECT COUNT(*) as stale_count
+        FROM ${cacheTableName}
+        WHERE expires_at < $1
+      `, [staleThreshold]);
+      
+      const staleCount = parseInt(staleResult.rows[0]?.stale_count || 0);
+      
+      if (staleCount > 0) {
+        console.log(`[SCANLY-WATCHER] ⚠️ Found ${staleCount} stale heat map cache entries`);
+        
+        // Alert for stale cache but don't auto-rebuild (user should trigger)
+        this.addAlert('warning', 'heat_map_cache_stale', 
+          `${staleCount} heat map cache entries are stale and may need rebuilding`, 
+          { staleCount, threshold: '24 hours' }
+        );
+      }
+      
+      // Check for active rebuild jobs
+      const activeJobs = HeatMapCacheBuilder.getAllActiveJobs();
+      const runningJobs = activeJobs.filter(job => job.status === 'running');
+      
+      if (runningJobs.length > 0) {
+        console.log(`[SCANLY-WATCHER] 📊 ${runningJobs.length} heat map cache rebuild job(s) in progress`);
+        
+        for (const job of runningJobs) {
+          const progressPct = Math.round((job.completedMonths / job.totalMonths) * 100);
+          console.log(`[SCANLY-WATCHER] Job ${job.id}: ${progressPct}% complete (${job.completedMonths}/${job.totalMonths} months)`);
+        }
+      }
+      
+      // Clean up old completed jobs
+      HeatMapCacheBuilder.cleanupOldJobs();
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error checking heat map cache status:', error);
+      this.addAlert('error', 'heat_map_cache_check_failed', 
+        'Failed to check heat map cache status', 
+        { error: error instanceof Error ? error.message : 'Unknown error' }
+      );
     }
   }
 }
