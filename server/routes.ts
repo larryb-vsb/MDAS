@@ -12210,6 +12210,364 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Storage Object Processing API Endpoints
+  
+  // Get available storage objects for processing
+  app.get("/api/storage/objects/available", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[STORAGE-OBJECTS] Fetching available objects for processing...');
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      
+      const result = await pool.query(`
+        SELECT 
+          id,
+          upload_id,
+          object_key,
+          original_filename,
+          file_type,
+          file_size,
+          line_count,
+          processing_status,
+          created_at
+        FROM ${masterKeysTable}
+        WHERE line_count > 0 
+          AND processing_status IN ('complete', 'active', 'available')
+          AND marked_for_purge = false
+        ORDER BY file_size DESC
+        LIMIT 20
+      `);
+      
+      console.log(`[STORAGE-OBJECTS] Found ${result.rows.length} available objects`);
+      res.json(result.rows);
+      
+    } catch (error) {
+      console.error('[STORAGE-OBJECTS] Error fetching available objects:', error);
+      res.status(500).json({
+        error: 'Failed to fetch available storage objects',
+        message: error.message
+      });
+    }
+  });
+
+  // Step 4: Identify storage object (create upload record and process to TDDF records)
+  app.post("/api/storage/objects/:objectId/identify", isAuthenticated, async (req, res) => {
+    try {
+      const { objectId } = req.params;
+      console.log(`[STORAGE-STEP-4] Starting identification for object ${objectId}...`);
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      const uploadedFilesTable = getTableName('uploaded_files');
+      
+      // Get storage object details
+      const objectResult = await pool.query(`
+        SELECT * FROM ${masterKeysTable} WHERE id = $1
+      `, [objectId]);
+      
+      if (objectResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Storage object not found'
+        });
+      }
+      
+      const storageObject = objectResult.rows[0];
+      
+      // Check if upload record already exists
+      let uploadRecord;
+      if (storageObject.upload_id) {
+        const existingUpload = await pool.query(`
+          SELECT * FROM ${uploadedFilesTable} WHERE id = $1
+        `, [storageObject.upload_id]);
+        
+        if (existingUpload.rows.length > 0) {
+          uploadRecord = existingUpload.rows[0];
+          console.log(`[STORAGE-STEP-4] Using existing upload record: ${uploadRecord.id}`);
+        }
+      }
+      
+      // Create upload record if it doesn't exist
+      if (!uploadRecord) {
+        const uploadId = `storage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        await pool.query(`
+          INSERT INTO ${uploadedFilesTable} 
+          (id, original_filename, file_type, uploaded_at, uploaded_by, status, file_size, 
+           raw_lines_count, storage_path, processing_status, upload_environment, processed_into_table)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `, [
+          uploadId,
+          storageObject.original_filename || storageObject.object_key.split('/').pop(),
+          storageObject.file_type || 'tddf',
+          new Date(),
+          'storage_processor',
+          'queued',
+          storageObject.file_size,
+          storageObject.line_count,
+          storageObject.object_key,
+          'pending',
+          process.env.NODE_ENV || 'development',
+          'tddf_raw_import'
+        ]);
+        
+        // Update storage object with upload_id
+        await pool.query(`
+          UPDATE ${masterKeysTable} 
+          SET upload_id = $1, processing_status = 'processing'
+          WHERE id = $2
+        `, [uploadId, objectId]);
+        
+        console.log(`[STORAGE-STEP-4] Created upload record: ${uploadId}`);
+        uploadRecord = { id: uploadId };
+      }
+      
+      // Process the file through existing TDDF processing pipeline
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const fileContent = await ReplitStorageService.getFileContent(storageObject.object_key);
+      
+      if (!fileContent) {
+        throw new Error('Failed to retrieve file content from storage');
+      }
+      
+      // Process file to TDDF raw import
+      const startTime = Date.now();
+      const result = await storage.processTddfFileFromContent(uploadRecord.id, fileContent);
+      const processingTime = Date.now() - startTime;
+      
+      // Update upload record status
+      await pool.query(`
+        UPDATE ${uploadedFilesTable} 
+        SET status = 'completed', processing_status = 'processed', processed_at = NOW(),
+            processing_time_ms = $2, records_processed = $3
+        WHERE id = $1
+      `, [uploadRecord.id, processingTime, result.processed || 0]);
+      
+      // Update storage object status
+      await pool.query(`
+        UPDATE ${masterKeysTable} 
+        SET processing_status = 'identified', current_phase = 'step_4_complete'
+        WHERE id = $1
+      `, [objectId]);
+      
+      console.log(`[STORAGE-STEP-4] Identification complete for ${objectId}: ${result.processed} records`);
+      
+      res.json({
+        success: true,
+        message: `Storage object identified successfully`,
+        objectId: objectId,
+        uploadId: uploadRecord.id,
+        recordsProcessed: result.processed || 0,
+        processingTime: processingTime
+      });
+      
+    } catch (error) {
+      console.error(`[STORAGE-STEP-4] Error identifying object:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to identify storage object',
+        message: error.message
+      });
+    }
+  });
+
+  // Step 5: Encode storage object (process TDDF records to JSONB)
+  app.post("/api/storage/objects/:objectId/encode", isAuthenticated, async (req, res) => {
+    try {
+      const { objectId } = req.params;
+      console.log(`[STORAGE-STEP-5] Starting encoding for object ${objectId}...`);
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      
+      // Get storage object details
+      const objectResult = await pool.query(`
+        SELECT * FROM ${masterKeysTable} WHERE id = $1
+      `, [objectId]);
+      
+      if (objectResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Storage object not found'
+        });
+      }
+      
+      const storageObject = objectResult.rows[0];
+      
+      if (!storageObject.upload_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Storage object must be identified first (Step 4)'
+        });
+      }
+      
+      // Get file content from storage
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const fileContent = await ReplitStorageService.getFileContent(storageObject.object_key);
+      
+      if (!fileContent) {
+        throw new Error('Failed to retrieve file content from storage');
+      }
+      
+      // Encode to JSONB using the upload object
+      const startTime = Date.now();
+      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
+      const uploadObject = { id: storageObject.upload_id };
+      const result = await encodeTddfToJsonbDirect(fileContent, uploadObject);
+      const processingTime = Date.now() - startTime;
+      
+      // Update storage object status
+      await pool.query(`
+        UPDATE ${masterKeysTable} 
+        SET processing_status = 'encoded', current_phase = 'step_5_complete'
+        WHERE id = $1
+      `, [objectId]);
+      
+      console.log(`[STORAGE-STEP-5] Encoding complete for ${objectId}: ${result.totalRecords} JSONB records`);
+      
+      res.json({
+        success: true,
+        message: `Storage object encoded successfully`,
+        objectId: objectId,
+        uploadId: storageObject.upload_id,
+        recordsProcessed: result.totalRecords || 0,
+        processingTime: processingTime,
+        recordTypes: result.recordTypeCounts || {}
+      });
+      
+    } catch (error) {
+      console.error(`[STORAGE-STEP-5] Error encoding object:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to encode storage object',
+        message: error.message
+      });
+    }
+  });
+
+  // Steps 4-5: Full processing (identify + encode)
+  app.post("/api/storage/objects/:objectId/process-full", isAuthenticated, async (req, res) => {
+    try {
+      const { objectId } = req.params;
+      console.log(`[STORAGE-FULL-PROCESS] Starting full processing for object ${objectId}...`);
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      const uploadedFilesTable = getTableName('uploaded_files');
+      
+      // Get storage object details
+      const objectResult = await pool.query(`
+        SELECT * FROM ${masterKeysTable} WHERE id = $1
+      `, [objectId]);
+      
+      if (objectResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Storage object not found'
+        });
+      }
+      
+      const storageObject = objectResult.rows[0];
+      const totalStartTime = Date.now();
+      
+      // Step 4: Create upload record if needed
+      let uploadRecord;
+      if (storageObject.upload_id) {
+        const existingUpload = await pool.query(`
+          SELECT * FROM ${uploadedFilesTable} WHERE id = $1
+        `, [storageObject.upload_id]);
+        
+        if (existingUpload.rows.length > 0) {
+          uploadRecord = existingUpload.rows[0];
+        }
+      }
+      
+      if (!uploadRecord) {
+        const uploadId = `storage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        await pool.query(`
+          INSERT INTO ${uploadedFilesTable} 
+          (id, original_filename, file_type, uploaded_at, uploaded_by, status, file_size, 
+           raw_lines_count, storage_path, processing_status, upload_environment, processed_into_table)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `, [
+          uploadId,
+          storageObject.original_filename || storageObject.object_key.split('/').pop(),
+          storageObject.file_type || 'tddf',
+          new Date(),
+          'storage_processor',
+          'completed',
+          storageObject.file_size,
+          storageObject.line_count,
+          storageObject.object_key,
+          'processed',
+          process.env.NODE_ENV || 'development',
+          'tddf_raw_import'
+        ]);
+        
+        // Update storage object with upload_id
+        await pool.query(`
+          UPDATE ${masterKeysTable} 
+          SET upload_id = $1
+          WHERE id = $2
+        `, [uploadId, objectId]);
+        
+        uploadRecord = { id: uploadId };
+      }
+      
+      // Get file content
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const fileContent = await ReplitStorageService.getFileContent(storageObject.object_key);
+      
+      if (!fileContent) {
+        throw new Error('Failed to retrieve file content from storage');
+      }
+      
+      // Step 4: Process to TDDF records (if needed)
+      const step4StartTime = Date.now();
+      const tddfResult = await storage.processTddfFileFromContent(uploadRecord.id, fileContent);
+      const step4Time = Date.now() - step4StartTime;
+      
+      // Step 5: Encode to JSONB
+      const step5StartTime = Date.now();
+      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
+      const jsonbResult = await encodeTddfToJsonbDirect(fileContent, uploadRecord);
+      const step5Time = Date.now() - step5StartTime;
+      
+      const totalTime = Date.now() - totalStartTime;
+      
+      // Update storage object status
+      await pool.query(`
+        UPDATE ${masterKeysTable} 
+        SET processing_status = 'fully_processed', current_phase = 'steps_4_5_complete'
+        WHERE id = $1
+      `, [objectId]);
+      
+      console.log(`[STORAGE-FULL-PROCESS] Full processing complete for ${objectId}: ${jsonbResult.totalRecords} JSONB records`);
+      
+      res.json({
+        success: true,
+        message: `Storage object fully processed successfully`,
+        objectId: objectId,
+        uploadId: uploadRecord.id,
+        recordsProcessed: jsonbResult.totalRecords || 0,
+        processingTime: totalTime,
+        stepTimes: {
+          step4_identification: step4Time,
+          step5_encoding: step5Time,
+          total: totalTime
+        },
+        recordTypes: jsonbResult.recordTypeCounts || {},
+        tddfRecords: tddfResult.processed || 0
+      });
+      
+    } catch (error) {
+      console.error(`[STORAGE-FULL-PROCESS] Error processing object:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process storage object',
+        message: error.message
+      });
+    }
+  });
+
   // Master Object Keys API Endpoints
   
   // Get Master Object Keys Statistics
