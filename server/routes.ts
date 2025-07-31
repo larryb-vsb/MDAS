@@ -12407,10 +12407,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error('Failed to retrieve file content from storage');
       }
       
-      // Encode to JSONB using the upload object
+      // Extract filename from object key (e.g., "dev-uploader/upload_id/filename.tsyso")
+      const objectKeyParts = storageObject.object_key.split('/');
+      const filename = objectKeyParts[objectKeyParts.length - 1] || 'unknown.tsyso';
+      
+      // Encode to JSONB using the upload object with filename
       const startTime = Date.now();
       const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
-      const uploadObject = { id: storageObject.upload_id };
+      const uploadObject = { 
+        id: storageObject.upload_id,
+        filename: filename
+      };
       const result = await encodeTddfToJsonbDirect(fileContent, uploadObject);
       const processingTime = Date.now() - startTime;
       
@@ -12528,7 +12535,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Step 5: Encode to JSONB
       const step5StartTime = Date.now();
       const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
-      const jsonbResult = await encodeTddfToJsonbDirect(fileContent, uploadRecord);
+      
+      // Extract filename from object key for proper JSONB encoding
+      const objectKeyParts = storageObject.object_key.split('/');
+      const filename = objectKeyParts[objectKeyParts.length - 1] || 'unknown.tsyso';
+      const uploadObjectWithFilename = { 
+        ...uploadRecord,
+        filename: filename
+      };
+      
+      const jsonbResult = await encodeTddfToJsonbDirect(fileContent, uploadObjectWithFilename);
       const step5Time = Date.now() - step5StartTime;
       
       const totalTime = Date.now() - totalStartTime;
