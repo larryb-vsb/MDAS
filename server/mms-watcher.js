@@ -64,15 +64,16 @@ class MMSWatcher {
       // Manual encoding will be handled separately via manual queue
     }, 20000); // Check every 20 seconds for auto encoding
     
-    // Start JSONB duplicate cleanup service (during legacy import)
-    this.duplicateCleanupIntervalId = setInterval(() => {
-      this.runDuplicateCleanup();
-    }, 900000); // Check every 15 minutes (900000ms) during legacy import
+    // JSONB duplicate cleanup service - DISABLED AUTO-START
+    // Note: Duplicate cleanup now requires manual triggering from Processing page
+    // this.duplicateCleanupIntervalId = setInterval(() => {
+    //   this.runDuplicateCleanup();
+    // }, 900000); // Check every 15 minutes (900000ms) during legacy import
     
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
-    console.log('[MMS-WATCHER] JSONB duplicate cleanup service started - scans every 15 minutes during legacy import');
+    console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
 
   stop() {
