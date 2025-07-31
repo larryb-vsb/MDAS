@@ -13993,7 +13993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await pool.query(cacheTablesQuery);
       
-      const cacheTablesList = result.rows.map(row => {
+      const cacheTablesList = await Promise.all(result.rows.map(async (row) => {
         const age = Math.floor(row.seconds_since_vacuum / 60);
         let ageText = '';
         if (age < 1) ageText = '0m ago';
@@ -14001,15 +14001,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         else if (age < 1440) ageText = `${Math.floor(age/60)}h ago`;
         else ageText = `${Math.floor(age/1440)}d ago`;
         
+        // Get expiration duration for this cache
+        let expirationDuration = 'Unknown';
+        try {
+          // Try to get expiration from actual cache data if it exists
+          if (row.table_name.includes('dashboard_cache')) {
+            const expirationQuery = `
+              SELECT expires_at, created_at 
+              FROM ${row.table_name} 
+              ORDER BY created_at DESC 
+              LIMIT 1
+            `;
+            const expResult = await pool.query(expirationQuery);
+            if (expResult.rows.length > 0) {
+              const expiresAt = new Date(expResult.rows[0].expires_at);
+              const createdAt = new Date(expResult.rows[0].created_at);
+              const durationMs = expiresAt.getTime() - createdAt.getTime();
+              const durationMinutes = Math.floor(durationMs / (1000 * 60));
+              
+              if (durationMinutes >= 525600) { // 365 days or more
+                expirationDuration = 'Never Expires';
+              } else if (durationMinutes >= 1440) {
+                expirationDuration = `${Math.floor(durationMinutes / 1440)} days`;
+              } else if (durationMinutes >= 60) {
+                expirationDuration = `${Math.floor(durationMinutes / 60)} hours`;
+              } else {
+                expirationDuration = `${durationMinutes} min`;
+              }
+            }
+          } else {
+            // Default expiration durations for different cache types
+            if (row.table_name.includes('heat_map')) {
+              expirationDuration = '15 min';
+            } else if (row.table_name.includes('merchant')) {
+              expirationDuration = '30 min';
+            } else if (row.table_name.includes('pre_cache')) {
+              expirationDuration = '1 hour';
+            } else {
+              expirationDuration = '4 hours';
+            }
+          }
+        } catch (error) {
+          // Default to typical cache duration if we can't determine it
+          expirationDuration = '4 hours';
+        }
+        
         return {
           name: row.table_name,
           status: row.record_count > 0 ? 'active' : 'empty',
           recordCount: parseInt(row.record_count) || 0,
           lastRefresh: new Date(Date.now() - (row.seconds_since_vacuum * 1000)).toISOString(),
           age: ageText,
-          size: row.size || '0 bytes'
+          size: row.size || '0 bytes',
+          expirationDuration
         };
-      });
+      }));
 
       res.json({ success: true, tables: cacheTablesList });
     } catch (error) {

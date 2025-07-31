@@ -151,6 +151,7 @@ interface CacheTableInfo {
   lastRefresh: string;
   age: string;
   size?: string;
+  expirationDuration?: string; // e.g., "15 min", "4 hours", "Never Expires"
 }
 
 // PreCacheTablesOverview Component
@@ -297,6 +298,11 @@ function PreCacheTablesOverview({ onViewCache }: { onViewCache: (cacheName: stri
                         <span>{table.recordCount.toLocaleString()} records</span>
                         <span>Updated {table.age}</span>
                         {table.size && <span>{table.size}</span>}
+                        {table.expirationDuration && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                            {table.expirationDuration}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">

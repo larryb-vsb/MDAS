@@ -66,6 +66,7 @@ function Router() {
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
       <ProtectedRoute path="/storage-management" component={StorageManagement} />
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
+      <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
