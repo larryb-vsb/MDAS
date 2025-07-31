@@ -4994,7 +4994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Join with terminals table to get VNumber where termNumber matches dNumber
+      // Join with terminals table to get VNumber where term_number matches dNumber (without D prefix)
       const terminalsTableName = getTableName('terminals');
       const terminalMatches = await pool.query(`
         SELECT v_number, term_number
@@ -5012,18 +5012,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY name
       `);
       
-      // Create lookup maps
+      // Create lookup maps - match term_number to D number (without D prefix)
       const terminalLookup = new Map();
       terminalMatches.rows.forEach(row => {
+        // Store both with and without potential D prefix for flexible matching
         terminalLookup.set(row.term_number, row.v_number);
+        // Also try removing D prefix if term_number starts with D
+        if (row.term_number.startsWith('D')) {
+          const numberOnly = row.term_number.substring(1);
+          terminalLookup.set(numberOnly, row.v_number);
+        }
       });
       
       // Create merchant lookup for fuzzy matching
       const merchantRecords = merchantMatches.rows;
       
       // Enhance SubTerminal data with VNumber and merchant matching
-      const enhancedSubterminals = subterminals.map(subterminal => {
-        const vNumber = terminalLookup.get(subterminal.dNumber);
+      const enhancedSubterminals = subterminals.map((subterminal, index) => {
+        // Try matching D number both with and without D prefix
+        const dNumberOnly = subterminal.dNumber.replace(/^D/, ''); // Remove D prefix
+        const vNumber = terminalLookup.get(subterminal.dNumber) || terminalLookup.get(dNumberOnly);
         
         // Find potential merchant matches using fuzzy matching
         const deviceMerchantName = subterminal.deviceMerchant.toLowerCase();
@@ -5066,7 +5074,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           vNumber: vNumber || null,
           hasTerminalMatch: !!vNumber,
           merchantMatches: potentialMatches.slice(0, 3), // Top 3 matches
-          hasExactMerchantMatch: potentialMatches.length > 0 && potentialMatches[0].name.toLowerCase() === deviceMerchantName
+          hasExactMerchantMatch: potentialMatches.length > 0 && potentialMatches[0].name.toLowerCase() === deviceMerchantName,
+          // Add import metadata
+          importFileName: uploadFile.filename,
+          importDate: uploadFile.created_at,
+          rowNumber: index + 1
         };
       });
       

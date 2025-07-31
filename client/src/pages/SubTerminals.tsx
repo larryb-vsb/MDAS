@@ -130,7 +130,7 @@ export default function SubTerminals() {
               <strong>Data Source:</strong> {sourceFile} | <strong>Upload Date:</strong> {new Date(uploadDate).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })} CST
             </p>
             <p className="text-sm text-blue-800 mt-1">
-              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | Merchant_name_d = Decoded merchant name | Status_d = Decoded status with color coding | VNumber = Matching terminal VNumber | Merchant Match = Fuzzy matched merchants or Add button
+              <strong>Field Structure:</strong> Row# = File row number | DeviceName = Full device name | D_Number = Extracted terminal number | Merchant_name_d = Decoded merchant name | Status_d = Decoded status with color coding | VNumber = Matching VNumber from dev_terminals | Merchant Match = Fuzzy matched merchants from dev_merchants or Add button | Import Info = Source file and date
             </p>
           </div>
         </div>
@@ -571,19 +571,20 @@ export default function SubTerminals() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Id</TableHead>
+                      <TableHead>Row#</TableHead>
                       <TableHead>DeviceName</TableHead>
                       <TableHead>D_Number</TableHead>
                       <TableHead>Merchant_name_d</TableHead>
                       <TableHead>Status_d</TableHead>
                       <TableHead>VNumber</TableHead>
                       <TableHead>Merchant Match</TableHead>
+                      <TableHead>Import Info</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {terminals.map((terminal: any) => (
                       <TableRow key={terminal.id}>
-                        <TableCell className="font-mono text-sm">{terminal.id}</TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.rowNumber}</TableCell>
                         <TableCell>
                           <div className="max-w-[400px]" title={terminal.deviceName}>
                             <div className="text-sm">{terminal.deviceName}</div>
@@ -642,6 +643,21 @@ export default function SubTerminals() {
                               {addMerchantMutation.isPending ? 'Adding...' : '+ Add Merchant'}
                             </Button>
                           )}
+                        </TableCell>
+                        <TableCell className="text-xs text-gray-600">
+                          <div className="space-y-1">
+                            <div className="font-medium truncate max-w-[120px]" title={terminal.importFileName}>
+                              {terminal.importFileName}
+                            </div>
+                            <div className="text-gray-500">
+                              {new Date(terminal.importDate).toLocaleDateString('en-US', { 
+                                timeZone: 'America/Chicago',
+                                month: 'short',
+                                day: 'numeric',
+                                year: '2-digit'
+                              })}
+                            </div>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
