@@ -529,12 +529,41 @@ function CacheConfigurationManagement() {
     setConfigFormData({});
   };
 
+  // Bulk update all caches to a specific policy
+  const setAllCachesToPolicy = async (policy: string) => {
+    try {
+      const updates = configurations.map(config => 
+        apiRequest(`/api/cache-config/${config.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ cache_update_policy: policy }),
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+      
+      await Promise.all(updates);
+      
+      toast({
+        title: "Bulk Update Complete",
+        description: `All ${configurations.length} cache configurations updated to ${policy.replace('_', ' ')} policy`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/cache-config'] });
+    } catch (error: any) {
+      toast({
+        title: "Bulk Update Failed",
+        description: error.message || "Failed to update cache configurations",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getCacheUpdatePolicyBadge = (policy: string) => {
     const policyConfig = {
       manual: { color: "bg-gray-100 text-gray-800", text: "Manual" },
       once_a_day: { color: "bg-blue-100 text-blue-800", text: "Once a Day" },
       all_app_restarts: { color: "bg-green-100 text-green-800", text: "App Restarts" },
-      new_data_flag: { color: "bg-purple-100 text-purple-800", text: "New Data Flag" }
+      new_data_flag: { color: "bg-purple-100 text-purple-800", text: "New Data Flag" },
+      dynamic: { color: "bg-orange-100 text-orange-800", text: "Dynamic" }
     };
     
     const config = policyConfig[policy as keyof typeof policyConfig] || policyConfig.manual;
@@ -569,7 +598,83 @@ function CacheConfigurationManagement() {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Instructions Panel */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">How to Set Cache Policies</h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <div className="flex items-start space-x-2">
+                <span className="font-medium">1.</span>
+                <span>Click the <Edit className="w-4 h-4 inline mx-1" /> edit button next to any cache configuration</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="font-medium">2.</span>
+                <span>Use the dropdown to select your desired update policy:</span>
+              </div>
+              <div className="ml-6 space-y-1">
+                <div className="flex items-center space-x-2">
+                  <Badge className="bg-gray-100 text-gray-800">Manual</Badge>
+                  <span>- Cache only updates when manually triggered</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge className="bg-blue-100 text-blue-800">Once a Day</Badge>
+                  <span>- Cache automatically refreshes once daily</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge className="bg-green-100 text-green-800">App Restarts</Badge>
+                  <span>- Cache refreshes every time the application restarts</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge className="bg-purple-100 text-purple-800">New Data Flag</Badge>
+                  <span>- Cache refreshes when new data is detected</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge className="bg-orange-100 text-orange-800">Dynamic</Badge>
+                  <span>- Cache policy adjusts based on usage patterns and data frequency</span>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="font-medium">3.</span>
+                <span>Adjust expiration time and auto-refresh settings as needed</span>
+              </div>
+              <div className="flex items-start space-x-2">
+                <span className="font-medium">4.</span>
+                <span>Click <Save className="w-4 h-4 inline mx-1" /> to save changes or <RotateCcw className="w-4 h-4 inline mx-1" /> to cancel</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Set Templates */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="font-semibold text-green-900 mb-3">Quick Policy Templates</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2 text-green-700 border-green-300 hover:bg-green-100"
+                onClick={() => setAllCachesToPolicy('once_a_day')}
+              >
+                <span>Set All to Daily</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2 text-blue-700 border-blue-300 hover:bg-blue-100"
+                onClick={() => setAllCachesToPolicy('all_app_restarts')}
+              >
+                <span>Set All to App Restarts</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center space-x-2 text-orange-700 border-orange-300 hover:bg-orange-100"
+                onClick={() => setAllCachesToPolicy('dynamic')}
+              >
+                <span>Set All to Dynamic</span>
+              </Button>
+            </div>
+          </div>
+
           {configurations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No cache configurations found
@@ -631,6 +736,7 @@ function CacheConfigurationManagement() {
                             <SelectItem value="once_a_day">Once a Day</SelectItem>
                             <SelectItem value="all_app_restarts">All App Restarts</SelectItem>
                             <SelectItem value="new_data_flag">New Data Flag</SelectItem>
+                            <SelectItem value="dynamic">Dynamic</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
