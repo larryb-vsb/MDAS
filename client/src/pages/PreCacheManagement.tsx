@@ -593,10 +593,7 @@ export default function PreCacheManagement() {
           </Card>
         </TabsContent>
 
-        {/* Pre-Cache Tables Tab */}
-        <TabsContent value="tables" className="space-y-6">
-          <PreCacheTablesOverview />
-        </TabsContent>
+
 
         <TabsContent value="performance" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -904,13 +901,16 @@ export default function PreCacheManagement() {
 
       {/* Cache View/Edit/Refresh Popup */}
       <Dialog open={!!selectedCacheForView} onOpenChange={() => setSelectedCacheForView(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby="cache-status-description">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Eye className="w-5 h-5 text-blue-500" />
               <span>Cache Status</span>
             </DialogTitle>
           </DialogHeader>
+          <div id="cache-status-description" className="sr-only">
+            View and manage cache status including expiration settings and refresh controls
+          </div>
           
           <div className="space-y-4">
             <div className="space-y-2">
