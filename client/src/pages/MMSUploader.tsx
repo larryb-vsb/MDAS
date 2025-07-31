@@ -362,7 +362,7 @@ export default function MMSUploader() {
       });
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       // Update local state
       setAuto45Enabled(data.enabled);
       // Invalidate the status query to refetch
@@ -398,19 +398,28 @@ export default function MMSUploader() {
   // Manual encoding mutation for progressing identified files to encoded
   const manualEncodeMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
+      console.log('[MANUAL-ENCODE-DEBUG] Calling API with uploadIds:', uploadIds);
       const response = await apiRequest('/api/uploader/manual-encode', {
         method: 'POST',
         body: { uploadIds }
       });
+      console.log('[MANUAL-ENCODE-DEBUG] API response:', response);
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       setSelectedUploads([]);
-      console.log('[MANUAL-ENCODE] Files successfully queued for encoding');
+      console.log('[MANUAL-ENCODE] Files successfully queued for encoding:', data);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error with manual encoding:', error);
+      console.error('Full error details:', {
+        message: error?.message,
+        status: error?.status,
+        stack: error?.stack,
+        toString: error?.toString(),
+        error
+      });
     }
   });
 
