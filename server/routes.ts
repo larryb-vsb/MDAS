@@ -11434,30 +11434,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const BASE_ACTIVITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes base TTL
   const MAX_ACTIVITY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes max TTL for large datasets
 
-  // Dynamic monthly aggregation system for 5M+ records
+  // TDDF JSON Activity Heat Map using pre-cache table
   app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
     try {
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
       const recordType = (req.query.recordType as string) || 'DT';
       const cacheKey = `activity_${year}_${recordType}`;
       
-      // Check cache first with dynamic TTL
-      const cachedEntry = activityCache.get(cacheKey);
-      if (cachedEntry && (Date.now() - cachedEntry.timestamp) < cachedEntry.ttl) {
-        console.log(`[TDDF-JSON-ACTIVITY] Serving from cache for year ${year}, TTL: ${cachedEntry.ttl}ms`);
-        return res.json({ ...cachedEntry.data, fromCache: true });
-      }
-
-      console.log(`[TDDF-JSON-ACTIVITY] Cache miss for year ${year}, starting dynamic aggregation...`);
+      console.log(`[TDDF-JSON-ACTIVITY] Using pre-cache table for year ${year}, type: ${recordType}...`);
       const startTime = Date.now();
       
-      // Environment-aware table selection
-      const tableName = getTableName('tddf_jsonb');
+      // Use pre-cache table instead of direct queries
+      const environment = process.env.NODE_ENV || 'development';
+      const preCacheTableName = environment === 'development' ? 'dev_tddf_json_activity_pre_cache' : 'tddf_json_activity_pre_cache';
       
-      // First, get dataset size to determine aggregation strategy with robust date parsing
+      // Query pre-cache table first
+      const preCacheResult = await pool.query(`
+        SELECT 
+          activity_data,
+          total_records,
+          aggregation_level,
+          created_at,
+          updated_at,
+          expires_at,
+          build_time_ms,
+          last_refresh_datetime
+        FROM ${preCacheTableName}
+        WHERE cache_key = $1
+        AND expires_at > NOW()
+        LIMIT 1
+      `, [cacheKey]);
+      
+      const queryTime = Date.now() - startTime;
+      
+      if (preCacheResult.rows.length > 0) {
+        const result = preCacheResult.rows[0];
+        
+        console.log(`[TDDF-JSON-ACTIVITY] Serving from pre-cache table in ${queryTime}ms`);
+        
+        const responseData = {
+          records: result.activity_data,
+          totalRecords: result.total_records,
+          aggregationLevel: result.aggregation_level,
+          queryTime: queryTime,
+          fromPreCache: true,
+          lastUpdated: result.last_refresh_datetime,
+          buildTime: result.build_time_ms,
+          year: year,
+          recordType: recordType
+        };
+        
+        return res.json(responseData);
+      }
+      
+      // Fallback to direct query if pre-cache is expired or missing
+      console.log(`[TDDF-JSON-ACTIVITY] Pre-cache expired for ${cacheKey}, falling back to direct query...`);
+      const fallbackTableName = getTableName('tddf_jsonb');
+      
+      // Get dataset size for fallback aggregation strategy
       const sizeCheckResult = await pool.query(`
         SELECT COUNT(*) as total_records
-        FROM ${tableName}
+        FROM ${fallbackTableName}
         WHERE record_type = $1
         AND CASE 
           WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
@@ -11473,20 +11510,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [recordType, year]);
       
       const totalRecords = parseInt(sizeCheckResult.rows[0]?.total_records || '0');
-      const sizeCheckTime = Date.now() - startTime;
+      console.log(`[TDDF-JSON-ACTIVITY] Fallback dataset size: ${totalRecords.toLocaleString()} records`);
       
-      console.log(`[TDDF-JSON-ACTIVITY] Dataset size: ${totalRecords.toLocaleString()} records (${sizeCheckTime}ms)`);
-      
-      // FORCE DAILY AGGREGATION FOR PRE-CACHING COMPATIBILITY
-      // Pre-caching system requires daily data granularity, not weekly/monthly aggregation
+      // Use daily aggregation for fallback
       let aggregationLevel = 'daily';
-      let cacheTtl = BASE_ACTIVITY_CACHE_TTL;
-      
-      console.log(`[TDDF-JSON-ACTIVITY] FORCED daily aggregation - pre-caching system requires exact date matching`);
-      
-      console.log(`[TDDF-JSON-ACTIVITY] Using ${aggregationLevel} aggregation for ${totalRecords.toLocaleString()} records (PRE-CACHE COMPATIBLE)`);
-      
-      // Dynamic query based on aggregation level
       let selectClause = '';
       let groupByClause = '';
       
