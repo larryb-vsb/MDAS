@@ -377,6 +377,8 @@ export default function PreCacheManagement() {
   const [selectedCacheForView, setSelectedCacheForView] = useState<string | null>(null);
   const [cacheDetails, setCacheDetails] = useState<any>(null);
   const [loadingCacheDetails, setLoadingCacheDetails] = useState(false);
+  const [selectedExpiration, setSelectedExpiration] = useState<string>("15");
+  const [settingExpiration, setSettingExpiration] = useState(false);
 
   // Fetch all pre-cache settings
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -431,6 +433,13 @@ export default function PreCacheManagement() {
       
       if (data.success && data.details) {
         setCacheDetails(data.details);
+        // Set the current expiration in the dropdown
+        const currentExpiration = data.details.expirationMinutes;
+        if (currentExpiration >= 525600) { // 1 year or more = never expire
+          setSelectedExpiration("never");
+        } else {
+          setSelectedExpiration(currentExpiration.toString());
+        }
       } else {
         console.error('Failed to fetch cache details:', data.error || 'Unknown error');
         setCacheDetails(null);
@@ -447,7 +456,54 @@ export default function PreCacheManagement() {
   const handleViewCache = (tableName: string) => {
     setSelectedCacheForView(tableName);
     setCacheDetails(null); // Clear previous data
+    setSelectedExpiration("15"); // Reset to default
     fetchCacheDetails(tableName);
+  };
+
+  // Handle cache expiration update
+  const handleSetCacheExpiration = async () => {
+    if (!selectedCacheForView || !selectedExpiration) return;
+    
+    setSettingExpiration(true);
+    try {
+      const expirationMinutes = selectedExpiration === "never" ? 525600 : parseInt(selectedExpiration); // 525600 = 1 year
+      
+      const response = await fetch(`/api/dashboard/cache-expiration`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          cacheName: selectedCacheForView,
+          expirationMinutes: expirationMinutes
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Cache Expiration Updated",
+          description: selectedExpiration === "never" 
+            ? "Cache set to never expire" 
+            : `Cache expiration set to ${selectedExpiration} minutes`,
+        });
+        
+        // Refresh cache details
+        fetchCacheDetails(selectedCacheForView);
+      } else {
+        throw new Error(data.error || 'Failed to update cache expiration');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update cache expiration",
+        variant: "destructive",
+      });
+    } finally {
+      setSettingExpiration(false);
+    }
   };
 
   const formatBuildTime = (ms: number) => {
@@ -1385,7 +1441,11 @@ function CacheConfigurationManagement() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Cache Expiration:</label>
               <div className="flex items-center space-x-2">
-                <select className="flex-1 p-2 border rounded text-sm">
+                <select 
+                  className="flex-1 p-2 border rounded text-sm"
+                  value={selectedExpiration}
+                  onChange={(e) => setSelectedExpiration(e.target.value)}
+                >
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
                   <option value="60">1 hour</option>
@@ -1394,8 +1454,13 @@ function CacheConfigurationManagement() {
                   <option value="480">8 hours</option>
                   <option value="never">Never expire</option>
                 </select>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                  Set
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleSetCacheExpiration}
+                  disabled={settingExpiration}
+                >
+                  {settingExpiration ? <RefreshCw className="w-3 h-3 animate-spin" /> : "Set"}
                 </Button>
               </div>
             </div>
