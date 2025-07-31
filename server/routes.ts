@@ -11065,22 +11065,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-JSON-ACTIVITY] Dataset size: ${totalRecords.toLocaleString()} records (${sizeCheckTime}ms)`);
       
-      // Determine aggregation strategy based on dataset size
+      // FORCE DAILY AGGREGATION FOR PRE-CACHING COMPATIBILITY
+      // Pre-caching system requires daily data granularity, not weekly/monthly aggregation
       let aggregationLevel = 'daily';
       let cacheTtl = BASE_ACTIVITY_CACHE_TTL;
       
-      if (totalRecords > 2000000) { // 2M+ records: quarterly aggregation
-        aggregationLevel = 'quarterly';
-        cacheTtl = MAX_ACTIVITY_CACHE_TTL;
-      } else if (totalRecords > 500000) { // 500k+ records: monthly aggregation
-        aggregationLevel = 'monthly';
-        cacheTtl = MAX_ACTIVITY_CACHE_TTL;
-      } else if (totalRecords > 100000) { // 100k+ records: weekly aggregation
-        aggregationLevel = 'weekly';
-        cacheTtl = BASE_ACTIVITY_CACHE_TTL * 2;
-      }
+      console.log(`[TDDF-JSON-ACTIVITY] FORCED daily aggregation - pre-caching system requires exact date matching`);
       
-      console.log(`[TDDF-JSON-ACTIVITY] Using ${aggregationLevel} aggregation for ${totalRecords.toLocaleString()} records`);
+      console.log(`[TDDF-JSON-ACTIVITY] Using ${aggregationLevel} aggregation for ${totalRecords.toLocaleString()} records (PRE-CACHE COMPATIBLE)`);
       
       // Dynamic query based on aggregation level
       let selectClause = '';
