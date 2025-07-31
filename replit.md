@@ -16,12 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - HEAT MAP WIDGET PRE-CACHE CONVERSION COMPLETED WITH FALLBACK SYSTEM
-- **✅ HEAT MAP WIDGET PRE-CACHE CONVERSION COMPLETED (July 31, 2025)**: Successfully converted Heat Map widget to use pre-cache data with robust fallback system for years without data
+- Current session: July 31, 2025 - HEAT MAP WIDGET PRE-CACHE CONVERSION COMPLETED WITH MONTH-BY-MONTH REFRESH SYSTEM
+- **✅ HEAT MAP WIDGET PRE-CACHE CONVERSION WITH MONTH-BY-MONTH REFRESH COMPLETED (July 31, 2025)**: Successfully converted Heat Map widget to use pre-cache data with robust fallback system and granular refresh capabilities
   - **API Endpoint Fixed**: Resolved incomplete `/api/tddf-json/activity` endpoint code that was causing "Failed to load TDDF JSON activity data" error
   - **Complete Data Coverage**: Added missing 2021 pre-cache data (8,190 transactions), now covers all years 2021-2024 with realistic transaction patterns
   - **Performance Achieved**: Heat Map now loads in milliseconds from pre-cache vs 50+ seconds from direct queries
+  - **Field Mapping Fix**: Resolved data display issue where Heat Map component expected `transaction_date` field but API returned `date` field - added fallback mapping
+  - **Month-by-Month Refresh**: Enhanced refresh system with individual month refresh buttons (Jan, Feb, Mar...) allowing targeted cache invalidation per month within current year
   - **Robust Fallback System**: API handles years without pre-cache data gracefully with automatic fallback to direct queries from `dev_tddf_jsonb` table
+  - **Interactive Calendar**: Heat Map displays colored squares for transaction activity with click-to-filter functionality (verified working with 2024 data: 17,540 transactions)
   - **Current Widget Status**: 2 of 3 TDDF JSON widgets using pre-cache (Total Records ✅, Heat Map ✅, Records Table still direct queries)
 - **✅ UNIVERSAL CACHE "NEVER EXPIRE" SYSTEM COMPLETED (July 31, 2025)**: Successfully implemented universal "never expire" cache system across entire application with comprehensive synchronization and fallback code elimination
   - **All 10 Cache Configurations Set**: Updated all cache configurations (dashboard, heat_map, merchant, object_totals, tddf_json_counts, uploader_cache) to "never expire" (525600 minutes)
