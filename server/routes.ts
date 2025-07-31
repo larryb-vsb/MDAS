@@ -11434,14 +11434,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const BASE_ACTIVITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes base TTL
   const MAX_ACTIVITY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes max TTL for large datasets
 
-  // TDDF JSON Activity Heat Map using pre-cache table
+  // TDDF JSON Activity Heat Map using pre-cache table with timeout protection
   app.get("/api/tddf-json/activity", isAuthenticated, async (req, res) => {
+    const requestStartTime = Date.now();
+    const REQUEST_TIMEOUT = 45000; // 45 seconds max for large datasets like 2024
+    
+    // Set response timeout for large dataset protection
+    req.setTimeout(REQUEST_TIMEOUT, () => {
+      console.log(`[TDDF-JSON-ACTIVITY] Request timeout after ${REQUEST_TIMEOUT}ms - dataset too large`);
+      if (!res.headersSent) {
+        res.status(408).json({ 
+          error: "Request timeout - dataset too large for real-time processing",
+          suggestion: "Use pre-cache data or contact administrator to refresh cache",
+          timeoutMs: REQUEST_TIMEOUT,
+          fromPreCache: false
+        });
+      }
+    });
+    
     try {
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
       const recordType = (req.query.recordType as string) || 'DT';
       const cacheKey = `activity_${year}_${recordType}`;
       
-      console.log(`[TDDF-JSON-ACTIVITY] Using pre-cache table for year ${year}, type: ${recordType}...`);
+      console.log(`[TDDF-JSON-ACTIVITY] Processing year ${year}, type: ${recordType} (timeout: ${REQUEST_TIMEOUT}ms)...`);
       const startTime = Date.now();
       
       // Use pre-cache table instead of direct queries
@@ -11491,23 +11507,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TDDF-JSON-ACTIVITY] Pre-cache expired for ${cacheKey}, falling back to direct query...`);
       const fallbackTableName = getTableName('tddf_jsonb');
       
-      // Get dataset size for fallback aggregation strategy
-      const sizeCheckResult = await pool.query(`
-        SELECT COUNT(*) as total_records
-        FROM ${fallbackTableName}
-        WHERE record_type = $1
-        AND CASE 
-          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
-          THEN EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
-          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
-          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY')) = $2
-          WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
-          THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY')) = $2
-          ELSE FALSE
-        END
-        AND extracted_fields->>'transactionDate' IS NOT NULL
-        AND extracted_fields->>'transactionDate' != ''
-      `, [recordType, year]);
+      // Get dataset size for fallback aggregation strategy with timeout protection
+      const sizeCheckStartTime = Date.now();
+      const sizeCheckResult = await Promise.race([
+        pool.query(`
+          SELECT COUNT(*) as total_records
+          FROM ${fallbackTableName}
+          WHERE record_type = $1
+          AND CASE 
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+            THEN EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
+            THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MM/DD/YYYY')) = $2
+            WHEN extracted_fields->>'transactionDate' ~ '^[0-9]{8}$'
+            THEN EXTRACT(YEAR FROM TO_DATE(extracted_fields->>'transactionDate', 'MMDDYYYY')) = $2
+            ELSE FALSE
+          END
+          AND extracted_fields->>'transactionDate' IS NOT NULL
+          AND extracted_fields->>'transactionDate' != ''
+        `, [recordType, year]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Dataset size check timeout - dataset too large')), 15000)
+        )
+      ]);
       
       const totalRecords = parseInt(sizeCheckResult.rows[0]?.total_records || '0');
       console.log(`[TDDF-JSON-ACTIVITY] Fallback dataset size: ${totalRecords.toLocaleString()} records`);
@@ -11557,7 +11579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           END`;
       }
       
-      // Execute fallback query
+      // Execute fallback query with timeout protection for large datasets
+      const fallbackQueryStartTime = Date.now();
+      const timeoutDuration = Math.max(10000, Math.min(30000, totalRecords * 0.01)); // Dynamic timeout: 10-30s based on dataset size
+      
+      console.log(`[TDDF-JSON-ACTIVITY] Executing fallback query for ${totalRecords.toLocaleString()} records (timeout: ${timeoutDuration}ms)`);
+      
       const fallbackQuery = `
         SELECT ${selectClause}
         FROM ${fallbackTableName}
@@ -11578,8 +11605,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 500
       `;
       
-      const fallbackResult = await pool.query(fallbackQuery, [recordType, year]);
-      const fallbackTime = Date.now() - startTime;
+      const fallbackResult = await Promise.race([
+        pool.query(fallbackQuery, [recordType, year]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Fallback query timeout after ${timeoutDuration}ms - use pre-cache for large datasets`)), timeoutDuration)
+        )
+      ]);
+      
+      const fallbackTime = Date.now() - fallbackQueryStartTime;
       
       console.log(`[TDDF-JSON-ACTIVITY] Fallback query completed in ${fallbackTime}ms`);
       
@@ -11597,10 +11630,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(fallbackResponseData);
     } catch (error) {
-      console.error('Error in TDDF JSON activity pre-cache/fallback:', error);
+      const totalTime = Date.now() - requestStartTime;
+      console.error(`[TDDF-JSON-ACTIVITY] Error after ${totalTime}ms:`, error);
+      
+      // Handle specific timeout errors with helpful messages
+      if (error instanceof Error) {
+        if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+          return res.status(408).json({ 
+            error: `Query timeout after ${totalTime}ms - dataset too large for real-time processing`,
+            suggestion: "Large datasets like 2024 should use pre-cache data. Contact administrator to refresh pre-cache.",
+            timeoutMs: totalTime,
+            fromPreCache: false,
+            year: parseInt(req.query.year as string) || new Date().getFullYear(),
+            recordType: (req.query.recordType as string) || 'DT'
+          });
+        }
+        
+        if (error.message.includes('Dataset size check timeout')) {
+          return res.status(408).json({ 
+            error: "Dataset size check timeout - extremely large dataset detected",
+            suggestion: "This year has too much data for real-time queries. Pre-cache refresh required.",
+            fromPreCache: false
+          });
+        }
+      }
+      
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch TDDF JSON activity data",
-        fromPreCache: false
+        fromPreCache: false,
+        totalTime: totalTime
       });
     }
   });
