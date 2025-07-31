@@ -768,39 +768,7 @@ export default function Settings() {
                           </div>
                         )}
                       </div>
-                      
-                      <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-purple-900">Dynamic Aggregation Performance Tiers:</h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setHeatMapRefreshKey(prev => prev + 1)}
-                            className="text-purple-700 border-purple-200 hover:bg-purple-100"
-                          >
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh Heat Map
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded"></div>
-                            <span><strong>Daily:</strong> &lt; 100k records (standard)</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                            <span><strong>Weekly:</strong> 100k-500k records (medium)</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-orange-500 rounded"></div>
-                            <span><strong>Monthly:</strong> 500k-2M records (large)</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-purple-500 rounded"></div>
-                            <span><strong>Quarterly:</strong> 2M+ records (enterprise)</span>
-                          </div>
-                        </div>
-                      </div>
+
                       <div className="space-y-4">
                         <TddfJsonActivityHeatMap key={heatMapRefreshKey} />
                       </div>
