@@ -14189,10 +14189,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ageInMinutes = Math.floor(cacheData.seconds_since_update / 60);
       const ageInHours = Math.floor(ageInMinutes / 60);
       
-      // Calculate expiration - default to 4 hours for most caches
-      const expirationHours = 4;
-      const expiresInMinutes = (expirationHours * 60) - ageInMinutes;
-      const expiresAt = new Date(Date.now() + (expiresInMinutes * 60 * 1000));
+      // Get actual cache configuration from database
+      let expirationMinutes = 240; // Default 4 hours
+      let expiresAt;
+      
+      try {
+        const configQuery = `
+          SELECT current_expiration_minutes, expiration_policy 
+          FROM ${getTableName('cache_configuration')} 
+          WHERE cache_name = $1 OR cache_name LIKE $2
+          ORDER BY updated_at DESC 
+          LIMIT 1
+        `;
+        const configResult = await pool.query(configQuery, [tableName, `%${tableName}%`]);
+        
+        if (configResult.rows.length > 0) {
+          const config = configResult.rows[0];
+          if (config.expiration_policy === 'never' || config.current_expiration_minutes >= 525600) {
+            expirationMinutes = -1; // Special value for never expire
+            expiresAt = new Date('2099-12-31T23:59:59Z'); // Far future date
+          } else {
+            expirationMinutes = config.current_expiration_minutes;
+            const expiresInMinutes = expirationMinutes - ageInMinutes;
+            expiresAt = new Date(Date.now() + (expiresInMinutes * 60 * 1000));
+          }
+        } else {
+          // Fallback calculation for caches without configuration
+          const expiresInMinutes = expirationMinutes - ageInMinutes;
+          expiresAt = new Date(Date.now() + (expiresInMinutes * 60 * 1000));
+        }
+      } catch (configError) {
+        console.error('Error reading cache configuration:', configError);
+        // Fallback calculation
+        const expiresInMinutes = expirationMinutes - ageInMinutes;
+        expiresAt = new Date(Date.now() + (expiresInMinutes * 60 * 1000));
+      }
       
       // Format age display
       let ageDisplay = '';
@@ -14209,7 +14240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         age: ageDisplay,
         records: parseInt(cacheData.record_count) || 0,
         size: cacheData.size || '0 bytes',
-        expirationMinutes: expirationHours * 60
+        expirationMinutes: expirationMinutes
       };
       
       res.json({ success: true, details });
