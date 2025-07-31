@@ -435,10 +435,17 @@ export default function PreCacheManagement() {
         setCacheDetails(data.details);
         // Set the current expiration in the dropdown
         const currentExpiration = data.details.expirationMinutes;
-        if (currentExpiration >= 525600) { // 1 year or more = never expire
+        if (currentExpiration >= 525600 || currentExpiration === -1) { // 1 year or more = never expire, or -1 = never
           setSelectedExpiration("never");
         } else {
-          setSelectedExpiration(currentExpiration.toString());
+          // Find the closest matching option or use the exact value
+          const standardOptions = [15, 30, 60, 120, 240, 480];
+          if (standardOptions.includes(currentExpiration)) {
+            setSelectedExpiration(currentExpiration.toString());
+          } else {
+            // Default to closest option if not standard
+            setSelectedExpiration("240"); // Default to 4 hours if non-standard
+          }
         }
       } else {
         console.error('Failed to fetch cache details:', data.error || 'Unknown error');
@@ -466,7 +473,18 @@ export default function PreCacheManagement() {
     
     setSettingExpiration(true);
     try {
-      const expirationMinutes = selectedExpiration === "never" ? 525600 : parseInt(selectedExpiration); // 525600 = 1 year
+      let requestBody;
+      if (selectedExpiration === "never") {
+        requestBody = {
+          cacheName: selectedCacheForView,
+          never: true
+        };
+      } else {
+        requestBody = {
+          cacheName: selectedCacheForView,
+          expirationMinutes: parseInt(selectedExpiration)
+        };
+      }
       
       const response = await fetch(`/api/dashboard/cache-expiration`, {
         method: 'POST',
@@ -474,10 +492,7 @@ export default function PreCacheManagement() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          cacheName: selectedCacheForView,
-          expirationMinutes: expirationMinutes
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
