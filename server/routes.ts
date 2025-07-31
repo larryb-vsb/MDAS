@@ -9615,11 +9615,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard cache status endpoint for Dashboard3
+  // Ultra-lightweight cache status endpoint - ONLY STATUS, NO DATA PROCESSING
+  app.get("/api/dashboard/cache-status-only", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('dashboard_cache');
+      
+      // Minimal query - just check cache status
+      const result = await pool.query(`
+        SELECT cache_key, updated_at, expires_at, build_time_ms,
+               CASE 
+                 WHEN expires_at > NOW() + INTERVAL '50 years' THEN 'never'
+                 WHEN NOW() > expires_at THEN 'expired'
+                 ELSE 'fresh'
+               END as status
+        FROM ${tableName}
+        WHERE cache_key IN ('dashboard3_metrics', 'dashboard_metrics')
+        ORDER BY updated_at DESC LIMIT 1
+      `);
+      
+      if (result.rows.length > 0) {
+        const cache = result.rows[0];
+        res.json({
+          cache_key: cache.cache_key,
+          status: cache.status,
+          last_updated: cache.updated_at,
+          expires_at: cache.expires_at
+        });
+      } else {
+        res.json({ status: 'empty', cache_key: 'dashboard3_metrics' });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: 'Status check failed' });
+    }
+  });
+
+  // Lightweight dashboard cache status endpoint for Dashboard3 - NO DATA REBUILDING
   app.get("/api/dashboard/cache-status", isAuthenticated, async (req, res) => {
     try {
       const tableName = getTableName('dashboard_cache');
       
+      // Simple status check - don't trigger any cache rebuilds
       const cacheResult = await pool.query(`
         SELECT 
           cache_key,
@@ -9631,11 +9666,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           CASE 
             WHEN expires_at > NOW() + INTERVAL '50 years' THEN 'never'
             WHEN NOW() > expires_at THEN 'expired'
-            WHEN EXTRACT(EPOCH FROM (NOW() - updated_at))/60 > 20 THEN 'stale'
+            WHEN EXTRACT(EPOCH FROM (NOW() - updated_at))/60 > 30 THEN 'stale'
             ELSE 'fresh'
           END as status
         FROM ${tableName}
-        WHERE cache_key = 'dashboard3_metrics'
+        WHERE cache_key IN ('dashboard3_metrics', 'dashboard_metrics')
         ORDER BY updated_at DESC
         LIMIT 1
       `);

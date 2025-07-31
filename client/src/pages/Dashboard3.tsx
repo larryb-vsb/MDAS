@@ -69,9 +69,9 @@ export default function Dashboard3() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch dashboard cache status
+  // Fetch dashboard cache status - using lightweight endpoint
   const { data: cacheStatus, isLoading: cacheLoading } = useQuery<CacheStatus>({
-    queryKey: ["/api/dashboard/cache-status"],
+    queryKey: ["/api/dashboard/cache-status-only"],
     staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 1000 * 60, // Refresh every minute
   });
@@ -105,7 +105,7 @@ export default function Dashboard3() {
         title: "Cache Expiration Updated",
         description,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cache-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cache-status-only"] });
     },
     onError: () => {
       toast({
