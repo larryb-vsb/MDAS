@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-// Removed Tabs components - using sidebar navigation instead
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
 import { HeatMapProcessingStats } from "@/components/cache/HeatMapProcessingStats";
-import { PreCacheSidebar } from "@/components/navigation/PreCacheSidebar";
 
 interface PreCacheSettings {
   id: number;
@@ -382,8 +381,6 @@ export default function PreCacheManagement() {
   const [loadingCacheDetails, setLoadingCacheDetails] = useState(false);
   const [selectedExpiration, setSelectedExpiration] = useState<string>("15");
   const [settingExpiration, setSettingExpiration] = useState(false);
-  const [currentTab, setCurrentTab] = useState("overview");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Fetch all pre-cache settings
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -880,66 +877,54 @@ function CacheConfigurationManagement() {
 }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <PreCacheSidebar 
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
-        isCollapsed={sidebarCollapsed}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="border-b border-border bg-background px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Pre-Cache Management</h1>
-              <p className="text-muted-foreground mt-2">
-                Monitor and control all pre-cache systems across the application
-              </p>
-                </div>
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => initializeDefaultsMutation.mutate()}
-                disabled={initializeDefaultsMutation.isPending}
-                variant="outline"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Initialize Defaults
-              </Button>
-              <Button 
-                onClick={() => setShowDashboardControls(true)}
-                variant="outline"
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Dashboard Edit Controls
-              </Button>
-              <Button 
-                onClick={() => setShowPolicyManagement(true)}
-                variant="outline"
-                className="text-purple-600 border-purple-200 hover:bg-purple-50"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Policy Management
-              </Button>
-              <Button 
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                variant="outline"
-                size="sm"
-              >
-                {sidebarCollapsed ? "Expand" : "Collapse"}
-              </Button>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Pre-Cache Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor and control all pre-cache systems across the application
+          </p>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => initializeDefaultsMutation.mutate()}
+            disabled={initializeDefaultsMutation.isPending}
+            variant="outline"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Initialize Defaults
+          </Button>
+          <Button 
+            onClick={() => setShowDashboardControls(true)}
+            variant="outline"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Dashboard Edit Controls
+          </Button>
+          <Button 
+            onClick={() => setShowPolicyManagement(true)}
+            variant="outline"
+            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Policy Management
+          </Button>
+        </div>
+      </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="space-y-6">
-            {/* Tab Content based on currentTab */}
-            {currentTab === "overview" && (
-              <div className="space-y-6">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
+          <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          <TabsTrigger value="heat-map">Heat Map Cache</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="errors">Errors</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
           {dashboard && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
@@ -1032,19 +1017,17 @@ function CacheConfigurationManagement() {
               )}
             </CardContent>
           </Card>
-              </div>
-            )}
+        </TabsContent>
 
-            {currentTab === "tables" && (
-              <PreCacheTablesOverview onViewCache={handleViewCache} />
-            )}
+        <TabsContent value="tables" className="space-y-6">
+          <PreCacheTablesOverview onViewCache={handleViewCache} />
+        </TabsContent>
 
-            {currentTab === "configuration" && (
-              <CacheConfigurationManagement />
-            )}
+        <TabsContent value="configuration" className="space-y-6">
+          <CacheConfigurationManagement />
+        </TabsContent>
 
-            {currentTab === "heat-map" && (
-              <div className="space-y-6">
+        <TabsContent value="heat-map" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1062,11 +1045,9 @@ function CacheConfigurationManagement() {
 
           {/* Heat Map Processing Statistics */}
           <HeatMapProcessingStats />
-              </div>
-            )}
+        </TabsContent>
 
-            {currentTab === "settings" && (
-              <div className="space-y-6">
+        <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Cache Configuration Settings</CardTitle>
@@ -1117,11 +1098,9 @@ function CacheConfigurationManagement() {
               )}
             </CardContent>
           </Card>
-              </div>
-            )}
+        </TabsContent>
 
-            {currentTab === "performance" && (
-              <div className="space-y-6">
+        <TabsContent value="performance" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -1191,11 +1170,9 @@ function CacheConfigurationManagement() {
               </CardContent>
             </Card>
           </div>
-              </div>
-            )}
+        </TabsContent>
 
-            {currentTab === "errors" && (
-              <div className="space-y-6">
+        <TabsContent value="errors" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Recent Errors</CardTitle>
@@ -1269,11 +1246,8 @@ function CacheConfigurationManagement() {
               )}
             </CardContent>
           </Card>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Dashboard Edit Controls Modal */}
       <Dialog open={showDashboardControls} onOpenChange={setShowDashboardControls}>
