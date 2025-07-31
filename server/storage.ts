@@ -7363,12 +7363,100 @@ export class DatabaseStorage implements IStorage {
       totalItems: number;
       itemsPerPage: number;
     };
+    fromPreCache?: boolean;
+    cacheAge?: number;
+    queryTime?: number;
   }> {
+    const startTime = Date.now();
+    
     try {
       const page = options.page || 1;
       const limit = options.limit || 20;
       const offset = (page - 1) * limit;
 
+      // Check if this is a simple request that can use pre-cache
+      const canUsePreCache = (
+        page <= 3 && // Allow first few pages to use cache
+        limit <= 20 && 
+        !options.search && 
+        !options.minAmount && 
+        !options.maxAmount && 
+        !options.minTransactions && 
+        !options.maxTransactions && 
+        !options.minTerminals && 
+        !options.maxTerminals
+      );
+
+      if (canUsePreCache) {
+        console.log('[TDDF-MERCHANTS-CACHE] Attempting to use pre-cache for TDDF merchants listing');
+        
+        try {
+          const tddfMerchantsCacheTableName = getTableName('tddf_merchants_cache_orphan_20250729');
+          const cacheResult = await pool.query(`
+            SELECT COUNT(*) as total FROM ${tddfMerchantsCacheTableName}
+          `);
+          
+          const totalCachedMerchants = parseInt(cacheResult.rows[0]?.total || '0');
+          
+          if (totalCachedMerchants > 0) {
+            console.log(`[TDDF-MERCHANTS-CACHE] ✅ Using cached TDDF merchants data (${totalCachedMerchants} merchants cached)`);
+            
+            // Get paginated data from cache
+            const sortByColumn = options.sortBy === 'totalAmount' ? 'total_amount' : 'total_transactions';
+            const sortOrder = options.sortOrder === 'asc' ? 'ASC' : 'DESC';
+            
+            const dataResult = await pool.query(`
+              SELECT 
+                merchant_name,
+                merchant_account_number,
+                mcc_code,
+                transaction_type_identifier,
+                terminal_count,
+                total_transactions,
+                total_amount,
+                last_transaction_date,
+                pos_relative_code
+              FROM ${tddfMerchantsCacheTableName}
+              ORDER BY ${sortByColumn} ${sortOrder}
+              LIMIT $1 OFFSET $2
+            `, [limit, offset]);
+
+            const merchants = dataResult.rows.map(row => ({
+              merchantName: row.merchant_name || '',
+              merchantAccountNumber: row.merchant_account_number || '',
+              mccCode: row.mcc_code || '',
+              transactionTypeIdentifier: row.transaction_type_identifier || '',
+              terminalCount: parseInt(row.terminal_count) || 0,
+              totalTransactions: parseInt(row.total_transactions) || 0,
+              totalAmount: parseFloat(row.total_amount) || 0,
+              lastTransactionDate: row.last_transaction_date || '',
+              posRelativeCode: row.pos_relative_code || ''
+            }));
+
+            const queryTime = Date.now() - startTime;
+            const totalPages = Math.ceil(totalCachedMerchants / limit);
+            
+            console.log(`[TDDF-MERCHANTS-CACHE] ✅ Pre-cache response completed in ${queryTime}ms`);
+
+            return {
+              data: merchants,
+              pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems: totalCachedMerchants,
+                itemsPerPage: limit
+              },
+              fromPreCache: true,
+              cacheAge: 0, // Cache age would be calculated if available
+              queryTime
+            };
+          }
+        } catch (cacheError) {
+          console.log(`[TDDF-MERCHANTS-CACHE] Cache miss or error, falling back to JSONB aggregation:`, cacheError.message);
+        }
+      }
+
+      console.log('[TDDF MERCHANTS API] Using real-time JSONB aggregation (filters applied or cache unavailable)');
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
       console.log('[TDDF MERCHANTS API] Starting JSONB aggregation query');
@@ -7439,6 +7527,7 @@ export class DatabaseStorage implements IStorage {
       }));
 
       console.log('[TDDF MERCHANTS API] Returning merchants:', merchants.length);
+      const queryTime = Date.now() - startTime;
 
       return {
         data: merchants,
@@ -7447,11 +7536,25 @@ export class DatabaseStorage implements IStorage {
           totalPages,
           totalItems,
           itemsPerPage: limit
-        }
+        },
+        fromPreCache: false,
+        queryTime
       };
     } catch (error) {
       console.error('[TDDF MERCHANTS API] Error:', error);
-      throw error;
+      const queryTime = Date.now() - startTime;
+      
+      return {
+        data: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalItems: 0,
+          itemsPerPage: limit
+        },
+        fromPreCache: false,
+        queryTime
+      };
     }
   }
 
