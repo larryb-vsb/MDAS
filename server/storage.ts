@@ -1138,10 +1138,11 @@ export class DatabaseStorage implements IStorage {
         const searchTerm = search.trim();
         console.log(`[SEARCH DEBUG] Using search for: "${searchTerm}"`);
         
+        const baseParamIndex = queryParams.length;
         conditions.push(`(
-          LOWER(name) LIKE $${queryParams.length + 1}
-          OR LOWER(id) LIKE $${queryParams.length + 2}
-          OR LOWER(client_mid) LIKE $${queryParams.length + 3}
+          LOWER(name) LIKE $${baseParamIndex + 1}
+          OR LOWER(id) LIKE $${baseParamIndex + 2}
+          OR LOWER(client_mid) LIKE $${baseParamIndex + 3}
         )`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
         queryParams.push(`%${searchTerm.toLowerCase()}%`);
@@ -1179,14 +1180,14 @@ export class DatabaseStorage implements IStorage {
       console.log(`[SEARCH DEBUG] Parameters:`, queryParams);
       
       const countResult = queryParams.length > 0 
-        ? await db.execute(sql.raw(countQuery, queryParams))
-        : await db.execute(sql.raw(countQuery));
+        ? await pool.query(countQuery, queryParams)
+        : await pool.query(countQuery);
       const totalItems = parseInt(countResult.rows[0]?.count || '0', 10);
       const totalPages = Math.ceil(totalItems / limit);
       
       const result = queryParams.length > 0
-        ? await db.execute(sql.raw(mainQuery, queryParams))
-        : await db.execute(sql.raw(mainQuery));
+        ? await pool.query(mainQuery, queryParams)
+        : await pool.query(mainQuery);
       const merchants = result.rows;
       console.log(`[SEARCH DEBUG] Query returned ${merchants.length} merchants`);
       
