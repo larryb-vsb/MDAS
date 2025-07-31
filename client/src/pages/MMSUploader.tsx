@@ -515,8 +515,8 @@ export default function MMSUploader() {
           compareValue = a.filename.localeCompare(b.filename);
           break;
         case 'date':
-          const dateA = new Date(a.uploadedAt || a.createdAt || 0);
-          const dateB = new Date(b.uploadedAt || b.createdAt || 0);
+          const dateA = new Date(a.uploadedAt || a.lastUpdated || 0);
+          const dateB = new Date(b.uploadedAt || b.lastUpdated || 0);
           compareValue = dateA.getTime() - dateB.getTime();
           break;
         case 'size':
@@ -1602,13 +1602,13 @@ export default function MMSUploader() {
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                   <div className="text-2xl font-bold text-green-600">
-                    {terminals.filter(t => t.merchantId && t.merchantId !== 'UNKNOWN').length}
+                    {terminals.filter((t: any) => t.merchantId && t.merchantId !== 'UNKNOWN').length}
                   </div>
                   <div className="text-sm text-green-700">Matched</div>
                 </div>
                 <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                   <div className="text-2xl font-bold text-orange-600">
-                    {terminals.filter(t => !t.merchantId || t.merchantId === 'UNKNOWN').length}
+                    {terminals.filter((t: any) => !t.merchantId || t.merchantId === 'UNKNOWN').length}
                   </div>
                   <div className="text-sm text-orange-700">Unmatched</div>
                 </div>
@@ -1647,7 +1647,7 @@ export default function MMSUploader() {
                   <div className="flex items-center gap-2">
                     <Checkbox
                       checked={showOnlyUnmatched}
-                      onCheckedChange={setShowOnlyUnmatched}
+                      onCheckedChange={(checked) => setShowOnlyUnmatched(checked === true)}
                     />
                     <Label>Show only unmatched terminals</Label>
                   </div>
@@ -1707,8 +1707,7 @@ export default function MMSUploader() {
                           <Button 
                             onClick={() => createMerchantMutation.mutate({
                               id: `merchant_${Date.now()}`,
-                              ...newMerchant,
-                              createdAt: new Date().toISOString()
+                              ...newMerchant
                             })}
                             disabled={createMerchantMutation.isPending || !newMerchant.name}
                           >
@@ -1736,7 +1735,7 @@ export default function MMSUploader() {
                   </TableHeader>
                   <TableBody>
                     {terminals
-                      .filter(terminal => {
+                      .filter((terminal: any) => {
                         // Apply search filters
                         const matchesTerminalSearch = !terminalSearchFilter || 
                           terminal.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
@@ -1750,8 +1749,8 @@ export default function MMSUploader() {
                         return matchesTerminalSearch && matchesUnmatchedFilter;
                       })
                       .slice(0, 50) // Limit to 50 for performance
-                      .map((terminal) => {
-                        const currentMerchant = merchants.find(m => m.id === terminal.merchantId);
+                      .map((terminal: any) => {
+                        const currentMerchant = merchants.find((m: any) => m.id === terminal.merchantId);
                         const isDecommissioned = terminal.terminalName?.toLowerCase().includes('decommission') ||
                                                terminal.terminalName?.toLowerCase().includes('decomm') ||
                                                terminal.terminalName?.toLowerCase().includes('inactive');
@@ -1835,11 +1834,11 @@ export default function MMSUploader() {
                                           <SelectContent>
                                             <SelectItem value="UNKNOWN">Remove Assignment</SelectItem>
                                             {merchants
-                                              .filter(m => merchantSearchFilter === '' || 
+                                              .filter((m: any) => merchantSearchFilter === '' || 
                                                 m.name.toLowerCase().includes(merchantSearchFilter.toLowerCase()) ||
                                                 m.clientMID?.toLowerCase().includes(merchantSearchFilter.toLowerCase())
                                               )
-                                              .map(merchant => (
+                                              .map((merchant: any) => (
                                                 <SelectItem key={merchant.id} value={merchant.id}>
                                                   {merchant.name} {merchant.clientMID && `(${merchant.clientMID})`}
                                                 </SelectItem>
@@ -1880,7 +1879,7 @@ export default function MMSUploader() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Showing:</span> {Math.min(50, terminals.filter(t => {
+                    <span className="font-medium">Showing:</span> {Math.min(50, terminals.filter((t: any) => {
                       const matchesTerminalSearch = !terminalSearchFilter || 
                         t.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
                         t.terminalName?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
@@ -1890,11 +1889,11 @@ export default function MMSUploader() {
                   </div>
                   <div>
                     <span className="font-medium">Match Rate:</span> {terminals.length > 0 ? 
-                      Math.round((terminals.filter(t => t.merchantId && t.merchantId !== 'UNKNOWN').length / terminals.length) * 100)
+                      Math.round((terminals.filter((t: any) => t.merchantId && t.merchantId !== 'UNKNOWN').length / terminals.length) * 100)
                     : 0}%
                   </div>
                   <div>
-                    <span className="font-medium">Decommissioned:</span> {terminals.filter(t => 
+                    <span className="font-medium">Decommissioned:</span> {terminals.filter((t: any) => 
                       t.terminalName?.toLowerCase().includes('decommission') ||
                       t.terminalName?.toLowerCase().includes('decomm') ||
                       t.terminalName?.toLowerCase().includes('inactive')

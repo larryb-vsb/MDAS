@@ -29,6 +29,7 @@ import AuthPage from "@/pages/auth-page";
 import Backups from "@/pages/Backups";
 import Logs from "@/pages/Logs";
 import MMSUploader from "@/pages/MMSUploader";
+import SubTerminals from "@/pages/SubTerminals";
 import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
@@ -64,6 +65,7 @@ function Router() {
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
+      <ProtectedRoute path="/subterminals" component={SubTerminals} />
       <ProtectedRoute path="/storage-management" component={StorageManagement} />
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
