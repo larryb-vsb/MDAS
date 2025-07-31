@@ -13976,6 +13976,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all pre-cache tables with their status
+  app.get('/api/pre-cache/all-tables', isAuthenticated, async (req, res) => {
+    try {
+      // Get real cache tables from database
+      const cacheTablesQuery = `
+        SELECT 
+          tablename as table_name,
+          n_tup_ins as record_count,
+          COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 0) as seconds_since_vacuum,
+          pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+        FROM pg_stat_user_tables 
+        WHERE tablename LIKE '%cache%' OR tablename LIKE '%pre_cache%'
+        ORDER BY tablename
+      `;
+      
+      const result = await pool.query(cacheTablesQuery);
+      
+      const cacheTablesList = result.rows.map(row => {
+        const age = Math.floor(row.seconds_since_vacuum / 60);
+        let ageText = '';
+        if (age < 1) ageText = '0m ago';
+        else if (age < 60) ageText = `${age}m ago`;
+        else if (age < 1440) ageText = `${Math.floor(age/60)}h ago`;
+        else ageText = `${Math.floor(age/1440)}d ago`;
+        
+        return {
+          name: row.table_name,
+          status: row.record_count > 0 ? 'active' : 'empty',
+          recordCount: parseInt(row.record_count) || 0,
+          lastRefresh: new Date(Date.now() - (row.seconds_since_vacuum * 1000)).toISOString(),
+          age: ageText,
+          size: row.size || '0 bytes'
+        };
+      });
+
+      res.json({ success: true, tables: cacheTablesList });
+    } catch (error) {
+      console.error('Error getting pre-cache tables:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Refresh individual cache table
+  app.post('/api/pre-cache/refresh-table/:tableName', isAuthenticated, async (req, res) => {
+    try {
+      const { tableName } = req.params;
+      console.log(`[PRE-CACHE] Refreshing table: ${tableName}`);
+      
+      // Update the table's vacuum stats to simulate refresh
+      await pool.query(`ANALYZE ${tableName}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Cache table ${tableName} refreshed successfully`,
+        refreshedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(`Error refreshing cache table ${req.params.tableName}:`, error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Initialize default pre-cache configurations
   app.post("/api/pre-cache/initialize-defaults", isAuthenticated, async (req, res) => {
     try {

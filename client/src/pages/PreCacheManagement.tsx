@@ -140,6 +140,190 @@ function getCacheTypeBadge(type: string) {
   );
 }
 
+interface CacheTableInfo {
+  name: string;
+  status: 'active' | 'stale' | 'expired' | 'empty';
+  recordCount: number;
+  lastRefresh: string;
+  age: string;
+  size?: string;
+}
+
+// PreCacheTablesOverview Component
+function PreCacheTablesOverview() {
+  const [tablesLoading, setTablesLoading] = useState(true);
+  const [cacheTablesList, setCacheTablesList] = useState<CacheTableInfo[]>([]);
+  const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
+
+  // Fetch all cache tables
+  const fetchCacheTables = async () => {
+    try {
+      setTablesLoading(true);
+      const response = await fetch('/api/pre-cache/all-tables', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCacheTablesList(data.tables || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch cache tables:', error);
+    } finally {
+      setTablesLoading(false);
+    }
+  };
+
+  // Refresh individual cache table
+  const refreshCacheTable = async (tableName: string) => {
+    try {
+      setRefreshingTable(tableName);
+      const response = await fetch(`/api/pre-cache/refresh-table/${tableName}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (response.ok) {
+        await fetchCacheTables(); // Refresh the list
+      }
+    } catch (error) {
+      console.error(`Failed to refresh table ${tableName}:`, error);
+    } finally {
+      setRefreshingTable(null);
+    }
+  };
+
+  // Get status badge
+  const getTableStatusBadge = (status: string, recordCount: number) => {
+    if (recordCount === 0) {
+      return <Badge variant="secondary" className="bg-gray-100 text-gray-600">Empty</Badge>;
+    }
+    
+    switch (status) {
+      case 'active': return <Badge className="bg-blue-100 text-blue-700">Active</Badge>;
+      case 'stale': return <Badge variant="outline" className="border-yellow-300 text-yellow-700">Stale</Badge>;
+      case 'expired': return <Badge variant="destructive" className="bg-red-100 text-red-700">Expired</Badge>;
+      default: return <Badge variant="secondary">Unknown</Badge>;
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchCacheTables();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {/* Pre-Cache Tables Status */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center space-x-2">
+              <Database className="w-5 h-5 text-blue-500" />
+              <span>Pre-Cache Tables Status</span>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Individual cache table status and refresh controls
+            </p>
+          </div>
+          <Button 
+            onClick={fetchCacheTables} 
+            disabled={tablesLoading}
+            variant="outline"
+            size="sm"
+          >
+            {tablesLoading ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh All
+              </>
+            )}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {tablesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin" />
+              <span className="ml-2 text-muted-foreground">Loading cache tables...</span>
+            </div>
+          ) : cacheTablesList.length > 0 ? (
+            <div className="space-y-3">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Total Tables</div>
+                  <div className="text-lg font-semibold">{cacheTablesList.length}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Active</div>
+                  <div className="text-lg font-semibold text-blue-600">
+                    {cacheTablesList.filter(t => t.status === 'active').length}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Stale</div>
+                  <div className="text-lg font-semibold text-yellow-600">
+                    {cacheTablesList.filter(t => t.status === 'stale').length}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">Empty</div>
+                  <div className="text-lg font-semibold text-gray-600">
+                    {cacheTablesList.filter(t => t.recordCount === 0).length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Individual Cache Tables */}
+              <div className="space-y-2">
+                {cacheTablesList.map((table, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <div className="font-medium text-sm">{table.name}</div>
+                        {getTableStatusBadge(table.status, table.recordCount)}
+                      </div>
+                      <div className="flex items-center space-x-4 mt-1 text-xs text-muted-foreground">
+                        <span>{table.recordCount.toLocaleString()} records</span>
+                        <span>Updated {table.age}</span>
+                        {table.size && <span>{table.size}</span>}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => refreshCacheTable(table.name)}
+                      disabled={refreshingTable === table.name}
+                      className="ml-4"
+                    >
+                      {refreshingTable === table.name ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Database className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-muted-foreground">No cache tables found</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function PreCacheManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -215,8 +399,9 @@ export default function PreCacheManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="errors">Errors</TabsTrigger>
@@ -317,6 +502,10 @@ export default function PreCacheManagement() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="tables" className="space-y-6">
+          <PreCacheTablesOverview />
+        </TabsContent>
+
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>
@@ -368,6 +557,11 @@ export default function PreCacheManagement() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Pre-Cache Tables Tab */}
+        <TabsContent value="tables" className="space-y-6">
+          <PreCacheTablesOverview />
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-6">
