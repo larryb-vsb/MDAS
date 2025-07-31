@@ -1690,6 +1690,7 @@ export default function MMSUploader() {
                         <SelectItem value="uploaded">Uploaded</SelectItem>
                         <SelectItem value="identified">Identified</SelectItem>
                         <SelectItem value="encoding">Encoding</SelectItem>
+                        <SelectItem value="encoded">Encoded</SelectItem>
                         <SelectItem value="processing">Processing</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="warning">Warning</SelectItem>
