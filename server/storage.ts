@@ -10319,15 +10319,7 @@ export class DatabaseStorage implements IStorage {
     return isNaN(parsed) ? null : parsed / 100; // Convert cents to dollars
   }
 
-  private async skipUnknownRecordWithClient(client: any, rawRecord: any, tableName: string): Promise<void> {
-    await client.query(`
-      UPDATE "${tableName}" 
-      SET processing_status = 'skipped',
-          skip_reason = 'unknown_record_type',
-          processed_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `, [rawRecord.id]);
-  }
+
 
   // Unified method to process both DT and BH records with transactional integrity
   async processPendingTddfRecordsUnified(batchSize: number, recordTypes: string[] = ['DT', 'BH']): Promise<{ 

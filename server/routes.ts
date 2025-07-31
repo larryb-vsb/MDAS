@@ -8903,7 +8903,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasHeaders: hasHeaders,
         fileFormat: fileFormat,
         encodingDetected: 'utf-8',
-        lineCount: lineCount,
         processingNotes: `Uploaded to Replit Object Storage: ${uploadResult.key}`
       });
       
