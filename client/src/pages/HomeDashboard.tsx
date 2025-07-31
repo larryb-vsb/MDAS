@@ -35,6 +35,26 @@ import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import { Link } from 'wouter';
 
+// Interface for system information
+interface SystemInfo {
+  environment: {
+    name: string;
+    isProd: boolean;
+    isDev: boolean;
+    isTest: boolean;
+  };
+  storage: {
+    fallbackMode: boolean;
+    storageType: string;
+    type: string;
+  };
+  version: {
+    appVersion: string;
+    buildDate: string;
+  };
+  uptime: number;
+}
+
 // Interface for dashboard metrics with cache metadata
 interface DashboardMetrics {
   merchants: {
@@ -177,6 +197,13 @@ export default function HomeDashboard() {
     gcTime: 60 * 60 * 1000, // 1 hour
   });
 
+  // Fetch system information for environment badge
+  const { data: systemInfo } = useQuery<SystemInfo>({
+    queryKey: ['/api/system/info'],
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   // Manual refresh mutation
   const refreshMutation = useMutation({
     mutationFn: () => apiRequest('/api/dashboard/refresh-cache', {
@@ -227,7 +254,19 @@ export default function HomeDashboard() {
         {/* Header with Refresh Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
+              <Badge 
+                variant="outline" 
+                className={
+                  systemInfo?.environment?.name === 'production' 
+                    ? "bg-orange-50 text-orange-700 border-orange-200 font-medium px-3 py-1"
+                    : "bg-blue-50 text-blue-700 border-blue-200 font-medium px-3 py-1"
+                }
+              >
+                {systemInfo?.environment?.name === 'production' ? 'Production' : 'Development'}
+              </Badge>
+            </div>
             <p className="text-muted-foreground">
               Manage your merchants, upload data, and view statistics
             </p>
