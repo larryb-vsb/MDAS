@@ -20,6 +20,8 @@ import MainLayout from '@/components/layout/MainLayout';
 import TddfJsonViewer from '@/components/uploads/TddfJsonViewer';
 import StorageObjectProcessor from '@/components/storage/StorageObjectProcessor';
 import ObjectStorageFileBrowser from '@/components/storage/ObjectStorageFileBrowser';
+import OrphanFileUploader from '@/components/uploads/OrphanFileUploader';
+import OrphanFilesDetector from '@/components/uploads/OrphanFilesDetector';
 import { formatDistanceToNow } from 'date-fns';
 
 // Extended type for UploaderUpload with storage key
@@ -1505,6 +1507,9 @@ export default function MMSUploader() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Orphan File Uploader */}
+          <OrphanFileUploader />
         </TabsContent>
 
         <TabsContent value="encoding" className="space-y-4">
@@ -1693,6 +1698,9 @@ export default function MMSUploader() {
         </TabsContent>
 
         <TabsContent value="files" className="space-y-4">
+          {/* Orphan Files Detector */}
+          <OrphanFilesDetector />
+          
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

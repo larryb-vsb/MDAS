@@ -7662,6 +7662,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Detect orphan files in object storage (files not registered in database)
+  app.get("/api/uploader/orphan-files", isAuthenticated, async (req, res) => {
+    try {
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const config = ReplitStorageService.getConfigStatus();
+      
+      if (!config.available) {
+        return res.json({ orphans: [], count: 0, error: 'Object storage not configured' });
+      }
+
+      console.log('[ORPHAN-DETECTION] Scanning for orphan files...');
+      
+      // Get all files from object storage
+      const allStorageFiles = await ReplitStorageService.listFiles();
+      console.log(`[ORPHAN-DETECTION] Found ${allStorageFiles.length} files in object storage`);
+      
+      // Get all registered filenames from database
+      const uploaderTableName = getTableName('uploader_uploads');
+      const registeredResult = await pool.query(`
+        SELECT DISTINCT filename, storage_path 
+        FROM ${uploaderTableName}
+        WHERE filename IS NOT NULL
+      `);
+      
+      const registeredFiles = new Set();
+      registeredResult.rows.forEach(row => {
+        registeredFiles.add(row.filename);
+        if (row.storage_path) {
+          registeredFiles.add(row.storage_path); // Also add storage path
+        }
+      });
+      
+      console.log(`[ORPHAN-DETECTION] Found ${registeredFiles.size} registered files in database`);
+      
+      // Find orphan files (in storage but not in database)
+      const orphanFiles = allStorageFiles.filter(storageKey => {
+        const fileName = storageKey.split('/').pop() || '';
+        return !registeredFiles.has(fileName) && !registeredFiles.has(storageKey);
+      });
+      
+      // Convert to detailed objects
+      const orphans = orphanFiles.map(key => {
+        const fileName = key.split('/').pop() || key;
+        const isOrphanUpload = key.includes('/orphans/');
+        return {
+          key,
+          name: fileName,
+          isOrphanUpload, // Distinguish files uploaded via orphan uploader
+          type: fileName.toLowerCase().endsWith('.tsyso') ? 'tddf' : 
+                fileName.toLowerCase().endsWith('.csv') ? 'csv' :
+                fileName.toLowerCase().endsWith('.json') ? 'json' : 'unknown',
+          canIdentify: true // All orphans can be identified
+        };
+      });
+      
+      console.log(`[ORPHAN-DETECTION] Found ${orphans.length} orphan files`);
+      
+      res.json({
+        orphans,
+        count: orphans.length,
+        totalStorage: allStorageFiles.length,
+        registered: registeredFiles.size
+      });
+      
+    } catch (error: any) {
+      console.error('Orphan detection error:', error);
+      res.status(500).json({ 
+        orphans: [],
+        count: 0,
+        error: error.message 
+      });
+    }
+  });
+
   // Import selected files from object storage into MMS processing pipeline
   app.post("/api/uploader/import-from-storage", isAuthenticated, async (req, res) => {
     try {
@@ -7776,6 +7850,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error: any) {
       console.error('Storage import error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
+    }
+  });
+
+  // Upload file to object storage without database registration (orphan file)
+  app.post("/api/uploader/upload-orphan", isAuthenticated, async (req, res) => {
+    try {
+      const upload = multer({
+        limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+        fileFilter: (req, file, cb) => {
+          // Accept all file types for orphan uploads
+          cb(null, true);
+        }
+      }).single('file');
+
+      upload(req, res, async (err) => {
+        if (err) {
+          console.error('[ORPHAN-UPLOAD] Multer error:', err);
+          return res.status(400).json({ error: err.message });
+        }
+
+        if (!req.file) {
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        try {
+          const { ReplitStorageService } = await import('./replit-storage-service');
+          
+          // Generate orphan storage key (no upload ID, just timestamp)
+          const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          const environment = process.env.NODE_ENV || 'development';
+          const folderPrefix = environment === 'production' ? 'prod-uploader' : 'dev-uploader';
+          const orphanId = `orphan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Create orphan storage key
+          const storageKey = `${folderPrefix}/${timestamp}/orphans/${orphanId}/${req.file.originalname}`;
+          
+          console.log(`[ORPHAN-UPLOAD] Uploading orphan file: ${req.file.originalname} to ${storageKey}`);
+          
+          // Upload to object storage only
+          const uploadResult = await ReplitStorageService.uploadFile(
+            req.file.buffer,
+            req.file.originalname,
+            orphanId,
+            req.file.mimetype
+          );
+          
+          console.log(`[ORPHAN-UPLOAD] Successfully uploaded orphan file: ${storageKey}`);
+
+          res.json({
+            success: true,
+            message: 'File uploaded as orphan',
+            filename: req.file.originalname,
+            storageKey: storageKey,
+            size: req.file.size,
+            orphanId: orphanId
+          });
+          
+        } catch (storageError: any) {
+          console.error('[ORPHAN-UPLOAD] Storage error:', storageError);
+          res.status(500).json({ error: `Storage upload failed: ${storageError.message}` });
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('[ORPHAN-UPLOAD] Upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Identify an orphan file and bring it into the MMS system
+  app.post("/api/uploader/identify-orphan", isAuthenticated, async (req, res) => {
+    try {
+      const { storageKey, filename } = req.body;
+      
+      if (!storageKey || !filename) {
+        return res.status(400).json({ error: "storageKey and filename are required" });
+      }
+
+      console.log(`[ORPHAN-IDENTIFY] Identifying orphan file: ${storageKey}`);
+      
+      // Check if file already exists in upload system
+      const uploaderTableName = getTableName('uploader_uploads');
+      const existingResult = await pool.query(`
+        SELECT id FROM ${uploaderTableName} 
+        WHERE filename = $1 OR storage_path = $2
+        LIMIT 1
+      `, [filename, storageKey]);
+      
+      if (existingResult.rows.length > 0) {
+        return res.status(400).json({ error: 'File is already registered in the system' });
+      }
+
+      // Generate new upload ID
+      const uploadId = `orphan_identify_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Determine file type
+      let finalFileType = 'tddf'; // Default for .TSYSO files
+      if (filename.toLowerCase().includes('.csv')) {
+        if (filename.toLowerCase().includes('merchant')) {
+          finalFileType = 'ach_merchant';
+        } else if (filename.toLowerCase().includes('transaction')) {
+          finalFileType = 'ach_transactions'; 
+        } else {
+          finalFileType = 'ach_merchant'; // Default CSV type
+        }
+      }
+
+      // Create upload record at "uploaded" phase (ready for identification)
+      const newUpload = await pool.query(`
+        INSERT INTO ${uploaderTableName} (
+          id,
+          filename,
+          file_size,
+          mime_type,
+          session_id,
+          current_phase,
+          final_file_type,
+          processing_metadata,
+          created_at,
+          storage_path,
+          environment,
+          server_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      `, [
+        uploadId,
+        filename,
+        0, // Size unknown from storage key
+        'application/octet-stream',
+        'orphan_identified', 
+        'uploaded', // Start at uploaded phase, ready for identification
+        finalFileType,
+        JSON.stringify({
+          source: 'orphan_identification',
+          original_storage_key: storageKey,
+          identified_timestamp: new Date().toISOString()
+        }),
+        new Date(),
+        storageKey, // Store the storage key as path
+        process.env.NODE_ENV || 'development',
+        process.env.HOSTNAME || 'unknown'
+      ]);
+
+      console.log(`[ORPHAN-IDENTIFY] Created upload record: ${uploadId} for orphan ${filename}`);
+
+      res.json({
+        success: true,
+        upload: newUpload.rows[0],
+        message: `Orphan file ${filename} has been identified and registered. It's now ready for processing in the Files tab.`
+      });
+      
+    } catch (error: any) {
+      console.error('Orphan identification error:', error);
       res.status(500).json({ 
         success: false,
         error: error.message 
