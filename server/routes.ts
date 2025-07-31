@@ -9615,6 +9615,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard cache status endpoint for Dashboard3
+  app.get("/api/dashboard/cache-status", isAuthenticated, async (req, res) => {
+    try {
+      const tableName = getTableName('dashboard_cache');
+      
+      const cacheResult = await pool.query(`
+        SELECT 
+          cache_key,
+          updated_at as last_updated,
+          expires_at,
+          build_time_ms,
+          record_count,
+          EXTRACT(EPOCH FROM (NOW() - updated_at))/60 as age_minutes,
+          CASE 
+            WHEN NOW() > expires_at THEN 'expired'
+            WHEN EXTRACT(EPOCH FROM (NOW() - updated_at))/60 > 20 THEN 'stale'
+            ELSE 'fresh'
+          END as status
+        FROM ${tableName}
+        WHERE cache_key = 'dashboard_metrics'
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `);
+      
+      if (cacheResult.rows.length > 0) {
+        const cache = cacheResult.rows[0];
+        res.json({
+          cache_key: cache.cache_key,
+          last_updated: cache.last_updated,
+          expires_at: cache.expires_at,
+          build_time_ms: cache.build_time_ms,
+          record_count: cache.record_count,
+          age_minutes: Math.floor(cache.age_minutes),
+          status: cache.status
+        });
+      } else {
+        res.json({
+          cache_key: 'dashboard_metrics',
+          last_updated: null,
+          expires_at: null,
+          build_time_ms: 0,
+          record_count: 0,
+          age_minutes: 0,
+          status: 'empty'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching cache status:', error);
+      res.status(500).json({ error: 'Failed to fetch cache status' });
+    }
+  });
+
   // Pre-cache status endpoint for comprehensive testing coverage
   app.get("/api/settings/pre-cache-status", isAuthenticated, async (req, res) => {
     try {

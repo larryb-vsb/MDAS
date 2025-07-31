@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Database, Clock, RefreshCw } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 
 interface SystemInfo {
@@ -14,6 +14,16 @@ interface SystemInfo {
   };
 }
 
+interface CacheStatus {
+  cache_key: string;
+  last_updated: string;
+  expires_at: string;
+  build_time_ms: number;
+  record_count: number;
+  age_minutes: number;
+  status: 'fresh' | 'stale' | 'expired';
+}
+
 export default function Dashboard3() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -21,6 +31,13 @@ export default function Dashboard3() {
   const { data: systemInfo } = useQuery<SystemInfo>({
     queryKey: ["/api/system/info"],
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Fetch dashboard cache status
+  const { data: cacheStatus, isLoading: cacheLoading } = useQuery<CacheStatus>({
+    queryKey: ["/api/dashboard/cache-status"],
+    staleTime: 1000 * 30, // 30 seconds
+    refetchInterval: 1000 * 60, // Refresh every minute
   });
 
   const toggleDarkMode = () => {
@@ -68,15 +85,75 @@ export default function Dashboard3() {
             {/* Widget Grid - Ready for components */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               
-              {/* Placeholder Widget 1 */}
+              {/* Cache Status Widget */}
               <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Widget Slot 1</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Database className="h-4 w-4" />
+                    Cache Status
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    Ready for widget
-                  </div>
+                <CardContent className="space-y-3">
+                  {cacheLoading ? (
+                    <div className="text-center py-4">
+                      <RefreshCw className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mt-2">Loading...</p>
+                    </div>
+                  ) : cacheStatus ? (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Cache Name:</span>
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {cacheStatus.cache_key}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Last Refresh:</span>
+                          <div className="text-xs text-right">
+                            <div>{new Date(cacheStatus.last_updated).toLocaleDateString()}</div>
+                            <div className="text-muted-foreground">
+                              {new Date(cacheStatus.last_updated).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Expires:</span>
+                          <div className="text-xs text-right">
+                            <div>{new Date(cacheStatus.expires_at).toLocaleDateString()}</div>
+                            <div className="text-muted-foreground">
+                              {new Date(cacheStatus.expires_at).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Status:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              cacheStatus.status === 'fresh' ? 'bg-green-50 text-green-700 border-green-200' :
+                              cacheStatus.status === 'stale' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                              'bg-red-50 text-red-700 border-red-200'
+                            }`}
+                          >
+                            <Clock className="h-3 w-3 mr-1" />
+                            {cacheStatus.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                          Age: {cacheStatus.age_minutes}m | Records: {cacheStatus.record_count?.toLocaleString()}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-xs">
+                      No cache data available
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
