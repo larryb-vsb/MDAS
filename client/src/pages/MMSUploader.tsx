@@ -127,7 +127,7 @@ export default function MMSUploader() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0); // 0-based for array indexing
-  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(100); // Start with larger default
   
   // Selection state for bulk operations
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
@@ -1733,7 +1733,7 @@ export default function MMSUploader() {
                   <div className="flex items-center gap-2">
                     <Label>Per Page:</Label>
                     <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                      <SelectTrigger className="w-20">
+                      <SelectTrigger className="w-24">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1741,6 +1741,9 @@ export default function MMSUploader() {
                         <SelectItem value="20">20</SelectItem>
                         <SelectItem value="50">50</SelectItem>
                         <SelectItem value="100">100</SelectItem>
+                        <SelectItem value="500">500</SelectItem>
+                        <SelectItem value="1000">1000</SelectItem>
+                        <SelectItem value="99999">All</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
