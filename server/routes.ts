@@ -12077,7 +12077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (jsonbCacheResult.rows.length > 0) {
           jsonbCount = parseInt(jsonbCacheResult.rows[0].total_records) || 0;
           cacheSource = 'pre_cached_settings';
-          console.log(`[TDDF-OBJECT-TOTALS] Using JSONB count from pre-cached Settings data: ${jsonbCount}`);
+          console.log(`[TDDF-OBJECT-TOTALS] Using JSONB count from pre-cached Settings data: ${jsonbCount.toLocaleString()}`);
         } else {
           // Fallback to live query if no cache available
           const jsonbResult = await pool.query(`

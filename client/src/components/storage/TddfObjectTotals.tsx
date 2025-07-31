@@ -308,11 +308,14 @@ export default function TddfObjectTotals() {
             </div>
             <div className="text-sm text-purple-600">Total Records</div>
           </div>
-          <div className="bg-indigo-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-indigo-800">
-              {data.recordStats.jsonbCount?.toLocaleString() || '0'}
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold mb-2">
+              JSONB COUNT
             </div>
-            <div className="text-sm text-indigo-600">JSONB Count</div>
+            <div className="text-2xl font-bold text-green-800">
+              {data.recordStats.jsonbCount?.toLocaleString() || 'Loading...'}
+            </div>
+            <div className="text-sm text-green-600">Encoded Records</div>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-800">
