@@ -542,11 +542,13 @@ export default function TddfJsonPage() {
   });
 
   // Conditional debug logging for test pages only
-  const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test');
+  const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test') || true; // Enable debug for now
   if (isTestPage) {
     console.log('[TDDF-JSON-PAGE] Stats data:', stats);
     console.log('[TDDF-JSON-PAGE] Stats loading:', statsLoading);
     console.log('[TDDF-JSON-PAGE] Stats error:', statsError);
+    console.log('[TDDF-JSON-PAGE] Current dateFilter:', dateFilter);
+    console.log('[TDDF-JSON-PAGE] Current selectedTab:', selectedTab);
   }
 
   // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
@@ -630,19 +632,15 @@ export default function TddfJsonPage() {
   };
 
   const handleDateSelect = (date: string) => {
-    // Debug logging only when enableDebugLogging is available from query params or test context
-    const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test');
-    if (isTestPage) {
-      console.log('[TDDF-JSON-PAGE] Date selected for filtering:', date);
-      console.log('[TDDF-JSON-PAGE] Date type:', typeof date);
-      console.log('[TDDF-JSON-PAGE] Date format check:', new Date(date));
-      console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
-      console.log('[TDDF-JSON-PAGE] Switching to DT tab');
-    }
+    console.log('[TDDF-JSON-PAGE] Date selected for filtering:', date);
+    console.log('[TDDF-JSON-PAGE] Date type:', typeof date);
+    console.log('[TDDF-JSON-PAGE] Date format check:', new Date(date));
+    console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
+    console.log('[TDDF-JSON-PAGE] Switching to DT tab');
     
     setDateFilter(date);
     setCurrentPage(1);
-    setSelectedTab('dt'); // Switch to DT tab to show filtered results
+    setSelectedTab('DT'); // Switch to DT tab to show filtered results - correct tab name
   };
 
   const clearDateFilter = () => {
@@ -849,6 +847,22 @@ export default function TddfJsonPage() {
                     className="pl-10"
                   />
                 </div>
+                {dateFilter && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      Date: {formatDate(dateFilter)}
+                    </Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearDateFilter}
+                      className="text-xs h-8 px-2"
+                      title="Clear date filter"
+                    >
+                      Clear Filter
+                    </Button>
+                  </div>
+                )}
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-52">
                     <SelectValue />
