@@ -10912,6 +10912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (dateFilter) {
+        console.log(`[TDDF-JSON-RECORDS] Date filter received: ${dateFilter}`);
         whereConditions.push(`DATE(extracted_fields->>'transactionDate') = $${paramIndex}`);
         params.push(dateFilter);
         paramIndex++;
@@ -10972,7 +10973,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       params.push(limitNum, offset);
       
+      console.log(`[TDDF-JSON-RECORDS] Query: ${recordsQuery}`);
+      console.log(`[TDDF-JSON-RECORDS] Params: ${JSON.stringify(params)}`);
+      
       const recordsResult = await pool.query(recordsQuery, params);
+      
+      // Debug: Show some sample transaction dates if dateFilter is used
+      if (dateFilter && recordsResult.rows.length === 0) {
+        console.log(`[TDDF-JSON-RECORDS] No records found for date ${dateFilter}, checking actual dates in database...`);
+        const sampleDatesQuery = `
+          SELECT DISTINCT DATE(extracted_fields->>'transactionDate') as date,
+                 COUNT(*) as count
+          FROM ${tableName}
+          WHERE record_type = 'DT'
+          GROUP BY DATE(extracted_fields->>'transactionDate')
+          ORDER BY date DESC
+          LIMIT 10
+        `;
+        const sampleDatesResult = await pool.query(sampleDatesQuery);
+        console.log(`[TDDF-JSON-RECORDS] Sample dates in database:`, sampleDatesResult.rows);
+      }
       
       // Get total count
       const countQuery = `

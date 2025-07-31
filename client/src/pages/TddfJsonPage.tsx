@@ -634,6 +634,8 @@ export default function TddfJsonPage() {
     const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test');
     if (isTestPage) {
       console.log('[TDDF-JSON-PAGE] Date selected for filtering:', date);
+      console.log('[TDDF-JSON-PAGE] Date type:', typeof date);
+      console.log('[TDDF-JSON-PAGE] Date format check:', new Date(date));
       console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
       console.log('[TDDF-JSON-PAGE] Switching to DT tab');
     }
