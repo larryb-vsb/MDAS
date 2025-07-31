@@ -203,71 +203,102 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
         </div>
 
-        {/* Month Labels - GitHub Style */}
-        <div className="mb-3 overflow-x-auto">
-          <div className="relative" style={{ minWidth: `${53 * 15 + 30}px` }}>
-            <div className="flex justify-between text-xs text-gray-600 font-medium absolute w-full" style={{ left: '30px', top: '0' }}>
-              <span>Jan</span>
-              <span>Feb</span>
-              <span>Mar</span>
-              <span>Apr</span>
-              <span>May</span>
-              <span>Jun</span>
-              <span>Jul</span>
-              <span>Aug</span>
-              <span>Sep</span>
-              <span>Oct</span>
-              <span>Nov</span>
-              <span>Dec</span>
-            </div>
-          </div>
-        </div>
+        {/* Monthly Calendar Grid with GitHub-style layout */}
+        <div className="space-y-6">
+          {Array.from({ length: 12 }, (_, monthIndex) => {
+            const monthData = activityData.filter((item: ActivityData) => {
+              const itemDate = new Date(item.transaction_date);
+              return itemDate.getFullYear() === currentYear && itemDate.getMonth() === monthIndex;
+            });
 
-        {/* Heat Map Grid - GitHub Style */}
-        <div className="mb-6 overflow-x-auto">
-          <div className="flex" style={{ minWidth: `${53 * 15 + 30}px` }}>
-            {/* Day Labels */}
-            <div className="flex flex-col justify-between text-xs text-gray-600 font-medium mr-2" style={{ height: '105px', width: '25px' }}>
-              <div></div>
-              <div>Mon</div>
-              <div></div>
-              <div>Wed</div>
-              <div></div>
-              <div>Fri</div>
-              <div></div>
-            </div>
+            const monthName = new Date(currentYear, monthIndex).toLocaleDateString('en-US', { month: 'short' });
+            const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+            const firstDayOfMonth = new Date(currentYear, monthIndex, 1).getDay();
             
-            {/* Grid */}
-            <div className="flex gap-1">
-              {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-1">
-                  {week.map((day, dayIndex) => {
-                    const dateString = day.date;
-                    const isSelected = selectedDate === dateString;
-                    const count = day.count;
-                    
-                    return (
-                      <div
-                        key={`${weekIndex}-${dayIndex}`}
-                        className={`w-3 h-3 rounded-sm transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
-                        title={`${day.dateObj.toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}: ${count} transaction${count !== 1 ? 's' : ''}${count > 0 && onDateSelect ? ' (Click to filter)' : ''}`}
-                        onClick={() => {
-                          if (onDateSelect && count > 0) {
-                            onDateSelect(dateString);
-                          }
-                        }}
-                      />
-                    );
-                  })}
+            // Create activity map for the month
+            const monthActivityMap = new Map();
+            monthData.forEach(item => {
+              const dateKey = new Date(item.transaction_date).toISOString().split('T')[0];
+              monthActivityMap.set(dateKey, item.transaction_count);
+            });
+
+            // Generate calendar grid for the month
+            const calendarDays = [];
+            
+            // Add empty cells for days before the first of the month
+            for (let i = 0; i < firstDayOfMonth; i++) {
+              calendarDays.push(null);
+            }
+            
+            // Add all days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+              const date = new Date(currentYear, monthIndex, day);
+              const dateString = date.toISOString().split('T')[0];
+              const count = monthActivityMap.get(dateString) || 0;
+              
+              calendarDays.push({
+                date: dateString,
+                day,
+                count,
+                dateObj: date
+              });
+            }
+
+            // Skip months with no data
+            if (monthData.length === 0) return null;
+
+            return (
+              <div key={monthIndex} className="mb-4">
+                <div className="flex items-center gap-4 mb-2">
+                  <h4 className="text-sm font-medium text-gray-700 w-12">{monthName}</h4>
+                  <div className="grid grid-cols-7 gap-1 flex-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayName, i) => (
+                      <div key={i} className="text-xs text-gray-500 text-center font-medium h-6 flex items-center justify-center">
+                        {dayName}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="w-12"></div>
+                  <div className="grid grid-cols-7 gap-1 flex-1">
+                    {calendarDays.map((day, index) => {
+                      if (!day) {
+                        return <div key={index} className="h-6"></div>;
+                      }
+                      
+                      const isSelected = selectedDate === day.date;
+                      
+                      return (
+                        <div
+                          key={day.date}
+                          className={`h-6 rounded-sm flex items-center justify-center text-xs font-medium transition-all duration-200 ${
+                            day.count > 0 
+                              ? 'cursor-pointer text-white ' + getBackgroundColor(day.count, isSelected)
+                              : 'bg-gray-50 text-gray-400 cursor-help'
+                          } ${isSelected ? 'ring-2 ring-orange-400' : ''}`}
+                          title={`${day.dateObj.toLocaleDateString('en-US', { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}: ${day.count} transaction${day.count !== 1 ? 's' : ''}${day.count > 0 && onDateSelect ? ' (Click to filter)' : ''}`}
+                          onClick={() => {
+                            if (onDateSelect && day.count > 0) {
+                              onDateSelect(day.date);
+                            }
+                          }}
+                        >
+                          {day.day}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
         
         {/* Legend - GitHub Style */}
