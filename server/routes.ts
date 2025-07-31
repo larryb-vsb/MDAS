@@ -12937,8 +12937,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pool.query(listQuery, params)
       ]);
       
+      // Transform the objects to match frontend expectations
+      const transformedObjects = listResult.rows.map(obj => ({
+        id: obj.id,
+        objectKey: obj.object_key,
+        originalFilename: obj.original_filename,
+        fileType: obj.file_type,
+        fileSize: parseInt(obj.file_size) || 0,
+        fileSizeMB: obj.filesizemb, // Use the computed MB value from SQL
+        lineCount: obj.line_count,
+        uploadId: obj.upload_id,
+        currentPhase: obj.current_phase,
+        status: obj.processing_status,
+        processingStatus: obj.processing_status,
+        markedForPurge: obj.marked_for_purge,
+        createdAt: obj.created_at,
+        lastAccessedAt: obj.last_accessed_at,
+        lastModifiedAt: obj.last_modified_at,
+        purgeAfterDate: obj.purge_after_date
+      }));
+
       res.json({
-        objects: listResult.rows,
+        objects: transformedObjects,
         pagination: {
           total: parseInt(countResult.rows[0].total),
           limit: parseInt(limit as string),
