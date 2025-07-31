@@ -14106,21 +14106,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
             } else {
-              // Default expiration durations for different cache types
-              if (row.table_name.includes('heat_map')) {
-                expirationDuration = '15 min';
-              } else if (row.table_name.includes('merchant')) {
-                expirationDuration = '30 min';
-              } else if (row.table_name.includes('pre_cache')) {
-                expirationDuration = '1 hour';
-              } else {
-                expirationDuration = '4 hours';
-              }
+              // Default to "Never Expires" since all cache configurations are now set to never expire
+              expirationDuration = 'Never Expires';
             }
           }
         } catch (error) {
-          // Default to typical cache duration if we can't determine it
-          expirationDuration = '4 hours';
+          // Default to "Never Expires" since all cache configurations are now set to never expire
+          expirationDuration = 'Never Expires';
         }
         
         return {
