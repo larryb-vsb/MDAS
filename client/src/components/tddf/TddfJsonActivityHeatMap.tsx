@@ -191,11 +191,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 
-  // Add debugging to heat map data
-  console.log('[TDDF-JSON-HEATMAP] Activity response:', activityResponse);
-  console.log('[TDDF-JSON-HEATMAP] Current year:', currentYear);
-  console.log('[TDDF-JSON-HEATMAP] Loading:', isLoading);
-  console.log('[TDDF-JSON-HEATMAP] Error:', error);
+  // Debug logging removed for production
 
   // Create a map for quick lookup of activity data by date
   const activityMap = new Map<string, ActivityData>();

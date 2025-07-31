@@ -541,10 +541,7 @@ export default function TddfJsonPage() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
-  // Add debugging to see what's happening
-  console.log('[TDDF-JSON-PAGE] Stats data:', stats);
-  console.log('[TDDF-JSON-PAGE] Stats loading:', statsLoading);
-  console.log('[TDDF-JSON-PAGE] Stats error:', statsError);
+  // Debug logging removed for production
 
   // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
@@ -627,9 +624,9 @@ export default function TddfJsonPage() {
   };
 
   const handleDateSelect = (date: string) => {
-    console.log('Selected date for filtering:', date);
     setDateFilter(date);
     setCurrentPage(1);
+    setSelectedTab('dt'); // Switch to DT tab to show filtered results
   };
 
   const clearDateFilter = () => {
