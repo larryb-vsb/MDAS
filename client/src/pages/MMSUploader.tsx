@@ -222,12 +222,15 @@ export default function MMSUploader() {
       if (!response.ok) throw new Error('Failed to fetch Auto 4-5 status');
       return response.json();
     },
-    refetchInterval: 5000, // Check status every 5 seconds
-    onSuccess: (data) => {
-      // Sync the local state with the server state
-      setAuto45Enabled(data.enabled);
-    }
+    refetchInterval: 5000 // Check status every 5 seconds
   });
+
+  // Sync auto45 enabled state when query data changes
+  React.useEffect(() => {
+    if (auto45Status?.enabled !== undefined) {
+      setAuto45Enabled(auto45Status.enabled);
+    }
+  }, [auto45Status?.enabled]);
 
   // Start upload mutation
   const startUploadMutation = useMutation({
@@ -292,7 +295,7 @@ export default function MMSUploader() {
       });
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
       setSelectedUploads([]);
       console.log(`[CANCEL-ENCODING] Successfully canceled encoding for ${data.canceledCount} files`);
@@ -571,15 +574,15 @@ export default function MMSUploader() {
       console.log('[STAGE-5] Encoding response:', response);
       
       // Store encoding results for JSON display
-      if (response.jsonSample && response.recordTypeBreakdown) {
+      if ((response as any).jsonSample && (response as any).recordTypeBreakdown) {
         setEncodingResults(prev => ({
           ...prev,
           [uploadId]: {
-            jsonSample: response.jsonSample,
-            recordTypeBreakdown: response.recordTypeBreakdown,
-            message: response.message,
-            filename: response.filename,
-            encodingTimeMs: response.results?.encodingTimeMs
+            jsonSample: (response as any).jsonSample,
+            recordTypeBreakdown: (response as any).recordTypeBreakdown,
+            message: (response as any).message,
+            filename: (response as any).filename,
+            encodingTimeMs: (response as any).results?.encodingTimeMs
           }
         }));
       }
@@ -2139,10 +2142,20 @@ export default function MMSUploader() {
                   )}
                 </div>
                 
-                <TddfJsonViewer 
-                  jsonSample={(selectedFileForView as any).encodingResult.jsonSample}
-                  recordTypeBreakdown={(selectedFileForView as any).encodingResult.recordTypeBreakdown}
-                />
+                <div className="space-y-4">
+                  <div className="bg-gray-50 border rounded-lg p-4">
+                    <div className="text-sm font-medium text-gray-700 mb-2">JSON Sample:</div>
+                    <pre className="text-xs bg-white border rounded p-3 max-h-96 overflow-auto">
+                      {JSON.stringify((selectedFileForView as any).encodingResult.jsonSample, null, 2)}
+                    </pre>
+                  </div>
+                  <div className="bg-gray-50 border rounded-lg p-4">
+                    <div className="text-sm font-medium text-gray-700 mb-2">Record Type Breakdown:</div>
+                    <pre className="text-xs bg-white border rounded p-3">
+                      {JSON.stringify((selectedFileForView as any).encodingResult.recordTypeBreakdown, null, 2)}
+                    </pre>
+                  </div>
+                </div>
               </div>
             ) : isLoadingContent ? (
               <div className="flex items-center justify-center py-8">
