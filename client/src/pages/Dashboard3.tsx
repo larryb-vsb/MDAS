@@ -378,15 +378,80 @@ export default function Dashboard3() {
                 </CardContent>
               </Card>
 
-              {/* Placeholder Widget 2 */}
+              {/* Cache Health Widget */}
               <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Widget Slot 2</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Activity className="h-4 w-4" />
+                    Cache Health
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    Ready for widget
-                  </div>
+                <CardContent className="space-y-3">
+                  {dashboardLoading ? (
+                    <div className="text-center py-4">
+                      <RefreshCw className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mt-2">Loading...</p>
+                    </div>
+                  ) : dashboardMetrics ? (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Build Time:</span>
+                          <Badge variant="outline" className="text-xs">
+                            {dashboardMetrics.cacheMetadata?.buildTime ? 
+                              `${dashboardMetrics.cacheMetadata.buildTime}ms` : 
+                              'Unknown'
+                            }
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Cache Source:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              dashboardMetrics.cacheMetadata?.fromCache ? 
+                                'bg-blue-50 text-blue-700 border-blue-200' : 
+                                'bg-green-50 text-green-700 border-green-200'
+                            }`}
+                          >
+                            {dashboardMetrics.cacheMetadata?.fromCache ? 'Cached' : 'Fresh'}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Last Build:</span>
+                          <div className="text-xs text-right">
+                            {dashboardMetrics.cacheMetadata?.lastRefreshed ? (
+                              <>
+                                <div>{new Date(dashboardMetrics.cacheMetadata.lastRefreshed).toLocaleDateString()}</div>
+                                <div className="text-muted-foreground">
+                                  {new Date(dashboardMetrics.cacheMetadata.lastRefreshed).toLocaleTimeString()}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-muted-foreground">Never</div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Built By:</span>
+                          <Badge variant="outline" className="text-xs">
+                            {dashboardMetrics.cacheMetadata?.refreshedBy || 'system'}
+                          </Badge>
+                        </div>
+                        
+                        <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                          {dashboardMetrics.cacheMetadata?.fromCache ? 'Using cached data' : 'Built fresh from database'}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-xs">
+                      No cache health data available
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
