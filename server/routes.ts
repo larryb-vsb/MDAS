@@ -14018,6 +14018,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed cache information for a specific table
+  app.get('/api/pre-cache/cache-details/:tableName', isAuthenticated, async (req, res) => {
+    try {
+      const { tableName } = req.params;
+      console.log(`[PRE-CACHE-DETAILS] Getting details for table: ${tableName}`);
+      
+      // Get detailed cache information
+      const detailsQuery = `
+        SELECT 
+          relname as table_name,
+          COALESCE(n_tup_ins, 0) as record_count,
+          COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 3600) as seconds_since_update,
+          pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as size,
+          CASE 
+            WHEN COALESCE(n_tup_ins, 0) = 0 THEN 'empty'
+            WHEN COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 3600) > 14400 THEN 'stale'
+            WHEN COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 3600) > 28800 THEN 'expired'
+            ELSE 'active'
+          END as status,
+          last_vacuum as last_refresh_time
+        FROM pg_stat_user_tables 
+        WHERE relname = $1
+        LIMIT 1
+      `;
+      
+      const result = await pool.query(detailsQuery, [tableName]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Cache table not found' });
+      }
+      
+      const cacheData = result.rows[0];
+      const ageInMinutes = Math.floor(cacheData.seconds_since_update / 60);
+      const ageInHours = Math.floor(ageInMinutes / 60);
+      
+      // Calculate expiration - default to 4 hours for most caches
+      const expirationHours = 4;
+      const expiresInMinutes = (expirationHours * 60) - ageInMinutes;
+      const expiresAt = new Date(Date.now() + (expiresInMinutes * 60 * 1000));
+      
+      // Format age display
+      let ageDisplay = '';
+      if (ageInMinutes < 1) ageDisplay = 'Just now';
+      else if (ageInMinutes < 60) ageDisplay = `${ageInMinutes}m ago`;
+      else if (ageInHours < 24) ageDisplay = `${ageInHours}h ago`;
+      else ageDisplay = `${Math.floor(ageInHours/24)}d ago`;
+      
+      const details = {
+        cacheName: cacheData.table_name,
+        lastRefresh: cacheData.last_refresh_time || new Date(Date.now() - (cacheData.seconds_since_update * 1000)),
+        expiresAt: expiresAt,
+        status: cacheData.status,
+        age: ageDisplay,
+        records: parseInt(cacheData.record_count) || 0,
+        size: cacheData.size || '0 bytes',
+        expirationMinutes: expirationHours * 60
+      };
+      
+      res.json({ success: true, details });
+    } catch (error) {
+      console.error(`Error getting cache details for ${req.params.tableName}:`, error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Refresh individual cache table
   app.post('/api/pre-cache/refresh-table/:tableName', isAuthenticated, async (req, res) => {
     try {

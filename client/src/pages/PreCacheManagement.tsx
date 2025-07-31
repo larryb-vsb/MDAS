@@ -344,6 +344,8 @@ export default function PreCacheManagement() {
   const [showDashboardControls, setShowDashboardControls] = useState(false);
   const [showPolicyManagement, setShowPolicyManagement] = useState(false);
   const [selectedCacheForView, setSelectedCacheForView] = useState<string | null>(null);
+  const [cacheDetails, setCacheDetails] = useState<any>(null);
+  const [loadingCacheDetails, setLoadingCacheDetails] = useState(false);
 
   // Fetch all pre-cache settings
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -380,6 +382,42 @@ export default function PreCacheManagement() {
 
   const settings: PreCacheSettings[] = settingsData?.data || [];
   const dashboard: PerformanceDashboard = dashboardData?.dashboard;
+
+  // Fetch cache details for a specific table
+  const fetchCacheDetails = async (tableName: string) => {
+    setLoadingCacheDetails(true);
+    try {
+      const response = await fetch(`/api/pre-cache/cache-details/${tableName}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Cache details response:', data);
+      
+      if (data.success && data.details) {
+        setCacheDetails(data.details);
+      } else {
+        console.error('Failed to fetch cache details:', data.error || 'Unknown error');
+        setCacheDetails(null);
+      }
+    } catch (error) {
+      console.error('Error fetching cache details:', error);
+      setCacheDetails(null);
+    } finally {
+      setLoadingCacheDetails(false);
+    }
+  };
+
+  // Handle cache view with data fetching
+  const handleViewCache = (tableName: string) => {
+    setSelectedCacheForView(tableName);
+    setCacheDetails(null); // Clear previous data
+    fetchCacheDetails(tableName);
+  };
 
   const formatBuildTime = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
@@ -537,7 +575,7 @@ export default function PreCacheManagement() {
         </TabsContent>
 
         <TabsContent value="tables" className="space-y-6">
-          <PreCacheTablesOverview onViewCache={setSelectedCacheForView} />
+          <PreCacheTablesOverview onViewCache={handleViewCache} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
@@ -913,39 +951,66 @@ export default function PreCacheManagement() {
           </div>
           
           <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="text-sm">
-                <strong>Cache Name:</strong>
-                <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
-                  {selectedCacheForView}
+            {loadingCacheDetails ? (
+              <div className="flex items-center justify-center py-4">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading cache details...</span>
+              </div>
+            ) : cacheDetails ? (
+              <div className="space-y-2">
+                <div className="text-sm">
+                  <strong>Cache Name:</strong>
+                  <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
+                    {cacheDetails.cacheName}
+                  </div>
+                </div>
+                
+                <div className="text-sm">
+                  <strong>Last Refresh:</strong>
+                  <div className="text-gray-600">
+                    {new Date(cacheDetails.lastRefresh).toLocaleDateString()}
+                  </div>
+                  <div className="text-gray-600">
+                    {new Date(cacheDetails.lastRefresh).toLocaleTimeString()}
+                  </div>
+                </div>
+                
+                <div className="text-sm">
+                  <strong>Expires:</strong>
+                  <div className="text-gray-600">
+                    {new Date(cacheDetails.expiresAt).toLocaleDateString()}
+                  </div>
+                  <div className="text-gray-600">
+                    {new Date(cacheDetails.expiresAt).toLocaleTimeString()}
+                  </div>
+                </div>
+                
+                <div className="text-sm">
+                  <strong>Status:</strong>
+                  <div className="mt-1">
+                    <Badge 
+                      variant="secondary" 
+                      className={
+                        cacheDetails.status === 'active' ? 'bg-green-100 text-green-800' :
+                        cacheDetails.status === 'stale' ? 'bg-yellow-100 text-yellow-800' :
+                        cacheDetails.status === 'expired' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }
+                    >
+                      {cacheDetails.status.charAt(0).toUpperCase() + cacheDetails.status.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="text-sm text-gray-500">
+                  Age: {cacheDetails.age} | Records: {cacheDetails.records.toLocaleString()} | Size: {cacheDetails.size}
                 </div>
               </div>
-              
-              <div className="text-sm">
-                <strong>Last Refresh:</strong>
-                <div className="text-gray-600">7/31/2025</div>
-                <div className="text-gray-600">3:27:01 AM</div>
+            ) : (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                Failed to load cache details
               </div>
-              
-              <div className="text-sm">
-                <strong>Expires:</strong>
-                <div className="text-gray-600">7/31/2025</div>
-                <div className="text-gray-600">3:27:01 AM</div>
-              </div>
-              
-              <div className="text-sm">
-                <strong>Status:</strong>
-                <div className="mt-1">
-                  <Badge variant="destructive" className="bg-red-100 text-red-700">
-                    expired
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="text-sm text-gray-500">
-                Age: 0 | Records: 0
-              </div>
-            </div>
+            )}
             
             <div className="space-y-2">
               <label className="text-sm font-medium">Cache Expiration:</label>
