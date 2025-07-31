@@ -115,7 +115,7 @@ interface TddfJsonActivityHeatMapProps {
 }
 
 const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentYear, setCurrentYear] = useState(2024); // Start with 2024 where most data exists (134,870 transactions)
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
@@ -150,22 +150,9 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const handleCacheRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Call the API to refresh cache for the current year only
-      const response = await fetch(`/api/tddf-json/refresh-year-cache/${currentYear}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Cache refresh failed: ${response.statusText}`);
-      }
-      
-      // Invalidate only the current year's cache
+      // Invalidate the current query cache to force fresh data fetch
       await queryClient.invalidateQueries({
-        queryKey: ['/api/tddf-json/heatmap-cached', currentYear]
+        queryKey: ['/api/tddf-json/activity', currentYear, 'DT']
       });
       
       setLastRefreshTime(new Date());
@@ -191,19 +178,17 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   };
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/heatmap-cached', currentYear],
+    queryKey: ['/api/tddf-json/activity', currentYear, 'DT'],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/heatmap-cached?year=${currentYear}`, {
+      const response = await fetch(`/api/tddf-json/activity?year=${currentYear}&recordType=DT`, {
         credentials: 'include' // Add authentication credentials
       });
-      if (!response.ok) throw new Error('Failed to fetch cached heat map data');
+      if (!response.ok) throw new Error('Failed to fetch activity data');
       return response.json();
     },
     enabled: true,
-    staleTime: Infinity, // Never auto-refresh - use cached data only
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    refetchOnMount: false, // Don't refresh when component mounts
-    refetchOnReconnect: false, // Don't refresh on reconnect
   });
 
   // Add debugging to heat map data
