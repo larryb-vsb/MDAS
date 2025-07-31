@@ -287,12 +287,12 @@ export default function HomeDashboard() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
-              {/* Environmental Badge - Force show for debugging */}
+              {/* Environmental Badge - Settings page style */}
               <Badge 
                 variant="outline" 
-                className="bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
+                className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1"
               >
-                🔵 Development {systemInfo?.environment?.name ? '(API OK)' : '(API Loading)'}
+                Development {systemInfo?.environment?.name ? '(API OK)' : '(API Loading)'}
               </Badge>
             </div>
             <p className="text-muted-foreground">

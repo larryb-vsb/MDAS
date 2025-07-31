@@ -18,7 +18,7 @@ Approach: Maintains continuity across sessions through documented insights and r
 ### Session Context & Learning  
 - Current session: July 31, 2025 - DASHBOARD2 ALTERNATE ROUTE AND ENVIRONMENTAL BADGE FIX 
 - **✅ DASHBOARD2 ALTERNATE ROUTE COMPLETED (July 31, 2025)**: Successfully created `/dashboard2` alternate route to HomeDashboardEnhanced component (same as root path) without sidebar navigation integration as requested
-- **✅ ENVIRONMENTAL BADGE VISIBILITY FIX COMPLETED (July 31, 2025)**: Successfully resolved environmental badge display issue - blue "🔵 Development" badge now visible in dashboard with proper API status indicators and real data loading (427 merchants, 164 ACH, 480 MCC TDDF-DT)
+- **✅ ENVIRONMENTAL BADGE STYLING MATCHED TO SETTINGS PAGE (July 31, 2025)**: Successfully updated dashboard environmental badge to use identical styling as Settings page (bg-blue-50 text-blue-700 border-blue-200) creating consistent visual design across both `/` and `/dashboard2` routes
 - **✅ PRODUCTION DASHBOARD CACHE INFRASTRUCTURE COMPLETED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production cache tables:
   - **Production Database Fix**: Created missing `dashboard_cache` table with complete schema (id, cache_key, cache_data, created_at, updated_at, expires_at, build_time_ms, record_count)
   - **Merchant Cache Table Added**: Created `dashboard_merchants_cache_2025` table for merchant-specific dashboard caching requirements
