@@ -16,7 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - DASHBOARD3 CLEAN WIDGET FRAMEWORK CREATION
+- Current session: July 31, 2025 - CACHE REFRESH CONTROL ENFORCEMENT
+- **✅ CACHE REFRESH CONTROL ENFORCEMENT COMPLETED (July 31, 2025)**: Successfully disabled all manual refresh triggers from dashboard pages respecting user's "never expire" cache setting
+  - **Manual Refresh Disabled**: Removed refresh buttons, mutations, and cache invalidation triggers from HomeDashboard.tsx and HomeDashboardEnhanced.tsx
+  - **Cache Control Enforced**: System now respects user preference for cache to only refresh once daily on server restart, not through manual triggers
+  - **Cache Status Simplified**: Cleaned up cache metadata interface, removed problematic refresh status indicators and refresh-related properties
+  - **LSP Errors Resolved**: Fixed all TypeScript errors by removing references to disabled refresh functionality and unused imports
+  - **User Interface Updated**: Replaced refresh buttons with informational text stating "Cache refreshes once daily on server restart"
+  - **Performance Maintained**: Dashboard loading remains optimized from 164+ seconds to sub-second with lightweight endpoints and proper cache separation
 - **✅ DASHBOARD3 CLEAN START COMPLETED (July 31, 2025)**: Successfully created new `/dashboard3` page with clean widget framework, dark/light mode control, and "MMS Dashboard 3" title with environment badge
   - **Clean Widget Framework**: Built responsive grid system with 4 small widgets, 2 large widgets, and 1 full-width widget slot ready for components
   - **Dark/Light Mode Control**: Implemented toggle switch with Sun/Moon icons that applies dark mode to entire page with smooth transitions

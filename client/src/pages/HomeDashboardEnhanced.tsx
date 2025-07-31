@@ -569,44 +569,12 @@ function TddfProcessingDatetimeWidget() {
 }
 
 export default function HomeDashboard() {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  // Main dashboard metrics query
+  // Main dashboard metrics query - cache set to never expire, only refreshes on server restart
   const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/cached-metrics'],
     refetchOnWindowFocus: false,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-  });
-
-  // Manual refresh mutation
-  const refreshMutation = useMutation({
-    mutationFn: () => apiRequest('/api/dashboard/refresh-cache', {
-      method: 'POST',
-    }),
-    onMutate: () => {
-      setIsRefreshing(true);
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/cached-metrics'] });
-      
-      toast({
-        title: "Dashboard Refreshed",
-        description: `Cache updated in ${data.buildTime}ms. Fresh data loaded.`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Refresh Failed",
-        description: "Failed to refresh dashboard cache. Please try again.",
-        variant: "destructive",
-      });
-    },
-    onSettled: () => {
-      setIsRefreshing(false);
-    },
+    staleTime: Infinity, // Never consider data stale
+    gcTime: Infinity, // Keep in cache indefinitely
   });
 
   // Fallback data while loading
@@ -641,15 +609,10 @@ export default function HomeDashboard() {
                 
                 {/* Visual Cache State Indicator */}
                 <div className="flex items-center gap-1">
-                  {isLoading || isRefreshing || refreshMutation.isPending ? (
+                  {isLoading ? (
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                       <span className="text-blue-600 font-medium">Loading...</span>
-                    </div>
-                  ) : metrics.cacheMetadata.dataChangeDetected ? (
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                      <span className="text-orange-600 font-medium">Pre-cache rebuild</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
@@ -666,23 +629,9 @@ export default function HomeDashboard() {
                       return isNaN(date.getTime()) ? 'Invalid date' : `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
                     })()}
                   </span>
-                  {metrics.cacheMetadata.duration && (
-                    <div className="text-xs text-muted-foreground">
-                      Duration: {metrics.cacheMetadata.duration}ms • {metrics.cacheMetadata.ageMinutes || 0} min ago
-                    </div>
-                  )}
-                  {metrics.cacheMetadata.refreshStatus && (
-                    <div className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        metrics.cacheMetadata.refreshStatus === 'fresh' ? 'bg-green-500' :
-                        metrics.cacheMetadata.refreshStatus === 'cached' ? 'bg-blue-500' :
-                        'bg-orange-500'
-                      }`}></div>
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {metrics.cacheMetadata.refreshStatus.replace('_', ' ')}
-                      </span>
-                    </div>
-                  )}
+                  <div className="text-xs text-muted-foreground">
+                    Cache set to never expire
+                  </div>
                 </div>
                 
                 {metrics.cacheMetadata.fromCache && (
@@ -695,15 +644,10 @@ export default function HomeDashboard() {
             )}
           </div>
           
-          {/* Refresh Button */}
-          <Button
-            onClick={() => refreshMutation.mutate()}
-            disabled={isRefreshing || refreshMutation.isPending}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${(isRefreshing || refreshMutation.isPending) ? 'animate-spin' : ''}`} />
-            {isRefreshing || refreshMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
-          </Button>
+          {/* Cache Status Info */}
+          <div className="text-sm text-muted-foreground">
+            Cache refreshes once daily on server restart
+          </div>
         </div>
 
         {/* Key Performance Indicators */}
@@ -736,14 +680,9 @@ export default function HomeDashboard() {
           ) : error ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Failed to load dashboard metrics</p>
-              <Button
-                onClick={() => refreshMutation.mutate()}
-                className="mt-2"
-                variant="outline"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
+              <div className="text-sm text-muted-foreground mt-2">
+                Cache refreshes once daily on server restart
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

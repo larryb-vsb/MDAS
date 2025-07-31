@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -31,8 +30,6 @@ import {
   ExternalLink,
   AlertCircle
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import { Link } from 'wouter';
 
@@ -186,60 +183,21 @@ function MetricCard({ title, total, ach, mmc, icon, achTooltip, mmcTooltip, form
 }
 
 export default function HomeDashboard() {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Fetch pre-cached dashboard metrics with retry logic
+  // Fetch pre-cached dashboard metrics - cache set to never expire, only refreshes on server restart
   const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/cached-metrics'],
     refetchOnWindowFocus: false,
-    staleTime: 30 * 60 * 1000, // 30 minutes - data refreshed only when needed
-    gcTime: 60 * 60 * 1000, // 1 hour
-    retry: (failureCount, error: any) => {
-      // Don't retry on authentication errors
-      if (error?.status === 401) return false;
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: Infinity, // Never consider data stale
+    gcTime: Infinity, // Keep in cache indefinitely
   });
 
-  // Fetch system information for environment badge - always retry this
+  // Fetch system information for environment badge
   const { data: systemInfo } = useQuery<SystemInfo>({
     queryKey: ['/api/system/info'],
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 5,
     retryDelay: 1000,
-  });
-
-  // Manual refresh mutation
-  const refreshMutation = useMutation({
-    mutationFn: () => apiRequest('/api/dashboard/refresh-cache', {
-      method: 'POST',
-    }),
-    onMutate: () => {
-      setIsRefreshing(true);
-    },
-    onSuccess: (data: any) => {
-      // Invalidate and refetch the cached metrics
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/cached-metrics'] });
-      
-      toast({
-        title: "Dashboard Refreshed",
-        description: `Cache updated in ${data.buildTime}ms. Fresh data loaded.`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Refresh Failed",
-        description: "Failed to refresh dashboard cache. Please try again.",
-        variant: "destructive",
-      });
-    },
-    onSettled: () => {
-      setIsRefreshing(false);
-    },
   });
 
   // Fallback data while loading
@@ -315,15 +273,10 @@ export default function HomeDashboard() {
             )}
           </div>
           
-          {/* Refresh Button */}
-          <Button
-            onClick={() => refreshMutation.mutate()}
-            disabled={isRefreshing || refreshMutation.isPending}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${(isRefreshing || refreshMutation.isPending) ? 'animate-spin' : ''}`} />
-            {isRefreshing || refreshMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
-          </Button>
+          {/* Cache Status Info */}
+          <div className="text-sm text-muted-foreground">
+            Cache refreshes once daily on server restart
+          </div>
         </div>
 
         {/* Loading/Error State Banner */}
@@ -347,18 +300,9 @@ export default function HomeDashboard() {
                     <div className="flex-1">
                       <p className="font-medium text-red-800">Failed to Load Dashboard Data</p>
                       <p className="text-sm text-red-600">
-                        Unable to connect to dashboard API. Click "Refresh Data" to retry.
+                        Unable to connect to dashboard API. Cache refreshes once daily on server restart.
                       </p>
                     </div>
-                    <Button
-                      onClick={() => refreshMutation.mutate()}
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Retry Now
-                    </Button>
                   </>
                 ) : (
                   <>
@@ -369,14 +313,9 @@ export default function HomeDashboard() {
                         First-time setup detected. Cache is being built from {metrics.merchants?.total || 0} merchants and transaction data.
                       </p>
                     </div>
-                    <Button
-                      onClick={() => refreshMutation.mutate()}
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Build Cache
-                    </Button>
+                    <div className="text-sm text-amber-600">
+                      Cache refreshes once daily on server restart
+                    </div>
                   </>
                 )}
               </div>
