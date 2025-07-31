@@ -279,7 +279,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const fromCache = activityResponse?.fromCache || false;
 
   // Show enhanced loading message for large dataset processing
-  if (isLoading) {
+  if (isLoading && !activityResponse) {
     return (
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="flex flex-col items-center justify-center py-8 space-y-3">
@@ -291,6 +291,26 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
             </div>
             <div className="text-xs text-gray-400 mt-2">
               Bypassing incomplete pre-cache for accurate results
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show processing status when refreshing with data already present
+  if (isFetching && activityResponse) {
+    return (
+      <div className="bg-gray-50 rounded-lg p-6">
+        <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+          <div className="text-center">
+            <div className="font-medium text-gray-900">Refreshing Heat Map Cache</div>
+            <div className="text-sm text-gray-500 mt-1">
+              Processing {totalRecords ? totalRecords.toLocaleString() : '2.7M+'} transaction records
+            </div>
+            <div className="text-xs text-gray-400 mt-2">
+              {aggregationLevel === 'monthly' ? 'Using monthly aggregation for large dataset' : 'Processing data...'}
             </div>
           </div>
         </div>

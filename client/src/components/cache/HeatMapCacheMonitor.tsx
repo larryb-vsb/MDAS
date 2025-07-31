@@ -21,6 +21,15 @@ interface HeatMapCacheJob {
   errorMessage?: string;
 }
 
+// Helper function to get month name from month number
+const getMonthName = (monthNumber: number): string => {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  return months[monthNumber - 1] || `Month ${monthNumber}`;
+};
+
 export function HeatMapCacheMonitor() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedRecordType, setSelectedRecordType] = useState<string>('DT');
@@ -210,7 +219,7 @@ export function HeatMapCacheMonitor() {
                       <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Progress: {progressPercent}%</span>
                         {job.currentMonth && (
-                          <span>Current: Month {job.currentMonth}</span>
+                          <span>Processing: {getMonthName(job.currentMonth)} {job.year}</span>
                         )}
                       </div>
                     </div>
