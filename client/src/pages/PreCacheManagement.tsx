@@ -1124,7 +1124,7 @@ function CacheConfigurationManagement() {
                   <div className="space-y-3">
                     {settings
                       .filter(s => s.total_cache_hits > 0)
-                      .sort((a, b) => (b.cache_hit_rate || 0) - (a.cache_hit_rate || 0))
+                      .sort((a, b) => (parseFloat(b.cache_hit_rate) || 0) - (parseFloat(a.cache_hit_rate) || 0))
                       .slice(0, 5)
                       .map((setting) => (
                         <div key={setting.id} className="flex items-center justify-between">
@@ -1134,7 +1134,7 @@ function CacheConfigurationManagement() {
                           </div>
                           <div className="text-right">
                             <div className="font-medium">
-                              {(setting.cache_hit_rate || 0).toFixed(1)}%
+                              {(parseFloat(setting.cache_hit_rate) || 0).toFixed(1)}%
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {setting.total_cache_hits} hits
