@@ -638,7 +638,11 @@ export default function TddfJsonPage() {
     console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
     console.log('[TDDF-JSON-PAGE] Switching to DT tab');
     
-    setDateFilter(date);
+    // Fix timezone issue: ensure we keep the date as-is without UTC conversion
+    const fixedDate = date.includes('T') ? date.split('T')[0] : date;
+    console.log('[TDDF-JSON-PAGE] Fixed date (removed time/timezone):', fixedDate);
+    
+    setDateFilter(fixedDate);
     setCurrentPage(1);
     setSelectedTab('DT'); // Switch to DT tab to show filtered results - correct tab name
   };
