@@ -297,6 +297,11 @@ app.use((req, res, next) => {
         const { createMmsWatcherInstance, setMmsWatcherInstance } = await import('./mms-watcher-instance');
         const mmsWatcher = createMmsWatcherInstance();
         setMmsWatcherInstance(mmsWatcher);
+        
+        // Register MMS Watcher instance with Express app for API routes access
+        app.locals.mmsWatcher = mmsWatcher;
+        console.log('[MMS-WATCHER] Instance registered with Express app.locals');
+        
         mmsWatcher.start();
         console.log('[MMS-WATCHER] Service started successfully');
         
