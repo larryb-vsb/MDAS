@@ -12202,18 +12202,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isExpired: isExpired
           },
           storageStats: {
-            totalObjects: cacheData.total_objects,
-            analyzedObjects: cacheData.analyzed_objects,
-            analysisPercentage: ((cacheData.analyzed_objects / cacheData.total_objects) * 100).toFixed(1),
-            totalFileSize: cacheData.total_file_size,
-            totalFileSizeGB: (cacheData.total_file_size / (1024*1024*1024)).toFixed(2)
+            totalObjects: parseInt(cacheData.total_objects) || 0,
+            analyzedObjects: parseInt(cacheData.analyzed_objects) || 0,
+            analysisPercentage: ((parseInt(cacheData.analyzed_objects) || 0) / (parseInt(cacheData.total_objects) || 1) * 100).toFixed(1),
+            totalFileSize: parseInt(cacheData.total_file_size) || 0,
+            totalFileSizeGB: ((parseInt(cacheData.total_file_size) || 0) / (1024*1024*1024)).toFixed(2)
           },
           recordStats: {
-            totalRecords: cacheData.total_records,
+            totalRecords: parseInt(cacheData.total_records) || 0,
             jsonbCount: jsonbCount,
             jsonbCountSource: cacheSource,
-            averageRecordsPerFile: cacheData.average_records_per_file,
-            largestFileRecords: cacheData.largest_file_records,
+            averageRecordsPerFile: parseFloat(cacheData.average_records_per_file) || 0,
+            largestFileRecords: parseInt(cacheData.largest_file_records) || 0,
             largestFileName: cacheData.largest_file_name,
             recordTypeBreakdown: cacheData.record_type_breakdown,
             recordTypeBreakdownFromCache: recordTypeBreakdownFromCache
