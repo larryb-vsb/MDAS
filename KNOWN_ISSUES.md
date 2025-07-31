@@ -2,6 +2,27 @@
 
 ## Active Issues
 
+### Issue #005: MMS Uploader Pagination Navigation Not Working
+**Status**: Active (Backlog)  
+**Priority**: Medium  
+**Date Reported**: 2025-07-31  
+**Reported By**: Larry  
+
+**Description**: 
+MMS Uploader pagination system partially working - user cannot navigate beyond first 100 files despite 1,269 total files available.
+
+**Technical Details**:
+- Frontend correctly sends pagination parameters (limit: '10', offset: '0')
+- Backend receives and parses parameters correctly
+- Debug logs show "Found 10 uploads for session all, total: 1269"
+- Pagination controls display but navigation not functioning
+- API returns correct data structure with totalCount
+
+**Current Status**: 
+Added to backlog for future investigation. System infrastructure is correct but user interaction not working as expected.
+
+---
+
 ### Issue #001: Merchant Display Not Loading  
 **Status**: Resolved  
 **Priority**: High  
