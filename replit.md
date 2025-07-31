@@ -16,7 +16,21 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - COMPREHENSIVE SORTING FUNCTIONALITY COMPLETED FOR REDEPLOYMENT - **✅ COMPREHENSIVE SORTING FUNCTIONALITY COMPLETED FOR REDEPLOYMENT (July 31, 2025)**: Successfully implemented complete file name sorting with dropdown controls and ascending/descending toggle functionality:
+- Current session: July 31, 2025 - GROUP SELECTION AND PRODUCTION DASHBOARD CACHE FIX - **✅ PRODUCTION DASHBOARD CACHE TABLE CREATED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production `dashboard_cache` table:
+  - **Production Database Fix**: Created missing `dashboard_cache` table with complete schema (id, cache_key, cache_data, created_at, updated_at, expires_at, build_time_ms, record_count)
+  - **Performance Indexes Added**: Created essential indexes on cache_key, expires_at, and updated_at for optimal query performance
+  - **Root Cause Identified**: Production environment was looking for `dashboard_cache` table but only development `dev_dashboard_cache` existed
+  - **No Code Changes Required**: Pure database-only fix as requested - no application code modifications needed
+  - **Dashboard Refresh Fix**: Resolved "Refresh Failed - Failed to refresh dashboard cache" error in production merchant management page
+  - **Environment Parity**: Production database now has proper dashboard caching infrastructure matching development environment
+- **✅ GROUP SELECTION AND DELETE FUNCTIONALITY COMPLETED (July 31, 2025)**: Successfully implemented comprehensive bulk selection system for Storage Management page:
+  - **Individual Selection**: Added checkboxes for each storage object with visual feedback using blue rings around selected items
+  - **Bulk Selection Controls**: Implemented "Select All" and "Select None" functionality with comprehensive state management
+  - **Delete Confirmation Dialog**: Added proper warning dialog with detailed confirmation message for bulk deletion operations
+  - **Backend API Integration**: Created `/api/storage/master-keys/delete-objects` endpoint with authentication and proper error handling
+  - **Visual Feedback System**: Selected objects display blue ring indicators, delete button becomes active when objects are selected
+  - **Production Ready**: Complete group selection infrastructure operational with 1,106+ storage objects available for bulk management
+- Previous: **✅ COMPREHENSIVE SORTING FUNCTIONALITY COMPLETED FOR REDEPLOYMENT (July 31, 2025)**: Successfully implemented complete file name sorting with dropdown controls and ascending/descending toggle functionality:
   - **Sort Dropdown Integration**: Added "Sort by" dropdown with Name, Date, and Size options positioned after filename search filter
   - **Directional Toggle Button**: Implemented ascending/descending toggle using chevron icons (ChevronUp/ChevronDown) for intuitive sort direction control
   - **Complete Sorting Logic**: Enhanced filteredUploads with comprehensive sort implementation using localeCompare for filenames, date comparison for timestamps, and numeric comparison for file sizes
