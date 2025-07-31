@@ -109,8 +109,8 @@ function DuplicatesTab() {
 
   // Query duplicate detection data
   const { data: duplicatesData, isLoading: duplicatesLoading, refetch: refetchDuplicates } = useQuery({
-    queryKey: ['/api/storage/master-keys/find-duplicates'],
-    queryFn: () => apiRequest('/api/storage/master-keys/find-duplicates')
+    queryKey: ['/api/storage/master-keys/duplicates'],
+    queryFn: () => apiRequest('/api/storage/master-keys/duplicates')
   });
 
   // Remove duplicates mutation
