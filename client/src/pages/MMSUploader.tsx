@@ -18,6 +18,7 @@ import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import TddfJsonViewer from '@/components/uploads/TddfJsonViewer';
+import StorageObjectProcessor from '@/components/storage/StorageObjectProcessor';
 import { formatDistanceToNow } from 'date-fns';
 
 // Extended type for UploaderUpload with storage key
@@ -1015,10 +1016,11 @@ export default function MMSUploader() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="encoding">Stage 5: Encoding</TabsTrigger>
+          <TabsTrigger value="storage-browse">Storage Browse</TabsTrigger>
           <TabsTrigger value="monitor">Processing Monitor</TabsTrigger>
           <TabsTrigger value="phases">Phase Details</TabsTrigger>
         </TabsList>
@@ -1639,6 +1641,23 @@ export default function MMSUploader() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="storage-browse" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5" />
+                Storage Browse & Reprocess
+              </CardTitle>
+              <CardDescription>
+                Browse storage objects and reprocess individual files through steps 4-5 (identification and encoding)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StorageObjectProcessor />
             </CardContent>
           </Card>
         </TabsContent>
