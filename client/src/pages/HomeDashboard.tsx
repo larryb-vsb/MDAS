@@ -258,14 +258,26 @@ export default function HomeDashboard() {
   const metrics = dashboardMetrics || fallbackMetrics;
 
   // Debug logging to console to see what data we're getting
-  console.log('Dashboard Debug:', { 
+  console.log('🐛 Dashboard Debug:', { 
     isLoading, 
     error: error?.message, 
     hasDashboardMetrics: !!dashboardMetrics,
     hasSystemInfo: !!systemInfo,
     systemEnv: systemInfo?.environment?.name,
-    metricsKeys: dashboardMetrics ? Object.keys(dashboardMetrics) : null
+    metricsKeys: dashboardMetrics ? Object.keys(dashboardMetrics) : null,
+    rawDashboardData: dashboardMetrics,
+    rawSystemData: systemInfo
   });
+
+  // Force data for testing - let me check if React Query is the issue
+  React.useEffect(() => {
+    if (!isLoading && !dashboardMetrics) {
+      console.log('🚨 No dashboard data received - API might be failing silently');
+    }
+    if (!systemInfo) {
+      console.log('🚨 No system info received - system API might be failing');
+    }
+  }, [isLoading, dashboardMetrics, systemInfo]);
 
   return (
     <MainLayout>
@@ -275,23 +287,13 @@ export default function HomeDashboard() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
-              {/* Environmental Badge - Always show with fallback */}
-              {systemInfo?.environment?.name ? (
-                <Badge 
-                  variant="outline" 
-                  className={
-                    systemInfo.environment.name === 'production' 
-                      ? "bg-orange-100 text-orange-800 border-orange-300 font-semibold px-3 py-1 shadow-sm"
-                      : "bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
-                  }
-                >
-                  {systemInfo.environment.name === 'production' ? '🟠 Production' : '🔵 Development'}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 animate-pulse px-3 py-1">
-                  ⚪ Loading Environment...
-                </Badge>
-              )}
+              {/* Environmental Badge - Force show for debugging */}
+              <Badge 
+                variant="outline" 
+                className="bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
+              >
+                🔵 Development {systemInfo?.environment?.name ? '(API OK)' : '(API Loading)'}
+              </Badge>
             </div>
             <p className="text-muted-foreground">
               Manage your merchants, upload data, and view statistics
