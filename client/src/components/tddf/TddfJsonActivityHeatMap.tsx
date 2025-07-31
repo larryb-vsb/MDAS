@@ -95,15 +95,15 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
   };
 
   const handleClick = () => {
-    if (onDateSelect && count > 0) {
+    if (onDateSelect) {
       onDateSelect(dateString);
     }
   };
 
   return (
     <div
-      className={`w-4 h-4 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
-      title={`${formatDate(date)}: ${count} JSON records${count > 0 ? ' (Click to filter)' : ''}`}
+      className={`w-4 h-4 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} cursor-pointer`}
+      title={`${formatDate(date)}: ${count} JSON records (Click to filter)`}
       onClick={handleClick}
     />
   );
