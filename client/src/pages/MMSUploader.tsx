@@ -276,7 +276,7 @@ export default function MMSUploader() {
     enabled: activeTab === 'sub-terminals'
   });
 
-  const { data: merchants = [] } = useQuery({
+  const { data: merchantsResponse } = useQuery({
     queryKey: ['/api/merchants'],
     queryFn: async () => {
       const response = await fetch('/api/merchants', { credentials: 'include' });
@@ -285,6 +285,8 @@ export default function MMSUploader() {
     },
     enabled: activeTab === 'sub-terminals'
   });
+
+  const merchants = merchantsResponse?.merchants || [];
 
   // Mutations for Sub Terminals tab
   const createMerchantMutation = useMutation({
