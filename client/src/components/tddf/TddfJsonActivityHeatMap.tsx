@@ -225,10 +225,13 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const activityMap = new Map<string, ActivityData>();
   if (activityResponse?.records) {
     activityResponse.records.forEach(item => {
-      // Handle both formats: transaction_date field or date field
-      const dateStr = item.transaction_date?.split('T')[0];
+      // Handle both formats: transaction_date field or date field (pre-cache uses 'date')
+      const dateStr = item.transaction_date?.split('T')[0] || (item as any).date;
       if (dateStr) {
-        activityMap.set(dateStr, item);
+        activityMap.set(dateStr, {
+          transaction_date: dateStr,
+          transaction_count: item.transaction_count || (item as any).transaction_count
+        });
       }
     });
   }
