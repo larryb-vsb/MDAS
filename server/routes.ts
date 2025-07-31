@@ -7398,6 +7398,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           console.log(`[MANUAL-ENCODE] Processing file: ${upload.filename}`);
+          console.log(`[MANUAL-ENCODE-DEBUG] Upload object:`, JSON.stringify(upload, null, 2));
+          
+          // Generate storage key if missing (for older uploads)
+          let storageKey = upload.storageKey;
+          if (!storageKey) {
+            // Generate expected storage key based on upload ID and filename
+            const uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+            storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
+            console.log(`[MANUAL-ENCODE-DEBUG] Generated storage key for older upload: ${storageKey}`);
+            
+            // Update the database with the generated storage key
+            await storage.updateUploaderUpload(uploadId, {
+              storageKey: storageKey
+            });
+          }
           
           // Transition to encoding phase
           await storage.updateUploaderUpload(uploadId, {
@@ -7405,8 +7420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastUpdated: new Date()
           });
 
+          console.log(`[MANUAL-ENCODE-DEBUG] Using storage key: ${storageKey}`);
           // Get file content from storage
-          const fileContent = await ReplitStorageService.getFileContent(upload.storageKey);
+          const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
           // Perform encoding
           const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);

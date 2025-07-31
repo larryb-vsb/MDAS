@@ -13394,6 +13394,7 @@ export class DatabaseStorage implements IStorage {
         chunksUploaded: 'chunks_uploaded',
         uploadedAt: 'uploaded_at',
         storagePath: 'storage_path',
+        storageKey: 'storage_key',
         s3Bucket: 's3_bucket',
         s3Key: 's3_key',
         s3Url: 's3_url',
