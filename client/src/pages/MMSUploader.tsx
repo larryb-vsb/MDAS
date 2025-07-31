@@ -119,6 +119,7 @@ export default function MMSUploader() {
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
+  const [filenameFilter, setFilenameFilter] = useState('');
   const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
   
   // JSONB viewer state
@@ -413,11 +414,12 @@ export default function MMSUploader() {
     }
   });
 
-  // Filter uploads based on status and file type
+  // Filter uploads based on status, file type, and filename
   const filteredUploads = uploads.filter(upload => {
     const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
     const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
-    return statusMatch && typeMatch;
+    const filenameMatch = filenameFilter === '' || upload.filename.toLowerCase().includes(filenameFilter.toLowerCase());
+    return statusMatch && typeMatch && filenameMatch;
   });
 
   // Pagination calculations
@@ -1728,6 +1730,17 @@ export default function MMSUploader() {
                         <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label>Filename:</Label>
+                    <Input
+                      type="text"
+                      placeholder="Search filenames..."
+                      value={filenameFilter}
+                      onChange={(e) => setFilenameFilter(e.target.value)}
+                      className="w-48"
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
