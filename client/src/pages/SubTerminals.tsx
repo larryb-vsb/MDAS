@@ -10,7 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building, Search, Plus, Edit, Users } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building, Search, Plus, Edit, Users, Database } from 'lucide-react';
 import { Link } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
@@ -23,6 +24,7 @@ export default function SubTerminals() {
   const [terminalSearchFilter, setTerminalSearchFilter] = useState('');
   const [merchantSearchFilter, setMerchantSearchFilter] = useState('');
   const [showOnlyUnmatched, setShowOnlyUnmatched] = useState(false);
+  const [activeTab, setActiveTab] = useState('management');
 
   const { toast } = useToast();
 
@@ -101,17 +103,30 @@ export default function SubTerminals() {
         </Link>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            Raw SubTerminal Import Data
-          </CardTitle>
-          <CardDescription>
-            Complete raw data from SubTerminal imports showing ID, Device name (with merchant name and status), and Terminal Number (D_Number)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="management" className="flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            Terminal Management
+          </TabsTrigger>
+          <TabsTrigger value="subtermimport" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            SubTermImport
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="management" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Raw SubTerminal Import Data
+              </CardTitle>
+              <CardDescription>
+                Complete raw data from SubTerminal imports showing ID, Device name (with merchant name and status), and Terminal Number (D_Number)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
           {/* Statistics Overview */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -501,6 +516,60 @@ export default function SubTerminals() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="subtermimport" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                SubTermImport - Raw Data Only
+              </CardTitle>
+              <CardDescription>
+                Complete raw SubTerminal import data with only essential fields: Id, DeviceName, and D_Number. Showing all {terminals.length} SubTerminals.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Simple raw data table */}
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Id</TableHead>
+                      <TableHead>DeviceName</TableHead>
+                      <TableHead>D_Number</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {terminals.map((terminal: any) => {
+                      // Extract D_Number from Device Name
+                      const dNumberMatch = terminal.dba_name?.match(/D(\d+)/);
+                      const dNumber = dNumberMatch ? dNumberMatch[0] : 'N/A';
+                      
+                      return (
+                        <TableRow key={terminal.id}>
+                          <TableCell className="font-mono text-sm">{terminal.id}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[400px]" title={terminal.dba_name}>
+                              <div className="text-sm">{terminal.dba_name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-bold">{dNumber}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Summary footer */}
+              <div className="mt-4 p-3 bg-gray-50 border rounded-lg text-sm text-muted-foreground">
+                <strong>Total SubTerminals:</strong> {terminals.length} | <strong>Raw Import Data</strong> - Id, DeviceName, D_Number extracted from DeviceName field
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
