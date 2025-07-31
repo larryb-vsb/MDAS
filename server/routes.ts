@@ -12063,19 +12063,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-OBJECT-TOTALS] Serving cache data - Status: ${cacheData.scan_status}, Expired: ${isExpired}`);
       
-      // Get JSONB count from Settings page pre-cached data (dev_tddf_json_record_type_counts_pre_cache)
+      // Get JSONB count and record type breakdown from Settings page pre-cached data
       let jsonbCount = 0;
+      let recordTypeBreakdownFromCache = {};
       let cacheSource = 'live_query';
       try {
         const jsonbCacheResult = await pool.query(`
-          SELECT total_records, created_at as cache_created
+          SELECT total_records, dt_count, bh_count, p1_count, e1_count, g2_count, ad_count, dr_count, p2_count, created_at as cache_created
           FROM dev_tddf_json_record_type_counts_pre_cache
           ORDER BY created_at DESC
           LIMIT 1
         `);
         
         if (jsonbCacheResult.rows.length > 0) {
-          jsonbCount = parseInt(jsonbCacheResult.rows[0].total_records) || 0;
+          const row = jsonbCacheResult.rows[0];
+          jsonbCount = parseInt(row.total_records) || 0;
+          recordTypeBreakdownFromCache = {
+            DT: parseInt(row.dt_count) || 0,
+            BH: parseInt(row.bh_count) || 0, 
+            P1: parseInt(row.p1_count) || 0,
+            E1: parseInt(row.e1_count) || 0,
+            G2: parseInt(row.g2_count) || 0,
+            AD: parseInt(row.ad_count) || 0,
+            DR: parseInt(row.dr_count) || 0,
+            P2: parseInt(row.p2_count) || 0
+          };
           cacheSource = 'pre_cached_settings';
           console.log(`[TDDF-OBJECT-TOTALS] Using JSONB count from pre-cached Settings data: ${jsonbCount.toLocaleString()}`);
         } else {
@@ -12117,7 +12129,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             averageRecordsPerFile: cacheData.average_records_per_file,
             largestFileRecords: cacheData.largest_file_records,
             largestFileName: cacheData.largest_file_name,
-            recordTypeBreakdown: cacheData.record_type_breakdown
+            recordTypeBreakdown: cacheData.record_type_breakdown,
+            recordTypeBreakdownFromCache: recordTypeBreakdownFromCache
           },
           dataSources: {
             storageStats: 'dev_tddf_object_totals_cache_2025',

@@ -35,6 +35,7 @@ interface TddfObjectTotalsData {
       largestFileRecords: number;
       largestFileName: string;
       recordTypeBreakdown: Record<string, number>;
+      recordTypeBreakdownFromCache?: Record<string, number>;
     };
     dataSources?: {
       storageStats: string;
@@ -177,14 +178,24 @@ export default function TddfObjectTotals() {
     }
   };
 
-  // Sort record types by count for display
-  const sortedRecordTypes = Object.entries(data.recordStats.recordTypeBreakdown)
-    .sort(([,a], [,b]) => b - a)
-    .map(([type, count]) => ({
-      type,
-      count,
-      percentage: ((count / data.recordStats.totalRecords) * 100).toFixed(1)
-    }));
+  // Sort record types by count for display - prioritize pre-cached JSONB data
+  const sortedRecordTypes = (() => {
+    // Use detailed record type breakdown from pre-cached JSONB data if available
+    const breakdown = data.recordStats.recordTypeBreakdownFromCache && Object.keys(data.recordStats.recordTypeBreakdownFromCache).length > 0
+      ? data.recordStats.recordTypeBreakdownFromCache
+      : data.recordStats.recordTypeBreakdown;
+    
+    const total = data.recordStats.jsonbCount || data.recordStats.totalRecords;
+    
+    return Object.entries(breakdown)
+      .filter(([type, count]) => Number(count) > 0) // Only show types with counts > 0
+      .sort(([,a], [,b]) => Number(b) - Number(a))
+      .map(([type, count]) => ({
+        type,
+        count: Number(count),
+        percentage: ((Number(count) / total) * 100).toFixed(1)
+      }));
+  })();
 
   // Get record type description with dynamic discovery
   const getRecordTypeDescription = (type: string) => {
@@ -309,13 +320,13 @@ export default function TddfObjectTotals() {
             <div className="text-sm text-purple-600">Total Records</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold mb-2">
-              JSONB COUNT
-            </div>
             <div className="text-2xl font-bold text-green-800">
               {data.recordStats.jsonbCount?.toLocaleString() || 'Loading...'}
             </div>
             <div className="text-sm text-green-600">Encoded Records</div>
+            <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold mt-2">
+              JSONB COUNT
+            </div>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-800">
@@ -352,7 +363,11 @@ export default function TddfObjectTotals() {
                     {getRecordTypeDescription(type)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {count.toLocaleString()}
+                    <div className="bg-green-50 px-2 py-1 rounded border border-green-200">
+                      <span className="text-green-800 font-semibold">
+                        {count.toLocaleString()}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant="secondary">

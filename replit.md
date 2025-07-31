@@ -16,16 +16,17 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - TDDF OBJECT TOTALS ENHANCEMENTS - **✅ ENHANCED TDDF OBJECT TOTALS DISPLAY SYSTEM COMPLETED (July 31, 2025)**: Successfully enhanced TDDF Object Totals component with comma-formatted numbers, improved datetime display showing scan start/completion times, and scan trigger button with 8-minute cooldown functionality
-  - **Number Formatting Enhancement**: Added .toLocaleString() formatting to all record counts for improved readability (4,443,235 instead of 4443235)
-  - **Enhanced Datetime Display**: Split scan information into separate "Scan Started" and "Scan Completed" fields with full date/time formatting (MMM d, yyyy h:mm a format)
-  - **Scan Trigger Button**: Added "Start Scan" button with 8-minute cooldown protection, real-time countdown display, and comprehensive API endpoint integration
-  - **Improved Layout**: Enhanced scan information grid to 4 columns (lg:grid-cols-4) showing Start Time, Completion Time, Duration, and Cache Status
-  - **Real-time Feedback**: Toast notifications for scan success/failure with automatic data refresh and cooldown management
-  - **API Integration**: Complete /api/storage/start-scan endpoint with cooldown validation and scan status tracking
-  - **JSONB Count Integration**: Added real-time JSONB count from pre-cached Settings page data showing formatted count in 5th statistics box
-  - **Dynamic Record Type Discovery**: Enhanced system to automatically recognize and display new record types discovered in storage or JSONB analysis
-  - **Universal Number Formatting**: Applied .toLocaleString() comma formatting to all big number boxes for consistent readability
+- Current session: July 31, 2025 - TDDF OBJECT TOTALS ENHANCEMENTS - **✅ ENHANCED TDDF OBJECT TOTALS DISPLAY SYSTEM COMPLETED (July 31, 2025)**: Successfully enhanced TDDF Object Totals component with green JSONB COUNT header, pre-cached record type breakdown data integration, and comprehensive formatting improvements
+  - **Green JSONB COUNT Header**: Added requested green header banner with "JSONB COUNT" label moved to bottom of statistics box for better visual prominence
+  - **Pre-cached Data Integration**: Enhanced backend API to fetch detailed record type counts (DT: 1,680,309, G2: 1,691,789, E1: 578,736, etc.) from dev_tddf_json_record_type_counts_pre_cache table
+  - **Record Type Breakdown Enhancement**: Added green-highlighted count boxes for each record type in breakdown table with comma-formatted numbers from authentic pre-cached JSONB data
+  - **Data Source Prioritization**: System now prioritizes pre-cached JSONB record type counts over storage-based counts for more accurate representation
+  - **Cache TTL Extension**: Extended cache expiration from 1 hour to 4 hours eliminating frequent 37-minute expiration complaints
+  - **Number Formatting Enhancement**: Applied .toLocaleString() formatting to all record counts for improved readability (4,345,441 instead of 4345441)
+  - **Enhanced Datetime Display**: Split scan information into separate "Scan Started" and "Scan Completed" fields with full date/time formatting
+  - **Scan Trigger Button**: Added "Start Scan" button with 8-minute cooldown protection and real-time countdown display
+  - **API Enhancement**: Backend now serves both storage analytics and detailed JSONB record type breakdown from pre-cached Settings data
+  - **Visual Improvements**: Green-boxed count numbers in record type table matching user's green box annotation request
 - Previous: July 30, 2025 - MASTER OBJECT KEYS DATABASE & STORAGE MANAGEMENT SYSTEM - **✅ MASTER OBJECT KEYS DATABASE SYSTEM COMPLETED (July 30, 2025)**: Successfully implemented comprehensive Storage Management system with complete infrastructure, API endpoints, frontend interface, navigation integration, and populated master object keys database with 1,264 storage objects totaling 4,478,637 lines across 2.93 GB of TDDF data
   - **Complete Infrastructure**: Master object keys database tables (dev_master_object_keys, dev_object_processing_history, dev_object_purge_queue) with full CRUD operations
   - **Storage Management Page**: Comprehensive frontend interface with Overview, Objects, and Operations tabs showing real-time statistics and object management
