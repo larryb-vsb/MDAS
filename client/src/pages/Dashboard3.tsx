@@ -445,6 +445,41 @@ export default function Dashboard3() {
                         <div className="text-xs text-muted-foreground text-center pt-2 border-t">
                           {dashboardMetrics.cacheMetadata?.fromCache ? 'Using cached data' : 'Built fresh from database'}
                         </div>
+                        
+                        <div className="pt-3 border-t space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Settings className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Cache Control:</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Select value={selectedExpiration} onValueChange={setSelectedExpiration}>
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="15">15 minutes</SelectItem>
+                                <SelectItem value="30">30 minutes</SelectItem>
+                                <SelectItem value="60">1 hour</SelectItem>
+                                <SelectItem value="120">2 hours</SelectItem>
+                                <SelectItem value="240">4 hours</SelectItem>
+                                <SelectItem value="480">8 hours</SelectItem>
+                                <SelectItem value="never">Never expire</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => updateExpirationMutation.mutate(selectedExpiration)}
+                              disabled={updateExpirationMutation.isPending}
+                            >
+                              {updateExpirationMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Set"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </>
                   ) : (
