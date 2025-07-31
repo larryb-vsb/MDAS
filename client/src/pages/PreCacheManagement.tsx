@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Database, 
@@ -23,7 +27,9 @@ import {
   HardDrive,
   Edit,
   Shield,
-  Eye
+  Eye,
+  Save,
+  RotateCcw
 } from "lucide-react";
 
 interface PreCacheSettings {
@@ -35,6 +41,7 @@ interface PreCacheSettings {
   cache_status: string;
   health_status: string;
   update_policy: string;
+  cache_update_policy: string;
   expiration_policy: string;
   auto_refresh_enabled: boolean;
   current_record_count: number;
@@ -152,6 +159,24 @@ interface CacheTableInfo {
   age: string;
   size?: string;
   expirationDuration?: string; // e.g., "15 min", "4 hours", "Never Expires"
+}
+
+interface CacheConfigItem {
+  id: number;
+  cache_name: string;
+  cache_type: string;
+  page_name: string;
+  table_name: string;
+  default_expiration_minutes: number;
+  current_expiration_minutes: number;
+  expiration_policy: string;
+  auto_refresh_enabled: boolean;
+  refresh_interval_minutes: number;
+  cache_update_policy: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // PreCacheTablesOverview Component
@@ -439,6 +464,234 @@ export default function PreCacheManagement() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+// Cache Configuration Management Component
+function CacheConfigurationManagement() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingConfig, setEditingConfig] = useState<number | null>(null);
+  const [configFormData, setConfigFormData] = useState<Partial<CacheConfigItem>>({});
+
+  // Fetch cache configurations
+  const { data: configData, isLoading: configLoading } = useQuery({
+    queryKey: ['/api/cache-config'],
+    refetchInterval: 30000
+  });
+
+  const configurations: CacheConfigItem[] = configData?.configurations || [];
+
+  // Update configuration mutation
+  const updateConfigMutation = useMutation({
+    mutationFn: (params: { id: number; updates: Partial<CacheConfigItem> }) =>
+      apiRequest(`/api/cache-config/${params.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(params.updates),
+        headers: { 'Content-Type': 'application/json' }
+      }),
+    onSuccess: () => {
+      toast({
+        title: "Configuration Updated",
+        description: "Cache configuration updated successfully",
+      });
+      setEditingConfig(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/cache-config'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update configuration",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const startEditing = (config: CacheConfigItem) => {
+    setEditingConfig(config.id);
+    setConfigFormData({
+      current_expiration_minutes: config.current_expiration_minutes,
+      expiration_policy: config.expiration_policy,
+      auto_refresh_enabled: config.auto_refresh_enabled,
+      refresh_interval_minutes: config.refresh_interval_minutes,
+      cache_update_policy: config.cache_update_policy
+    });
+  };
+
+  const saveChanges = () => {
+    if (editingConfig && configFormData) {
+      updateConfigMutation.mutate({
+        id: editingConfig,
+        updates: configFormData
+      });
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingConfig(null);
+    setConfigFormData({});
+  };
+
+  const getCacheUpdatePolicyBadge = (policy: string) => {
+    const policyConfig = {
+      manual: { color: "bg-gray-100 text-gray-800", text: "Manual" },
+      once_a_day: { color: "bg-blue-100 text-blue-800", text: "Once a Day" },
+      all_app_restarts: { color: "bg-green-100 text-green-800", text: "App Restarts" },
+      new_data_flag: { color: "bg-purple-100 text-purple-800", text: "New Data Flag" }
+    };
+    
+    const config = policyConfig[policy as keyof typeof policyConfig] || policyConfig.manual;
+    
+    return (
+      <Badge className={config.color}>
+        {config.text}
+      </Badge>
+    );
+  };
+
+  if (configLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+          Loading cache configurations...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Settings className="w-5 h-5" />
+          <span>Cache Configuration Management</span>
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Manage cache update policies and expiration settings for all cache types
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {configurations.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No cache configurations found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cache Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Page</TableHead>
+                  <TableHead>Expiration</TableHead>
+                  <TableHead>Update Policy</TableHead>
+                  <TableHead>Auto Refresh</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {configurations.map((config) => (
+                  <TableRow key={config.id}>
+                    <TableCell className="font-medium">
+                      {config.cache_name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {config.cache_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{config.page_name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {editingConfig === config.id ? (
+                        <Input
+                          type="number"
+                          value={configFormData.current_expiration_minutes || 0}
+                          onChange={(e) => setConfigFormData({
+                            ...configFormData,
+                            current_expiration_minutes: parseInt(e.target.value)
+                          })}
+                          className="w-20"
+                        />
+                      ) : (
+                        <span>{config.current_expiration_minutes} min</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingConfig === config.id ? (
+                        <Select
+                          value={configFormData.cache_update_policy || config.cache_update_policy}
+                          onValueChange={(value) => setConfigFormData({
+                            ...configFormData,
+                            cache_update_policy: value
+                          })}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">Manual</SelectItem>
+                            <SelectItem value="once_a_day">Once a Day</SelectItem>
+                            <SelectItem value="all_app_restarts">All App Restarts</SelectItem>
+                            <SelectItem value="new_data_flag">New Data Flag</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        getCacheUpdatePolicyBadge(config.cache_update_policy)
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingConfig === config.id ? (
+                        <Switch
+                          checked={configFormData.auto_refresh_enabled ?? config.auto_refresh_enabled}
+                          onCheckedChange={(checked) => setConfigFormData({
+                            ...configFormData,
+                            auto_refresh_enabled: checked
+                          })}
+                        />
+                      ) : (
+                        <Badge className={config.auto_refresh_enabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                          {config.auto_refresh_enabled ? "Enabled" : "Disabled"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingConfig === config.id ? (
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={saveChanges}
+                            disabled={updateConfigMutation.isPending}
+                          >
+                            <Save className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={cancelEditing}
+                            disabled={updateConfigMutation.isPending}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => startEditing(config)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -477,9 +730,10 @@ export default function PreCacheManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
+          <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="errors">Errors</TabsTrigger>
@@ -582,6 +836,10 @@ export default function PreCacheManagement() {
 
         <TabsContent value="tables" className="space-y-6">
           <PreCacheTablesOverview onViewCache={handleViewCache} />
+        </TabsContent>
+
+        <TabsContent value="configuration" className="space-y-6">
+          <CacheConfigurationManagement />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">

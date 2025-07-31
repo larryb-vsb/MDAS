@@ -1908,6 +1908,7 @@ export const cacheConfiguration = pgTable(getTableName("cache_configuration"), {
   auto_refresh_enabled: boolean("auto_refresh_enabled").default(true),
   refresh_interval_minutes: integer("refresh_interval_minutes").default(60),
   refresh_on_startup: boolean("refresh_on_startup").default(false),
+  cache_update_policy: text("cache_update_policy").default("manual"), // 'manual', 'once_a_day', 'all_app_restarts', 'new_data_flag'
   
   // Performance settings
   priority_level: integer("priority_level").default(5), // 1-10 for cache building order

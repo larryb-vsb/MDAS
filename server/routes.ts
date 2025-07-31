@@ -14111,7 +14111,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/cache-config/:cacheId', isAuthenticated, async (req, res) => {
     try {
       const { cacheId } = req.params;
-      const { current_expiration_minutes, expiration_policy, auto_refresh_enabled, refresh_interval_minutes } = req.body;
+      const { 
+        current_expiration_minutes, 
+        expiration_policy, 
+        auto_refresh_enabled, 
+        refresh_interval_minutes,
+        cache_update_policy 
+      } = req.body;
       
       const updateQuery = `
         UPDATE ${getTableName('cache_configuration')}
@@ -14120,9 +14126,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiration_policy = $2,
           auto_refresh_enabled = $3,
           refresh_interval_minutes = $4,
-          last_modified_by = $5,
+          cache_update_policy = $5,
+          last_modified_by = $6,
           updated_at = NOW()
-        WHERE id = $6 AND is_active = true
+        WHERE id = $7 AND is_active = true
         RETURNING *
       `;
       
@@ -14131,6 +14138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiration_policy,
         auto_refresh_enabled,
         refresh_interval_minutes,
+        cache_update_policy,
         req.user?.username || 'api',
         cacheId
       ]);
