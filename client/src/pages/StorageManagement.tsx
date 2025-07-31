@@ -1,79 +1,92 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Database, HardDrive, Trash2, Search, RefreshCw, FileX, CheckCircle, Clock, Activity, Copy, AlertCircle } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import MainLayout from '@/components/layout/MainLayout';
-import TddfObjectTotals from '@/components/storage/TddfObjectTotals';
-import StorageObjectProcessor from '@/components/storage/StorageObjectProcessor';
+import { apiRequest, useQueryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Database, 
+  HardDrive, 
+  Activity, 
+  AlertTriangle, 
+  RefreshCw, 
+  Clock, 
+  Trash2, 
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  CheckCircle
+} from "lucide-react";
+import { useState } from 'react';
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { MainLayout } from "@/components/layout/MainLayout";
+import TddfObjectTotals from "@/components/storage/TddfObjectTotals";
+import StorageObjectProcessor from "@/components/storage/StorageObjectProcessor";
 
-interface MasterObjectStats {
+// TypeScript interfaces for Storage Management
+interface StorageStats {
   masterKeys: {
     totalObjects: number;
     linkedToUploads: number;
-    processingComplete: number;
-    orphanedObjects: number;
-    markedForPurge: number;
-    totalStorageBytes: number;
     totalStorageMB: number;
     totalLines: number;
+    orphanedObjects: number;
+    markedForPurge: number;
+    processingComplete: number;
   };
   purgeQueue: {
     totalQueued: number;
-    orphanedQueued: number;
-    expiredQueued: number;
-    readyForPurge: number;
-    alreadyPurged: number;
+    totalSizeMB: number;
+    oldestEntry: string;
+    newestEntry: string;
+    avgSizeMB: number;
   };
   recentActivity: Array<{
-    date: string;
-    objects_created: number;
+    action: string;
+    objectKey: string;
+    timestamp: string;
   }>;
-  lastUpdated: string;
 }
 
-interface MasterObjectKey {
+interface StorageObject {
   id: string;
-  object_key: string;
-  original_filename: string;
-  file_type: string;
-  file_size: number;
-  line_count: number;
-  upload_id?: string;
-  current_phase: string;
-  processing_status: string;
-  marked_for_purge: boolean;
-  created_at: string;
-  last_accessed_at?: string;
-  last_modified_at?: string;
-  purge_after_date?: string;
+  objectKey: string;
+  fileSizeMB: string;
+  lineCount: number;
+  createdAt: string;
+  status: string;
+  uploadId?: string;
+  currentPhase: string;
+}
+
+interface StorageList {
+  objects: StorageObject[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 interface DuplicateObject {
   id: string;
   objectKey: string;
-  fileSize: number;
   fileSizeMB: string;
   lineCount: number;
+  createdAt: string;
   uploadId?: string;
   currentPhase: string;
-  processingStatus: string;
-  createdAt: string;
-  markedForPurge: boolean;
   isNewest: boolean;
 }
 
 interface DuplicateGroup {
   filename: string;
   occurrenceCount: number;
-  potentialSavingsBytes: number;
   potentialSavingsMB: string;
   objects: DuplicateObject[];
 }
@@ -87,39 +100,304 @@ interface DuplicatesSummary {
   totalSavingsGB: string;
 }
 
-interface MasterObjectList {
-  objects: MasterObjectKey[];
-  pagination: {
-    total: number;
-    limit: number;
-    offset: number;
-    hasMore: boolean;
+function DuplicatesTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedForRemoval, setSelectedForRemoval] = useState<Set<string>>(new Set());
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  // Query duplicate detection data
+  const { data: duplicatesData, isLoading: duplicatesLoading, refetch: refetchDuplicates } = useQuery({
+    queryKey: ['/api/storage/master-keys/find-duplicates'],
+    queryFn: () => apiRequest('/api/storage/master-keys/find-duplicates')
+  });
+
+  // Remove duplicates mutation
+  const removeDuplicatesMutation = useMutation({
+    mutationFn: (objectIds: string[]) => apiRequest('/api/storage/master-keys/remove-duplicates', {
+      method: 'POST',
+      body: JSON.stringify({ objectIds })
+    }),
+    onSuccess: (data: any) => {
+      toast({
+        title: "Duplicates Removed",
+        description: `Successfully removed ${data.removedCount} duplicate objects, saved ${data.spaceFreed}`
+      });
+      setSelectedForRemoval(new Set());
+      refetchDuplicates();
+      setIsRemoving(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Removal Failed",
+        description: error.message || "Failed to remove duplicate objects",
+        variant: "destructive"
+      });
+      setIsRemoving(false);
+    }
+  });
+
+  const handleSelectObject = (objectId: string, checked: boolean) => {
+    const newSelection = new Set(selectedForRemoval);
+    if (checked) {
+      newSelection.add(objectId);
+    } else {
+      newSelection.delete(objectId);
+    }
+    setSelectedForRemoval(newSelection);
   };
-  filters: {
-    status: string;
-    search: string;
+
+  const handleSelectAll = (group: DuplicateGroup, checked: boolean) => {
+    const newSelection = new Set(selectedForRemoval);
+    const removableObjects = group.objects.filter(obj => !obj.isNewest);
+    
+    if (checked) {
+      removableObjects.forEach(obj => newSelection.add(obj.id));
+    } else {
+      removableObjects.forEach(obj => newSelection.delete(obj.id));
+    }
+    setSelectedForRemoval(newSelection);
   };
-  lastUpdated: string;
+
+  const handleRemoveSelected = () => {
+    if (selectedForRemoval.size === 0) return;
+    
+    setIsRemoving(true);
+    removeDuplicatesMutation.mutate(Array.from(selectedForRemoval));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (duplicatesLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="animate-pulse">
+          <CardHeader className="bg-gray-100 h-20"></CardHeader>
+          <CardContent className="bg-gray-50 h-32"></CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const duplicateGroups: DuplicateGroup[] = duplicatesData?.duplicateGroups || [];
+  const summary: DuplicatesSummary = duplicatesData?.summary || {
+    totalDuplicateGroups: 0,
+    totalDuplicateObjects: 0,
+    totalDuplicatesRemovable: 0,
+    totalSavingsBytes: 0,
+    totalSavingsMB: '0',
+    totalSavingsGB: '0'
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Duplicate Groups</CardTitle>
+            <Copy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalDuplicateGroups}</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.totalDuplicateObjects} total duplicates
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Removable Objects</CardTitle>
+            <Trash2 className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{summary.totalDuplicatesRemovable}</div>
+            <p className="text-xs text-muted-foreground">
+              Safe to remove
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Storage Savings</CardTitle>
+            <HardDrive className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{summary.totalSavingsMB} MB</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.totalSavingsGB} GB potential savings
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Selected</CardTitle>
+            <CheckCircle className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{selectedForRemoval.size}</div>
+            <p className="text-xs text-muted-foreground">
+              Objects marked for removal
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => refetchDuplicates()}
+            variant="outline"
+            disabled={duplicatesLoading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${duplicatesLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleRemoveSelected}
+            variant="destructive"
+            disabled={selectedForRemoval.size === 0 || isRemoving}
+          >
+            {isRemoving ? (
+              <>
+                <Clock className="w-4 h-4 mr-2 animate-spin" />
+                Removing...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove Selected ({selectedForRemoval.size})
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Duplicate Groups */}
+      {duplicateGroups.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+            <h3 className="text-lg font-medium mb-2">No Duplicates Found</h3>
+            <p className="text-muted-foreground">
+              All storage objects are unique. No cleanup needed.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {duplicateGroups.map((group, groupIndex) => (
+            <Card key={groupIndex}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Copy className="w-5 h-5 text-orange-500" />
+                      {group.filename}
+                    </CardTitle>
+                    <CardDescription>
+                      {group.occurrenceCount} copies • Potential savings: {group.potentialSavingsMB}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={group.objects.filter(obj => !obj.isNewest).every(obj => selectedForRemoval.has(obj.id))}
+                      onCheckedChange={(checked) => handleSelectAll(group, checked as boolean)}
+                    />
+                    <span className="text-sm text-muted-foreground">Select All Removable</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {group.objects.map((object, objIndex) => (
+                    <div key={objIndex} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {object.isNewest ? (
+                          <div className="w-5 h-5 flex items-center justify-center">
+                            <AlertCircle className="w-4 h-4 text-green-500" />
+                          </div>
+                        ) : (
+                          <Checkbox
+                            checked={selectedForRemoval.has(object.id)}
+                            onCheckedChange={(checked) => handleSelectObject(object.id, checked as boolean)}
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate">
+                              {object.objectKey.split('/').pop()}
+                            </p>
+                            {object.isNewest && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Keep (Newest)
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {object.fileSizeMB} • {object.lineCount.toLocaleString()} lines • {formatDate(object.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className={object.currentPhase === 'encoded' ? 'bg-green-50' : 'bg-blue-50'}>
+                          {object.currentPhase}
+                        </Badge>
+                        {object.uploadId && (
+                          <span className="font-mono">{object.uploadId.split('_')[1]?.slice(0, 8)}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function StorageManagement() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(0);
-  const [scanRunning, setScanRunning] = useState(false);
-  const [purgeRunning, setPurgeRunning] = useState(false);
-  
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [scanRunning, setScanRunning] = useState(false);
+  const [purgeRunning, setPurgeRunning] = useState(false);
 
-  // Get storage statistics
+  // Stats query
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['/api/storage/master-keys/stats'],
-    refetchInterval: 30000 // Refresh every 30 seconds
+    queryFn: () => apiRequest('/api/storage/master-keys/stats')
   });
 
-  // Get master object keys list
-  const { data: objectsList, isLoading: listLoading, refetch: refetchList } = useQuery({
+  // Objects list query
+  const { data: objectsData, isLoading: objectsLoading, refetch: refetchList } = useQuery({
     queryKey: ['/api/storage/master-keys/list', {
       limit: 50,
       offset: currentPage * 50,
@@ -215,6 +493,9 @@ export default function StorageManagement() {
     }
   };
 
+  const storageStats = stats as StorageStats;
+  const objectsList = objectsData as StorageList || { objects: [], pagination: { total: 0, page: 0, limit: 0, totalPages: 0 } };
+
   return (
     <MainLayout>
       <div className="container mx-auto p-6 space-y-6">
@@ -225,11 +506,13 @@ export default function StorageManagement() {
             Master object keys database and orphaned storage cleanup system
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button
-            onClick={() => refetchStats()}
+            onClick={() => {
+              refetchStats();
+              refetchList();
+            }}
             variant="outline"
-            size="sm"
             disabled={statsLoading}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${statsLoading ? 'animate-spin' : ''}`} />
@@ -263,7 +546,7 @@ export default function StorageManagement() {
                 </Card>
               ))}
             </div>
-          ) : stats ? (
+          ) : storageStats ? (
             <>
               {/* Master Keys Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -273,9 +556,9 @@ export default function StorageManagement() {
                     <Database className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.masterKeys.totalObjects.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{storageStats.masterKeys.totalObjects.toLocaleString()}</div>
                     <p className="text-xs text-muted-foreground">
-                      {stats.masterKeys.linkedToUploads} linked to uploads
+                      {storageStats.masterKeys.linkedToUploads} linked to uploads
                     </p>
                   </CardContent>
                 </Card>
@@ -286,9 +569,9 @@ export default function StorageManagement() {
                     <HardDrive className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.masterKeys.totalStorageMB.toFixed(1)} MB</div>
+                    <div className="text-2xl font-bold">{storageStats.masterKeys.totalStorageMB.toFixed(1)} MB</div>
                     <p className="text-xs text-muted-foreground">
-                      {stats.masterKeys.totalLines.toLocaleString()} total lines
+                      {storageStats.masterKeys.totalLines.toLocaleString()} total lines
                     </p>
                   </CardContent>
                 </Card>
@@ -299,9 +582,9 @@ export default function StorageManagement() {
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{stats.masterKeys.orphanedObjects}</div>
+                    <div className="text-2xl font-bold text-orange-600">{storageStats.masterKeys.orphanedObjects}</div>
                     <p className="text-xs text-muted-foreground">
-                      {stats.masterKeys.markedForPurge} marked for purge
+                      {storageStats.masterKeys.markedForPurge} marked for purge
                     </p>
                   </CardContent>
                 </Card>
@@ -312,7 +595,7 @@ export default function StorageManagement() {
                     <Activity className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{stats.masterKeys.processingComplete}</div>
+                    <div className="text-2xl font-bold text-green-600">{storageStats.masterKeys.processingComplete}</div>
                     <p className="text-xs text-muted-foreground">
                       Complete processing
                     </p>
@@ -324,203 +607,242 @@ export default function StorageManagement() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Trash2 className="w-5 h-5" />
-                    Purge Queue Status
+                    <Trash2 className="w-5 h-5 text-orange-500" />
+                    Purge Queue Statistics
                   </CardTitle>
-                  <CardDescription>
-                    Objects scheduled for deletion and purge operations
-                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{stats.purgeQueue.totalQueued}</div>
-                      <p className="text-sm text-muted-foreground">Total Queued</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600">{storageStats.purgeQueue.totalQueued}</div>
+                      <p className="text-sm text-muted-foreground">Objects queued</p>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{stats.purgeQueue.orphanedQueued}</div>
-                      <p className="text-sm text-muted-foreground">Orphaned</p>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{storageStats.purgeQueue.totalSizeMB.toFixed(1)} MB</div>
+                      <p className="text-sm text-muted-foreground">Total size</p>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{stats.purgeQueue.expiredQueued}</div>
-                      <p className="text-sm text-muted-foreground">Expired</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{stats.purgeQueue.readyForPurge}</div>
-                      <p className="text-sm text-muted-foreground">Ready</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-gray-600">{stats.purgeQueue.alreadyPurged}</div>
-                      <p className="text-sm text-muted-foreground">Purged</p>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold">{storageStats.purgeQueue.avgSizeMB.toFixed(1)} MB</div>
+                      <p className="text-sm text-muted-foreground">Average size</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Recent Activity */}
-              {stats.recentActivity.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Activity (Last 7 Days)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-500" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {storageStats.recentActivity.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">No recent activity</p>
+                  ) : (
                     <div className="space-y-2">
-                      {stats.recentActivity.map((activity) => (
-                        <div key={activity.date} className="flex justify-between items-center">
-                          <span>{formatDate(activity.date)}</span>
-                          <Badge variant="outline">{activity.objects_created} objects created</Badge>
+                      {storageStats.recentActivity.map((activity, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 border rounded">
+                          <div>
+                            <span className="font-medium">{activity.action}</span>
+                            <p className="text-sm text-muted-foreground truncate max-w-md">
+                              {activity.objectKey}
+                            </p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(activity.timestamp)}
+                          </span>
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </CardContent>
+              </Card>
             </>
           ) : (
             <Card>
-              <CardContent className="flex items-center justify-center h-32">
+              <CardContent className="py-8 text-center">
                 <p className="text-muted-foreground">No statistics available</p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
+        <TabsContent value="duplicates" className="space-y-6">
+          <DuplicatesTab />
+        </TabsContent>
+
         <TabsContent value="objects" className="space-y-6">
           {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Object Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Input
-                    placeholder="Search by filename or object key..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="complete">Complete</SelectItem>
-                    <SelectItem value="orphaned">Orphaned</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="purged">Purged</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={() => refetchList()} variant="outline">
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search objects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="complete">Complete</SelectItem>
+                <SelectItem value="orphaned">Orphaned</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="purged">Purged</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Objects List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Master Object Keys</CardTitle>
-              <CardDescription>
-                {objectsList ? `${objectsList.pagination.total} total objects` : 'Loading...'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {listLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse bg-gray-100 h-16 rounded"></div>
-                  ))}
-                </div>
-              ) : objectsList?.objects.length ? (
-                <div className="space-y-4">
-                  {objectsList.objects.map((obj) => (
-                    <div key={obj.id} className="border rounded-lg p-4 space-y-2">
+          {objectsLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="h-16 bg-gray-50"></CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {objectsList.objects.map((obj) => (
+                  <Card key={obj.id}>
+                    <CardContent className="p-4">
                       <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">
+                            {obj.objectKey}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {obj.fileSizeMB} • {obj.lineCount.toLocaleString()} lines • {formatDate(obj.createdAt)}
+                          </p>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium truncate max-w-md">{obj.original_filename}</span>
-                          <Badge className={getStatusColor(obj.processing_status)}>
-                            {obj.processing_status}
+                          <Badge className={getStatusColor(obj.status)}>
+                            {obj.status}
                           </Badge>
-                          {obj.marked_for_purge && (
-                            <Badge variant="destructive">
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Marked for Purge
+                          {obj.uploadId && (
+                            <Badge variant="outline">
+                              {obj.uploadId.split('_')[1]?.slice(0, 8)}
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>{formatFileSize(obj.file_size)}</span>
-                          <span>{obj.line_count.toLocaleString()} lines</span>
-                          <span>{formatDate(obj.created_at)}</span>
-                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">
-                          {obj.object_key}
-                        </span>
-                        {obj.upload_id && (
-                          <span className="ml-4">
-                            Upload ID: {obj.upload_id}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Pagination */}
-                  {objectsList.pagination.hasMore && (
-                    <div className="flex justify-center pt-4">
-                      <Button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        variant="outline"
-                      >
-                        Load More
-                      </Button>
-                    </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {currentPage * 50 + 1} to {Math.min((currentPage + 1) * 50, objectsList.pagination?.total || 0)} of {objectsList.pagination?.total || 0} objects
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage >= (objectsList.pagination?.totalPages || 0) - 1}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="purge" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purge Queue Management</CardTitle>
+              <CardDescription>
+                Manage orphaned objects marked for permanent deletion
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Objects in the purge queue are no longer accessible and can be safely deleted to free up storage space.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => handlePurge(true)}
+                  variant="outline"
+                  disabled={purgeRunning}
+                >
+                  {purgeRunning ? (
+                    <>
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Dry Run
+                    </>
                   )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FileX className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No objects found</p>
-                </div>
-              )}
+                </Button>
+                <Button
+                  onClick={() => handlePurge(false)}
+                  variant="destructive"
+                  disabled={purgeRunning}
+                  className="w-full"
+                >
+                  {purgeRunning ? (
+                    <>
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Execute Purge
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="operations" className="space-y-6">
+          {/* Scan Operations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Scan Operations */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="w-5 h-5" />
-                  Orphaned Object Scan
-                </CardTitle>
+                <CardTitle>Orphaned Object Detection</CardTitle>
                 <CardDescription>
-                  Scan storage for objects without database links and populate master object keys
+                  Scan for storage objects that are no longer linked to uploaded files
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  This operation will scan object storage for files that exist in storage but have no 
-                  corresponding database records. Found orphaned objects will be added to the master 
-                  object keys database and marked for cleanup.
-                </p>
-                <Button 
+              <CardContent>
+                <Button
                   onClick={handleScan}
                   disabled={scanRunning}
                   className="w-full"
                 >
                   {scanRunning ? (
                     <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
                       Scanning...
                     </>
                   ) : (
@@ -532,90 +854,32 @@ export default function StorageManagement() {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Purge Operations */}
+            
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trash2 className="w-5 h-5" />
-                  Purge Operations
-                </CardTitle>
-                <CardDescription>
-                  Clean up orphaned objects and expired files from storage
-                </CardDescription>
+                <CardTitle>System Status</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Execute purge operations to permanently delete objects marked for removal. 
-                  Use dry run to preview what would be deleted without making changes.
-                </p>
-                <div className="space-y-2">
-                  <Button 
-                    onClick={() => handlePurge(true)}
-                    disabled={purgeRunning}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {purgeRunning ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2 animate-spin" />
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Dry Run (Preview)
-                      </>
-                    )}
-                  </Button>
-                  <Button 
-                    onClick={() => handlePurge(false)}
-                    disabled={purgeRunning}
-                    variant="destructive"
-                    className="w-full"
-                  >
-                    {purgeRunning ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2 animate-spin" />
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Execute Purge
-                      </>
-                    )}
-                  </Button>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 border rounded-lg">
+                    <Database className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                    <p className="font-medium">Database</p>
+                    <p className="text-sm text-green-600">Connected</p>
+                  </div>
+                  <div className="text-center p-4 border rounded-lg">
+                    <HardDrive className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                    <p className="font-medium">Object Storage</p>
+                    <p className="text-sm text-blue-600">Available</p>
+                  </div>
+                  <div className="text-center p-4 border rounded-lg">
+                    <Activity className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+                    <p className="font-medium">Processing</p>
+                    <p className="text-sm text-purple-600">Active</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* System Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <Database className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                  <p className="font-medium">Database</p>
-                  <p className="text-sm text-green-600">Connected</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <HardDrive className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-                  <p className="font-medium">Object Storage</p>
-                  <p className="text-sm text-blue-600">Available</p>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <Activity className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                  <p className="font-medium">Processing</p>
-                  <p className="text-sm text-purple-600">Active</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
       </div>

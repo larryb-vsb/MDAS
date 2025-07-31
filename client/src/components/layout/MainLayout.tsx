@@ -245,7 +245,7 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
   );
 }
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+function MainLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -520,3 +520,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </div>
   );
 }
+
+export { MainLayout };
+export default MainLayout;

@@ -1,4 +1,4 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient, QueryFunction, useQueryClient } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -90,3 +90,6 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Re-export useQueryClient for convenience
+export { useQueryClient };
