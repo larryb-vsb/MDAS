@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Database, 
@@ -19,7 +20,9 @@ import {
   FileText,
   Zap,
   Timer,
-  HardDrive
+  HardDrive,
+  Edit,
+  Shield
 } from "lucide-react";
 
 interface PreCacheSettings {
@@ -328,6 +331,8 @@ export default function PreCacheManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedCache, setSelectedCache] = useState<string | null>(null);
+  const [showDashboardControls, setShowDashboardControls] = useState(false);
+  const [showPolicyManagement, setShowPolicyManagement] = useState(false);
 
   // Fetch all pre-cache settings
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -388,14 +393,32 @@ export default function PreCacheManagement() {
             Monitor and control all pre-cache systems across the application
           </p>
         </div>
-        <Button 
-          onClick={() => initializeDefaultsMutation.mutate()}
-          disabled={initializeDefaultsMutation.isPending}
-          variant="outline"
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          Initialize Defaults
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => initializeDefaultsMutation.mutate()}
+            disabled={initializeDefaultsMutation.isPending}
+            variant="outline"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Initialize Defaults
+          </Button>
+          <Button 
+            onClick={() => setShowDashboardControls(true)}
+            variant="outline"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Dashboard Edit Controls
+          </Button>
+          <Button 
+            onClick={() => setShowPolicyManagement(true)}
+            variant="outline"
+            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Policy Management
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -712,6 +735,161 @@ export default function PreCacheManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dashboard Edit Controls Modal */}
+      <Dialog open={showDashboardControls} onOpenChange={setShowDashboardControls}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Edit className="w-5 h-5 mr-2 text-blue-600" />
+              Dashboard Edit Controls
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Widget Management</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Edit className="w-4 h-4 mr-2" />
+                    Add New Widget
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Rearrange Layout
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Database className="w-4 h-4 mr-2" />
+                    Configure Data Sources
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Display Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Clock className="w-4 h-4 mr-2" />
+                    Refresh Intervals
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Performance Mode
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Alert Thresholds
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Cache Control</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Button variant="destructive" className="w-full">
+                    Clear All Caches
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    Rebuild Dashboard
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    Export Configuration
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Policy Management Modal */}
+      <Dialog open={showPolicyManagement} onOpenChange={setShowPolicyManagement}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Shield className="w-5 h-5 mr-2 text-purple-600" />
+              Policy Management
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Cache Policies</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Timer className="w-4 h-4 mr-2" />
+                    TTL Management
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Auto-Refresh Rules
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <HardDrive className="w-4 h-4 mr-2" />
+                    Storage Policies
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Security & Access</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Access Controls
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Audit Logs
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start">
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Security Rules
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Performance Policies</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Button variant="outline" className="w-full">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Optimization
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Priority Rules
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Load Balancing
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Health Checks
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
