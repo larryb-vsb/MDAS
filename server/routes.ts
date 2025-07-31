@@ -7406,7 +7406,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               // Generate expected storage key based on upload ID and filename
               console.log(`[MANUAL-ENCODE-DEBUG] createdAt value:`, upload.createdAt, typeof upload.createdAt);
-              const uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+              
+              // Extract date from upload ID (format: uploader_TIMESTAMP_randomid)
+              const timestampMatch = upload.id.match(/uploader_(\d+)_/);
+              let uploadDate;
+              
+              if (timestampMatch) {
+                const timestamp = parseInt(timestampMatch[1]);
+                const dateFromTimestamp = new Date(timestamp);
+                // Ensure we get the correct date in UTC
+                uploadDate = dateFromTimestamp.toISOString().split('T')[0];
+                console.log(`[MANUAL-ENCODE-DEBUG] Timestamp: ${timestamp}, Date object: ${dateFromTimestamp}, Upload date: ${uploadDate}`);
+              } else {
+                // Fallback to createdAt
+                uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+                console.log(`[MANUAL-ENCODE-DEBUG] Using createdAt date: ${uploadDate}`);
+              }
+              
               storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
               console.log(`[MANUAL-ENCODE-DEBUG] Generated storage key for older upload: ${storageKey}`);
               
@@ -7416,10 +7432,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } catch (dateError) {
               console.error(`[MANUAL-ENCODE-DEBUG] Date parsing error:`, dateError);
-              // Fallback to today's date if createdAt is invalid
-              const today = new Date().toISOString().split('T')[0];
-              storageKey = `dev-uploader/${today}/${upload.id}/${upload.filename}`;
-              console.log(`[MANUAL-ENCODE-DEBUG] Using fallback date, generated storage key: ${storageKey}`);
+              // Fallback to a more basic approach - try multiple date patterns
+              const fallbackDates = [
+                new Date(upload.createdAt).toISOString().split('T')[0],
+                new Date().toISOString().split('T')[0],
+                '2025-07-30'  // Known date when many files were uploaded
+              ];
+              
+              for (const testDate of fallbackDates) {
+                storageKey = `dev-uploader/${testDate}/${upload.id}/${upload.filename}`;
+                console.log(`[MANUAL-ENCODE-DEBUG] Trying fallback date: ${testDate}, storage key: ${storageKey}`);
+                
+                try {
+                  // Test if file exists before updating database
+                  await ReplitStorageService.getFileContent(storageKey);
+                  console.log(`[MANUAL-ENCODE-DEBUG] Found file with storage key: ${storageKey}`);
+                  break;
+                } catch (testError) {
+                  console.log(`[MANUAL-ENCODE-DEBUG] File not found with date ${testDate}: ${testError.message}`);
+                  continue;
+                }
+              }
               
               await storage.updateUploaderUpload(uploadId, {
                 storageKey: storageKey
