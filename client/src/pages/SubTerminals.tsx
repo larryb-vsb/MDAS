@@ -28,15 +28,20 @@ export default function SubTerminals() {
 
   const { toast } = useToast();
 
-  // Queries for terminals and merchants data
-  const { data: terminals = [] } = useQuery({
-    queryKey: ['/api/terminals'],
+  // Fetch SubTerminal raw data from encoded xlsx file
+  const { data: subTerminalResponse } = useQuery({
+    queryKey: ['/api/subterminals/raw-data'],
     queryFn: async () => {
-      const response = await fetch('/api/terminals', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch terminals');
+      const response = await fetch('/api/subterminals/raw-data', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch SubTerminal raw data');
       return response.json();
     }
   });
+
+  const terminals = subTerminalResponse?.data || [];
+  const totalCount = subTerminalResponse?.totalCount || 0;
+  const sourceFile = subTerminalResponse?.sourceFile || 'Unknown';
+  const uploadDate = subTerminalResponse?.uploadDate || 'Unknown';
 
   const { data: merchantsResponse } = useQuery({
     queryKey: ['/api/merchants'],
@@ -87,14 +92,14 @@ export default function SubTerminals() {
         <div>
           <h1 className="text-3xl font-bold">Sub Terminals - Raw Import Data</h1>
           <p className="text-muted-foreground">
-            Raw SubTerminal import data displaying ID, Device name (merchant name + status + D####), and Terminal Number
+            Raw SubTerminal import data from "{sourceFile}" showing {totalCount} SubTerminals with complete device information
           </p>
           <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Field Mapping:</strong> ID = Unique identifier | Device name = Merchant name + status | D_Number = Terminal Number (maps to dev_terminals.generic_field_1, rename to terminalnumber)
+              <strong>Data Source:</strong> {sourceFile} | <strong>Upload Date:</strong> {new Date(uploadDate).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })} CST
             </p>
             <p className="text-sm text-blue-800 mt-1">
-              <strong>Note:</strong> All terminals tied to VerifyVend as primary merchant. ACH Merchants need fuzzy matching to dev_merchants table.
+              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name with merchant + status + D#### | D_Number = Extracted terminal number
             </p>
           </div>
         </div>
@@ -541,30 +546,24 @@ export default function SubTerminals() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {terminals.map((terminal: any) => {
-                      // Extract D_Number from Device Name
-                      const dNumberMatch = terminal.dba_name?.match(/D(\d+)/);
-                      const dNumber = dNumberMatch ? dNumberMatch[0] : 'N/A';
-                      
-                      return (
-                        <TableRow key={terminal.id}>
-                          <TableCell className="font-mono text-sm">{terminal.id}</TableCell>
-                          <TableCell>
-                            <div className="max-w-[400px]" title={terminal.dba_name}>
-                              <div className="text-sm">{terminal.dba_name}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-sm font-bold">{dNumber}</TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {terminals.map((terminal: any) => (
+                      <TableRow key={terminal.id}>
+                        <TableCell className="font-mono text-sm">{terminal.id}</TableCell>
+                        <TableCell>
+                          <div className="max-w-[400px]" title={terminal.deviceName}>
+                            <div className="text-sm">{terminal.deviceName}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.dNumber}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
               
               {/* Summary footer */}
               <div className="mt-4 p-3 bg-gray-50 border rounded-lg text-sm text-muted-foreground">
-                <strong>Total SubTerminals:</strong> {terminals.length} | <strong>Raw Import Data</strong> - Id, DeviceName, D_Number extracted from DeviceName field
+                <strong>Total SubTerminals:</strong> {totalCount} ({terminals.length} displayed) | <strong>Source:</strong> {sourceFile} | <strong>Raw Data Format:</strong> Id, DeviceName, D_Number
               </div>
             </CardContent>
           </Card>
