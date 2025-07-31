@@ -239,11 +239,20 @@ class MMSWatcher {
         // Single-step progression based on current phase
         if (upload.currentPhase === 'uploaded') {
           // Manual identify: uploaded → identified
+          // Parse existing processing notes safely
+          let existingNotes = {};
+          try {
+            existingNotes = JSON.parse(upload.processingNotes || '{}');
+          } catch (e) {
+            // If existing notes aren't valid JSON, preserve as legacy_notes
+            existingNotes = { legacy_notes: upload.processingNotes };
+          }
+          
           await this.storage.updateUploaderUpload(uploadId, {
             currentPhase: 'identified',
             identifiedAt: new Date().toISOString(),
             processingNotes: JSON.stringify({
-              ...JSON.parse(upload.processingNotes || '{}'),
+              ...existingNotes,
               manualIdentificationAt: new Date().toISOString(),
               identificationMethod: 'manual_watcher_triggered'
             })
@@ -274,11 +283,20 @@ class MMSWatcher {
     try {
       console.log(`[MMS-WATCHER] [MANUAL-45] Starting encoding for ${upload.filename}`);
       
+      // Parse existing processing notes safely
+      let existingNotes = {};
+      try {
+        existingNotes = JSON.parse(upload.processingNotes || '{}');
+      } catch (e) {
+        // If existing notes aren't valid JSON, preserve as legacy_notes
+        existingNotes = { legacy_notes: upload.processingNotes };
+      }
+      
       // Update to encoding phase
       await this.storage.updateUploaderUpload(upload.id, {
         currentPhase: 'encoding',
         processingNotes: JSON.stringify({
-          ...JSON.parse(upload.processingNotes || '{}'),
+          ...existingNotes,
           manualEncodingStartedAt: new Date().toISOString(),
           encodingMethod: 'manual_watcher_triggered'
         })
@@ -296,11 +314,19 @@ class MMSWatcher {
       const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.js');
       const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);
 
+      // Re-parse existing processing notes safely (they may have been updated during encoding)
+      try {
+        existingNotes = JSON.parse(upload.processingNotes || '{}');
+      } catch (e) {
+        // If existing notes aren't valid JSON, preserve as legacy_notes
+        existingNotes = { legacy_notes: upload.processingNotes };
+      }
+      
       // Update to encoded phase
       await this.storage.updateUploaderUpload(upload.id, {
         currentPhase: 'encoded',
         processingNotes: JSON.stringify({
-          ...JSON.parse(upload.processingNotes || '{}'),
+          ...existingNotes,
           manualEncodingCompletedAt: new Date().toISOString(),
           encodingResult: encodingResult,
           totalRecordsEncoded: encodingResult.totalRecords || 0
@@ -312,11 +338,19 @@ class MMSWatcher {
     } catch (error) {
       console.error(`[MMS-WATCHER] [MANUAL-45] Encoding failed for ${upload.filename}:`, error);
       
+      // Re-parse existing processing notes safely for error handling
+      try {
+        existingNotes = JSON.parse(upload.processingNotes || '{}');
+      } catch (e) {
+        // If existing notes aren't valid JSON, preserve as legacy_notes
+        existingNotes = { legacy_notes: upload.processingNotes };
+      }
+      
       // Update to failed state
       await this.storage.updateUploaderUpload(upload.id, {
         currentPhase: 'failed',
         processingNotes: JSON.stringify({
-          ...JSON.parse(upload.processingNotes || '{}'),
+          ...existingNotes,
           manualEncodingFailedAt: new Date().toISOString(),
           encodingError: error.message
         })
