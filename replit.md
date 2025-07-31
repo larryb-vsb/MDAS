@@ -34,6 +34,7 @@ MMS employs a modern client-server architecture with clear separation between fr
 - **Frontend**: React, Wouter for routing, React Query for server state, React Hook Form with Zod for forms.
 - **Backend**: Express.js, Drizzle ORM, Multer for file uploads, Passport.js for authentication.
 - **Database Schema**: Includes tables for Merchants, Transactions, Users, Uploaded Files, Backup Management, Audit Logging, and Schema Versioning.
+- **Tab-Specific Pre-Cache System**: Each TDDF JSON page tab (Statistics, Activity Heat Map, Batch Relationships, Other Records) now has dedicated pre-cache tables optimized for their unique data patterns and query requirements, eliminating expensive real-time aggregations and JOINs.
 
 ## External Dependencies
 

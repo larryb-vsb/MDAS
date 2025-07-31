@@ -12101,12 +12101,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get TDDF JSON batch relationships (BH records with their related DT records)
   app.get("/api/tddf-json/batch-relationships", isAuthenticated, async (req, res) => {
+    const startTime = Date.now();
+    
     try {
       const { page = 1, limit = 10 } = req.query;
       const offset = (Number(page) - 1) * Number(limit);
       
       console.log(`[TDDF-JSON-BATCH] Fetching batch relationships (page ${page}, limit ${limit})`);
       
+      // Check if this is a simple request that can use pre-cache
+      const canUsePreCache = (Number(page) <= 5 && Number(limit) <= 20);
+      
+      if (canUsePreCache) {
+        console.log('[TDDF-BATCH-CACHE] Attempting to use pre-cache for batch relationships');
+        
+        try {
+          const batchCacheTableName = getTableName('tddf_batch_relationships_cache');
+          const cacheResult = await pool.query(`
+            SELECT COUNT(*) as total FROM ${batchCacheTableName}
+          `);
+          
+          const totalCachedBatches = parseInt(cacheResult.rows[0]?.total || '0');
+          
+          if (totalCachedBatches > 0) {
+            console.log(`[TDDF-BATCH-CACHE] ✅ Using cached batch relationships data (${totalCachedBatches} batches cached)`);
+            
+            // Get paginated data from cache
+            const dataResult = await pool.query(`
+              SELECT 
+                batch_id,
+                upload_id,
+                filename,
+                batch_line_number,
+                batch_fields,
+                batch_created_at,
+                related_transactions,
+                dt_count,
+                dt_total_amount,
+                bh_total_amount,
+                amount_match
+              FROM ${batchCacheTableName}
+              ORDER BY filename, batch_line_number
+              LIMIT $1 OFFSET $2
+            `, [Number(limit), offset]);
+
+            const batches = dataResult.rows;
+            const totalPages = Math.ceil(totalCachedBatches / Number(limit));
+            const queryTime = Date.now() - startTime;
+            
+            console.log(`[TDDF-BATCH-CACHE] ✅ Pre-cache response completed in ${queryTime}ms`);
+
+            return res.json({
+              batches,
+              total: totalCachedBatches,
+              totalPages,
+              currentPage: Number(page),
+              fromPreCache: true,
+              queryTime
+            });
+          }
+        } catch (cacheError) {
+          console.log(`[TDDF-BATCH-CACHE] Cache miss or error, falling back to real-time aggregation:`, cacheError.message);
+        }
+      }
+
+      console.log('[TDDF-JSON-BATCH] Using real-time aggregation (complex query or cache unavailable)');
       // @ENVIRONMENT-CRITICAL - TDDF JSONB batch relationships with environment-aware table naming
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const tddfJsonbTableName = getTableName('tddf_jsonb');
@@ -12191,12 +12250,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalPages = Math.ceil(total / Number(limit));
       
       console.log(`[TDDF-JSON-BATCH] Found ${batches.length} batch relationships`);
+      const queryTime = Date.now() - startTime;
       
       res.json({
         batches,
         total,
         totalPages,
-        currentPage: Number(page)
+        currentPage: Number(page),
+        fromPreCache: false,
+        queryTime
       });
       
     } catch (error) {
