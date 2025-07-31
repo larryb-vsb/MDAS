@@ -12870,6 +12870,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Find Duplicate Objects by Filename
+  app.get("/api/storage/master-keys/duplicates", isAuthenticated, async (req, res) => {
+    try {
+      const { threshold = 2 } = req.query;
+      const masterKeysTable = getTableName('master_object_keys');
+      
+      console.log('[STORAGE-DUPLICATES] Scanning for duplicate filenames...');
+      
+      // Find filenames that appear multiple times
+      const duplicatesQuery = `
+        WITH filename_counts AS (
+          SELECT 
+            original_filename,
+            COUNT(*) as occurrence_count,
+            ARRAY_AGG(
+              JSON_BUILD_OBJECT(
+                'id', id,
+                'object_key', object_key,
+                'file_size', file_size,
+                'line_count', line_count,
+                'upload_id', upload_id,
+                'current_phase', current_phase,
+                'processing_status', processing_status,
+                'created_at', created_at,
+                'marked_for_purge', marked_for_purge
+              ) ORDER BY created_at DESC
+            ) as objects
+          FROM ${masterKeysTable}
+          WHERE marked_for_purge = false
+          GROUP BY original_filename
+          HAVING COUNT(*) >= $1
+        )
+        SELECT 
+          original_filename,
+          occurrence_count,
+          objects,
+          -- Calculate potential storage savings
+          (SELECT SUM((obj->>'file_size')::bigint) - MAX((obj->>'file_size')::bigint) 
+           FROM unnest(objects) as obj) as potential_savings_bytes
+        FROM filename_counts
+        ORDER BY occurrence_count DESC, potential_savings_bytes DESC
+      `;
+      
+      const result = await pool.query(duplicatesQuery, [parseInt(threshold as string)]);
+      
+      const duplicates = result.rows.map(row => ({
+        filename: row.original_filename,
+        occurrenceCount: parseInt(row.occurrence_count),
+        potentialSavingsBytes: parseInt(row.potential_savings_bytes) || 0,
+        potentialSavingsMB: (((parseInt(row.potential_savings_bytes) || 0) / 1024 / 1024)).toFixed(2),
+        objects: row.objects.map((obj: any) => ({
+          id: obj.id,
+          objectKey: obj.object_key,
+          fileSize: parseInt(obj.file_size),
+          fileSizeMB: (parseInt(obj.file_size) / 1024 / 1024).toFixed(2),
+          lineCount: parseInt(obj.line_count) || 0,
+          uploadId: obj.upload_id,
+          currentPhase: obj.current_phase,
+          processingStatus: obj.processing_status,
+          createdAt: obj.created_at,
+          markedForPurge: obj.marked_for_purge,
+          isNewest: false // Will be set below
+        }))
+      }));
+      
+      // Mark the newest object in each duplicate group
+      duplicates.forEach(duplicate => {
+        if (duplicate.objects.length > 0) {
+          duplicate.objects[0].isNewest = true; // First object is newest due to ORDER BY created_at DESC
+        }
+      });
+      
+      // Calculate summary statistics
+      const totalDuplicateGroups = duplicates.length;
+      const totalDuplicateObjects = duplicates.reduce((sum, dup) => sum + dup.occurrenceCount, 0);
+      const totalDuplicatesRemovable = duplicates.reduce((sum, dup) => sum + (dup.occurrenceCount - 1), 0);
+      const totalSavingsBytes = duplicates.reduce((sum, dup) => sum + dup.potentialSavingsBytes, 0);
+      
+      res.json({
+        success: true,
+        summary: {
+          totalDuplicateGroups,
+          totalDuplicateObjects,
+          totalDuplicatesRemovable,
+          totalSavingsBytes,
+          totalSavingsMB: (totalSavingsBytes / 1024 / 1024).toFixed(2),
+          totalSavingsGB: (totalSavingsBytes / 1024 / 1024 / 1024).toFixed(2)
+        },
+        duplicates,
+        scanTimestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[STORAGE-DUPLICATES] Scan failed:', error);
+      res.status(500).json({
+        error: 'Failed to scan for duplicate objects',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Remove Duplicate Objects (keep newest)
+  app.post("/api/storage/master-keys/remove-duplicates", isAuthenticated, async (req, res) => {
+    try {
+      const { 
+        selectedFilenames = [], 
+        removeStrategy = 'keep_newest', 
+        dryRun = true 
+      } = req.body;
+      
+      if (!Array.isArray(selectedFilenames) || selectedFilenames.length === 0) {
+        return res.status(400).json({
+          error: 'No filenames selected for duplicate removal'
+        });
+      }
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      const purgeQueueTable = getTableName('object_purge_queue');
+      
+      console.log(`[STORAGE-DUPLICATES] ${dryRun ? 'Dry run' : 'Live'} duplicate removal for ${selectedFilenames.length} filenames...`);
+      
+      let totalMarkedForRemoval = 0;
+      const removalDetails = [];
+      
+      for (const filename of selectedFilenames) {
+        // Get all objects with this filename
+        const objectsQuery = `
+          SELECT id, object_key, original_filename, file_size, created_at, upload_id
+          FROM ${masterKeysTable}
+          WHERE original_filename = $1 
+            AND marked_for_purge = false
+          ORDER BY created_at DESC
+        `;
+        
+        const objectsResult = await pool.query(objectsQuery, [filename]);
+        const objects = objectsResult.rows;
+        
+        if (objects.length <= 1) {
+          console.log(`[STORAGE-DUPLICATES] Skipping ${filename} - only ${objects.length} copies found`);
+          continue;
+        }
+        
+        // Determine which objects to remove based on strategy
+        let objectsToRemove = [];
+        
+        if (removeStrategy === 'keep_newest') {
+          objectsToRemove = objects.slice(1); // Keep first (newest), remove rest
+        } else if (removeStrategy === 'keep_oldest') {
+          objectsToRemove = objects.slice(0, -1); // Keep last (oldest), remove rest
+        } else if (removeStrategy === 'keep_largest') {
+          const sortedBySize = [...objects].sort((a, b) => parseInt(b.file_size) - parseInt(a.file_size));
+          const largest = sortedBySize[0];
+          objectsToRemove = objects.filter(obj => obj.id !== largest.id);
+        }
+        
+        if (!dryRun) {
+          // Mark objects for purge
+          for (const obj of objectsToRemove) {
+            await pool.query(`
+              UPDATE ${masterKeysTable}
+              SET 
+                marked_for_purge = true,
+                purge_after_date = NOW(),
+                purge_reason = 'Duplicate removal - ${removeStrategy}'
+              WHERE id = $1
+            `, [obj.id]);
+            
+            // Add to purge queue
+            await pool.query(`
+              INSERT INTO ${purgeQueueTable} 
+              (object_key, master_key_id, purge_type, purge_reason, created_at)
+              VALUES ($1, $2, 'duplicate', 'Filename duplicate - ${removeStrategy}', NOW())
+              ON CONFLICT (object_key) DO NOTHING
+            `, [obj.object_key, obj.id]);
+          }
+        }
+        
+        totalMarkedForRemoval += objectsToRemove.length;
+        
+        removalDetails.push({
+          filename,
+          totalCopies: objects.length,
+          removedCopies: objectsToRemove.length,
+          keptCopy: objects.find(obj => !objectsToRemove.some(rem => rem.id === obj.id))?.object_key,
+          removedObjects: objectsToRemove.map(obj => ({
+            id: obj.id,
+            objectKey: obj.object_key,
+            fileSize: parseInt(obj.file_size),
+            createdAt: obj.created_at
+          }))
+        });
+      }
+      
+      res.json({
+        success: true,
+        dryRun,
+        summary: {
+          processedFilenames: selectedFilenames.length,
+          totalMarkedForRemoval,
+          strategy: removeStrategy
+        },
+        details: removalDetails,
+        message: dryRun 
+          ? `Dry run complete: ${totalMarkedForRemoval} duplicates would be removed`
+          : `${totalMarkedForRemoval} duplicate objects marked for removal`,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[STORAGE-DUPLICATES] Removal failed:', error);
+      res.status(500).json({
+        error: 'Failed to remove duplicate objects',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Duplicate Finder Status API
   app.get("/api/duplicates/status", async (req, res) => {
     try {

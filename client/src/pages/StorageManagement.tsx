@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Database, HardDrive, Trash2, Search, RefreshCw, FileX, CheckCircle, Clock, Activity } from 'lucide-react';
+import { AlertTriangle, Database, HardDrive, Trash2, Search, RefreshCw, FileX, CheckCircle, Clock, Activity, Copy, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +54,37 @@ interface MasterObjectKey {
   last_accessed_at?: string;
   last_modified_at?: string;
   purge_after_date?: string;
+}
+
+interface DuplicateObject {
+  id: string;
+  objectKey: string;
+  fileSize: number;
+  fileSizeMB: string;
+  lineCount: number;
+  uploadId?: string;
+  currentPhase: string;
+  processingStatus: string;
+  createdAt: string;
+  markedForPurge: boolean;
+  isNewest: boolean;
+}
+
+interface DuplicateGroup {
+  filename: string;
+  occurrenceCount: number;
+  potentialSavingsBytes: number;
+  potentialSavingsMB: string;
+  objects: DuplicateObject[];
+}
+
+interface DuplicatesSummary {
+  totalDuplicateGroups: number;
+  totalDuplicateObjects: number;
+  totalDuplicatesRemovable: number;
+  totalSavingsBytes: number;
+  totalSavingsMB: string;
+  totalSavingsGB: string;
 }
 
 interface MasterObjectList {
@@ -207,9 +239,10 @@ export default function StorageManagement() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="objects">Objects</TabsTrigger>
+          <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
           <TabsTrigger value="purge">Purge Queue</TabsTrigger>
           <TabsTrigger value="operations">Operations</TabsTrigger>
         </TabsList>
