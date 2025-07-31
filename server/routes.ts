@@ -12919,7 +12919,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const countQuery = `SELECT COUNT(*) as total FROM ${masterKeysTable} ${whereClause}`;
       const listQuery = `
         SELECT 
-          id, object_key, original_filename, file_type, file_size, line_count,
+          id, object_key, original_filename, file_type, 
+          ROUND(file_size / 1024.0 / 1024.0, 2) || ' MB' as fileSizeMB,
+          file_size, line_count,
           upload_id, current_phase, processing_status, marked_for_purge,
           created_at, last_accessed_at, last_modified_at, purge_after_date
         FROM ${masterKeysTable} 
