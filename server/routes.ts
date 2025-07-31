@@ -5863,25 +5863,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tddf/activity-heatmap", isAuthenticated, async (req, res) => {
     try {
       const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const terminalId = req.query.terminal_id as string;
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for year: ${year}`);
+      console.log(`[TDDF ACTIVITY HEATMAP] Getting DT activity data from JSONB for year: ${year}${terminalId ? `, terminal: ${terminalId}` : ''}`);
       
-      // Query JSONB table for DT records only with extracted transaction date
-      const activityData = await pool.query(`
+      // Build query with optional terminal filter
+      let query = `
         SELECT 
-          DATE((extracted_fields->>'transactionDate')::date) as date,
-          COUNT(*) as "dtCount"
+          DATE((extracted_fields->>'transactionDate')::date) as transaction_date,
+          COUNT(*) as transaction_count
         FROM ${tddfJsonbTableName}
         WHERE record_type = 'DT'
           AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
-          AND extracted_fields->>'transactionDate' IS NOT NULL
-        GROUP BY DATE((extracted_fields->>'transactionDate')::date)
-        ORDER BY DATE((extracted_fields->>'transactionDate')::date)
-      `, [year]);
+          AND extracted_fields->>'transactionDate' IS NOT NULL`;
       
-      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for year ${year} from JSONB`);
-      res.json(activityData.rows);
+      const params = [year];
+      
+      if (terminalId) {
+        query += ` AND extracted_fields->>'terminalId' = $2`;
+        params.push(terminalId);
+      }
+      
+      query += `
+        GROUP BY DATE((extracted_fields->>'transactionDate')::date)
+        ORDER BY DATE((extracted_fields->>'transactionDate')::date)`;
+      
+      const activityData = await pool.query(query, params);
+      
+      console.log(`[TDDF ACTIVITY HEATMAP] Found ${activityData.rows.length} days with DT activity for year ${year}${terminalId ? ` (terminal: ${terminalId})` : ''} from JSONB`);
+      
+      // Format response to match expected interface
+      const formattedData = activityData.rows.map((row: any) => ({
+        transaction_date: row.transaction_date,
+        transaction_count: parseInt(row.transaction_count),
+        aggregation_level: 'daily'
+      }));
+      
+      res.json(formattedData);
     } catch (error) {
       console.error('Error fetching TDDF activity heatmap data:', error);
       res.status(500).json({ 

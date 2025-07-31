@@ -13,7 +13,7 @@ import { ArrowLeft, Activity, CreditCard, Calendar, TrendingUp, Wifi, Shield, Re
 import { queryClient } from "@/lib/queryClient";
 import { Terminal, Transaction } from "@shared/schema";
 import { formatTddfDate, formatTableDate } from "@/lib/date-utils";
-import SimpleActivityHeatMap from "@/components/shared/SimpleActivityHeatMap";
+import TerminalActivityHeatMap from "@/components/terminals/TerminalActivityHeatMap";
 // import TerminalTransactionsViewer from "@/components/terminals/TerminalTransactionsViewer";
 
 export default function TerminalViewPage() {
@@ -472,17 +472,11 @@ export default function TerminalViewPage() {
           </Card>
         </div>
 
-        {/* Terminal Activity Heat Map - Enhanced Component */}
-        <SimpleActivityHeatMap 
-          data={(tddfTransactions || []).map((t: any) => ({ 
-            date: t.transaction_date || t.transactionDate, 
-            count: 1 
-          }))}
-          title="Terminal Activity Heat Map"
-          description="Daily transaction volume over time - darker squares indicate more transactions"
+        {/* Terminal Activity Heat Map - Using Terminal-Specific Component */}
+        <TerminalActivityHeatMap 
+          terminalId={terminalIdFromVar?.toString() || ''}
           onDateSelect={(date: string) => setSelectedDate(date)}
           selectedDate={selectedDate}
-          isLoading={tddfLoading}
         />
 
         {/* Main Content Tabs */}
