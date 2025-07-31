@@ -50,12 +50,14 @@ export function SubMerchantTerminals({ merchantId, merchantName }: SubMerchantTe
   const queryClient = useQueryClient();
 
   // Fetch sub merchant terminals for this merchant
-  const { data: subMerchantTerminals = [], isLoading } = useQuery({
+  const { data: subMerchantTerminals = [], isLoading, error } = useQuery({
     queryKey: ['sub-merchant-terminals', 'merchant', merchantId],
     queryFn: async () => {
       const response = await fetch(`/api/sub-merchant-terminals/merchant/${merchantId}`);
       if (!response.ok) throw new Error('Failed to fetch sub merchant terminals');
-      return response.json();
+      const data = await response.json();
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     }
   });
 
@@ -137,12 +139,19 @@ export function SubMerchantTerminals({ merchantId, merchantName }: SubMerchantTe
     }),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['sub-merchant-terminals'] });
+      
+      // Handle different response structures safely
+      const matched = result?.matched || result?.matchedCount || 0;
+      const suggestions = result?.suggestions || result?.suggestedMatches || [];
+      const suggestionsCount = Array.isArray(suggestions) ? suggestions.length : 0;
+      
       toast({ 
         title: 'Fuzzy Matching Complete', 
-        description: `Found ${result.matched} automatic matches and ${result.suggestions.length} suggestions`
+        description: `Found ${matched} automatic matches and ${suggestionsCount} suggestions`
       });
     },
     onError: (error: any) => {
+      console.error('Fuzzy matching error:', error);
       toast({ 
         title: 'Error', 
         description: error.message || 'Failed to perform fuzzy matching',
@@ -205,6 +214,16 @@ export function SubMerchantTerminals({ merchantId, merchantName }: SubMerchantTe
 
   if (isLoading) {
     return <div className="p-4">Loading terminal relationships...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive opacity-50" />
+        <p className="text-destructive">Error loading terminal relationships</p>
+        <p className="text-sm text-muted-foreground">{error.message}</p>
+      </div>
+    );
   }
 
   return (
