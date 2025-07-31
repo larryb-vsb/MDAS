@@ -190,19 +190,27 @@ export default function HomeDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch pre-cached dashboard metrics
+  // Fetch pre-cached dashboard metrics with retry logic
   const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/cached-metrics'],
     refetchOnWindowFocus: false,
     staleTime: 30 * 60 * 1000, // 30 minutes - data refreshed only when needed
     gcTime: 60 * 60 * 1000, // 1 hour
+    retry: (failureCount, error: any) => {
+      // Don't retry on authentication errors
+      if (error?.status === 401) return false;
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch system information for environment badge
+  // Fetch system information for environment badge - always retry this
   const { data: systemInfo } = useQuery<SystemInfo>({
     queryKey: ['/api/system/info'],
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 5,
+    retryDelay: 1000,
   });
 
   // Manual refresh mutation
@@ -249,6 +257,16 @@ export default function HomeDashboard() {
 
   const metrics = dashboardMetrics || fallbackMetrics;
 
+  // Debug logging to console to see what data we're getting
+  console.log('Dashboard Debug:', { 
+    isLoading, 
+    error: error?.message, 
+    hasDashboardMetrics: !!dashboardMetrics,
+    hasSystemInfo: !!systemInfo,
+    systemEnv: systemInfo?.environment?.name,
+    metricsKeys: dashboardMetrics ? Object.keys(dashboardMetrics) : null
+  });
+
   return (
     <MainLayout>
       <div className="space-y-6 p-6">
@@ -258,20 +276,20 @@ export default function HomeDashboard() {
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold tracking-tight">Merchant Management</h1>
               {/* Environmental Badge - Always show with fallback */}
-              <Badge 
-                variant="outline" 
-                className={
-                  systemInfo?.environment?.name === 'production' 
-                    ? "bg-orange-100 text-orange-800 border-orange-300 font-semibold px-3 py-1 shadow-sm"
-                    : "bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
-                }
-              >
-                {systemInfo?.environment?.name === 'production' ? '🟠 Production' : '🔵 Development'}
-              </Badge>
-              {/* Loading badge if system info not loaded yet */}
-              {!systemInfo && (
+              {systemInfo?.environment?.name ? (
+                <Badge 
+                  variant="outline" 
+                  className={
+                    systemInfo.environment.name === 'production' 
+                      ? "bg-orange-100 text-orange-800 border-orange-300 font-semibold px-3 py-1 shadow-sm"
+                      : "bg-blue-100 text-blue-800 border-blue-300 font-semibold px-3 py-1 shadow-sm"
+                  }
+                >
+                  {systemInfo.environment.name === 'production' ? '🟠 Production' : '🔵 Development'}
+                </Badge>
+              ) : (
                 <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 animate-pulse px-3 py-1">
-                  ⚪ Loading...
+                  ⚪ Loading Environment...
                 </Badge>
               )}
             </div>
