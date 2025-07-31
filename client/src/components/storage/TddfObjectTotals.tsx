@@ -1,9 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Database, FileText, Clock, Activity, BarChart3, HardDrive } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Database, FileText, Clock, Activity, BarChart3, HardDrive, Search, RefreshCw } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TddfObjectTotalsData {
   success: boolean;
@@ -41,8 +45,13 @@ interface TddfObjectTotalsData {
 }
 
 export default function TddfObjectTotals() {
+  const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
+  const [cooldownTimeLeft, setCooldownTimeLeft] = useState(0);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   // Query for TDDF Object Totals data
-  const { data: objectTotals, isLoading, error } = useQuery({
+  const { data: objectTotals, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/storage/tddf-object-totals'],
     queryFn: async (): Promise<TddfObjectTotalsData> => {
       const response = await fetch('/api/storage/tddf-object-totals');
@@ -54,6 +63,54 @@ export default function TddfObjectTotals() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Start scan mutation
+  const startScanMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/storage/start-scan', {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      setLastScanTime(new Date());
+      setCooldownTimeLeft(8 * 60); // 8 minutes in seconds
+      toast({
+        title: "Scan Started",
+        description: "TDDF object totals scan has been initiated. Results will be updated when complete.",
+      });
+      // Refetch data after a short delay
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Scan Failed",
+        description: error.message || "Failed to start TDDF object totals scan",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Cooldown timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (cooldownTimeLeft > 0) {
+      interval = setInterval(() => {
+        setCooldownTimeLeft((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [cooldownTimeLeft]);
+
+  // Format cooldown time
+  const formatCooldown = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   if (isLoading) {
     return (
@@ -145,9 +202,34 @@ export default function TddfObjectTotals() {
             <HardDrive className="h-5 w-5 text-purple-600" />
             <CardTitle>TDDF Object Totals</CardTitle>
           </div>
-          <Badge className={getScanStatusColor(data.scanInfo.scanStatus)}>
-            {data.scanInfo.scanStatus}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge className={getScanStatusColor(data.scanInfo.scanStatus)}>
+              {data.scanInfo.scanStatus}
+            </Badge>
+            <Button
+              onClick={() => startScanMutation.mutate()}
+              disabled={startScanMutation.isPending || cooldownTimeLeft > 0}
+              size="sm"
+              variant="outline"
+            >
+              {startScanMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Starting...
+                </>
+              ) : cooldownTimeLeft > 0 ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2" />
+                  {formatCooldown(cooldownTimeLeft)}
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-2" />
+                  Start Scan
+                </>
+              )}
+            </Button>
+          </div>
         </div>
         <CardDescription>
           Comprehensive storage analytics with record type breakdown
@@ -155,18 +237,27 @@ export default function TddfObjectTotals() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Scan Information */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex items-center space-x-2">
             <Clock className="h-4 w-4 text-blue-600" />
             <div className="text-sm">
-              <div className="font-medium">Last Scan</div>
+              <div className="font-medium">Scan Started</div>
               <div className="text-gray-600">
-                {formatDistanceToNow(new Date(data.scanInfo.lastScanDate), { addSuffix: true })}
+                {format(new Date(data.scanInfo.lastScanDate), 'MMM d, yyyy h:mm a')}
               </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Activity className="h-4 w-4 text-green-600" />
+            <div className="text-sm">
+              <div className="font-medium">Scan Completed</div>
+              <div className="text-gray-600">
+                {format(new Date(data.scanInfo.scanCompletionTime), 'MMM d, yyyy h:mm a')}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Activity className="h-4 w-4 text-orange-600" />
             <div className="text-sm">
               <div className="font-medium">Scan Duration</div>
               <div className="text-gray-600">{data.scanInfo.scanDurationSeconds}s</div>
@@ -177,7 +268,7 @@ export default function TddfObjectTotals() {
             <div className="text-sm">
               <div className="font-medium">Cache Status</div>
               <div className="text-gray-600">
-                {data.cache?.isExpired ? 'Expired' : 'Valid'}
+                {data.scanInfo?.isExpired ? 'Expired' : 'Valid'}
               </div>
             </div>
           </div>
@@ -276,10 +367,10 @@ export default function TddfObjectTotals() {
         </div>
 
         {/* Cache Information */}
-        {objectTotals.cache && (
+        {data.scanInfo?.cacheExpiresAt && (
           <div className="pt-4 border-t">
             <div className="text-xs text-gray-500">
-              Cache expires: {formatDistanceToNow(new Date(objectTotals.cache.expiresAt), { addSuffix: true })}
+              Cache expires: {formatDistanceToNow(new Date(data.scanInfo.cacheExpiresAt), { addSuffix: true })}
             </div>
           </div>
         )}
