@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import HomeDashboardEnhanced from "@/pages/HomeDashboardEnhanced";
+import Dashboard3 from "@/pages/Dashboard3";
 import Settings from "@/pages/Settings";
 import Analytics from "@/pages/Analytics";
 import Exports from "@/pages/Exports";
@@ -38,6 +39,7 @@ function Router() {
       <ProtectedRoute path="/" component={HomeDashboardEnhanced} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/dashboard2" component={HomeDashboardEnhanced} />
+      <ProtectedRoute path="/dashboard3" component={Dashboard3} />
       <ProtectedRoute path="/merchant-management" component={Dashboard} />
       <ProtectedRoute path="/merchants" component={Merchants} />
       <ProtectedRoute path="/merchants/new" component={NewMerchant} />
