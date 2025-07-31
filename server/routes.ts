@@ -24,6 +24,8 @@ import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migratio
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
 import { getTableName } from "./table-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
+import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
+import { ReplitStorageService } from "./replit-storage-service";
 
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
@@ -7360,7 +7362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual encoding endpoint - adds identified files to manual encoding queue
+  // Manual encoding endpoint - directly encodes identified files (same as individual encode)
   app.post("/api/uploader/manual-encode", isAuthenticated, async (req, res) => {
     console.log("[MANUAL-ENCODE-DEBUG] API endpoint reached with body:", req.body);
     try {
@@ -7373,18 +7375,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`[MANUAL-ENCODE] Adding ${uploadIds.length} files to manual encoding queue`);
-      
-      const mmsWatcher = req.app.locals.mmsWatcher;
-      if (!mmsWatcher) {
-        return res.status(500).json({
-          success: false,
-          error: 'MMS Watcher service not available'
-        });
-      }
+      console.log(`[MANUAL-ENCODE] Processing ${uploadIds.length} files directly`);
 
-      // Validate files are in correct phase before adding to queue
-      const validFiles = [];
+      // Process each file directly (same logic as individual encode button)
+      const results = [];
       const errors = [];
       
       for (const uploadId of uploadIds) {
@@ -7402,36 +7396,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             continue;
           }
+
+          console.log(`[MANUAL-ENCODE] Processing file: ${upload.filename}`);
           
-          validFiles.push({ uploadId, filename: upload.filename });
+          // Transition to encoding phase
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'encoding',
+            lastUpdated: new Date()
+          });
+
+          // Get file content from storage
+          const fileContent = await ReplitStorageService.getFileContent(upload.storageKey);
+          
+          // Perform encoding
+          const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);
+          
+          // Transition to encoded phase
+          await storage.updateUploaderUpload(uploadId, {
+            currentPhase: 'encoded',
+            lastUpdated: new Date()
+          });
+
+          results.push({
+            uploadId,
+            filename: upload.filename,
+            status: 'completed',
+            recordsCreated: encodingResult.totalRecords
+          });
+          
+          console.log(`[MANUAL-ENCODE] Successfully encoded ${upload.filename}: ${encodingResult.totalRecords} records`);
           
         } catch (error) {
-          console.error(`[MANUAL-ENCODE] Error validating ${uploadId}:`, error);
+          console.error(`[MANUAL-ENCODE] Error processing ${uploadId}:`, error);
+          
+          // Set to error phase
+          try {
+            await storage.updateUploaderUpload(uploadId, {
+              currentPhase: 'error',
+              lastUpdated: new Date()
+            });
+          } catch (updateError) {
+            console.error(`[MANUAL-ENCODE] Failed to update error status for ${uploadId}:`, updateError);
+          }
+          
           errors.push({ 
             uploadId, 
             error: error instanceof Error ? error.message : "Unknown error" 
           });
         }
       }
-
-      // Add valid files to manual processing queue
-      if (validFiles.length > 0) {
-        const validUploadIds = validFiles.map(f => f.uploadId);
-        mmsWatcher.addToManualQueue(validUploadIds);
-      }
       
-      console.log(`[MANUAL-ENCODE] Added ${validFiles.length} files to manual encoding queue, ${errors.length} validation errors`);
+      console.log(`[MANUAL-ENCODE] Completed processing: ${results.length} successful, ${errors.length} errors`);
       
       res.json({
         success: true,
         processedCount: uploadIds.length,
-        successCount: validFiles.length,
+        successCount: results.length,
         errorCount: errors.length,
-        validFiles,
+        results,
         errors,
-        queueStatus: mmsWatcher.getManualQueueStatus(),
-        message: `Added ${validFiles.length} file(s) to manual encoding queue, ${errors.length} errors`,
-        note: 'Files will be processed by MMS Watcher within 15 seconds'
+        message: `Successfully processed ${results.length} file(s), ${errors.length} errors`
       });
       
     } catch (error) {
