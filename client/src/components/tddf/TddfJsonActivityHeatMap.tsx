@@ -112,9 +112,10 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 interface TddfJsonActivityHeatMapProps {
   onDateSelect?: (date: string) => void;
   selectedDate?: string | null;
+  enableDebugLogging?: boolean;
 }
 
-const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate }) => {
+const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate, enableDebugLogging = false }) => {
   const [currentYear, setCurrentYear] = useState(2024); // Start with 2024 where most data exists (134,870 transactions)
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -125,6 +126,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const selectedDates = selectedDate ? [selectedDate] : internalSelectedDates;
   
   const handleDateSelect = (date: string) => {
+    if (enableDebugLogging) {
+      console.log('[TDDF-JSON-HEATMAP] Date selected:', date);
+      console.log('[TDDF-JSON-HEATMAP] onDateSelect callback:', !!onDateSelect);
+    }
+    
     if (onDateSelect) {
       onDateSelect(date);
     } else {
@@ -191,7 +197,13 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 
-  // Debug logging removed for production
+  // Conditional debug logging based on enableDebugLogging flag
+  if (enableDebugLogging) {
+    console.log('[TDDF-JSON-HEATMAP] Activity response:', activityResponse);
+    console.log('[TDDF-JSON-HEATMAP] Current year:', currentYear);
+    console.log('[TDDF-JSON-HEATMAP] Loading:', isLoading);
+    console.log('[TDDF-JSON-HEATMAP] Error:', error);
+  }
 
   // Create a map for quick lookup of activity data by date
   const activityMap = new Map<string, ActivityData>();

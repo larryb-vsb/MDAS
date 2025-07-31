@@ -541,7 +541,13 @@ export default function TddfJsonPage() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
-  // Debug logging removed for production
+  // Conditional debug logging for test pages only
+  const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test');
+  if (isTestPage) {
+    console.log('[TDDF-JSON-PAGE] Stats data:', stats);
+    console.log('[TDDF-JSON-PAGE] Stats loading:', statsLoading);
+    console.log('[TDDF-JSON-PAGE] Stats error:', statsError);
+  }
 
   // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
@@ -624,6 +630,14 @@ export default function TddfJsonPage() {
   };
 
   const handleDateSelect = (date: string) => {
+    // Debug logging only when enableDebugLogging is available from query params or test context
+    const isTestPage = window.location.search.includes('debug=true') || window.location.pathname.includes('test');
+    if (isTestPage) {
+      console.log('[TDDF-JSON-PAGE] Date selected for filtering:', date);
+      console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
+      console.log('[TDDF-JSON-PAGE] Switching to DT tab');
+    }
+    
     setDateFilter(date);
     setCurrentPage(1);
     setSelectedTab('dt'); // Switch to DT tab to show filtered results
@@ -796,6 +810,7 @@ export default function TddfJsonPage() {
             <TddfJsonActivityHeatMap 
               onDateSelect={handleDateSelect}
               selectedDate={dateFilter}
+              enableDebugLogging={isTestPage}
             />
             {dateFilter && (
               <div className="mt-4 flex items-center gap-2">
