@@ -722,7 +722,7 @@ export default function StorageManagement() {
                             {obj.objectKey}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {obj.fileSizeMB} • {obj.lineCount.toLocaleString()} lines • {formatDate(obj.createdAt)}
+                            {obj.fileSizeMB} • {obj.lineCount?.toLocaleString() || 'N/A'} lines • {formatDate(obj.createdAt)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
