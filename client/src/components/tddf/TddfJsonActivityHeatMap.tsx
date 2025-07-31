@@ -52,37 +52,50 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
   const dateString = date.toISOString().split('T')[0];
   const isSelected = selectedDates.includes(dateString);
   
-  // Enhanced gradient mapping for TDDF JSON data
+  // Updated gradient mapping for higher transaction volumes
   const getBackgroundColor = (count: number, isSelected: boolean) => {
     if (isSelected) {
-      return 'bg-red-500 hover:bg-red-600 ring-2 ring-red-600 ring-offset-1';
+      return 'bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-600 ring-offset-1';
     }
     
     if (count === 0) {
       return 'bg-gray-100 hover:bg-gray-200';
     }
     
-    // Scale for TDDF JSON data (typically smaller numbers)
-    if (count <= 50) {
-      if (count <= 10) return 'bg-green-100 hover:bg-green-200';
-      if (count <= 20) return 'bg-green-300 hover:bg-green-400';
-      if (count <= 35) return 'bg-green-500 hover:bg-green-600';
+    // Low activity: 1-2000 transactions (Green)
+    if (count <= 2000) {
+      if (count <= 500) return 'bg-green-100 hover:bg-green-200';
+      if (count <= 1000) return 'bg-green-300 hover:bg-green-400';
+      if (count <= 1500) return 'bg-green-500 hover:bg-green-600';
       return 'bg-green-700 hover:bg-green-800';
     }
     
-    // Medium activity: 50-150 transactions
-    if (count <= 150) {
-      if (count <= 75) return 'bg-blue-300 hover:bg-blue-400';
-      if (count <= 100) return 'bg-blue-500 hover:bg-blue-600';
-      if (count <= 125) return 'bg-blue-700 hover:bg-blue-800';
+    // Medium activity: 2001-4000 transactions (Blue)
+    if (count <= 4000) {
+      if (count <= 2500) return 'bg-blue-300 hover:bg-blue-400';
+      if (count <= 3000) return 'bg-blue-500 hover:bg-blue-600';
+      if (count <= 3500) return 'bg-blue-700 hover:bg-blue-800';
       return 'bg-blue-900 hover:bg-blue-950';
     }
     
-    // High activity: 150+ transactions
-    if (count <= 200) return 'bg-purple-400 hover:bg-purple-500';
-    if (count <= 250) return 'bg-purple-600 hover:bg-purple-700';
-    if (count <= 300) return 'bg-purple-800 hover:bg-purple-900';
-    return 'bg-purple-950 hover:bg-purple-950';
+    // High activity: 4001-6000 transactions (Purple)
+    if (count <= 6000) {
+      if (count <= 4500) return 'bg-purple-400 hover:bg-purple-500';
+      if (count <= 5000) return 'bg-purple-600 hover:bg-purple-700';
+      if (count <= 5500) return 'bg-purple-700 hover:bg-purple-800';
+      return 'bg-purple-800 hover:bg-purple-900';
+    }
+    
+    // Very high activity: 6001-10000+ transactions (Red/Pink)
+    if (count <= 10000) {
+      if (count <= 7000) return 'bg-red-400 hover:bg-red-500';
+      if (count <= 8000) return 'bg-red-600 hover:bg-red-700';
+      if (count <= 9000) return 'bg-red-700 hover:bg-red-800';
+      return 'bg-red-800 hover:bg-red-900';
+    }
+    
+    // Extremely high activity: 10000+ transactions (Pink)
+    return 'bg-pink-600 hover:bg-pink-700';
   };
 
   const formatDate = (date: Date) => {
