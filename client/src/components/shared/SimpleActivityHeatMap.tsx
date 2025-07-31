@@ -126,25 +126,18 @@ export default function SimpleActivityHeatMap({
     // Calculate max count for intensity
     const maxCount = Math.max(...Object.values(dataByDate), 1);
     
-    // Generate all weeks for the year
-    const weeks: Array<Array<{ date: string; count: number; dateObj: Date }>> = [];
-    
-    // Start from the first Sunday of the year (or before if needed)
-    const startDate = new Date(selectedYear, 0, 1);
-    const firstSunday = new Date(startDate);
+    // Generate weeks for the year (53 weeks)
+    const weeks = [];
+    const startOfYear = new Date(selectedYear, 0, 1);
+    const firstSunday = new Date(startOfYear);
     firstSunday.setDate(firstSunday.getDate() - firstSunday.getDay());
-    
-    // End at the last Saturday of the year (or after if needed)
-    const endDate = new Date(selectedYear, 11, 31);
-    const lastSaturday = new Date(endDate);
-    lastSaturday.setDate(lastSaturday.getDate() + (6 - lastSaturday.getDay()));
     
     let currentDate = new Date(firstSunday);
     
-    while (currentDate <= lastSaturday) {
-      const week: Array<{ date: string; count: number; dateObj: Date }> = [];
+    for (let weekIndex = 0; weekIndex < 53; weekIndex++) {
+      const week = [];
       
-      for (let day = 0; day < 7; day++) {
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const dateKey = currentDate.toISOString().split('T')[0];
         const count = dataByDate[dateKey] || 0;
         
@@ -165,27 +158,14 @@ export default function SimpleActivityHeatMap({
     return { weeks, maxCount, totalTransactions };
   }, [data, selectedYear]);
 
-  // Get month labels based on the weeks
+  // Get month labels for display
   const monthLabels = useMemo(() => {
-    const labels: Array<{ month: string; position: number }> = [];
-    const seenMonths = new Set<number>();
-    
-    heatMapData.weeks.forEach((week, weekIndex) => {
-      const firstDayOfWeek = week[0].dateObj;
-      const month = firstDayOfWeek.getMonth();
-      
-      // Add label for the first occurrence of each month
-      if (!seenMonths.has(month) && firstDayOfWeek.getFullYear() === selectedYear) {
-        seenMonths.add(month);
-        labels.push({
-          month: firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' }),
-          position: weekIndex
-        });
-      }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.filter((_, index) => {
+      // Show every other month to avoid crowding
+      return index % 2 === 0;
     });
-    
-    return labels;
-  }, [heatMapData.weeks, selectedYear]);
+  }, []);
 
   // Get background color for a day square
   const getBackgroundColor = (count: number, isSelected: boolean, maxCount: number) => {
@@ -219,7 +199,7 @@ export default function SimpleActivityHeatMap({
     }
   };
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -261,18 +241,9 @@ export default function SimpleActivityHeatMap({
 
         {/* Month Labels */}
         <div className="mb-2 overflow-x-auto">
-          <div className="flex relative min-w-fit" style={{ marginLeft: '32px' }}>
-            {monthLabels.map(({ month, position }) => (
-              <div 
-                key={`${month}-${position}`}
-                className="text-xs text-gray-600 font-medium absolute"
-                style={{ 
-                  left: `${position * 20}px`,
-                  transform: 'translateX(-50%)'
-                }}
-              >
-                {month}
-              </div>
+          <div className="flex justify-between text-xs text-gray-600 font-medium" style={{ marginLeft: '32px', width: `${53 * 16}px` }}>
+            {monthLabels.map((month) => (
+              <span key={month}>{month}</span>
             ))}
           </div>
         </div>
@@ -283,7 +254,7 @@ export default function SimpleActivityHeatMap({
             {/* Day Labels */}
             <div className="flex flex-col gap-1 mr-2">
               {dayNames.map((day, i) => (
-                <div key={i} className="text-xs text-gray-600 font-medium h-4 flex items-center w-6">
+                <div key={i} className="text-xs text-gray-600 font-medium h-3 flex items-center w-6">
                   {i % 2 === 1 ? day : ''}
                 </div>
               ))}
@@ -301,7 +272,7 @@ export default function SimpleActivityHeatMap({
                     return (
                       <div
                         key={`${weekIndex}-${dayIndex}`}
-                        className={`w-4 h-4 rounded-sm transition-all duration-200 ${getBackgroundColor(count, isSelected, heatMapData.maxCount)} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
+                        className={`w-3 h-3 rounded-sm transition-all duration-200 ${getBackgroundColor(count, isSelected, heatMapData.maxCount)} ${count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
                         title={`${day.dateObj.toLocaleDateString('en-US', { 
                           weekday: 'short', 
                           month: 'short', 
