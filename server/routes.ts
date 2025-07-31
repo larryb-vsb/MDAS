@@ -9634,7 +9634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ELSE 'fresh'
           END as status
         FROM ${tableName}
-        WHERE cache_key = 'dashboard_metrics'
+        WHERE cache_key = 'dashboard3_metrics'
         ORDER BY updated_at DESC
         LIMIT 1
       `);
@@ -9652,7 +9652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } else {
         res.json({
-          cache_key: 'dashboard_metrics',
+          cache_key: 'dashboard3_metrics',
           last_updated: null,
           expires_at: null,
           build_time_ms: 0,
@@ -9680,32 +9680,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tableName = getTableName('dashboard_cache');
       
-      // Update the expiration time for the dashboard cache
+      // Check if Dashboard3 cache exists, if not create it
+      let cacheExists = await pool.query(`
+        SELECT cache_key FROM ${tableName} WHERE cache_key = 'dashboard3_metrics'
+      `);
+      
+      if (cacheExists.rows.length === 0) {
+        // Create initial Dashboard3 cache entry
+        console.log(`[CACHE-EXPIRATION] Creating initial Dashboard3 cache entry`);
+        await pool.query(`
+          INSERT INTO ${tableName} 
+          (cache_key, cache_data, expires_at, build_time_ms, record_count, updated_at)
+          VALUES ($1, $2, NOW() + INTERVAL '${minutes} minutes', $3, $4, NOW())
+        `, [
+          'dashboard3_metrics', 
+          JSON.stringify({
+            message: 'Dashboard3 cache initialized',
+            widgets: ['cache-status'],
+            created: new Date().toISOString()
+          }), 
+          0,
+          0
+        ]);
+      } else {
+        // Update existing cache expiration
+        await pool.query(`
+          UPDATE ${tableName}
+          SET expires_at = updated_at + INTERVAL '${minutes} minutes'
+          WHERE cache_key = 'dashboard3_metrics'
+        `);
+      }
+      
+      // Get updated cache info
       const updateResult = await pool.query(`
-        UPDATE ${tableName}
-        SET expires_at = updated_at + INTERVAL '${minutes} minutes'
-        WHERE cache_key = 'dashboard_metrics'
-        RETURNING cache_key, expires_at, updated_at
+        SELECT cache_key, expires_at, updated_at FROM ${tableName}
+        WHERE cache_key = 'dashboard3_metrics'
       `);
       
       if (updateResult.rows.length > 0) {
         const updatedCache = updateResult.rows[0];
-        console.log(`[CACHE-EXPIRATION] Updated dashboard cache expiration to ${minutes} minutes`);
+        console.log(`[CACHE-EXPIRATION] Updated Dashboard3 cache expiration to ${minutes} minutes`);
         
         res.json({
           success: true,
-          message: `Cache expiration updated to ${minutes} minutes`,
+          message: `Dashboard3 cache expiration updated to ${minutes} minutes`,
           cache_key: updatedCache.cache_key,
           expires_at: updatedCache.expires_at,
           minutes: minutes
         });
       } else {
-        res.status(404).json({ 
-          error: 'Dashboard cache not found. Cache must be built first.' 
+        res.status(500).json({ 
+          error: 'Failed to update Dashboard3 cache expiration' 
         });
       }
     } catch (error: any) {
-      console.error('Error updating cache expiration:', error);
+      console.error('Error updating Dashboard3 cache expiration:', error);
       res.status(500).json({ error: 'Failed to update cache expiration' });
     }
   });
