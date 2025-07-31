@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Moon, Sun, Database, Clock, RefreshCw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Moon, Sun, Database, Clock, RefreshCw, Settings } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
+import { toast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface SystemInfo {
   environment: {
@@ -26,6 +29,8 @@ interface CacheStatus {
 
 export default function Dashboard3() {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedExpiration, setSelectedExpiration] = useState<string>("30");
+  const queryClient = useQueryClient();
 
   // Fetch system information for environment badge
   const { data: systemInfo } = useQuery<SystemInfo>({
@@ -38,6 +43,31 @@ export default function Dashboard3() {
     queryKey: ["/api/dashboard/cache-status"],
     staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 1000 * 60, // Refresh every minute
+  });
+
+  // Update cache expiration mutation
+  const updateExpirationMutation = useMutation({
+    mutationFn: async (minutes: number) => {
+      return apiRequest(`/api/dashboard/cache-expiration`, {
+        method: 'POST',
+        body: JSON.stringify({ minutes }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cache Expiration Updated",
+        description: `Cache will now expire in ${selectedExpiration} minutes`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cache-status"] });
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update cache expiration",
+        variant: "destructive",
+      });
+    }
   });
 
   const toggleDarkMode = () => {
@@ -146,6 +176,40 @@ export default function Dashboard3() {
                         
                         <div className="text-xs text-muted-foreground text-center pt-2 border-t">
                           Age: {cacheStatus.age_minutes}m | Records: {cacheStatus.record_count?.toLocaleString()}
+                        </div>
+                        
+                        <div className="pt-3 border-t space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Settings className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Cache Expiration:</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Select value={selectedExpiration} onValueChange={setSelectedExpiration}>
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="15">15 minutes</SelectItem>
+                                <SelectItem value="30">30 minutes</SelectItem>
+                                <SelectItem value="60">1 hour</SelectItem>
+                                <SelectItem value="120">2 hours</SelectItem>
+                                <SelectItem value="240">4 hours</SelectItem>
+                                <SelectItem value="480">8 hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => updateExpirationMutation.mutate(parseInt(selectedExpiration))}
+                              disabled={updateExpirationMutation.isPending}
+                            >
+                              {updateExpirationMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Set"
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </>

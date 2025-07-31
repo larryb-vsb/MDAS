@@ -9667,6 +9667,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update dashboard cache expiration endpoint
+  app.post("/api/dashboard/cache-expiration", isAuthenticated, async (req, res) => {
+    try {
+      const { minutes } = req.body;
+      
+      if (!minutes || typeof minutes !== 'number' || minutes < 5 || minutes > 1440) {
+        return res.status(400).json({ 
+          error: 'Invalid expiration time. Must be between 5 and 1440 minutes.' 
+        });
+      }
+      
+      const tableName = getTableName('dashboard_cache');
+      
+      // Update the expiration time for the dashboard cache
+      const updateResult = await pool.query(`
+        UPDATE ${tableName}
+        SET expires_at = updated_at + INTERVAL '${minutes} minutes'
+        WHERE cache_key = 'dashboard_metrics'
+        RETURNING cache_key, expires_at, updated_at
+      `);
+      
+      if (updateResult.rows.length > 0) {
+        const updatedCache = updateResult.rows[0];
+        console.log(`[CACHE-EXPIRATION] Updated dashboard cache expiration to ${minutes} minutes`);
+        
+        res.json({
+          success: true,
+          message: `Cache expiration updated to ${minutes} minutes`,
+          cache_key: updatedCache.cache_key,
+          expires_at: updatedCache.expires_at,
+          minutes: minutes
+        });
+      } else {
+        res.status(404).json({ 
+          error: 'Dashboard cache not found. Cache must be built first.' 
+        });
+      }
+    } catch (error: any) {
+      console.error('Error updating cache expiration:', error);
+      res.status(500).json({ error: 'Failed to update cache expiration' });
+    }
+  });
+
   // Pre-cache status endpoint for comprehensive testing coverage
   app.get("/api/settings/pre-cache-status", isAuthenticated, async (req, res) => {
     try {
