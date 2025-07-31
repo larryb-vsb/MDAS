@@ -178,14 +178,11 @@ export default function TddfObjectTotals() {
     }
   };
 
-  // Sort record types by count for display - prioritize pre-cached JSONB data
+  // Sort record types by count for display - show storage breakdown with purple styling
   const sortedRecordTypes = (() => {
-    // Use detailed record type breakdown from pre-cached JSONB data if available
-    const breakdown = data.recordStats.recordTypeBreakdownFromCache && Object.keys(data.recordStats.recordTypeBreakdownFromCache).length > 0
-      ? data.recordStats.recordTypeBreakdownFromCache
-      : data.recordStats.recordTypeBreakdown;
-    
-    const total = data.recordStats.jsonbCount || data.recordStats.totalRecords;
+    // Always use storage breakdown data for purple styling consistency
+    const breakdown = data.recordStats.recordTypeBreakdown || {};
+    const total = data.recordStats.totalRecords;
     
     return Object.entries(breakdown)
       .filter(([type, count]) => Number(count) > 0) // Only show types with counts > 0
@@ -323,13 +320,13 @@ export default function TddfObjectTotals() {
             <div className="text-sm text-purple-600">Total Records</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold mb-2">
+              JSONB TABLE
+            </div>
             <div className="text-2xl font-bold text-green-800">
               {data.recordStats.jsonbCount?.toLocaleString() || 'Loading...'}
             </div>
             <div className="text-sm text-green-600">Encoded Records</div>
-            <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold mt-2">
-              JSONB COUNT
-            </div>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-800">
@@ -366,8 +363,8 @@ export default function TddfObjectTotals() {
                     {getRecordTypeDescription(type)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    <div className="bg-green-50 px-2 py-1 rounded border border-green-200">
-                      <span className="text-green-800 font-semibold">
+                    <div className="bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                      <span className="text-purple-800 font-semibold">
                         {count.toLocaleString()}
                       </span>
                     </div>
