@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
 import { HeatMapProcessingStats } from "@/components/cache/HeatMapProcessingStats";
+import { MainLayout } from "@/components/layout/MainLayout";
 
 interface PreCacheSettings {
   id: number;
@@ -877,7 +878,8 @@ function CacheConfigurationManagement() {
 }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <MainLayout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pre-Cache Management</h1>
@@ -1510,6 +1512,7 @@ function CacheConfigurationManagement() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </MainLayout>
   );
 }
