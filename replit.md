@@ -16,7 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - STORAGE OBJECT PROCESSING SYSTEM WITH PROMINENT BUTTONS - **✅ STORAGE OBJECT PROCESSING DATABASE FIX COMPLETED (July 31, 2025)**: Successfully resolved critical database constraint violation preventing storage object JSONB encoding by extracting filename from object_key paths, enabling fully operational Steps 4-5 processing system
+- Current session: July 31, 2025 - TDDF JSON HEAT MAP AUTHENTICATION & DATA SOURCE FIX - **✅ TDDF JSON HEAT MAP CRITICAL FIXES COMPLETED (July 31, 2025)**: Successfully resolved authentication and data source issues preventing heat map from displaying transaction activity, fixed data year mismatch, and restored full heat map functionality with 134,870 DT transactions showing properly
+- Previous: **✅ STORAGE OBJECT PROCESSING DATABASE FIX COMPLETED (July 31, 2025)**: Successfully resolved critical database constraint violation preventing storage object JSONB encoding by extracting filename from object_key paths, enabling fully operational Steps 4-5 processing system
+  - **✅ HEAT MAP AUTHENTICATION & DATA FIXES**: Resolved multiple critical issues preventing TDDF JSON heat map display:
+    - **Authentication Issue Fixed**: Added `credentials: 'include'` to heat map API requests resolving 401 authentication errors
+    - **Data Source Corrected**: Changed from empty cache tables to actual TDDF JSON data using `/api/tddf-json/activity` endpoint
+    - **Year Mismatch Resolved**: Heat map was looking for 2025 data but actual data exists in 2023 (48,579) and 2024 (134,870 transactions)  
+    - **Default Year Updated**: Heat map now starts with 2024 where most transaction data exists
+    - **Refresh Button Fixed**: Now properly invalidates cache and fetches fresh data instead of broken cache refresh
+    - **Weekly Aggregation**: System automatically uses weekly aggregation for optimal performance with large datasets (134,870 records)
 - **⚠️ PAGINATION BUG IDENTIFIED (July 31, 2025)**: MMS Uploader pagination system partially working - frontend sends correct limit/offset parameters (limit: '10', offset: '0'), backend receives parameters correctly, but user reports cannot access files beyond first 100 despite 1,269 total files available. Debug logs show successful parameter parsing but pagination navigation not functioning as expected. Added to backlog for future investigation.
   - **Critical Database Fix**: Fixed "null value in column 'filename'" error by extracting filename from storage object paths (object_key.split('/').pop()) in both encode and process-full routes
   - **Successful Processing Verification**: Confirmed storage object ID 1129 successfully encoded 66,601 JSONB records (BH: 5,115, DT: 23,307, E1: 14,160, G2: 23,307, P1: 383, DR: 329) in 64.7 seconds
