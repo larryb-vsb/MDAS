@@ -313,7 +313,10 @@ export default function TddfObjectTotals() {
               Analyzed ({data.storageStats.analysisPercentage}%)
             </div>
           </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="bg-purple-600 text-white px-2 py-1 rounded text-xs font-semibold mb-2">
+              STORAGE OBJECT
+            </div>
             <div className="text-2xl font-bold text-purple-800">
               {data.recordStats.totalRecords.toLocaleString()}
             </div>
