@@ -451,8 +451,15 @@ class MMSWatcher {
     let validationErrors = [];
 
     try {
+      // SubMerchantTerminals file detection - check filename patterns first
+      if (this.detectSubMerchantTerminalsFile(filename)) {
+        detectedType = 'sub_merchant_terminals';
+        format = filename.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
+        hasHeaders = true; // Terminal files typically have headers
+        console.log('[MMS-WATCHER] Detected SubMerchantTerminals format');
+      }
       // TDDF file detection (.tsyso extension or specific TDDF patterns)
-      if (filename.toLowerCase().endsWith('.tsyso') || this.detectTddfPattern(lines)) {
+      else if (filename.toLowerCase().endsWith('.tsyso') || this.detectTddfPattern(lines)) {
         detectedType = 'tddf';
         format = 'tddf';
         hasHeaders = false; // TDDF files don't have header rows
@@ -604,6 +611,44 @@ class MMSWatcher {
     return keywordCount >= 3;
   }
 
+  detectSubMerchantTerminalsFile(filename) {
+    if (!filename) return false;
+    
+    const lowerFilename = filename.toLowerCase();
+    
+    // SubMerchantTerminals filename patterns
+    const terminalPatterns = [
+      'terminal',
+      'terminals',
+      'unused',
+      'pos terminal',
+      'merchant terminal',
+      'terminal report'
+    ];
+    
+    // Check if filename contains terminal-related keywords
+    const hasTerminalKeyword = terminalPatterns.some(pattern => 
+      lowerFilename.includes(pattern)
+    );
+    
+    // Check for supported file extensions
+    const supportedExtensions = ['.csv', '.xlsx', '.xls'];
+    const hasValidExtension = supportedExtensions.some(ext => 
+      lowerFilename.endsWith(ext)
+    );
+    
+    // Return true if both conditions are met
+    const isTerminalFile = hasTerminalKeyword && hasValidExtension;
+    
+    if (isTerminalFile) {
+      console.log(`[MMS-WATCHER] SubMerchantTerminals file detected: ${filename}`);
+    } else {
+      console.log(`[MMS-WATCHER] SubMerchantTerminals check: hasTerminalKeyword=${hasTerminalKeyword}, hasValidExtension=${hasValidExtension} for ${filename}`);
+    }
+    
+    return isTerminalFile;
+  }
+
   async markIdentificationFailed(upload, errorMessage) {
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
@@ -723,6 +768,36 @@ class MMSWatcher {
           } catch (err) {
             console.warn(`[MMS-WATCHER] Warning: Could not delete temp file ${tempFilePath}:`, err);
           }
+        }
+      }
+      else if (fileType === 'sub_merchant_terminals') {
+        // SubMerchantTerminals file processing
+        console.log(`[MMS-WATCHER] Processing SubMerchantTerminals file: ${upload.filename}`);
+        
+        // For Excel files, we'll mark as processed but note they need manual handling
+        if (upload.filename.toLowerCase().endsWith('.xlsx') || upload.filename.toLowerCase().endsWith('.xls')) {
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `SubMerchantTerminals Excel file identified and ready for manual processing`,
+            processingNotes: `SubMerchantTerminals Excel file detected - requires manual import via MerchantDetail page SubMerchantTerminals component`,
+            fileTypeIdentified: 'sub_merchant_terminals',
+            requiresManualImport: true
+          });
+          
+          console.log(`[MMS-WATCHER] ✅ SubMerchantTerminals Excel file identified: ${upload.filename} - ready for manual import`);
+        } else {
+          // For CSV files, we could potentially auto-process them
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `SubMerchantTerminals CSV file identified and ready for processing`,
+            processingNotes: `SubMerchantTerminals CSV file detected - can be imported via MerchantDetail page`,
+            fileTypeIdentified: 'sub_merchant_terminals',
+            requiresManualImport: true
+          });
+          
+          console.log(`[MMS-WATCHER] ✅ SubMerchantTerminals CSV file identified: ${upload.filename} - ready for import`);
         }
       }
       else {

@@ -3580,6 +3580,84 @@ export class DatabaseStorage implements IStorage {
               
               console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
             }
+          } else if (file.fileType === 'sub_merchant_terminals') {
+            try {
+              // Process SubMerchantTerminals file (Excel or CSV)
+              console.log(`[TRACE] Processing sub_merchant_terminals file ${file.id} (${file.originalFilename})`);
+              
+              // For SubMerchantTerminals files, we mark them as processed but available for manual import
+              // The actual processing happens via the SubMerchantTerminals component in MerchantDetail page
+              
+              const processingStartTime = new Date();
+              
+              // Check if it's an Excel file that needs special handling
+              const isExcelFile = file.originalFilename.toLowerCase().endsWith('.xlsx') || file.originalFilename.toLowerCase().endsWith('.xls');
+              
+              let processingNotes = {};
+              if (isExcelFile) {
+                processingNotes = {
+                  fileType: 'sub_merchant_terminals_excel',
+                  format: 'xlsx',
+                  requiresManualImport: true,
+                  importLocation: 'MerchantDetail page > SubMerchantTerminals component',
+                  processingMethod: 'manual_import_via_component'
+                };
+              } else {
+                processingNotes = {
+                  fileType: 'sub_merchant_terminals_csv',
+                  format: 'csv',
+                  requiresManualImport: true,
+                  importLocation: 'MerchantDetail page > SubMerchantTerminals component',
+                  processingMethod: 'manual_import_via_component'
+                };
+              }
+              
+              // Calculate processing time in milliseconds
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - processingStartTime.getTime();
+              
+              // Update database to mark as processed and ready for manual import
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_status = 'completed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${processingTimeMs},
+                    processing_details = ${JSON.stringify(processingNotes)},
+                    processing_notes = ${`SubMerchantTerminals file identified and ready for manual import. File format: ${isExcelFile ? 'Excel' : 'CSV'}. Import via MerchantDetail page SubMerchantTerminals component.`},
+                    records_processed = 1,
+                    records_skipped = 0,
+                    records_with_errors = 0
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`📊 COMPLETED: SubMerchantTerminals file ${file.originalFilename} identified and ready for manual import in ${(processingTimeMs / 1000).toFixed(2)}s`);
+              console.log(`⏱️ READY: ${file.originalFilename} - Use MerchantDetail page to import terminal relationships`);
+            } catch (error) {
+              console.error(`Error processing sub_merchant_terminals file ${file.id}:`, error);
+              
+              // Enhanced error message for SubMerchantTerminals processing
+              let errorMessage = error instanceof Error ? error.message : "Unknown error during SubMerchantTerminals processing";
+              
+              // Always record processing completion time and duration, even for errors
+              const processingCompletedTime = new Date();
+              const processingTimeMs = processingCompletedTime.getTime() - fileProcessingStartTime.getTime();
+              
+              // Mark with error but include processing timing using environment-specific table
+              await db.execute(sql`
+                UPDATE ${sql.identifier(uploadedFilesTableName)}
+                SET processed = true,
+                    processing_errors = ${errorMessage},
+                    processing_status = 'failed',
+                    processing_completed_at = ${processingCompletedTime.toISOString()},
+                    processed_at = ${processingCompletedTime.toISOString()},
+                    processing_time_ms = ${Math.abs(processingTimeMs)}
+                WHERE id = ${file.id}
+              `);
+              
+              console.log(`⏱️ FAILED: ${file.originalFilename} in ${(Math.abs(processingTimeMs) / 1000).toFixed(2)} seconds`);
+            }
           } else {
             console.warn(`Unknown file type: ${file.fileType} for file ID ${file.id}`);
             
