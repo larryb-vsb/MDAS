@@ -7403,15 +7403,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate storage key if missing (for older uploads)
           let storageKey = upload.storageKey;
           if (!storageKey) {
-            // Generate expected storage key based on upload ID and filename
-            const uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
-            storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
-            console.log(`[MANUAL-ENCODE-DEBUG] Generated storage key for older upload: ${storageKey}`);
-            
-            // Update the database with the generated storage key
-            await storage.updateUploaderUpload(uploadId, {
-              storageKey: storageKey
-            });
+            try {
+              // Generate expected storage key based on upload ID and filename
+              console.log(`[MANUAL-ENCODE-DEBUG] createdAt value:`, upload.createdAt, typeof upload.createdAt);
+              const uploadDate = new Date(upload.createdAt).toISOString().split('T')[0];
+              storageKey = `dev-uploader/${uploadDate}/${upload.id}/${upload.filename}`;
+              console.log(`[MANUAL-ENCODE-DEBUG] Generated storage key for older upload: ${storageKey}`);
+              
+              // Update the database with the generated storage key
+              await storage.updateUploaderUpload(uploadId, {
+                storageKey: storageKey
+              });
+            } catch (dateError) {
+              console.error(`[MANUAL-ENCODE-DEBUG] Date parsing error:`, dateError);
+              // Fallback to today's date if createdAt is invalid
+              const today = new Date().toISOString().split('T')[0];
+              storageKey = `dev-uploader/${today}/${upload.id}/${upload.filename}`;
+              console.log(`[MANUAL-ENCODE-DEBUG] Using fallback date, generated storage key: ${storageKey}`);
+              
+              await storage.updateUploaderUpload(uploadId, {
+                storageKey: storageKey
+              });
+            }
           }
           
           // Transition to encoding phase

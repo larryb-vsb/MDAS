@@ -43,17 +43,38 @@ function extractTddfProcessingDatetime(filename: string): {
       const minute = timeStr.substring(2, 4);
       const second = timeStr.substring(4, 6);
       
-      const processingDate = `${year}-${month}-${day}`;
-      const processingTime = `${hour}:${minute}:${second}`;
-      const processingDatetime = `${processingDate}T${processingTime}`;
+      // Validate individual components before constructing datetime
+      const monthNum = parseInt(month, 10);
+      const dayNum = parseInt(day, 10);
+      const yearNum = parseInt(year, 10);
+      const hourNum = parseInt(hour, 10);
+      const minuteNum = parseInt(minute, 10);
+      const secondNum = parseInt(second, 10);
       
-      // Validate the constructed datetime
-      const testDate = new Date(processingDatetime);
-      if (!isNaN(testDate.getTime())) {
-        result.processingDate = processingDate;
-        result.processingTime = processingTime;
-        result.processingDatetime = processingDatetime;
-        result.isValidTddfFilename = true;
+      // Check if values are within valid ranges
+      if (monthNum >= 1 && monthNum <= 12 && 
+          dayNum >= 1 && dayNum <= 31 && 
+          yearNum >= 1900 && yearNum <= 3000 &&
+          hourNum >= 0 && hourNum <= 23 &&
+          minuteNum >= 0 && minuteNum <= 59 &&
+          secondNum >= 0 && secondNum <= 59) {
+        
+        const processingDate = `${year}-${month}-${day}`;
+        const processingTime = `${hour}:${minute}:${second}`;
+        const processingDatetime = `${processingDate}T${processingTime}`;
+        
+        // Final validation with Date constructor
+        const testDate = new Date(processingDatetime);
+        if (!isNaN(testDate.getTime())) {
+          result.processingDate = processingDate;
+          result.processingTime = processingTime;
+          result.processingDatetime = processingDatetime;
+          result.isValidTddfFilename = true;
+        } else {
+          console.warn(`[TDDF-DATETIME] Invalid date constructed: ${processingDatetime} from ${filename}`);
+        }
+      } else {
+        console.warn(`[TDDF-DATETIME] Invalid date components: ${monthNum}/${dayNum}/${yearNum} ${hourNum}:${minuteNum}:${secondNum} from ${filename}`);
       }
     }
   } catch (error) {
