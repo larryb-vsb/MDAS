@@ -83,10 +83,18 @@ export default function SubTerminals() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Sub Terminals Management</h1>
+          <h1 className="text-3xl font-bold">Sub Terminals - Raw Import Data</h1>
           <p className="text-muted-foreground">
-            Comprehensive terminal-merchant relationship management with fuzzy matching and manual assignment
+            Raw SubTerminal import data displaying ID, Device name (merchant name + status + D####), and Terminal Number
           </p>
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Field Mapping:</strong> ID = Unique identifier | Device name = Merchant name + status | D_Number = Terminal Number (maps to dev_terminals.generic_field_1, rename to terminalnumber)
+            </p>
+            <p className="text-sm text-blue-800 mt-1">
+              <strong>Note:</strong> All terminals tied to VerifyVend as primary merchant. ACH Merchants need fuzzy matching to dev_merchants table.
+            </p>
+          </div>
         </div>
         <Link href="/mms-uploader">
           <Button variant="outline">Back to MMS Uploader</Button>
@@ -97,10 +105,10 @@ export default function SubTerminals() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building className="h-5 w-5" />
-            Terminal-Merchant Relationships
+            Raw SubTerminal Import Data
           </CardTitle>
           <CardDescription>
-            Manage and assign merchant relationships to terminals with comprehensive search and filtering
+            Complete raw data from SubTerminal imports showing ID, Device name (with merchant name and status), and Terminal Number (D_Number)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -235,10 +243,12 @@ export default function SubTerminals() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Terminal ID</TableHead>
-                  <TableHead>Terminal Name</TableHead>
-                  <TableHead>POS Merchant #</TableHead>
-                  <TableHead>Current Merchant</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Device Name</TableHead>
+                  <TableHead>Terminal Number (D_Number)</TableHead>
+                  <TableHead>Generic Field 1</TableHead>
+                  <TableHead>Current Merchant Assignment</TableHead>
+                  <TableHead>Primary Merchant</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -267,18 +277,24 @@ export default function SubTerminals() {
                     
                     return (
                       <TableRow key={terminal.id}>
-                        <TableCell className="font-mono text-sm">{terminal.v_number}</TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.id}</TableCell>
                         <TableCell>
-                          <div className="max-w-[200px] truncate" title={terminal.dba_name}>
-                            {terminal.dba_name}
+                          <div className="max-w-[250px]" title={terminal.dba_name}>
+                            <div className="text-sm font-medium">{terminal.dba_name}</div>
+                            {terminal.dba_name && terminal.dba_name.includes('D') && (
+                              <div className="text-xs text-muted-foreground">
+                                D#### Format: {terminal.dba_name.match(/D\d+/)?.[0] || 'Not found'}
+                              </div>
+                            )}
                             {isDecommissioned && (
-                              <Badge variant="outline" className="ml-2 text-xs text-red-600 border-red-200">
+                              <Badge variant="outline" className="mt-1 text-xs text-red-600 border-red-200">
                                 Decommissioned
                               </Badge>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{terminal.pos_merchant_number}</TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-green-600">{terminal.v_number}</TableCell>
+                        <TableCell className="font-mono text-sm text-orange-600">{terminal.generic_field_1 || 'N/A'}</TableCell>
                         <TableCell>
                           {currentMerchant ? (
                             <div className="flex items-center gap-2">
@@ -296,6 +312,12 @@ export default function SubTerminals() {
                               Unmatched
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-purple-600 border-purple-200">
+                            VerifyVend
+                          </Badge>
+                          <div className="text-xs text-muted-foreground mt-1">Primary Merchant</div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={isDecommissioned ? 'destructive' : 'default'}>
@@ -357,11 +379,17 @@ export default function SubTerminals() {
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    <strong>Terminal Details:</strong><br />
-                                    ID: {terminal.v_number}<br />
-                                    POS Merchant #: {terminal.pos_merchant_number}<br />
-                                    Status: {isDecommissioned ? 'Decommissioned' : 'Active'}
+                                  <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded border">
+                                    <strong>Raw SubTerminal Import Data:</strong><br />
+                                    <div className="space-y-1 mt-2">
+                                      <div><strong>ID:</strong> {terminal.id} (Unique identifier)</div>
+                                      <div><strong>Device Name:</strong> {terminal.dba_name} (Merchant name + status)</div>
+                                      <div><strong>Terminal Number (D_Number):</strong> {terminal.v_number} (Maps to generic_field_1)</div>
+                                      <div><strong>Generic Field 1:</strong> {terminal.generic_field_1 || 'N/A'} (Terminal Number mapping)</div>
+                                      <div><strong>POS Merchant #:</strong> {terminal.pos_merchant_number}</div>
+                                      <div><strong>Primary Merchant:</strong> VerifyVend (All terminals tied)</div>
+                                      <div><strong>Status:</strong> {isDecommissioned ? 'Decommissioned' : 'Active'}</div>
+                                    </div>
                                   </div>
                                 </div>
                               </DialogContent>
@@ -381,13 +409,17 @@ export default function SubTerminals() {
             </Table>
           </div>
 
-          {/* Summary Information */}
+          {/* Raw Data Summary Information */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-blue-600" />
-              <span className="font-medium text-blue-800">Quick Stats</span>
+              <span className="font-medium text-blue-800">Raw SubTerminal Import Statistics</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Total Records:</span> {terminals.length}
+                <div className="text-xs text-muted-foreground">All SubTerminal imports</div>
+              </div>
               <div>
                 <span className="font-medium">Showing:</span> {Math.min(50, terminals.filter((t: any) => {
                   const matchesTerminalSearch = !terminalSearchFilter || 
@@ -395,12 +427,8 @@ export default function SubTerminals() {
                     t.dba_name?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
                   const matchesUnmatchedFilter = !showOnlyUnmatched || (!t.merchantId || t.merchantId === 'UNKNOWN');
                   return matchesTerminalSearch && matchesUnmatchedFilter;
-                }).length)} terminals
-              </div>
-              <div>
-                <span className="font-medium">Match Rate:</span> {terminals.length > 0 ? 
-                  Math.round((terminals.filter((t: any) => t.merchantId && t.merchantId !== 'UNKNOWN').length / terminals.length) * 100)
-                : 0}%
+                }).length)}
+                <div className="text-xs text-muted-foreground">Filtered results</div>
               </div>
               <div>
                 <span className="font-medium">Decommissioned:</span> {terminals.filter((t: any) => 
@@ -408,9 +436,37 @@ export default function SubTerminals() {
                   t.dba_name?.toLowerCase().includes('decomm') ||
                   t.dba_name?.toLowerCase().includes('inactive')
                 ).length}
+                <div className="text-xs text-muted-foreground">Status indicators</div>
               </div>
               <div>
-                <span className="font-medium">Available Merchants:</span> {merchants.length}
+                <span className="font-medium">Primary Merchant:</span> VerifyVend
+                <div className="text-xs text-muted-foreground">All terminals tied</div>
+              </div>
+              <div>
+                <span className="font-medium">ACH Merchants:</span> {merchants.length}
+                <div className="text-xs text-muted-foreground">Need fuzzy matching</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Raw Data Structure Information */}
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Building className="h-4 w-4 text-green-600" />
+              <span className="font-medium text-green-800">Data Structure Mapping</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <strong>ID Field:</strong>
+                <div className="text-xs text-muted-foreground">Unique record identifier from SubTerminal import</div>
+              </div>
+              <div>
+                <strong>Device Name Field:</strong>
+                <div className="text-xs text-muted-foreground">Contains merchant name, status, and D#### format numbers</div>
+              </div>
+              <div>
+                <strong>D_Number → Terminal Number:</strong>
+                <div className="text-xs text-muted-foreground">Maps to dev_terminals.generic_field_1 (should rename to terminalnumber)</div>
               </div>
             </div>
           </div>
