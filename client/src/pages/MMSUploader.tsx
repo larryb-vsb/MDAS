@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink } from 'lucide-react';
+import { Upload, FileText, Search, Database, CheckCircle, AlertCircle, Clock, Play, Settings, Zap, Filter, Eye, EyeOff, MoreVertical, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Activity, Pause, ZoomIn, Lightbulb, RotateCcw, RefreshCw, X, HardDrive, ExternalLink } from 'lucide-react';
 import { UploaderUpload } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
@@ -121,6 +121,10 @@ export default function MMSUploader() {
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
   const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // JSONB viewer state
   const [jsonbViewerOpen, setJsonbViewerOpen] = useState(false);
@@ -423,13 +427,37 @@ export default function MMSUploader() {
     }
   });
 
-  // Filter uploads based on status, file type, and filename
-  const filteredUploads = uploads.filter(upload => {
-    const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
-    const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
-    const filenameMatch = filenameFilter === '' || upload.filename.toLowerCase().includes(filenameFilter.toLowerCase());
-    return statusMatch && typeMatch && filenameMatch;
-  });
+  // Filter and sort uploads based on status, file type, filename, and sorting preferences
+  const filteredUploads = uploads
+    .filter(upload => {
+      const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
+      const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
+      const filenameMatch = filenameFilter === '' || upload.filename.toLowerCase().includes(filenameFilter.toLowerCase());
+      return statusMatch && typeMatch && filenameMatch;
+    })
+    .sort((a, b) => {
+      let compareValue = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          compareValue = a.filename.localeCompare(b.filename);
+          break;
+        case 'date':
+          const dateA = new Date(a.uploadedAt || a.createdAt || 0);
+          const dateB = new Date(b.uploadedAt || b.createdAt || 0);
+          compareValue = dateA.getTime() - dateB.getTime();
+          break;
+        case 'size':
+          const sizeA = a.fileSize || 0;
+          const sizeB = b.fileSize || 0;
+          compareValue = sizeA - sizeB;
+          break;
+        default:
+          compareValue = 0;
+      }
+      
+      return sortOrder === 'asc' ? compareValue : -compareValue;
+    });
 
   // Pagination calculations
   const filteredTotalPages = Math.ceil(filteredUploads.length / itemsPerPage);
@@ -890,10 +918,10 @@ export default function MMSUploader() {
   const activeUploads = (uploadsByPhase.started?.length || 0) + (uploadsByPhase.uploading?.length || 0); // Only truly uploading files
   const processingUploads = (uploadsByPhase.uploaded?.length || 0) + (uploadsByPhase.identified?.length || 0) + (uploadsByPhase.encoding?.length || 0) + (uploadsByPhase.processing?.length || 0); // Files waiting for or undergoing processing
 
-  // Reset page when filters change
+  // Reset page when filters or sorting change
   React.useEffect(() => {
     setCurrentPage(0);
-  }, [statusFilter, fileTypeFilter, itemsPerPage]);
+  }, [statusFilter, fileTypeFilter, filenameFilter, sortBy, sortOrder, itemsPerPage]);
 
   // View file contents query (only fetch when needed)
   const { data: fileContent, isLoading: isLoadingContent } = useQuery({
@@ -1723,6 +1751,32 @@ export default function MMSUploader() {
                       onChange={(e) => setFilenameFilter(e.target.value)}
                       className="w-48"
                     />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label>Sort by:</Label>
+                    <Select value={sortBy} onValueChange={(value: 'name' | 'date' | 'size') => setSortBy(value)}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="date">Date</SelectItem>
+                        <SelectItem value="size">Size</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                      className="px-2"
+                    >
+                      {sortOrder === 'asc' ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-2">
