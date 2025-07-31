@@ -28,6 +28,31 @@ export default function SubTerminals() {
 
   const { toast } = useToast();
 
+  // Mutation for adding new merchant
+  const addMerchantMutation = useMutation({
+    mutationFn: async (merchantName: string) => {
+      return apiRequest('/api/subterminals/add-merchant', {
+        method: 'POST',
+        body: { merchantName, sourceType: 'subterminal_import' }
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Merchant Added Successfully",
+        description: `Created merchant: ${data.merchant.name} (ID: ${data.merchant.client_mid})`,
+      });
+      // Refresh the data to get updated merchant matches
+      queryClient.invalidateQueries({ queryKey: ['/api/subterminals/raw-data'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Add Merchant",
+        description: error.message || "An error occurred while creating the merchant",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Fetch SubTerminal raw data from encoded xlsx file
   const { data: subTerminalResponse } = useQuery({
     queryKey: ['/api/subterminals/raw-data'],
@@ -43,9 +68,11 @@ export default function SubTerminals() {
   const sourceFile = subTerminalResponse?.sourceFile || 'Unknown';
   const uploadDate = subTerminalResponse?.uploadDate || 'Unknown';
   const terminalMatches = subTerminalResponse?.terminalMatches || 0;
+  const merchantRecords = subTerminalResponse?.merchantRecords || 0;
   
-  // Count matched terminals
+  // Count matched terminals and merchants
   const matchedCount = terminals.filter((t: any) => t.vNumber).length;
+  const merchantMatchedCount = terminals.filter((t: any) => t.merchantMatches && t.merchantMatches.length > 0).length;
 
   const { data: merchantsResponse } = useQuery({
     queryKey: ['/api/merchants'],
@@ -103,7 +130,7 @@ export default function SubTerminals() {
               <strong>Data Source:</strong> {sourceFile} | <strong>Upload Date:</strong> {new Date(uploadDate).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })} CST
             </p>
             <p className="text-sm text-blue-800 mt-1">
-              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | Merchant_name_d = Decoded merchant name | Status_d = Decoded status with color coding | VNumber = Matching terminal VNumber
+              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | Merchant_name_d = Decoded merchant name | Status_d = Decoded status with color coding | VNumber = Matching terminal VNumber | Merchant Match = Fuzzy matched merchants or Add button
             </p>
           </div>
         </div>
@@ -550,6 +577,7 @@ export default function SubTerminals() {
                       <TableHead>Merchant_name_d</TableHead>
                       <TableHead>Status_d</TableHead>
                       <TableHead>VNumber</TableHead>
+                      <TableHead>Merchant Match</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -582,6 +610,39 @@ export default function SubTerminals() {
                             <span className="text-gray-400">No Match</span>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm">
+                          {terminal.merchantMatches && terminal.merchantMatches.length > 0 ? (
+                            <div className="space-y-1">
+                              {terminal.merchantMatches.slice(0, 2).map((match: any, idx: number) => (
+                                <div key={match.id} className={`text-xs px-2 py-1 rounded ${
+                                  idx === 0 && terminal.hasExactMerchantMatch 
+                                    ? 'bg-green-100 text-green-700 font-medium' 
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  <div className="font-medium">{match.name}</div>
+                                  {match.client_mid && (
+                                    <div className="text-xs opacity-75">ID: {match.client_mid}</div>
+                                  )}
+                                </div>
+                              ))}
+                              {terminal.merchantMatches.length > 2 && (
+                                <div className="text-xs text-gray-500">+{terminal.merchantMatches.length - 2} more</div>
+                              )}
+                            </div>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-xs h-7"
+                              disabled={addMerchantMutation.isPending}
+                              onClick={() => {
+                                addMerchantMutation.mutate(terminal.deviceMerchant);
+                              }}
+                            >
+                              {addMerchantMutation.isPending ? 'Adding...' : '+ Add Merchant'}
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -590,7 +651,7 @@ export default function SubTerminals() {
               
               {/* Summary footer */}
               <div className="mt-4 p-3 bg-gray-50 border rounded-lg text-sm text-muted-foreground">
-                <strong>Total SubTerminals:</strong> {totalCount} ({terminals.length} displayed) | <strong>Terminal Matches:</strong> {matchedCount} VNumbers found | <strong>Available Terminal Records:</strong> {terminalMatches} | <strong>Source:</strong> {sourceFile}
+                <strong>Total SubTerminals:</strong> {totalCount} ({terminals.length} displayed) | <strong>Terminal Matches:</strong> {matchedCount} VNumbers found | <strong>Merchant Matches:</strong> {merchantMatchedCount} found from {merchantRecords} records | <strong>Source:</strong> {sourceFile}
               </div>
             </CardContent>
           </Card>

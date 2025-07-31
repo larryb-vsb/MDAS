@@ -4994,7 +4994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Now join with terminals table to get VNumber where termNumber matches dNumber
+      // Join with terminals table to get VNumber where termNumber matches dNumber
       const terminalsTableName = getTableName('terminals');
       const terminalMatches = await pool.query(`
         SELECT v_number, term_number
@@ -5003,19 +5003,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         AND term_number != ''
       `);
       
-      // Create a lookup map for terminal numbers to VNumbers
+      // Get merchants for fuzzy name matching
+      const merchantsTableName = getTableName('merchants');
+      const merchantMatches = await pool.query(`
+        SELECT id, name, client_mid, master_mid
+        FROM ${merchantsTableName}
+        WHERE name IS NOT NULL
+        ORDER BY name
+      `);
+      
+      // Create lookup maps
       const terminalLookup = new Map();
       terminalMatches.rows.forEach(row => {
         terminalLookup.set(row.term_number, row.v_number);
       });
       
-      // Enhance SubTerminal data with VNumber where matches exist
+      // Create merchant lookup for fuzzy matching
+      const merchantRecords = merchantMatches.rows;
+      
+      // Enhance SubTerminal data with VNumber and merchant matching
       const enhancedSubterminals = subterminals.map(subterminal => {
         const vNumber = terminalLookup.get(subterminal.dNumber);
+        
+        // Find potential merchant matches using fuzzy matching
+        const deviceMerchantName = subterminal.deviceMerchant.toLowerCase();
+        const potentialMatches = merchantRecords.filter(merchant => {
+          const merchantName = merchant.name.toLowerCase();
+          
+          // Exact match
+          if (merchantName === deviceMerchantName) return true;
+          
+          // Contains match (either direction)
+          if (merchantName.includes(deviceMerchantName) || deviceMerchantName.includes(merchantName)) return true;
+          
+          // Word-based matching (check if key words match)
+          const deviceWords = deviceMerchantName.split(/\s+/).filter(word => word.length > 2);
+          const merchantWords = merchantName.split(/\s+/).filter(word => word.length > 2);
+          
+          const matchingWords = deviceWords.filter(word => 
+            merchantWords.some(mWord => mWord.includes(word) || word.includes(mWord))
+          );
+          
+          return matchingWords.length >= Math.min(2, deviceWords.length);
+        });
+        
+        // Sort matches by relevance (exact match first, then by length similarity)
+        potentialMatches.sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          
+          if (aName === deviceMerchantName) return -1;
+          if (bName === deviceMerchantName) return 1;
+          
+          const aLengthDiff = Math.abs(aName.length - deviceMerchantName.length);
+          const bLengthDiff = Math.abs(bName.length - deviceMerchantName.length);
+          
+          return aLengthDiff - bLengthDiff;
+        });
+        
         return {
           ...subterminal,
           vNumber: vNumber || null,
-          hasTerminalMatch: !!vNumber
+          hasTerminalMatch: !!vNumber,
+          merchantMatches: potentialMatches.slice(0, 3), // Top 3 matches
+          hasExactMerchantMatch: potentialMatches.length > 0 && potentialMatches[0].name.toLowerCase() === deviceMerchantName
         };
       });
       
@@ -5025,6 +5076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sourceFile: uploadFile.filename,
         uploadDate: uploadFile.created_at,
         terminalMatches: terminalMatches.rows.length,
+        merchantRecords: merchantRecords.length,
         data: enhancedSubterminals
       });
       
@@ -5032,6 +5084,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching SubTerminal raw data:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch SubTerminal data" 
+      });
+    }
+  });
+
+  // Add new merchant from SubTerminal data
+  app.post('/api/subterminals/add-merchant', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantName, sourceType = 'subterminal_import' } = req.body;
+      
+      if (!merchantName || typeof merchantName !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Merchant name is required' 
+        });
+      }
+
+      const merchantsTableName = getTableName('merchants');
+      
+      // Check if merchant already exists
+      const existingCheck = await pool.query(`
+        SELECT id, name FROM ${merchantsTableName} 
+        WHERE LOWER(name) = LOWER($1)
+      `, [merchantName.trim()]);
+
+      if (existingCheck.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Merchant already exists',
+          existingMerchant: existingCheck.rows[0]
+        });
+      }
+
+      // Generate a unique client_mid
+      const timestamp = Date.now().toString().slice(-8);
+      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const clientMid = `SUB${timestamp}${randomSuffix}`;
+
+      // Insert new merchant
+      const insertResult = await pool.query(`
+        INSERT INTO ${merchantsTableName} (name, client_mid, status, created_source)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, client_mid, status
+      `, [merchantName.trim(), clientMid, 'Active', sourceType]);
+
+      const newMerchant = insertResult.rows[0];
+
+      console.log(`[MERCHANT-CREATE] Added new merchant from SubTerminal: ${merchantName} (ID: ${newMerchant.id}, MID: ${clientMid})`);
+
+      res.json({
+        success: true,
+        message: 'Merchant created successfully',
+        merchant: newMerchant
+      });
+
+    } catch (error) {
+      console.error('Add merchant error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create merchant',
+        details: error.message 
       });
     }
   });
