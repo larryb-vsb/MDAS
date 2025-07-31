@@ -132,7 +132,7 @@ export const terminalFieldMappings: Record<string, string | null> = {
   discoverPosEntryMode: "Discover POS Entry Mode", // Discover network entry
   purchaseId: "Purchase ID", // Purchase identification
   posDataCode: "POS Data Code", // POS configuration code
-  genericField1: "Terminal #", // Terminal # from CSV import
+  termNumber: "Terminal #", // Terminal # from CSV import (renamed from genericField1)
   
   // Additional fields not directly from TSYS but managed internally
   terminalType: null, // Will be set during processing

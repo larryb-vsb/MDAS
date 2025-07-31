@@ -42,6 +42,10 @@ export default function SubTerminals() {
   const totalCount = subTerminalResponse?.totalCount || 0;
   const sourceFile = subTerminalResponse?.sourceFile || 'Unknown';
   const uploadDate = subTerminalResponse?.uploadDate || 'Unknown';
+  const terminalMatches = subTerminalResponse?.terminalMatches || 0;
+  
+  // Count matched terminals
+  const matchedCount = terminals.filter((t: any) => t.vNumber).length;
 
   const { data: merchantsResponse } = useQuery({
     queryKey: ['/api/merchants'],
@@ -543,6 +547,7 @@ export default function SubTerminals() {
                       <TableHead>Id</TableHead>
                       <TableHead>DeviceName</TableHead>
                       <TableHead>D_Number</TableHead>
+                      <TableHead>VNumber</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -555,6 +560,13 @@ export default function SubTerminals() {
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.dNumber}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {terminal.vNumber ? (
+                            <span className="text-green-600 font-bold">{terminal.vNumber}</span>
+                          ) : (
+                            <span className="text-gray-400">No Match</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -563,7 +575,7 @@ export default function SubTerminals() {
               
               {/* Summary footer */}
               <div className="mt-4 p-3 bg-gray-50 border rounded-lg text-sm text-muted-foreground">
-                <strong>Total SubTerminals:</strong> {totalCount} ({terminals.length} displayed) | <strong>Source:</strong> {sourceFile} | <strong>Raw Data Format:</strong> Id, DeviceName, D_Number
+                <strong>Total SubTerminals:</strong> {totalCount} ({terminals.length} displayed) | <strong>Terminal Matches:</strong> {matchedCount} VNumbers found | <strong>Available Terminal Records:</strong> {terminalMatches} | <strong>Source:</strong> {sourceFile}
               </div>
             </CardContent>
           </Card>

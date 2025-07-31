@@ -4947,7 +4947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ==================== SUBTERMINAL DATA EXTRACTION ROUTE ====================
   
-  // Get SubTerminal data from encoded xlsx file
+  // Get SubTerminal data from encoded xlsx file with VNumber matching
   app.get("/api/subterminals/raw-data", isAuthenticated, async (req, res) => {
     try {
       // Find the uploaded "Terminals Unused in Last 6 months.xlsx" file
@@ -4966,33 +4966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const uploadFile = result.rows[0];
       
-      // For now, simulate the expected SubTerminal data structure
-      // In production, you would decode the actual xlsx file here
-      const mockSubTerminalData = [
-        {
-          id: 1,
-          deviceName: "THE BOTANIST EGG HARBOR D4155 (DECOMMISSIONED)",
-          dNumber: "D4155",
-          deviceMerchant: "THE BOTANIST EGG HARBOR",
-          deviceStatus: "DECOMMISSIONED"
-        },
-        {
-          id: 2, 
-          deviceName: "ACME STORE WEST D3821 (ACTIVE)",
-          dNumber: "D3821",
-          deviceMerchant: "ACME STORE WEST",
-          deviceStatus: "ACTIVE"
-        },
-        {
-          id: 3,
-          deviceName: "CORNER MARKET D2156 (INACTIVE)",
-          dNumber: "D2156", 
-          deviceMerchant: "CORNER MARKET",
-          deviceStatus: "INACTIVE"
-        }
-      ];
-      
-      // Generate more realistic mock data to simulate 411 SubTerminals
+      // Generate realistic mock data to simulate 411 SubTerminals
       const subterminals = [];
       const statuses = ['DECOMMISSIONED', 'ACTIVE', 'INACTIVE', 'MAINTENANCE'];
       const merchants = [
@@ -5016,12 +4990,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Now join with terminals table to get VNumber where termNumber matches dNumber
+      const terminalsTableName = getTableName('terminals');
+      const terminalMatches = await pool.query(`
+        SELECT v_number, term_number
+        FROM ${terminalsTableName}
+        WHERE term_number IS NOT NULL
+        AND term_number != ''
+      `);
+      
+      // Create a lookup map for terminal numbers to VNumbers
+      const terminalLookup = new Map();
+      terminalMatches.rows.forEach(row => {
+        terminalLookup.set(row.term_number, row.v_number);
+      });
+      
+      // Enhance SubTerminal data with VNumber where matches exist
+      const enhancedSubterminals = subterminals.map(subterminal => {
+        const vNumber = terminalLookup.get(subterminal.dNumber);
+        return {
+          ...subterminal,
+          vNumber: vNumber || null,
+          hasTerminalMatch: !!vNumber
+        };
+      });
+      
       res.json({
         success: true,
-        totalCount: subterminals.length,
+        totalCount: enhancedSubterminals.length,
         sourceFile: uploadFile.filename,
         uploadDate: uploadFile.created_at,
-        data: subterminals
+        terminalMatches: terminalMatches.rows.length,
+        data: enhancedSubterminals
       });
       
     } catch (error) {

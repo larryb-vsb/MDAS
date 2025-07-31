@@ -151,7 +151,7 @@ export const terminals = pgTable(getTableName("terminals"), {
   ipAddress: text("ip_address"), // IP address if applicable
   
   // Generic fields as requested
-  genericField1: text("generic_field_1"), // Generic field for custom use
+  termNumber: text("term_number"), // Terminal number (renamed from generic_field_1)
   genericField2: text("generic_field_2"), // Generic field for custom use
   
   // Description and notes fields
