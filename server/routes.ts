@@ -11178,20 +11178,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tddf-json/stats", isAuthenticated, async (req, res) => {
     try {
-      // Check cache first for performance optimization
-      if (statsCache && (Date.now() - statsCache.timestamp) < STATS_CACHE_TTL) {
-        console.log('[TDDF-JSON-STATS] Serving from cache');
-        return res.json(statsCache.data);
-      }
-
-      console.log('[TDDF-JSON-STATS] Cache miss, querying database...');
+      console.log('[TDDF-JSON-STATS] Using pre-cache table for statistics...');
       const startTime = Date.now();
       
-      // Use the same table that Stage 5 encoding writes to
+      // Use pre-cache table instead of direct queries
       const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      const preCacheTableName = environment === 'development' ? 'dev_tddf_json_stats_pre_cache' : 'tddf_json_stats_pre_cache';
       
-      // Optimized single query to get all stats at once
+      // Query pre-cache table first
+      const preCacheResult = await pool.query(`
+        SELECT 
+          total_records,
+          unique_files,
+          total_amount,
+          record_type_breakdown,
+          created_at,
+          updated_at,
+          expires_at,
+          build_time_ms,
+          last_refresh_datetime
+        FROM ${preCacheTableName}
+        WHERE cache_key = 'tddf_json_stats_global'
+        AND expires_at > NOW()
+        LIMIT 1
+      `);
+      
+      const queryTime = Date.now() - startTime;
+      
+      if (preCacheResult.rows.length > 0) {
+        const result = preCacheResult.rows[0];
+        
+        console.log(`[TDDF-JSON-STATS] Serving from pre-cache table in ${queryTime}ms`);
+        
+        const responseData = {
+          totalRecords: parseInt(result.total_records || '0'),
+          recordTypeBreakdown: result.record_type_breakdown || {},
+          uniqueFiles: parseInt(result.unique_files || '0'),
+          totalAmount: parseFloat(result.total_amount || '0'),
+          queryTime: queryTime,
+          fromPreCache: true,
+          lastUpdated: result.last_refresh_datetime,
+          buildTime: result.build_time_ms
+        };
+        
+        return res.json(responseData);
+      }
+      
+      // Fallback to direct query if pre-cache is expired or missing
+      console.log('[TDDF-JSON-STATS] Pre-cache expired, falling back to direct query...');
+      const fallbackTableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      
       const optimizedStatsResult = await pool.query(`
         WITH stats AS (
           SELECT 
@@ -11204,11 +11240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               THEN CAST(extracted_fields->>'transactionAmount' AS NUMERIC)
               ELSE 0
             END) as total_amount
-          FROM ${tableName}
+          FROM ${fallbackTableName}
         ),
         type_breakdown AS (
           SELECT record_type, COUNT(*) as count 
-          FROM ${tableName}
+          FROM ${fallbackTableName}
           GROUP BY record_type
         )
         SELECT 
@@ -11221,8 +11257,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         GROUP BY s.total_records, s.unique_files, s.total_amount
       `);
       
-      const queryTime = Date.now() - startTime;
-      console.log(`[TDDF-JSON-STATS] Database query completed in ${queryTime}ms`);
+      const fallbackQueryTime = Date.now() - startTime;
+      console.log(`[TDDF-JSON-STATS] Fallback query completed in ${fallbackQueryTime}ms`);
       
       const result = optimizedStatsResult.rows[0];
       const responseData = {
@@ -11230,13 +11266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordTypeBreakdown: result?.record_type_breakdown || {},
         uniqueFiles: parseInt(result?.unique_files || '0'),
         totalAmount: parseFloat(result?.total_amount || '0'),
-        queryTime: queryTime
-      };
-
-      // Cache the result for future requests
-      statsCache = {
-        data: responseData,
-        timestamp: Date.now()
+        queryTime: fallbackQueryTime,
+        fromPreCache: false,
+        fallbackUsed: true
       };
       
       res.json(responseData);
