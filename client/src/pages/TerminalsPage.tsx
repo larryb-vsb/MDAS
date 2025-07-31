@@ -24,7 +24,7 @@ export default function TerminalsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [terminalTypeFilter, setTerminalTypeFilter] = useState("all");
-  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | null>(null);
+  const [sortField, setSortField] = useState<'lastActivity' | 'lastUpdate' | 'termNumber' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [selectedTerminals, setSelectedTerminals] = useState<number[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -69,24 +69,41 @@ export default function TerminalsPage() {
     // Apply performance-optimized sorting
     if (sortField) {
       filteredTerminals.sort((a, b) => {
-        let aValue: Date | null = null;
-        let bValue: Date | null = null;
+        if (sortField === 'termNumber') {
+          const aValue = a.term_number || '';
+          const bValue = b.term_number || '';
+          
+          // Convert to numbers if they're numeric, otherwise compare as strings
+          const aNum = parseInt(aValue, 10);
+          const bNum = parseInt(bValue, 10);
+          
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            const comparison = aNum - bNum;
+            return sortDirection === 'asc' ? comparison : -comparison;
+          } else {
+            const comparison = aValue.localeCompare(bValue);
+            return sortDirection === 'asc' ? comparison : -comparison;
+          }
+        } else {
+          let aValue: Date | null = null;
+          let bValue: Date | null = null;
 
-        if (sortField === 'lastActivity') {
-          aValue = a.last_activity ? new Date(a.last_activity) : null;
-          bValue = b.last_activity ? new Date(b.last_activity) : null;
-        } else if (sortField === 'lastUpdate') {
-          aValue = a.last_update ? new Date(a.last_update) : null;
-          bValue = b.last_update ? new Date(b.last_update) : null;
+          if (sortField === 'lastActivity') {
+            aValue = a.last_activity ? new Date(a.last_activity) : null;
+            bValue = b.last_activity ? new Date(b.last_activity) : null;
+          } else if (sortField === 'lastUpdate') {
+            aValue = a.last_update ? new Date(a.last_update) : null;
+            bValue = b.last_update ? new Date(b.last_update) : null;
+          }
+
+          // Enhanced null handling with performance optimization
+          if (!aValue && !bValue) return 0;
+          if (!aValue) return sortDirection === 'asc' ? 1 : -1;
+          if (!bValue) return sortDirection === 'asc' ? -1 : 1;
+
+          const comparison = aValue.getTime() - bValue.getTime();
+          return sortDirection === 'asc' ? comparison : -comparison;
         }
-
-        // Enhanced null handling with performance optimization
-        if (!aValue && !bValue) return 0;
-        if (!aValue) return sortDirection === 'asc' ? 1 : -1;
-        if (!bValue) return sortDirection === 'asc' ? -1 : 1;
-
-        const comparison = aValue.getTime() - bValue.getTime();
-        return sortDirection === 'asc' ? comparison : -comparison;
       });
     }
 
@@ -127,7 +144,7 @@ export default function TerminalsPage() {
     }
   };
 
-  const handleSort = (field: 'lastActivity' | 'lastUpdate') => {
+  const handleSort = (field: 'lastActivity' | 'lastUpdate' | 'termNumber') => {
     if (sortField === field) {
       // Toggle direction or clear sort
       if (sortDirection === 'desc') {
@@ -144,7 +161,7 @@ export default function TerminalsPage() {
     setCurrentPage(1);
   };
 
-  const getSortIcon = (field: 'lastActivity' | 'lastUpdate') => {
+  const getSortIcon = (field: 'lastActivity' | 'lastUpdate' | 'termNumber') => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
     }
@@ -472,6 +489,15 @@ export default function TerminalsPage() {
                     <TableHead>VAR Number</TableHead>
                     <TableHead>DBA Name</TableHead>
                     <TableHead>POS Merchant #</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort('termNumber')}
+                    >
+                      <div className="flex items-center">
+                        Term Number
+                        {getSortIcon('termNumber')}
+                      </div>
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:bg-muted/50"
@@ -513,6 +539,9 @@ export default function TerminalsPage() {
                       <TableCell>{terminal.dba_name || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">
                         {terminal.pos_merchant_number || "-"}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-medium text-blue-600">
+                        {terminal.term_number || "-"}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
