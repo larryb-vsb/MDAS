@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, X, RefreshCw } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, X, RefreshCw, Clock, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActivityData {
   transaction_date: string;
@@ -129,17 +130,75 @@ interface TddfJsonActivityHeatMapProps {
   onDateSelect?: (date: string) => void;
   selectedDate?: string | null;
   enableDebugLogging?: boolean;
+  userId?: number;
+  isAdmin?: boolean;
 }
 
-const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDateSelect, selectedDate, enableDebugLogging = false }) => {
+interface HeatMapCacheStatus {
+  isProcessing: boolean;
+  currentMonth: string | null;
+  canRefresh: boolean;
+  cooldownMinutes: number;
+}
+
+const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ 
+  onDateSelect, 
+  selectedDate, 
+  enableDebugLogging = false,
+  userId,
+  isAdmin = false
+}) => {
   const [currentYear, setCurrentYear] = useState(2024); // Start with 2024 where most data exists (134,870 transactions)
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  // Removed old refresh state - now using admin controls
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // Use internal state if no external state is provided
   const selectedDates = selectedDate ? [selectedDate] : internalSelectedDates;
+  
+  // Heat map cache status query
+  const { data: cacheStatus } = useQuery<HeatMapCacheStatus>({
+    queryKey: ['/api/heat-map-cache/status'],
+    refetchInterval: 10000, // Update every 10 seconds
+    enabled: isAdmin
+  });
+  
+  // Admin refresh mutation
+  const refreshMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/heat-map-cache/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ year: currentYear })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to refresh heat map cache');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Cache Refresh Started",
+        description: data.message,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/heat-map-cache/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Refresh Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
   
   const handleDateSelect = (date: string) => {
     if (enableDebugLogging) {
@@ -169,35 +228,21 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
     }
   };
   
-  const handleCacheRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      // Invalidate the current query cache to force fresh data fetch
-      await queryClient.invalidateQueries({
-        queryKey: ['/api/tddf-json/activity', currentYear, 'DT']
+  // Admin-only refresh handler
+  const handleAdminRefresh = () => {
+    if (!isAdmin) {
+      toast({
+        title: "Access Denied",
+        description: "Only administrators can refresh the heat map cache",
+        variant: "destructive",
       });
-      
-      setLastRefreshTime(new Date());
-    } catch (error) {
-      console.error('Cache refresh failed:', error);
-    } finally {
-      setIsRefreshing(false);
+      return;
     }
+    
+    refreshMutation.mutate();
   };
   
-  // Calculate time since last refresh
-  const getTimeSinceRefresh = () => {
-    if (!lastRefreshTime) return null;
-    const now = new Date();
-    const diffMs = now.getTime() - lastRefreshTime.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMinutes / 60);
-    
-    if (diffMinutes < 1) return 'just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-    if (diffHours < 24) return `${diffHours}h ${diffMinutes % 60}m ago`;
-    return lastRefreshTime.toLocaleDateString();
-  };
+  // Removed old time tracking - using admin controls with cooldown
 
   const { data: activityResponse, isLoading, error, isFetching } = useQuery<ActivityResponse>({
     queryKey: ['/api/tddf-json/activity', currentYear, 'DT'],
@@ -355,24 +400,42 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
           </Button>
           
           {/* Cache Refresh Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCacheRefresh}
-            disabled={isRefreshing}
-            className="ml-4 h-8 px-3 text-xs"
-            title={`Refresh cache data for ${currentYear} (includes month-by-month update)`}
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? `Refreshing ${currentYear}...` : `Refresh ${currentYear}`}
-          </Button>
-          
-          {/* Last Refresh Info */}
-          {lastRefreshTime && (
-            <div className="ml-2 text-xs text-gray-500">
-              <span>Last refresh: {getTimeSinceRefresh()}</span>
-            </div>
+          {isAdmin ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAdminRefresh}
+                disabled={refreshMutation.isPending || !cacheStatus?.canRefresh}
+                className={`ml-4 h-8 px-3 text-xs ${!cacheStatus?.canRefresh ? 'bg-orange-50 text-orange-600 border-orange-200' : 'hover:bg-green-50'}`}
+                title={cacheStatus?.canRefresh ? `Admin refresh for ${currentYear}` : `Cooldown: ${cacheStatus?.cooldownMinutes}m remaining`}
+              >
+                {cacheStatus?.canRefresh ? (
+                  <RefreshCw className={`h-3 w-3 mr-1 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
+                ) : (
+                  <Clock className="h-3 w-3 mr-1" />
+                )}
+                {cacheStatus?.canRefresh ? `Refresh ${currentYear}` : `Cooldown (${cacheStatus?.cooldownMinutes}m)`}
+              </Button>
+              {cacheStatus?.isProcessing && cacheStatus.currentMonth && (
+                <div className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded border border-blue-200">
+                  Processing: {cacheStatus.currentMonth}
+                </div>
+              )}
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              className="ml-4 h-8 px-3 text-xs bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+              title="Only administrators can refresh cache"
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              Admin Only
+            </Button>
           )}
+
         </div>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <span 

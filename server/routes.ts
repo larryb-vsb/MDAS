@@ -8222,6 +8222,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Heat Map Cache Management API Endpoints
+  app.get('/api/heat-map-cache/status', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { scanlyWatcher } = req.app.locals;
+      const status = scanlyWatcher.getHeatMapProcessingStatus();
+      
+      res.json({
+        success: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('Heat map cache status error:', error);
+      res.status(500).json({ 
+        error: 'Failed to get heat map cache status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.post('/api/heat-map-cache/refresh', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      
+      // Check if user is admin
+      if (user.username !== 'admin') {
+        return res.status(403).json({
+          error: 'Access denied',
+          message: 'Only administrators can refresh heat map cache'
+        });
+      }
+      
+      const { year } = req.body;
+      
+      if (!year || typeof year !== 'number') {
+        return res.status(400).json({
+          error: 'Invalid year parameter'
+        });
+      }
+      
+      const { scanlyWatcher } = req.app.locals;
+      const result = await scanlyWatcher.startHeatMapRefresh(year, user.id);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message
+        });
+      } else {
+        res.status(429).json({
+          error: result.message,
+          success: false
+        });
+      }
+    } catch (error) {
+      console.error('Heat map cache refresh error:', error);
+      res.status(500).json({ 
+        error: 'Failed to start heat map cache refresh',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Dedicated Heat Map Testing endpoint - only loads from pre-cache table
   app.get("/api/heat-map-testing/cached", isAuthenticated, async (req, res) => {
     try {

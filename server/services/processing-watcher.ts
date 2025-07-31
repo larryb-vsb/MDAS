@@ -71,6 +71,8 @@ export class ScanlyWatcher {
   private lastProcessingStatusUpdate: Date | null = null;
   private performanceRecordingInterval: NodeJS.Timeout | null = null;
   private heatMapCacheCheckInterval: NodeJS.Timeout | null = null;
+  private lastHeatMapRefreshRequest: Date | null = null;
+  private currentProcessingMonth: string | null = null;
 
   start(): void {
     if (this.isRunning) {
@@ -1687,43 +1689,88 @@ export class ScanlyWatcher {
     }, 5 * 60 * 1000); // 5 minutes
   }
 
+  // Enhanced heat map cache monitoring with progress tracking
   private async checkHeatMapCacheStatus(): Promise<void> {
     try {
       console.log('[SCANLY-WATCHER] Checking heat map cache status...');
       
-      // Check for stale cache entries
-      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
-      const cacheTableName = getTableName('tddf_json_activity_pre_cache');
-      
-      const staleResult = await pool.query(`
-        SELECT COUNT(*) as stale_count
-        FROM ${cacheTableName}
-        WHERE expires_at < $1
-      `, [staleThreshold]);
-      
-      const staleCount = parseInt(staleResult.rows[0]?.stale_count || 0);
-      
-      if (staleCount > 0) {
-        console.log(`[SCANLY-WATCHER] ⚠️ Found ${staleCount} stale heat map cache entries`);
-        
-        // Alert for stale cache but don't auto-rebuild (user should trigger)
-        this.addAlert('warning', 'heat_map_cache_stale', 
-          `${staleCount} heat map cache entries are stale and may need rebuilding`, 
-          { staleCount, threshold: '24 hours' }
-        );
-      }
-      
-      // Check for active rebuild jobs
+      // Check for active rebuild jobs and update current processing month
       const activeJobs = HeatMapCacheBuilder.getAllActiveJobs();
       const runningJobs = activeJobs.filter(job => job.status === 'running');
       
       if (runningJobs.length > 0) {
-        console.log(`[SCANLY-WATCHER] 📊 ${runningJobs.length} heat map cache rebuild job(s) in progress`);
+        const activeJob = runningJobs[0];
+        this.currentProcessingMonth = activeJob.currentMonth || null;
+        const progressPct = Math.round((activeJob.completedMonths / activeJob.totalMonths) * 100);
+        console.log(`[SCANLY-WATCHER] Heat map cache building: ${activeJob.currentMonth} (${progressPct}% complete)`);
+      } else {
+        this.currentProcessingMonth = null;
         
-        for (const job of runningJobs) {
-          const progressPct = Math.round((job.completedMonths / job.totalMonths) * 100);
-          console.log(`[SCANLY-WATCHER] Job ${job.id}: ${progressPct}% complete (${job.completedMonths}/${job.totalMonths} months)`);
+        // Check for empty cache tables only if no active jobs
+        const years = [2022, 2023, 2024, 2025];
+        const emptyTables = [];
+        
+        for (const year of years) {
+          try {
+            const tableName = `heat_map_cache_${year}`;
+            const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+            const count = parseInt(countResult.rows[0]?.count || 0);
+            
+            if (count === 0) {
+              emptyTables.push({ tableName, year });
+            }
+          } catch (error) {
+            // Table might not exist, skip
+          }
         }
+        
+        if (emptyTables.length > 0) {
+          console.log(`[SCANLY-WATCHER] Found ${emptyTables.length} empty heat map cache tables`);
+          
+          // Check cooldown before starting rebuild (respects "never refresh" policy)
+          if (this.canStartHeatMapRefresh()) {
+            console.log(`[SCANLY-WATCHER] Auto-populating empty cache tables (ONCE ONLY)...`);
+            
+            for (const table of emptyTables) {
+              console.log(`[SCANLY-WATCHER] Auto-populating ${table.tableName}...`);
+              try {
+                await HeatMapCacheBuilder.startCacheRebuild(table.year);
+              } catch (error) {
+                console.error(`[SCANLY-WATCHER] Failed to auto-populate ${table.tableName}:`, error);
+              }
+            }
+            
+            this.lastHeatMapRefreshRequest = new Date();
+          } else {
+            const cooldownMinutes = this.getHeatMapRefreshCooldownMinutes();
+            console.log(`[SCANLY-WATCHER] Heat map auto-populate on cooldown (${cooldownMinutes} minutes remaining)`);
+          }
+        }
+      }
+      
+      // Check for stale cache entries (ALERT ONLY - no auto-refresh)
+      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
+      const cacheTableName = getTableName('tddf_json_activity_pre_cache');
+      
+      try {
+        const staleResult = await pool.query(`
+          SELECT COUNT(*) as stale_count
+          FROM ${cacheTableName}
+          WHERE expires_at < $1
+        `, [staleThreshold]);
+        
+        const staleCount = parseInt(staleResult.rows[0]?.stale_count || 0);
+        
+        if (staleCount > 0) {
+          console.log(`[SCANLY-WATCHER] ⚠️ Found ${staleCount} stale heat map cache entries (ADMIN REFRESH REQUIRED)`);
+          
+          this.addAlert('warning', 'heat_map_cache_stale', 
+            `${staleCount} heat map cache entries are stale - admin refresh required`, 
+            { staleCount, threshold: '24 hours', neverRefreshPolicy: true }
+          );
+        }
+      } catch (error) {
+        // Pre-cache table might not exist, skip
       }
       
       // Clean up old completed jobs
@@ -1735,6 +1782,72 @@ export class ScanlyWatcher {
         'Failed to check heat map cache status', 
         { error: error instanceof Error ? error.message : 'Unknown error' }
       );
+    }
+  }
+  
+  // Check if heat map refresh can be started (15-minute cooldown)
+  canStartHeatMapRefresh(): boolean {
+    if (!this.lastHeatMapRefreshRequest) return true;
+    
+    const cooldownMs = 15 * 60 * 1000; // 15 minutes
+    const timeSinceLastRefresh = Date.now() - this.lastHeatMapRefreshRequest.getTime();
+    return timeSinceLastRefresh >= cooldownMs;
+  }
+  
+  // Get remaining cooldown minutes
+  getHeatMapRefreshCooldownMinutes(): number {
+    if (!this.lastHeatMapRefreshRequest) return 0;
+    
+    const cooldownMs = 15 * 60 * 1000; // 15 minutes
+    const timeSinceLastRefresh = Date.now() - this.lastHeatMapRefreshRequest.getTime();
+    const remainingMs = cooldownMs - timeSinceLastRefresh;
+    
+    return Math.max(0, Math.ceil(remainingMs / (60 * 1000)));
+  }
+  
+  // Get current processing status for heat map
+  getHeatMapProcessingStatus(): {
+    isProcessing: boolean;
+    currentMonth: string | null;
+    canRefresh: boolean;
+    cooldownMinutes: number;
+  } {
+    return {
+      isProcessing: this.currentProcessingMonth !== null,
+      currentMonth: this.currentProcessingMonth,
+      canRefresh: this.canStartHeatMapRefresh(),
+      cooldownMinutes: this.getHeatMapRefreshCooldownMinutes()
+    };
+  }
+  
+  // Start heat map refresh with admin authorization
+  async startHeatMapRefresh(year: number, adminUserId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      if (!this.canStartHeatMapRefresh()) {
+        const cooldownMinutes = this.getHeatMapRefreshCooldownMinutes();
+        return {
+          success: false,
+          message: `Heat map refresh on cooldown (${cooldownMinutes} minutes remaining)`
+        };
+      }
+      
+      console.log(`[SCANLY-WATCHER] Admin ${adminUserId} starting heat map refresh for year ${year}`);
+      
+      await HeatMapCacheBuilder.startCacheRebuild(year);
+      
+      this.lastHeatMapRefreshRequest = new Date();
+      
+      return {
+        success: true,
+        message: `Heat map cache refresh started for year ${year}`
+      };
+      
+    } catch (error) {
+      console.error('[SCANLY-WATCHER] Error starting heat map refresh:', error);
+      return {
+        success: false,
+        message: `Failed to start heat map refresh: ${error.message}`
+      };
     }
   }
 }
