@@ -248,9 +248,9 @@ export default function SubTerminals() {
                   .filter((terminal: any) => {
                     // Apply search filters
                     const matchesTerminalSearch = !terminalSearchFilter || 
-                      terminal.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
-                      terminal.terminalName?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
-                      terminal.posMerchantNumber?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
+                      terminal.v_number?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                      terminal.dba_name?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                      terminal.pos_merchant_number?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
                     
                     // Apply unmatched filter
                     const matchesUnmatchedFilter = !showOnlyUnmatched || 
@@ -261,16 +261,16 @@ export default function SubTerminals() {
                   .slice(0, 50) // Limit to 50 for performance
                   .map((terminal: any) => {
                     const currentMerchant = merchants.find((m: any) => m.id === terminal.merchantId);
-                    const isDecommissioned = terminal.terminalName?.toLowerCase().includes('decommission') ||
-                                           terminal.terminalName?.toLowerCase().includes('decomm') ||
-                                           terminal.terminalName?.toLowerCase().includes('inactive');
+                    const isDecommissioned = terminal.dba_name?.toLowerCase().includes('decommission') ||
+                                           terminal.dba_name?.toLowerCase().includes('decomm') ||
+                                           terminal.dba_name?.toLowerCase().includes('inactive');
                     
                     return (
                       <TableRow key={terminal.id}>
-                        <TableCell className="font-mono text-sm">{terminal.terminalId}</TableCell>
+                        <TableCell className="font-mono text-sm">{terminal.v_number}</TableCell>
                         <TableCell>
-                          <div className="max-w-[200px] truncate" title={terminal.terminalName}>
-                            {terminal.terminalName}
+                          <div className="max-w-[200px] truncate" title={terminal.dba_name}>
+                            {terminal.dba_name}
                             {isDecommissioned && (
                               <Badge variant="outline" className="ml-2 text-xs text-red-600 border-red-200">
                                 Decommissioned
@@ -278,7 +278,7 @@ export default function SubTerminals() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{terminal.posMerchantNumber}</TableCell>
+                        <TableCell className="font-mono text-sm">{terminal.pos_merchant_number}</TableCell>
                         <TableCell>
                           {currentMerchant ? (
                             <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ export default function SubTerminals() {
                                 <DialogHeader>
                                   <DialogTitle>Assign Merchant to Terminal</DialogTitle>
                                   <DialogDescription>
-                                    Select a merchant for terminal: {terminal.terminalName}
+                                    Select a merchant for terminal: {terminal.dba_name}
                                   </DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4">
@@ -359,8 +359,8 @@ export default function SubTerminals() {
                                   </div>
                                   <div className="text-sm text-muted-foreground">
                                     <strong>Terminal Details:</strong><br />
-                                    ID: {terminal.terminalId}<br />
-                                    POS Merchant #: {terminal.posMerchantNumber}<br />
+                                    ID: {terminal.v_number}<br />
+                                    POS Merchant #: {terminal.pos_merchant_number}<br />
                                     Status: {isDecommissioned ? 'Decommissioned' : 'Active'}
                                   </div>
                                 </div>
@@ -391,8 +391,8 @@ export default function SubTerminals() {
               <div>
                 <span className="font-medium">Showing:</span> {Math.min(50, terminals.filter((t: any) => {
                   const matchesTerminalSearch = !terminalSearchFilter || 
-                    t.terminalId?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
-                    t.terminalName?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
+                    t.v_number?.toLowerCase().includes(terminalSearchFilter.toLowerCase()) ||
+                    t.dba_name?.toLowerCase().includes(terminalSearchFilter.toLowerCase());
                   const matchesUnmatchedFilter = !showOnlyUnmatched || (!t.merchantId || t.merchantId === 'UNKNOWN');
                   return matchesTerminalSearch && matchesUnmatchedFilter;
                 }).length)} terminals
@@ -404,9 +404,9 @@ export default function SubTerminals() {
               </div>
               <div>
                 <span className="font-medium">Decommissioned:</span> {terminals.filter((t: any) => 
-                  t.terminalName?.toLowerCase().includes('decommission') ||
-                  t.terminalName?.toLowerCase().includes('decomm') ||
-                  t.terminalName?.toLowerCase().includes('inactive')
+                  t.dba_name?.toLowerCase().includes('decommission') ||
+                  t.dba_name?.toLowerCase().includes('decomm') ||
+                  t.dba_name?.toLowerCase().includes('inactive')
                 ).length}
               </div>
               <div>
