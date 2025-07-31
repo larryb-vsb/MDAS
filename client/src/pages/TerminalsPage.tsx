@@ -18,7 +18,6 @@ import { Link } from "wouter";
 import { Terminal } from "@shared/schema";
 import { formatTableDate } from "@/lib/date-utils";
 import TddfActivityHeatMap from "@/components/tddf/TddfActivityHeatMap";
-import EnhancedTerminalHeatMap from "@/components/terminals/EnhancedTerminalHeatMap";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TerminalsPage() {
@@ -323,11 +322,7 @@ export default function TerminalsPage() {
           </Card>
         </div>
 
-        {/* Enhanced Terminal Activity Heat Map with Performance Optimization */}
-        <EnhancedTerminalHeatMap 
-          onDateSelect={setSelectedDate}
-          selectedDate={selectedDate}
-        />
+
 
         {/* Filters */}
         <Card>
