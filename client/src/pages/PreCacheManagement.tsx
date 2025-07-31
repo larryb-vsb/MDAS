@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { HeatMapCacheMonitor } from "@/components/cache/HeatMapCacheMonitor";
 import { HeatMapProcessingStats } from "@/components/cache/HeatMapProcessingStats";
-import { MainLayout } from "@/components/layout/MainLayout";
 
 interface PreCacheSettings {
   id: number;
@@ -543,44 +542,6 @@ export default function PreCacheManagement() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  return (
-    <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Pre-Cache Management</h1>
-            <p className="text-muted-foreground mt-2">
-              Monitor and control all pre-cache systems across the application
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => initializeDefaultsMutation.mutate()}
-              disabled={initializeDefaultsMutation.isPending}
-              variant="outline"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Initialize Defaults
-            </Button>
-            <Button 
-              onClick={() => setShowDashboardControls(true)}
-              variant="outline"
-              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Dashboard Edit Controls
-            </Button>
-            <Button 
-              onClick={() => setShowPolicyManagement(true)}
-              variant="outline"
-              className="text-purple-600 border-purple-200 hover:bg-purple-50"
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Policy Management
-            </Button>
-          </div>
-        </div>
-
 // Cache Configuration Management Component
 function CacheConfigurationManagement() {
   const { toast } = useToast();
@@ -914,6 +875,56 @@ function CacheConfigurationManagement() {
     </Card>
   );
 }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Pre-Cache Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor and control all pre-cache systems across the application
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => initializeDefaultsMutation.mutate()}
+            disabled={initializeDefaultsMutation.isPending}
+            variant="outline"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Initialize Defaults
+          </Button>
+          <Button 
+            onClick={() => setShowDashboardControls(true)}
+            variant="outline"
+            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Dashboard Edit Controls
+          </Button>
+          <Button 
+            onClick={() => setShowPolicyManagement(true)}
+            variant="outline"
+            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          >
+            <Shield className="w-4 h-4 mr-2" />
+            Policy Management
+          </Button>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tables">Pre-Cache Tables</TabsTrigger>
+          <TabsTrigger value="configuration">Configuration</TabsTrigger>
+          <TabsTrigger value="heat-map">Heat Map Cache</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="errors">Errors</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
           {dashboard && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
@@ -1088,6 +1099,8 @@ function CacheConfigurationManagement() {
             </CardContent>
           </Card>
         </TabsContent>
+
+
 
         <TabsContent value="performance" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1497,7 +1510,6 @@ function CacheConfigurationManagement() {
           </div>
         </DialogContent>
       </Dialog>
-      </div>
-    </MainLayout>
+    </div>
   );
 }
