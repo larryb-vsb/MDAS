@@ -16,13 +16,15 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - GROUP SELECTION AND PRODUCTION DASHBOARD CACHE FIX - **✅ PRODUCTION DASHBOARD CACHE TABLE CREATED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production `dashboard_cache` table:
+- Current session: July 31, 2025 - GROUP SELECTION AND PRODUCTION DASHBOARD CACHE FIX - **✅ PRODUCTION DASHBOARD CACHE INFRASTRUCTURE COMPLETED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production cache tables:
   - **Production Database Fix**: Created missing `dashboard_cache` table with complete schema (id, cache_key, cache_data, created_at, updated_at, expires_at, build_time_ms, record_count)
-  - **Performance Indexes Added**: Created essential indexes on cache_key, expires_at, and updated_at for optimal query performance
-  - **Root Cause Identified**: Production environment was looking for `dashboard_cache` table but only development `dev_dashboard_cache` existed
+  - **Merchant Cache Table Added**: Created `dashboard_merchants_cache_2025` table for merchant-specific dashboard caching requirements
+  - **Performance Indexes Added**: Created essential indexes on cache_key, expires_at, and updated_at for both cache tables ensuring optimal query performance
+  - **Root Cause Identified**: Production environment was looking for `dashboard_cache` and `dashboard_merchants_cache_2025` tables but only development versions existed
+  - **API Testing Confirmed**: Dashboard refresh API endpoint now returns 200 success response confirming proper functionality
   - **No Code Changes Required**: Pure database-only fix as requested - no application code modifications needed
   - **Dashboard Refresh Fix**: Resolved "Refresh Failed - Failed to refresh dashboard cache" error in production merchant management page
-  - **Environment Parity**: Production database now has proper dashboard caching infrastructure matching development environment
+  - **Environment Parity**: Production database now has complete dashboard caching infrastructure matching development environment
 - **✅ GROUP SELECTION AND DELETE FUNCTIONALITY COMPLETED (July 31, 2025)**: Successfully implemented comprehensive bulk selection system for Storage Management page:
   - **Individual Selection**: Added checkboxes for each storage object with visual feedback using blue rings around selected items
   - **Bulk Selection Controls**: Implemented "Select All" and "Select None" functionality with comprehensive state management
