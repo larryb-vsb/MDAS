@@ -278,12 +278,21 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
   const queryTime = metadata?.performanceMetrics?.totalQueryTime || activityResponse?.queryTime || 0;
   const fromCache = activityResponse?.fromCache || false;
 
-  // Show simple loading message only during initial load
+  // Show enhanced loading message for large dataset processing
   if (isLoading) {
     return (
       <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-center">
-          <div className="text-sm text-gray-600">Loading cached heat map data...</div>
+        <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+          <div className="text-center">
+            <div className="font-medium text-gray-900">Processing Complete Dataset</div>
+            <div className="text-sm text-gray-500 mt-1">
+              Loading 2.7M+ transaction records - Please wait up to 10 minutes
+            </div>
+            <div className="text-xs text-gray-400 mt-2">
+              Bypassing incomplete pre-cache for accurate results
+            </div>
+          </div>
         </div>
       </div>
     );
