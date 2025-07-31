@@ -9629,6 +9629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_count,
           EXTRACT(EPOCH FROM (NOW() - updated_at))/60 as age_minutes,
           CASE 
+            WHEN expires_at > NOW() + INTERVAL '50 years' THEN 'never'
             WHEN NOW() > expires_at THEN 'expired'
             WHEN EXTRACT(EPOCH FROM (NOW() - updated_at))/60 > 20 THEN 'stale'
             ELSE 'fresh'

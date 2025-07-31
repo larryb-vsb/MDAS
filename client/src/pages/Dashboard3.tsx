@@ -24,7 +24,7 @@ interface CacheStatus {
   build_time_ms: number;
   record_count: number;
   age_minutes: number;
-  status: 'fresh' | 'stale' | 'expired';
+  status: 'fresh' | 'stale' | 'expired' | 'never';
 }
 
 export default function Dashboard3() {
@@ -160,10 +160,16 @@ export default function Dashboard3() {
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Expires:</span>
                           <div className="text-xs text-right">
-                            <div>{new Date(cacheStatus.expires_at).toLocaleDateString()}</div>
-                            <div className="text-muted-foreground">
-                              {new Date(cacheStatus.expires_at).toLocaleTimeString()}
-                            </div>
+                            {cacheStatus.status === 'never' ? (
+                              <div className="text-blue-600 font-medium">Never</div>
+                            ) : (
+                              <>
+                                <div>{new Date(cacheStatus.expires_at).toLocaleDateString()}</div>
+                                <div className="text-muted-foreground">
+                                  {new Date(cacheStatus.expires_at).toLocaleTimeString()}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                         
@@ -173,12 +179,13 @@ export default function Dashboard3() {
                             variant="outline" 
                             className={`text-xs ${
                               cacheStatus.status === 'fresh' ? 'bg-green-50 text-green-700 border-green-200' :
+                              cacheStatus.status === 'never' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                               cacheStatus.status === 'stale' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
                               'bg-red-50 text-red-700 border-red-200'
                             }`}
                           >
                             <Clock className="h-3 w-3 mr-1" />
-                            {cacheStatus.status}
+                            {cacheStatus.status === 'never' ? 'Never expires' : cacheStatus.status}
                           </Badge>
                         </div>
                         
