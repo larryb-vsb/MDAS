@@ -930,32 +930,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const bhCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_batch_headers')}`);
         bhCount = parseInt(bhCountResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] BH table not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] BH table not accessible: ${(e as Error).message}`); }
       
       try {
         const p1TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions')}`);
         p1TableCount = parseInt(p1TableResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] P1 table not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 table not accessible: ${(e as Error).message}`); }
       
       try {
         const p2TableResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_purchasing_extensions_2')}`);
         p2TableCount = parseInt(p2TableResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] P2 table not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 table not accessible: ${(e as Error).message}`); }
       
       try {
         const p1RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P1' AND processing_status = 'processed'`);
         p1RawCount = parseInt(p1RawResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] P1 raw import not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] P1 raw import not accessible: ${(e as Error).message}`); }
       
       try {
         const p2RawResult = await pool.query(`SELECT COUNT(*) as count FROM ${tddfRawImportTableName} WHERE record_type = 'P2' AND processing_status = 'processed'`);
         p2RawCount = parseInt(p2RawResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] P2 raw import not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] P2 raw import not accessible: ${(e as Error).message}`); }
       
       try {
         const otherCountResult = await pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_other_records')}`);
         otherCount = parseInt(otherCountResult.rows[0]?.count || '0');
-      } catch (e) { console.log(`[REAL-TIME STATS] Other records table not accessible: ${e.message}`); }
+      } catch (e) { console.log(`[REAL-TIME STATS] Other records table not accessible: ${(e as Error).message}`); }
       
       // Combine the results
       const hierarchicalStats = {
@@ -997,10 +997,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tddfRecordsLastHour: parseInt(tddfStats.tddf_records_last_hour) || 0,
           totalRawLines: parseInt(tddfRawStats.total_raw_lines) || 0,
           dtRecordsProcessed: parseInt(tddfRawStats.dt_records_processed) || 0,
-          bhRecordsProcessed: parseInt(hierarchicalStats.bh_records_processed) || 0,
-          p1RecordsProcessed: parseInt(hierarchicalStats.p1_total_processed) || 0,
-          p2RecordsProcessed: parseInt(hierarchicalStats.p2_total_processed) || 0,
-          otherRecordsProcessed: parseInt(hierarchicalStats.other_records_processed) || 0,
+          bhRecordsProcessed: hierarchicalStats.bh_records_processed || 0,
+          p1RecordsProcessed: hierarchicalStats.p1_total_processed || 0,
+          p2RecordsProcessed: hierarchicalStats.p2_total_processed || 0,
+          otherRecordsProcessed: hierarchicalStats.other_records_processed || 0,
           nonDtRecordsSkipped: parseInt(tddfRawStats.non_dt_records_skipped) || 0,
           otherSkipped: parseInt(tddfRawStats.other_skipped) || 0
         }
@@ -2806,8 +2806,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Processing metrics endpoint for detailed evidence
   app.get("/api/uploads/processing-metrics", isAuthenticated, async (req, res) => {
     try {
-      const processorStatus = fileProcessorService.getStatus();
-      const currentlyProcessing = fileProcessorService.getCurrentlyProcessingFile();
+      const processorStatus = fileProcessorService.isRunning ? 'running' : 'stopped';
+      const currentlyProcessing = fileProcessorService.currentlyProcessingFile || null;
       
       // Get recent processing times from database with evidence
       const { getTableName } = await import("./table-config");
@@ -2965,7 +2965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const file of uploadedFiles) {
         try {
           // Check if the file exists at the storage path
-          if (!fs.existsSync(file.storagePath)) {
+          if (!fs.existsSync(file.storagePath as string)) {
             console.log(`Orphaned file found: ${file.originalFilename} (${file.id}) - path: ${file.storagePath}`);
             
             // Mark the file as deleted (soft delete)
@@ -7448,7 +7448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         error: 'Failed to get manual queue status',
-        details: error.message
+        details: error instanceof Error ? error.message : String(error)
       });
     }
   });
@@ -7491,7 +7491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const files = await ReplitStorageService.listFiles(); // Uses environment-aware prefix
         config.fileCount = files.length;
       } catch (error) {
-        config.fileCount = 0;
+        (config as any).fileCount = 0;
       }
       
       res.json(config);
