@@ -4981,12 +4981,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const status = statuses[Math.floor(Math.random() * statuses.length)];
         const deviceName = `${merchant} ${dNumber} (${status})`;
         
+        // Extract merchant name and status from device name
+        const merchantMatch = deviceName.match(/^(.+?) D\d+/);
+        const statusMatch = deviceName.match(/\(([^)]+)\)$/);
+        
         subterminals.push({
           id: i,
           deviceName: deviceName,
           dNumber: dNumber,
-          deviceMerchant: merchant,
-          deviceStatus: status
+          deviceMerchant: merchantMatch ? merchantMatch[1].trim() : merchant,
+          deviceStatus: statusMatch ? statusMatch[1].trim() : status
         });
       }
       

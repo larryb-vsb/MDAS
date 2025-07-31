@@ -103,7 +103,7 @@ export default function SubTerminals() {
               <strong>Data Source:</strong> {sourceFile} | <strong>Upload Date:</strong> {new Date(uploadDate).toLocaleDateString('en-US', { timeZone: 'America/Chicago' })} CST
             </p>
             <p className="text-sm text-blue-800 mt-1">
-              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name with merchant + status + D#### | D_Number = Extracted terminal number
+              <strong>Field Structure:</strong> ID = Unique identifier | DeviceName = Full device name | D_Number = Extracted terminal number | VNumber + Details = Shows VNumber with decoded merchant name and status when Terminal_number matches D_Number
             </p>
           </div>
         </div>
@@ -547,7 +547,7 @@ export default function SubTerminals() {
                       <TableHead>Id</TableHead>
                       <TableHead>DeviceName</TableHead>
                       <TableHead>D_Number</TableHead>
-                      <TableHead>VNumber</TableHead>
+                      <TableHead>VNumber + Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -562,7 +562,13 @@ export default function SubTerminals() {
                         <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.dNumber}</TableCell>
                         <TableCell className="font-mono text-sm">
                           {terminal.vNumber ? (
-                            <span className="text-green-600 font-bold">{terminal.vNumber}</span>
+                            <div className="space-y-1">
+                              <div className="text-green-600 font-bold">{terminal.vNumber}</div>
+                              <div className="text-xs text-gray-600">
+                                <div className="font-medium">{terminal.deviceMerchant}</div>
+                                <div className="text-orange-600">({terminal.deviceStatus})</div>
+                              </div>
+                            </div>
                           ) : (
                             <span className="text-gray-400">No Match</span>
                           )}
