@@ -9201,6 +9201,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get latest transaction year for auto-zoom functionality
+  app.get("/api/terminals/latest-transaction-year", isAuthenticated, async (req, res) => {
+    try {
+      const query = `
+        SELECT 
+          EXTRACT(YEAR FROM CAST(extracted_fields->>'transactionDate' AS DATE)) as year,
+          COUNT(*) as transaction_count
+        FROM ${getTableName('tddf_jsonb')} 
+        WHERE record_type = 'DT' 
+        AND extracted_fields->>'transactionDate' IS NOT NULL
+        GROUP BY EXTRACT(YEAR FROM CAST(extracted_fields->>'transactionDate' AS DATE))
+        ORDER BY year DESC 
+        LIMIT 1
+      `;
+      
+      const result = await pool.query(query);
+      const latestYear = result.rows.length > 0 ? parseInt(result.rows[0].year) : new Date().getFullYear();
+      
+      res.json({ 
+        latestYear,
+        transactionCount: result.rows.length > 0 ? parseInt(result.rows[0].transaction_count) : 0
+      });
+    } catch (error) {
+      console.error('Error fetching latest transaction year:', error);
+      res.status(500).json({ error: 'Failed to fetch latest transaction year' });
+    }
+  });
+
   // Enhanced terminal heat map activity endpoint with dynamic aggregation
   app.get("/api/tddf-json/activity-heatmap-optimized", isAuthenticated, async (req, res) => {
     try {

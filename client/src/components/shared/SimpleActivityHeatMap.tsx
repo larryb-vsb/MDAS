@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -83,11 +83,7 @@ export default function SimpleActivityHeatMap({
     return <SimpleActivityHeatMapSkeleton />;
   }
 
-  // Get current year for display
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-
-  // Get available years from data
+  // Get available years from data and auto-select latest year with data
   const availableYears = useMemo(() => {
     const years = new Set<number>();
     data.forEach(item => {
@@ -100,6 +96,17 @@ export default function SimpleActivityHeatMap({
     });
     return Array.from(years).sort((a, b) => b - a);
   }, [data]);
+
+  // Auto-select latest year with transaction data, fallback to current year
+  const defaultYear = availableYears.length > 0 ? availableYears[0] : new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
+
+  // Update selected year when data changes and we have a better default
+  useEffect(() => {
+    if (availableYears.length > 0 && selectedYear === new Date().getFullYear() && availableYears[0] !== new Date().getFullYear()) {
+      setSelectedYear(availableYears[0]);
+    }
+  }, [availableYears, selectedYear]);
 
   // Filter data for selected year and create heat map data
   const heatMapData = useMemo(() => {

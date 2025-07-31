@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Activity, Database, Clock, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -194,7 +194,26 @@ interface EnhancedTerminalHeatMapProps {
 }
 
 const EnhancedTerminalHeatMap: React.FC<EnhancedTerminalHeatMapProps> = ({ onDateSelect, selectedDate }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Fetch latest transaction year first
+  const { data: latestYearData } = useQuery<{latestYear: number, transactionCount: number}>({
+    queryKey: ['/api/terminals/latest-transaction-year'],
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+  });
+
+  // Use latest transaction year or current year as fallback
+  const [currentDate, setCurrentDate] = useState(() => {
+    const latestYear = latestYearData?.latestYear || new Date().getFullYear();
+    return new Date(latestYear, new Date().getMonth());
+  });
+
+  // Update currentDate when latestYearData is available
+  useEffect(() => {
+    if (latestYearData?.latestYear) {
+      setCurrentDate(new Date(latestYearData.latestYear, new Date().getMonth()));
+    }
+  }, [latestYearData]);
+
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
@@ -203,6 +222,7 @@ const EnhancedTerminalHeatMap: React.FC<EnhancedTerminalHeatMapProps> = ({ onDat
     queryKey: ['/api/tddf-json/activity-heatmap-optimized', currentYear],
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    enabled: !!currentYear, // Only fetch when we have a year
   });
 
   const navigateMonth = (direction: 'prev' | 'next') => {
