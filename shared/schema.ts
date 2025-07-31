@@ -1111,6 +1111,46 @@ export type Upload = typeof uploads.$inferSelect;
 export type InsertUpload = typeof uploads.$inferInsert;
 
 // =============================================================================
+// MERCHANT TERMINAL CROSS-REFERENCE TABLE
+// =============================================================================
+
+// SubMerchantTerminals cross-reference table for linking merchants with terminals via fuzzy name matching
+export const subMerchantTerminals = pgTable(getTableName("sub_merchant_terminals"), {
+  id: serial("id").primaryKey(), // TermID - unique identifier
+  deviceName: text("device_name").notNull(), // DeviceName - terminal device name
+  dNumber: text("d_number").notNull(), // D_Number - Terminal Number (maps to terminal.v_number)
+  merchantId: text("merchant_id").references(() => merchants.id), // Link to merchant table
+  terminalId: integer("terminal_id").references(() => terminals.id), // Link to terminal table
+  matchType: text("match_type"), // Type of match: "exact", "fuzzy", "manual"
+  matchScore: numeric("match_score", { precision: 5, scale: 2 }), // Fuzzy match confidence score (0.00-1.00)
+  fuzzyMatchDetails: jsonb("fuzzy_match_details"), // Details about the fuzzy matching process
+  isActive: boolean("is_active").default(true).notNull(), // Whether this cross-reference is active
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: text("created_by"), // User who created this cross-reference
+  notes: text("notes") // Additional notes about the linking
+}, (table) => ({
+  deviceNameIdx: index("sub_merchant_terminals_device_name_idx").on(table.deviceName),
+  dNumberIdx: index("sub_merchant_terminals_d_number_idx").on(table.dNumber),
+  merchantIdIdx: index("sub_merchant_terminals_merchant_id_idx").on(table.merchantId),
+  terminalIdIdx: index("sub_merchant_terminals_terminal_id_idx").on(table.terminalId),
+  matchTypeIdx: index("sub_merchant_terminals_match_type_idx").on(table.matchType),
+  activeIdx: index("sub_merchant_terminals_active_idx").on(table.isActive)
+}));
+
+// Zod schemas for SubMerchantTerminals
+export const subMerchantTerminalsSchema = createInsertSchema(subMerchantTerminals);
+export const insertSubMerchantTerminalSchema = subMerchantTerminalsSchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+// Export SubMerchantTerminals types
+export type SubMerchantTerminal = typeof subMerchantTerminals.$inferSelect;
+export type InsertSubMerchantTerminal = z.infer<typeof insertSubMerchantTerminalSchema>;
+
+// =============================================================================
 // MMS UPLOADER SYSTEM TABLES
 // =============================================================================
 // Parallel upload system with 4-phase processing: Started -> Uploading -> Uploaded -> Identified

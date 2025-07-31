@@ -4945,6 +4945,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== SUB MERCHANT TERMINALS ROUTES ====================
+  
+  // Get all sub merchant terminals
+  app.get("/api/sub-merchant-terminals", isAuthenticated, async (req, res) => {
+    try {
+      const subMerchantTerminals = await storage.getSubMerchantTerminals();
+      res.json(subMerchantTerminals);
+    } catch (error) {
+      console.error('Error getting sub merchant terminals:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get sub merchant terminals" 
+      });
+    }
+  });
+
+  // Get sub merchant terminals by merchant ID
+  app.get("/api/sub-merchant-terminals/merchant/:merchantId", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const subMerchantTerminals = await storage.getSubMerchantTerminalsByMerchant(merchantId);
+      res.json(subMerchantTerminals);
+    } catch (error) {
+      console.error('Error getting sub merchant terminals by merchant:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get sub merchant terminals" 
+      });
+    }
+  });
+
+  // Get sub merchant terminals by terminal ID
+  app.get("/api/sub-merchant-terminals/terminal/:terminalId", isAuthenticated, async (req, res) => {
+    try {
+      const terminalId = parseInt(req.params.terminalId);
+      const subMerchantTerminals = await storage.getSubMerchantTerminalsByTerminal(terminalId);
+      res.json(subMerchantTerminals);
+    } catch (error) {
+      console.error('Error getting sub merchant terminals by terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get sub merchant terminals" 
+      });
+    }
+  });
+
+  // Create new sub merchant terminal relationship
+  app.post("/api/sub-merchant-terminals", isAuthenticated, async (req, res) => {
+    try {
+      const insertData = {
+        ...req.body,
+        createdBy: req.user?.username || 'system',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+      };
+
+      const newSubMerchantTerminal = await storage.createSubMerchantTerminal(insertData);
+      res.json(newSubMerchantTerminal);
+    } catch (error) {
+      console.error('Error creating sub merchant terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to create sub merchant terminal" 
+      });
+    }
+  });
+
+  // Update sub merchant terminal relationship
+  app.put("/api/sub-merchant-terminals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+
+      const updatedSubMerchantTerminal = await storage.updateSubMerchantTerminal(id, updateData);
+      res.json(updatedSubMerchantTerminal);
+    } catch (error) {
+      console.error('Error updating sub merchant terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update sub merchant terminal" 
+      });
+    }
+  });
+
+  // Delete sub merchant terminal relationship
+  app.delete("/api/sub-merchant-terminals/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSubMerchantTerminal(id);
+      res.json({ success: true, message: "Sub merchant terminal relationship deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting sub merchant terminal:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete sub merchant terminal" 
+      });
+    }
+  });
+
+  // Perform fuzzy matching for a merchant
+  app.post("/api/sub-merchant-terminals/fuzzy-match/:merchantId", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      console.log(`[FUZZY-MATCH] Starting fuzzy matching for merchant: ${merchantId}`);
+      
+      const result = await storage.performFuzzyMatching(merchantId);
+      
+      console.log(`[FUZZY-MATCH] Completed for ${merchantId}: ${result.matched} auto-matched, ${result.suggestions.length} suggestions`);
+      
+      res.json({
+        success: true,
+        merchantId,
+        matched: result.matched,
+        suggestions: result.suggestions,
+        message: `Found ${result.matched} automatic matches and ${result.suggestions.length} suggestions for review`
+      });
+    } catch (error) {
+      console.error('Error performing fuzzy matching:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to perform fuzzy matching" 
+      });
+    }
+  });
+
   // ==================== TDDF ROUTES ====================
   
   // TDDF API ping endpoint for connectivity testing

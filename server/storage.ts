@@ -19,18 +19,21 @@ import {
   tddfRawImport as tddfRawImportTable,
   tddfBatchHeaders,
   schemaContent as schemaContentTable,
+  subMerchantTerminals,
   Merchant,
   Transaction,
   Terminal,
   TddfRecord,
   TddfRawImport,
   TddfBatchHeader,
+  SubMerchantTerminal,
   InsertMerchant,
   InsertTransaction,
   InsertTerminal,
   InsertTddfRecord,
   InsertTddfRawImport,
   InsertUploadedFile,
+  InsertSubMerchantTerminal,
   User,
   InsertUser,
   ApiUser,
@@ -111,6 +114,15 @@ export interface IStorage {
   createTerminal(insertTerminal: InsertTerminal): Promise<Terminal>;
   updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal>;
   deleteTerminal(terminalId: number): Promise<void>;
+
+  // SubMerchantTerminals operations
+  getSubMerchantTerminals(): Promise<SubMerchantTerminal[]>;
+  getSubMerchantTerminalsByMerchant(merchantId: string): Promise<SubMerchantTerminal[]>;
+  getSubMerchantTerminalsByTerminal(terminalId: number): Promise<SubMerchantTerminal[]>;
+  createSubMerchantTerminal(insertSubMerchantTerminal: InsertSubMerchantTerminal): Promise<SubMerchantTerminal>;
+  updateSubMerchantTerminal(id: number, updates: Partial<InsertSubMerchantTerminal>): Promise<SubMerchantTerminal>;
+  deleteSubMerchantTerminal(id: number): Promise<void>;
+  performFuzzyMatching(merchantId: string): Promise<{ matched: number; suggestions: SubMerchantTerminal[] }>;
 
   // TDDF operations
   processTddfFileFromContent(
@@ -7057,6 +7069,186 @@ export class DatabaseStorage implements IStorage {
     await pool.query(`DELETE FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
   }
 
+  // SubMerchantTerminals operations
+  async getSubMerchantTerminals(): Promise<SubMerchantTerminal[]> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminals data retrieval
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    const result = await pool.query(`
+      SELECT smt.*, m.name as merchant_name, t.v_number as terminal_v_number
+      FROM ${subMerchantTerminalsTableName} smt
+      LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
+      LEFT JOIN ${getTableName('terminals')} t ON smt.terminal_id = t.id
+      WHERE smt.is_active = true
+      ORDER BY smt.created_at DESC
+    `);
+    return result.rows;
+  }
+
+  async getSubMerchantTerminalsByMerchant(merchantId: string): Promise<SubMerchantTerminal[]> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminals lookup by merchant
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    const result = await pool.query(`
+      SELECT smt.*, t.v_number as terminal_v_number, t.dba_name as terminal_dba_name
+      FROM ${subMerchantTerminalsTableName} smt
+      LEFT JOIN ${getTableName('terminals')} t ON smt.terminal_id = t.id
+      WHERE smt.merchant_id = $1 AND smt.is_active = true
+      ORDER BY smt.match_score DESC NULLS LAST, smt.created_at DESC
+    `, [merchantId]);
+    return result.rows;
+  }
+
+  async getSubMerchantTerminalsByTerminal(terminalId: number): Promise<SubMerchantTerminal[]> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminals lookup by terminal
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    const result = await pool.query(`
+      SELECT smt.*, m.name as merchant_name
+      FROM ${subMerchantTerminalsTableName} smt
+      LEFT JOIN ${getTableName('merchants')} m ON smt.merchant_id = m.id
+      WHERE smt.terminal_id = $1 AND smt.is_active = true
+      ORDER BY smt.match_score DESC NULLS LAST, smt.created_at DESC
+    `, [terminalId]);
+    return result.rows;
+  }
+
+  async createSubMerchantTerminal(insertSubMerchantTerminal: InsertSubMerchantTerminal): Promise<SubMerchantTerminal> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminal creation with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    const columns = Object.keys(insertSubMerchantTerminal).join(', ');
+    const placeholders = Object.keys(insertSubMerchantTerminal).map((_, i) => `$${i + 1}`).join(', ');
+    const values = Object.values(insertSubMerchantTerminal);
+    
+    const result = await pool.query(`
+      INSERT INTO ${subMerchantTerminalsTableName} (${columns}) 
+      VALUES (${placeholders}) 
+      RETURNING *
+    `, values);
+    
+    return result.rows[0];
+  }
+
+  async updateSubMerchantTerminal(id: number, updates: Partial<InsertSubMerchantTerminal>): Promise<SubMerchantTerminal> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminal update with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    const setClause = Object.keys(updates)
+      .map((key, i) => `${key} = $${i + 2}`)
+      .join(', ');
+    const values = [id, ...Object.values(updates)];
+    
+    const result = await pool.query(`
+      UPDATE ${subMerchantTerminalsTableName} 
+      SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 
+      RETURNING *
+    `, values);
+    
+    return result.rows[0];
+  }
+
+  async deleteSubMerchantTerminal(id: number): Promise<void> {
+    // @ENVIRONMENT-CRITICAL - SubMerchantTerminal deletion with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+    
+    await pool.query(`DELETE FROM ${subMerchantTerminalsTableName} WHERE id = $1`, [id]);
+  }
+
+  async performFuzzyMatching(merchantId: string): Promise<{ matched: number; suggestions: SubMerchantTerminal[] }> {
+    // @ENVIRONMENT-CRITICAL - Fuzzy matching with environment-aware table naming
+    // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
+    
+    try {
+      // Get merchant details
+      const merchant = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId)).limit(1);
+      if (!merchant.length) {
+        return { matched: 0, suggestions: [] };
+      }
+      
+      const merchantName = merchant[0].name.toLowerCase();
+      const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
+      const terminalsTableName = getTableName('terminals');
+      
+      // Find potential terminal matches using fuzzy string matching
+      // Look for terminals with similar DBA names that aren't already linked
+      const result = await pool.query(`
+        SELECT t.*, 
+               SIMILARITY(LOWER(t.dba_name), $1) as similarity_score,
+               CASE 
+                 WHEN LOWER(t.dba_name) = $1 THEN 'exact'
+                 WHEN SIMILARITY(LOWER(t.dba_name), $1) >= 0.6 THEN 'fuzzy'
+                 ELSE 'low'
+               END as match_type
+        FROM ${terminalsTableName} t
+        LEFT JOIN ${subMerchantTerminalsTableName} smt ON smt.terminal_id = t.id AND smt.is_active = true
+        WHERE smt.id IS NULL
+          AND t.dba_name IS NOT NULL
+          AND SIMILARITY(LOWER(t.dba_name), $1) >= 0.4
+        ORDER BY similarity_score DESC
+        LIMIT 10
+      `, [merchantName]);
+      
+      const suggestions: SubMerchantTerminal[] = [];
+      let matchedCount = 0;
+      
+      for (const terminalRow of result.rows) {
+        const fuzzyMatchDetails = {
+          merchantName: merchantName,
+          terminalDbaName: terminalRow.dba_name?.toLowerCase(),
+          similarityScore: terminalRow.similarity_score,
+          matchType: terminalRow.match_type,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Auto-link high-confidence matches (similarity >= 0.8 or exact matches)
+        if (terminalRow.similarity_score >= 0.8 || terminalRow.match_type === 'exact') {
+          const newLink = await this.createSubMerchantTerminal({
+            deviceName: terminalRow.dba_name || `Terminal ${terminalRow.v_number}`,
+            dNumber: terminalRow.v_number,
+            merchantId: merchantId,
+            terminalId: terminalRow.id,
+            matchType: terminalRow.match_type,
+            matchScore: terminalRow.similarity_score,
+            fuzzyMatchDetails: fuzzyMatchDetails,
+            createdBy: 'fuzzy-matcher',
+            notes: `Auto-linked via fuzzy matching (score: ${terminalRow.similarity_score})`
+          });
+          matchedCount++;
+          suggestions.push(newLink);
+        } else {
+          // Add as suggestion for manual review
+          suggestions.push({
+            id: 0, // Temporary ID for suggestion
+            deviceName: terminalRow.dba_name || `Terminal ${terminalRow.v_number}`,
+            dNumber: terminalRow.v_number,
+            merchantId: merchantId,
+            terminalId: terminalRow.id,
+            matchType: terminalRow.match_type,
+            matchScore: terminalRow.similarity_score,
+            fuzzyMatchDetails: fuzzyMatchDetails,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: 'fuzzy-matcher',
+            notes: `Suggested match (score: ${terminalRow.similarity_score})`
+          } as SubMerchantTerminal);
+        }
+      }
+      
+      return { matched: matchedCount, suggestions: suggestions };
+    } catch (error) {
+      console.error('Error performing fuzzy matching:', error);
+      return { matched: 0, suggestions: [] };
+    }
+  }
 
   // Helper method to parse amount from fixed-width format
   private parseAmount(amountStr: string): number {

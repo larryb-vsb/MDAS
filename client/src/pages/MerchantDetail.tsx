@@ -70,6 +70,7 @@ import { z } from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { SubMerchantTerminals } from '@/components/merchants/SubMerchantTerminals';
 
 // Define the merchant form schema
 const merchantSchema = z.object({
@@ -562,9 +563,10 @@ export default function MerchantDetail() {
         </div>
 
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="demographics">Demographics</TabsTrigger>
+            <TabsTrigger value="terminals">Terminals</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
@@ -910,6 +912,14 @@ export default function MerchantDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Terminals Tab */}
+        <TabsContent value="terminals">
+          <SubMerchantTerminals 
+            merchantId={id!} 
+            merchantName={data?.name}
+          />
         </TabsContent>
 
         {/* Transactions Tab */}
