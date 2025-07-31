@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Moon, Sun, Database, Clock, RefreshCw, Settings } from "lucide-react";
+import { Moon, Sun, Database, Clock, RefreshCw, Settings, Users, Calendar, Activity, Terminal } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -27,6 +27,37 @@ interface CacheStatus {
   status: 'fresh' | 'stale' | 'expired' | 'never';
 }
 
+interface DashboardMetrics {
+  merchants: {
+    total: number;
+    ach: number;
+    mmc: number;
+  };
+  newMerchants30Day: {
+    total: number;
+    ach: number;
+    mmc: number;
+  };
+  todayTransactions: {
+    total: number;
+    ach: number;
+    mmc: number;
+  };
+  totalTerminals: {
+    total: number;
+    ach: number;
+    mmc: number;
+  };
+  cacheMetadata?: {
+    lastRefreshed: string;
+    refreshedBy?: string;
+    buildTime?: number;
+    fromCache: boolean;
+    recordCount?: number;
+    dataChangeDetected?: boolean;
+  };
+}
+
 export default function Dashboard3() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedExpiration, setSelectedExpiration] = useState<string>("30");
@@ -42,6 +73,13 @@ export default function Dashboard3() {
   const { data: cacheStatus, isLoading: cacheLoading } = useQuery<CacheStatus>({
     queryKey: ["/api/dashboard/cache-status"],
     staleTime: 1000 * 30, // 30 seconds
+    refetchInterval: 1000 * 60, // Refresh every minute
+  });
+
+  // Fetch dashboard metrics for KPIs
+  const { data: dashboardMetrics, isLoading: dashboardLoading } = useQuery<DashboardMetrics>({
+    queryKey: ["/api/dashboard/cached-metrics"],
+    staleTime: 1000 * 60, // 1 minute
     refetchInterval: 1000 * 60, // Refresh every minute
   });
 
@@ -116,6 +154,109 @@ export default function Dashboard3() {
               />
               <Moon className={`h-4 w-4 ${isDarkMode ? 'text-blue-400' : 'text-gray-400'}`} />
             </div>
+          </div>
+
+          {/* KPI Row - 4 main metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {/* Merchants Total */}
+            <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Merchants</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {dashboardLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse mb-3"></div>
+                ) : (
+                  <div className="text-2xl font-bold">{dashboardMetrics?.merchants.total.toLocaleString() || '0'}</div>
+                )}
+                <div className="space-y-1 mt-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">ACH:</span>
+                    <span className="font-medium">{dashboardMetrics?.merchants.ach.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="font-medium">{dashboardMetrics?.merchants.mmc.toLocaleString() || '0'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* New Merchants (30 Day) */}
+            <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">New Merchants (30d)</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {dashboardLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse mb-3"></div>
+                ) : (
+                  <div className="text-2xl font-bold">{dashboardMetrics?.newMerchants30Day.total.toLocaleString() || '0'}</div>
+                )}
+                <div className="space-y-1 mt-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">ACH:</span>
+                    <span className="font-medium">{dashboardMetrics?.newMerchants30Day.ach.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="font-medium">{dashboardMetrics?.newMerchants30Day.mmc.toLocaleString() || '0'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Today's Transactions */}
+            <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today's Transactions</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {dashboardLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse mb-3"></div>
+                ) : (
+                  <div className="text-2xl font-bold">{dashboardMetrics?.todayTransactions.total.toLocaleString() || '0'}</div>
+                )}
+                <div className="space-y-1 mt-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">ACH:</span>
+                    <span className="font-medium">{dashboardMetrics?.todayTransactions.ach.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="font-medium">{dashboardMetrics?.todayTransactions.mmc.toLocaleString() || '0'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Terminals */}
+            <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Terminals</CardTitle>
+                <Terminal className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {dashboardLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse mb-3"></div>
+                ) : (
+                  <div className="text-2xl font-bold">{dashboardMetrics?.totalTerminals.total.toLocaleString() || '0'}</div>
+                )}
+                <div className="space-y-1 mt-3">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">ACH:</span>
+                    <span className="font-medium">{dashboardMetrics?.totalTerminals.ach.toLocaleString() || '0'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="font-medium">{dashboardMetrics?.totalTerminals.mmc.toLocaleString() || '0'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Widget Framework Container */}

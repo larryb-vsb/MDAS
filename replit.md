@@ -28,6 +28,8 @@ Approach: Maintains continuity across sessions through documented insights and r
   - **Real-Time Updates**: Widget refreshes every minute with loading states and proper error handling
   - **Cache Expiration Controls**: Added dropdown (15min-8hrs) and "Set" button for user-controlled cache expiration
   - **Dedicated Cache Key**: Renamed to "dashboard3_metrics" separate from main dashboard cache with auto-initialization
+  - **Never Expire Option**: Added "Never expire" dropdown option setting cache to 100 years with proper status detection and display
+  - **KPI Widgets Added**: Implemented 4 main dashboard KPI cards (Merchants, New Merchants 30d, Today's Transactions, Total Terminals) with ACH/MasterCard breakdowns matching original dashboard design
 - **✅ DASHBOARD2 ALTERNATE ROUTE COMPLETED (July 31, 2025)**: Successfully created `/dashboard2` alternate route to HomeDashboardEnhanced component (same as root path) without sidebar navigation integration as requested
 - **✅ ENVIRONMENTAL BADGE STYLING MATCHED TO SETTINGS PAGE (July 31, 2025)**: Successfully updated dashboard environmental badge to use identical styling as Settings page (bg-blue-50 text-blue-700 border-blue-200) creating consistent visual design across both `/` and `/dashboard2` routes
 - **✅ PRODUCTION DASHBOARD CACHE INFRASTRUCTURE COMPLETED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production cache tables:
