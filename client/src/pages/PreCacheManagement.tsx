@@ -22,7 +22,8 @@ import {
   Timer,
   HardDrive,
   Edit,
-  Shield
+  Shield,
+  Eye
 } from "lucide-react";
 
 interface PreCacheSettings {
@@ -153,7 +154,7 @@ interface CacheTableInfo {
 }
 
 // PreCacheTablesOverview Component
-function PreCacheTablesOverview() {
+function PreCacheTablesOverview({ onViewCache }: { onViewCache: (cacheName: string) => void }) {
   const [tablesLoading, setTablesLoading] = useState(true);
   const [cacheTablesList, setCacheTablesList] = useState<CacheTableInfo[]>([]);
   const [refreshingTable, setRefreshingTable] = useState<string | null>(null);
@@ -298,19 +299,28 @@ function PreCacheTablesOverview() {
                         {table.size && <span>{table.size}</span>}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => refreshCacheTable(table.name)}
-                      disabled={refreshingTable === table.name}
-                      className="ml-4"
-                    >
-                      {refreshingTable === table.name ? (
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-3 h-3" />
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewCache(table.name)}
+                        className="text-blue-600 hover:bg-blue-50"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => refreshCacheTable(table.name)}
+                        disabled={refreshingTable === table.name}
+                      >
+                        {refreshingTable === table.name ? (
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -333,6 +343,7 @@ export default function PreCacheManagement() {
   const [selectedCache, setSelectedCache] = useState<string | null>(null);
   const [showDashboardControls, setShowDashboardControls] = useState(false);
   const [showPolicyManagement, setShowPolicyManagement] = useState(false);
+  const [selectedCacheForView, setSelectedCacheForView] = useState<string | null>(null);
 
   // Fetch all pre-cache settings
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
@@ -526,7 +537,7 @@ export default function PreCacheManagement() {
         </TabsContent>
 
         <TabsContent value="tables" className="space-y-6">
-          <PreCacheTablesOverview />
+          <PreCacheTablesOverview onViewCache={setSelectedCacheForView} />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
@@ -887,6 +898,72 @@ export default function PreCacheManagement() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cache View/Edit/Refresh Popup */}
+      <Dialog open={!!selectedCacheForView} onOpenChange={() => setSelectedCacheForView(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Eye className="w-5 h-5 text-blue-500" />
+              <span>Cache Status</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm">
+                <strong>Cache Name:</strong>
+                <div className="font-mono text-sm bg-gray-100 p-2 rounded mt-1">
+                  {selectedCacheForView}
+                </div>
+              </div>
+              
+              <div className="text-sm">
+                <strong>Last Refresh:</strong>
+                <div className="text-gray-600">7/31/2025</div>
+                <div className="text-gray-600">3:27:01 AM</div>
+              </div>
+              
+              <div className="text-sm">
+                <strong>Expires:</strong>
+                <div className="text-gray-600">7/31/2025</div>
+                <div className="text-gray-600">3:27:01 AM</div>
+              </div>
+              
+              <div className="text-sm">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <Badge variant="destructive" className="bg-red-100 text-red-700">
+                    expired
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                Age: 0 | Records: 0
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cache Expiration:</label>
+              <div className="flex items-center space-x-2">
+                <select className="flex-1 p-2 border rounded text-sm">
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                  <option value="120">2 hours</option>
+                  <option value="240">4 hours</option>
+                  <option value="480">8 hours</option>
+                  <option value="never">Never expire</option>
+                </select>
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Set
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
