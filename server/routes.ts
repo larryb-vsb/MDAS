@@ -8859,6 +8859,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
+  // Main uploader files list with pagination support - MUST BE BEFORE /api/uploader/:id
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
     console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
     try {
@@ -8869,8 +8872,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined
       });
-      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'}`);
-      res.json(uploads);
+      
+      // Get total count for pagination (if limit/offset is used)
+      let totalCount = uploads.length;
+      if (limit || offset) {
+        totalCount = await storage.getUploaderUploadsCount({
+          phase: phase as string,
+          sessionId: sessionId as string
+        });
+      }
+      
+      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'}, total: ${totalCount}`);
+      
+      // Return paginated response format when limit/offset is used
+      if (limit || offset) {
+        res.json({
+          uploads,
+          totalCount,
+          limit: limit ? parseInt(limit as string) : undefined,
+          offset: offset ? parseInt(offset as string) : 0
+        });
+      } else {
+        // Return simple array for backward compatibility
+        res.json(uploads);
+      }
     } catch (error: any) {
       console.error('Get uploader uploads error:', error);
       res.status(500).json({ error: error.message });

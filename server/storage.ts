@@ -13292,6 +13292,36 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getUploaderUploadsCount(options?: { phase?: string; sessionId?: string }): Promise<number> {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      let query = `SELECT COUNT(*) as count FROM ${uploaderTableName}`;
+      const params: any[] = [];
+      const conditions: string[] = [];
+      
+      if (options?.phase) {
+        conditions.push(`current_phase = $${params.length + 1}`);
+        params.push(options.phase);
+      }
+      
+      if (options?.sessionId) {
+        conditions.push(`session_id = $${params.length + 1}`);
+        params.push(options.sessionId);
+      }
+      
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+      }
+      
+      const result = await pool.query(query, params);
+      return parseInt(result.rows[0].count) || 0;
+      
+    } catch (error) {
+      console.error('[UPLOADER] Error getting uploader uploads count:', error);
+      throw error;
+    }
+  }
+
   async getUploaderUploadById(id: string): Promise<UploaderUpload | undefined> {
     try {
       const uploaderTableName = getTableName('uploader_uploads');

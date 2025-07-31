@@ -167,20 +167,33 @@ export default function MMSUploader() {
     return `Object: ${objectName} - Status: Checking...`;
   };
 
-  // Query for MMS uploads only (separate system from /uploads) - show all uploads from all sessions
-  const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
-    queryKey: ['/api/uploader'],
+  // Query for MMS uploads with pagination support
+  const { data: uploadsResponse, isLoading } = useQuery<{uploads: UploaderUpload[], totalCount: number}>({
+    queryKey: ['/api/uploader', currentPage, itemsPerPage],
     queryFn: async () => {
-      const response = await fetch('/api/uploader', {
+      const params = new URLSearchParams({
+        limit: itemsPerPage.toString(),
+        offset: (currentPage * itemsPerPage).toString()
+      });
+      const response = await fetch(`/api/uploader?${params.toString()}`, {
         credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Failed to fetch uploads');
       }
-      return response.json();
+      const data = await response.json();
+      // If the response is just an array (old format), convert it
+      if (Array.isArray(data)) {
+        return { uploads: data, totalCount: data.length };
+      }
+      return data;
     },
     refetchInterval: 1000 // Refresh every 1 second for real-time upload feedback
   });
+
+  const uploads = uploadsResponse?.uploads || [];
+  const totalCount = uploadsResponse?.totalCount || uploads.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   // Get storage configuration
   const { data: storageConfig } = useQuery<{
@@ -408,7 +421,7 @@ export default function MMSUploader() {
   });
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredUploads.length / itemsPerPage);
+  const filteredTotalPages = Math.ceil(filteredUploads.length / itemsPerPage);
   const startIndex = currentPage * itemsPerPage;
   const paginatedUploads = filteredUploads.slice(startIndex, startIndex + itemsPerPage);
 
@@ -2043,7 +2056,7 @@ export default function MMSUploader() {
                     </Button>
                     
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: totalPages }, (_, i) => (
+                      {Array.from({ length: filteredTotalPages }, (_, i) => (
                         <Button
                           key={i}
                           variant={currentPage === i ? "default" : "outline"}
@@ -2059,8 +2072,8 @@ export default function MMSUploader() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
-                      disabled={currentPage === totalPages - 1}
+                      onClick={() => setCurrentPage(prev => Math.min(filteredTotalPages - 1, prev + 1))}
+                      disabled={currentPage === filteredTotalPages - 1}
                     >
                       Next
                     </Button>
