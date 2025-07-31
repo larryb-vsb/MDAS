@@ -209,8 +209,12 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
       return response.json();
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    staleTime: Infinity, // Never refresh automatically - "never re-fresh" policy
+    gcTime: Infinity, // Keep in cache forever (React Query v5 syntax)
+    refetchOnWindowFocus: false, // Never refetch on window focus
+    refetchOnMount: false, // Never refetch on component mount
+    refetchOnReconnect: false, // Never refetch on network reconnect
+    refetchInterval: false, // Never refetch on interval
   });
 
   // Conditional debug logging based on enableDebugLogging flag

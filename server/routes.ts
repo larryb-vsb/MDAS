@@ -11459,16 +11459,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TDDF-JSON-ACTIVITY] Processing year ${year}, type: ${recordType} (timeout: ${REQUEST_TIMEOUT}ms)...`);
       const startTime = Date.now();
       
-      // Use pre-cache table instead of direct queries
+      // NEVER REFRESH POLICY: Use heat map cache tables first, never bypass for direct queries
       const environment = process.env.NODE_ENV || 'development';
-      const preCacheTableName = environment === 'development' ? 'dev_tddf_json_activity_pre_cache' : 'tddf_json_activity_pre_cache';
+      const heatMapCacheTable = `heat_map_cache_${year}`;
       
-      // TEMP FIX: Skip pre-cache and use direct queries until we rebuild complete pre-cache data
-      // The pre-cache table is missing 99% of 2024 data (only 17,540 vs 1,327,205 actual records)
-      console.log(`[TDDF-JSON-ACTIVITY] Skipping incomplete pre-cache, using direct query for complete data...`);
+      console.log(`[TDDF-JSON-ACTIVITY] NEVER REFRESH POLICY: Checking heat map cache table ${heatMapCacheTable}...`);
       
-      // Fallback to direct query if pre-cache is expired or missing
-      console.log(`[TDDF-JSON-ACTIVITY] Pre-cache expired for ${cacheKey}, falling back to direct query...`);
+      // First try to get data from heat map cache table - NEVER REFRESH means we use cached data
+      try {
+        const cacheQuery = `
+          SELECT 
+            date as transaction_date,
+            dt_count as transaction_count
+          FROM ${heatMapCacheTable}
+          ORDER BY date
+        `;
+        
+        const cacheResult = await pool.query(cacheQuery);
+        
+        if (cacheResult.rows.length > 0) {
+          console.log(`[TDDF-JSON-ACTIVITY] ✅ Using cached data from ${heatMapCacheTable}: ${cacheResult.rows.length} entries (NEVER REFRESH POLICY)`);
+          
+          const responseData = {
+            records: cacheResult.rows.map(row => ({
+              date: row.transaction_date.toISOString().split('T')[0], // Convert to YYYY-MM-DD format
+              transaction_count: parseInt(row.transaction_count)
+            })),
+            metadata: {
+              fromPreCache: true,
+              cacheTable: heatMapCacheTable,
+              recordType: recordType,
+              year: year,
+              neverRefreshPolicy: true
+            },
+            queryTime: Date.now() - startTime,
+            fromCache: true
+          };
+          
+          return res.json(responseData);
+        }
+        
+        console.log(`[TDDF-JSON-ACTIVITY] Cache table ${heatMapCacheTable} is empty - will populate with data ONCE ONLY (NEVER REFRESH)`);
+        
+        // Populate cache table ONCE ONLY - this follows "never refresh" policy by only populating empty caches
+        const fallbackTableName = getTableName('tddf_jsonb');
+        const populateQuery = `
+          INSERT INTO ${heatMapCacheTable} (date, dt_count)
+          SELECT 
+            DATE((extracted_fields->>'transactionDate')::date) as date,
+            COUNT(*) as dt_count
+          FROM ${fallbackTableName}
+          WHERE record_type = 'DT'
+            AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $1
+            AND extracted_fields->>'transactionDate' IS NOT NULL
+          GROUP BY DATE((extracted_fields->>'transactionDate')::date)
+          ORDER BY date
+          ON CONFLICT (date) DO NOTHING
+        `;
+        
+        console.log(`[TDDF-JSON-ACTIVITY] Populating ${heatMapCacheTable} for year ${year} (ONCE ONLY)...`);
+        const populateStartTime = Date.now();
+        await pool.query(populateQuery, [year]);
+        
+        // Now get the populated data
+        const populatedResult = await pool.query(cacheQuery);
+        const populatedTime = Date.now() - populateStartTime;
+        
+        console.log(`[TDDF-JSON-ACTIVITY] ✅ Cache populated and retrieved in ${populatedTime}ms: ${populatedResult.rows.length} entries`);
+        
+        const responseData = {
+          records: populatedResult.rows.map(row => ({
+            date: row.transaction_date.toISOString().split('T')[0],
+            transaction_count: parseInt(row.transaction_count)
+          })),
+          metadata: {
+            fromPreCache: true,
+            cacheTable: heatMapCacheTable,
+            recordType: recordType,
+            year: year,
+            neverRefreshPolicy: true,
+            justPopulated: true,
+            populationTime: populatedTime
+          },
+          queryTime: Date.now() - startTime,
+          fromCache: true
+        };
+        
+        return res.json(responseData);
+        
+      } catch (cacheError) {
+        console.log(`[TDDF-JSON-ACTIVITY] Cache table error:`, cacheError.message);
+      }
       const fallbackTableName = getTableName('tddf_jsonb');
       
       // Skip size check for large datasets - assume large and use monthly aggregation
