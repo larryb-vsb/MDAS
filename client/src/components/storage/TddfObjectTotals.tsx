@@ -30,10 +30,16 @@ interface TddfObjectTotalsData {
     recordStats: {
       totalRecords: number;
       jsonbCount?: number;
+      jsonbCountSource?: string;
       averageRecordsPerFile: number;
       largestFileRecords: number;
       largestFileName: string;
       recordTypeBreakdown: Record<string, number>;
+    };
+    dataSources?: {
+      storageStats: string;
+      jsonbCount: string;
+      recordTypeBreakdown: string;
     };
   };
   cache?: {
@@ -378,12 +384,22 @@ export default function TddfObjectTotals() {
           </div>
         </div>
 
-        {/* Cache Information */}
+        {/* Cache Information and Data Sources */}
         {data.scanInfo?.cacheExpiresAt && (
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-2">
             <div className="text-xs text-gray-500">
               Cache expires: {formatDistanceToNow(new Date(data.scanInfo.cacheExpiresAt), { addSuffix: true })}
             </div>
+            {data.dataSources && (
+              <div className="text-xs text-gray-500">
+                <div className="font-medium mb-1">Pre-cached Data Sources:</div>
+                <div className="space-y-1 ml-2">
+                  <div>• Storage Stats: <code className="text-blue-600">{data.dataSources.storageStats}</code></div>
+                  <div>• JSONB Count: <code className="text-blue-600">{data.dataSources.jsonbCount}</code></div>
+                  <div>• Record Types: <code className="text-blue-600">{data.dataSources.recordTypeBreakdown}</code></div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

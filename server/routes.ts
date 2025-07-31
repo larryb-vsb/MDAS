@@ -12063,14 +12063,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-OBJECT-TOTALS] Serving cache data - Status: ${cacheData.scan_status}, Expired: ${isExpired}`);
       
-      // Get JSONB count from Settings page pre-cached data
+      // Get JSONB count from Settings page pre-cached data (dev_tddf_json_record_type_counts_pre_cache)
       let jsonbCount = 0;
+      let cacheSource = 'live_query';
       try {
-        const jsonbResult = await pool.query(`
-          SELECT COUNT(*) as count 
-          FROM ${getTableName('tddf_jsonb')}
+        const jsonbCacheResult = await pool.query(`
+          SELECT total_records, created_at as cache_created
+          FROM dev_tddf_json_record_type_counts_pre_cache
+          ORDER BY created_at DESC
+          LIMIT 1
         `);
-        jsonbCount = parseInt(jsonbResult.rows[0].count) || 0;
+        
+        if (jsonbCacheResult.rows.length > 0) {
+          jsonbCount = parseInt(jsonbCacheResult.rows[0].total_records) || 0;
+          cacheSource = 'pre_cached_settings';
+          console.log(`[TDDF-OBJECT-TOTALS] Using JSONB count from pre-cached Settings data: ${jsonbCount}`);
+        } else {
+          // Fallback to live query if no cache available
+          const jsonbResult = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM ${getTableName('tddf_jsonb')}
+          `);
+          jsonbCount = parseInt(jsonbResult.rows[0].count) || 0;
+          console.log(`[TDDF-OBJECT-TOTALS] Using live JSONB count (no cache): ${jsonbCount}`);
+        }
       } catch (error) {
         console.log('[TDDF-OBJECT-TOTALS] Could not fetch JSONB count:', error.message);
       }
@@ -12097,10 +12113,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recordStats: {
             totalRecords: cacheData.total_records,
             jsonbCount: jsonbCount,
+            jsonbCountSource: cacheSource,
             averageRecordsPerFile: cacheData.average_records_per_file,
             largestFileRecords: cacheData.largest_file_records,
             largestFileName: cacheData.largest_file_name,
             recordTypeBreakdown: cacheData.record_type_breakdown
+          },
+          dataSources: {
+            storageStats: 'dev_tddf_object_totals_cache_2025',
+            jsonbCount: cacheSource === 'pre_cached_settings' ? 'dev_tddf_json_record_type_counts_pre_cache' : 'live_tddf_jsonb_table',
+            recordTypeBreakdown: 'dev_tddf_object_totals_cache_2025'
           }
         },
         cache: {

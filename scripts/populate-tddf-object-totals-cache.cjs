@@ -92,7 +92,7 @@ async function populateTddfObjectTotalsCache() {
         largest_file_name,
         cache_expires_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW() + INTERVAL '1 hour'
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW() + INTERVAL '4 hours'
       ) RETURNING *
     `, [
       scanStart,
