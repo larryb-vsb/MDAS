@@ -432,76 +432,137 @@ export default function StorageObjectProcessor() {
 
             {/* Processing Controls */}
             {selectedObjects.length > 0 && (
-              <div className="border-t pt-4 space-y-4">
-                <div className="text-sm font-medium">
-                  Processing Options for {selectedObjects.length} selected object{selectedObjects.length > 1 ? 's' : ''}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-green-800">
+                    🔄 Processing Options for {selectedObjects.length} selected object{selectedObjects.length > 1 ? 's' : ''}
+                  </div>
+                  <Badge className="bg-green-100 text-green-800 border-green-300">
+                    Ready to Process
+                  </Badge>
                 </div>
                 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => {
                       selectedObjects.forEach(id => identifyMutation.mutate(id));
                     }}
                     disabled={identifyMutation.isPending}
-                    className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                    className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 h-12 flex-col"
                   >
                     {identifyMutation.isPending ? (
                       <>
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Processing...
+                        <Loader2 className="h-4 w-4 animate-spin mb-1" />
+                        <span className="text-xs">Processing...</span>
                       </>
                     ) : (
                       <>
-                        <FileText className="h-3 w-3 mr-1" />
-                        Step 4: Identify ({selectedObjects.length})
+                        <FileText className="h-4 w-4 mb-1" />
+                        <span className="text-sm font-medium">Step 4: Identify</span>
+                        <span className="text-xs">({selectedObjects.length} files)</span>
                       </>
                     )}
                   </Button>
                   
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => {
                       selectedObjects.forEach(id => encodeMutation.mutate(id));
                     }}
                     disabled={encodeMutation.isPending}
-                    className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 h-12 flex-col"
                   >
                     {encodeMutation.isPending ? (
                       <>
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Processing...
+                        <Loader2 className="h-4 w-4 animate-spin mb-1" />
+                        <span className="text-xs">Processing...</span>
                       </>
                     ) : (
                       <>
-                        <Database className="h-3 w-3 mr-1" />
-                        Step 5: Encode ({selectedObjects.length})
+                        <Database className="h-4 w-4 mb-1" />
+                        <span className="text-sm font-medium">Step 5: Encode</span>
+                        <span className="text-xs">({selectedObjects.length} files)</span>
                       </>
                     )}
                   </Button>
                   
                   <Button
                     variant="default"
-                    size="sm"
                     onClick={() => {
                       selectedObjects.forEach(id => processFullMutation.mutate(id));
                     }}
                     disabled={processFullMutation.isPending}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-green-600 hover:bg-green-700 text-white h-12 flex-col"
                   >
                     {processFullMutation.isPending ? (
                       <>
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Processing...
+                        <Loader2 className="h-4 w-4 animate-spin mb-1" />
+                        <span className="text-xs">Processing...</span>
                       </>
                     ) : (
                       <>
-                        <Play className="h-3 w-3 mr-1" />
-                        Steps 4-5: Full Process ({selectedObjects.length})
+                        <Play className="h-4 w-4 mb-1" />
+                        <span className="text-sm font-medium">Steps 4-5: Full Process</span>
+                        <span className="text-xs">({selectedObjects.length} files)</span>
                       </>
                     )}
+                  </Button>
+                </div>
+                
+                <div className="text-xs text-green-700 bg-green-100 p-2 rounded">
+                  💡 <strong>Step 4</strong> identifies file content, <strong>Step 5</strong> creates JSONB records, <strong>Full Process</strong> does both steps automatically
+                </div>
+              </div>
+            )}
+
+            {/* Process All Available Objects Button */}
+            {!selectedObjects.length && storageObjects && storageObjects.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm font-medium text-blue-800">
+                    🚀 Quick Process All Available Objects
+                  </div>
+                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                    {storageObjects.length} objects available
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      storageObjects.forEach(obj => identifyMutation.mutate(obj.id));
+                    }}
+                    disabled={identifyMutation.isPending}
+                    className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Process All - Step 4
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      storageObjects.forEach(obj => encodeMutation.mutate(obj.id));
+                    }}
+                    disabled={encodeMutation.isPending}
+                    className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                  >
+                    <Database className="h-4 w-4 mr-2" />
+                    Process All - Step 5
+                  </Button>
+                  
+                  <Button
+                    variant="default"
+                    onClick={() => {
+                      storageObjects.forEach(obj => processFullMutation.mutate(obj.id));
+                    }}
+                    disabled={processFullMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Process All - Full (4-5)
                   </Button>
                 </div>
               </div>
