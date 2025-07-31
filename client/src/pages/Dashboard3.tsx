@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Moon, Sun, Database, Clock, RefreshCw, Users, Calendar, Activity, Terminal } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
+import CacheControlWidget from "@/components/shared/CacheControlWidget";
 
 interface SystemInfo {
   environment: {
@@ -297,11 +298,10 @@ export default function Dashboard3() {
                           Age: {cacheStatus.age_minutes}m | Records: {cacheStatus.record_count?.toLocaleString()}
                         </div>
                         
-                        <div className="pt-3 border-t">
-                          <div className="text-xs text-muted-foreground text-center">
-                            Cache refreshes once daily on server restart
-                          </div>
-                        </div>
+                        <CacheControlWidget 
+                          isDarkMode={isDarkMode}
+                          initialExpiration="30"
+                        />
                       </div>
                     </>
                   ) : (

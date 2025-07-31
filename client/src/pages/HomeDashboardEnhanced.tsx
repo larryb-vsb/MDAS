@@ -38,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import { Link } from 'wouter';
+import CacheControlWidget from '@/components/shared/CacheControlWidget';
 
 // Interface for dashboard metrics with cache metadata
 interface DashboardMetrics {
@@ -644,9 +645,9 @@ export default function HomeDashboard() {
             )}
           </div>
           
-          {/* Cache Status Info */}
-          <div className="text-sm text-muted-foreground">
-            Cache refreshes once daily on server restart
+          {/* Cache Control Widget */}
+          <div className="text-sm">
+            <CacheControlWidget initialExpiration="never" />
           </div>
         </div>
 
@@ -680,8 +681,8 @@ export default function HomeDashboard() {
           ) : error ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Failed to load dashboard metrics</p>
-              <div className="text-sm text-muted-foreground mt-2">
-                Cache refreshes once daily on server restart
+              <div className="text-sm mt-2">
+                <CacheControlWidget initialExpiration="never" />
               </div>
             </div>
           ) : (

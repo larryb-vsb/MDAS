@@ -17,13 +17,13 @@ Approach: Maintains continuity across sessions through documented insights and r
 
 ### Session Context & Learning  
 - Current session: July 31, 2025 - DASHBOARD CACHE CONTROL UNIFICATION COMPLETED
-- **✅ DASHBOARD CACHE CONTROL UNIFICATION COMPLETED (July 31, 2025)**: Successfully unified all dashboard cache interfaces to respect "never expire" preference and removed inconsistent cache controls
-  - **Manual Refresh Disabled**: Removed refresh buttons, mutations, and cache invalidation triggers from HomeDashboard.tsx and HomeDashboardEnhanced.tsx
-  - **Cache Control Enforced**: System now respects user preference for cache to only refresh once daily on server restart, not through manual triggers
-  - **Dashboard3 Cache Controls Removed**: Eliminated cache expiration dropdown and "Set" button from Dashboard3 Cache Status widget that was overriding "never expire" setting
-  - **Unified Cache Interface**: Both main dashboards and Dashboard3 now display identical "Cache refreshes once daily on server restart" message
-  - **Cache Status Simplified**: Cleaned up cache metadata interface, removed problematic refresh status indicators and refresh-related properties
-  - **LSP Errors Resolved**: Fixed all TypeScript errors by removing references to disabled refresh functionality, unused imports, and cache mutation code
+- **✅ SHARED CACHE CONTROL WIDGET SYSTEM COMPLETED (July 31, 2025)**: Successfully implemented unified cache control system with shared component architecture for consistent functionality across all dashboard interfaces
+  - **Shared Component Created**: Built CacheControlWidget component with expiration dropdown (15min-8hrs-never), Set button, mutation handling, and toast notifications
+  - **Unified Cache Interface**: All dashboard pages (HomeDashboard, HomeDashboardEnhanced, Dashboard3) now use identical CacheControlWidget component for consistent user experience
+  - **Cache Control Restored**: Restored full cache expiration control functionality with dropdown selection and "Set" button across all dashboard interfaces
+  - **Component Architecture**: Centralized cache control logic in client/src/components/shared/CacheControlWidget.tsx with props for dark mode and initial expiration settings
+  - **API Integration**: Shared component uses POST /api/dashboard/cache-expiration endpoint with proper authentication and cache invalidation
+  - **Consistent Styling**: All cache controls now have identical appearance, behavior, and error handling regardless of which dashboard page they appear on
   - **User Interface Updated**: Replaced refresh buttons with informational text stating "Cache refreshes once daily on server restart"
   - **Performance Maintained**: Dashboard loading remains optimized from 164+ seconds to sub-second with lightweight endpoints and proper cache separation
 - **✅ DASHBOARD3 CLEAN START COMPLETED (July 31, 2025)**: Successfully created new `/dashboard3` page with clean widget framework, dark/light mode control, and "MMS Dashboard 3" title with environment badge

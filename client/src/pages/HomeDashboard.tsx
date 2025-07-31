@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Link } from 'wouter';
+import CacheControlWidget from '@/components/shared/CacheControlWidget';
 
 // Interface for system information
 interface SystemInfo {
@@ -273,9 +274,9 @@ export default function HomeDashboard() {
             )}
           </div>
           
-          {/* Cache Status Info */}
-          <div className="text-sm text-muted-foreground">
-            Cache refreshes once daily on server restart
+          {/* Cache Control Widget */}
+          <div className="text-sm">
+            <CacheControlWidget initialExpiration="never" />
           </div>
         </div>
 
@@ -300,8 +301,11 @@ export default function HomeDashboard() {
                     <div className="flex-1">
                       <p className="font-medium text-red-800">Failed to Load Dashboard Data</p>
                       <p className="text-sm text-red-600">
-                        Unable to connect to dashboard API. Cache refreshes once daily on server restart.
+                        Unable to connect to dashboard API.
                       </p>
+                      <div className="mt-2">
+                        <CacheControlWidget initialExpiration="never" />
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -313,8 +317,8 @@ export default function HomeDashboard() {
                         First-time setup detected. Cache is being built from {metrics.merchants?.total || 0} merchants and transaction data.
                       </p>
                     </div>
-                    <div className="text-sm text-amber-600">
-                      Cache refreshes once daily on server restart
+                    <div className="text-sm">
+                      <CacheControlWidget initialExpiration="never" />
                     </div>
                   </>
                 )}
