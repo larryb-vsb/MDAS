@@ -1888,3 +1888,59 @@ export const insertPreCacheSettingsStatusSchema = preCacheSettingsStatusSchema.o
   updated_at: true, 
   last_status_check: true 
 });
+
+// Cache Configuration table - Persistent cache settings
+export const cacheConfiguration = pgTable(getTableName("cache_configuration"), {
+  id: serial("id").primaryKey(),
+  
+  // Cache identification
+  cache_name: text("cache_name").notNull().unique(), // e.g., 'dashboard_cache', 'heat_map_cache', etc.
+  cache_type: text("cache_type").notNull(), // 'dashboard', 'heat_map', 'merchant', 'pre_cache', etc.
+  page_name: text("page_name"), // Associated page or component
+  table_name: text("table_name"), // Physical table name storing cache data
+  
+  // Expiration settings
+  default_expiration_minutes: integer("default_expiration_minutes").notNull().default(240), // 4 hours default
+  expiration_policy: text("expiration_policy").default("fixed"), // 'fixed', 'sliding', 'never'
+  current_expiration_minutes: integer("current_expiration_minutes"), // Current setting (can be different from default)
+  
+  // Refresh behavior
+  auto_refresh_enabled: boolean("auto_refresh_enabled").default(true),
+  refresh_interval_minutes: integer("refresh_interval_minutes").default(60),
+  refresh_on_startup: boolean("refresh_on_startup").default(false),
+  
+  // Performance settings
+  priority_level: integer("priority_level").default(5), // 1-10 for cache building order
+  max_records: integer("max_records"), // Maximum records to cache
+  enable_compression: boolean("enable_compression").default(false),
+  
+  // Configuration metadata
+  description: text("description"),
+  environment_specific: boolean("environment_specific").default(true),
+  is_active: boolean("is_active").default(true),
+  
+  // Tracking
+  created_by: text("created_by").default("system"),
+  last_modified_by: text("last_modified_by"),
+  
+  // System timestamps
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  cacheNameIdx: index("cache_config_cache_name_idx").on(table.cache_name),
+  cacheTypeIdx: index("cache_config_cache_type_idx").on(table.cache_type),
+  pageNameIdx: index("cache_config_page_name_idx").on(table.page_name),
+  activeIdx: index("cache_config_active_idx").on(table.is_active),
+  expirationIdx: index("cache_config_expiration_idx").on(table.current_expiration_minutes)
+}));
+
+// Cache Configuration Types and Schemas
+export type CacheConfiguration = typeof cacheConfiguration.$inferSelect;
+export type InsertCacheConfiguration = typeof cacheConfiguration.$inferInsert;
+
+export const cacheConfigurationSchema = createInsertSchema(cacheConfiguration);
+export const insertCacheConfigurationSchema = cacheConfigurationSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});

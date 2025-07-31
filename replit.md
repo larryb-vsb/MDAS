@@ -16,7 +16,16 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - DASHBOARD CACHE CONTROL UNIFICATION COMPLETED
+- Current session: July 31, 2025 - PERSISTENT CACHE CONFIGURATION DATABASE SYSTEM COMPLETED
+- **✅ PERSISTENT CACHE CONFIGURATION DATABASE SYSTEM COMPLETED (July 31, 2025)**: Successfully implemented comprehensive cache configuration database table with persistent settings that survive app restarts
+  - **Cache Configuration Table Created**: Built `dev_cache_configuration` table with expiration settings, refresh policies, and cache metadata for all cache types
+  - **Persistent Settings Storage**: Default expiration times now stored in database - dashboard (4 hours), heat maps (15 min), merchant caches (30 min), pre-cache (1 hour)
+  - **API Endpoints Added**: Created `/api/cache-config` GET and PUT endpoints for viewing and updating cache configuration settings
+  - **Smart Expiration Detection**: Enhanced `/api/pre-cache/all-tables` to read expiration durations from configuration database with fallback to defaults
+  - **Blue Duration Badges**: Cache tables list displays accurate expiration duration badges (15 min, 4 hours, Never Expires) from persistent database settings
+  - **Configuration Management**: Cache settings persist across app restarts ensuring consistent behavior regardless of server cycling
+  - **10 Default Configurations**: Populated with configurations for dashboard, heat map, merchant, and pre-cache types with appropriate expiration defaults
+  - **Environment-Aware Architecture**: Cache configuration table follows dev_/prod table naming pattern for environment separation
 - **✅ SHARED CACHE CONTROL WIDGET SYSTEM COMPLETED (July 31, 2025)**: Successfully implemented unified cache control system with shared component architecture for consistent functionality across all dashboard interfaces
   - **Shared Component Created**: Built CacheControlWidget component with expiration dropdown (15min-8hrs-never), Set button, mutation handling, and toast notifications
   - **Unified Cache Interface**: All dashboard pages (HomeDashboard, HomeDashboardEnhanced, Dashboard3) now use identical CacheControlWidget component for consistent user experience

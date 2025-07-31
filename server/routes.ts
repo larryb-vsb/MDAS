@@ -14001,44 +14001,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         else if (age < 1440) ageText = `${Math.floor(age/60)}h ago`;
         else ageText = `${Math.floor(age/1440)}d ago`;
         
-        // Get expiration duration for this cache
+        // Get expiration duration from cache configuration table
         let expirationDuration = 'Unknown';
         try {
-          // Try to get expiration from actual cache data if it exists
-          if (row.table_name.includes('dashboard_cache')) {
-            const expirationQuery = `
-              SELECT expires_at, created_at 
-              FROM ${row.table_name} 
-              ORDER BY created_at DESC 
-              LIMIT 1
-            `;
-            const expResult = await pool.query(expirationQuery);
-            if (expResult.rows.length > 0) {
-              const expiresAt = new Date(expResult.rows[0].expires_at);
-              const createdAt = new Date(expResult.rows[0].created_at);
-              const durationMs = expiresAt.getTime() - createdAt.getTime();
-              const durationMinutes = Math.floor(durationMs / (1000 * 60));
-              
-              if (durationMinutes >= 525600) { // 365 days or more
-                expirationDuration = 'Never Expires';
-              } else if (durationMinutes >= 1440) {
-                expirationDuration = `${Math.floor(durationMinutes / 1440)} days`;
-              } else if (durationMinutes >= 60) {
-                expirationDuration = `${Math.floor(durationMinutes / 60)} hours`;
-              } else {
-                expirationDuration = `${durationMinutes} min`;
-              }
+          // First try to get from cache configuration table
+          const configQuery = `
+            SELECT current_expiration_minutes, expiration_policy
+            FROM ${getTableName('cache_configuration')}
+            WHERE table_name = $1 OR cache_name LIKE $2
+            AND is_active = true
+            ORDER BY updated_at DESC
+            LIMIT 1
+          `;
+          const configResult = await pool.query(configQuery, [row.table_name, `%${row.table_name}%`]);
+          
+          if (configResult.rows.length > 0) {
+            const config = configResult.rows[0];
+            const minutes = config.current_expiration_minutes;
+            
+            if (config.expiration_policy === 'never' || minutes >= 525600) {
+              expirationDuration = 'Never Expires';
+            } else if (minutes >= 1440) {
+              expirationDuration = `${Math.floor(minutes / 1440)} days`;
+            } else if (minutes >= 60) {
+              expirationDuration = `${Math.floor(minutes / 60)} hours`;
+            } else {
+              expirationDuration = `${minutes} min`;
             }
           } else {
-            // Default expiration durations for different cache types
-            if (row.table_name.includes('heat_map')) {
-              expirationDuration = '15 min';
-            } else if (row.table_name.includes('merchant')) {
-              expirationDuration = '30 min';
-            } else if (row.table_name.includes('pre_cache')) {
-              expirationDuration = '1 hour';
+            // Fallback to detecting from actual cache data if config not found
+            if (row.table_name.includes('dashboard_cache')) {
+              const expirationQuery = `
+                SELECT expires_at, created_at 
+                FROM ${row.table_name} 
+                ORDER BY created_at DESC 
+                LIMIT 1
+              `;
+              const expResult = await pool.query(expirationQuery);
+              if (expResult.rows.length > 0) {
+                const expiresAt = new Date(expResult.rows[0].expires_at);
+                const createdAt = new Date(expResult.rows[0].created_at);
+                const durationMs = expiresAt.getTime() - createdAt.getTime();
+                const durationMinutes = Math.floor(durationMs / (1000 * 60));
+                
+                if (durationMinutes >= 525600) {
+                  expirationDuration = 'Never Expires';
+                } else if (durationMinutes >= 1440) {
+                  expirationDuration = `${Math.floor(durationMinutes / 1440)} days`;
+                } else if (durationMinutes >= 60) {
+                  expirationDuration = `${Math.floor(durationMinutes / 60)} hours`;
+                } else {
+                  expirationDuration = `${durationMinutes} min`;
+                }
+              }
             } else {
-              expirationDuration = '4 hours';
+              // Default expiration durations for different cache types
+              if (row.table_name.includes('heat_map')) {
+                expirationDuration = '15 min';
+              } else if (row.table_name.includes('merchant')) {
+                expirationDuration = '30 min';
+              } else if (row.table_name.includes('pre_cache')) {
+                expirationDuration = '1 hour';
+              } else {
+                expirationDuration = '4 hours';
+              }
             }
           }
         } catch (error) {
@@ -14060,6 +14086,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, tables: cacheTablesList });
     } catch (error) {
       console.error('Error getting pre-cache tables:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Get cache configuration settings
+  app.get('/api/cache-config', isAuthenticated, async (req, res) => {
+    try {
+      const configQuery = `
+        SELECT * FROM ${getTableName('cache_configuration')}
+        WHERE is_active = true
+        ORDER BY cache_type, cache_name
+      `;
+      const result = await pool.query(configQuery);
+      
+      res.json({ success: true, configurations: result.rows });
+    } catch (error) {
+      console.error('Error fetching cache configurations:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Update cache configuration settings
+  app.put('/api/cache-config/:cacheId', isAuthenticated, async (req, res) => {
+    try {
+      const { cacheId } = req.params;
+      const { current_expiration_minutes, expiration_policy, auto_refresh_enabled, refresh_interval_minutes } = req.body;
+      
+      const updateQuery = `
+        UPDATE ${getTableName('cache_configuration')}
+        SET 
+          current_expiration_minutes = $1,
+          expiration_policy = $2,
+          auto_refresh_enabled = $3,
+          refresh_interval_minutes = $4,
+          last_modified_by = $5,
+          updated_at = NOW()
+        WHERE id = $6 AND is_active = true
+        RETURNING *
+      `;
+      
+      const result = await pool.query(updateQuery, [
+        current_expiration_minutes,
+        expiration_policy,
+        auto_refresh_enabled,
+        refresh_interval_minutes,
+        req.user?.username || 'api',
+        cacheId
+      ]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Cache configuration not found' });
+      }
+      
+      res.json({ success: true, configuration: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating cache configuration:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
