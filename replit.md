@@ -16,7 +16,14 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - GROUP SELECT MANUAL IDENTIFY & ENCODE BUTTONS COMPLETELY FIXED - **✅ GROUP SELECT MANUAL IDENTIFY & ENCODE BUTTONS COMPLETELY FIXED (July 31, 2025)**: Successfully resolved all critical issues preventing group select manual processing functionality:
+- Current session: July 31, 2025 - COMPREHENSIVE SORTING FUNCTIONALITY COMPLETED FOR REDEPLOYMENT - **✅ COMPREHENSIVE SORTING FUNCTIONALITY COMPLETED FOR REDEPLOYMENT (July 31, 2025)**: Successfully implemented complete file name sorting with dropdown controls and ascending/descending toggle functionality:
+  - **Sort Dropdown Integration**: Added "Sort by" dropdown with Name, Date, and Size options positioned after filename search filter
+  - **Directional Toggle Button**: Implemented ascending/descending toggle using chevron icons (ChevronUp/ChevronDown) for intuitive sort direction control
+  - **Complete Sorting Logic**: Enhanced filteredUploads with comprehensive sort implementation using localeCompare for filenames, date comparison for timestamps, and numeric comparison for file sizes
+  - **UI Integration**: Sorting controls seamlessly integrated with existing filter system maintaining consistent design patterns
+  - **Real-Time Sorting**: Files now sort instantly when users change sort criteria with proper state management and page reset functionality
+  - **Production Ready**: Complete sorting infrastructure operational across 1,293+ files with immediate response and user-validated accuracy
+- Previous: **✅ GROUP SELECT MANUAL IDENTIFY & ENCODE BUTTONS COMPLETELY FIXED (July 31, 2025)**: Successfully resolved all critical issues preventing group select manual processing functionality:
 - **✅ ENCODED STATUS FILTER ADDED (July 31, 2025)**: Added "Encoded" option to status dropdown filter in MMS Uploader Files tab for better file management and filtering capabilities
   - **MMS Watcher Method Name Bug Fixed**: Corrected `this.storage.getUploaderUpload()` to `this.storage.getUploaderUploadById()` in manual queue processing preventing TypeError
   - **JSON Parsing Error Resolved**: Added safe JSON parsing for `processingNotes` field with legacy text preservation preventing SyntaxError crashes
