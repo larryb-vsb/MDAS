@@ -167,13 +167,11 @@ export default function MMSUploader() {
     return `Object: ${objectName} - Status: Checking...`;
   };
 
-  // Query for MMS uploads only (separate system from /uploads) - show recent uploads from all sessions
+  // Query for MMS uploads only (separate system from /uploads) - show all uploads from all sessions
   const { data: uploads = [], isLoading } = useQuery<UploaderUpload[]>({
     queryKey: ['/api/uploader'],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append('limit', '50'); // Show last 50 uploads from all sessions
-      const response = await fetch(`/api/uploader?${params.toString()}`, {
+      const response = await fetch('/api/uploader', {
         credentials: 'include'
       });
       if (!response.ok) {
