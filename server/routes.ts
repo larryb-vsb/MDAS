@@ -13982,13 +13982,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get real cache tables from database
       const cacheTablesQuery = `
         SELECT 
-          tablename as table_name,
-          n_tup_ins as record_count,
-          COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 0) as seconds_since_vacuum,
-          pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+          relname as table_name,
+          COALESCE(n_tup_ins, 0) as record_count,
+          COALESCE(EXTRACT(EPOCH FROM (now() - last_vacuum))::int, 3600) as seconds_since_vacuum,
+          pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as size
         FROM pg_stat_user_tables 
-        WHERE tablename LIKE '%cache%' OR tablename LIKE '%pre_cache%'
-        ORDER BY tablename
+        WHERE relname LIKE '%cache%' OR relname LIKE '%pre_cache%'
+        ORDER BY relname
       `;
       
       const result = await pool.query(cacheTablesQuery);
