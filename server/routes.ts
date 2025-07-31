@@ -26,6 +26,7 @@ import { getTableName } from "./table-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
+import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {

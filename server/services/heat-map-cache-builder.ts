@@ -35,6 +35,8 @@ interface HeatMapCacheBuildJob {
 
 export class HeatMapCacheBuilder {
   private static activeJobs = new Map<string, HeatMapCacheBuildJob>();
+  private static readonly MAX_CONCURRENT_JOBS = 1; // Only allow 1 cache build at a time
+  
   private static getCacheTableName(year: number): string {
     return `heat_map_cache_${year}`;
   }
@@ -43,6 +45,13 @@ export class HeatMapCacheBuilder {
    * Start a month-by-month heat map cache rebuild job
    */
   static async startCacheRebuild(year: number, recordType: string = 'DT'): Promise<string> {
+    // Check for existing running jobs
+    const runningJobs = Array.from(this.activeJobs.values()).filter(job => job.status === 'running');
+    if (runningJobs.length >= this.MAX_CONCURRENT_JOBS) {
+      const activeJob = runningJobs[0];
+      throw new Error(`Cache builder busy: Job ${activeJob.id} already running (${activeJob.year} ${activeJob.recordType}). Please wait for completion.`);
+    }
+    
     const jobId = `heatmap_${year}_${recordType}_${Date.now()}`;
     
     console.log(`[HEATMAP-CACHE-BUILDER] Starting month-by-month rebuild for ${year} ${recordType} (Job: ${jobId})`);
@@ -239,6 +248,20 @@ export class HeatMapCacheBuilder {
    */
   static getAllActiveJobs(): HeatMapCacheBuildJob[] {
     return Array.from(this.activeJobs.values());
+  }
+
+  /**
+   * Get count of running jobs for concurrency control
+   */
+  static getRunningJobsCount(): number {
+    return Array.from(this.activeJobs.values()).filter(job => job.status === 'running').length;
+  }
+
+  /**
+   * Check if cache builder can accept new jobs
+   */
+  static canAcceptNewJob(): boolean {
+    return this.getRunningJobsCount() < this.MAX_CONCURRENT_JOBS;
   }
 
   /**
