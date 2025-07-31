@@ -245,11 +245,12 @@ export default function SubTerminals() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Device Name</TableHead>
-                  <TableHead>Terminal Number (D_Number)</TableHead>
+                  <TableHead>D_Number</TableHead>
+                  <TableHead>DeviceMerchant</TableHead>
+                  <TableHead>Device Status</TableHead>
+                  <TableHead>V_Number</TableHead>
                   <TableHead>Generic Field 1</TableHead>
-                  <TableHead>Current Merchant Assignment</TableHead>
-                  <TableHead>Primary Merchant</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Current Assignment</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -271,27 +272,45 @@ export default function SubTerminals() {
                   .slice(0, 50) // Limit to 50 for performance
                   .map((terminal: any) => {
                     const currentMerchant = merchants.find((m: any) => m.id === terminal.merchantId);
-                    const isDecommissioned = terminal.dba_name?.toLowerCase().includes('decommission') ||
-                                           terminal.dba_name?.toLowerCase().includes('decomm') ||
-                                           terminal.dba_name?.toLowerCase().includes('inactive');
+                    
+                    // Extract Device Status from brackets in Device Name
+                    const deviceStatusMatch = terminal.dba_name?.match(/\(([^)]+)\)/);
+                    const deviceStatus = deviceStatusMatch ? deviceStatusMatch[1] : 'ACTIVE';
+                    const isDecommissioned = deviceStatus.toLowerCase().includes('decommission') ||
+                                           deviceStatus.toLowerCase().includes('decomm') ||
+                                           deviceStatus.toLowerCase().includes('inactive');
+                    
+                    // Extract DeviceMerchant by removing status and D number
+                    let deviceMerchant = terminal.dba_name || '';
+                    // Remove status in brackets
+                    deviceMerchant = deviceMerchant.replace(/\s*\([^)]+\)\s*/g, '');
+                    // Remove D#### patterns
+                    deviceMerchant = deviceMerchant.replace(/\s*D\d+\s*/g, '');
+                    // Clean up extra spaces
+                    deviceMerchant = deviceMerchant.trim().replace(/\s+/g, ' ');
+                    
+                    // Extract D_Number from Device Name
+                    const dNumberMatch = terminal.dba_name?.match(/D(\d+)/);
+                    const dNumber = dNumberMatch ? dNumberMatch[0] : 'N/A';
                     
                     return (
                       <TableRow key={terminal.id}>
                         <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.id}</TableCell>
                         <TableCell>
-                          <div className="max-w-[250px]" title={terminal.dba_name}>
-                            <div className="text-sm font-medium">{terminal.dba_name}</div>
-                            {terminal.dba_name && terminal.dba_name.includes('D') && (
-                              <div className="text-xs text-muted-foreground">
-                                D#### Format: {terminal.dba_name.match(/D\d+/)?.[0] || 'Not found'}
-                              </div>
-                            )}
-                            {isDecommissioned && (
-                              <Badge variant="outline" className="mt-1 text-xs text-red-600 border-red-200">
-                                Decommissioned
-                              </Badge>
-                            )}
+                          <div className="max-w-[200px]" title={terminal.dba_name}>
+                            <div className="text-xs font-medium">{terminal.dba_name}</div>
                           </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-purple-600">{dNumber}</TableCell>
+                        <TableCell>
+                          <div className="max-w-[150px]" title={deviceMerchant}>
+                            <div className="text-sm font-medium text-green-700">{deviceMerchant || 'N/A'}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={isDecommissioned ? 'destructive' : 'default'} className="text-xs">
+                            {deviceStatus}
+                          </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm font-bold text-green-600">{terminal.v_number}</TableCell>
                         <TableCell className="font-mono text-sm text-orange-600">{terminal.generic_field_1 || 'N/A'}</TableCell>
@@ -312,17 +331,6 @@ export default function SubTerminals() {
                               Unmatched
                             </Badge>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-purple-600 border-purple-200">
-                            VerifyVend
-                          </Badge>
-                          <div className="text-xs text-muted-foreground mt-1">Primary Merchant</div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={isDecommissioned ? 'destructive' : 'default'}>
-                            {isDecommissioned ? 'Decommissioned' : 'Active'}
-                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -383,12 +391,13 @@ export default function SubTerminals() {
                                     <strong>Raw SubTerminal Import Data:</strong><br />
                                     <div className="space-y-1 mt-2">
                                       <div><strong>ID:</strong> {terminal.id} (Unique identifier)</div>
-                                      <div><strong>Device Name:</strong> {terminal.dba_name} (Merchant name + status)</div>
-                                      <div><strong>Terminal Number (D_Number):</strong> {terminal.v_number} (Maps to generic_field_1)</div>
+                                      <div><strong>Device Name:</strong> {terminal.dba_name} (Raw field)</div>
+                                      <div><strong>D_Number:</strong> {dNumber} (Extracted from Device Name)</div>
+                                      <div><strong>DeviceMerchant:</strong> {deviceMerchant || 'N/A'} (Cleaned merchant name)</div>
+                                      <div><strong>Device Status:</strong> {deviceStatus} (From brackets in Device Name)</div>
+                                      <div><strong>V_Number:</strong> {terminal.v_number} (Terminal identifier)</div>
                                       <div><strong>Generic Field 1:</strong> {terminal.generic_field_1 || 'N/A'} (Terminal Number mapping)</div>
                                       <div><strong>POS Merchant #:</strong> {terminal.pos_merchant_number}</div>
-                                      <div><strong>Primary Merchant:</strong> VerifyVend (All terminals tied)</div>
-                                      <div><strong>Status:</strong> {isDecommissioned ? 'Decommissioned' : 'Active'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -453,20 +462,40 @@ export default function SubTerminals() {
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center gap-2 mb-2">
               <Building className="h-4 w-4 text-green-600" />
-              <span className="font-medium text-green-800">Data Structure Mapping</span>
+              <span className="font-medium text-green-800">Enhanced Data Structure with Parsed Fields</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
               <div>
                 <strong>ID Field:</strong>
                 <div className="text-xs text-muted-foreground">Unique record identifier from SubTerminal import</div>
               </div>
               <div>
-                <strong>Device Name Field:</strong>
-                <div className="text-xs text-muted-foreground">Contains merchant name, status, and D#### format numbers</div>
+                <strong>Device Name (Raw):</strong>
+                <div className="text-xs text-muted-foreground">Original field: merchant name + status + D#### format</div>
               </div>
               <div>
-                <strong>D_Number → Terminal Number:</strong>
-                <div className="text-xs text-muted-foreground">Maps to dev_terminals.generic_field_1 (should rename to terminalnumber)</div>
+                <strong>D_Number (Extracted):</strong>
+                <div className="text-xs text-muted-foreground">D#### pattern extracted from Device Name</div>
+              </div>
+              <div>
+                <strong>DeviceMerchant (Parsed):</strong>
+                <div className="text-xs text-muted-foreground">Clean merchant name (status and D number removed)</div>
+              </div>
+              <div>
+                <strong>Device Status (Parsed):</strong>
+                <div className="text-xs text-muted-foreground">Status from brackets: (DECOMMISSIONED), etc.</div>
+              </div>
+              <div>
+                <strong>V_Number:</strong>
+                <div className="text-xs text-muted-foreground">Terminal identifier for cross-reference</div>
+              </div>
+              <div>
+                <strong>Generic Field 1:</strong>
+                <div className="text-xs text-muted-foreground">Maps to terminalnumber (needs renaming)</div>
+              </div>
+              <div>
+                <strong>Current Assignment:</strong>
+                <div className="text-xs text-muted-foreground">Merchant relationship management</div>
               </div>
             </div>
           </div>
