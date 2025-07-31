@@ -33,25 +33,23 @@ function SimpleActivityHeatMapSkeleton() {
             <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
           </div>
         </div>
-        <div className="flex justify-between mb-2">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="h-4 bg-gray-200 rounded w-6 animate-pulse"></div>
-          ))}
-        </div>
         <div className="mb-6">
-          <div className="flex gap-1">
-            <div className="flex flex-col gap-1 mr-2">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
-                <div key={i} className="h-4 bg-gray-200 rounded w-6 animate-pulse text-xs"></div>
-              ))}
-            </div>
-            {Array.from({ length: 53 }).map((_, weekIndex) => (
-              <div key={weekIndex} className="flex flex-col gap-1">
-                {Array.from({ length: 7 }).map((_, dayIndex) => (
-                  <div key={dayIndex} className="w-4 h-4 bg-gray-200 rounded-sm animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-full mb-4 animate-pulse"></div>
+          <div className="overflow-x-auto">
+            <div className="flex gap-1 min-w-fit">
+              <div className="flex flex-col gap-1 mr-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+                  <div key={i} className="h-4 bg-gray-200 rounded w-6 animate-pulse text-xs"></div>
                 ))}
               </div>
-            ))}
+              {Array.from({ length: 53 }).map((_, weekIndex) => (
+                <div key={weekIndex} className="flex flex-col gap-1">
+                  {Array.from({ length: 7 }).map((_, dayIndex) => (
+                    <div key={dayIndex} className="w-4 h-4 bg-gray-200 rounded-sm animate-pulse"></div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex justify-end">
@@ -128,16 +126,22 @@ export default function SimpleActivityHeatMap({
     // Calculate max count for intensity
     const maxCount = Math.max(...Object.values(dataByDate), 1);
     
-    // Generate weeks for the year
-    const startDate = new Date(selectedYear, 0, 1);
-    const endDate = new Date(selectedYear, 11, 31);
+    // Generate all weeks for the year
     const weeks: Array<Array<{ date: string; count: number; dateObj: Date }>> = [];
     
-    let currentDate = new Date(startDate);
-    // Start from Sunday
-    currentDate.setDate(currentDate.getDate() - currentDate.getDay());
+    // Start from the first Sunday of the year (or before if needed)
+    const startDate = new Date(selectedYear, 0, 1);
+    const firstSunday = new Date(startDate);
+    firstSunday.setDate(firstSunday.getDate() - firstSunday.getDay());
     
-    while (currentDate <= endDate && weeks.length < 53) {
+    // End at the last Saturday of the year (or after if needed)
+    const endDate = new Date(selectedYear, 11, 31);
+    const lastSaturday = new Date(endDate);
+    lastSaturday.setDate(lastSaturday.getDate() + (6 - lastSaturday.getDay()));
+    
+    let currentDate = new Date(firstSunday);
+    
+    while (currentDate <= lastSaturday) {
       const week: Array<{ date: string; count: number; dateObj: Date }> = [];
       
       for (let day = 0; day < 7; day++) {
@@ -160,6 +164,28 @@ export default function SimpleActivityHeatMap({
 
     return { weeks, maxCount, totalTransactions };
   }, [data, selectedYear]);
+
+  // Get month labels based on the weeks
+  const monthLabels = useMemo(() => {
+    const labels: Array<{ month: string; position: number }> = [];
+    const seenMonths = new Set<number>();
+    
+    heatMapData.weeks.forEach((week, weekIndex) => {
+      const firstDayOfWeek = week[0].dateObj;
+      const month = firstDayOfWeek.getMonth();
+      
+      // Add label for the first occurrence of each month
+      if (!seenMonths.has(month) && firstDayOfWeek.getFullYear() === selectedYear) {
+        seenMonths.add(month);
+        labels.push({
+          month: firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' }),
+          position: weekIndex
+        });
+      }
+    });
+    
+    return labels;
+  }, [heatMapData.weeks, selectedYear]);
 
   // Get background color for a day square
   const getBackgroundColor = (count: number, isSelected: boolean, maxCount: number) => {
@@ -193,7 +219,6 @@ export default function SimpleActivityHeatMap({
     }
   };
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
@@ -207,7 +232,7 @@ export default function SimpleActivityHeatMap({
 
       <div className="bg-gray-50 rounded-lg p-6">
         {/* Year Navigation */}
-        <div className="flex justify-end items-center mb-6" style={{ width: `${heatMapData.weeks.length * 20 + 32}px` }}>
+        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -227,38 +252,38 @@ export default function SimpleActivityHeatMap({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">{heatMapData.totalTransactions}</span> transactions in {selectedYear}
+            <span className="mx-2">•</span>
+            <span>Peak day: <span className="font-medium">{heatMapData.maxCount}</span> transactions</span>
+          </div>
         </div>
 
         {/* Month Labels */}
-        <div className="flex justify-between mb-2" style={{ 
-          width: `${heatMapData.weeks.length * 20 + 32}px`,
-          paddingLeft: '32px' 
-        }}>
-          {monthNames.map((month, index) => {
-            const monthPosition = (index * heatMapData.weeks.length * 20) / 12;
-            return (
+        <div className="mb-2 overflow-x-auto">
+          <div className="flex relative min-w-fit" style={{ marginLeft: '32px' }}>
+            {monthLabels.map(({ month, position }) => (
               <div 
-                key={month} 
-                className="text-xs text-gray-600 font-medium"
+                key={`${month}-${position}`}
+                className="text-xs text-gray-600 font-medium absolute"
                 style={{ 
-                  position: 'absolute',
-                  left: `${monthPosition}px`,
+                  left: `${position * 20}px`,
                   transform: 'translateX(-50%)'
                 }}
               >
                 {month}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
         {/* Heat Map Grid */}
-        <div className="mb-6">
-          <div className="flex gap-1">
+        <div className="mb-6 overflow-x-auto">
+          <div className="flex gap-1 min-w-fit">
             {/* Day Labels */}
-            <div className="flex flex-col gap-1 mr-2 justify-between">
+            <div className="flex flex-col gap-1 mr-2">
               {dayNames.map((day, i) => (
-                <div key={i} className="text-xs text-gray-600 font-medium h-4 flex items-center">
+                <div key={i} className="text-xs text-gray-600 font-medium h-4 flex items-center w-6">
                   {i % 2 === 1 ? day : ''}
                 </div>
               ))}
@@ -298,29 +323,21 @@ export default function SimpleActivityHeatMap({
         </div>
         
         {/* Legend */}
-        <div className="flex justify-end" style={{ width: `${heatMapData.weeks.length * 20 + 32}px` }}>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <div>
-              <span className="font-medium">{heatMapData.totalTransactions}</span> transactions in {selectedYear}
-              <span className="mx-2">•</span>
-              <span>Peak day: <span className="font-medium">{heatMapData.maxCount}</span> transactions</span>
+        <div className="flex justify-end">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span>Less</span>
+            <div className="flex gap-1">
+              <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
+              <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
+              <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
+              <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
+              <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
+              <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
+              <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
+              <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
+              <div className="w-3 h-3 bg-purple-800 rounded-sm"></div>
             </div>
-            
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>Less</span>
-              <div className="flex gap-1">
-                <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-100 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-400 rounded-sm"></div>
-                <div className="w-3 h-3 bg-green-600 rounded-sm"></div>
-                <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-                <div className="w-3 h-3 bg-blue-700 rounded-sm"></div>
-                <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
-                <div className="w-3 h-3 bg-purple-800 rounded-sm"></div>
-              </div>
-              <span>More</span>
-            </div>
+            <span>More</span>
           </div>
         </div>
       </div>
