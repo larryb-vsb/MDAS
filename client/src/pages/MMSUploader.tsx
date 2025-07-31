@@ -527,34 +527,6 @@ export default function MMSUploader() {
     }
   };
 
-  // Group Selected Encode handler
-  const handleGroupSelectedEncode = async () => {
-    console.log('[GROUP-ENCODE] Button clicked, selectedUploads:', selectedUploads);
-    
-    // Filter selected uploads to only include TDDF files in identified phase
-    const eligibleUploads = selectedUploads.filter(id => {
-      const upload = uploads.find(u => u.id === id);
-      const isEligible = upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
-      console.log(`[GROUP-ENCODE] File ${upload?.filename} (${upload?.currentPhase}, ${upload?.finalFileType}) eligible: ${isEligible}`);
-      return isEligible;
-    });
-    
-    console.log(`[GROUP-ENCODE] Found ${eligibleUploads.length} eligible TDDF uploads:`, eligibleUploads);
-    
-    if (eligibleUploads.length === 0) {
-      console.log('[GROUP-ENCODE] No eligible TDDF uploads found, returning');
-      return;
-    }
-    
-    try {
-      console.log('[GROUP-ENCODE] Starting bulk encoding for uploads:', eligibleUploads);
-      await bulkEncodeMutation.mutateAsync(eligibleUploads);
-      console.log('[GROUP-ENCODE] Bulk encoding completed successfully');
-    } catch (error) {
-      console.error('[GROUP-ENCODE] Error:', error);
-    }
-  };
-
   // Stage 5: Single file encoding handler with progress tracking
   const handleSingleFileEncoding = async (uploadId: string) => {
     try {
@@ -1839,26 +1811,6 @@ export default function MMSUploader() {
                           {manualEncodeMutation.isPending ? 'Encoding...' : `Encode ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
                             return upload && upload.currentPhase === 'identified';
-                          }).length}`}
-                        </Button>
-                      )}
-
-                      {/* Encode Button - show when identified TDDF files are selected */}
-                      {selectedUploads.some(id => {
-                        const upload = uploads.find(u => u.id === id);
-                        return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
-                      }) && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleGroupSelectedEncode}
-                          disabled={bulkEncodeMutation.isPending}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          <Database className="h-4 w-4 mr-2" />
-                          {bulkEncodeMutation.isPending ? 'Encoding...' : `Encode ${selectedUploads.filter(id => {
-                            const upload = uploads.find(u => u.id === id);
-                            return upload && upload.currentPhase === 'identified' && upload.finalFileType === 'tddf';
                           }).length}`}
                         </Button>
                       )}
