@@ -12,6 +12,7 @@ import {
   HardDrive, 
   Activity, 
   AlertTriangle, 
+  AlertCircle,
   RefreshCw, 
   Clock, 
   Trash2, 
@@ -195,8 +196,8 @@ function DuplicatesTab() {
     );
   }
 
-  const duplicateGroups: DuplicateGroup[] = duplicatesData?.duplicateGroups || [];
-  const summary: DuplicatesSummary = duplicatesData?.summary || {
+  const duplicateGroups: DuplicateGroup[] = (duplicatesData as any)?.duplicateGroups || [];
+  const summary: DuplicatesSummary = (duplicatesData as any)?.summary || {
     totalDuplicateGroups: 0,
     totalDuplicateObjects: 0,
     totalDuplicatesRemovable: 0,
@@ -493,7 +494,7 @@ export default function StorageManagement() {
     }
   };
 
-  const storageStats = stats as StorageStats;
+  const storageStats = (stats as any) as StorageStats;
   const objectsList = objectsData as StorageList || { objects: [], pagination: { total: 0, page: 0, limit: 0, totalPages: 0 } };
 
   return (
@@ -618,11 +619,11 @@ export default function StorageManagement() {
                       <p className="text-sm text-muted-foreground">Objects queued</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats.purgeQueue.totalSizeMB.toFixed(1)} MB</div>
+                      <div className="text-2xl font-bold">{storageStats.purgeQueue.totalSizeMB?.toFixed(1) || '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Total size</p>
                     </div>
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold">{storageStats.purgeQueue.avgSizeMB.toFixed(1)} MB</div>
+                      <div className="text-2xl font-bold">{storageStats.purgeQueue.avgSizeMB?.toFixed(1) || '0.0'} MB</div>
                       <p className="text-sm text-muted-foreground">Average size</p>
                     </div>
                   </div>
