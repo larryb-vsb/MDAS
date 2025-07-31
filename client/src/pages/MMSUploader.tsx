@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import MainLayout from '@/components/layout/MainLayout';
 import TddfJsonViewer from '@/components/uploads/TddfJsonViewer';
 import StorageObjectProcessor from '@/components/storage/StorageObjectProcessor';
+import ObjectStorageFileBrowser from '@/components/storage/ObjectStorageFileBrowser';
 import { formatDistanceToNow } from 'date-fns';
 
 // Extended type for UploaderUpload with storage key
@@ -1671,6 +1672,10 @@ export default function MMSUploader() {
         </TabsContent>
 
         <TabsContent value="storage-browse" className="space-y-4">
+          {/* Object Storage File Browser */}
+          <ObjectStorageFileBrowser />
+          
+          {/* Existing Storage Object Processor */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

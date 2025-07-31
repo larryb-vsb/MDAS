@@ -7608,6 +7608,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed list of files from object storage with metadata
+  app.get("/api/uploader/storage-files", isAuthenticated, async (req, res) => {
+    try {
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const config = ReplitStorageService.getConfigStatus();
+      
+      if (!config.available) {
+        return res.json({
+          available: false,
+          error: 'Object storage not configured'
+        });
+      }
+
+      console.log('[STORAGE-FILES] Fetching detailed file list from object storage...');
+      
+      // Get file keys (paths)
+      const fileKeys = await ReplitStorageService.listFiles();
+      console.log(`[STORAGE-FILES] Found ${fileKeys.length} files in object storage`);
+      
+      // Convert to detailed file objects
+      const files = fileKeys.map(key => {
+        const fileName = key.split('/').pop() || key;
+        return {
+          key,
+          name: fileName,
+          size: undefined, // Could be enhanced with actual size if needed
+          lastModified: undefined, // Could be enhanced with metadata if needed
+          type: fileName.toLowerCase().endsWith('.tsyso') ? 'tddf' : 
+                fileName.toLowerCase().endsWith('.csv') ? 'csv' :
+                fileName.toLowerCase().endsWith('.json') ? 'json' : 'unknown'
+        };
+      });
+
+      const response = {
+        available: true,
+        service: config.service,
+        fileCount: files.length,
+        files: files,
+        folderPrefix: config.folderPrefix,
+        environment: config.environment
+      };
+
+      console.log(`[STORAGE-FILES] Returning ${files.length} files`);
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('Storage files error:', error);
+      res.status(500).json({ 
+        available: false,
+        error: error.message 
+      });
+    }
+  });
+
+  // Import selected files from object storage into MMS processing pipeline
+  app.post("/api/uploader/import-from-storage", isAuthenticated, async (req, res) => {
+    try {
+      const { fileKeys } = req.body;
+      
+      if (!fileKeys || !Array.isArray(fileKeys) || fileKeys.length === 0) {
+        return res.status(400).json({ error: "fileKeys array is required" });
+      }
+
+      console.log(`[STORAGE-IMPORT] Starting import of ${fileKeys.length} files from object storage`);
+      
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      let importedCount = 0;
+      let errors: string[] = [];
+
+      // Process each file
+      for (const fileKey of fileKeys) {
+        try {
+          console.log(`[STORAGE-IMPORT] Processing file: ${fileKey}`);
+          
+          // Extract filename from storage key
+          const filename = fileKey.split('/').pop() || fileKey;
+          
+          // Check if file already exists in upload system
+          const uploaderTableName = getTableName('uploader_uploads');
+          const existingResult = await pool.query(`
+            SELECT id FROM ${uploaderTableName} 
+            WHERE filename = $1 
+            LIMIT 1
+          `, [filename]);
+          
+          if (existingResult.rows.length > 0) {
+            console.log(`[STORAGE-IMPORT] File ${filename} already exists in upload system, skipping`);
+            continue;
+          }
+
+          // Generate new upload ID
+          const uploadId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Determine file type
+          let finalFileType = 'tddf'; // Default for .TSYSO files
+          if (filename.toLowerCase().includes('.csv')) {
+            if (filename.toLowerCase().includes('merchant')) {
+              finalFileType = 'ach_merchant';
+            } else if (filename.toLowerCase().includes('transaction')) {
+              finalFileType = 'ach_transactions'; 
+            } else {
+              finalFileType = 'ach_merchant'; // Default CSV type
+            }
+          }
+
+          // Create upload record
+          const newUpload = await pool.query(`
+            INSERT INTO ${uploaderTableName} (
+              id,
+              filename,
+              file_size,
+              mime_type,
+              session_id,
+              current_phase,
+              final_file_type,
+              processing_metadata,
+              created_at,
+              storage_path,
+              environment,
+              server_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING *
+          `, [
+            uploadId,
+            filename,
+            0, // Size unknown from storage key
+            'application/octet-stream',
+            'storage_import', 
+            'uploaded', // Start at uploaded phase
+            finalFileType,
+            JSON.stringify({
+              source: 'object_storage_import',
+              original_key: fileKey,
+              import_timestamp: new Date().toISOString()
+            }),
+            new Date(),
+            fileKey, // Store the storage key as path
+            process.env.NODE_ENV || 'development',
+            process.env.HOSTNAME || 'unknown'
+          ]);
+
+          console.log(`[STORAGE-IMPORT] Created upload record: ${uploadId} for ${filename}`);
+          importedCount++;
+          
+        } catch (fileError: any) {
+          console.error(`[STORAGE-IMPORT] Error importing ${fileKey}:`, fileError);
+          errors.push(`${fileKey}: ${fileError.message}`);
+        }
+      }
+
+      console.log(`[STORAGE-IMPORT] Import completed: ${importedCount} files imported, ${errors.length} errors`);
+
+      const response: any = {
+        success: true,
+        importedCount,
+        totalRequested: fileKeys.length,
+        message: `Successfully imported ${importedCount} of ${fileKeys.length} files`
+      };
+
+      if (errors.length > 0) {
+        response.errors = errors;
+        response.message += ` (${errors.length} files had errors)`;
+      }
+
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('Storage import error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
+    }
+  });
+
   // V2 Dashboard API Endpoints for Session-Based Uploads and JSONB Processing
   
   // Uploader dashboard statistics with cache building functionality
