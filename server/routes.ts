@@ -9670,11 +9670,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update dashboard cache expiration endpoint
   app.post("/api/dashboard/cache-expiration", isAuthenticated, async (req, res) => {
     try {
-      const { minutes } = req.body;
+      const { minutes, never } = req.body;
       
-      if (!minutes || typeof minutes !== 'number' || minutes < 5 || minutes > 1440) {
+      if (never !== true && (!minutes || typeof minutes !== 'number' || minutes < 5 || minutes > 1440)) {
         return res.status(400).json({ 
-          error: 'Invalid expiration time. Must be between 5 and 1440 minutes.' 
+          error: 'Invalid expiration time. Must be between 5 and 1440 minutes, or set never: true.' 
         });
       }
       
@@ -9688,25 +9688,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (cacheExists.rows.length === 0) {
         // Create initial Dashboard3 cache entry
         console.log(`[CACHE-EXPIRATION] Creating initial Dashboard3 cache entry`);
+        const expiresAt = never 
+          ? "NOW() + INTERVAL '100 years'" 
+          : `NOW() + INTERVAL '${minutes} minutes'`;
+        
         await pool.query(`
           INSERT INTO ${tableName} 
           (cache_key, cache_data, expires_at, build_time_ms, record_count, updated_at)
-          VALUES ($1, $2, NOW() + INTERVAL '${minutes} minutes', $3, $4, NOW())
+          VALUES ($1, $2, ${expiresAt}, $3, $4, NOW())
         `, [
           'dashboard3_metrics', 
           JSON.stringify({
             message: 'Dashboard3 cache initialized',
             widgets: ['cache-status'],
-            created: new Date().toISOString()
+            created: new Date().toISOString(),
+            never_expires: never || false
           }), 
           0,
           0
         ]);
       } else {
         // Update existing cache expiration
+        const expiresAt = never 
+          ? "NOW() + INTERVAL '100 years'" 
+          : `updated_at + INTERVAL '${minutes} minutes'`;
+        
         await pool.query(`
           UPDATE ${tableName}
-          SET expires_at = updated_at + INTERVAL '${minutes} minutes'
+          SET expires_at = ${expiresAt}
           WHERE cache_key = 'dashboard3_metrics'
         `);
       }
@@ -9719,14 +9728,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (updateResult.rows.length > 0) {
         const updatedCache = updateResult.rows[0];
-        console.log(`[CACHE-EXPIRATION] Updated Dashboard3 cache expiration to ${minutes} minutes`);
+        const logMessage = never 
+          ? `[CACHE-EXPIRATION] Updated Dashboard3 cache to never expire`
+          : `[CACHE-EXPIRATION] Updated Dashboard3 cache expiration to ${minutes} minutes`;
+        console.log(logMessage);
+        
+        const responseMessage = never 
+          ? "Dashboard3 cache set to never expire"
+          : `Dashboard3 cache expiration updated to ${minutes} minutes`;
         
         res.json({
           success: true,
-          message: `Dashboard3 cache expiration updated to ${minutes} minutes`,
+          message: responseMessage,
           cache_key: updatedCache.cache_key,
           expires_at: updatedCache.expires_at,
-          minutes: minutes
+          minutes: never ? null : minutes,
+          never_expires: never || false
         });
       } else {
         res.status(500).json({ 

@@ -47,17 +47,25 @@ export default function Dashboard3() {
 
   // Update cache expiration mutation
   const updateExpirationMutation = useMutation({
-    mutationFn: async (minutes: number) => {
+    mutationFn: async (expiration: string | number) => {
+      const body = expiration === 'never' 
+        ? { never: true }
+        : { minutes: typeof expiration === 'string' ? parseInt(expiration) : expiration };
+      
       return apiRequest(`/api/dashboard/cache-expiration`, {
         method: 'POST',
-        body: JSON.stringify({ minutes }),
+        body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' }
       });
     },
     onSuccess: () => {
+      const description = selectedExpiration === 'never' 
+        ? "Cache will never expire" 
+        : `Cache will now expire in ${selectedExpiration} minutes`;
+      
       toast({
         title: "Cache Expiration Updated",
-        description: `Cache will now expire in ${selectedExpiration} minutes`,
+        description,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cache-status"] });
     },
@@ -195,12 +203,13 @@ export default function Dashboard3() {
                                 <SelectItem value="120">2 hours</SelectItem>
                                 <SelectItem value="240">4 hours</SelectItem>
                                 <SelectItem value="480">8 hours</SelectItem>
+                                <SelectItem value="never">Never expire</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button
                               size="sm"
                               className="h-7 px-2 text-xs"
-                              onClick={() => updateExpirationMutation.mutate(parseInt(selectedExpiration))}
+                              onClick={() => updateExpirationMutation.mutate(selectedExpiration)}
                               disabled={updateExpirationMutation.isPending}
                             >
                               {updateExpirationMutation.isPending ? (
