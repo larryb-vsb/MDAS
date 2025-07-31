@@ -8250,11 +8250,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (runningJobs.length > 0) {
         const activeJob = runningJobs[0];
-        const currentMonth = activeJob.monthProgress.find(m => m.status === 'building');
+        const currentMonthProgress = activeJob.monthProgress.find(m => m.status === 'building');
+        
+        // Get processing statistics from completed months
+        const completedMonths = activeJob.monthProgress.filter(m => m.status === 'completed');
+        const averageTimePerMonth = completedMonths.length > 0 
+          ? Math.round(completedMonths.reduce((sum, m) => sum + m.buildTimeMs, 0) / completedMonths.length)
+          : 0;
         
         res.json({
           isProcessing: true,
-          currentMonth: currentMonth ? `${activeJob.year}-${currentMonth.month.toString().padStart(2, '0')}` : null,
+          currentMonth: activeJob.currentMonth || null,
           progress: {
             completedMonths: activeJob.completedMonths,
             totalMonths: activeJob.totalMonths,
@@ -8262,7 +8268,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           year: activeJob.year,
           recordType: activeJob.recordType,
-          totalRecords: activeJob.totalRecords
+          totalRecords: activeJob.totalRecords,
+          processingStats: {
+            averageTimePerMonth,
+            recordsProcessed: activeJob.totalRecords,
+            currentMonthStartTime: currentMonthProgress?.startTime,
+            completedMonthsStats: completedMonths.map(m => ({
+              month: `${m.year}-${m.month.toString().padStart(2, '0')}`,
+              recordCount: m.recordCount,
+              buildTimeMs: m.buildTimeMs,
+              recordsPerSecond: m.recordsPerSecond || 0
+            }))
+          }
         });
       } else {
         res.json({
@@ -8270,7 +8287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentMonth: null,
           progress: null,
           year: null,
-          recordType: null
+          recordType: null,
+          processingStats: null
         });
       }
     } catch (error) {

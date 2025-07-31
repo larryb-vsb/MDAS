@@ -17,6 +17,7 @@ interface MonthProgress {
   error?: string;
   startTime?: Date;
   completedTime?: Date;
+  recordsPerSecond?: number;
 }
 
 interface HeatMapCacheBuildJob {
@@ -26,11 +27,18 @@ interface HeatMapCacheBuildJob {
   status: 'pending' | 'running' | 'completed' | 'error';
   totalMonths: number;
   completedMonths: number;
+  currentMonth?: string; // Format: "YYYY-MM" for frontend display
   monthProgress: MonthProgress[];
   startTime: Date;
   completedTime?: Date;
   totalRecords: number;
   error?: string;
+  processingStats?: {
+    totalBuildTime: number;
+    averageMonthTime: number;
+    fastestMonth: { month: string; timeMs: number; recordCount: number };
+    slowestMonth: { month: string; timeMs: number; recordCount: number };
+  };
 }
 
 export class HeatMapCacheBuilder {
@@ -114,7 +122,10 @@ export class HeatMapCacheBuilder {
         monthProgress.status = 'building';
         monthProgress.startTime = new Date();
         
-        console.log(`[HEATMAP-CACHE-BUILDER] Processing ${job.year}-${month.toString().padStart(2, '0')} (Job: ${jobId})`);
+        // Update current month for frontend display
+        job.currentMonth = `${job.year}-${month.toString().padStart(2, '0')}`;
+        
+        console.log(`[HEATMAP-CACHE-BUILDER] Processing ${job.currentMonth} (Job: ${jobId})`);
         
         try {
           const monthStartTime = Date.now();
@@ -128,16 +139,22 @@ export class HeatMapCacheBuilder {
           
           const buildTimeMs = Date.now() - monthStartTime;
           
+          // Calculate processing rate
+          const recordsPerSecond = monthData.recordCount > 0 && buildTimeMs > 0 
+            ? Math.round((monthData.recordCount / buildTimeMs) * 1000) 
+            : 0;
+          
           // Update progress
           monthProgress.status = 'completed';
           monthProgress.recordCount = monthData.recordCount;
           monthProgress.buildTimeMs = buildTimeMs;
           monthProgress.completedTime = new Date();
+          monthProgress.recordsPerSecond = recordsPerSecond;
           
           job.completedMonths++;
           job.totalRecords += monthData.recordCount;
           
-          console.log(`[HEATMAP-CACHE-BUILDER] Completed ${job.year}-${month.toString().padStart(2, '0')}: ${monthData.recordCount} records in ${buildTimeMs}ms`);
+          console.log(`[HEATMAP-CACHE-BUILDER] Completed ${job.currentMonth}: ${monthData.recordCount} records in ${buildTimeMs}ms (${recordsPerSecond} records/sec)`);
           
           // Small delay between months to prevent database overload
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -149,11 +166,26 @@ export class HeatMapCacheBuilder {
         }
       }
       
+      // Calculate processing statistics
+      this.calculateProcessingStats(job);
+      
       // Complete job
       job.status = 'completed';
       job.completedTime = new Date();
+      job.currentMonth = undefined; // Clear current month on completion
       
       console.log(`[HEATMAP-CACHE-BUILDER] Job ${jobId} completed: ${job.totalRecords} total records across ${job.completedMonths} months`);
+      
+      // Log processing statistics
+      if (job.processingStats) {
+        console.log(`[HEATMAP-CACHE-BUILDER] Processing stats: Total time ${job.processingStats.totalBuildTime}ms, Avg month ${job.processingStats.averageMonthTime}ms`);
+        if (job.processingStats.fastestMonth) {
+          console.log(`[HEATMAP-CACHE-BUILDER] Fastest month: ${job.processingStats.fastestMonth.month} (${job.processingStats.fastestMonth.timeMs}ms, ${job.processingStats.fastestMonth.recordCount} records)`);
+        }
+        if (job.processingStats.slowestMonth) {
+          console.log(`[HEATMAP-CACHE-BUILDER] Slowest month: ${job.processingStats.slowestMonth.month} (${job.processingStats.slowestMonth.timeMs}ms, ${job.processingStats.slowestMonth.recordCount} records)`);
+        }
+      }
       
     } catch (error) {
       console.error(`[HEATMAP-CACHE-BUILDER] Job ${jobId} failed:`, error);
@@ -262,6 +294,46 @@ export class HeatMapCacheBuilder {
    */
   static canAcceptNewJob(): boolean {
     return this.getRunningJobsCount() < this.MAX_CONCURRENT_JOBS;
+  }
+
+  /**
+   * Calculate processing statistics for completed job
+   */
+  private static calculateProcessingStats(job: HeatMapCacheBuildJob): void {
+    const completedMonths = job.monthProgress.filter(m => m.status === 'completed');
+    
+    if (completedMonths.length === 0) return;
+    
+    const totalBuildTime = completedMonths.reduce((sum, m) => sum + m.buildTimeMs, 0);
+    const averageMonthTime = Math.round(totalBuildTime / completedMonths.length);
+    
+    // Find fastest and slowest months
+    let fastestMonth: any = null;
+    let slowestMonth: any = null;
+    
+    for (const month of completedMonths) {
+      const monthLabel = `${month.year}-${month.month.toString().padStart(2, '0')}`;
+      const monthData = {
+        month: monthLabel,
+        timeMs: month.buildTimeMs,
+        recordCount: month.recordCount
+      };
+      
+      if (!fastestMonth || month.buildTimeMs < fastestMonth.timeMs) {
+        fastestMonth = monthData;
+      }
+      
+      if (!slowestMonth || month.buildTimeMs > slowestMonth.timeMs) {
+        slowestMonth = monthData;
+      }
+    }
+    
+    job.processingStats = {
+      totalBuildTime,
+      averageMonthTime,
+      fastestMonth,
+      slowestMonth
+    };
   }
 
   /**

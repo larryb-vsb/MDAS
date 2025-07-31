@@ -343,6 +343,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   if (isLoading && !activityResponse) {
     const currentProcessingMonth = processingStatus?.isProcessing ? processingStatus.currentMonth : null;
     const progressPct = processingStatus?.progress?.percentage || 0;
+    const avgMonthTime = processingStatus?.processingStats?.averageTimePerMonth;
+    const recordsProcessed = processingStatus?.processingStats?.recordsProcessed || 0;
     
     return (
       <div className="bg-gray-50 rounded-lg p-6">
@@ -356,8 +358,16 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
                   Processing month {currentProcessingMonth} ({progressPct}% complete)
                 </div>
                 <div className="text-xs text-gray-400 mt-2">
-                  Building heat map cache month-by-month for optimal performance
+                  {avgMonthTime > 0 
+                    ? `Average processing time: ${Math.round(avgMonthTime / 1000)}s per month`
+                    : 'Building heat map cache month-by-month for optimal performance'
+                  }
                 </div>
+                {recordsProcessed > 0 && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    {recordsProcessed.toLocaleString()} records processed so far
+                  </div>
+                )}
               </>
             ) : (
               <>
