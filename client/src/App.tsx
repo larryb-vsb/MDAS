@@ -33,6 +33,7 @@ import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 import StorageManagement from "@/pages/StorageManagement";
+import PreCacheManagement from "@/pages/PreCacheManagement";
 function Router() {
   return (
     <Switch>
@@ -64,6 +65,7 @@ function Router() {
       <ProtectedRoute path="/uploader" component={MMSUploader} />
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
       <ProtectedRoute path="/storage-management" component={StorageManagement} />
+      <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />

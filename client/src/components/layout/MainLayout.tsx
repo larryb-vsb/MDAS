@@ -117,6 +117,11 @@ const navItems = [
     href: "/storage-management"
   },
   {
+    icon: <Database className="h-5 w-5 text-green-400" />,
+    label: "Pre-Cache Management",
+    href: "/pre-cache-management"
+  },
+  {
     icon: <Archive className="h-5 w-5 text-amber-400" />,
     label: "Legacy",
     submenu: [

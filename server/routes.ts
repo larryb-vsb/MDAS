@@ -13694,6 +13694,392 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PRE-CACHE SETTINGS AND STATUS ROUTES ====================
+  
+  // Get all pre-cache settings and status entries
+  app.get("/api/pre-cache/settings-status", isAuthenticated, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM ${getTableName('pre_cache_settings_status')}
+        ORDER BY priority_level ASC, page_name ASC
+      `);
+      
+      res.json({
+        success: true,
+        data: result.rows,
+        total: result.rows.length
+      });
+    } catch (error) {
+      console.error('Error fetching pre-cache settings:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch pre-cache settings" 
+      });
+    }
+  });
+
+  // Get pre-cache status for a specific cache
+  app.get("/api/pre-cache/settings-status/:cacheName", isAuthenticated, async (req, res) => {
+    try {
+      const { cacheName } = req.params;
+      
+      const result = await pool.query(`
+        SELECT * FROM ${getTableName('pre_cache_settings_status')}
+        WHERE cache_name = $1
+      `, [cacheName]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          error: `Pre-cache configuration not found for: ${cacheName}` 
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Error fetching pre-cache status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch pre-cache status" 
+      });
+    }
+  });
+
+  // Create or update pre-cache settings
+  app.post("/api/pre-cache/settings-status", isAuthenticated, async (req, res) => {
+    try {
+      const {
+        cache_name,
+        page_name,
+        table_name,
+        cache_type = 'page_cache',
+        update_policy = 'manual',
+        expiration_policy = '24_hours',
+        auto_refresh_enabled = false,
+        refresh_interval_minutes = 60,
+        priority_level = 5,
+        configuration_notes
+      } = req.body;
+
+      // Validate required fields
+      if (!cache_name || !page_name || !table_name) {
+        return res.status(400).json({
+          error: "Required fields missing: cache_name, page_name, table_name"
+        });
+      }
+
+      const result = await pool.query(`
+        INSERT INTO ${getTableName('pre_cache_settings_status')} 
+        (cache_name, page_name, table_name, cache_type, update_policy, expiration_policy, 
+         auto_refresh_enabled, refresh_interval_minutes, priority_level, configuration_notes,
+         created_by, last_modified_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (cache_name) 
+        DO UPDATE SET 
+          page_name = $2,
+          table_name = $3,
+          cache_type = $4,
+          update_policy = $5,
+          expiration_policy = $6,
+          auto_refresh_enabled = $7,
+          refresh_interval_minutes = $8,
+          priority_level = $9,
+          configuration_notes = $10,
+          last_modified_by = $12,
+          updated_at = NOW()
+        RETURNING *
+      `, [
+        cache_name, page_name, table_name, cache_type, update_policy, expiration_policy,
+        auto_refresh_enabled, refresh_interval_minutes, priority_level, configuration_notes,
+        (req.user as any)?.username || 'system',
+        (req.user as any)?.username || 'system'
+      ]);
+
+      res.json({
+        success: true,
+        message: "Pre-cache settings saved successfully",
+        data: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Error saving pre-cache settings:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to save pre-cache settings" 
+      });
+    }
+  });
+
+  // Update cache status and performance metrics
+  app.post("/api/pre-cache/update-status/:cacheName", isAuthenticated, async (req, res) => {
+    try {
+      const { cacheName } = req.params;
+      const {
+        cache_status,
+        health_status,
+        current_record_count,
+        last_build_time_ms,
+        cache_size_bytes,
+        error_message
+      } = req.body;
+
+      const updateData: any = {
+        last_status_check: new Date()
+      };
+
+      if (cache_status) updateData.cache_status = cache_status;
+      if (health_status) updateData.health_status = health_status;
+      if (current_record_count !== undefined) updateData.current_record_count = current_record_count;
+      if (cache_size_bytes !== undefined) updateData.cache_size_bytes = cache_size_bytes;
+
+      // Handle successful update
+      if (cache_status === 'active' || cache_status === 'building') {
+        updateData.last_successful_update = new Date();
+        updateData.consecutive_failures = 0;
+        
+        if (last_build_time_ms) {
+          updateData.last_build_time_ms = last_build_time_ms;
+          // Will be handled in raw SQL query
+        }
+      }
+
+      // Handle failed update
+      if (cache_status === 'error' && error_message) {
+        updateData.last_error_message = error_message;
+        updateData.last_error_timestamp = new Date();
+        // Will be handled in raw SQL query
+      }
+
+      // Build dynamic SET clause and values array
+      const setParts = [];
+      const values = [cacheName];
+      let paramIndex = 2;
+
+      for (const [key, value] of Object.entries(updateData)) {
+        setParts.push(`${key} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+
+      // Add special handling for build time metrics and error counts
+      let additionalUpdates = '';
+      if (cache_status === 'active' && last_build_time_ms) {
+        additionalUpdates += `, total_builds = total_builds + 1,
+          average_build_time_ms = CASE 
+            WHEN total_builds = 0 THEN ${last_build_time_ms}
+            ELSE (average_build_time_ms * total_builds + ${last_build_time_ms}) / (total_builds + 1)
+          END`;
+      }
+      
+      if (cache_status === 'error' && error_message) {
+        additionalUpdates += `, consecutive_failures = consecutive_failures + 1,
+          error_count_24h = error_count_24h + 1`;
+      }
+
+      const result = await pool.query(`
+        UPDATE ${getTableName('pre_cache_settings_status')} 
+        SET ${setParts.join(', ')}, updated_at = NOW()${additionalUpdates}
+        WHERE cache_name = $1
+        RETURNING *
+      `, values);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          error: `Pre-cache configuration not found for: ${cacheName}` 
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Cache status updated successfully",
+        data: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Error updating cache status:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to update cache status" 
+      });
+    }
+  });
+
+  // Get pre-cache performance dashboard
+  app.get("/api/pre-cache/performance-dashboard", isAuthenticated, async (req, res) => {
+    try {
+      // Get overall statistics
+      const overallStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_caches,
+          COUNT(*) FILTER (WHERE cache_status = 'active') as active_caches,
+          COUNT(*) FILTER (WHERE cache_status = 'error') as error_caches,
+          COUNT(*) FILTER (WHERE health_status = 'healthy') as healthy_caches,
+          COUNT(*) FILTER (WHERE health_status = 'critical') as critical_caches,
+          AVG(average_build_time_ms) as avg_build_time,
+          SUM(current_record_count) as total_records,
+          SUM(cache_size_bytes) as total_cache_size
+        FROM ${getTableName('pre_cache_settings_status')}
+      `);
+
+      // Get performance by cache type
+      const performanceByType = await pool.query(`
+        SELECT 
+          cache_type,
+          COUNT(*) as cache_count,
+          AVG(average_build_time_ms) as avg_build_time,
+          SUM(current_record_count) as total_records,
+          COUNT(*) FILTER (WHERE cache_status = 'active') as active_count
+        FROM ${getTableName('pre_cache_settings_status')}
+        GROUP BY cache_type
+        ORDER BY cache_count DESC
+      `);
+
+      // Get recent errors
+      const recentErrors = await pool.query(`
+        SELECT 
+          cache_name,
+          page_name,
+          last_error_message,
+          last_error_timestamp,
+          consecutive_failures
+        FROM ${getTableName('pre_cache_settings_status')}
+        WHERE last_error_timestamp IS NOT NULL
+        ORDER BY last_error_timestamp DESC
+        LIMIT 10
+      `);
+
+      // Get slow caches
+      const slowCaches = await pool.query(`
+        SELECT 
+          cache_name,
+          page_name,
+          average_build_time_ms,
+          last_build_time_ms,
+          current_record_count
+        FROM ${getTableName('pre_cache_settings_status')}
+        WHERE average_build_time_ms > slow_build_threshold_ms
+        ORDER BY average_build_time_ms DESC
+        LIMIT 10
+      `);
+
+      res.json({
+        success: true,
+        dashboard: {
+          overallStats: overallStats.rows[0],
+          performanceByType: performanceByType.rows,
+          recentErrors: recentErrors.rows,
+          slowCaches: slowCaches.rows,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching pre-cache performance dashboard:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch performance dashboard" 
+      });
+    }
+  });
+
+  // Initialize default pre-cache configurations
+  app.post("/api/pre-cache/initialize-defaults", isAuthenticated, async (req, res) => {
+    try {
+      const defaultConfigs = [
+        {
+          cache_name: 'dashboard_metrics',
+          page_name: 'Dashboard',
+          table_name: getTableName('dashboard_page_pre_cache'),
+          cache_type: 'page_cache',
+          priority_level: 1,
+          configuration_notes: 'Main dashboard KPI metrics'
+        },
+        {
+          cache_name: 'merchants_data',
+          page_name: 'Merchants',
+          table_name: getTableName('merchants_page_pre_cache'),
+          cache_type: 'page_cache',
+          priority_level: 2,
+          configuration_notes: 'Merchant listing and statistics'
+        },
+        {
+          cache_name: 'terminals_data',
+          page_name: 'Terminals',
+          table_name: getTableName('terminals_page_pre_cache'),
+          cache_type: 'page_cache',
+          priority_level: 3,
+          configuration_notes: 'Terminal directory and activity'
+        },
+        {
+          cache_name: 'tddf_json_data',
+          page_name: 'TDDF JSON',
+          table_name: getTableName('tddf_json_page_pre_cache'),
+          cache_type: 'page_cache',
+          priority_level: 4,
+          configuration_notes: 'TDDF JSON records and heat maps'
+        },
+        {
+          cache_name: 'processing_status',
+          page_name: 'Processing',
+          table_name: getTableName('processing_page_pre_cache'),
+          cache_type: 'system_cache',
+          priority_level: 5,
+          configuration_notes: 'File processing status and metrics'
+        },
+        {
+          cache_name: 'uploader_metrics',
+          page_name: 'Uploader',
+          table_name: getTableName('uploader_page_pre_cache'),
+          cache_type: 'page_cache',
+          priority_level: 6,
+          configuration_notes: 'MMS Uploader status and statistics'
+        },
+        {
+          cache_name: 'settings_system_info',
+          page_name: 'Settings',
+          table_name: getTableName('settings_page_pre_cache'),
+          cache_type: 'system_cache',
+          priority_level: 7,
+          configuration_notes: 'System information and configuration'
+        }
+      ];
+
+      const results = [];
+      for (const config of defaultConfigs) {
+        try {
+          const result = await pool.query(`
+            INSERT INTO ${getTableName('pre_cache_settings_status')} 
+            (cache_name, page_name, table_name, cache_type, priority_level, configuration_notes, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (cache_name) DO NOTHING
+            RETURNING cache_name
+          `, [
+            config.cache_name,
+            config.page_name,
+            config.table_name,
+            config.cache_type,
+            config.priority_level,
+            config.configuration_notes,
+            (req.user as any)?.username || 'system'
+          ]);
+          
+          if (result.rows.length > 0) {
+            results.push(`Initialized: ${config.cache_name}`);
+          } else {
+            results.push(`Already exists: ${config.cache_name}`);
+          }
+        } catch (configError) {
+          results.push(`Failed: ${config.cache_name} - ${configError}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: "Default pre-cache configurations initialized",
+        results
+      });
+    } catch (error) {
+      console.error('Error initializing default pre-cache configs:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to initialize default configurations" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

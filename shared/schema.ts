@@ -1765,3 +1765,126 @@ export const insertHeatMapTestingCache2025Schema = createInsertSchema(heatMapTes
 export const insertTddfJsonRecordTypeCountsPreCacheSchema = createInsertSchema(tddfJsonRecordTypeCountsPreCache).omit({ id: true, created_at: true });
 
 // Remove duplicate Terminal type declarations - they are defined below
+
+// =============================================================================
+// PRE-CACHE SETTINGS AND STATUS CONTROL TABLE
+// =============================================================================
+// Comprehensive pre-cache management table to track all pre-cache performance,
+// settings, health, and update control policies across the entire application
+
+export const preCacheSettingsStatus = pgTable(getTableName("pre_cache_settings_status"), {
+  id: serial("id").primaryKey(),
+  
+  // Cache identification and configuration
+  cache_name: text("cache_name").notNull().unique(), // Unique identifier for each cache
+  page_name: text("page_name").notNull(), // Associated page/component name
+  table_name: text("table_name").notNull(), // Actual database table name
+  cache_type: text("cache_type").notNull().default("page_cache"), // page_cache, api_cache, heat_map_cache, system_cache
+  
+  // Cache control policies
+  update_policy: text("update_policy").notNull().default("manual"), // manual, auto_15min, auto_1hr, auto_daily, on_demand
+  expiration_policy: text("expiration_policy").notNull().default("24_hours"), // never, 15_minutes, 1_hour, 4_hours, 24_hours, 7_days
+  auto_refresh_enabled: boolean("auto_refresh_enabled").notNull().default(false),
+  refresh_interval_minutes: integer("refresh_interval_minutes").default(60), // Minutes between auto refreshes
+  
+  // Cache status and health tracking
+  cache_status: text("cache_status").notNull().default("inactive"), // active, inactive, building, error, expired
+  health_status: text("health_status").notNull().default("unknown"), // healthy, warning, critical, unknown
+  last_update_attempt: timestamp("last_update_attempt"),
+  last_successful_update: timestamp("last_successful_update"),
+  update_success_rate: numeric("update_success_rate", { precision: 5, scale: 2 }).default('100.00'), // Success percentage
+  consecutive_failures: integer("consecutive_failures").default(0),
+  
+  // Performance metrics
+  current_record_count: integer("current_record_count").default(0),
+  average_build_time_ms: integer("average_build_time_ms").default(0),
+  last_build_time_ms: integer("last_build_time_ms").default(0),
+  fastest_build_time_ms: integer("fastest_build_time_ms"),
+  slowest_build_time_ms: integer("slowest_build_time_ms"),
+  total_builds: integer("total_builds").default(0),
+  
+  // Data source tracking
+  data_sources: jsonb("data_sources"), // Array of source tables/APIs used
+  dependencies: jsonb("dependencies"), // Cache dependencies on other caches
+  cache_size_bytes: integer("cache_size_bytes").default(0),
+  compression_enabled: boolean("compression_enabled").default(false),
+  compression_ratio: numeric("compression_ratio", { precision: 5, scale: 2 }),
+  
+  // Expiration and TTL management
+  current_expires_at: timestamp("current_expires_at"),
+  default_ttl_minutes: integer("default_ttl_minutes").default(1440), // 24 hours default
+  max_ttl_minutes: integer("max_ttl_minutes").default(10080), // 7 days max
+  min_ttl_minutes: integer("min_ttl_minutes").default(15), // 15 minutes min
+  
+  // Error tracking and diagnostics
+  last_error_message: text("last_error_message"),
+  last_error_timestamp: timestamp("last_error_timestamp"),
+  error_count_24h: integer("error_count_24h").default(0),
+  error_count_7d: integer("error_count_7d").default(0),
+  error_history: jsonb("error_history"), // Array of recent error details
+  
+  // Performance thresholds and alerts
+  performance_tier: text("performance_tier").default("standard"), // standard, large, enterprise, critical
+  alert_on_slow_build: boolean("alert_on_slow_build").default(true),
+  slow_build_threshold_ms: integer("slow_build_threshold_ms").default(30000), // 30 seconds
+  alert_on_failure: boolean("alert_on_failure").default(true),
+  max_consecutive_failures: integer("max_consecutive_failures").default(3),
+  
+  // Usage and access patterns
+  total_cache_hits: integer("total_cache_hits").default(0),
+  total_cache_misses: integer("total_cache_misses").default(0),
+  cache_hit_rate: numeric("cache_hit_rate", { precision: 5, scale: 2 }),
+  last_accessed: timestamp("last_accessed"),
+  access_frequency_24h: integer("access_frequency_24h").default(0),
+  peak_access_time: text("peak_access_time"), // Time of day with most access
+  
+  // Maintenance and cleanup settings
+  auto_cleanup_enabled: boolean("auto_cleanup_enabled").default(true),
+  cleanup_older_than_days: integer("cleanup_older_than_days").default(30),
+  last_cleanup_run: timestamp("last_cleanup_run"),
+  cleanup_records_removed: integer("cleanup_records_removed").default(0),
+  
+  // System integration
+  priority_level: integer("priority_level").default(5), // 1-10 priority for cache building order
+  environment_specific: boolean("environment_specific").default(true), // Whether cache varies by environment
+  requires_authentication: boolean("requires_authentication").default(true),
+  public_access_allowed: boolean("public_access_allowed").default(false),
+  
+  // Configuration metadata
+  configuration_notes: text("configuration_notes"),
+  created_by: text("created_by").default("system"),
+  last_modified_by: text("last_modified_by"),
+  configuration_version: text("configuration_version").default("1.0"),
+  
+  // System timestamps
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+  last_status_check: timestamp("last_status_check").defaultNow().notNull()
+}, (table) => ({
+  // Primary indexes for performance
+  cacheNameIdx: index("pre_cache_settings_cache_name_idx").on(table.cache_name),
+  pageNameIdx: index("pre_cache_settings_page_name_idx").on(table.page_name),
+  cacheStatusIdx: index("pre_cache_settings_cache_status_idx").on(table.cache_status),
+  healthStatusIdx: index("pre_cache_settings_health_status_idx").on(table.health_status),
+  lastUpdateIdx: index("pre_cache_settings_last_update_idx").on(table.last_successful_update),
+  expiresAtIdx: index("pre_cache_settings_expires_at_idx").on(table.current_expires_at),
+  performanceTierIdx: index("pre_cache_settings_performance_tier_idx").on(table.performance_tier),
+  priorityLevelIdx: index("pre_cache_settings_priority_level_idx").on(table.priority_level),
+  
+  // Composite indexes for common queries
+  statusHealthIdx: index("pre_cache_settings_status_health_idx").on(table.cache_status, table.health_status),
+  pageTypeIdx: index("pre_cache_settings_page_type_idx").on(table.page_name, table.cache_type),
+  updatePolicyIdx: index("pre_cache_settings_update_policy_idx").on(table.update_policy, table.auto_refresh_enabled)
+}));
+
+// Pre-Cache Settings Status Types and Schemas
+export type PreCacheSettingsStatus = typeof preCacheSettingsStatus.$inferSelect;
+export type InsertPreCacheSettingsStatus = typeof preCacheSettingsStatus.$inferInsert;
+
+export const preCacheSettingsStatusSchema = createInsertSchema(preCacheSettingsStatus);
+export const insertPreCacheSettingsStatusSchema = preCacheSettingsStatusSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true, 
+  last_status_check: true 
+});
