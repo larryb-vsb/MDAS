@@ -7308,7 +7308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const uploadId of uploadIds) {
         try {
-          const upload = await storage.getUploaderUpload(uploadId);
+          const upload = await storage.getUploaderUploadById(uploadId);
           if (!upload) {
             errors.push({ uploadId, error: "Upload not found" });
             continue;
@@ -7383,7 +7383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const uploadId of uploadIds) {
         try {
-          const upload = await storage.getUploaderUpload(uploadId);
+          const upload = await storage.getUploaderUploadById(uploadId);
           if (!upload) {
             errors.push({ uploadId, error: "Upload not found" });
             continue;
