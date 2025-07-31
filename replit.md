@@ -16,7 +16,9 @@ Role: Development partner with persistent memory and accumulated project knowled
 Approach: Maintains continuity across sessions through documented insights and reflections
 
 ### Session Context & Learning  
-- Current session: July 31, 2025 - GROUP SELECTION AND PRODUCTION DASHBOARD CACHE FIX - **✅ PRODUCTION DASHBOARD CACHE INFRASTRUCTURE COMPLETED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production cache tables:
+- Current session: July 31, 2025 - GROUP SELECTION AND PRODUCTION DASHBOARD CACHE FIX 
+- **🔄 IDENTIFIED LOADING STATE ISSUE (July 31, 2025)**: Production dashboard has cache infrastructure but frontend shows blank state - needs enhanced loading indicators and timeout handling for better user feedback during long API requests (currently taking 274+ seconds)
+- **✅ PRODUCTION DASHBOARD CACHE INFRASTRUCTURE COMPLETED (July 31, 2025)**: Successfully resolved critical production issue where dashboard metrics were failing to load due to missing production cache tables:
   - **Production Database Fix**: Created missing `dashboard_cache` table with complete schema (id, cache_key, cache_data, created_at, updated_at, expires_at, build_time_ms, record_count)
   - **Merchant Cache Table Added**: Created `dashboard_merchants_cache_2025` table for merchant-specific dashboard caching requirements
   - **Performance Indexes Added**: Created essential indexes on cache_key, expires_at, and updated_at for both cache tables ensuring optimal query performance

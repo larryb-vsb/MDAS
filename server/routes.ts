@@ -9484,8 +9484,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/dashboard/cached-metrics", isAuthenticated, async (req, res) => {
+    const startTime = Date.now();
+    console.log(`[DASHBOARD-CACHE] 🚀 Starting cached metrics request`);
+    
     try {
       const tableName = getTableName('dashboard_cache');
+      console.log(`[DASHBOARD-CACHE] Using table: ${tableName}`);
       
       // Check for valid cache (not expired)
       const cacheQuery = `
@@ -9497,7 +9501,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LIMIT 1
       `;
       
+      console.log(`[DASHBOARD-CACHE] ⏱️ Executing cache query...`);
       const cacheResult = await pool.query(cacheQuery);
+      console.log(`[DASHBOARD-CACHE] Cache query completed: ${cacheResult.rows.length} rows found`);
       
       if (cacheResult.rows.length > 0) {
         const cachedData = cacheResult.rows[0];
@@ -9566,8 +9572,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error: any) {
-      console.error('[DASHBOARD-CACHE] Error serving cached metrics:', error);
-      res.status(500).json({ error: 'Failed to fetch dashboard metrics' });
+      const requestTime = Date.now() - startTime;
+      console.error(`[DASHBOARD-CACHE] ❌ Error after ${requestTime}ms:`, error.message);
+      console.error(`[DASHBOARD-CACHE] Stack trace:`, error.stack);
+      
+      res.status(500).json({ 
+        error: 'Failed to fetch dashboard metrics',
+        timeout: requestTime > 30000,
+        requestTime: requestTime,
+        details: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
