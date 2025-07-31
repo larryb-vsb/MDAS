@@ -12063,7 +12063,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-OBJECT-TOTALS] Serving cache data - Status: ${cacheData.scan_status}, Expired: ${isExpired}`);
       
-      // Format response with comprehensive analytics
+      // Get JSONB count from Settings page pre-cached data
+      let jsonbCount = 0;
+      try {
+        const jsonbResult = await pool.query(`
+          SELECT COUNT(*) as count 
+          FROM ${getTableName('tddf_jsonb')}
+        `);
+        jsonbCount = parseInt(jsonbResult.rows[0].count) || 0;
+      } catch (error) {
+        console.log('[TDDF-OBJECT-TOTALS] Could not fetch JSONB count:', error.message);
+      }
+
+      // Format response with comprehensive analytics including JSONB count
       const response = {
         success: true,
         data: {
@@ -12084,6 +12096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           recordStats: {
             totalRecords: cacheData.total_records,
+            jsonbCount: jsonbCount,
             averageRecordsPerFile: cacheData.average_records_per_file,
             largestFileRecords: cacheData.largest_file_records,
             largestFileName: cacheData.largest_file_name,

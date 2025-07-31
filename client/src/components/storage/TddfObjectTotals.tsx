@@ -29,6 +29,7 @@ interface TddfObjectTotalsData {
     };
     recordStats: {
       totalRecords: number;
+      jsonbCount?: number;
       averageRecordsPerFile: number;
       largestFileRecords: number;
       largestFileName: string;
@@ -179,7 +180,7 @@ export default function TddfObjectTotals() {
       percentage: ((count / data.recordStats.totalRecords) * 100).toFixed(1)
     }));
 
-  // Get record type description
+  // Get record type description with dynamic discovery
   const getRecordTypeDescription = (type: string) => {
     const descriptions: Record<string, string> = {
       'DT': 'Detail Transaction',
@@ -187,11 +188,16 @@ export default function TddfObjectTotals() {
       'E1': 'Electronic Check',
       'BH': 'Batch Header',
       'P1': 'Purchasing Card 1',
+      'P2': 'Purchasing Card 2',
       'DR': 'Detail Record (Non-standard)',
       'AD': 'Adjustment',
-      'P2': 'Purchasing Card 2'
+      'MG': 'Merchant General Data',
+      'MG2': 'Merchant General Data 2',
+      'LG': 'Lodge Extension',
+      'EC': 'Electronic Check Extension',
+      'DM': 'Direct Marketing Extension'
     };
-    return descriptions[type] || 'Unknown Type';
+    return descriptions[type] || `Record Type ${type}`;
   };
 
   return (
@@ -275,7 +281,7 @@ export default function TddfObjectTotals() {
         </div>
 
         {/* Storage Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-blue-800">
               {data.storageStats.totalObjects.toLocaleString()}
@@ -295,6 +301,12 @@ export default function TddfObjectTotals() {
               {data.recordStats.totalRecords.toLocaleString()}
             </div>
             <div className="text-sm text-purple-600">Total Records</div>
+          </div>
+          <div className="bg-indigo-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-indigo-800">
+              {data.recordStats.jsonbCount?.toLocaleString() || '0'}
+            </div>
+            <div className="text-sm text-indigo-600">JSONB Count</div>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-800">
