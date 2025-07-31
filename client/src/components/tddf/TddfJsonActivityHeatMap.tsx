@@ -96,6 +96,9 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
   const handleClick = () => {
     if (onDateSelect) {
+      console.log('[TDDF-JSON-HEATMAP] Clicking date square:', dateString);
+      console.log('[TDDF-JSON-HEATMAP] Date object:', date);
+      console.log('[TDDF-JSON-HEATMAP] Activity data:', activity);
       onDateSelect(dateString);
     }
   };
