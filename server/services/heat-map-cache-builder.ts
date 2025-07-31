@@ -6,7 +6,10 @@
  */
 
 import { pool } from '../db';
+import { db } from '../db';
 import { getTableName } from '../table-config';
+import { heatMapCacheProcessingStats } from '@shared/schema';
+import { sql } from 'drizzle-orm';
 
 interface MonthProgress {
   year: number;
@@ -127,6 +130,21 @@ export class HeatMapCacheBuilder {
         
         console.log(`[HEATMAP-CACHE-BUILDER] Processing ${job.currentMonth} (Job: ${jobId})`);
         
+        // Insert initial processing stats record
+        const statsStartTime = Date.now();
+        await this.insertProcessingStats({
+          job_id: jobId,
+          year: job.year,
+          month: month,
+          record_type: job.recordType,
+          started_at: monthProgress.startTime,
+          status: 'building',
+          job_started_at: job.startTime,
+          total_months_in_job: job.totalMonths,
+          job_status: 'running',
+          environment: process.env.NODE_ENV === 'production' ? 'production' : 'development'
+        });
+        
         try {
           const monthStartTime = Date.now();
           
@@ -154,6 +172,19 @@ export class HeatMapCacheBuilder {
           job.completedMonths++;
           job.totalRecords += monthData.recordCount;
           
+          // Update processing stats record with completion data
+          await this.updateProcessingStats({
+            job_id: jobId,
+            year: job.year,
+            month: month,
+            completed_at: monthProgress.completedTime,
+            processing_time_ms: buildTimeMs,
+            record_count: monthData.recordCount,
+            records_per_second: recordsPerSecond,
+            status: 'completed',
+            cache_entries_created: monthData.dailyData?.length || 0
+          });
+          
           console.log(`[HEATMAP-CACHE-BUILDER] Completed ${job.currentMonth}: ${monthData.recordCount} records in ${buildTimeMs}ms (${recordsPerSecond} records/sec)`);
           
           // Small delay between months to prevent database overload
@@ -163,6 +194,16 @@ export class HeatMapCacheBuilder {
           console.error(`[HEATMAP-CACHE-BUILDER] Failed to build month ${month}:`, error);
           monthProgress.status = 'error';
           monthProgress.error = error instanceof Error ? error.message : 'Unknown error';
+          
+          // Update processing stats record with error
+          await this.updateProcessingStats({
+            job_id: jobId,
+            year: job.year,
+            month: month,
+            status: 'error',
+            error_message: monthProgress.error,
+            completed_at: new Date()
+          });
         }
       }
       
@@ -294,6 +335,32 @@ export class HeatMapCacheBuilder {
    */
   static canAcceptNewJob(): boolean {
     return this.getRunningJobsCount() < this.MAX_CONCURRENT_JOBS;
+  }
+
+  /**
+   * Insert processing stats record for a month
+   */
+  private static async insertProcessingStats(statsData: any): Promise<void> {
+    try {
+      await db.insert(heatMapCacheProcessingStats).values(statsData);
+    } catch (error) {
+      console.error('[HEATMAP-CACHE-BUILDER] Failed to insert processing stats:', error);
+    }
+  }
+
+  /**
+   * Update processing stats record for a month
+   */
+  private static async updateProcessingStats(updateData: any): Promise<void> {
+    try {
+      await db.update(heatMapCacheProcessingStats)
+        .set(updateData)
+        .where(
+          sql`job_id = ${updateData.job_id} AND year = ${updateData.year} AND month = ${updateData.month}`
+        );
+    } catch (error) {
+      console.error('[HEATMAP-CACHE-BUILDER] Failed to update processing stats:', error);
+    }
   }
 
   /**

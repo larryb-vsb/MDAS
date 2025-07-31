@@ -1536,6 +1536,65 @@ export type DuplicateFinderCache = typeof duplicateFinderCache.$inferSelect;
 export const insertDuplicateFinderCacheSchema = createInsertSchema(duplicateFinderCache);
 export type InsertDuplicateFinderCache = z.infer<typeof insertDuplicateFinderCacheSchema>;
 
+// Heat Map Cache Processing Statistics table for comprehensive processing metadata tracking
+export const heatMapCacheProcessingStats = pgTable(getTableName("heat_map_cache_processing_stats"), {
+  id: serial("id").primaryKey(),
+  job_id: text("job_id").notNull(), // Unique job identifier (e.g., "heatmap_2025_DT_1753985985533")
+  year: integer("year").notNull(), // Year being processed (e.g., 2025)
+  month: integer("month").notNull(), // Month being processed (1-12)
+  record_type: text("record_type").notNull().default("DT"), // Record type (DT, BH, P1, etc.)
+  
+  // Processing timestamps and duration
+  started_at: timestamp("started_at").notNull(), // When month processing started
+  completed_at: timestamp("completed_at"), // When month processing completed (null if still running)
+  processing_time_ms: integer("processing_time_ms"), // Time taken to process this month in milliseconds
+  
+  // Processing results and metrics
+  record_count: integer("record_count").notNull().default(0), // Number of records processed for this month
+  records_per_second: numeric("records_per_second", { precision: 10, scale: 2 }).default('0'), // Processing rate
+  cache_entries_created: integer("cache_entries_created").default(0), // Number of cache entries created
+  
+  // Processing status and outcome
+  status: text("status").notNull().default("pending"), // pending, building, completed, error
+  error_message: text("error_message"), // Error details if processing failed
+  
+  // Job-level metadata (duplicated for easier querying)
+  job_started_at: timestamp("job_started_at"), // When the entire job started
+  job_completed_at: timestamp("job_completed_at"), // When the entire job completed
+  total_months_in_job: integer("total_months_in_job").default(12), // Total months in this job
+  job_status: text("job_status").default("running"), // pending, running, completed, error
+  
+  // Performance benchmarking
+  database_query_time_ms: integer("database_query_time_ms"), // Time spent on database queries
+  cache_write_time_ms: integer("cache_write_time_ms"), // Time spent writing to cache
+  memory_usage_mb: numeric("memory_usage_mb", { precision: 10, scale: 2 }), // Peak memory usage during processing
+  
+  // System context
+  server_id: text("server_id"), // Server/instance that processed this month
+  environment: text("environment").notNull().default("development"), // development, production
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  jobIdIdx: index("heat_map_stats_job_id_idx").on(table.job_id),
+  yearMonthIdx: index("heat_map_stats_year_month_idx").on(table.year, table.month),
+  statusIdx: index("heat_map_stats_status_idx").on(table.status),
+  recordTypeIdx: index("heat_map_stats_record_type_idx").on(table.record_type),
+  processedAtIdx: index("heat_map_stats_processed_at_idx").on(table.completed_at)
+}));
+
+// Zod schemas for heat map cache processing stats
+export const heatMapCacheProcessingStatsSchema = createInsertSchema(heatMapCacheProcessingStats);
+export const insertHeatMapCacheProcessingStatsSchema = heatMapCacheProcessingStatsSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+// Export heat map cache processing stats types
+export type HeatMapCacheProcessingStats = typeof heatMapCacheProcessingStats.$inferSelect;
+export type InsertHeatMapCacheProcessingStats = z.infer<typeof insertHeatMapCacheProcessingStatsSchema>;
+
 // Dedicated Pre-Caching Tables System - Every page has its own pre-cache table
 // with last update date/time and comprehensive metadata capture
 
