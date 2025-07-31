@@ -325,38 +325,160 @@ const EnhancedTerminalHeatMap: React.FC<EnhancedTerminalHeatMapProps> = ({ onDat
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Navigation */}
+            {/* Year Navigation */}
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigateMonth('prev')}
+                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear() - 1, prev.getMonth()))}
               >
                 <ChevronLeft className="h-4 w-4" />
+                {currentYear - 1}
               </Button>
               
               <div className="text-lg font-semibold">
-                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {currentYear}
               </div>
               
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigateMonth('next')}
+                onClick={() => setCurrentDate(prev => new Date(prev.getFullYear() + 1, prev.getMonth()))}
               >
+                {currentYear + 1}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* Heat map */}
-            <div className="flex justify-center">
-              <MonthView
-                year={currentYear}
-                month={currentMonth}
-                activities={activityData?.records || []}
-                onDateSelect={handleDateSelect}
-                selectedDate={selectedDate}
-              />
+            {/* GitHub-style yearly heat map */}
+            <div className="space-y-2">
+              {/* Month labels */}
+              <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 font-medium">
+                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, index) => (
+                  <div key={index} className="text-center">{month}</div>
+                ))}
+              </div>
+              
+              {/* Days grid */}
+              <div className="grid grid-cols-12 gap-2">
+                {Array.from({ length: 12 }, (_, monthIndex) => {
+                  const monthData = (activityData?.records || []).filter((item: ActivityData) => {
+                    const itemDate = new Date(item.date);
+                    return itemDate.getFullYear() === currentYear && itemDate.getMonth() === monthIndex;
+                  });
+
+                  // Create activity map for the month
+                  const monthActivityMap = new Map();
+                  monthData.forEach((item: ActivityData) => {
+                    const dateKey = new Date(item.date).toISOString().split('T')[0];
+                    monthActivityMap.set(dateKey, item.transaction_count);
+                  });
+
+                  const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+                  const firstDayOfMonth = new Date(currentYear, monthIndex, 1).getDay();
+                  
+                  // Generate calendar weeks for the month
+                  const weeks = [];
+                  let currentWeek = [];
+                  
+                  // Add empty cells for days before the first of the month
+                  for (let i = 0; i < firstDayOfMonth; i++) {
+                    currentWeek.push(null);
+                  }
+                  
+                  // Add all days of the month
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(currentYear, monthIndex, day);
+                    const dateString = date.toISOString().split('T')[0];
+                    const count = monthActivityMap.get(dateString) || 0;
+                    
+                    currentWeek.push({
+                      date: dateString,
+                      count,
+                      dateObj: date
+                    });
+                    
+                    // Start new week on Sunday
+                    if (currentWeek.length === 7) {
+                      weeks.push(currentWeek);
+                      currentWeek = [];
+                    }
+                  }
+                  
+                  // Add the last partial week if it exists
+                  if (currentWeek.length > 0) {
+                    while (currentWeek.length < 7) {
+                      currentWeek.push(null);
+                    }
+                    weeks.push(currentWeek);
+                  }
+
+                  return (
+                    <div key={monthIndex} className="space-y-1">
+                      {weeks.map((week, weekIndex) => (
+                        <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                          {week.map((day, dayIndex) => {
+                            if (!day) {
+                              return <div key={`${weekIndex}-${dayIndex}`} className="w-4 h-4" />;
+                            }
+                            
+                            const isSelected = selectedDate === day.date;
+                            
+                            // Enhanced performance-optimized gradient mapping
+                            const getBackgroundColor = (count: number, isSelected: boolean) => {
+                              if (isSelected) {
+                                return 'bg-orange-500 hover:bg-orange-600 ring-2 ring-orange-600 ring-offset-1';
+                              }
+                              
+                              if (count === 0) {
+                                return 'bg-gray-100 hover:bg-gray-200';
+                              }
+                              
+                              // Enhanced scale for terminal activity data
+                              if (count <= 100) {
+                                if (count <= 25) return 'bg-green-100 hover:bg-green-200';
+                                if (count <= 50) return 'bg-green-300 hover:bg-green-400';
+                                if (count <= 75) return 'bg-green-500 hover:bg-green-600';
+                                return 'bg-green-700 hover:bg-green-800';
+                              }
+                              
+                              // Medium activity: 100-500 transactions
+                              if (count <= 500) {
+                                if (count <= 200) return 'bg-blue-300 hover:bg-blue-400';
+                                if (count <= 350) return 'bg-blue-500 hover:bg-blue-600';
+                                return 'bg-blue-700 hover:bg-blue-800';
+                              }
+                              
+                              // High activity: 500+ transactions
+                              if (count <= 750) return 'bg-purple-400 hover:bg-purple-500';
+                              if (count <= 1000) return 'bg-purple-600 hover:bg-purple-700';
+                              return 'bg-purple-800 hover:bg-purple-900';
+                            };
+                            
+                            return (
+                              <div
+                                key={day.date}
+                                className={`w-4 h-4 rounded-sm transition-all duration-200 ${getBackgroundColor(day.count, isSelected)} ${day.count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
+                                title={`${day.dateObj.toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}: ${day.count} transaction${day.count !== 1 ? 's' : ''}${day.count > 0 && onDateSelect ? ' (Click to filter)' : ''}`}
+                                onClick={() => {
+                                  if (onDateSelect && day.count > 0) {
+                                    handleDateSelect(day.date);
+                                  }
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Legend */}
