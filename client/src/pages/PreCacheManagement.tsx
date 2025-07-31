@@ -435,15 +435,20 @@ export default function PreCacheManagement() {
         setCacheDetails(data.details);
         // Set the current expiration in the dropdown
         const currentExpiration = data.details.expirationMinutes;
+        console.log('Setting dropdown based on expirationMinutes:', currentExpiration);
+        
         if (currentExpiration >= 525600 || currentExpiration === -1) { // 1 year or more = never expire, or -1 = never
+          console.log('Setting dropdown to "never"');
           setSelectedExpiration("never");
         } else {
           // Find the closest matching option or use the exact value
           const standardOptions = [15, 30, 60, 120, 240, 480];
           if (standardOptions.includes(currentExpiration)) {
+            console.log('Setting dropdown to:', currentExpiration.toString());
             setSelectedExpiration(currentExpiration.toString());
           } else {
             // Default to closest option if not standard
+            console.log('Setting dropdown to default: 240');
             setSelectedExpiration("240"); // Default to 4 hours if non-standard
           }
         }
