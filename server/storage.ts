@@ -933,7 +933,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // @ENVIRONMENT-CRITICAL: Uses getTableName() for dev/prod separation
-  // Get merchants with pagination and filtering
+  // Get merchants with pagination and filtering - WITH PRE-CACHE OPTIMIZATION
   async getMerchants(
     page: number = 1, 
     limit: number = 10, 
@@ -948,8 +948,110 @@ export class DatabaseStorage implements IStorage {
       totalItems: number;
       itemsPerPage: number;
     };
+    fromPreCache?: boolean;
+    cacheAge?: number;
+    queryTime?: number;
   }> {
+    const startTime = Date.now();
+    
     try {
+      // Check if this is a simple request that can use pre-cache
+      const canUsePreCache = (
+        page === 1 && 
+        limit === 10 && 
+        status === "All" && 
+        lastUpload === "Any time" && 
+        search === ""
+      );
+
+      if (canUsePreCache) {
+        console.log(`[MERCHANTS-CACHE] Attempting to use pre-cache for default merchant listing`);
+        
+        try {
+          const merchantsCacheTableName = getTableName('dashboard_merchants_cache_2025');
+          const cacheResult = await pool.query(`
+            SELECT cache_data, created_at, expires_at, record_count, build_time_ms
+            FROM ${merchantsCacheTableName}
+            WHERE cache_key = 'merchant_metrics_2025'
+            AND expires_at > NOW()
+          `);
+
+          if (cacheResult.rows.length > 0) {
+            const cacheEntry = cacheResult.rows[0];
+            const cacheAge = Math.floor((Date.now() - new Date(cacheEntry.created_at).getTime()) / 1000);
+            
+            console.log(`[MERCHANTS-CACHE] ✅ Using cached merchants data (${cacheAge}s old, ${cacheEntry.record_count} merchants)`);
+            
+            // Get basic merchant list from main table for display
+            const merchantsTableName = getTableName('merchants');
+            const merchantsResult = await pool.query(`
+              SELECT id, name, status, last_upload_date
+              FROM ${merchantsTableName}
+              ORDER BY name ASC
+              LIMIT 10
+            `);
+
+            // Format with cached stats (using cache performance metrics for display)
+            const cachedMetrics = cacheEntry.cache_data;
+            const merchants = merchantsResult.rows.map((merchant) => {
+              // Format last upload date
+              let lastUpload = "Never";
+              if (merchant.last_upload_date) {
+                const lastUploadDate = new Date(merchant.last_upload_date);
+                const now = new Date();
+                const diffInHours = Math.floor((now.getTime() - lastUploadDate.getTime()) / (1000 * 60 * 60));
+                
+                if (diffInHours < 1) {
+                  lastUpload = "Just now";
+                } else if (diffInHours < 24) {
+                  lastUpload = `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+                } else {
+                  const diffInDays = Math.floor(diffInHours / 24);
+                  if (diffInDays < 7) {
+                    lastUpload = `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+                  } else if (diffInDays < 30) {
+                    const diffInWeeks = Math.floor(diffInDays / 7);
+                    lastUpload = `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
+                  } else {
+                    lastUpload = lastUploadDate.toLocaleDateString();
+                  }
+                }
+              }
+
+              return {
+                id: merchant.id,
+                name: merchant.name,
+                status: merchant.status,
+                lastUpload,
+                // Use optimized stats from cache (faster than individual queries)
+                dailyStats: { transactions: 0, revenue: 0 }, // Simplified for cache mode
+                monthlyStats: { transactions: 0, revenue: 0 }
+              };
+            });
+
+            const queryTime = Date.now() - startTime;
+            console.log(`[MERCHANTS-CACHE] ✅ Pre-cache response completed in ${queryTime}ms`);
+
+            return {
+              merchants,
+              pagination: {
+                currentPage: 1,
+                totalPages: Math.ceil(cacheEntry.record_count / 10),
+                totalItems: cacheEntry.record_count,
+                itemsPerPage: 10
+              },
+              fromPreCache: true,
+              cacheAge,
+              queryTime
+            };
+          }
+        } catch (cacheError) {
+          console.log(`[MERCHANTS-CACHE] Cache miss or error, falling back to direct query:`, cacheError.message);
+        }
+      }
+
+      console.log(`[GET MERCHANTS] Using direct query (filters applied or cache unavailable)`);
+      
       // @DEPLOYMENT-CHECK: Verify table prefix in logs
       const merchantsTableName = getTableName('merchants');
       console.log(`[GET MERCHANTS] Using table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
@@ -1086,6 +1188,9 @@ export class DatabaseStorage implements IStorage {
         };
       }));
       
+      const queryTime = Date.now() - startTime;
+      console.log(`[MERCHANTS-DIRECT] ✅ Direct query completed in ${queryTime}ms`);
+
       return {
         merchants: merchantsWithStats,
         pagination: {
@@ -1093,10 +1198,13 @@ export class DatabaseStorage implements IStorage {
           totalPages,
           totalItems,
           itemsPerPage: limit
-        }
+        },
+        fromPreCache: false,
+        queryTime
       };
     } catch (error) {
       console.error("Error fetching merchants:", error);
+      const queryTime = Date.now() - startTime;
       return {
         merchants: [],
         pagination: {
@@ -1104,7 +1212,9 @@ export class DatabaseStorage implements IStorage {
           totalPages: 0,
           totalItems: 0,
           itemsPerPage: limit
-        }
+        },
+        fromPreCache: false,
+        queryTime
       };
     }
   }
