@@ -8864,8 +8864,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Main uploader files list with pagination support - MUST BE BEFORE /api/uploader/:id
   app.get("/api/uploader", isAuthenticated, async (req, res) => {
     console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
+    console.log('[UPLOADER-DEBUG] Query parameters:', req.query);
     try {
       const { phase, sessionId, limit, offset } = req.query;
+      console.log('[UPLOADER-DEBUG] Parsed parameters:', { phase, sessionId, limit, offset });
       const uploads = await storage.getUploaderUploads({
         phase: phase as string,
         sessionId: sessionId as string,
