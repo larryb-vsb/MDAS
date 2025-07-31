@@ -58,6 +58,34 @@ import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 
+// Utility function to detect decommission-related terms in terminal names
+function isTerminalDecommissioned(terminalName: string): boolean {
+  if (!terminalName) return false;
+  
+  const lowerName = terminalName.toLowerCase();
+  const decommissionKeywords = [
+    'decommission',
+    'decommissioned',
+    'decomission',
+    'decomissioned',
+    'discontinued',
+    'retired',
+    'inactive',
+    'unused',
+    'disabled',
+    'removed',
+    'terminated',
+    'closed',
+    'shutdown',
+    'shut down',
+    'out of service',
+    'offline permanently',
+    'no longer in use'
+  ];
+  
+  return decommissionKeywords.some(keyword => lowerName.includes(keyword));
+}
+
 // Interface for storage operations
 export interface IStorage {
   // User operations
@@ -6020,6 +6048,13 @@ export class DatabaseStorage implements IStorage {
             terminalData.terminalType = "unknown";
           }
           
+          // DECOMMISSION DETECTION: Check if terminal name indicates decommissioned status
+          const deviceName = (terminalData as any).deviceName || terminalData.businessName || terminalData.dbaName;
+          if (deviceName && isTerminalDecommissioned(deviceName)) {
+            terminalData.status = "Decommissioned";
+            console.log(`🔍 DECOMMISSION DETECTED: Terminal "${deviceName}" marked as Decommissioned due to decommission-related keywords`);
+          }
+          
           console.log(`Mapped terminal:`, JSON.stringify(terminalData));
           terminals.push(terminalData as InsertTerminal);
           
@@ -7199,6 +7234,34 @@ export class DatabaseStorage implements IStorage {
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
     const subMerchantTerminalsTableName = getTableName('sub_merchant_terminals');
     
+    // DECOMMISSION DETECTION: Check if terminal name indicates decommissioned status
+    const deviceName = insertSubMerchantTerminal.deviceName;
+    if (deviceName && isTerminalDecommissioned(deviceName)) {
+      console.log(`🔍 DECOMMISSION DETECTED in SubMerchantTerminal creation: "${deviceName}" contains decommission-related keywords`);
+      
+      // If we have a terminalId, update the terminal status to "Decommissioned"
+      if (insertSubMerchantTerminal.terminalId) {
+        try {
+          const terminalsTableName = getTableName('terminals');
+          await pool.query(`
+            UPDATE ${terminalsTableName} 
+            SET status = 'Decommissioned', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND status != 'Decommissioned'
+          `, [insertSubMerchantTerminal.terminalId]);
+          
+          console.log(`✅ DECOMMISSION UPDATE: Terminal ID ${insertSubMerchantTerminal.terminalId} status updated to "Decommissioned"`);
+        } catch (error) {
+          console.error(`❌ Error updating terminal status for decommissioned terminal ${insertSubMerchantTerminal.terminalId}:`, error);
+        }
+      }
+      
+      // Add decommission note to the SubMerchantTerminal record
+      const existingNotes = insertSubMerchantTerminal.notes || '';
+      insertSubMerchantTerminal.notes = existingNotes 
+        ? `${existingNotes} - AUTOMATIC DECOMMISSION DETECTION: Terminal marked as decommissioned based on name keywords`
+        : 'AUTOMATIC DECOMMISSION DETECTION: Terminal marked as decommissioned based on name keywords';
+    }
+    
     const columns = Object.keys(insertSubMerchantTerminal).join(', ');
     const placeholders = Object.keys(insertSubMerchantTerminal).map((_, i) => `$${i + 1}`).join(', ');
     const values = Object.values(insertSubMerchantTerminal);
@@ -7288,8 +7351,17 @@ export class DatabaseStorage implements IStorage {
         
         // Auto-link high-confidence matches (similarity >= 0.8 or exact matches)
         if (terminalRow.similarity_score >= 0.8 || terminalRow.match_type === 'exact') {
+          const deviceName = terminalRow.dba_name || `Terminal ${terminalRow.v_number}`;
+          
+          // Check for decommission detection
+          let notes = `Auto-linked via fuzzy matching (score: ${terminalRow.similarity_score})`;
+          if (isTerminalDecommissioned(deviceName)) {
+            notes += ` - DECOMMISSIONED terminal detected based on name keywords`;
+            console.log(`🔍 DECOMMISSION DETECTED in fuzzy matching: "${deviceName}" contains decommission-related keywords`);
+          }
+          
           const newLink = await this.createSubMerchantTerminal({
-            deviceName: terminalRow.dba_name || `Terminal ${terminalRow.v_number}`,
+            deviceName: deviceName,
             dNumber: terminalRow.v_number,
             merchantId: merchantId,
             terminalId: terminalRow.id,
@@ -7297,15 +7369,21 @@ export class DatabaseStorage implements IStorage {
             matchScore: terminalRow.similarity_score,
             fuzzyMatchDetails: fuzzyMatchDetails,
             createdBy: 'fuzzy-matcher',
-            notes: `Auto-linked via fuzzy matching (score: ${terminalRow.similarity_score})`
+            notes: notes
           });
           matchedCount++;
           suggestions.push(newLink);
         } else {
+          const deviceName = terminalRow.dba_name || `Terminal ${terminalRow.v_number}`;
+          let notes = `Suggested match (score: ${terminalRow.similarity_score})`;
+          if (isTerminalDecommissioned(deviceName)) {
+            notes += ` - DECOMMISSIONED terminal detected`;
+          }
+          
           // Add as suggestion for manual review
           suggestions.push({
             id: 0, // Temporary ID for suggestion
-            deviceName: terminalRow.dba_name || `Terminal ${terminalRow.v_number}`,
+            deviceName: deviceName,
             dNumber: terminalRow.v_number,
             merchantId: merchantId,
             terminalId: terminalRow.id,
@@ -7316,7 +7394,7 @@ export class DatabaseStorage implements IStorage {
             createdAt: new Date(),
             updatedAt: new Date(),
             createdBy: 'fuzzy-matcher',
-            notes: `Suggested match (score: ${terminalRow.similarity_score})`
+            notes: notes
           } as SubMerchantTerminal);
         }
       }
