@@ -35,7 +35,9 @@ interface HeatMapCacheBuildJob {
 
 export class HeatMapCacheBuilder {
   private static activeJobs = new Map<string, HeatMapCacheBuildJob>();
-  private static readonly CACHE_TABLE = getTableName('tddf_json_activity_pre_cache');
+  private static getCacheTableName(year: number): string {
+    return `heat_map_cache_${year}`;
+  }
 
   /**
    * Start a month-by-month heat map cache rebuild job
@@ -112,8 +114,7 @@ export class HeatMapCacheBuilder {
           const monthData = await this.buildMonthCache(
             job.year, 
             month, 
-            job.recordType, 
-            tddfJsonbTableName
+            job.recordType
           );
           
           const buildTimeMs = Date.now() - monthStartTime;
@@ -158,9 +159,10 @@ export class HeatMapCacheBuilder {
   private static async buildMonthCache(
     year: number, 
     month: number, 
-    recordType: string, 
-    tableName: string
+    recordType: string = 'DT'
   ): Promise<{ recordCount: number; dailyData: any[] }> {
+    
+    const tddfJsonbTableName = getTableName('tddf_jsonb');
     
     // Get daily aggregated data for the month
     const query = `
@@ -177,7 +179,7 @@ export class HeatMapCacheBuilder {
           THEN (extracted_fields->>'transactionAmount')::numeric 
           ELSE NULL 
         END) as avg_amount
-      FROM ${tableName}
+      FROM ${tddfJsonbTableName}
       WHERE record_type = $1
         AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
         AND EXTRACT(MONTH FROM (extracted_fields->>'transactionDate')::date) = $3
@@ -201,37 +203,26 @@ export class HeatMapCacheBuilder {
       buildTime: new Date().toISOString()
     };
     
-    // Insert or update cache entry
+    // Insert data into year-specific heat map cache table
+    const cacheTableName = this.getCacheTableName(year);
+    
+    // Create table if it doesn't exist
     await pool.query(`
-      INSERT INTO ${this.CACHE_TABLE} (
-        cache_key, 
-        year, 
-        month, 
-        record_type, 
-        cache_data, 
-        record_count, 
-        build_time_ms, 
-        expires_at,
-        created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (cache_key) 
-      DO UPDATE SET 
-        cache_data = EXCLUDED.cache_data,
-        record_count = EXCLUDED.record_count,
-        build_time_ms = EXCLUDED.build_time_ms,
-        expires_at = EXCLUDED.expires_at,
-        updated_at = CURRENT_TIMESTAMP
-    `, [
-      cacheKey,
-      year,
-      month, 
-      recordType,
-      JSON.stringify(cacheData),
-      recordCount,
-      0, // Will be updated by caller
-      new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hour expiry
-      new Date()
-    ]);
+      CREATE TABLE IF NOT EXISTS ${cacheTableName} (
+        date DATE PRIMARY KEY,
+        dt_count BIGINT NOT NULL DEFAULT 0
+      )
+    `);
+    
+    // Insert the daily data into the cache table
+    for (const row of result.rows) {
+      await pool.query(`
+        INSERT INTO ${cacheTableName} (date, dt_count)
+        VALUES ($1, $2)
+        ON CONFLICT (date) 
+        DO UPDATE SET dt_count = EXCLUDED.dt_count
+      `, [row.date, row.transaction_count]);
+    }
     
     return { recordCount, dailyData: result.rows };
   }
@@ -256,7 +247,7 @@ export class HeatMapCacheBuilder {
   static cleanupOldJobs(): void {
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
     
-    for (const [jobId, job] of this.activeJobs.entries()) {
+    for (const [jobId, job] of Array.from(this.activeJobs.entries())) {
       if (job.status === 'completed' || job.status === 'error') {
         if (job.startTime.getTime() < oneHourAgo) {
           console.log(`[HEATMAP-CACHE-BUILDER] Cleaning up old job: ${jobId}`);
@@ -267,34 +258,31 @@ export class HeatMapCacheBuilder {
   }
 
   /**
-   * Get aggregated year data from monthly cache
+   * Get aggregated year data from heat map cache table
    */
   static async getYearDataFromCache(year: number, recordType: string = 'DT'): Promise<any> {
     try {
-      // Get all monthly cache entries for the year
+      const cacheTableName = this.getCacheTableName(year);
+      
+      // Get all data from year-specific cache table
       const result = await pool.query(`
-        SELECT cache_data, record_count
-        FROM ${this.CACHE_TABLE}
-        WHERE year = $1 AND record_type = $2
-        ORDER BY month ASC
-      `, [year, recordType]);
+        SELECT date, dt_count as transaction_count
+        FROM ${cacheTableName}
+        ORDER BY date ASC
+      `);
       
       if (result.rows.length === 0) {
         return null; // No cache data available
       }
       
-      // Aggregate daily data from all months
-      const allDailyData: any[] = [];
-      let totalRecords = 0;
-      
-      for (const row of result.rows) {
-        const monthData = JSON.parse(row.cache_data);
-        allDailyData.push(...monthData.dailyData);
-        totalRecords += row.record_count;
-      }
+      const totalRecords = result.rows.reduce((sum, row) => sum + parseInt(row.transaction_count), 0);
       
       return {
-        records: allDailyData,
+        records: result.rows.map(row => ({
+          transaction_date: row.date,
+          transaction_count: parseInt(row.transaction_count),
+          aggregation_level: 'daily'
+        })),
         totalRecords,
         aggregationLevel: 'daily',
         fromPreCache: true,
