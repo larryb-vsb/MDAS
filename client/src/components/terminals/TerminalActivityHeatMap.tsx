@@ -203,102 +203,104 @@ const TerminalActivityHeatMap: React.FC<TerminalActivityHeatMapProps> = ({
           </div>
         </div>
 
-        {/* Monthly Calendar Grid with GitHub-style layout */}
-        <div className="space-y-6">
-          {Array.from({ length: 12 }, (_, monthIndex) => {
-            const monthData = activityData.filter((item: ActivityData) => {
-              const itemDate = new Date(item.transaction_date);
-              return itemDate.getFullYear() === currentYear && itemDate.getMonth() === monthIndex;
-            });
-
-            const monthName = new Date(currentYear, monthIndex).toLocaleDateString('en-US', { month: 'short' });
-            const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
-            const firstDayOfMonth = new Date(currentYear, monthIndex, 1).getDay();
-            
-            // Create activity map for the month
-            const monthActivityMap = new Map();
-            monthData.forEach(item => {
-              const dateKey = new Date(item.transaction_date).toISOString().split('T')[0];
-              monthActivityMap.set(dateKey, item.transaction_count);
-            });
-
-            // Generate calendar grid for the month
-            const calendarDays = [];
-            
-            // Add empty cells for days before the first of the month
-            for (let i = 0; i < firstDayOfMonth; i++) {
-              calendarDays.push(null);
-            }
-            
-            // Add all days of the month
-            for (let day = 1; day <= daysInMonth; day++) {
-              const date = new Date(currentYear, monthIndex, day);
-              const dateString = date.toISOString().split('T')[0];
-              const count = monthActivityMap.get(dateString) || 0;
-              
-              calendarDays.push({
-                date: dateString,
-                day,
-                count,
-                dateObj: date
+        {/* Calendar grid - GitHub Style matching TDDF JSON page */}
+        <div className="space-y-2">
+          {/* Month labels */}
+          <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 font-medium">
+            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, index) => (
+              <div key={index} className="text-center">{month}</div>
+            ))}
+          </div>
+          
+          {/* Days grid */}
+          <div className="grid grid-cols-12 gap-2">
+            {Array.from({ length: 12 }, (_, monthIndex) => {
+              const monthData = activityData.filter((item: any) => {
+                const itemDate = new Date(item.transaction_date);
+                return itemDate.getFullYear() === currentYear && itemDate.getMonth() === monthIndex;
               });
-            }
 
-            // Skip months with no data
-            if (monthData.length === 0) return null;
+              // Create activity map for the month
+              const monthActivityMap = new Map();
+              monthData.forEach((item: any) => {
+                const dateKey = new Date(item.transaction_date).toISOString().split('T')[0];
+                monthActivityMap.set(dateKey, item.transaction_count);
+              });
 
-            return (
-              <div key={monthIndex} className="mb-4">
-                <div className="flex items-center gap-4 mb-2">
-                  <h4 className="text-sm font-medium text-gray-700 w-12">{monthName}</h4>
-                  <div className="grid grid-cols-7 gap-1 flex-1">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayName, i) => (
-                      <div key={i} className="text-xs text-gray-500 text-center font-medium h-6 flex items-center justify-center">
-                        {dayName}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              const daysInMonth = new Date(currentYear, monthIndex + 1, 0).getDate();
+              const firstDayOfMonth = new Date(currentYear, monthIndex, 1).getDay();
+              
+              // Generate calendar weeks for the month
+              const weeks = [];
+              let currentWeek = [];
+              
+              // Add empty cells for days before the first of the month
+              for (let i = 0; i < firstDayOfMonth; i++) {
+                currentWeek.push(null);
+              }
+              
+              // Add all days of the month
+              for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, monthIndex, day);
+                const dateString = date.toISOString().split('T')[0];
+                const count = monthActivityMap.get(dateString) || 0;
                 
-                <div className="flex items-start gap-4">
-                  <div className="w-12"></div>
-                  <div className="grid grid-cols-7 gap-1 flex-1">
-                    {calendarDays.map((day, index) => {
-                      if (!day) {
-                        return <div key={index} className="h-6"></div>;
-                      }
-                      
-                      const isSelected = selectedDate === day.date;
-                      
-                      return (
-                        <div
-                          key={day.date}
-                          className={`h-6 rounded-sm flex items-center justify-center text-xs font-medium transition-all duration-200 ${
-                            day.count > 0 
-                              ? 'cursor-pointer text-white ' + getBackgroundColor(day.count, isSelected)
-                              : 'bg-gray-50 text-gray-400 cursor-help'
-                          } ${isSelected ? 'ring-2 ring-orange-400' : ''}`}
-                          title={`${day.dateObj.toLocaleDateString('en-US', { 
-                            weekday: 'short', 
-                            month: 'short', 
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}: ${day.count} transaction${day.count !== 1 ? 's' : ''}${day.count > 0 && onDateSelect ? ' (Click to filter)' : ''}`}
-                          onClick={() => {
-                            if (onDateSelect && day.count > 0) {
-                              onDateSelect(day.date);
-                            }
-                          }}
-                        >
-                          {day.day}
-                        </div>
-                      );
-                    })}
-                  </div>
+                currentWeek.push({
+                  date: dateString,
+                  count,
+                  dateObj: date
+                });
+                
+                // Start new week on Sunday
+                if (currentWeek.length === 7) {
+                  weeks.push(currentWeek);
+                  currentWeek = [];
+                }
+              }
+              
+              // Add the last partial week if it exists
+              if (currentWeek.length > 0) {
+                while (currentWeek.length < 7) {
+                  currentWeek.push(null);
+                }
+                weeks.push(currentWeek);
+              }
+
+              return (
+                <div key={monthIndex} className="space-y-1">
+                  {weeks.map((week, weekIndex) => (
+                    <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                      {week.map((day, dayIndex) => {
+                        if (!day) {
+                          return <div key={`${weekIndex}-${dayIndex}`} className="w-4 h-4" />;
+                        }
+                        
+                        const isSelected = selectedDate === day.date;
+                        
+                        return (
+                          <div
+                            key={day.date}
+                            className={`w-4 h-4 rounded-sm transition-all duration-200 ${getBackgroundColor(day.count, isSelected)} ${day.count > 0 ? 'cursor-pointer' : 'cursor-help'}`}
+                            title={`${day.dateObj.toLocaleDateString('en-US', { 
+                              weekday: 'short', 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}: ${day.count} transaction${day.count !== 1 ? 's' : ''}${day.count > 0 && onDateSelect ? ' (Click to filter)' : ''}`}
+                            onClick={() => {
+                              if (onDateSelect && day.count > 0) {
+                                onDateSelect(day.date);
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
         
         {/* Legend - GitHub Style */}
