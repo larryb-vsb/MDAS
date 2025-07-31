@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { 
   Database, 
   HardDrive, 
@@ -390,6 +391,11 @@ export default function StorageManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [scanRunning, setScanRunning] = useState(false);
   const [purgeRunning, setPurgeRunning] = useState(false);
+  
+  // Group selection and delete state
+  const [selectedObjects, setSelectedObjects] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // Stats query
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
@@ -456,6 +462,33 @@ export default function StorageManagement() {
     }
   });
 
+  // Delete selected objects mutation
+  const deleteObjectsMutation = useMutation({
+    mutationFn: (objectIds: string[]) => apiRequest('/api/storage/master-keys/delete-objects', {
+      method: 'POST',
+      body: JSON.stringify({ objectIds })
+    }),
+    onSuccess: (data: any) => {
+      toast({
+        title: "Objects Deleted",
+        description: `Successfully deleted ${data.deletedCount} storage objects`
+      });
+      setSelectedObjects(new Set());
+      refetchStats();
+      refetchList();
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete storage objects",
+        variant: "destructive"
+      });
+      setIsDeleting(false);
+    }
+  });
+
   const handleScan = () => {
     setScanRunning(true);
     scanMutation.mutate();
@@ -464,6 +497,36 @@ export default function StorageManagement() {
   const handlePurge = (dryRun: boolean) => {
     setPurgeRunning(true);
     purgeMutation.mutate(dryRun);
+  };
+
+  // Selection handlers
+  const handleSelectObject = (objectId: string, checked: boolean) => {
+    const newSelection = new Set(selectedObjects);
+    if (checked) {
+      newSelection.add(objectId);
+    } else {
+      newSelection.delete(objectId);
+    }
+    setSelectedObjects(newSelection);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked && objectsList?.objects) {
+      setSelectedObjects(new Set(objectsList.objects.map(obj => obj.id)));
+    } else {
+      setSelectedObjects(new Set());
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedObjects.size > 0) {
+      setShowDeleteConfirmation(true);
+    }
+  };
+
+  const confirmDelete = () => {
+    setIsDeleting(true);
+    deleteObjectsMutation.mutate(Array.from(selectedObjects));
   };
 
   const formatFileSize = (bytes: number) => {
@@ -675,31 +738,62 @@ export default function StorageManagement() {
         </TabsContent>
 
         <TabsContent value="objects" className="space-y-6">
-          {/* Filters */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search objects..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          {/* Filters and Group Actions */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search objects..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="complete">Complete</SelectItem>
+                  <SelectItem value="orphaned">Orphaned</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="purged">Purged</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="complete">Complete</SelectItem>
-                <SelectItem value="orphaned">Orphaned</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="purged">Purged</SelectItem>
-              </SelectContent>
-            </Select>
+
+            {/* Group Selection Controls */}
+            {objectsList?.objects && objectsList.objects.length > 0 && (
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <Checkbox
+                    checked={selectedObjects.size === objectsList.objects.length && objectsList.objects.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <span className="text-sm font-medium">
+                    {selectedObjects.size === 0 
+                      ? `Select All (${objectsList.objects.length})` 
+                      : `${selectedObjects.size} selected`}
+                  </span>
+                </div>
+                {selectedObjects.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteSelected}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Selected ({selectedObjects.size})
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Objects List */}
@@ -715,9 +809,13 @@ export default function StorageManagement() {
             <>
               <div className="space-y-4">
                 {objectsList.objects.map((obj) => (
-                  <Card key={obj.id}>
+                  <Card key={obj.id} className={selectedObjects.has(obj.id) ? 'ring-2 ring-blue-500' : ''}>
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          checked={selectedObjects.has(obj.id)}
+                          onCheckedChange={(checked) => handleSelectObject(obj.id, checked as boolean)}
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium truncate">
                             {obj.objectKey}
@@ -883,6 +981,39 @@ export default function StorageManagement() {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Selected Objects</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedObjects.size} selected storage object{selectedObjects.size !== 1 ? 's' : ''}? 
+              This action cannot be undone and will permanently remove the objects from storage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Clock className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete {selectedObjects.size} Object{selectedObjects.size !== 1 ? 's' : ''}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </MainLayout>
   );

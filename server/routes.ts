@@ -13195,6 +13195,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete selected objects from master keys
+  app.post("/api/storage/master-keys/delete-objects", isAuthenticated, async (req, res) => {
+    try {
+      const { objectIds } = req.body;
+      
+      if (!Array.isArray(objectIds) || objectIds.length === 0) {
+        return res.status(400).json({
+          error: 'No object IDs provided for deletion'
+        });
+      }
+      
+      const masterKeysTable = getTableName('master_object_keys');
+      
+      console.log(`[STORAGE-DELETE] Deleting ${objectIds.length} selected objects...`);
+      
+      // Delete the objects from the master keys table
+      const placeholders = objectIds.map((_, index) => `$${index + 1}`).join(',');
+      const deleteQuery = `
+        DELETE FROM ${masterKeysTable}
+        WHERE id IN (${placeholders})
+      `;
+      
+      const result = await pool.query(deleteQuery, objectIds);
+      const deletedCount = result.rowCount || 0;
+      
+      console.log(`[STORAGE-DELETE] Successfully deleted ${deletedCount} objects`);
+      
+      res.json({
+        success: true,
+        deletedCount,
+        message: `Successfully deleted ${deletedCount} storage objects`,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('[STORAGE-DELETE] Delete failed:', error);
+      res.status(500).json({
+        error: 'Failed to delete storage objects',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Duplicate Finder Status API
   app.get("/api/duplicates/status", async (req, res) => {
     try {
