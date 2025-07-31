@@ -431,39 +431,10 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({ onDat
 
       {/* Calendar grid */}
       <div className="space-y-2">
-        {/* Month labels with individual refresh capability */}
+        {/* Month labels */}
         <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 font-medium">
           {monthlyData.map((month, index) => (
-            <div key={index} className="text-center flex items-center justify-center gap-1">
-              <span>{month.name}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  setIsRefreshing(true);
-                  try {
-                    // Refresh data for specific month within current year
-                    await queryClient.invalidateQueries({
-                      queryKey: ['/api/tddf-json/activity', currentYear, 'DT', `month-${index + 1}`]
-                    });
-                    // Also refresh the main query to pick up any changes
-                    await queryClient.invalidateQueries({
-                      queryKey: ['/api/tddf-json/activity', currentYear, 'DT']
-                    });
-                    setLastRefreshTime(new Date());
-                  } catch (error) {
-                    console.error(`Month ${month.name} refresh failed:`, error);
-                  } finally {
-                    setIsRefreshing(false);
-                  }
-                }}
-                disabled={isRefreshing}
-                className="h-4 w-4 p-0 hover:bg-gray-200"
-                title={`Refresh ${month.name} ${currentYear} data`}
-              >
-                <RefreshCw className={`h-2 w-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+            <div key={index} className="text-center">{month.name}</div>
           ))}
         </div>
         

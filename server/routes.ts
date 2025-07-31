@@ -11464,44 +11464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const environment = process.env.NODE_ENV || 'development';
       const preCacheTableName = environment === 'development' ? 'dev_tddf_json_activity_pre_cache' : 'tddf_json_activity_pre_cache';
       
-      // Query pre-cache table first
-      const preCacheResult = await pool.query(`
-        SELECT 
-          activity_data,
-          total_records,
-          aggregation_level,
-          created_at,
-          updated_at,
-          expires_at,
-          build_time_ms,
-          last_refresh_datetime
-        FROM ${preCacheTableName}
-        WHERE cache_key = $1
-        AND expires_at > NOW()
-        LIMIT 1
-      `, [cacheKey]);
-      
-      const queryTime = Date.now() - startTime;
-      
-      if (preCacheResult.rows.length > 0) {
-        const result = preCacheResult.rows[0];
-        
-        console.log(`[TDDF-JSON-ACTIVITY] Serving from pre-cache table in ${queryTime}ms`);
-        
-        const responseData = {
-          records: result.activity_data,
-          totalRecords: result.total_records,
-          aggregationLevel: result.aggregation_level,
-          queryTime: queryTime,
-          fromPreCache: true,
-          lastUpdated: result.last_refresh_datetime,
-          buildTime: result.build_time_ms,
-          year: year,
-          recordType: recordType
-        };
-        
-        return res.json(responseData);
-      }
+      // TEMP FIX: Skip pre-cache and use direct queries until we rebuild complete pre-cache data
+      // The pre-cache table is missing 99% of 2024 data (only 17,540 vs 1,327,205 actual records)
+      console.log(`[TDDF-JSON-ACTIVITY] Skipping incomplete pre-cache, using direct query for complete data...`);
       
       // Fallback to direct query if pre-cache is expired or missing
       console.log(`[TDDF-JSON-ACTIVITY] Pre-cache expired for ${cacheKey}, falling back to direct query...`);
