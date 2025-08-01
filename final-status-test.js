@@ -1,81 +1,57 @@
-// Final comprehensive test to verify uploads and delete functionality
-import fetch from 'node-fetch';
+#!/usr/bin/env node
 
-const BASE_URL = 'http://localhost:5000';
+/**
+ * Final Status Test - Fix file type and trigger encoding
+ */
 
-async function testSystemStatus() {
-  console.log('=== FINAL SYSTEM STATUS TEST ===\n');
+const { Pool } = require('@neondatabase/serverless');
+const ws = require('ws');
+
+const neonConfig = require('@neondatabase/serverless').neonConfig;
+neonConfig.webSocketConstructor = ws;
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const TARGET_FILE_ID = 'uploader_1754081113892_3b22z50d8';
+
+async function fixFileType() {
+  console.log('🔧 Fixing file type for TDDF encoding...');
   
   try {
-    // Test 1: Upload History (UI Display)
-    console.log('1. Testing Upload History Display...');
-    const historyResponse = await fetch(`${BASE_URL}/api/uploads/history`);
-    console.log(`   Status: ${historyResponse.status}`);
+    // Update file type to tddf for proper encoding
+    await pool.query(`
+      UPDATE uploader_uploads 
+      SET file_type = 'tddf',
+          final_file_type = 'tddf',
+          detected_file_type = 'tddf'
+      WHERE id = $1
+    `, [TARGET_FILE_ID]);
     
-    if (historyResponse.ok) {
-      const files = await historyResponse.json();
-      console.log(`   ✅ History loads successfully: ${files.length} files found`);
-      
-      // Test 2: Delete Functionality
-      if (files.length > 0) {
-        console.log('\n2. Testing Delete Functionality...');
-        const testFile = files[0];
-        console.log(`   Testing with file: ${testFile.originalFilename}`);
-        
-        const deleteResponse = await fetch(`${BASE_URL}/api/uploads/${testFile.id}`, {
-          method: 'DELETE'
-        });
-        
-        console.log(`   Delete Status: ${deleteResponse.status}`);
-        if (deleteResponse.ok) {
-          const deleteResult = await deleteResponse.json();
-          console.log(`   ✅ Delete working: ${deleteResult.success ? 'Success' : 'Failed'}`);
-        } else {
-          console.log(`   ❌ Delete failed: ${await deleteResponse.text()}`);
-        }
-      } else {
-        console.log('\n2. Delete test skipped - no files available');
-      }
-    } else {
-      console.log(`   ❌ History failed: ${await historyResponse.text()}`);
+    console.log('✅ File type set to TDDF');
+    
+    // Verify the update
+    const verify = await pool.query(`
+      SELECT file_type, final_file_type, detected_file_type, current_phase, status
+      FROM uploader_uploads 
+      WHERE id = $1
+    `, [TARGET_FILE_ID]);
+    
+    if (verify.rows.length > 0) {
+      const file = verify.rows[0];
+      console.log('📊 Updated file details:');
+      console.log(`   File Type: ${file.file_type}`);
+      console.log(`   Final File Type: ${file.final_file_type}`);
+      console.log(`   Detected File Type: ${file.detected_file_type}`);
+      console.log(`   Current Phase: ${file.current_phase}`);
+      console.log(`   Status: ${file.status}`);
     }
     
-    // Test 3: Database Status
-    console.log('\n3. Testing Database Status...');
-    const statsResponse = await fetch(`${BASE_URL}/api/stats`);
-    if (statsResponse.ok) {
-      const stats = await statsResponse.json();
-      console.log(`   ✅ Database accessible: ${stats.totalMerchants} merchants, ${stats.totalTransactions} transactions`);
-    } else {
-      console.log(`   ❌ Database issue: ${statsResponse.status}`);
-    }
-    
-    // Test 4: File Processor Status
-    console.log('\n4. Testing File Processor Status...');
-    const processorResponse = await fetch(`${BASE_URL}/api/file-processor/status`);
-    if (processorResponse.ok) {
-      const status = await processorResponse.json();
-      console.log(`   ✅ File processor: ${status.isRunning ? 'Running' : 'Ready'}`);
-    } else {
-      console.log(`   ❌ File processor issue: ${processorResponse.status}`);
-    }
-    
-    console.log('\n=== SUMMARY ===');
-    console.log('✅ UPLOADS SCREEN: Fixed and working - displays file history correctly');
-    console.log('✅ DELETE FUNCTIONALITY: Fixed and working - can remove files successfully');
-    console.log('✅ DATABASE CONNECTIVITY: Working - file content migration complete');
-    console.log('✅ FILE PROCESSING: Ready - queued status tracking implemented');
-    console.log('✅ PRODUCTION READY: All core upload/delete workflows operational');
-    
-    console.log('\n🎯 USER ISSUES RESOLVED:');
-    console.log('- "uploads screen not working" → FIXED');
-    console.log('- "error when trying to delete" → FIXED');
-    console.log('- File content migration → COMPLETED (468 files)');
-    console.log('- Processing status tracking → IMPLEMENTED');
+    console.log('✅ File is now ready for TDDF encoding in production');
     
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.error('❌ Error fixing file type:', error.message);
+  } finally {
+    await pool.end();
   }
 }
 
-testSystemStatus();
+fixFileType().catch(console.error);

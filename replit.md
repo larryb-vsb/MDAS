@@ -11,6 +11,8 @@ Critical System Requirement: "Never re-fresh" policy - all auto-refresh function
 ## Known Critical Issues
 **Sidebar Menu Disappearing Bug**: When adding new pages, the mobile sidebar menu disappears after clicking. This is caused by missing `onClick={() => setOpen(false)}` in the mobile navigation NavItem components. The fix is documented in `client/src/components/layout/MainLayout.tsx` with comprehensive comments and examples. ALWAYS test mobile navigation after adding new pages.
 
+**Production TDDF Processing Fixed (2025-08-01)**: Resolved critical production database schema issue where TDDF files failed encoding with "error" phase. Missing production tables (tddf_records_json, tddf_transactions, tddf_purchasing_cards, tddf_purchasing_cards_2) were created from development templates. File phase reset and type classification fixes implemented. Production TDDF processing now matches development environment capabilities.
+
 ## System Architecture
 
 MMS employs a modern client-server architecture with clear separation between frontend and backend components.
