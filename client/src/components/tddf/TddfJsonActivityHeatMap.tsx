@@ -441,6 +441,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               setCurrentYear(newYear);
               // Clear internal selected dates when year changes
               setInternalSelectedDates([]);
+              // Invalidate query cache to force new data fetch
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
               if (onYearChange) {
                 onYearChange(newYear);
               }
@@ -463,6 +465,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               setCurrentYear(newYear);
               // Clear internal selected dates when year changes
               setInternalSelectedDates([]);
+              // Invalidate query cache to force new data fetch
+              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
               if (onYearChange) {
                 onYearChange(newYear);
               }
