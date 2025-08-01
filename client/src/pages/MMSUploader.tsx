@@ -217,6 +217,13 @@ export default function MMSUploader() {
   const totalCount = uploadsResponse?.totalCount || uploads.length;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  // Debug logging to check values
+  React.useEffect(() => {
+    console.log('[UPLOADER-DEBUG] uploadsResponse:', uploadsResponse);
+    console.log('[UPLOADER-DEBUG] totalCount:', totalCount);
+    console.log('[UPLOADER-DEBUG] storageConfig:', storageConfig);
+  }, [uploadsResponse, totalCount, storageConfig]);
+
   // Get storage configuration
   const { data: storageConfig } = useQuery<{
     available: boolean;
@@ -1102,6 +1109,7 @@ export default function MMSUploader() {
               {storageConfig?.fileCount || 0}
             </div>
             <div className="text-sm text-muted-foreground">Object Storage</div>
+            <div className="text-xs text-gray-500">Storage: {storageConfig?.fileCount || 0}</div>
           </Card>
           
           <Card className="p-4" title="Database Records - Files tracked in database">
@@ -1109,6 +1117,7 @@ export default function MMSUploader() {
               {totalCount}
             </div>
             <div className="text-sm text-muted-foreground">Files (Database)</div>
+            <div className="text-xs text-gray-500">DB: {totalCount}</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-green-600">{completedUploads}</div>
