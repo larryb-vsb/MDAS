@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Search, Plus, Edit, Users, Database, Edit2 } from 'lucide-react';
+import { Building, Search, Plus, Edit, Users, Database, Edit2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Link } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
@@ -24,6 +24,11 @@ export default function SubTerminals() {
   const [terminalSearchFilter, setTerminalSearchFilter] = useState('');
   const [merchantSearchFilter, setMerchantSearchFilter] = useState('');
   const [showOnlyUnmatched, setShowOnlyUnmatched] = useState(false);
+  
+  // Raw import tab search and sorting
+  const [rawImportSearch, setRawImportSearch] = useState('');
+  const [rawImportSortField, setRawImportSortField] = useState<string | null>(null);
+  const [rawImportSortDirection, setRawImportSortDirection] = useState<'asc' | 'desc'>('desc');
   const [activeTab, setActiveTab] = useState('management');
   
   // State for terminal selection dialog
@@ -161,6 +166,93 @@ export default function SubTerminals() {
     }
     return terminal.vNumber;
   };
+
+  // Sorting and filtering for raw import data
+  const handleRawImportSort = (field: string) => {
+    if (rawImportSortField === field) {
+      if (rawImportSortDirection === 'desc') {
+        setRawImportSortDirection('asc');
+      } else {
+        setRawImportSortField(null);
+        setRawImportSortDirection('desc');
+      }
+    } else {
+      setRawImportSortField(field);
+      setRawImportSortDirection('desc');
+    }
+  };
+
+  const getRawImportSortIcon = (field: string) => {
+    if (rawImportSortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return rawImportSortDirection === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  // Filter and sort terminals for raw import tab
+  const filteredAndSortedRawTerminals = React.useMemo(() => {
+    let filtered = terminals.filter((terminal: any) => {
+      if (!rawImportSearch) return true;
+      const searchLower = rawImportSearch.toLowerCase();
+      return (
+        terminal.deviceName?.toLowerCase().includes(searchLower) ||
+        terminal.dNumber?.toLowerCase().includes(searchLower) ||
+        terminal.deviceMerchant?.toLowerCase().includes(searchLower) ||
+        terminal.deviceStatus?.toLowerCase().includes(searchLower) ||
+        getEffectiveVNumber(terminal)?.toLowerCase().includes(searchLower) ||
+        terminal.rowNumber?.toString().includes(searchLower)
+      );
+    });
+
+    if (rawImportSortField) {
+      filtered.sort((a: any, b: any) => {
+        let aVal, bVal;
+        
+        switch (rawImportSortField) {
+          case 'rowNumber':
+            aVal = parseInt(a.rowNumber) || 0;
+            bVal = parseInt(b.rowNumber) || 0;
+            break;
+          case 'deviceName':
+            aVal = a.deviceName || '';
+            bVal = b.deviceName || '';
+            break;
+          case 'dNumber':
+            aVal = a.dNumber || '';
+            bVal = b.dNumber || '';
+            break;
+          case 'deviceMerchant':
+            aVal = a.deviceMerchant || '';
+            bVal = b.deviceMerchant || '';
+            break;
+          case 'deviceStatus':
+            aVal = a.deviceStatus || '';
+            bVal = b.deviceStatus || '';
+            break;
+          case 'vNumber':
+            aVal = getEffectiveVNumber(a) || '';
+            bVal = getEffectiveVNumber(b) || '';
+            break;
+          default:
+            return 0;
+        }
+
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return rawImportSortDirection === 'asc' 
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        } else {
+          return rawImportSortDirection === 'asc' 
+            ? aVal - bVal
+            : bVal - aVal;
+        }
+      });
+    }
+
+    return filtered;
+  }, [terminals, rawImportSearch, rawImportSortField, rawImportSortDirection, terminalSelections]);
 
   // Mutations for terminal-merchant management
   const createMerchantMutation = useMutation({
@@ -659,23 +751,91 @@ export default function SubTerminals() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Search and Controls */}
+              <div className="mb-6 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by device name, D-number, merchant, status, VNumber, or row number..."
+                        value={rawImportSearch}
+                        onChange={(e) => setRawImportSearch(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-blue-600">
+                    {filteredAndSortedRawTerminals.length} of {terminals.length} records
+                  </Badge>
+                </div>
+              </div>
+
               {/* Simple raw data table */}
               <div className="border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Row#</TableHead>
-                      <TableHead>DeviceName</TableHead>
-                      <TableHead>D_Number</TableHead>
-                      <TableHead>Merchant_name_d</TableHead>
-                      <TableHead>Status_d</TableHead>
-                      <TableHead>VNumber</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('rowNumber')}
+                      >
+                        <div className="flex items-center">
+                          Row#
+                          {getRawImportSortIcon('rowNumber')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('deviceName')}
+                      >
+                        <div className="flex items-center">
+                          DeviceName
+                          {getRawImportSortIcon('deviceName')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('dNumber')}
+                      >
+                        <div className="flex items-center">
+                          D_Number
+                          {getRawImportSortIcon('dNumber')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('deviceMerchant')}
+                      >
+                        <div className="flex items-center">
+                          Merchant_name_d
+                          {getRawImportSortIcon('deviceMerchant')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('deviceStatus')}
+                      >
+                        <div className="flex items-center">
+                          Status_d
+                          {getRawImportSortIcon('deviceStatus')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleRawImportSort('vNumber')}
+                      >
+                        <div className="flex items-center">
+                          VNumber
+                          {getRawImportSortIcon('vNumber')}
+                        </div>
+                      </TableHead>
                       <TableHead>Merchant Match</TableHead>
                       <TableHead>Import Info</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {terminals.map((terminal: any) => (
+                    {filteredAndSortedRawTerminals.map((terminal: any) => (
                       <TableRow key={terminal.id}>
                         <TableCell className="font-mono text-sm font-bold text-blue-600">{terminal.rowNumber}</TableCell>
                         <TableCell>
