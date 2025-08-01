@@ -291,13 +291,16 @@ export default function Settings() {
       const result = await response.json();
       
       if (result.success) {
+        const recordsCleared = result.recordsDeleted || 0;
+        const precacheTablesCleared = result.precacheTablesCleared || 0;
+        
         toast({
-          title: "TDDF JSON Database Cleared",
-          description: `Successfully cleared ${result.recordsDeleted || 0} records from TDDF JSON database`,
+          title: "TDDF Database Cleared",
+          description: `Successfully cleared ${recordsCleared} records and ${precacheTablesCleared} precache tables`,
           variant: "default",
         });
         
-        console.log(`[SETTINGS] TDDF JSON database cleared: ${result.recordsDeleted} records deleted`);
+        console.log(`[SETTINGS] TDDF database cleared: ${recordsCleared} records deleted, ${precacheTablesCleared} precache tables cleared`);
         
         // Refresh database statistics
         refetch();
@@ -995,12 +998,12 @@ export default function Settings() {
                           {isClearingTddfJson ? (
                             <>
                               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                              Clearing TDDF JSON Database...
+                              Clearing TDDF Database & Cache...
                             </>
                           ) : (
                             <>
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Clear TDDF - JSON Database
+                              Clear TDDF Database & Cache
                             </>
                           )}
                         </Button>
@@ -1009,7 +1012,7 @@ export default function Settings() {
                         <DialogHeader>
                           <DialogTitle className="flex items-center text-destructive">
                             <AlertTriangle className="mr-2 h-5 w-5" />
-                            Clear TDDF JSON Database
+                            Clear TDDF Database & Cache
                           </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
@@ -1017,7 +1020,7 @@ export default function Settings() {
                             ⚠️ WARNING: This action cannot be undone!
                           </div>
                           <div>
-                            This will permanently delete all records from the TDDF JSON database table, including:
+                            This will permanently delete all TDDF data and cache, including:
                           </div>
                           <ul className="list-disc list-inside space-y-1 text-sm">
                             <li>All DT (transaction) records</li>
@@ -1025,9 +1028,12 @@ export default function Settings() {
                             <li>All P1 (purchasing card) records</li>
                             <li>All other TDDF record types</li>
                             <li>All extracted field data</li>
+                            <li><strong>All precache tables (heat maps, statistics, charts)</strong></li>
+                            <li><strong>All performance cache data</strong></li>
                           </ul>
                           <div className="text-sm text-muted-foreground">
                             You will need to re-process and re-encode your TDDF files to restore this data.
+                            All TDDF pages will show empty until new data is processed.
                           </div>
                         </div>
                         <DialogFooter className="flex gap-2">

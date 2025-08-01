@@ -13318,7 +13318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Clear TDDF JSON Database endpoint
   app.delete("/api/tddf-json/clear-database", isAuthenticated, async (req, res) => {
     try {
-      console.log('[TDDF-JSON-CLEAR] Starting database clear operation...');
+      console.log('[TDDF-JSON-CLEAR] Starting comprehensive database clear operation...');
       
       const environment = process.env.NODE_ENV || 'development';
       const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
@@ -13334,11 +13334,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-JSON-CLEAR] Successfully cleared ${recordsToDelete} records from TDDF JSON database`);
       
+      // Clear all TDDF precache tables to ensure consistent state
+      console.log('[TDDF-JSON-CLEAR] Clearing all TDDF precache tables...');
+      
+      const precacheTables = [
+        'tddf_json_stats_pre_cache',
+        'tddf_json_activity_pre_cache', 
+        'tddf_json_record_type_counts_pre_cache',
+        'tddf_records_all_pre_cache',
+        'tddf_records_dt_pre_cache',
+        'tddf_records_bh_pre_cache',
+        'tddf_records_p1_pre_cache',
+        'tddf_records_p2_pre_cache',
+        'tddf_records_other_pre_cache',
+        'tddf_batch_relationships_pre_cache',
+        'tddf_records_tab_processing_status',
+        'charts_pre_cache',
+        'heat_map_cache_2024',
+        'heat_map_cache_2025'
+      ];
+      
+      let precacheTablesCleared = 0;
+      
+      for (const table of precacheTables) {
+        const fullTableName = getTableName(table);
+        try {
+          // Check if table exists first
+          const tableExists = await pool.query(`
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name = $1
+          `, [fullTableName]);
+          
+          if (tableExists.rows.length > 0) {
+            await pool.query(`TRUNCATE TABLE ${fullTableName} RESTART IDENTITY`);
+            precacheTablesCleared++;
+            console.log(`[TDDF-JSON-CLEAR] Cleared precache table: ${fullTableName}`);
+          }
+        } catch (tableError) {
+          console.log(`[TDDF-JSON-CLEAR] Skipping ${fullTableName}: ${tableError.message}`);
+        }
+      }
+      
+      console.log(`[TDDF-JSON-CLEAR] Successfully cleared ${precacheTablesCleared} precache tables`);
+      
       res.json({
         success: true,
         recordsDeleted: recordsToDelete,
+        precacheTablesCleared: precacheTablesCleared,
         tableName: tableName,
-        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database`
+        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables`
       });
       
     } catch (error) {
