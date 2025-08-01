@@ -526,7 +526,7 @@ function BatchRelationshipsView() {
                     <span className="text-sm text-muted-foreground">
                       ({batch.related_geographic_records?.length || 0} geographic records)
                     </span>
-                    {batch.related_geographic_records?.length > 0 && (
+                    {batch.related_geographic_records && batch.related_geographic_records.length > 0 && (
                       <div className="ml-auto">
                         <Badge className="bg-info-100 text-info-800 border-info-300 text-xs">
                           Location & Merchant Data
@@ -535,9 +535,9 @@ function BatchRelationshipsView() {
                     )}
                   </div>
                   
-                  {batch.related_geographic_records?.length > 0 ? (
+                  {batch.related_geographic_records && batch.related_geographic_records.length > 0 ? (
                     <div className="space-y-2">
-                      {batch.related_geographic_records.slice(0, 3).map((geoRecord, index) => {
+                      {batch.related_geographic_records!.slice(0, 3).map((geoRecord, index) => {
                         // Check TDDF compliance indicators for G2 records
                         const hasMatchingMerchant = geoRecord.extracted_fields?.merchantAccountNumber === batch.batch_fields?.merchantAccountNumber;
                         const hasMatchingBank = geoRecord.extracted_fields?.bankNumber === batch.batch_fields?.bankNumber;
@@ -595,9 +595,9 @@ function BatchRelationshipsView() {
                         );
                       })}
                       
-                      {batch.related_geographic_records.length > 3 && (
+                      {batch.related_geographic_records!.length > 3 && (
                         <div className="text-center text-sm text-muted-foreground py-2">
-                          ... and {batch.related_geographic_records.length - 3} more geographic records
+                          ... and {batch.related_geographic_records!.length - 3} more geographic records
                         </div>
                       )}
                     </div>
@@ -928,7 +928,7 @@ export default function TddfJsonPage() {
     console.log('[TDDF-JSON-PAGE] Date type:', typeof date);
     console.log('[TDDF-JSON-PAGE] Date format check:', new Date(date));
     console.log('[TDDF-JSON-PAGE] Previous dateFilter:', dateFilter);
-    console.log('[TDDF-JSON-PAGE] Switching to DT tab');
+    console.log('[TDDF-JSON-PAGE] Date filter will apply to current tab:', selectedTab);
     
     // Fix timezone issue: ensure we keep the date as-is without UTC conversion
     const fixedDate = date.includes('T') ? date.split('T')[0] : date;
@@ -936,7 +936,7 @@ export default function TddfJsonPage() {
     
     setDateFilter(fixedDate);
     setCurrentPage(1);
-    setSelectedTab('DT'); // Switch to DT tab to show filtered results - correct tab name
+    // Don't switch tabs automatically - keep the current tab and apply date filter to it
   };
 
   const clearDateFilter = () => {
@@ -1143,7 +1143,7 @@ export default function TddfJsonPage() {
           <CardContent>
             <TddfJsonActivityHeatMap 
               onDateSelect={handleDateSelect}
-              initialYear={lastDataYear?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
+              initialYear={(lastDataYear as any)?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
               selectedDate={dateFilter}
               enableDebugLogging={true} // Enable debug logging to track year navigation
               onYearChange={(year) => {

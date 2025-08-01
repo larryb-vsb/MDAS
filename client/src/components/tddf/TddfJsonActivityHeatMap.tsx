@@ -439,6 +439,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear - 1;
               setCurrentYear(newYear);
+              // Clear internal selected dates when year changes
+              setInternalSelectedDates([]);
               if (onYearChange) {
                 onYearChange(newYear);
               }
@@ -459,6 +461,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear + 1;
               setCurrentYear(newYear);
+              // Clear internal selected dates when year changes
+              setInternalSelectedDates([]);
               if (onYearChange) {
                 onYearChange(newYear);
               }
