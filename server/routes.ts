@@ -16193,8 +16193,300 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== CHARTS API ROUTES ====================
+  
+  // Get 60-day trends data for charts page
+  app.get("/api/charts/60day-trends", isAuthenticated, async (req, res) => {
+    try {
+      const chartsTableName = getTableName('charts_pre_cache');
+      const cacheKey = '60day_trends';
+      
+      // Check if cached data exists
+      const result = await pool.query(`
+        SELECT * FROM ${chartsTableName} 
+        WHERE cache_key = $1 
+        ORDER BY last_refresh_datetime DESC 
+        LIMIT 1
+      `, [cacheKey]);
+      
+      if (result.rows.length === 0) {
+        // No cache exists - build it for the first time
+        console.log('[CHARTS-CACHE] No cache found, building 60-day trends data...');
+        await buildChartsCache();
+        
+        // Retry after building cache
+        const retryResult = await pool.query(`
+          SELECT * FROM ${chartsTableName} 
+          WHERE cache_key = $1 
+          ORDER BY last_refresh_datetime DESC 
+          LIMIT 1
+        `, [cacheKey]);
+        
+        if (retryResult.rows.length === 0) {
+          return res.status(404).json({ error: "No TDDF data available for charts" });
+        }
+        
+        const cacheData = retryResult.rows[0];
+        return res.json({
+          dailyData: cacheData.daily_data,
+          merchantTrends: cacheData.merchant_trends,
+          authAmountTrends: cacheData.auth_amount_trends,
+          cardTypeTrends: cacheData.card_type_trends,
+          summary: {
+            totalRecords: cacheData.total_records,
+            totalTransactionAmount: parseFloat(cacheData.total_transaction_amount || '0'),
+            totalAuthAmount: parseFloat(cacheData.total_auth_amount || '0'),
+            uniqueMerchants: cacheData.unique_merchants,
+            dateRange: cacheData.date_range,
+            processingTimeMs: cacheData.processing_time_ms,
+            lastRefreshDatetime: cacheData.last_refresh_datetime
+          }
+        });
+      }
+      
+      const cacheData = result.rows[0];
+      res.json({
+        dailyData: cacheData.daily_data,
+        merchantTrends: cacheData.merchant_trends,
+        authAmountTrends: cacheData.auth_amount_trends,
+        cardTypeTrends: cacheData.card_type_trends,
+        summary: {
+          totalRecords: cacheData.total_records,
+          totalTransactionAmount: parseFloat(cacheData.total_transaction_amount || '0'),
+          totalAuthAmount: parseFloat(cacheData.total_auth_amount || '0'),
+          uniqueMerchants: cacheData.unique_merchants,
+          dateRange: cacheData.date_range,
+          processingTimeMs: cacheData.processing_time_ms,
+          lastRefreshDatetime: cacheData.last_refresh_datetime
+        }
+      });
+    } catch (error) {
+      console.error('[CHARTS-API] Error fetching 60-day trends:', error);
+      res.status(500).json({ 
+        error: "Failed to fetch charts data",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Refresh charts cache
+  app.post("/api/charts/refresh", isAuthenticated, async (req, res) => {
+    try {
+      const { requestedBy } = req.body;
+      const username = requestedBy || ((req.user as any)?.username) || 'unknown';
+      
+      console.log(`[CHARTS-REFRESH] Refreshing 60-day trends cache requested by: ${username}`);
+      
+      await buildChartsCache(username);
+      
+      res.json({
+        success: true,
+        message: "Charts cache refreshed successfully",
+        refreshedBy: username,
+        refreshedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('[CHARTS-REFRESH] Error refreshing cache:', error);
+      res.status(500).json({ 
+        error: "Failed to refresh charts cache",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Build charts cache with 60-day TDDF DT trends
+async function buildChartsCache(requestedBy: string = 'system') {
+  const startTime = Date.now();
+  const chartsTableName = getTableName('charts_pre_cache');
+  const tddfRecordsTableName = getTableName('tddf_records');
+  const cacheKey = '60day_trends';
+  
+  console.log('[CHARTS-CACHE-BUILDER] Starting 60-day trends cache build...');
+  
+  try {
+    // Calculate date range (last 60 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 60);
+    
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    console.log(`[CHARTS-CACHE-BUILDER] Date range: ${startDateStr} to ${endDateStr}`);
+    
+    // Build daily aggregations
+    const dailyDataQuery = `
+      SELECT 
+        transaction_date::date as date,
+        SUM(COALESCE(transaction_amount, 0)) as transaction_amount,
+        SUM(COALESCE(auth_amount, 0)) as auth_amount,
+        COUNT(*) as transaction_count,
+        COUNT(DISTINCT merchant_account_number) as unique_merchants
+      FROM ${tddfRecordsTableName}
+      WHERE transaction_date >= $1 AND transaction_date <= $2
+        AND transaction_date IS NOT NULL
+      GROUP BY transaction_date::date
+      ORDER BY transaction_date::date
+    `;
+    
+    const dailyResult = await pool.query(dailyDataQuery, [startDateStr, endDateStr]);
+    const dailyData = dailyResult.rows.map(row => ({
+      date: row.date,
+      transactionAmount: parseFloat(row.transaction_amount || 0),
+      authAmount: parseFloat(row.auth_amount || 0),
+      transactionCount: parseInt(row.transaction_count || 0),
+      uniqueMerchants: parseInt(row.unique_merchants || 0)
+    }));
+    
+    // Build merchant trends (top 20 by volume)
+    const merchantTrendsQuery = `
+      SELECT 
+        merchant_name,
+        merchant_account_number as merchant_number,
+        SUM(COALESCE(transaction_amount, 0)) as total_amount,
+        COUNT(*) as transaction_count,
+        AVG(COALESCE(transaction_amount, 0)) as avg_amount
+      FROM ${tddfRecordsTableName}
+      WHERE transaction_date >= $1 AND transaction_date <= $2
+        AND transaction_date IS NOT NULL
+        AND merchant_name IS NOT NULL
+      GROUP BY merchant_name, merchant_account_number
+      ORDER BY total_amount DESC
+      LIMIT 20
+    `;
+    
+    const merchantResult = await pool.query(merchantTrendsQuery, [startDateStr, endDateStr]);
+    const merchantTrends = merchantResult.rows.map(row => ({
+      merchantName: row.merchant_name,
+      merchantNumber: row.merchant_number,
+      totalAmount: parseFloat(row.total_amount || 0),
+      transactionCount: parseInt(row.transaction_count || 0),
+      avgAmount: parseFloat(row.avg_amount || 0)
+    }));
+    
+    // Build auth vs transaction amount trends
+    const authAmountTrendsQuery = `
+      SELECT 
+        transaction_date::date as date,
+        SUM(COALESCE(transaction_amount, 0)) as transaction_amount,
+        SUM(COALESCE(auth_amount, 0)) as auth_amount,
+        SUM(COALESCE(auth_amount, 0)) - SUM(COALESCE(transaction_amount, 0)) as difference
+      FROM ${tddfRecordsTableName}
+      WHERE transaction_date >= $1 AND transaction_date <= $2
+        AND transaction_date IS NOT NULL
+      GROUP BY transaction_date::date
+      ORDER BY transaction_date::date
+    `;
+    
+    const authResult = await pool.query(authAmountTrendsQuery, [startDateStr, endDateStr]);
+    const authAmountTrends = authResult.rows.map(row => {
+      const transactionAmount = parseFloat(row.transaction_amount || 0);
+      const authAmount = parseFloat(row.auth_amount || 0);
+      const difference = parseFloat(row.difference || 0);
+      const percentDifference = transactionAmount > 0 ? (difference / transactionAmount) * 100 : 0;
+      
+      return {
+        date: row.date,
+        transactionAmount,
+        authAmount,
+        difference,
+        percentDifference
+      };
+    });
+    
+    // Build card type trends
+    const cardTypeTrendsQuery = `
+      SELECT 
+        COALESCE(card_type, 'Unknown') as card_type,
+        COUNT(*) as count,
+        SUM(COALESCE(transaction_amount, 0)) as total_amount
+      FROM ${tddfRecordsTableName}
+      WHERE transaction_date >= $1 AND transaction_date <= $2
+        AND transaction_date IS NOT NULL
+      GROUP BY card_type
+      ORDER BY count DESC
+    `;
+    
+    const cardTypeResult = await pool.query(cardTypeTrendsQuery, [startDateStr, endDateStr]);
+    const totalTransactions = cardTypeResult.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
+    
+    const cardTypeTrends = cardTypeResult.rows.map(row => ({
+      cardType: row.card_type,
+      count: parseInt(row.count || 0),
+      totalAmount: parseFloat(row.total_amount || 0),
+      percentage: totalTransactions > 0 ? (parseInt(row.count) / totalTransactions) * 100 : 0
+    }));
+    
+    // Calculate summary statistics
+    const summaryQuery = `
+      SELECT 
+        COUNT(*) as total_records,
+        SUM(COALESCE(transaction_amount, 0)) as total_transaction_amount,
+        SUM(COALESCE(auth_amount, 0)) as total_auth_amount,
+        COUNT(DISTINCT merchant_account_number) as unique_merchants
+      FROM ${tddfRecordsTableName}
+      WHERE transaction_date >= $1 AND transaction_date <= $2
+        AND transaction_date IS NOT NULL
+    `;
+    
+    const summaryResult = await pool.query(summaryQuery, [startDateStr, endDateStr]);
+    const summary = summaryResult.rows[0];
+    
+    const processingTime = Date.now() - startTime;
+    
+    // Store in cache table
+    await pool.query(`
+      INSERT INTO ${chartsTableName} (
+        cache_key, daily_data, merchant_trends, auth_amount_trends, card_type_trends,
+        total_records, date_range, total_transaction_amount, total_auth_amount,
+        unique_merchants, processing_time_ms, last_refresh_datetime, never_expires,
+        refresh_requested_by, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      ON CONFLICT (cache_key) 
+      DO UPDATE SET
+        daily_data = EXCLUDED.daily_data,
+        merchant_trends = EXCLUDED.merchant_trends,
+        auth_amount_trends = EXCLUDED.auth_amount_trends,
+        card_type_trends = EXCLUDED.card_type_trends,
+        total_records = EXCLUDED.total_records,
+        date_range = EXCLUDED.date_range,
+        total_transaction_amount = EXCLUDED.total_transaction_amount,
+        total_auth_amount = EXCLUDED.total_auth_amount,
+        unique_merchants = EXCLUDED.unique_merchants,
+        processing_time_ms = EXCLUDED.processing_time_ms,
+        last_refresh_datetime = EXCLUDED.last_refresh_datetime,
+        refresh_requested_by = EXCLUDED.refresh_requested_by,
+        updated_at = EXCLUDED.updated_at
+    `, [
+      cacheKey,
+      JSON.stringify(dailyData),
+      JSON.stringify(merchantTrends),
+      JSON.stringify(authAmountTrends),
+      JSON.stringify(cardTypeTrends),
+      parseInt(summary.total_records || 0),
+      JSON.stringify({ startDate: startDateStr, endDate: endDateStr }),
+      parseFloat(summary.total_transaction_amount || 0),
+      parseFloat(summary.total_auth_amount || 0),
+      parseInt(summary.unique_merchants || 0),
+      processingTime,
+      new Date(),
+      true, // never_expires
+      requestedBy,
+      new Date(),
+      new Date()
+    ]);
+    
+    console.log(`[CHARTS-CACHE-BUILDER] ✅ Cache built successfully in ${processingTime}ms`);
+    console.log(`[CHARTS-CACHE-BUILDER] Records processed: ${summary.total_records}, Merchants: ${summary.unique_merchants}`);
+    
+  } catch (error) {
+    console.error('[CHARTS-CACHE-BUILDER] Error building cache:', error);
+    throw error;
+  }
 }
 
 // Helper functions for manual TDDF processing

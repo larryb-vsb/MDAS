@@ -1573,6 +1573,31 @@ export const duplicateFinderCache = pgTable(getTableName("duplicate_finder_cache
 });
 
 export type DuplicateFinderCache = typeof duplicateFinderCache.$inferSelect;
+
+// Charts Pre-Cache Table for 60-day TDDF DT Trends
+export const chartsPreCache = pgTable(getTableName("charts_pre_cache"), {
+  id: serial("id").primaryKey(),
+  cacheKey: text("cache_key").notNull().unique(), // "60day_trends"
+  dailyData: jsonb("daily_data").notNull(), // Array of daily aggregations
+  merchantTrends: jsonb("merchant_trends").notNull(), // Top merchants by volume
+  authAmountTrends: jsonb("auth_amount_trends").notNull(), // Auth vs transaction amounts
+  cardTypeTrends: jsonb("card_type_trends").notNull(), // Card type breakdown by day
+  totalRecords: integer("total_records").notNull(),
+  dateRange: jsonb("date_range").notNull(), // {start_date, end_date}
+  totalTransactionAmount: numeric("total_transaction_amount", { precision: 15, scale: 2 }),
+  totalAuthAmount: numeric("total_auth_amount", { precision: 15, scale: 2 }),
+  uniqueMerchants: integer("unique_merchants"),
+  processingTimeMs: integer("processing_time_ms").notNull(),
+  lastRefreshDatetime: timestamp("last_refresh_datetime").notNull(),
+  neverExpires: boolean("never_expires").notNull().default(true),
+  refreshRequestedBy: text("refresh_requested_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export type ChartsPreCache = typeof chartsPreCache.$inferSelect;
+export const insertChartsPreCacheSchema = createInsertSchema(chartsPreCache);
+export type InsertChartsPreCache = z.infer<typeof insertChartsPreCacheSchema>;
 export const insertDuplicateFinderCacheSchema = createInsertSchema(duplicateFinderCache);
 export type InsertDuplicateFinderCache = z.infer<typeof insertDuplicateFinderCacheSchema>;
 

@@ -35,6 +35,7 @@ import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 import StorageManagement from "@/pages/StorageManagement";
 import PreCacheManagement from "@/pages/PreCacheManagement";
+import ChartsPage from "@/pages/ChartsPage";
 function Router() {
   return (
     <Switch>
@@ -69,6 +70,7 @@ function Router() {
       <ProtectedRoute path="/storage-management" component={StorageManagement} />
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
+      <ProtectedRoute path="/charts" component={ChartsPage} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />

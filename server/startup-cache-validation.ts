@@ -21,7 +21,8 @@ export async function ensureTddfCacheTables() {
     'tddf_records_p2_pre_cache',
     'tddf_records_other_pre_cache',
     'tddf_batch_relationships_pre_cache',
-    'tddf_records_tab_processing_status'
+    'tddf_records_tab_processing_status',
+    'charts_pre_cache'
   ];
 
   try {
