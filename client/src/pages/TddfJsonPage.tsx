@@ -905,6 +905,12 @@ export default function TddfJsonPage() {
 
   // Function to check if a DT record has P1 extension
   const checkForP1Extension = async (dtRecordId: number) => {
+    // Add validation to prevent undefined values
+    if (!dtRecordId || typeof dtRecordId !== 'number') {
+      console.error('Invalid dtRecordId provided to checkForP1Extension:', dtRecordId);
+      return null;
+    }
+    
     if (p1Records.has(dtRecordId)) {
       return p1Records.get(dtRecordId);
     }
