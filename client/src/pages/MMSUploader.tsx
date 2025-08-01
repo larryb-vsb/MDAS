@@ -217,13 +217,6 @@ export default function MMSUploader() {
   const totalCount = uploadsResponse?.totalCount || uploads.length;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Debug logging to check values
-  React.useEffect(() => {
-    console.log('[UPLOADER-DEBUG] uploadsResponse:', uploadsResponse);
-    console.log('[UPLOADER-DEBUG] totalCount:', totalCount);
-    console.log('[UPLOADER-DEBUG] storageConfig:', storageConfig);
-  }, [uploadsResponse, totalCount, storageConfig]);
-
   // Get storage configuration
   const { data: storageConfig } = useQuery<{
     available: boolean;
@@ -234,6 +227,13 @@ export default function MMSUploader() {
     queryKey: ['/api/uploader/storage-config'],
     refetchInterval: 5000 // Check storage status every 5 seconds
   });
+
+  // Debug logging to check values
+  React.useEffect(() => {
+    console.log('[UPLOADER-DEBUG] uploadsResponse:', uploadsResponse);
+    console.log('[UPLOADER-DEBUG] totalCount:', totalCount);
+    console.log('[UPLOADER-DEBUG] storageConfig:', storageConfig);
+  }, [uploadsResponse, totalCount, storageConfig]);
 
   // Get last new data date for Uploader page
   const { data: lastNewDataDate } = useQuery({
