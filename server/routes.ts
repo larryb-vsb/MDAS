@@ -22,7 +22,7 @@ import logTestRoutes from "./routes/log_test_routes";
 import poolRoutes from "./routes/pool_routes";
 import hierarchicalTddfMigrationRoutes from "./routes/hierarchical-tddf-migration";
 import { registerReprocessSkippedRoutes } from "./routes/reprocess-skipped";
-import { getTableName } from "./table-config";
+import { getTableName, getEnvironmentPrefix } from "./table-config";
 import { getMmsWatcherInstance } from "./mms-watcher-instance";
 import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";

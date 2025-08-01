@@ -1145,10 +1145,13 @@ export default function TddfJsonPage() {
               onDateSelect={handleDateSelect}
               initialYear={lastDataYear?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
               selectedDate={dateFilter}
-              enableDebugLogging={isTestPage}
+              enableDebugLogging={true} // Enable debug logging to track year navigation
               onYearChange={(year) => {
+                console.log('[TDDF-JSON-PAGE] Year changed to:', year);
                 setSelectedYear(year);
                 setCurrentPage(1); // Reset pagination when year changes
+                setDateFilter(''); // Clear date filter when year changes to avoid mismatches
+                console.log('[TDDF-JSON-PAGE] Date filter cleared due to year change');
               }}
             />
             {dateFilter && (

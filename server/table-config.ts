@@ -11,6 +11,11 @@ export function getTableName(baseName: string): string {
   return `${TABLE_PREFIX}${baseName}`;
 }
 
+// Function to get environment prefix for SQL queries
+export function getEnvironmentPrefix(): string {
+  return TABLE_PREFIX;
+}
+
 // Environment-specific table names
 export const TABLE_NAMES = {
   merchants: getTableName('merchants'),
