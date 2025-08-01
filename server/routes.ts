@@ -12237,6 +12237,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   let statsCache: { data: any; timestamp: number } | null = null;
   const STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+  // Get last data year from TDDF records
+  app.get("/api/tddf-json/last-data-year", isAuthenticated, async (req, res) => {
+    try {
+      console.log("[TDDF-LAST-DATA-YEAR] Checking for last data year...");
+      
+      const currentEnvPrefix = getEnvironmentPrefix();
+      
+      // Check the main TDDF JSON table for the most recent year
+      const lastDataQuery = await pool.query(`
+        SELECT EXTRACT(YEAR FROM created_at) as year
+        FROM ${currentEnvPrefix}tddf_jsonb 
+        WHERE created_at IS NOT NULL
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `);
+      
+      let lastDataYear = new Date().getFullYear(); // Default to current year
+      
+      if (lastDataQuery.rows.length > 0) {
+        lastDataYear = parseInt(lastDataQuery.rows[0].year);
+        console.log(`[TDDF-LAST-DATA-YEAR] Found last data from year: ${lastDataYear}`);
+      } else {
+        console.log(`[TDDF-LAST-DATA-YEAR] No data found, defaulting to current year: ${lastDataYear}`);
+      }
+      
+      res.json({
+        success: true,
+        lastDataYear,
+        hasData: lastDataQuery.rows.length > 0,
+        defaultedToCurrent: lastDataQuery.rows.length === 0
+      });
+      
+    } catch (error) {
+      console.error("[TDDF-LAST-DATA-YEAR] Error finding last data year:", error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to find last data year",
+        lastDataYear: new Date().getFullYear() // Fallback to current year
+      });
+    }
+  });
+
   app.get("/api/tddf-json/stats", isAuthenticated, async (req, res) => {
     try {
       console.log('[TDDF-JSON-STATS] Using pre-cache table for statistics...');

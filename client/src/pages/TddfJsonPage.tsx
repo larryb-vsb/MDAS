@@ -807,6 +807,13 @@ export default function TddfJsonPage() {
 
   const { toast } = useToast();
 
+  // Fetch last data year to dynamically set the initial year for heat map
+  const { data: lastDataYear } = useQuery({
+    queryKey: ['/api/tddf-json/last-data-year'],
+    queryFn: () => apiRequest('/api/tddf-json/last-data-year'),
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
   // Fetch TDDF JSON statistics with caching optimization
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<TddfStatsResponse>({
     queryKey: ['/api/tddf-json/stats'],
@@ -1133,6 +1140,7 @@ export default function TddfJsonPage() {
           <CardContent>
             <TddfJsonActivityHeatMap 
               onDateSelect={handleDateSelect}
+              initialYear={lastDataYear?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
               selectedDate={dateFilter}
               enableDebugLogging={isTestPage}
             />
