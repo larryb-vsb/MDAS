@@ -280,7 +280,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     staleTime: Infinity, // Never refresh automatically - "never re-fresh" policy
     gcTime: Infinity, // Keep in cache forever (React Query v5 syntax)
     refetchOnWindowFocus: false, // Never refetch on window focus
-    refetchOnMount: false, // Never refetch on component mount
+    refetchOnMount: true, // Allow refetch on mount for new queryKeys (when year changes)
     refetchOnReconnect: false, // Never refetch on network reconnect
     refetchInterval: false, // Never refetch on interval
   });
