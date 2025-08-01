@@ -703,9 +703,10 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   );
 }
 
-// P1 Badge Component - Enhanced validation and error handling
+// P1 Badge Component - Enhanced validation and error handling with lazy loading
 function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, checkForP1Extension: (id: number) => Promise<any> }) {
   const [hasP1, setHasP1] = useState<boolean | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     // Comprehensive validation to prevent API calls with invalid IDs
@@ -713,6 +714,9 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
       setHasP1(false);
       return;
     }
+
+    // Only check for P1 when the badge becomes visible (lazy loading)
+    if (!isVisible) return;
 
     let isMounted = true;
 
@@ -729,24 +733,49 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
       }
     };
     
-    // Execute with proper error handling
-    checkP1().catch(() => {
-      if (isMounted) {
-        setHasP1(false);
-      }
-    });
+    // Add delay to further reduce concurrent requests
+    const timeoutId = setTimeout(() => {
+      checkP1().catch(() => {
+        if (isMounted) {
+          setHasP1(false);
+        }
+      });
+    }, Math.random() * 500); // Random delay 0-500ms
 
     // Cleanup function to prevent state updates on unmounted components
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
     };
-  }, [dtRecordId, checkForP1Extension]);
+  }, [dtRecordId, checkForP1Extension, isVisible]);
 
-  if (hasP1 === null) return null;
+  // Use Intersection Observer for lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const element = document.getElementById(`p1-badge-${dtRecordId}`);
+    if (element) {
+      observer.observe(element);
+    }
+
+    return () => observer.disconnect();
+  }, [dtRecordId]);
+
+  if (hasP1 === null) {
+    return <div id={`p1-badge-${dtRecordId}`} className="w-6 h-4"></div>; // Placeholder for intersection observer
+  }
   if (!hasP1) return null;
 
   return (
-    <Badge className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
+    <Badge id={`p1-badge-${dtRecordId}`} className="bg-orange-100 text-orange-800 border-orange-300 text-xs">
       P1
     </Badge>
   );
@@ -930,7 +959,7 @@ export default function TddfJsonPage() {
     }
   };
 
-  // Function to check if a DT record has P1 extension
+  // Function to check if a DT record has P1 extension with throttling
   const checkForP1Extension = async (dtRecordId: number): Promise<any> => {
     // Add comprehensive validation to prevent undefined values
     if (!dtRecordId || typeof dtRecordId !== 'number' || isNaN(dtRecordId) || dtRecordId <= 0) {
@@ -942,22 +971,35 @@ export default function TddfJsonPage() {
       return Promise.resolve(p1Records.get(dtRecordId));
     }
     
-    try {
-      const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      const p1Record = data.p1Record;
-      
-      // Cache the result (even if null)
-      setP1Records(prev => new Map(prev.set(dtRecordId, p1Record)));
-      return p1Record;
-    } catch (error) {
-      // Silently handle errors and cache the null result
-      setP1Records(prev => new Map(prev.set(dtRecordId, null)));
-      return null;
-    }
+    // Add throttling to prevent too many concurrent requests
+    return new Promise((resolve) => {
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`, {
+            signal: AbortSignal.timeout(10000) // 10 second timeout
+          });
+          if (!response.ok) {
+            if (response.status === 404) {
+              // 404 is expected for records without P1, cache null result
+              setP1Records(prev => new Map(prev.set(dtRecordId, null)));
+              resolve(null);
+              return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          const p1Record = data.p1Record;
+          
+          // Cache the result (even if null)
+          setP1Records(prev => new Map(prev.set(dtRecordId, p1Record)));
+          resolve(p1Record);
+        } catch (error) {
+          // Silently handle errors and cache the null result
+          setP1Records(prev => new Map(prev.set(dtRecordId, null)));
+          resolve(null);
+        }
+      }, Math.random() * 100); // Random delay 0-100ms to spread out requests
+    });
   };
 
   const handleDateSelect = (date: string) => {
