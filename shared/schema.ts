@@ -2063,3 +2063,313 @@ export const insertCacheConfigurationSchema = cacheConfigurationSchema.omit({
   created_at: true, 
   updated_at: true 
 });
+
+// =============================================================================
+// TDDF RECORD PRE-CACHE TABLES BY YEAR AND TAB
+// =============================================================================
+// Dedicated pre-cache tables for each TDDF record tab and year with "never expire" policy
+// Similar to heat map cache system but for each tab's specific data patterns
+
+// TDDF All Records Pre-Cache by Year
+export const tddfRecordsAllPreCache = pgTable(getTableName("tddf_records_all_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(), // Year of data (e.g., 2024, 2025)
+  cache_key: text("cache_key").notNull().unique(), // 'all_records_2024'
+  
+  // Pre-computed data for "All Records" tab
+  cached_data: jsonb("cached_data").notNull(), // Complete pre-computed records data
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // Record type breakdown for this year
+  dt_count: integer("dt_count").default(0),
+  bh_count: integer("bh_count").default(0),
+  p1_count: integer("p1_count").default(0),
+  p2_count: integer("p2_count").default(0),
+  e1_count: integer("e1_count").default(0),
+  g2_count: integer("g2_count").default(0),
+  other_count: integer("other_count").default(0),
+  
+  // Financial aggregates
+  total_amount: numeric("total_amount", { precision: 15, scale: 2 }).default('0'),
+  unique_files: integer("unique_files").default(0),
+  
+  // Cache metadata
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(), // Never expire policy
+  refresh_requested_by: text("refresh_requested_by"), // User who requested refresh
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_all_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_all_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_all_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF DT (Transactions) Pre-Cache by Year
+export const tddfRecordsDtPreCache = pgTable(getTableName("tddf_records_dt_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'dt_records_2024'
+  
+  // Pre-computed data for "DT - Transactions" tab
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // DT-specific aggregates
+  total_transaction_amount: numeric("total_transaction_amount", { precision: 15, scale: 2 }).default('0'),
+  unique_merchants: integer("unique_merchants").default(0),
+  unique_terminals: integer("unique_terminals").default(0),
+  avg_transaction_amount: numeric("avg_transaction_amount", { precision: 10, scale: 2 }).default('0'),
+  
+  // Card type breakdown
+  visa_count: integer("visa_count").default(0),
+  mastercard_count: integer("mastercard_count").default(0),
+  amex_count: integer("amex_count").default(0),
+  discover_count: integer("discover_count").default(0),
+  other_card_count: integer("other_card_count").default(0),
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_dt_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_dt_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_dt_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF BH (Batch Headers) Pre-Cache by Year
+export const tddfRecordsBhPreCache = pgTable(getTableName("tddf_records_bh_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'bh_records_2024'
+  
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // BH-specific aggregates
+  total_net_deposit: numeric("total_net_deposit", { precision: 15, scale: 2 }).default('0'),
+  total_batch_count: integer("total_batch_count").default(0),
+  avg_transactions_per_batch: numeric("avg_transactions_per_batch", { precision: 10, scale: 2 }).default('0'),
+  unique_merchant_accounts: integer("unique_merchant_accounts").default(0),
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_bh_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_bh_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_bh_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF Batch Relationships Pre-Cache by Year
+export const tddfBatchRelationshipsPreCache = pgTable(getTableName("tddf_batch_relationships_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'batch_relationships_2024'
+  
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // Relationship-specific aggregates
+  batches_with_transactions: integer("batches_with_transactions").default(0),
+  orphaned_transactions: integer("orphaned_transactions").default(0),
+  avg_transactions_per_batch: numeric("avg_transactions_per_batch", { precision: 10, scale: 2 }).default('0'),
+  relationship_accuracy: numeric("relationship_accuracy", { precision: 5, scale: 2 }).default('0'), // Percentage
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_batch_rel_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_batch_rel_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_batch_rel_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF P1 (Purchasing) Pre-Cache by Year
+export const tddfRecordsP1PreCache = pgTable(getTableName("tddf_records_p1_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'p1_records_2024'
+  
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // P1-specific aggregates
+  total_extended_amount: numeric("total_extended_amount", { precision: 15, scale: 2 }).default('0'),
+  unique_suppliers: integer("unique_suppliers").default(0),
+  avg_line_item_amount: numeric("avg_line_item_amount", { precision: 10, scale: 2 }).default('0'),
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_p1_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_p1_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_p1_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF P2 (Purchasing 2) Pre-Cache by Year
+export const tddfRecordsP2PreCache = pgTable(getTableName("tddf_records_p2_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'p2_records_2024'
+  
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // P2-specific aggregates
+  total_line_item_total: numeric("total_line_item_total", { precision: 15, scale: 2 }).default('0'),
+  total_vat_amount: numeric("total_vat_amount", { precision: 15, scale: 2 }).default('0'),
+  avg_vat_rate: numeric("avg_vat_rate", { precision: 5, scale: 4 }).default('0'),
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_p2_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_p2_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_p2_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF Other Types Pre-Cache by Year (E1, G2, etc.)
+export const tddfRecordsOtherPreCache = pgTable(getTableName("tddf_records_other_pre_cache"), {
+  id: serial("id").primaryKey(),
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'other_records_2024'
+  
+  cached_data: jsonb("cached_data").notNull(),
+  record_count: integer("record_count").notNull().default(0),
+  total_pages: integer("total_pages").notNull().default(0),
+  
+  // Other types breakdown
+  e1_count: integer("e1_count").default(0), // EMV merchant data
+  g2_count: integer("g2_count").default(0), // General data 2
+  ad_count: integer("ad_count").default(0), // Merchant adjustments
+  dr_count: integer("dr_count").default(0), // Direct marketing
+  ck_count: integer("ck_count").default(0), // Electronic checks
+  lg_count: integer("lg_count").default(0), // Lodge
+  ge_count: integer("ge_count").default(0), // Generic extension
+  unknown_count: integer("unknown_count").default(0),
+  
+  processing_time_ms: integer("processing_time_ms").notNull().default(0),
+  last_refresh_datetime: timestamp("last_refresh_datetime").defaultNow().notNull(),
+  never_expires: boolean("never_expires").default(true).notNull(),
+  refresh_requested_by: text("refresh_requested_by"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  yearIdx: index("tddf_other_cache_year_idx").on(table.year),
+  cacheKeyIdx: index("tddf_other_cache_key_idx").on(table.cache_key),
+  lastRefreshIdx: index("tddf_other_cache_refresh_idx").on(table.last_refresh_datetime)
+}));
+
+// TDDF Records Tab Processing Status - tracks cache building progress
+export const tddfRecordsTabProcessingStatus = pgTable(getTableName("tddf_records_tab_processing_status"), {
+  id: serial("id").primaryKey(),
+  tab_name: text("tab_name").notNull(), // 'all', 'dt', 'bh', 'batch_relationships', 'p1', 'p2', 'other'
+  year: integer("year").notNull(),
+  cache_key: text("cache_key").notNull().unique(), // 'processing_status_dt_2024'
+  
+  // Processing status
+  is_processing: boolean("is_processing").default(false).notNull(),
+  processing_started_at: timestamp("processing_started_at"),
+  processing_completed_at: timestamp("processing_completed_at"),
+  processing_time_ms: integer("processing_time_ms"),
+  
+  // Progress tracking
+  total_records_to_process: integer("total_records_to_process").default(0),
+  records_processed: integer("records_processed").default(0),
+  progress_percentage: numeric("progress_percentage", { precision: 5, scale: 2 }).default('0'),
+  
+  // Status and messaging
+  status: text("status").default("pending").notNull(), // pending, processing, completed, error
+  status_message: text("status_message"),
+  error_details: jsonb("error_details"),
+  
+  // Job metadata
+  job_id: text("job_id"), // Unique identifier for this cache build job
+  triggered_by: text("triggered_by").default("manual"), // manual, auto, scheduled
+  triggered_by_user: text("triggered_by_user"),
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  tabYearIdx: index("tddf_tab_status_tab_year_idx").on(table.tab_name, table.year),
+  processingIdx: index("tddf_tab_status_processing_idx").on(table.is_processing),
+  statusIdx: index("tddf_tab_status_status_idx").on(table.status),
+  jobIdIdx: index("tddf_tab_status_job_id_idx").on(table.job_id)
+}));
+
+// Export all TDDF record pre-cache types
+export type TddfRecordsAllPreCache = typeof tddfRecordsAllPreCache.$inferSelect;
+export type TddfRecordsDtPreCache = typeof tddfRecordsDtPreCache.$inferSelect;
+export type TddfRecordsBhPreCache = typeof tddfRecordsBhPreCache.$inferSelect;
+export type TddfBatchRelationshipsPreCache = typeof tddfBatchRelationshipsPreCache.$inferSelect;
+export type TddfRecordsP1PreCache = typeof tddfRecordsP1PreCache.$inferSelect;
+export type TddfRecordsP2PreCache = typeof tddfRecordsP2PreCache.$inferSelect;
+export type TddfRecordsOtherPreCache = typeof tddfRecordsOtherPreCache.$inferSelect;
+export type TddfRecordsTabProcessingStatus = typeof tddfRecordsTabProcessingStatus.$inferSelect;
+
+// Insert schemas for TDDF record pre-cache tables
+export const insertTddfRecordsAllPreCacheSchema = createInsertSchema(tddfRecordsAllPreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsDtPreCacheSchema = createInsertSchema(tddfRecordsDtPreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsBhPreCacheSchema = createInsertSchema(tddfRecordsBhPreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfBatchRelationshipsPreCacheSchema = createInsertSchema(tddfBatchRelationshipsPreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsP1PreCacheSchema = createInsertSchema(tddfRecordsP1PreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsP2PreCacheSchema = createInsertSchema(tddfRecordsP2PreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsOtherPreCacheSchema = createInsertSchema(tddfRecordsOtherPreCache).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+export const insertTddfRecordsTabProcessingStatusSchema = createInsertSchema(tddfRecordsTabProcessingStatus).omit({ 
+  id: true, created_at: true, updated_at: true 
+});
+
+export type InsertTddfRecordsAllPreCache = z.infer<typeof insertTddfRecordsAllPreCacheSchema>;
+export type InsertTddfRecordsDtPreCache = z.infer<typeof insertTddfRecordsDtPreCacheSchema>;
+export type InsertTddfRecordsBhPreCache = z.infer<typeof insertTddfRecordsBhPreCacheSchema>;
+export type InsertTddfBatchRelationshipsPreCache = z.infer<typeof insertTddfBatchRelationshipsPreCacheSchema>;
+export type InsertTddfRecordsP1PreCache = z.infer<typeof insertTddfRecordsP1PreCacheSchema>;
+export type InsertTddfRecordsP2PreCache = z.infer<typeof insertTddfRecordsP2PreCacheSchema>;
+export type InsertTddfRecordsOtherPreCache = z.infer<typeof insertTddfRecordsOtherPreCacheSchema>;
+export type InsertTddfRecordsTabProcessingStatus = z.infer<typeof insertTddfRecordsTabProcessingStatusSchema>;

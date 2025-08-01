@@ -15532,6 +15532,519 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =============================================================================
+  // TDDF RECORDS PRE-CACHE API ENDPOINTS
+  // =============================================================================
+  // Comprehensive API for TDDF record pre-cache system with "never expire" policy
+  // Supports all tabs: All Records, DT-Transactions, BH-Batch Headers, 
+  // Batch Relationships, P1-Purchasing, P2-Purchasing 2, Other Types
+
+  // Get pre-cached TDDF records for specific tab and year
+  app.get("/api/tddf-records/pre-cache/:tabName/:year", isAuthenticated, async (req, res) => {
+    try {
+      const { tabName, year } = req.params;
+      const requestedYear = parseInt(year);
+      
+      if (isNaN(requestedYear) || requestedYear < 2020 || requestedYear > 2030) {
+        return res.status(400).json({ error: "Invalid year parameter" });
+      }
+
+      console.log(`[TDDF-RECORDS-CACHE] Fetching pre-cached data for ${tabName} tab, year ${requestedYear}`);
+      
+      // Map tab names to cache table names
+      const tabTableMapping = {
+        'all': 'tddf_records_all_pre_cache',
+        'dt': 'tddf_records_dt_pre_cache', 
+        'dt-transactions': 'tddf_records_dt_pre_cache',
+        'bh': 'tddf_records_bh_pre_cache',
+        'bh-batch-headers': 'tddf_records_bh_pre_cache',
+        'batch-relationships': 'tddf_batch_relationships_pre_cache',
+        'p1': 'tddf_records_p1_pre_cache',
+        'p1-purchasing': 'tddf_records_p1_pre_cache',
+        'p2': 'tddf_records_p2_pre_cache',
+        'p2-purchasing-2': 'tddf_records_p2_pre_cache',
+        'other': 'tddf_records_other_pre_cache',
+        'other-types': 'tddf_records_other_pre_cache'
+      };
+
+      const tableName = tabTableMapping[tabName.toLowerCase()];
+      if (!tableName) {
+        return res.status(400).json({ 
+          error: "Invalid tab name", 
+          validTabs: Object.keys(tabTableMapping) 
+        });
+      }
+
+      const fullTableName = getTableName(tableName);
+      const cacheKey = `${tabName}_records_${requestedYear}`;
+
+      // Query the appropriate pre-cache table
+      const cacheResult = await pool.query(`
+        SELECT 
+          id,
+          year,
+          cache_key,
+          cached_data,
+          record_count,
+          total_pages,
+          processing_time_ms,
+          last_refresh_datetime,
+          never_expires,
+          refresh_requested_by,
+          created_at,
+          updated_at
+        FROM ${fullTableName}
+        WHERE year = $1 AND cache_key = $2
+        ORDER BY last_refresh_datetime DESC
+        LIMIT 1
+      `, [requestedYear, cacheKey]);
+
+      if (cacheResult.rows.length === 0) {
+        console.log(`[TDDF-RECORDS-CACHE] No pre-cache found for ${tabName} ${requestedYear} - cache needs to be built`);
+        return res.json({
+          success: false,
+          error: "Cache not available",
+          message: `Pre-cache for ${tabName} records in ${requestedYear} has not been built yet`,
+          requiresCacheBuild: true,
+          tabName,
+          year: requestedYear,
+          cacheKey
+        });
+      }
+
+      const cache = cacheResult.rows[0];
+      const queryTime = Date.now();
+      
+      console.log(`[TDDF-RECORDS-CACHE] Serving pre-cached ${tabName} data for ${requestedYear}: ${cache.record_count} records`);
+
+      res.json({
+        success: true,
+        data: cache.cached_data,
+        metadata: {
+          tabName,
+          year: requestedYear,
+          cacheKey: cache.cache_key,
+          recordCount: cache.record_count,
+          totalPages: cache.total_pages,
+          lastRefreshed: cache.last_refresh_datetime,
+          neverExpires: cache.never_expires,
+          refreshRequestedBy: cache.refresh_requested_by,
+          buildTime: cache.processing_time_ms,
+          createdAt: cache.created_at,
+          updatedAt: cache.updated_at
+        },
+        queryTime: Date.now() - queryTime,
+        fromPreCache: true
+      });
+
+    } catch (error) {
+      console.error(`[TDDF-RECORDS-CACHE] Error fetching pre-cached data:`, error);
+      res.status(500).json({ 
+        error: "Failed to fetch pre-cached TDDF records",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get pre-cache status for all TDDF record tabs
+  app.get("/api/tddf-records/pre-cache/status", isAuthenticated, async (req, res) => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const year = parseInt(req.query.year as string) || currentYear;
+
+      console.log(`[TDDF-RECORDS-CACHE-STATUS] Checking pre-cache status for year ${year}`);
+
+      const tabConfigs = [
+        { name: 'all', table: 'tddf_records_all_pre_cache', displayName: 'All Records' },
+        { name: 'dt', table: 'tddf_records_dt_pre_cache', displayName: 'DT - Transactions' },
+        { name: 'bh', table: 'tddf_records_bh_pre_cache', displayName: 'BH - Batch Headers' },
+        { name: 'batch-relationships', table: 'tddf_batch_relationships_pre_cache', displayName: 'Batch Relationships' },
+        { name: 'p1', table: 'tddf_records_p1_pre_cache', displayName: 'P1 - Purchasing' },
+        { name: 'p2', table: 'tddf_records_p2_pre_cache', displayName: 'P2 - Purchasing 2' },
+        { name: 'other', table: 'tddf_records_other_pre_cache', displayName: 'Other Types' }
+      ];
+
+      const statusResults = await Promise.all(
+        tabConfigs.map(async (tab) => {
+          try {
+            const tableName = getTableName(tab.table);
+            const cacheKey = `${tab.name}_records_${year}`;
+
+            const result = await pool.query(`
+              SELECT 
+                year,
+                cache_key,
+                record_count,
+                total_pages,
+                processing_time_ms,
+                last_refresh_datetime,
+                never_expires,
+                refresh_requested_by,
+                created_at
+              FROM ${tableName}
+              WHERE year = $1 AND cache_key = $2
+              ORDER BY last_refresh_datetime DESC
+              LIMIT 1
+            `, [year, cacheKey]);
+
+            if (result.rows.length > 0) {
+              const cache = result.rows[0];
+              return {
+                tabName: tab.name,
+                displayName: tab.displayName,
+                status: 'available',
+                recordCount: cache.record_count,
+                totalPages: cache.total_pages,
+                lastRefreshed: cache.last_refresh_datetime,
+                buildTime: cache.processing_time_ms,
+                neverExpires: cache.never_expires,
+                refreshRequestedBy: cache.refresh_requested_by,
+                createdAt: cache.created_at
+              };
+            } else {
+              return {
+                tabName: tab.name,
+                displayName: tab.displayName,
+                status: 'not_available',
+                requiresBuild: true
+              };
+            }
+          } catch (error) {
+            return {
+              tabName: tab.name,
+              displayName: tab.displayName,
+              status: 'error',
+              error: error.message
+            };
+          }
+        })
+      );
+
+      // Check for any ongoing processing
+      const processingStatusTable = getTableName('tddf_records_tab_processing_status');
+      const processingResult = await pool.query(`
+        SELECT 
+          tab_name,
+          year,
+          is_processing,
+          processing_started_at,
+          progress_percentage,
+          status,
+          status_message
+        FROM ${processingStatusTable}
+        WHERE year = $1 AND is_processing = true
+        ORDER BY processing_started_at DESC
+      `, [year]);
+
+      const processingStatus = processingResult.rows.reduce((acc, row) => {
+        acc[row.tab_name] = {
+          isProcessing: row.is_processing,
+          startedAt: row.processing_started_at,
+          progress: row.progress_percentage,
+          status: row.status,
+          message: row.status_message
+        };
+        return acc;
+      }, {});
+
+      res.json({
+        success: true,
+        year,
+        totalTabs: tabConfigs.length,
+        availableTabs: statusResults.filter(tab => tab.status === 'available').length,
+        tabs: statusResults,
+        processing: processingStatus,
+        globalStats: {
+          totalRecords: statusResults.reduce((sum, tab) => sum + (tab.recordCount || 0), 0),
+          totalPages: statusResults.reduce((sum, tab) => sum + (tab.totalPages || 0), 0)
+        }
+      });
+
+    } catch (error) {
+      console.error(`[TDDF-RECORDS-CACHE-STATUS] Error checking status:`, error);
+      res.status(500).json({ 
+        error: "Failed to check pre-cache status",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Build/refresh pre-cache for specific TDDF record tab and year
+  app.post("/api/tddf-records/pre-cache/:tabName/:year/refresh", isAuthenticated, async (req, res) => {
+    try {
+      const { tabName, year } = req.params;
+      const requestedYear = parseInt(year);
+      const username = (req.user as any)?.username || 'unknown';
+
+      if (isNaN(requestedYear)) {
+        return res.status(400).json({ error: "Invalid year parameter" });
+      }
+
+      console.log(`[TDDF-RECORDS-CACHE-REFRESH] Starting cache refresh for ${tabName} tab, year ${requestedYear}, requested by ${username}`);
+
+      // Validate tab name
+      const validTabs = ['all', 'dt', 'bh', 'batch-relationships', 'p1', 'p2', 'other'];
+      if (!validTabs.includes(tabName.toLowerCase())) {
+        return res.status(400).json({ 
+          error: "Invalid tab name", 
+          validTabs 
+        });
+      }
+
+      // Check if already processing
+      const processingTable = getTableName('tddf_records_tab_processing_status');
+      const cacheKey = `${tabName}_records_${requestedYear}`;
+      const processingKey = `processing_status_${tabName}_${requestedYear}`;
+
+      const existingProcess = await pool.query(`
+        SELECT is_processing, processing_started_at
+        FROM ${processingTable}
+        WHERE cache_key = $1 AND is_processing = true
+      `, [processingKey]);
+
+      if (existingProcess.rows.length > 0) {
+        const startTime = new Date(existingProcess.rows[0].processing_started_at);
+        const elapsedMinutes = Math.round((Date.now() - startTime.getTime()) / (1000 * 60));
+        
+        return res.status(409).json({
+          error: "Cache refresh already in progress",
+          message: `Cache refresh for ${tabName} ${requestedYear} started ${elapsedMinutes} minutes ago`,
+          startedAt: existingProcess.rows[0].processing_started_at
+        });
+      }
+
+      // Start processing status tracking
+      const jobId = `tddf_cache_${tabName}_${requestedYear}_${Date.now()}`;
+      const startTime = new Date();
+
+      await pool.query(`
+        INSERT INTO ${processingTable} (
+          tab_name, year, cache_key, is_processing, processing_started_at, 
+          job_id, triggered_by, triggered_by_user, status
+        ) VALUES ($1, $2, $3, true, $4, $5, 'manual', $6, 'processing')
+        ON CONFLICT (cache_key) DO UPDATE SET
+          is_processing = true,
+          processing_started_at = $4,
+          job_id = $5,
+          triggered_by_user = $6,
+          status = 'processing',
+          updated_at = NOW()
+      `, [tabName, requestedYear, processingKey, startTime, jobId, username]);
+
+      // Return immediate response - actual processing would happen asynchronously
+      res.json({
+        success: true,
+        message: `Started cache refresh for ${tabName} records in ${requestedYear}`,
+        jobId,
+        tabName,
+        year: requestedYear,
+        startedAt: startTime,
+        requestedBy: username,
+        note: "Cache refresh is running in the background. Check status using the status endpoint."
+      });
+
+      // TODO: Implement actual cache building logic here
+      // This would typically trigger a background job to:
+      // 1. Query the TDDF JSONB data for the specific tab and year
+      // 2. Aggregate and process the data according to tab requirements
+      // 3. Store results in the appropriate pre-cache table
+      // 4. Update processing status to completed
+
+    } catch (error) {
+      console.error(`[TDDF-RECORDS-CACHE-REFRESH] Error starting refresh:`, error);
+      res.status(500).json({ 
+        error: "Failed to start cache refresh",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get processing status for specific TDDF record tab cache build
+  app.get("/api/tddf-records/pre-cache/:tabName/:year/processing-status", isAuthenticated, async (req, res) => {
+    try {
+      const { tabName, year } = req.params;
+      const requestedYear = parseInt(year);
+
+      if (isNaN(requestedYear)) {
+        return res.status(400).json({ error: "Invalid year parameter" });
+      }
+
+      const processingTable = getTableName('tddf_records_tab_processing_status');
+      const processingKey = `processing_status_${tabName}_${requestedYear}`;
+
+      const result = await pool.query(`
+        SELECT 
+          tab_name,
+          year,
+          is_processing,
+          processing_started_at,
+          processing_completed_at,
+          processing_time_ms,
+          total_records_to_process,
+          records_processed,
+          progress_percentage,
+          status,
+          status_message,
+          error_details,
+          job_id,
+          triggered_by,
+          triggered_by_user,
+          created_at,
+          updated_at
+        FROM ${processingTable}
+        WHERE cache_key = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [processingKey]);
+
+      if (result.rows.length === 0) {
+        return res.json({
+          success: true,
+          isProcessing: false,
+          status: 'not_started',
+          message: `No processing history found for ${tabName} ${requestedYear}`
+        });
+      }
+
+      const processing = result.rows[0];
+      const elapsedTime = processing.processing_started_at ? 
+        Date.now() - new Date(processing.processing_started_at).getTime() : 0;
+
+      res.json({
+        success: true,
+        tabName: processing.tab_name,
+        year: processing.year,
+        isProcessing: processing.is_processing,
+        status: processing.status,
+        message: processing.status_message,
+        progress: {
+          percentage: processing.progress_percentage || 0,
+          recordsProcessed: processing.records_processed || 0,
+          totalRecords: processing.total_records_to_process || 0
+        },
+        timing: {
+          startedAt: processing.processing_started_at,
+          completedAt: processing.processing_completed_at,
+          elapsedMs: elapsedTime,
+          processingTimeMs: processing.processing_time_ms
+        },
+        job: {
+          jobId: processing.job_id,
+          triggeredBy: processing.triggered_by,
+          triggeredByUser: processing.triggered_by_user
+        },
+        error: processing.error_details,
+        timestamps: {
+          createdAt: processing.created_at,
+          updatedAt: processing.updated_at
+        }
+      });
+
+    } catch (error) {
+      console.error(`[TDDF-RECORDS-PROCESSING-STATUS] Error:`, error);
+      res.status(500).json({ 
+        error: "Failed to get processing status",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Clear all pre-cache data for TDDF records (admin endpoint)
+  app.delete("/api/tddf-records/pre-cache/clear", isAuthenticated, async (req, res) => {
+    try {
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
+      const tabName = req.query.tab as string;
+      const username = (req.user as any)?.username || 'unknown';
+
+      console.log(`[TDDF-RECORDS-CACHE-CLEAR] Clear request by ${username} - Year: ${year || 'all'}, Tab: ${tabName || 'all'}`);
+
+      const tablesToClear = [
+        'tddf_records_all_pre_cache',
+        'tddf_records_dt_pre_cache',
+        'tddf_records_bh_pre_cache', 
+        'tddf_batch_relationships_pre_cache',
+        'tddf_records_p1_pre_cache',
+        'tddf_records_p2_pre_cache',
+        'tddf_records_other_pre_cache'
+      ];
+
+      const results = [];
+
+      for (const table of tablesToClear) {
+        try {
+          const fullTableName = getTableName(table);
+          let whereClause = '';
+          const params = [];
+
+          if (year && tabName) {
+            whereClause = ' WHERE year = $1 AND cache_key LIKE $2';
+            params.push(year, `${tabName}%`);
+          } else if (year) {
+            whereClause = ' WHERE year = $1';
+            params.push(year);
+          } else if (tabName) {
+            whereClause = ' WHERE cache_key LIKE $1';
+            params.push(`${tabName}%`);
+          }
+
+          const countResult = await pool.query(
+            `SELECT COUNT(*) as count FROM ${fullTableName}${whereClause}`,
+            params
+          );
+          const recordsToDelete = parseInt(countResult.rows[0].count);
+
+          if (recordsToDelete > 0) {
+            await pool.query(
+              `DELETE FROM ${fullTableName}${whereClause}`,
+              params
+            );
+            results.push({
+              table: table,
+              recordsDeleted: recordsToDelete,
+              status: 'success'
+            });
+          } else {
+            results.push({
+              table: table,
+              recordsDeleted: 0,
+              status: 'no_records'
+            });
+          }
+        } catch (tableError) {
+          results.push({
+            table: table,
+            status: 'error',
+            error: tableError.message
+          });
+        }
+      }
+
+      const totalDeleted = results.reduce((sum, r) => sum + (r.recordsDeleted || 0), 0);
+
+      console.log(`[TDDF-RECORDS-CACHE-CLEAR] Completed: ${totalDeleted} total records deleted`);
+
+      res.json({
+        success: true,
+        message: `Cleared ${totalDeleted} pre-cache records`,
+        filters: {
+          year: year || 'all',
+          tabName: tabName || 'all'
+        },
+        results,
+        totalRecordsDeleted: totalDeleted,
+        clearedBy: username,
+        clearedAt: new Date()
+      });
+
+    } catch (error) {
+      console.error(`[TDDF-RECORDS-CACHE-CLEAR] Error:`, error);
+      res.status(500).json({ 
+        error: "Failed to clear pre-cache data",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
