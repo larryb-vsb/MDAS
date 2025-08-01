@@ -1531,18 +1531,14 @@ export default function TddfJsonPage() {
                           <div>Actions</div>
                         </div>
                       ) : selectedTab === 'DT' ? (
-                        /* DT Records - Show TDDF header fields plus original DT fields */
-                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-10 gap-4 text-sm font-medium">
+                        /* DT Records - Universal Timestamping Format: Badge, Universal Data, Merchant ID, Transaction Amount */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-5 gap-4 text-sm font-medium">
                           {[
-                            { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
-                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
-                            { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
-                            { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): DT for Detail Transaction' },
-                            { key: 'transaction_date', label: 'Transaction Date' },
-                            { key: 'transaction_amount', label: 'Amount' },
-                            { key: 'merchant_name', label: 'Merchant' },
-                            { key: 'terminal_id', label: 'Terminal' },
-                            { key: 'card_type', label: 'Card Type' }
+                            { key: 'record_type_badge', label: 'Badge', tooltip: 'Record Type Badge (DT)' },
+                            { key: 'parsed_datetime', label: 'Universal Time', tooltip: 'Universal timestamp with source traceability' },
+                            { key: 'merchant_id', label: 'Merchant ID', tooltip: 'Merchant identification from record' },
+                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction or batch total amount' },
+                            { key: 'line_number', label: 'Line #', tooltip: 'Original line number for traceability' }
                           ].map(({ key, label, tooltip }) => (
                             tooltip ? (
                               <TooltipProvider key={key}>
@@ -1731,62 +1727,39 @@ export default function TddfJsonPage() {
                             </div>
                           </div>
                         ) : selectedTab === 'DT' ? (
-                          /* DT Records - Show TDDF header fields plus original DT fields */
-                          <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
-                            <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
-                            </div>
-                            <div className="font-mono text-xs font-medium text-blue-600">
-                              {record.extracted_fields?.entryRunNumber || '-'}
-                            </div>
-                            <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceWithinRun || '-'}
-                            </div>
+                          /* DT Records - Universal Timestamping Format: Badge, Universal Data, Merchant ID, Transaction Amount */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-5 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
                               <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-                                {record.extracted_fields?.recordIdentifier || '-'}
+                                DT
                               </Badge>
                             </div>
-                            <div>
-                              {formatDate(record.extracted_fields?.transactionDate)}
-                            </div>
-                            <div className="font-mono text-green-600">
-                              {formatAmount(record.extracted_fields?.transactionAmount)}
-                            </div>
-                            <div className="truncate">
-                              {getMerchantNameFromDT(record.extracted_fields?.merchantAccountNumber || '') || record.extracted_fields?.merchantName || '-'}
-                            </div>
-                            <div>
-                              <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
-                            </div>
-                            <div>
-                              {record.extracted_fields?.cardType ? (
+                            <div className="font-mono text-xs text-blue-600">
+                              {record.parsed_datetime ? (
                                 <div className="flex flex-col">
-                                  {(() => {
-                                    const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
-                                    return cardBadge ? (
-                                      <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
-                                        {cardBadge.label}
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs">
-                                        {record.extracted_fields.cardType}
-                                      </Badge>
-                                    );
-                                  })()}
+                                  <span>{record.parsed_datetime}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {record.record_time_source || 'file_timestamp + line offset'}
+                                  </span>
                                 </div>
-                              ) : <span className="text-gray-400 text-xs">-</span>}
+                              ) : (
+                                <span className="text-gray-400">Pending Timestamp</span>
+                              )}
                             </div>
-                            <div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRecordClick(record)}
-                                className="flex items-center gap-1"
-                              >
-                                <Eye className="w-4 h-4" />
-                                View
-                              </Button>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.merchantAccountNumber || 
+                               record.extracted_fields?.merchantName || 
+                               <span className="text-gray-400">-</span>}
+                            </div>
+                            <div className="font-mono text-green-600 font-medium">
+                              {record.extracted_fields?.transactionAmount ? 
+                                formatAmount(record.extracted_fields.transactionAmount) : 
+                                record.extracted_fields?.netDeposit ? 
+                                formatAmount(record.extracted_fields.netDeposit) :
+                                <span className="text-gray-400">-</span>}
+                            </div>
+                            <div className="font-mono text-xs text-gray-500">
+                              {record.line_number || '-'}
                             </div>
                           </div>
                         ) : selectedTab === 'P1' ? (
