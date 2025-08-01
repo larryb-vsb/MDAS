@@ -84,6 +84,106 @@ function extractTddfProcessingDatetime(filename: string): {
   return result;
 }
 
+/**
+ * Universal Timestamp Calculation for TDDF Records
+ * Implements Larry B.'s timestamp hierarchy for chronological ordering
+ * 
+ * Hierarchy:
+ * 1. DT record embedded date → "dt_line"
+ * 2. BH record date (if no DT) → "bh_line"
+ * 3. Filename timestamp + line offset → "file_timestamp + line_offset"
+ * 4. Fallback to ingestion time → "ingest_time"
+ */
+function calculateUniversalTimestamp(
+  recordType: string,
+  extractedFields: any,
+  filename: string,
+  lineNumber: number,
+  lineOffsetMs: number = 100 // Default 100ms intervals
+): {
+  parsedDatetime: string | null;
+  recordTimeSource: string;
+} {
+  // Priority 1: DT record embedded transaction date
+  if (recordType === 'DT' && extractedFields.transactionDate) {
+    try {
+      const dtDate = extractedFields.transactionDate;
+      // Parse MMDDCCYY format from DT record
+      if (typeof dtDate === 'string' && dtDate.length === 8) {
+        const month = dtDate.substring(0, 2);
+        const day = dtDate.substring(2, 4);
+        const century = dtDate.substring(4, 6);
+        const year = dtDate.substring(6, 8);
+        
+        // Convert century + year to full year (CC=20 means 2000s)
+        const fullYear = century === '20' ? `20${year}` : century === '19' ? `19${year}` : `20${year}`;
+        
+        const parsedDate = new Date(`${fullYear}-${month}-${day}`);
+        if (!isNaN(parsedDate.getTime())) {
+          return {
+            parsedDatetime: parsedDate.toISOString(),
+            recordTimeSource: 'dt_line'
+          };
+        }
+      }
+    } catch (error) {
+      console.warn(`[UNIVERSAL-TIMESTAMP] Failed to parse DT transaction date: ${extractedFields.transactionDate}`, error);
+    }
+  }
+  
+  // Priority 2: BH record batch date (if no DT and this is BH record)
+  if (recordType === 'BH' && extractedFields.batchDate) {
+    try {
+      const bhDate = extractedFields.batchDate;
+      // Parse MMDDCCYY format from BH record
+      if (typeof bhDate === 'string' && bhDate.length === 8) {
+        const month = bhDate.substring(0, 2);
+        const day = bhDate.substring(2, 4);
+        const century = bhDate.substring(4, 6);
+        const year = bhDate.substring(6, 8);
+        
+        const fullYear = century === '20' ? `20${year}` : century === '19' ? `19${year}` : `20${year}`;
+        
+        const parsedDate = new Date(`${fullYear}-${month}-${day}`);
+        if (!isNaN(parsedDate.getTime())) {
+          return {
+            parsedDatetime: parsedDate.toISOString(),
+            recordTimeSource: 'bh_line'
+          };
+        }
+      }
+    } catch (error) {
+      console.warn(`[UNIVERSAL-TIMESTAMP] Failed to parse BH batch date: ${extractedFields.batchDate}`, error);
+    }
+  }
+  
+  // Priority 3: Filename timestamp + line offset
+  const filenameDateTime = extractTddfProcessingDatetime(filename);
+  if (filenameDateTime.processingDatetime) {
+    try {
+      const baseDate = new Date(filenameDateTime.processingDatetime);
+      if (!isNaN(baseDate.getTime())) {
+        // Add line offset: lineNumber * lineOffsetMs (default 100ms)
+        const offsetMs = lineNumber * lineOffsetMs;
+        const offsetDate = new Date(baseDate.getTime() + offsetMs);
+        return {
+          parsedDatetime: offsetDate.toISOString(),
+          recordTimeSource: 'file_timestamp + line_offset'
+        };
+      }
+    } catch (error) {
+      console.warn(`[UNIVERSAL-TIMESTAMP] Failed to calculate filename + offset timestamp:`, error);
+    }
+  }
+  
+  // Priority 4: Fallback to current ingestion time
+  const ingestTime = new Date();
+  return {
+    parsedDatetime: ingestTime.toISOString(),
+    recordTimeSource: 'ingest_time'
+  };
+}
+
 // TDDF Record Type Field Definitions based on schema
 export interface TddfFieldDefinition {
   name: string;
@@ -404,6 +504,14 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         const recordStartTime = Date.now();
         const recordProcessingTime = Date.now() - recordStartTime;
         
+        // Calculate universal timestamp using Larry B.'s hierarchy
+        const universalTimestamp = calculateUniversalTimestamp(
+          jsonRecord.recordType, 
+          jsonRecord.extractedFields, 
+          upload.filename, 
+          lineNumber
+        );
+        
         // Prepare database record with timing data and universal TDDF datetime
         const dbRecord = {
           upload_id: upload.id,
@@ -416,7 +524,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           processing_time_ms: recordProcessingTime,
           // Add universal TDDF processing datetime fields for sorting/pagination
           tddf_processing_datetime: tddfDatetime.processingDatetime,
-          tddf_processing_date: tddfDatetime.processingDate
+          tddf_processing_date: tddfDatetime.processingDate,
+          // Add universal timestamp fields (Larry B. feature)
+          parsed_datetime: universalTimestamp.parsedDatetime,
+          record_time_source: universalTimestamp.recordTimeSource
         };
         
         batchRecords.push(dbRecord);
@@ -446,9 +557,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         const insertQuery = `
           INSERT INTO ${tableName} (
             upload_id, filename, record_type, line_number, raw_line, 
-            extracted_fields, record_identifier, processing_time_ms, created_at
+            extracted_fields, record_identifier, processing_time_ms, 
+            parsed_datetime, record_time_source, created_at
           ) VALUES ${batchRecords.map((_, index) => 
-            `($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8}, NOW())`
+            `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${index * 10 + 4}, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${index * 10 + 8}, $${index * 10 + 9}, $${index * 10 + 10}, NOW())`
           ).join(', ')}
         `;
         
@@ -460,7 +572,9 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           record.raw_line,
           record.extracted_fields,
           record.record_identifier,
-          record.processing_time_ms
+          record.processing_time_ms,
+          record.parsed_datetime,
+          record.record_time_source
         ]);
         
         await pool.query(insertQuery, values);

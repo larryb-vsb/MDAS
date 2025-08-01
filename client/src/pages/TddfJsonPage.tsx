@@ -207,11 +207,16 @@ interface TddfJsonRecord {
     cardType?: string;
     terminalId?: string;
     referenceNumber?: string;
+    entryRunNumber?: string;
+    recordIdentifier?: string;
     [key: string]: any;
   };
   record_identifier?: string;
   processing_time_ms?: number;
   created_at: string;
+  // Universal timestamp fields for Larry B. chronological ordering feature
+  parsedDatetime?: string | null;
+  recordTimeSource?: string | null;
 }
 
 interface TddfJsonResponse {
@@ -1540,18 +1545,20 @@ export default function TddfJsonPage() {
                           <div>Actions</div>
                         </div>
                       ) : selectedTab === 'DT' ? (
-                        /* DT Records - Show TDDF header fields plus original DT fields */
-                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-10 gap-4 text-sm font-medium">
+                        /* DT Records - Show TDDF header fields plus original DT fields with Universal Timestamp */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-12 gap-4 text-sm font-medium">
                           {[
-                            { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
-                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
-                            { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
                             { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): DT for Detail Transaction' },
-                            { key: 'transaction_date', label: 'Transaction Date' },
-                            { key: 'transaction_amount', label: 'Amount' },
-                            { key: 'merchant_name', label: 'Merchant' },
-                            { key: 'terminal_id', label: 'Terminal' },
-                            { key: 'card_type', label: 'Card Type' }
+                            { key: 'merchant_account_number', label: 'Merchant Account', tooltip: 'Merchant Account Number (24-39): GP account identifier' },
+                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction Amount (93-103): Transaction value' },
+                            { key: 'transaction_date', label: 'Transaction Date', tooltip: 'Transaction Date (85-92): Original MMDDCCYY format' },
+                            { key: 'parsedDatetime', label: 'Universal Time', tooltip: 'Universal timestamp from Larry B. hierarchy (DT date → BH date → filename + offset → ingest time)' },
+                            { key: 'recordTimeSource', label: 'Time Source', tooltip: 'Origin of universal timestamp: dt_line, bh_line, file_timestamp + line_offset, or ingest_time' },
+                            { key: 'merchant_name', label: 'Merchant', tooltip: 'Merchant Business Name (218-242)' },
+                            { key: 'terminal_id', label: 'Terminal', tooltip: 'Terminal ID (277-284)' },
+                            { key: 'card_type', label: 'Card Type', tooltip: 'Card Brand Type (253-254)' },
+                            { key: 'reference_number', label: 'Reference #', tooltip: 'Reference Number (62-84): Unique transaction identifier' },
+                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID for grouping' }
                           ].map(({ key, label, tooltip }) => (
                             tooltip ? (
                               <TooltipProvider key={key}>
@@ -1740,27 +1747,45 @@ export default function TddfJsonPage() {
                             </div>
                           </div>
                         ) : selectedTab === 'DT' ? (
-                          /* DT Records - Show TDDF header fields plus original DT fields */
-                          <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
-                            <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
-                            </div>
-                            <div className="font-mono text-xs font-medium text-blue-600">
-                              {record.extracted_fields?.entryRunNumber || '-'}
-                            </div>
-                            <div className="font-mono text-xs">
-                              {record.extracted_fields?.sequenceWithinRun || '-'}
-                            </div>
+                          /* DT Records - Show enhanced fields with Universal Timestamp */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-12 gap-4 border-t items-center text-sm">
                             <div className="font-mono text-xs">
                               <Badge className="bg-blue-100 text-blue-800 border-blue-300">
                                 {record.extracted_fields?.recordIdentifier || '-'}
                               </Badge>
                             </div>
-                            <div>
-                              {formatDate(record.extracted_fields?.transactionDate)}
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.merchantAccountNumber || '-'}
                             </div>
                             <div className="font-mono text-green-600">
                               {formatAmount(record.extracted_fields?.transactionAmount)}
+                            </div>
+                            <div>
+                              {formatDate(record.extracted_fields?.transactionDate)}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.parsedDatetime ? (
+                                <div className="flex flex-col">
+                                  <span className="text-blue-600">
+                                    {format(new Date(record.parsedDatetime), 'MM/dd/yy HH:mm:ss.SSS')}
+                                  </span>
+                                </div>
+                              ) : <span className="text-gray-400 text-xs">-</span>}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.recordTimeSource ? (
+                                <Badge variant="outline" className={`text-xs ${
+                                  record.recordTimeSource === 'dt_line' ? 'bg-green-50 text-green-700 border-green-200' :
+                                  record.recordTimeSource === 'bh_line' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  record.recordTimeSource === 'file_timestamp' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                  'bg-gray-50 text-gray-700 border-gray-200'
+                                }`}>
+                                  {record.recordTimeSource === 'dt_line' ? 'DT Date' :
+                                   record.recordTimeSource === 'bh_line' ? 'BH Date' :
+                                   record.recordTimeSource === 'file_timestamp' ? 'File+Offset' :
+                                   record.recordTimeSource || '-'}
+                                </Badge>
+                              ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
                             <div className="truncate">
                               {getMerchantNameFromDT(record.extracted_fields?.merchantAccountNumber || '') || record.extracted_fields?.merchantName || '-'}
@@ -1785,6 +1810,12 @@ export default function TddfJsonPage() {
                                   })()}
                                 </div>
                               ) : <span className="text-gray-400 text-xs">-</span>}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.referenceNumber || '-'}
+                            </div>
+                            <div className="font-mono text-xs font-medium text-blue-600">
+                              {record.extracted_fields?.entryRunNumber || '-'}
                             </div>
                             <div>
                               <Button

@@ -1291,6 +1291,9 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   // Universal TDDF processing datetime fields extracted from filename
   tddfProcessingDatetime: timestamp("tddf_processing_datetime"), // Full datetime from filename (e.g., 2025-07-14T08:33:32)
   tddfProcessingDate: date("tddf_processing_date"), // Date portion for sorting/pagination
+  // Universal timestamp fields for chronological ordering (Larry B. feature)
+  parsedDatetime: timestamp("parsed_datetime"), // Universal chronological timestamp for every record
+  recordTimeSource: text("record_time_source"), // Documents timestamp origin: "dt_line", "bh_line", "file_timestamp", "file_timestamp + line_offset", "ingest_time"
   createdAt: timestamp("created_at").defaultNow().notNull()
 }, (table) => ({
   uploadIdIdx: index("tddf_jsonb_upload_id_idx").on(table.uploadId),
@@ -1299,7 +1302,10 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   recordIdentifierIdx: index("tddf_jsonb_record_identifier_idx").on(table.recordIdentifier),
   // Indexes for universal TDDF processing datetime sorting and pagination
   tddfProcessingDatetimeIdx: index("tddf_jsonb_processing_datetime_idx").on(table.tddfProcessingDatetime),
-  tddfProcessingDateIdx: index("tddf_jsonb_processing_date_idx").on(table.tddfProcessingDate)
+  tddfProcessingDateIdx: index("tddf_jsonb_processing_date_idx").on(table.tddfProcessingDate),
+  // Indexes for universal timestamp fields
+  parsedDatetimeIdx: index("tddf_jsonb_parsed_datetime_idx").on(table.parsedDatetime),
+  recordTimeSourceIdx: index("tddf_jsonb_record_time_source_idx").on(table.recordTimeSource)
 }));
 
 // MasterCard Data Integrity records table for future expansion

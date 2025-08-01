@@ -12508,6 +12508,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case 'reference_number':
           orderClause = `ORDER BY (extracted_fields->>'referenceNumber') ${sortDirection}`;
           break;
+        case 'parsedDatetime':
+        case 'parsed_datetime':
+        case 'universal_time':
+          orderClause = `ORDER BY parsed_datetime ${sortDirection}`;
+          break;
+        case 'recordTimeSource':
+        case 'record_time_source':
+        case 'time_source':
+          orderClause = `ORDER BY record_time_source ${sortDirection}`;
+          break;
         case 'created_at':
         default:
           orderClause = `ORDER BY created_at ${sortDirection}`;
