@@ -13482,11 +13482,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[HEAT-MAP-CACHE-CLEAR] Clearing heat map cache for year ${targetYear}...`);
       
-      const heatMapTables = [
-        `heat_map_cache_${targetYear}`,
-        `heat_map_cache_${targetYear - 1}`, // Previous year too
-        `heat_map_cache_${targetYear + 1}`  // Next year if exists
-      ];
+      // Clear ALL heat map cache tables (2022-2025 and beyond)
+      const allHeatMapTablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_name LIKE 'heat_map_cache_%'
+        ORDER BY table_name
+      `);
+      
+      const heatMapTables = allHeatMapTablesResult.rows.map(row => row.table_name);
+      console.log(`[HEAT-MAP-CACHE-CLEAR] Found ${heatMapTables.length} heat map cache tables:`, heatMapTables);
       
       let clearedCount = 0;
       

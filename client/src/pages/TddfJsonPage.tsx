@@ -1058,11 +1058,6 @@ export default function TddfJsonPage() {
                   description: "Heat maps and statistics will rebuild automatically",
                 });
                 
-                // Force page refresh to trigger cache rebuild
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
-                
               } catch (error) {
                 console.error('Refresh error:', error);
                 toast({
