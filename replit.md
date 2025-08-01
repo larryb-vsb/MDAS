@@ -13,6 +13,8 @@ Critical System Requirement: "Never re-fresh" policy - all auto-refresh function
 
 **Production TDDF Processing Fixed (2025-08-01)**: Resolved critical production database schema issue where TDDF files failed encoding with "error" phase. Missing production tables (tddf_records_json, tddf_transactions, tddf_purchasing_cards, tddf_purchasing_cards_2) were created from development templates. File phase reset and type classification fixes implemented. Production TDDF processing now matches development environment capabilities.
 
+**Year Navigation & Data Existence Optimization (2025-08-01)**: Successfully implemented year navigation functionality in TDDF JSON Activity Heat Map with comprehensive data existence validation. Fixed React Query configuration to properly refetch data when year changes while maintaining strict "never refresh" policy. Added pre-cache data existence checks to prevent building empty cache tables - system now validates data availability before starting cache rebuild operations, avoiding unnecessary cache creation for years with no data.
+
 ## System Architecture
 
 MMS employs a modern client-server architecture with clear separation between frontend and backend components.

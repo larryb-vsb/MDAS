@@ -63,6 +63,27 @@ export class HeatMapCacheBuilder {
       throw new Error(`Cache builder busy: Job ${activeJob.id} already running (${activeJob.year} ${activeJob.recordType}). Please wait for completion.`);
     }
     
+    // Check if data exists for the requested year before starting cache build
+    const tddfJsonbTableName = getTableName('tddf_jsonb');
+    console.log(`[HEATMAP-CACHE-BUILDER] Checking data existence for ${year} ${recordType} before cache build...`);
+    
+    const dataCheckResult = await pool.query(`
+      SELECT COUNT(*) as record_count
+      FROM ${tddfJsonbTableName}
+      WHERE EXTRACT(YEAR FROM transaction_date) = $1
+      AND record_type = $2
+      LIMIT 1
+    `, [year, recordType]);
+    
+    const recordCount = parseInt(dataCheckResult.rows[0]?.record_count || '0');
+    
+    if (recordCount === 0) {
+      console.log(`[HEATMAP-CACHE-BUILDER] ⚠️ No data found for ${year} ${recordType} - skipping cache build`);
+      throw new Error(`No data available for year ${year} and record type ${recordType}. Cache build skipped to avoid creating empty cache.`);
+    }
+    
+    console.log(`[HEATMAP-CACHE-BUILDER] ✅ Found ${recordCount} records for ${year} ${recordType} - proceeding with cache build`);
+    
     const jobId = `heatmap_${year}_${recordType}_${Date.now()}`;
     
     console.log(`[HEATMAP-CACHE-BUILDER] Starting month-by-month rebuild for ${year} ${recordType} (Job: ${jobId})`);
