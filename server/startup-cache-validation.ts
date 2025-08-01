@@ -80,3 +80,75 @@ export async function ensureTddfCacheTables() {
     console.error('[STARTUP] Error checking TDDF cache tables:', error);
   }
 }
+
+/**
+ * Production self-correcting database validation
+ * Ensures production environment has all necessary tables and structure
+ */
+export async function ensureProductionDatabaseHealth() {
+  if (NODE_ENV !== 'production') {
+    return; // Only run in production
+  }
+
+  console.log(`[STARTUP] Running production database self-correction...`);
+  
+  try {
+    // Critical tables that must exist in production
+    const criticalTables = [
+      'users', 'merchants', 'transactions', 'uploaded_files',
+      'dashboard_cache', 'duplicate_finder_cache', 'charts_pre_cache'
+    ];
+
+    for (const tableName of criticalTables) {
+      const result = await db.execute(sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = ${tableName}
+      `);
+
+      if (result.rows.length === 0) {
+        console.log(`[STARTUP] ⚠️  Missing critical table: ${tableName}`);
+        
+        // Try to create from dev equivalent
+        const devTableName = `dev_${tableName}`;
+        try {
+          const sourceCheck = await db.execute(sql`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = ${devTableName}
+          `);
+          
+          if (sourceCheck.rows.length > 0) {
+            console.log(`[STARTUP] Creating ${tableName} from ${devTableName}...`);
+            await db.execute(sql`
+              CREATE TABLE IF NOT EXISTS ${sql.raw(tableName)} 
+              (LIKE ${sql.raw(devTableName)} INCLUDING ALL)
+            `);
+            console.log(`[STARTUP] ✅ Created critical table: ${tableName}`);
+          }
+        } catch (error) {
+          console.error(`[STARTUP] Failed to create ${tableName}:`, error);
+        }
+      }
+    }
+
+    // Ensure admin user exists in production
+    const userCheck = await db.execute(sql`
+      SELECT id FROM users WHERE username = 'admin'
+    `);
+    
+    if (userCheck.rows.length === 0) {
+      console.log('[STARTUP] Creating admin user for production...');
+      await db.execute(sql`
+        INSERT INTO users (username, password, role) 
+        VALUES ('admin', '$2b$10$mqb9VbNr8iJ9J8B8F4F5z.7J8qZ8X8Y8Z8A8B8C8D8E8F8G8H8I8J8K', 'admin')
+      `);
+      console.log('[STARTUP] ✅ Admin user created');
+    }
+
+    console.log('[STARTUP] ✅ Production database health check complete');
+    
+  } catch (error) {
+    console.error('[STARTUP] Production database health check failed:', error);
+  }
+}

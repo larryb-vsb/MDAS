@@ -2,7 +2,7 @@ import { db } from './db';
 import * as schema from '@shared/schema';
 import { sql } from 'drizzle-orm';
 import { NODE_ENV } from './env-config';
-import { ensureTddfCacheTables } from './startup-cache-validation';
+import { ensureTddfCacheTables, ensureProductionDatabaseHealth } from './startup-cache-validation';
 
 /**
  * Migrates the database schema by checking for tables and creating them if they don't exist
@@ -23,11 +23,17 @@ export async function migrateDatabase() {
       
       // Check and create TDDF cache tables for current environment
       await ensureTddfCacheTables();
+      
+      // Run production-specific health checks and self-corrections
+      await ensureProductionDatabaseHealth();
     } else {
       console.log('Schema update completed. Missing tables have been created.');
       
       // Always ensure TDDF cache tables exist after table creation
       await ensureTddfCacheTables();
+      
+      // Run production-specific health checks and self-corrections
+      await ensureProductionDatabaseHealth();
     }
     
     return true;
