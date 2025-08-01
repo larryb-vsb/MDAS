@@ -29,6 +29,168 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// Enhanced Loading Display Component with Pre-Cache Status
+interface EnhancedLoadingDisplayProps {
+  tabName: string;
+  preCacheStatus?: any;
+  onRefresh?: () => void;
+}
+
+function EnhancedLoadingDisplay({ tabName, preCacheStatus, onRefresh }: EnhancedLoadingDisplayProps) {
+  // Map tab names to display names and cache table info
+  const getTabInfo = (tab: string) => {
+    const tabMapping = {
+      'all': { display: 'All Records', table: 'tddf_records_all_pre_cache' },
+      'DT': { display: 'DT - Transactions', table: 'tddf_records_dt_pre_cache' },
+      'BH': { display: 'BH - Batch Headers', table: 'tddf_records_bh_pre_cache' },
+      'batch': { display: 'Batch Relationships', table: 'tddf_batch_relationships_pre_cache' },
+      'P1': { display: 'P1 - Purchasing', table: 'tddf_records_p1_pre_cache' },
+      'P2': { display: 'P2 - Purchasing 2', table: 'tddf_records_p2_pre_cache' },
+      'other': { display: 'Other Types', table: 'tddf_records_other_pre_cache' }
+    };
+    return tabMapping[tab as keyof typeof tabMapping] || { display: tab, table: 'unknown_table' };
+  };
+
+  const tabInfo = getTabInfo(tabName);
+  const currentTabStatus = preCacheStatus?.tabs?.find((t: any) => t.tabName === tabName || (tabName === 'batch' && t.tabName === 'batch-relationships'));
+
+  // Calculate cache age
+  const getCacheAge = (lastRefreshed: string) => {
+    const now = new Date();
+    const refreshed = new Date(lastRefreshed);
+    const diffMs = now.getTime() - refreshed.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 24) {
+      return `${Math.floor(diffHours / 24)}d ${diffHours % 24}h`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    } else {
+      return `${diffMinutes}m`;
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+      {/* Spinning Loader */}
+      <div className="relative">
+        <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+
+      {/* Enhanced Cache Status Header */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md w-full">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold text-blue-900 text-sm">
+              Loading {tabInfo.display}
+            </span>
+          </div>
+          {onRefresh && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onRefresh}
+              className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-100"
+              title="Refresh cache status"
+            >
+              <RefreshCw className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+
+        {/* Cache Information */}
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-blue-700 font-medium">Cache Table:</span>
+            <span className="font-mono text-blue-800 bg-blue-100 px-2 py-1 rounded">
+              {tabInfo.table}
+            </span>
+          </div>
+
+          {currentTabStatus ? (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-blue-700 font-medium">Status:</span>
+                <Badge className={
+                  currentTabStatus.status === 'available' 
+                    ? 'bg-green-100 text-green-800 border-green-300' 
+                    : currentTabStatus.status === 'not_available'
+                    ? 'bg-orange-100 text-orange-800 border-orange-300'
+                    : 'bg-red-100 text-red-800 border-red-300'
+                }>
+                  {currentTabStatus.status === 'available' ? '✓ Available' : 
+                   currentTabStatus.status === 'not_available' ? '⚠ Not Built' : '✗ Error'}
+                </Badge>
+              </div>
+
+              {currentTabStatus.status === 'available' && (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700 font-medium">Records:</span>
+                    <span className="font-mono text-blue-800">
+                      {currentTabStatus.recordCount?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+
+                  {currentTabStatus.lastRefreshed && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 font-medium">Cache Age:</span>
+                      <span className="text-blue-800">
+                        {getCacheAge(currentTabStatus.lastRefreshed)}
+                      </span>
+                    </div>
+                  )}
+
+                  {currentTabStatus.buildTime && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 font-medium">Build Time:</span>
+                      <span className="text-blue-800">
+                        {currentTabStatus.buildTime}ms
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {currentTabStatus.status === 'not_available' && (
+                <div className="text-center mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                  <span className="text-orange-800 text-xs">
+                    Pre-cache needs to be built for faster loading
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex justify-between items-center">
+              <span className="text-blue-700 font-medium">Status:</span>
+              <Badge className="bg-gray-100 text-gray-800 border-gray-300">
+                Checking...
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Loading Progress Indicator */}
+        <div className="mt-3">
+          <div className="flex items-center gap-2 text-xs text-blue-700">
+            <span>•</span>
+            <span>Querying TDDF records...</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Note */}
+      {currentTabStatus?.status === 'not_available' && (
+        <div className="text-xs text-center text-muted-foreground max-w-sm">
+          <p>Loading from live database. Consider building pre-cache for faster performance.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface TddfJsonRecord {
   id: number;
   upload_id: string;
@@ -154,7 +316,11 @@ function BatchRelationshipsView() {
       </CardHeader>
       <CardContent>
         {batchLoading ? (
-          <div className="text-center py-8">Loading batch relationships...</div>
+          <EnhancedLoadingDisplay 
+            tabName="batch"
+            preCacheStatus={undefined}
+            onRefresh={undefined}
+          />
         ) : batchData?.batches?.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No batch relationships found
@@ -527,7 +693,7 @@ export default function TddfJsonPage() {
   const [associatedP1Record, setAssociatedP1Record] = useState<any | null>(null);
   const [loadingP1, setLoadingP1] = useState(false);
   const [p1Records, setP1Records] = useState<Map<number, any>>(new Map());
-  const [activeTab, setActiveTab] = useState<'dt' | 'expanded' | 'raw'>('dt');
+  const [activeTab, setActiveTab] = useState<'dt' | 'expanded' | 'raw' | 'p1'>('dt');
   const [dateFilter, setDateFilter] = useState<string>('');
 
 
@@ -586,6 +752,14 @@ export default function TddfJsonPage() {
     staleTime: 15 * 60 * 1000, // Cache for 15 minutes - performance stats change slowly
     gcTime: 60 * 60 * 1000, // Keep in cache for 1 hour
     enabled: !!stats, // Only load after basic stats are loaded
+  });
+
+  // Pre-cache status for enhanced loading display
+  const { data: preCacheStatus, isLoading: preCacheStatusLoading, refetch: refetchPreCacheStatus } = useQuery({
+    queryKey: ['/api/tddf-records/pre-cache/status', 2024],
+    queryFn: () => fetch('/api/tddf-records/pre-cache/status?year=2024', { credentials: 'include' }).then(res => res.json()),
+    refetchInterval: recordsLoading ? 5000 : false, // Refresh every 5 seconds when records are loading
+    enabled: recordsLoading, // Only fetch when records are loading
   });
 
   const handleRecordClick = async (record: TddfJsonRecord) => {
@@ -929,7 +1103,11 @@ export default function TddfJsonPage() {
                 </CardHeader>
                 <CardContent>
                 {recordsLoading ? (
-                  <div className="text-center py-8">Loading records...</div>
+                  <EnhancedLoadingDisplay 
+                    tabName={selectedTab}
+                    preCacheStatus={preCacheStatus}
+                    onRefresh={refetchPreCacheStatus}
+                  />
                 ) : recordsData?.records?.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No records found matching your criteria
