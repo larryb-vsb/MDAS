@@ -710,7 +710,6 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
   useEffect(() => {
     // Add validation to prevent API calls with invalid IDs
     if (!dtRecordId || typeof dtRecordId !== 'number') {
-      console.error('P1Badge: Invalid dtRecordId provided:', dtRecordId);
       setHasP1(false);
       return;
     }
@@ -720,11 +719,15 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
         const p1Record = await checkForP1Extension(dtRecordId);
         setHasP1(!!p1Record);
       } catch (error) {
-        console.error('P1Badge: Error checking P1 extension:', error);
+        // Silently handle errors - don't log to console to avoid unhandled rejections
         setHasP1(false);
       }
     };
-    checkP1();
+    
+    // Wrap in try-catch to prevent unhandled promise rejections
+    checkP1().catch(() => {
+      setHasP1(false);
+    });
   }, [dtRecordId, checkForP1Extension]);
 
   if (hasP1 === null) return null;
