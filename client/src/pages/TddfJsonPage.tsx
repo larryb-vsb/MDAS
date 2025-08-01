@@ -1031,30 +1031,45 @@ export default function TddfJsonPage() {
             onClick={async () => {
               toast({
                 title: "Refreshing data...",
-                description: "Clearing cache and rescanning for new data",
+                description: "Clearing cache and rebuilding heat maps",
               });
               
               try {
-                // Trigger full rescan by setting new data flag
-                await apiRequest('/api/uploader/trigger-rescan', {
+                // Clear heat map cache tables for current year
+                await apiRequest('/api/heat-map-cache/clear', {
                   method: 'POST',
-                  body: { force: true }
+                  body: { year: new Date().getFullYear(), force: true }
                 });
                 
-                // Clear all TDDF-related caches
+                // Clear TDDF statistics pre-cache
+                await apiRequest('/api/tddf-json/clear-precache', {
+                  method: 'POST'
+                });
+                
+                // Clear all TDDF-related query caches
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/batch-relationships'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
                 
-                // Force refetch
+                toast({
+                  title: "Cache cleared",
+                  description: "Heat maps and statistics will rebuild automatically",
+                });
+                
+                // Force page refresh to trigger cache rebuild
                 setTimeout(() => {
                   window.location.reload();
-                }, 1000);
+                }, 1500);
                 
               } catch (error) {
                 console.error('Refresh error:', error);
+                toast({
+                  title: "Refresh completed",
+                  description: "Using fallback cache invalidation",
+                });
+                
                 // Fallback to simple cache invalidation
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
                 queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });

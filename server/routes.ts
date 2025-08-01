@@ -13337,21 +13337,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear all TDDF precache tables to ensure consistent state
       console.log('[TDDF-JSON-CLEAR] Clearing all TDDF precache tables...');
       
-      const precacheTables = [
-        'tddf_json_stats_pre_cache',
-        'tddf_json_activity_pre_cache', 
-        'tddf_json_record_type_counts_pre_cache',
-        'tddf_records_all_pre_cache',
-        'tddf_records_dt_pre_cache',
-        'tddf_records_bh_pre_cache',
-        'tddf_records_p1_pre_cache',
-        'tddf_records_p2_pre_cache',
-        'tddf_records_other_pre_cache',
-        'tddf_batch_relationships_pre_cache',
-        'tddf_records_tab_processing_status',
-        'charts_pre_cache',
-        'heat_map_cache_2024',
-        'heat_map_cache_2025',
+      // Get ALL tables with TDDF in the name dynamically
+      console.log('[TDDF-JSON-CLEAR] Discovering all TDDF-related tables...');
+      const allTablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_name LIKE '%tddf%' 
+        OR table_name LIKE '%heat_map_cache%'
+        OR table_name LIKE '%charts_pre_cache%'
+        ORDER BY table_name
+      `);
+      
+      const discoveredTables = allTablesResult.rows.map(row => row.table_name);
+      console.log(`[TDDF-JSON-CLEAR] Found ${discoveredTables.length} TDDF-related tables:`, discoveredTables);
+      
+      // Also include known cache tables that might not have "tddf" but are related
+      const additionalCacheTables = [
         'dashboard_cache',
         'dashboard_merchants_cache_2024',
         'dashboard_merchants_cache_2025',
@@ -13359,6 +13360,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'uploader_page_pre_cache_2025',
         'uploader_dashboard_cache'
       ];
+      
+      const precacheTables = [...new Set([...discoveredTables, ...additionalCacheTables])];
       
       let precacheTablesCleared = 0;
       
@@ -13411,6 +13414,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Failed to clear TDDF JSON database"
+      });
+    }
+  });
+
+  // Clear TDDF precache endpoint for refresh functionality
+  app.post("/api/tddf-json/clear-precache", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[TDDF-PRECACHE-CLEAR] Starting precache clearing...');
+      
+      const precacheTables = [
+        'tddf_json_stats_pre_cache',
+        'tddf_json_activity_pre_cache', 
+        'tddf_json_record_type_counts_pre_cache',
+        'tddf_records_all_pre_cache',
+        'tddf_records_dt_pre_cache',
+        'tddf_records_bh_pre_cache',
+        'tddf_records_p1_pre_cache',
+        'tddf_records_p2_pre_cache',
+        'tddf_records_other_pre_cache',
+        'tddf_batch_relationships_pre_cache',
+        'tddf_records_tab_processing_status'
+      ];
+      
+      let clearedCount = 0;
+      
+      for (const table of precacheTables) {
+        const fullTableName = getTableName(table);
+        try {
+          const tableExists = await pool.query(`
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name = $1
+          `, [fullTableName]);
+          
+          if (tableExists.rows.length > 0) {
+            await pool.query(`TRUNCATE TABLE ${fullTableName} RESTART IDENTITY`);
+            clearedCount++;
+            console.log(`[TDDF-PRECACHE-CLEAR] Cleared: ${fullTableName}`);
+          }
+        } catch (tableError) {
+          console.log(`[TDDF-PRECACHE-CLEAR] Skipping ${fullTableName}: ${tableError.message}`);
+        }
+      }
+      
+      console.log(`[TDDF-PRECACHE-CLEAR] Successfully cleared ${clearedCount} precache tables`);
+      
+      res.json({
+        success: true,
+        clearedTables: clearedCount,
+        message: `Successfully cleared ${clearedCount} TDDF precache tables`
+      });
+      
+    } catch (error) {
+      console.error('[TDDF-PRECACHE-CLEAR] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear precache"
+      });
+    }
+  });
+
+  // Clear heat map cache endpoint for refresh functionality  
+  app.post("/api/heat-map-cache/clear", isAuthenticated, async (req, res) => {
+    try {
+      const { year, force } = req.body;
+      const targetYear = year || new Date().getFullYear();
+      
+      console.log(`[HEAT-MAP-CACHE-CLEAR] Clearing heat map cache for year ${targetYear}...`);
+      
+      const heatMapTables = [
+        `heat_map_cache_${targetYear}`,
+        `heat_map_cache_${targetYear - 1}`, // Previous year too
+        `heat_map_cache_${targetYear + 1}`  // Next year if exists
+      ];
+      
+      let clearedCount = 0;
+      
+      for (const table of heatMapTables) {
+        try {
+          const tableExists = await pool.query(`
+            SELECT 1 FROM information_schema.tables 
+            WHERE table_name = $1
+          `, [table]);
+          
+          if (tableExists.rows.length > 0) {
+            await pool.query(`TRUNCATE TABLE ${table} RESTART IDENTITY`);
+            clearedCount++;
+            console.log(`[HEAT-MAP-CACHE-CLEAR] Cleared: ${table}`);
+          }
+        } catch (tableError) {
+          console.log(`[HEAT-MAP-CACHE-CLEAR] Skipping ${table}: ${tableError.message}`);
+        }
+      }
+      
+      console.log(`[HEAT-MAP-CACHE-CLEAR] Successfully cleared ${clearedCount} heat map cache tables`);
+      
+      res.json({
+        success: true,
+        clearedTables: clearedCount,
+        year: targetYear,
+        message: `Successfully cleared ${clearedCount} heat map cache tables for ${targetYear}`
+      });
+      
+    } catch (error) {
+      console.error('[HEAT-MAP-CACHE-CLEAR] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear heat map cache"
       });
     }
   });
