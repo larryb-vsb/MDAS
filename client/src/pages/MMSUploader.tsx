@@ -431,15 +431,22 @@ export default function MMSUploader() {
   const orphanScanMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('/api/uploader/scan-orphans', {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({ 
+          storageLocation: selectedStorageLocation 
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       return response;
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/storage-config'] });
+      const locationText = data.actualPrefix ? `${data.actualPrefix}/` : 'selected storage location';
       toast({ 
         title: 'Orphan Scan Complete', 
-        description: `Found ${data.orphanCount || 0} orphan files in storage. Total: ${data.totalStorageFiles || 0} storage files vs ${data.databaseFiles || 0} database records.` 
+        description: `Found ${data.orphanCount || 0} orphan files in ${locationText}. Total: ${data.totalStorageFiles || 0} storage files vs ${data.databaseFiles || 0} database records.` 
       });
     },
     onError: (error) => {

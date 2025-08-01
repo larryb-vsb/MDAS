@@ -8040,11 +8040,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('[ORPHAN-SCAN] Starting orphan file scan...');
+      // Get storage location from request body (or use current environment as default)
+      const storageLocation = req.body.storageLocation || 'auto';
+      let actualPrefix = config.folderPrefix; // Default to current environment
       
-      // Get all files from storage
-      const storageFiles = await ReplitStorageService.listFiles();
-      console.log(`[ORPHAN-SCAN] Found ${storageFiles.length} files in object storage`);
+      // Override prefix based on selection
+      if (storageLocation === 'dev-uploader') {
+        actualPrefix = 'dev-uploader';
+      } else if (storageLocation === 'prod-uploader') {
+        actualPrefix = 'prod-uploader';
+      }
+      
+      console.log(`[ORPHAN-SCAN] Starting orphan file scan for ${actualPrefix}/...`);
+      
+      // Get files from the specified storage location
+      const searchPrefix = actualPrefix.endsWith('/') ? actualPrefix : `${actualPrefix}/`;
+      const storageFiles = await ReplitStorageService.listFiles(searchPrefix);
+      console.log(`[ORPHAN-SCAN] Found ${storageFiles.length} files in ${actualPrefix}/ storage location`);
       
       // Get all upload records from database  
       const uploaderUploadsTableName = getTableName('uploader_uploads');
@@ -8092,7 +8104,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orphanCount: orphanFiles.length,
         orphanFiles: orphanFiles.slice(0, 50), // Return first 50 for preview
         scannedAt: new Date().toISOString(),
-        environment: config.environment
+        environment: config.environment,
+        actualPrefix: actualPrefix,
+        storageLocation: storageLocation
       };
       
       res.json(result);
