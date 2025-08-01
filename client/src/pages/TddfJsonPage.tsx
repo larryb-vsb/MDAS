@@ -703,31 +703,43 @@ function TerminalIdDisplay({ terminalId }: { terminalId?: string }) {
   );
 }
 
-// P1 Badge Component
+// P1 Badge Component - Enhanced validation and error handling
 function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, checkForP1Extension: (id: number) => Promise<any> }) {
   const [hasP1, setHasP1] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Add validation to prevent API calls with invalid IDs
-    if (!dtRecordId || typeof dtRecordId !== 'number') {
+    // Comprehensive validation to prevent API calls with invalid IDs
+    if (!dtRecordId || typeof dtRecordId !== 'number' || isNaN(dtRecordId) || dtRecordId <= 0) {
       setHasP1(false);
       return;
     }
 
+    let isMounted = true;
+
     const checkP1 = async () => {
       try {
         const p1Record = await checkForP1Extension(dtRecordId);
-        setHasP1(!!p1Record);
+        if (isMounted) {
+          setHasP1(!!p1Record);
+        }
       } catch (error) {
-        // Silently handle errors - don't log to console to avoid unhandled rejections
-        setHasP1(false);
+        if (isMounted) {
+          setHasP1(false);
+        }
       }
     };
     
-    // Wrap in try-catch to prevent unhandled promise rejections
+    // Execute with proper error handling
     checkP1().catch(() => {
-      setHasP1(false);
+      if (isMounted) {
+        setHasP1(false);
+      }
     });
+
+    // Cleanup function to prevent state updates on unmounted components
+    return () => {
+      isMounted = false;
+    };
   }, [dtRecordId, checkForP1Extension]);
 
   if (hasP1 === null) return null;
@@ -919,19 +931,22 @@ export default function TddfJsonPage() {
   };
 
   // Function to check if a DT record has P1 extension
-  const checkForP1Extension = async (dtRecordId: number) => {
-    // Add validation to prevent undefined values
-    if (!dtRecordId || typeof dtRecordId !== 'number') {
-      console.error('Invalid dtRecordId provided to checkForP1Extension:', dtRecordId);
-      return null;
+  const checkForP1Extension = async (dtRecordId: number): Promise<any> => {
+    // Add comprehensive validation to prevent undefined values
+    if (!dtRecordId || typeof dtRecordId !== 'number' || isNaN(dtRecordId) || dtRecordId <= 0) {
+      return Promise.resolve(null);
     }
     
+    // Check cache first
     if (p1Records.has(dtRecordId)) {
-      return p1Records.get(dtRecordId);
+      return Promise.resolve(p1Records.get(dtRecordId));
     }
     
     try {
       const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
       const data = await response.json();
       const p1Record = data.p1Record;
       
@@ -939,7 +954,8 @@ export default function TddfJsonPage() {
       setP1Records(prev => new Map(prev.set(dtRecordId, p1Record)));
       return p1Record;
     } catch (error) {
-      console.error('Error checking P1 record:', error);
+      // Silently handle errors and cache the null result
+      setP1Records(prev => new Map(prev.set(dtRecordId, null)));
       return null;
     }
   };
@@ -1638,7 +1654,7 @@ export default function TddfJsonPage() {
                               <Badge className={getRecordTypeBadgeClass(record.record_type)}>
                                 {record.record_type}
                               </Badge>
-                              {record.id && record.record_type === 'DT' && (
+                              {record.id && typeof record.id === 'number' && record.id > 0 && record.record_type === 'DT' && (
                                 <P1Badge dtRecordId={record.id} checkForP1Extension={checkForP1Extension} />
                               )}
                             </div>
