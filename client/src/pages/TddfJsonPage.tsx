@@ -1346,7 +1346,8 @@ export default function TddfJsonPage() {
           setSelectedTab(newTab);
         }}>
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="all">
+            <TabsTrigger value="all" className="flex items-center gap-2">
+              <Badge className="text-xs bg-gray-100 text-gray-700 border-gray-300">ALL</Badge>
               All Records
               {recordsData && (
                 <Badge className="ml-1 text-xs bg-blue-100 text-blue-800">
@@ -1354,8 +1355,9 @@ export default function TddfJsonPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="DT">
-              DT - Transactions
+            <TabsTrigger value="DT" className="flex items-center gap-2">
+              <Badge className="text-xs bg-green-100 text-green-700 border-green-300">DT</Badge>
+              Transactions
               {selectedYear && (
                 <Badge className="ml-1 text-xs bg-green-100 text-green-800">
                   {getRecordCountForYear('DT', selectedYear)}
@@ -1365,9 +1367,10 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="BH"
               disabled={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0}
-              className={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0 ? 'opacity-50' : ''}
+              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('BH', selectedYear) === 0 ? 'opacity-50' : ''}`}
             >
-              BH - Batch Headers
+              <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-300">BH</Badge>
+              Batch Headers
               {selectedYear && getRecordCountForYear('BH', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-orange-100 text-orange-800">
                   {getRecordCountForYear('BH', selectedYear)}
@@ -1379,13 +1382,17 @@ export default function TddfJsonPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="batch">Batch Relationships</TabsTrigger>
+            <TabsTrigger value="batch" className="flex items-center gap-2">
+              <Badge className="text-xs bg-cyan-100 text-cyan-700 border-cyan-300">REL</Badge>
+              Batch Relationships
+            </TabsTrigger>
             <TabsTrigger 
               value="P1"
               disabled={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0}
-              className={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0 ? 'opacity-50' : ''}
+              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('P1', selectedYear) === 0 ? 'opacity-50' : ''}`}
             >
-              P1 - Purchasing
+              <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300">P1</Badge>
+              Purchasing
               {selectedYear && getRecordCountForYear('P1', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-purple-100 text-purple-800">
                   {getRecordCountForYear('P1', selectedYear)}
@@ -1400,9 +1407,10 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="P2"
               disabled={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0}
-              className={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0 ? 'opacity-50' : ''}
+              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('P2', selectedYear) === 0 ? 'opacity-50' : ''}`}
             >
-              P2 - Purchasing 2
+              <Badge className="text-xs bg-indigo-100 text-indigo-700 border-indigo-300">P2</Badge>
+              Purchasing 2
               {selectedYear && getRecordCountForYear('P2', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-indigo-100 text-indigo-800">
                   {getRecordCountForYear('P2', selectedYear)}
@@ -1417,8 +1425,9 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="other"
               disabled={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0}
-              className={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0 ? 'opacity-50' : ''}
+              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0 ? 'opacity-50' : ''}`}
             >
+              <Badge className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">OTH</Badge>
               Other Types
               {selectedYear && getRecordCountForYear('OTHER', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-gray-100 text-gray-800">
@@ -1531,14 +1540,18 @@ export default function TddfJsonPage() {
                           <div>Actions</div>
                         </div>
                       ) : selectedTab === 'DT' ? (
-                        /* DT Records - Universal Timestamping Format: Badge, Universal Data, Merchant ID, Transaction Amount */
-                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-5 gap-4 text-sm font-medium">
+                        /* DT Records - Show TDDF header fields plus original DT fields */
+                        <div className="bg-muted/50 px-4 py-2 grid grid-cols-10 gap-4 text-sm font-medium">
                           {[
-                            { key: 'record_type_badge', label: 'Badge', tooltip: 'Record Type Badge (DT)' },
-                            { key: 'parsed_datetime', label: 'Universal Time', tooltip: 'Universal timestamp with source traceability' },
-                            { key: 'merchant_id', label: 'Merchant ID', tooltip: 'Merchant identification from record' },
-                            { key: 'transaction_amount', label: 'Amount', tooltip: 'Transaction or batch total amount' },
-                            { key: 'line_number', label: 'Line #', tooltip: 'Original line number for traceability' }
+                            { key: 'sequence_number_area', label: 'Seq A #', tooltip: 'Sequence Number Area (1-7): File-level sequence ID' },
+                            { key: 'entry_run_number', label: 'Run #', tooltip: 'Entry Run Number (8-13): Batch ID' },
+                            { key: 'sequence_within_run', label: 'Seq R#', tooltip: 'Sequence within Run (14-17): Unique within batch' },
+                            { key: 'record_identifier', label: 'Type', tooltip: 'Record Identifier (18-19): DT for Detail Transaction' },
+                            { key: 'transaction_date', label: 'Transaction Date' },
+                            { key: 'transaction_amount', label: 'Amount' },
+                            { key: 'merchant_name', label: 'Merchant' },
+                            { key: 'terminal_id', label: 'Terminal' },
+                            { key: 'card_type', label: 'Card Type' }
                           ].map(({ key, label, tooltip }) => (
                             tooltip ? (
                               <TooltipProvider key={key}>
@@ -1727,39 +1740,62 @@ export default function TddfJsonPage() {
                             </div>
                           </div>
                         ) : selectedTab === 'DT' ? (
-                          /* DT Records - Universal Timestamping Format: Badge, Universal Data, Merchant ID, Transaction Amount */
-                          <div key={record.id} className="px-4 py-3 grid grid-cols-5 gap-4 border-t items-center text-sm">
+                          /* DT Records - Show TDDF header fields plus original DT fields */
+                          <div key={record.id} className="px-4 py-3 grid grid-cols-10 gap-4 border-t items-center text-sm">
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceNumberArea || record.extracted_fields?.sequenceNumber || '-'}
+                            </div>
+                            <div className="font-mono text-xs font-medium text-blue-600">
+                              {record.extracted_fields?.entryRunNumber || '-'}
+                            </div>
+                            <div className="font-mono text-xs">
+                              {record.extracted_fields?.sequenceWithinRun || '-'}
+                            </div>
                             <div className="font-mono text-xs">
                               <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-                                DT
+                                {record.extracted_fields?.recordIdentifier || '-'}
                               </Badge>
                             </div>
-                            <div className="font-mono text-xs text-blue-600">
-                              {record.parsed_datetime ? (
+                            <div>
+                              {formatDate(record.extracted_fields?.transactionDate)}
+                            </div>
+                            <div className="font-mono text-green-600">
+                              {formatAmount(record.extracted_fields?.transactionAmount)}
+                            </div>
+                            <div className="truncate">
+                              {getMerchantNameFromDT(record.extracted_fields?.merchantAccountNumber || '') || record.extracted_fields?.merchantName || '-'}
+                            </div>
+                            <div>
+                              <TerminalIdDisplay terminalId={record.extracted_fields?.terminalId} />
+                            </div>
+                            <div>
+                              {record.extracted_fields?.cardType ? (
                                 <div className="flex flex-col">
-                                  <span>{record.parsed_datetime}</span>
-                                  <span className="text-xs text-gray-500">
-                                    {record.record_time_source || 'file_timestamp + line offset'}
-                                  </span>
+                                  {(() => {
+                                    const cardBadge = getCardTypeBadge(record.extracted_fields.cardType as string);
+                                    return cardBadge ? (
+                                      <Badge variant="outline" className={`text-xs ${cardBadge.className}`}>
+                                        {cardBadge.label}
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        {record.extracted_fields.cardType}
+                                      </Badge>
+                                    );
+                                  })()}
                                 </div>
-                              ) : (
-                                <span className="text-gray-400">Pending Timestamp</span>
-                              )}
+                              ) : <span className="text-gray-400 text-xs">-</span>}
                             </div>
-                            <div className="font-mono text-xs">
-                              {record.extracted_fields?.merchantAccountNumber || 
-                               record.extracted_fields?.merchantName || 
-                               <span className="text-gray-400">-</span>}
-                            </div>
-                            <div className="font-mono text-green-600 font-medium">
-                              {record.extracted_fields?.transactionAmount ? 
-                                formatAmount(record.extracted_fields.transactionAmount) : 
-                                record.extracted_fields?.netDeposit ? 
-                                formatAmount(record.extracted_fields.netDeposit) :
-                                <span className="text-gray-400">-</span>}
-                            </div>
-                            <div className="font-mono text-xs text-gray-500">
-                              {record.line_number || '-'}
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecordClick(record)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Button>
                             </div>
                           </div>
                         ) : selectedTab === 'P1' ? (
