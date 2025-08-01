@@ -140,20 +140,21 @@ export default function SubTerminals() {
 
   // Function to open terminal selection dialog
   const openTerminalSelectionDialog = (terminal: any) => {
-    if (terminal.hasMultipleMatches && terminal.matchingTerminals.length > 1) {
-      const currentSelection = terminalSelections[terminal.dNumber] || terminal.selectedTerminalId;
-      setTerminalSelectionDialog({
-        isOpen: true,
-        dNumber: terminal.dNumber,
-        matchingTerminals: terminal.matchingTerminals,
-        currentSelection: currentSelection
-      });
-    }
+    const currentSelection = terminalSelections[terminal.dNumber] || terminal.selectedTerminalId;
+    setTerminalSelectionDialog({
+      isOpen: true,
+      dNumber: terminal.dNumber,
+      matchingTerminals: terminal.matchingTerminals || [],
+      currentSelection: currentSelection
+    });
   };
 
   // Get the effective VNumber for a terminal (considering local selections)
   const getEffectiveVNumber = (terminal: any) => {
     const localSelection = terminalSelections[terminal.dNumber];
+    if (localSelection === 'NO_MATCH') {
+      return null; // Return null to show "No Match"
+    }
     if (localSelection && terminal.matchingTerminals) {
       const selectedTerminal = terminal.matchingTerminals.find((t: any) => t.id.toString() === localSelection);
       return selectedTerminal?.v_number || terminal.vNumber;
@@ -442,17 +443,18 @@ export default function SubTerminals() {
                         <TableCell className="font-mono text-sm font-bold text-green-600">
                           <div className="flex items-center gap-2">
                             <span>{getEffectiveVNumber(terminal) || 'No Match'}</span>
-                            {terminal.hasMultipleMatches && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openTerminalSelectionDialog(terminal)}
-                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
-                                title={`${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}`}
-                              >
-                                <Edit2 className="h-3 w-3" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTerminalSelectionDialog(terminal)}
+                              className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                              title={terminal.hasMultipleMatches ? 
+                                `${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}` :
+                                `Select terminal for ${terminal.dNumber}`
+                              }
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm text-orange-600">{terminal.generic_field_1 || 'N/A'}</TableCell>
@@ -702,17 +704,18 @@ export default function SubTerminals() {
                             ) : (
                               <span className="text-gray-400">No Match</span>
                             )}
-                            {terminal.hasMultipleMatches && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openTerminalSelectionDialog(terminal)}
-                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
-                                title={`${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}`}
-                              >
-                                <Edit2 className="h-3 w-3" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTerminalSelectionDialog(terminal)}
+                              className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                              title={terminal.hasMultipleMatches ? 
+                                `${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}` :
+                                `Select terminal for ${terminal.dNumber}`
+                              }
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">
@@ -801,6 +804,45 @@ export default function SubTerminals() {
           </DialogHeader>
           
           <div className="space-y-4 max-h-96 overflow-y-auto">
+            {/* No Match Option */}
+            <div 
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                terminalSelectionDialog.currentSelection === 'NO_MATCH'
+                  ? 'border-red-500 bg-red-50' 
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+              onClick={() => {
+                setTerminalSelectionDialog(prev => ({
+                  ...prev,
+                  currentSelection: 'NO_MATCH'
+                }));
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-lg font-bold text-red-600">
+                      No Match
+                    </span>
+                    <Badge variant="outline" className="text-red-600">
+                      Clear Selection
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <strong>Description:</strong> No terminal matches this D-Number
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  {terminalSelectionDialog.currentSelection === 'NO_MATCH' && (
+                    <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Available Terminal Options */}
             {terminalSelectionDialog.matchingTerminals.map((terminal, index) => {
               const isSelected = terminalSelectionDialog.currentSelection === terminal.id.toString();
               return (
@@ -873,7 +915,8 @@ export default function SubTerminals() {
               }}
               disabled={!terminalSelectionDialog.currentSelection || updateTerminalSelectionMutation.isPending}
             >
-              {updateTerminalSelectionMutation.isPending ? 'Updating...' : 'Select Terminal'}
+              {updateTerminalSelectionMutation.isPending ? 'Updating...' : 
+               terminalSelectionDialog.currentSelection === 'NO_MATCH' ? 'Clear Selection' : 'Select Terminal'}
             </Button>
           </div>
         </DialogContent>
