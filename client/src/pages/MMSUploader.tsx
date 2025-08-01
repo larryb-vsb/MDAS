@@ -217,14 +217,31 @@ export default function MMSUploader() {
   const totalCount = uploadsResponse?.totalCount || uploads.length;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Get storage configuration
+  // Storage location state (dev-uploader or prod-uploader)
+  const [selectedStorageLocation, setSelectedStorageLocation] = React.useState<string>('auto');
+
+  // Get storage configuration with selected location
   const { data: storageConfig } = useQuery<{
     available: boolean;
     service: string;
     bucket: string;
     fileCount?: number;
+    actualPrefix?: string;
+    environment?: string;
+    folderPrefix?: string;
   }>({
-    queryKey: ['/api/uploader/storage-config'],
+    queryKey: ['/api/uploader/storage-config', selectedStorageLocation],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedStorageLocation !== 'auto') {
+        params.set('prefix', selectedStorageLocation);
+      }
+      const response = await fetch(`/api/uploader/storage-config?${params.toString()}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch storage config');
+      return response.json();
+    },
     refetchInterval: 5000 // Check storage status every 5 seconds
   });
 
@@ -1063,15 +1080,34 @@ export default function MMSUploader() {
           <Card className="p-4 border-2 border-blue-200 bg-blue-50">
             <div className="flex items-center gap-2">
               <Database className="h-5 w-5 text-blue-600" />
-              <div>
+              <div className="flex-1">
                 <div className="text-lg font-bold text-blue-700">
                   {storageConfig?.available ? '✅ Replit Storage' : '❌ Storage Offline'}
                 </div>
                 <div className="text-sm text-blue-600">
                   Bucket: {storageConfig?.bucket || 'default-replit-bucket'}
                 </div>
-                <div className="text-xs text-blue-500">
-                  Folder: dev-uploader/
+                
+                {/* Storage Location Selector */}
+                <div className="flex items-center gap-2 mt-2">
+                  <Label className="text-xs text-blue-600">View:</Label>
+                  <Select 
+                    value={selectedStorageLocation} 
+                    onValueChange={setSelectedStorageLocation}
+                  >
+                    <SelectTrigger className="h-6 text-xs w-32 bg-white border-blue-300">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto ({storageConfig?.environment || 'dev'})</SelectItem>
+                      <SelectItem value="dev-uploader">Dev Files</SelectItem>
+                      <SelectItem value="prod-uploader">Prod Files</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="text-xs text-blue-500 mt-1">
+                  Folder: {storageConfig?.actualPrefix || storageConfig?.folderPrefix || 'dev-uploader'}/
                   {storageConfig?.fileCount !== undefined && (
                     <span className="ml-2">({storageConfig.fileCount} files)</span>
                   )}
