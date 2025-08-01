@@ -36,6 +36,8 @@ MMS employs a modern client-server architecture with clear separation between fr
 - **Database Schema**: Includes tables for Merchants, Transactions, Users, Uploaded Files, Backup Management, Audit Logging, and Schema Versioning.
 - **Tab-Specific Pre-Cache System**: Each TDDF JSON page tab (Statistics, Activity Heat Map, Batch Relationships, Other Records) now has dedicated pre-cache tables optimized for their unique data patterns and query requirements, eliminating expensive real-time aggregations and JOINs.
 - **TDDF Records Pre-Cache by Year**: Comprehensive pre-cache system for TDDF record tabs by year with dedicated tables for All Records, DT-Transactions, BH-Batch Headers, Batch Relationships, P1-Purchasing, P2-Purchasing 2, and Other Types. Features "never expire" policy, manual refresh controls, processing status tracking, and enhanced loading dialogs similar to heat map implementation.
+- **Enhanced Batch Relations with G2 Records**: Complete BH → DT → G2 relationship support showing comprehensive batch relationships including geographic/location data from G2 records. Features merchant location information, category codes, and enhanced validation badges for relationship compliance.
+- **TDDF Specification Documentation**: Complete official TDDF specification extracted and organized in `tddf_documentation/` directory with reference guide (`TDDF_SPECIFICATION_REFERENCE.md`) covering all record types, relationships, and field mappings based on 2025-06-10 specification version.
 
 ## External Dependencies
 
