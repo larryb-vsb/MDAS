@@ -4997,7 +4997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Join with terminals table to get VNumber where term_number matches dNumber (without D prefix)
       const terminalsTableName = getTableName('terminals');
       const terminalMatches = await pool.query(`
-        SELECT v_number, term_number
+        SELECT id, v_number, term_number, dba_name
         FROM ${terminalsTableName}
         WHERE term_number IS NOT NULL
         AND term_number != ''
@@ -5012,16 +5012,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY name
       `);
       
-      // Create lookup maps - match term_number to D number (without D prefix)
-      const terminalLookup = new Map();
+      // Create lookup maps - collect ALL terminals for each term_number (handle duplicates)
+      const terminalLookup = new Map(); // term_number -> array of terminals
       terminalMatches.rows.forEach(row => {
-        // Primary storage: term_number as-is (should be numeric like "1082", "1083")
-        terminalLookup.set(row.term_number, row.v_number);
+        const termNum = row.term_number;
+        if (!terminalLookup.has(termNum)) {
+          terminalLookup.set(termNum, []);
+        }
+        terminalLookup.get(termNum).push({
+          id: row.id,
+          v_number: row.v_number,
+          dba_name: row.dba_name,
+          term_number: row.term_number
+        });
         
         // Backup: If term_number has D prefix, also store without D
         if (row.term_number && row.term_number.startsWith('D')) {
           const numberOnly = row.term_number.substring(1);
-          terminalLookup.set(numberOnly, row.v_number);
+          if (!terminalLookup.has(numberOnly)) {
+            terminalLookup.set(numberOnly, []);
+          }
+          terminalLookup.get(numberOnly).push({
+            id: row.id,
+            v_number: row.v_number,
+            dba_name: row.dba_name,
+            term_number: row.term_number
+          });
         }
       });
       
@@ -5032,8 +5048,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enhancedSubterminals = subterminals.map((subterminal, index) => {
         // Strip D prefix from SubTerminal dNumber to match against numeric term_number
         const dNumberOnly = subterminal.dNumber.replace(/^D/, ''); // Remove D prefix (D1082 -> 1082)
-        // Primary match: use numeric part only (this should work for most cases)
-        const vNumber = terminalLookup.get(dNumberOnly) || terminalLookup.get(subterminal.dNumber);
+        // Get ALL matching terminals for this term_number
+        const matchingTerminals = terminalLookup.get(dNumberOnly) || terminalLookup.get(subterminal.dNumber) || [];
+        
+        // For backward compatibility, use first match as primary vNumber
+        const vNumber = matchingTerminals.length > 0 ? matchingTerminals[0].v_number : null;
+        const hasMultipleMatches = matchingTerminals.length > 1;
         
         // Find potential merchant matches using fuzzy matching
         const deviceMerchantName = subterminal.deviceMerchant.toLowerCase();
@@ -5075,6 +5095,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...subterminal,
           vNumber: vNumber || null,
           hasTerminalMatch: !!vNumber,
+          hasMultipleMatches: hasMultipleMatches,
+          matchingTerminals: matchingTerminals, // All possible terminal matches
+          selectedTerminalId: matchingTerminals.length > 0 ? matchingTerminals[0].id : null,
           merchantMatches: potentialMatches.slice(0, 3), // Top 3 matches
           hasExactMerchantMatch: potentialMatches.length > 0 && potentialMatches[0].name.toLowerCase() === deviceMerchantName,
           // Add import metadata
@@ -5098,6 +5121,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching SubTerminal raw data:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch SubTerminal data" 
+      });
+    }
+  });
+
+  // Update selected terminal for a SubTerminal (when multiple terminals match same term_number)
+  app.post('/api/subterminals/update-terminal-selection', isAuthenticated, async (req, res) => {
+    try {
+      const { dNumber, selectedTerminalId } = req.body;
+      
+      if (!dNumber || !selectedTerminalId) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'dNumber and selectedTerminalId are required' 
+        });
+      }
+      
+      // In a real implementation, you might want to store this selection in the database
+      // For now, we'll just return success and the frontend will handle the local state
+      res.json({ 
+        success: true, 
+        message: 'Terminal selection updated',
+        dNumber,
+        selectedTerminalId
+      });
+      
+    } catch (error) {
+      console.error('Error updating terminal selection:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to update terminal selection" 
       });
     }
   });

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Search, Plus, Edit, Users, Database } from 'lucide-react';
+import { Building, Search, Plus, Edit, Users, Database, Edit2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { queryClient } from '@/lib/queryClient';
@@ -25,6 +25,22 @@ export default function SubTerminals() {
   const [merchantSearchFilter, setMerchantSearchFilter] = useState('');
   const [showOnlyUnmatched, setShowOnlyUnmatched] = useState(false);
   const [activeTab, setActiveTab] = useState('management');
+  
+  // State for terminal selection dialog
+  const [terminalSelectionDialog, setTerminalSelectionDialog] = useState<{
+    isOpen: boolean;
+    dNumber: string;
+    matchingTerminals: any[];
+    currentSelection: string | null;
+  }>({
+    isOpen: false,
+    dNumber: '',
+    matchingTerminals: [],
+    currentSelection: null
+  });
+  
+  // Local state to track terminal selections
+  const [terminalSelections, setTerminalSelections] = useState<Record<string, string>>({});
 
   const { toast } = useToast();
 
@@ -84,6 +100,66 @@ export default function SubTerminals() {
   });
 
   const merchants = merchantsResponse?.merchants || [];
+
+  // Mutation for updating terminal selection
+  const updateTerminalSelectionMutation = useMutation({
+    mutationFn: async ({ dNumber, selectedTerminalId }: { dNumber: string; selectedTerminalId: string }) => {
+      return apiRequest('/api/subterminals/update-terminal-selection', {
+        method: 'POST',
+        body: { dNumber, selectedTerminalId }
+      });
+    },
+    onSuccess: (data, variables) => {
+      // Update local state
+      setTerminalSelections(prev => ({
+        ...prev,
+        [variables.dNumber]: variables.selectedTerminalId
+      }));
+      
+      toast({
+        title: "Terminal Selection Updated",
+        description: `Updated VNumber selection for ${variables.dNumber}`,
+      });
+      
+      // Close dialog
+      setTerminalSelectionDialog({
+        isOpen: false,
+        dNumber: '',
+        matchingTerminals: [],
+        currentSelection: null
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Update Selection",
+        description: error.message || "An error occurred while updating terminal selection",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Function to open terminal selection dialog
+  const openTerminalSelectionDialog = (terminal: any) => {
+    if (terminal.hasMultipleMatches && terminal.matchingTerminals.length > 1) {
+      const currentSelection = terminalSelections[terminal.dNumber] || terminal.selectedTerminalId;
+      setTerminalSelectionDialog({
+        isOpen: true,
+        dNumber: terminal.dNumber,
+        matchingTerminals: terminal.matchingTerminals,
+        currentSelection: currentSelection
+      });
+    }
+  };
+
+  // Get the effective VNumber for a terminal (considering local selections)
+  const getEffectiveVNumber = (terminal: any) => {
+    const localSelection = terminalSelections[terminal.dNumber];
+    if (localSelection && terminal.matchingTerminals) {
+      const selectedTerminal = terminal.matchingTerminals.find((t: any) => t.id.toString() === localSelection);
+      return selectedTerminal?.v_number || terminal.vNumber;
+    }
+    return terminal.vNumber;
+  };
 
   // Mutations for terminal-merchant management
   const createMerchantMutation = useMutation({
@@ -363,7 +439,22 @@ export default function SubTerminals() {
                             {deviceStatus}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-sm font-bold text-green-600">{terminal.v_number}</TableCell>
+                        <TableCell className="font-mono text-sm font-bold text-green-600">
+                          <div className="flex items-center gap-2">
+                            <span>{getEffectiveVNumber(terminal) || 'No Match'}</span>
+                            {terminal.hasMultipleMatches && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openTerminalSelectionDialog(terminal)}
+                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                                title={`${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}`}
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono text-sm text-orange-600">{terminal.generic_field_1 || 'N/A'}</TableCell>
                         <TableCell>
                           {currentMerchant ? (
@@ -605,11 +696,24 @@ export default function SubTerminals() {
                           </span>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {terminal.vNumber ? (
-                            <span className="text-green-600 font-bold">{terminal.vNumber}</span>
-                          ) : (
-                            <span className="text-gray-400">No Match</span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {getEffectiveVNumber(terminal) ? (
+                              <span className="text-green-600 font-bold">{getEffectiveVNumber(terminal)}</span>
+                            ) : (
+                              <span className="text-gray-400">No Match</span>
+                            )}
+                            {terminal.hasMultipleMatches && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openTerminalSelectionDialog(terminal)}
+                                className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                                title={`${terminal.matchingTerminals?.length || 0} terminals available for ${terminal.dNumber}`}
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm">
                           {terminal.merchantMatches && terminal.merchantMatches.length > 0 ? (
@@ -673,6 +777,107 @@ export default function SubTerminals() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Terminal Selection Dialog */}
+      <Dialog 
+        open={terminalSelectionDialog.isOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setTerminalSelectionDialog({
+              isOpen: false,
+              dNumber: '',
+              matchingTerminals: [],
+              currentSelection: null
+            });
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Select Terminal for {terminalSelectionDialog.dNumber}</DialogTitle>
+            <DialogDescription>
+              Multiple terminals found with term_number {terminalSelectionDialog.dNumber.replace('D', '')}. Choose the correct one:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {terminalSelectionDialog.matchingTerminals.map((terminal, index) => {
+              const isSelected = terminalSelectionDialog.currentSelection === terminal.id.toString();
+              return (
+                <div 
+                  key={terminal.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    isSelected 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => {
+                    setTerminalSelectionDialog(prev => ({
+                      ...prev,
+                      currentSelection: terminal.id.toString()
+                    }));
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-lg font-bold text-green-600">
+                          {terminal.v_number}
+                        </span>
+                        <Badge variant="outline" className="text-blue-600">
+                          ID: {terminal.id}
+                        </Badge>
+                        <Badge variant="outline" className="text-purple-600">
+                          Term#: {terminal.term_number}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-700">
+                        <strong>Terminal Name:</strong> {terminal.dba_name || 'Not specified'}
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      {isSelected && (
+                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setTerminalSelectionDialog({
+                  isOpen: false,
+                  dNumber: '',
+                  matchingTerminals: [],
+                  currentSelection: null
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (terminalSelectionDialog.currentSelection) {
+                  updateTerminalSelectionMutation.mutate({
+                    dNumber: terminalSelectionDialog.dNumber,
+                    selectedTerminalId: terminalSelectionDialog.currentSelection
+                  });
+                }
+              }}
+              disabled={!terminalSelectionDialog.currentSelection || updateTerminalSelectionMutation.isPending}
+            >
+              {updateTerminalSelectionMutation.isPending ? 'Updating...' : 'Select Terminal'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
