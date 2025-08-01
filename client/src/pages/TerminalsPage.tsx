@@ -50,7 +50,8 @@ export default function TerminalsPage() {
         terminal.v_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.dba_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.pos_merchant_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.location?.toLowerCase().includes(searchQuery.toLowerCase());
+        terminal.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.term_number?.toString().toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
       const matchesType = terminalTypeFilter === "all" || terminal.terminal_type === terminalTypeFilter;
@@ -349,7 +350,7 @@ export default function TerminalsPage() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search terminals by VAR number, DBA name, POS Merchant #, or location..."
+                  placeholder="Search terminals by VAR number, DBA name, POS Merchant #, terminal number, or location..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
