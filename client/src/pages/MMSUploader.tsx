@@ -408,6 +408,31 @@ export default function MMSUploader() {
     }
   });
 
+  // Orphan scan mutation
+  const orphanScanMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/uploader/scan-orphans', {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader/storage-config'] });
+      toast({ 
+        title: 'Orphan Scan Complete', 
+        description: `Found ${data.orphanCount || 0} orphan files in storage. Total: ${data.totalStorageFiles || 0} storage files vs ${data.databaseFiles || 0} database records.` 
+      });
+    },
+    onError: (error) => {
+      console.error('Error scanning for orphans:', error);
+      toast({ 
+        title: 'Scan Failed', 
+        description: 'Failed to scan for orphan files. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Bulk encode mutation
   const bulkEncodeMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
@@ -1049,15 +1074,41 @@ export default function MMSUploader() {
                     <span className="ml-2">({storageConfig.fileCount} files)</span>
                   )}
                 </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2 h-6 text-xs"
+                  onClick={() => orphanScanMutation.mutate()}
+                  disabled={orphanScanMutation.isPending}
+                >
+                  {orphanScanMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Scan for Orphans
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </Card>
           
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-blue-600" title={`API shows ${totalUploads} recent uploads, Storage shows ${storageConfig?.fileCount || 0} total files`}>
-              {storageConfig?.fileCount || totalUploads}
+          <Card className="p-4" title="Object Storage - Files stored in Replit Object Storage">
+            <div className="text-2xl font-bold text-purple-600">
+              {storageConfig?.fileCount || 0}
             </div>
-            <div className="text-sm text-muted-foreground">Total Files</div>
+            <div className="text-sm text-muted-foreground">Object Storage</div>
+          </Card>
+          
+          <Card className="p-4" title="Database Records - Files tracked in database">
+            <div className="text-2xl font-bold text-blue-600">
+              {totalCount}
+            </div>
+            <div className="text-sm text-muted-foreground">Files (Database)</div>
           </Card>
           <Card className="p-4">
             <div className="text-2xl font-bold text-green-600">{completedUploads}</div>

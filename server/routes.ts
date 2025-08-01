@@ -8000,6 +8000,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Scan for orphan files in Object Storage vs Database
+  app.post("/api/uploader/scan-orphans", isAuthenticated, async (req, res) => {
+    try {
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      const config = ReplitStorageService.getConfigStatus();
+      
+      if (!config.available) {
+        return res.status(400).json({
+          error: 'Object storage not configured'
+        });
+      }
+
+      console.log('[ORPHAN-SCAN] Starting orphan file scan...');
+      
+      // Get all files from storage
+      const storageFiles = await ReplitStorageService.listFiles();
+      console.log(`[ORPHAN-SCAN] Found ${storageFiles.length} files in object storage`);
+      
+      // Get all upload records from database  
+      const uploaderUploadsTableName = getTableName('uploader_uploads');
+      const databaseRecordsResult = await db.execute(sql`
+        SELECT id, filename, s3_key
+        FROM ${sql.identifier(uploaderUploadsTableName)}
+        ORDER BY uploaded_at DESC
+      `);
+      
+      const databaseFiles = databaseRecordsResult.rows;
+      console.log(`[ORPHAN-SCAN] Found ${databaseFiles.length} upload records in database`);
+      
+      // Find orphan files (in storage but not in database)
+      const orphanFiles: string[] = [];
+      
+      for (const storageFile of storageFiles) {
+        // Check if this storage file matches any database record
+        const matchingDbRecord = databaseFiles.find(dbFile => {
+          // Check multiple potential matches:
+          // 1. Direct s3_key match
+          if (dbFile.s3_key && dbFile.s3_key === storageFile) {
+            return true;
+          }
+          
+          // 2. Check if storage path contains the upload ID and filename
+          const fileName = storageFile.split('/').pop();
+          if (fileName && storageFile.includes(dbFile.id) && fileName === dbFile.filename) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        if (!matchingDbRecord) {
+          orphanFiles.push(storageFile);
+        }
+      }
+      
+      console.log(`[ORPHAN-SCAN] Found ${orphanFiles.length} orphan files`);
+      
+      const result = {
+        success: true,
+        totalStorageFiles: storageFiles.length,
+        databaseFiles: databaseFiles.length,
+        orphanCount: orphanFiles.length,
+        orphanFiles: orphanFiles.slice(0, 50), // Return first 50 for preview
+        scannedAt: new Date().toISOString(),
+        environment: config.environment
+      };
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Orphan scan error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get detailed list of files from object storage with metadata
   app.get("/api/uploader/storage-files", isAuthenticated, async (req, res) => {
     try {
