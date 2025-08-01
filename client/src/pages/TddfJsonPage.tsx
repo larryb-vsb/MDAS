@@ -740,7 +740,7 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
           setHasP1(false);
         }
       });
-    }, Math.random() * 500); // Random delay 0-500ms
+    }, Math.random() * 200); // Random delay 0-200ms
 
     // Cleanup function to prevent state updates on unmounted components
     return () => {
@@ -975,9 +975,7 @@ export default function TddfJsonPage() {
     return new Promise((resolve) => {
       setTimeout(async () => {
         try {
-          const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`, {
-            signal: AbortSignal.timeout(10000) // 10 second timeout
-          });
+          const response = await fetch(`/api/tddf-json/records/${dtRecordId}/p1`);
           if (!response.ok) {
             if (response.status === 404) {
               // 404 is expected for records without P1, cache null result
@@ -998,7 +996,7 @@ export default function TddfJsonPage() {
           setP1Records(prev => new Map(prev.set(dtRecordId, null)));
           resolve(null);
         }
-      }, Math.random() * 100); // Random delay 0-100ms to spread out requests
+      }, Math.random() * 50); // Random delay 0-50ms to spread out requests
     });
   };
 
