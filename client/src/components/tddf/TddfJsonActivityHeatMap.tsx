@@ -431,18 +431,31 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCurrentYear(prev => prev - 1)}
-            className="h-8 w-8 p-0"
+            onClick={() => {
+              if (enableDebugLogging) {
+                console.log('[TDDF-JSON-HEATMAP] Previous year clicked, current:', currentYear);
+              }
+              setCurrentYear(prev => prev - 1);
+            }}
+            disabled={currentYear <= 2020} // Allow navigation back to 2020
+            className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 border border-gray-300"
+            title="Previous year"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h3 className="text-lg font-semibold">{currentYear}</h3>
+          <h3 className="text-lg font-semibold min-w-[60px] text-center">{currentYear}</h3>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCurrentYear(prev => prev + 1)}
+            onClick={() => {
+              if (enableDebugLogging) {
+                console.log('[TDDF-JSON-HEATMAP] Next year clicked, current:', currentYear);
+              }
+              setCurrentYear(prev => prev + 1);
+            }}
             disabled={currentYear >= new Date().getFullYear()}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 border border-gray-300"
+            title="Next year"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
