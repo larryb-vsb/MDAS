@@ -3,6 +3,69 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
+
+/*
+ * =====================================================================
+ * CRITICAL SIDEBAR MENU DISAPPEARING FIX - READ BEFORE ADDING PAGES
+ * =====================================================================
+ * 
+ * PROBLEM: Sidebar menu disappears after clicking on mobile devices when new pages are added
+ * 
+ * ROOT CAUSE: Mobile navigation uses Sheet component with open/setOpen state management.
+ * When a navigation item is clicked, the sheet needs to be explicitly closed to prevent
+ * the menu from remaining open and appearing "disappeared" on subsequent interactions.
+ * 
+ * SOLUTION REQUIREMENTS FOR NEW PAGES:
+ * 
+ * 1. **ALWAYS** add onClick={() => setOpen(false)} to NavItem components in MobileNav
+ * 2. **NEVER** forget to close the mobile sheet when navigation occurs
+ * 3. **TEST** on mobile devices after adding any new navigation items
+ * 4. **VERIFY** that both desktop sidebar AND mobile sheet work correctly
+ * 
+ * EXAMPLES OF CORRECT Implementation:
+ * 
+ * ✅ CORRECT - Mobile NavItem with proper onClick:
+ * <NavItem
+ *   key={index}
+ *   icon={item.icon}
+ *   label={item.label}
+ *   href={item.href}
+ *   onClick={() => setOpen(false)}  // <-- THIS IS REQUIRED!
+ *   isActive={item.href === location}
+ * />
+ * 
+ * ✅ CORRECT - Desktop NavItem (no onClick needed):
+ * <NavItem
+ *   key={index}
+ *   icon={item.icon}
+ *   label={item.label}
+ *   href={item.href}
+ *   isActive={item.href === location}
+ * />
+ * 
+ * ❌ WRONG - Missing onClick on mobile:
+ * <NavItem
+ *   key={index}
+ *   icon={item.icon}
+ *   label={item.label}
+ *   href={item.href}
+ *   isActive={item.href === location}
+ *   // Missing onClick={() => setOpen(false)} - WILL CAUSE MENU TO DISAPPEAR!
+ * />
+ * 
+ * TESTING CHECKLIST WHEN ADDING NEW PAGES:
+ * □ Desktop sidebar navigation works
+ * □ Mobile hamburger menu opens
+ * □ Clicking menu items on mobile closes the sheet
+ * □ Navigation works on both desktop and mobile
+ * □ No ghost menus or disappeared states
+ * 
+ * REMEMBER: The mobile navigation uses a completely different component (Sheet)
+ * than the desktop sidebar. Both need to be handled correctly!
+ * 
+ * Last Updated: 2025-08-01 - This issue has occurred multiple times
+ * =====================================================================
+ */
 import { APP_VERSION, BUILD_DATE } from "@shared/version";
 import { FallbackStorageAlert } from "@/components/ui/fallback-storage-alert";
 import { 
@@ -171,6 +234,17 @@ const navItems = [
   }
 ];
 
+/*
+ * CRITICAL NAVIGATION FUNCTION - HANDLES BOTH DESKTOP AND MOBILE
+ * 
+ * This NavItem function is used by BOTH desktop sidebar AND mobile Sheet navigation.
+ * The onClick prop is ESSENTIAL for mobile devices to close the Sheet after navigation.
+ * 
+ * When adding new pages, ensure mobile navigation calls NavItem with:
+ * onClick={() => setOpen(false)}
+ * 
+ * Without this, the mobile menu will appear to "disappear" after clicking.
+ */
 function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, onToggle }: NavItemProps) {
   const [location] = useLocation();
   

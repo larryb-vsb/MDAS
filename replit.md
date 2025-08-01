@@ -8,6 +8,9 @@ Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
 Critical System Requirement: "Never re-fresh" policy - all auto-refresh functionality permanently disabled and verified working.
 
+## Known Critical Issues
+**Sidebar Menu Disappearing Bug**: When adding new pages, the mobile sidebar menu disappears after clicking. This is caused by missing `onClick={() => setOpen(false)}` in the mobile navigation NavItem components. The fix is documented in `client/src/components/layout/MainLayout.tsx` with comprehensive comments and examples. ALWAYS test mobile navigation after adding new pages.
+
 ## System Architecture
 
 MMS employs a modern client-server architecture with clear separation between frontend and backend components.
