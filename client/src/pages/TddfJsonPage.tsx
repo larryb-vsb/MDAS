@@ -261,6 +261,23 @@ interface BatchRelationship {
       [key: string]: any;
     };
     raw_line: string;
+    record_type: string;
+  }>;
+  related_geographic_records?: Array<{
+    id: number;
+    line_number: number;
+    extracted_fields: {
+      geographicCode?: string;
+      merchantName?: string;
+      merchantCity?: string;
+      merchantState?: string;
+      merchantZip?: string;
+      merchantCountry?: string;
+      merchantCategoryCode?: string;
+      [key: string]: any;
+    };
+    raw_line: string;
+    record_type: string;
   }>;
 }
 
@@ -303,15 +320,15 @@ function BatchRelationshipsView() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Database className="w-5 h-5" />
-          Batch Relationships (BH → DT)
+          Batch Relationships (BH → DT → G2)
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           {batchLoading ? 'Loading...' : 
            `Showing ${batchData?.batches?.length || 0} of ${batchData?.total || 0} batch relationships`}
         </p>
         <div className="text-xs text-muted-foreground mt-2">
-          Shows Batch Header (BH) records with their associated Detail Transaction (DT) records based on TDDF specification:
-          <span className="font-mono ml-2">Shared Entry Run Number + Merchant Account + Sequential Positioning</span>
+          Shows Batch Header (BH) records with their associated Detail Transaction (DT) and Geographic (G2) records based on TDDF specification:
+          <span className="font-mono ml-2">Shared Entry Run Number + Merchant Account + Bank Number + Sequential Positioning</span>
         </div>
       </CardHeader>
       <CardContent>
@@ -496,6 +513,97 @@ function BatchRelationshipsView() {
                   ) : (
                     <div className="text-center py-4 text-muted-foreground text-sm">
                       No related DT transactions found for this batch
+                    </div>
+                  )}
+                </div>
+
+                {/* Related G2 Geographic Records */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge className="bg-purple-100 text-purple-800 border-purple-300">
+                      Related G2 Geographic Records
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      ({batch.related_geographic_records?.length || 0} geographic records)
+                    </span>
+                    {batch.related_geographic_records?.length > 0 && (
+                      <div className="ml-auto">
+                        <Badge className="bg-info-100 text-info-800 border-info-300 text-xs">
+                          Location & Merchant Data
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {batch.related_geographic_records?.length > 0 ? (
+                    <div className="space-y-2">
+                      {batch.related_geographic_records.slice(0, 3).map((geoRecord, index) => {
+                        // Check TDDF compliance indicators for G2 records
+                        const hasMatchingMerchant = geoRecord.extracted_fields?.merchantAccountNumber === batch.batch_fields?.merchantAccountNumber;
+                        const hasMatchingBank = geoRecord.extracted_fields?.bankNumber === batch.batch_fields?.bankNumber;
+                        const complianceStrength = (hasMatchingMerchant ? 1 : 0) + (hasMatchingBank ? 1 : 0);
+                        
+                        return (
+                          <div key={geoRecord.id} className="bg-purple-50 border border-purple-200 rounded p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-purple-100 text-purple-800 text-xs">
+                                  G2 #{index + 1}
+                                </Badge>
+                                <Badge className={
+                                  complianceStrength === 2 ? "bg-green-100 text-green-800 border-green-300" :
+                                  complianceStrength === 1 ? "bg-amber-100 text-amber-800 border-amber-300" :
+                                  "bg-red-100 text-red-800 border-red-300"
+                                }>
+                                  {complianceStrength === 2 ? "✓ Full Match" :
+                                   complianceStrength === 1 ? "⚠ Partial" : "✗ Weak"}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground font-mono">
+                                Line {geoRecord.line_number}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                              <div>
+                                <span className="font-medium text-purple-800">Merchant:</span>
+                                <div className="font-mono text-[10px]">
+                                  <TruncatedValue value={geoRecord.extracted_fields?.merchantName} maxLength={15} />
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-purple-800">Location:</span>
+                                <div className="font-mono text-[10px]">
+                                  {[
+                                    geoRecord.extracted_fields?.merchantCity,
+                                    geoRecord.extracted_fields?.merchantState
+                                  ].filter(Boolean).join(', ') || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-purple-800">ZIP:</span>
+                                <div className="font-mono">{geoRecord.extracted_fields?.merchantZip || '-'}</div>
+                              </div>
+                              <div>
+                                <span className="font-medium text-purple-800">Category:</span>
+                                <div className="font-mono text-[10px]">
+                                  <TruncatedValue value={geoRecord.extracted_fields?.merchantCategoryCode} maxLength={8} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {batch.related_geographic_records.length > 3 && (
+                        <div className="text-center text-sm text-muted-foreground py-2">
+                          ... and {batch.related_geographic_records.length - 3} more geographic records
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No related G2 geographic records found for this batch
                     </div>
                   )}
                 </div>

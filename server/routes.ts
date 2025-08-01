@@ -12968,7 +12968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
       const tddfJsonbTableName = getTableName('tddf_jsonb');
       
-      // Get BH records with their associated DT records (DISTINCT to avoid duplicates)
+      // Get BH records with their associated DT and G2 records (DISTINCT to avoid duplicates)
       const batchQuery = `
         WITH batch_headers AS (
           SELECT DISTINCT ON (filename, line_number)
@@ -12999,12 +12999,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   'id', dt.id,
                   'line_number', dt.line_number,
                   'extracted_fields', dt.extracted_fields,
-                  'raw_line', LEFT(dt.raw_line, 100)
+                  'raw_line', LEFT(dt.raw_line, 100),
+                  'record_type', 'DT'
                 )
                 ORDER BY dt.line_number
               ) FILTER (WHERE dt.id IS NOT NULL),
               '[]'::json
-            ) as related_transactions
+            ) as related_transactions,
+            -- Get related G2 records (Geographic/Location info)
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'id', g2.id,
+                  'line_number', g2.line_number,
+                  'extracted_fields', g2.extracted_fields,
+                  'raw_line', LEFT(g2.raw_line, 100),
+                  'record_type', 'G2'
+                )
+                ORDER BY g2.line_number
+              ) FILTER (WHERE g2.id IS NOT NULL),
+              '[]'::json
+            ) as related_geographic_records
           FROM batch_headers bh
           LEFT JOIN ${tddfJsonbTableName} dt ON (
             dt.record_type = 'DT' 
@@ -13015,6 +13030,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             -- Sequential positioning logic
             AND dt.line_number > bh.line_number
             AND dt.line_number < COALESCE(
+              (SELECT MIN(next_bh.line_number) 
+               FROM ${tddfJsonbTableName} next_bh 
+               WHERE next_bh.record_type = 'BH' 
+               AND next_bh.filename = bh.filename 
+               AND next_bh.line_number > bh.line_number),
+              999999
+            )
+          )
+          LEFT JOIN ${tddfJsonbTableName} g2 ON (
+            g2.record_type = 'G2' 
+            AND g2.filename = bh.filename
+            -- G2 records relate to BH through merchant account and bank number
+            AND g2.extracted_fields->>'merchantAccountNumber' = bh.extracted_fields->>'merchantAccountNumber'
+            AND g2.extracted_fields->>'bankNumber' = bh.extracted_fields->>'bankNumber'
+            -- Sequential positioning logic (G2 follows DT records in the same batch)
+            AND g2.line_number > bh.line_number
+            AND g2.line_number < COALESCE(
               (SELECT MIN(next_bh.line_number) 
                FROM ${tddfJsonbTableName} next_bh 
                WHERE next_bh.record_type = 'BH' 

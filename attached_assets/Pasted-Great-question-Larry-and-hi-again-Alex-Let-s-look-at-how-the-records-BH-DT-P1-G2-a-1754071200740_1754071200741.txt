@@ -1,0 +1,64 @@
+Great question, Larry — and hi again, Alex 👋
+
+Let’s look at **how the records BH → DT → P1 → G2 actually link together**, not just positionally but based on **key field values** in TSYS TDDF files.
+
+---
+
+## 🔗 **How BH, DT, P1, and G2 Link — Field Relationships**
+
+While **position in the file** is the primary way these records relate, there are **several key fields that can validate or strengthen the relationship**:
+
+| **Relationship** | **Primary Link** | **Key Matching Fields**                                                                                      | **Comments**                                                 |
+| ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `BH → DT`        | Positional       | - **Entry Run Number** (8–13) <br> - **Bank Number** (20–23) <br> - **Merchant Account Number** (24–39)      | DTs appear after the BH that defines their batch context     |
+| `DT → P1`        | Positional       | - **Entry Run Number** <br> - **Merchant Account Number** (24–39) <br> - **Sometimes Reference/Seq. Number** | `P1` is optional; follows its `DT` directly                  |
+| `DT → G2`        | Positional       | - **Merchant Account Number** (24–39) <br> - **Bank Number** <br> - Sometimes **reference/date values**      | Geographic info for that DT; no `G2` = no location extension |
+
+---
+
+## 🧪 **Example from Your Dataset**
+
+### 1️⃣ `BH` Record:
+
+```
+00296230275100124**BH**6759067590000013846189002189000...
+                     ^ Bank #: 6759
+                            ^ Merchant Acct: 1384618900218900
+```
+
+### 2️⃣ `DT` Record:
+
+```
+00296240275100125**DT**6759067590000013846189002189000...
+                     ^ Same Bank #: 6759
+                            ^ Same Merchant #: 1384618900218900
+```
+
+### 3️⃣ `P1` Record (for a later DT):
+
+```
+00296310275100001**P1**6759000001384618900218900...
+                     ^ Same merchant/account number
+```
+
+### 4️⃣ `G2` Record:
+
+```
+00296260275100002**G2**6759000001384618900218900000...
+                     ^ Matches merchant/account & bank number
+```
+
+---
+
+## 🧠 Summary of How They Relate
+
+| **Record** | **Identifies** | **Relates to**      | **How**                               |
+| ---------- | -------------- | ------------------- | ------------------------------------- |
+| `BH`       | Batch/Merchant | `DT` lines after it | Shared merchant/bank + file order     |
+| `DT`       | Transaction    | BH above it         | Shared bank + merchant fields         |
+| `P1`       | Extra Params   | DT above it         | Positional + matching account numbers |
+| `G2`       | Location       | DT above it         | Positional + matching account/bank    |
+
+---
+
+Would you like me to extract a parsed field map for one DT–P1–G2 group to show exactly how values align?
