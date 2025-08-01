@@ -708,9 +708,21 @@ function P1Badge({ dtRecordId, checkForP1Extension }: { dtRecordId: number, chec
   const [hasP1, setHasP1] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Add validation to prevent API calls with invalid IDs
+    if (!dtRecordId || typeof dtRecordId !== 'number') {
+      console.error('P1Badge: Invalid dtRecordId provided:', dtRecordId);
+      setHasP1(false);
+      return;
+    }
+
     const checkP1 = async () => {
-      const p1Record = await checkForP1Extension(dtRecordId);
-      setHasP1(!!p1Record);
+      try {
+        const p1Record = await checkForP1Extension(dtRecordId);
+        setHasP1(!!p1Record);
+      } catch (error) {
+        console.error('P1Badge: Error checking P1 extension:', error);
+        setHasP1(false);
+      }
     };
     checkP1();
   }, [dtRecordId, checkForP1Extension]);
@@ -1623,7 +1635,7 @@ export default function TddfJsonPage() {
                               <Badge className={getRecordTypeBadgeClass(record.record_type)}>
                                 {record.record_type}
                               </Badge>
-                              {record.record_type === 'DT' && (
+                              {record.id && record.record_type === 'DT' && (
                                 <P1Badge dtRecordId={record.id} checkForP1Extension={checkForP1Extension} />
                               )}
                             </div>
