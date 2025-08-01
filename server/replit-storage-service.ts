@@ -43,6 +43,8 @@ export class ReplitStorageService {
     const environment = process.env.NODE_ENV || 'development';
     const folderPrefix = environment === 'production' ? 'prod-uploader' : 'dev-uploader';
     
+    console.log(`[REPLIT-STORAGE] Config status check - Environment: ${environment}, Prefix: ${folderPrefix}`);
+    
     return {
       available: this.isConfigured(),
       service: 'Replit Object Storage',

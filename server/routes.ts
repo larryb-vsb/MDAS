@@ -7985,12 +7985,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ReplitStorageService } = await import('./replit-storage-service');
       const config = ReplitStorageService.getConfigStatus();
       
+      console.log(`[STORAGE-CONFIG] Environment: ${config.environment}, Prefix: ${config.folderPrefix}`);
+      
       // Add environment-specific file count
       try {
         const files = await ReplitStorageService.listFiles(); // Uses environment-aware prefix
         config.fileCount = files.length;
-      } catch (error) {
+        console.log(`[STORAGE-CONFIG] Successfully counted ${files.length} files for ${config.environment}`);
+      } catch (error: any) {
+        console.error(`[STORAGE-CONFIG] File count error for ${config.environment}:`, error);
         (config as any).fileCount = 0;
+        (config as any).fileCountError = error.message;
       }
       
       res.json(config);
