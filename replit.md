@@ -38,6 +38,7 @@ MMS employs a modern client-server architecture with clear separation between fr
 - **TDDF Records Pre-Cache by Year**: Comprehensive pre-cache system for TDDF record tabs by year with dedicated tables for All Records, DT-Transactions, BH-Batch Headers, Batch Relationships, P1-Purchasing, P2-Purchasing 2, and Other Types. Features "never expire" policy, manual refresh controls, processing status tracking, and enhanced loading dialogs similar to heat map implementation.
 - **Enhanced Batch Relations with G2 Records**: Complete BH → DT → G2 relationship support showing comprehensive batch relationships including geographic/location data from G2 records. Features merchant location information, category codes, and enhanced validation badges for relationship compliance.
 - **TDDF Specification Documentation**: Complete official TDDF specification extracted and organized in `tddf_documentation/` directory with reference guide (`TDDF_SPECIFICATION_REFERENCE.md`) covering all record types, relationships, and field mappings based on 2025-06-10 specification version.
+- **Cross-Environment Storage Management**: Complete implementation allowing users to view and scan files from both dev-uploader/ and prod-uploader/ storage locations via dropdown selection interface. Features real-time count updates, environment-aware orphan scanning, and proper logging separation ensuring no environment confusion during operations.
 
 ## External Dependencies
 
