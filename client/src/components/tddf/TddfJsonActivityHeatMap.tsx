@@ -132,6 +132,7 @@ interface TddfJsonActivityHeatMapProps {
   enableDebugLogging?: boolean;
   userId?: number;
   isAdmin?: boolean;
+  initialYear?: number; // Dynamic year from last data found
 }
 
 interface HeatMapCacheStatus {
@@ -146,13 +147,21 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   selectedDate, 
   enableDebugLogging = false,
   userId,
-  isAdmin = false
+  isAdmin = false,
+  initialYear
 }) => {
-  const [currentYear, setCurrentYear] = useState(2024); // Start with 2024 where most data exists (134,870 transactions)
+  const [currentYear, setCurrentYear] = useState(initialYear || new Date().getFullYear()); // Use dynamic year from last data found
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
   // Removed old refresh state - now using admin controls
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Update year when initialYear prop changes
+  React.useEffect(() => {
+    if (initialYear && initialYear !== currentYear) {
+      setCurrentYear(initialYear);
+    }
+  }, [initialYear, currentYear]);
   
   // Use internal state if no external state is provided
   const selectedDates = selectedDate ? [selectedDate] : internalSelectedDates;
