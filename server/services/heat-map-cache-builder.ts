@@ -64,16 +64,16 @@ export class HeatMapCacheBuilder {
     }
     
     // Check if data exists for the requested year before starting cache build
-    // Use the main TDDF records table which has the actual transaction data
-    const tddfRecordsTableName = getTableName('tddf_records');
-    console.log(`[HEATMAP-CACHE-BUILDER] Checking data existence for ${year} ${recordType} in ${tddfRecordsTableName}...`);
+    const tddfJsonbTableName = getTableName('tddf_jsonb');
+    console.log(`[HEATMAP-CACHE-BUILDER] Checking data existence for ${year} ${recordType} before cache build...`);
     
     const dataCheckResult = await pool.query(`
       SELECT COUNT(*) as record_count
-      FROM ${tddfRecordsTableName}
-      WHERE EXTRACT(YEAR FROM parsed_datetime) = $1
+      FROM ${tddfJsonbTableName}
+      WHERE EXTRACT(YEAR FROM transaction_date) = $1
+      AND record_type = $2
       LIMIT 1
-    `, [year]);
+    `, [year, recordType]);
     
     const recordCount = parseInt(dataCheckResult.rows[0]?.record_count || '0');
     
@@ -265,25 +265,34 @@ export class HeatMapCacheBuilder {
     recordType: string = 'DT'
   ): Promise<{ recordCount: number; dailyData: any[] }> {
     
-    const tddfRecordsTableName = getTableName('tddf_records');
+    const tddfJsonbTableName = getTableName('tddf_jsonb');
     
-    // Get daily aggregated data for the month using universal timestamp from main records table
-    // Note: Only processing DT records since dev_tddf_records table contains DT transaction data
+    // Get daily aggregated data for the month
     const query = `
       SELECT 
-        DATE(parsed_datetime) as date,
+        DATE((extracted_fields->>'transactionDate')::date) as date,
         COUNT(*) as transaction_count,
-        SUM(COALESCE(transaction_amount, 0)) as total_amount,
-        AVG(NULLIF(transaction_amount, 0)) as avg_amount
-      FROM ${tddfRecordsTableName}
-      WHERE EXTRACT(YEAR FROM parsed_datetime) = $1
-        AND EXTRACT(MONTH FROM parsed_datetime) = $2
-        AND parsed_datetime IS NOT NULL
-      GROUP BY DATE(parsed_datetime)
+        SUM(CASE 
+          WHEN extracted_fields->>'transactionAmount' ~ '^[0-9.]+$' 
+          THEN (extracted_fields->>'transactionAmount')::numeric 
+          ELSE 0 
+        END) as total_amount,
+        AVG(CASE 
+          WHEN extracted_fields->>'transactionAmount' ~ '^[0-9.]+$' 
+          THEN (extracted_fields->>'transactionAmount')::numeric 
+          ELSE NULL 
+        END) as avg_amount
+      FROM ${tddfJsonbTableName}
+      WHERE record_type = $1
+        AND EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $2
+        AND EXTRACT(MONTH FROM (extracted_fields->>'transactionDate')::date) = $3
+        AND extracted_fields->>'transactionDate' IS NOT NULL
+        AND extracted_fields->>'transactionDate' != ''
+      GROUP BY DATE((extracted_fields->>'transactionDate')::date)
       ORDER BY date ASC
     `;
     
-    const result = await pool.query(query, [year, month]);
+    const result = await pool.query(query, [recordType, year, month]);
     const recordCount = result.rows.reduce((sum, row) => sum + parseInt(row.transaction_count), 0);
     
     // Store in pre-cache table

@@ -28,7 +28,6 @@ import { encodeTddfToJsonbDirect } from "./tddf-json-encoder";
 import { ReplitStorageService } from "./replit-storage-service";
 import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
-import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
@@ -7471,32 +7470,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error exporting TDDF records:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to export TDDF records" 
-      });
-    }
-  });
-
-  // Universal Timestamp Backfill Route
-  app.post("/api/tddf/backfill-timestamps", isAuthenticated, async (req, res) => {
-    try {
-      console.log('🕐 [UNIVERSAL-TIMESTAMP] Starting backfill of universal timestamps...');
-      
-      const { batchSize = 1000 } = req.body;
-      const tableName = getTableName('tddf_jsonb');
-      
-      const result = await backfillUniversalTimestamps(pool, tableName, batchSize);
-      
-      res.json({
-        success: true,
-        message: `Universal timestamp backfill completed: ${result.updated} records updated, ${result.errors} errors`,
-        updated: result.updated,
-        errors: result.errors
-      });
-      
-    } catch (error) {
-      console.error('[UNIVERSAL-TIMESTAMP] Backfill error:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to backfill timestamps'
       });
     }
   });

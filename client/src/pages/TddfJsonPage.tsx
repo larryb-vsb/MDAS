@@ -1346,8 +1346,7 @@ export default function TddfJsonPage() {
           setSelectedTab(newTab);
         }}>
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="all" className="flex items-center gap-2">
-              <Badge className="text-xs bg-gray-100 text-gray-700 border-gray-300">ALL</Badge>
+            <TabsTrigger value="all">
               All Records
               {recordsData && (
                 <Badge className="ml-1 text-xs bg-blue-100 text-blue-800">
@@ -1355,9 +1354,8 @@ export default function TddfJsonPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="DT" className="flex items-center gap-2">
-              <Badge className="text-xs bg-green-100 text-green-700 border-green-300">DT</Badge>
-              Transactions
+            <TabsTrigger value="DT">
+              DT - Transactions
               {selectedYear && (
                 <Badge className="ml-1 text-xs bg-green-100 text-green-800">
                   {getRecordCountForYear('DT', selectedYear)}
@@ -1367,10 +1365,9 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="BH"
               disabled={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0}
-              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('BH', selectedYear) === 0 ? 'opacity-50' : ''}`}
+              className={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0 ? 'opacity-50' : ''}
             >
-              <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-300">BH</Badge>
-              Batch Headers
+              BH - Batch Headers
               {selectedYear && getRecordCountForYear('BH', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-orange-100 text-orange-800">
                   {getRecordCountForYear('BH', selectedYear)}
@@ -1382,17 +1379,13 @@ export default function TddfJsonPage() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="batch" className="flex items-center gap-2">
-              <Badge className="text-xs bg-cyan-100 text-cyan-700 border-cyan-300">REL</Badge>
-              Batch Relationships
-            </TabsTrigger>
+            <TabsTrigger value="batch">Batch Relationships</TabsTrigger>
             <TabsTrigger 
               value="P1"
               disabled={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0}
-              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('P1', selectedYear) === 0 ? 'opacity-50' : ''}`}
+              className={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0 ? 'opacity-50' : ''}
             >
-              <Badge className="text-xs bg-purple-100 text-purple-700 border-purple-300">P1</Badge>
-              Purchasing
+              P1 - Purchasing
               {selectedYear && getRecordCountForYear('P1', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-purple-100 text-purple-800">
                   {getRecordCountForYear('P1', selectedYear)}
@@ -1407,10 +1400,9 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="P2"
               disabled={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0}
-              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('P2', selectedYear) === 0 ? 'opacity-50' : ''}`}
+              className={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0 ? 'opacity-50' : ''}
             >
-              <Badge className="text-xs bg-indigo-100 text-indigo-700 border-indigo-300">P2</Badge>
-              Purchasing 2
+              P2 - Purchasing 2
               {selectedYear && getRecordCountForYear('P2', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-indigo-100 text-indigo-800">
                   {getRecordCountForYear('P2', selectedYear)}
@@ -1425,9 +1417,8 @@ export default function TddfJsonPage() {
             <TabsTrigger 
               value="other"
               disabled={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0}
-              className={`flex items-center gap-2 ${!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0 ? 'opacity-50' : ''}`}
+              className={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0 ? 'opacity-50' : ''}
             >
-              <Badge className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">OTH</Badge>
               Other Types
               {selectedYear && getRecordCountForYear('OTHER', selectedYear) > 0 && (
                 <Badge className="ml-1 text-xs bg-gray-100 text-gray-800">
