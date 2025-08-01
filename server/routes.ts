@@ -5015,10 +5015,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create lookup maps - match term_number to D number (without D prefix)
       const terminalLookup = new Map();
       terminalMatches.rows.forEach(row => {
-        // Store both with and without potential D prefix for flexible matching
+        // Primary storage: term_number as-is (should be numeric like "1082", "1083")
         terminalLookup.set(row.term_number, row.v_number);
-        // Also try removing D prefix if term_number starts with D
-        if (row.term_number.startsWith('D')) {
+        
+        // Backup: If term_number has D prefix, also store without D
+        if (row.term_number && row.term_number.startsWith('D')) {
           const numberOnly = row.term_number.substring(1);
           terminalLookup.set(numberOnly, row.v_number);
         }
@@ -5029,9 +5030,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Enhance SubTerminal data with VNumber and merchant matching
       const enhancedSubterminals = subterminals.map((subterminal, index) => {
-        // Try matching D number both with and without D prefix
-        const dNumberOnly = subterminal.dNumber.replace(/^D/, ''); // Remove D prefix
-        const vNumber = terminalLookup.get(subterminal.dNumber) || terminalLookup.get(dNumberOnly);
+        // Strip D prefix from SubTerminal dNumber to match against numeric term_number
+        const dNumberOnly = subterminal.dNumber.replace(/^D/, ''); // Remove D prefix (D1082 -> 1082)
+        // Primary match: use numeric part only (this should work for most cases)
+        const vNumber = terminalLookup.get(dNumberOnly) || terminalLookup.get(subterminal.dNumber);
         
         // Find potential merchant matches using fuzzy matching
         const deviceMerchantName = subterminal.deviceMerchant.toLowerCase();
