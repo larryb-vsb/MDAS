@@ -6,6 +6,7 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
+Critical System Requirement: "Never re-fresh" policy - all auto-refresh functionality permanently disabled and verified working.
 
 ## System Architecture
 
@@ -39,6 +40,7 @@ MMS employs a modern client-server architecture with clear separation between fr
 - **Enhanced Batch Relations with G2 Records**: Complete BH → DT → G2 relationship support showing comprehensive batch relationships including geographic/location data from G2 records. Features merchant location information, category codes, and enhanced validation badges for relationship compliance.
 - **TDDF Specification Documentation**: Complete official TDDF specification extracted and organized in `tddf_documentation/` directory with reference guide (`TDDF_SPECIFICATION_REFERENCE.md`) covering all record types, relationships, and field mappings based on 2025-06-10 specification version.
 - **Cross-Environment Storage Management**: Complete implementation allowing users to view and scan files from both dev-uploader/ and prod-uploader/ storage locations via dropdown selection interface. Features real-time count updates, environment-aware orphan scanning, and proper logging separation ensuring no environment confusion during operations.
+- **Startup TDDF Cache Validation**: Automatic validation and creation of missing TDDF cache tables during application startup (`server/startup-cache-validation.ts`). Ensures all 11 required cache tables exist in current environment, preventing production TDDF screen loading failures. Runs during database migration process and creates missing tables by copying structure from development environment.
 
 ## External Dependencies
 
