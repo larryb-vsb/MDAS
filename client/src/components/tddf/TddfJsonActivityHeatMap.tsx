@@ -133,6 +133,7 @@ interface TddfJsonActivityHeatMapProps {
   userId?: number;
   isAdmin?: boolean;
   initialYear?: number; // Dynamic year from last data found
+  onYearChange?: (year: number) => void; // Callback when year changes
 }
 
 interface HeatMapCacheStatus {
@@ -148,7 +149,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   enableDebugLogging = false,
   userId,
   isAdmin = false,
-  initialYear
+  initialYear,
+  onYearChange
 }) => {
   const [currentYear, setCurrentYear] = useState(initialYear || new Date().getFullYear()); // Use dynamic year from last data found
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
@@ -435,7 +437,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               if (enableDebugLogging) {
                 console.log('[TDDF-JSON-HEATMAP] Previous year clicked, current:', currentYear);
               }
-              setCurrentYear(prev => prev - 1);
+              const newYear = currentYear - 1;
+              setCurrentYear(newYear);
+              if (onYearChange) {
+                onYearChange(newYear);
+              }
             }}
             disabled={currentYear <= 2020} // Allow navigation back to 2020
             className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 border border-gray-300"
@@ -451,7 +457,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               if (enableDebugLogging) {
                 console.log('[TDDF-JSON-HEATMAP] Next year clicked, current:', currentYear);
               }
-              setCurrentYear(prev => prev + 1);
+              const newYear = currentYear + 1;
+              setCurrentYear(newYear);
+              if (onYearChange) {
+                onYearChange(newYear);
+              }
             }}
             disabled={currentYear >= new Date().getFullYear()}
             className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 border border-gray-300"

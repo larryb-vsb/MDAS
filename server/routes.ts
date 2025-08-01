@@ -12390,7 +12390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         search,
         sortBy = 'created_at',
         sortOrder = 'desc',
-        dateFilter
+        dateFilter,
+        year
       } = req.query;
       
       const pageNum = parseInt(page as string) || 1;
@@ -12430,6 +12431,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[TDDF-JSON-RECORDS] Date filter received: ${dateFilter}`);
         whereConditions.push(`DATE(extracted_fields->>'transactionDate') = $${paramIndex}`);
         params.push(dateFilter);
+        paramIndex++;
+      }
+      
+      if (year) {
+        console.log(`[TDDF-JSON-RECORDS] Year filter received: ${year}`);
+        whereConditions.push(`EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $${paramIndex}`);
+        params.push(parseInt(year as string));
         paramIndex++;
       }
       

@@ -803,6 +803,7 @@ export default function TddfJsonPage() {
   const [p1Records, setP1Records] = useState<Map<number, any>>(new Map());
   const [activeTab, setActiveTab] = useState<'dt' | 'expanded' | 'raw' | 'p1'>('dt');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // Track selected year from heat map
 
 
   const { toast } = useToast();
@@ -841,7 +842,8 @@ export default function TddfJsonPage() {
       search: searchTerm || undefined,
       sortBy,
       sortOrder,
-      dateFilter: dateFilter || undefined
+      dateFilter: dateFilter || undefined,
+      year: selectedYear // Add year filtering
     }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -854,6 +856,7 @@ export default function TddfJsonPage() {
       if (selectedTab !== 'all') params.append('recordType', selectedTab);
       if (searchTerm) params.append('search', searchTerm);
       if (dateFilter) params.append('dateFilter', dateFilter);
+      if (selectedYear) params.append('year', selectedYear.toString()); // Add year parameter
       
       return apiRequest(`/api/tddf-json/records?${params}`);
     },
@@ -1143,6 +1146,10 @@ export default function TddfJsonPage() {
               initialYear={lastDataYear?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
               selectedDate={dateFilter}
               enableDebugLogging={isTestPage}
+              onYearChange={(year) => {
+                setSelectedYear(year);
+                setCurrentPage(1); // Reset pagination when year changes
+              }}
             />
             {dateFilter && (
               <div className="mt-4 flex items-center gap-2">
