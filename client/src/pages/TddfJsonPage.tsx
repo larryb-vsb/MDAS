@@ -1028,11 +1028,39 @@ export default function TddfJsonPage() {
             </p>
           </div>
           <Button 
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/batch-relationships'] });
+            onClick={async () => {
+              toast({
+                title: "Refreshing data...",
+                description: "Clearing cache and rescanning for new data",
+              });
+              
+              try {
+                // Trigger full rescan by setting new data flag
+                await apiRequest('/api/uploader/trigger-rescan', {
+                  method: 'POST',
+                  body: { force: true }
+                });
+                
+                // Clear all TDDF-related caches
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/batch-relationships'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+                
+                // Force refetch
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+                
+              } catch (error) {
+                console.error('Refresh error:', error);
+                // Fallback to simple cache invalidation
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/batch-relationships'] });
+              }
             }} 
             variant="outline"
             className="flex items-center gap-2"

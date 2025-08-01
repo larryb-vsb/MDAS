@@ -13351,7 +13351,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'tddf_records_tab_processing_status',
         'charts_pre_cache',
         'heat_map_cache_2024',
-        'heat_map_cache_2025'
+        'heat_map_cache_2025',
+        'dashboard_cache',
+        'dashboard_merchants_cache_2024',
+        'dashboard_merchants_cache_2025',
+        'uploader_page_pre_cache_2024',
+        'uploader_page_pre_cache_2025',
+        'uploader_dashboard_cache'
       ];
       
       let precacheTablesCleared = 0;
@@ -13377,12 +13383,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[TDDF-JSON-CLEAR] Successfully cleared ${precacheTablesCleared} precache tables`);
       
+      // Set new data flag to trigger proper refresh functionality
+      console.log('[TDDF-JSON-CLEAR] Setting new data flag to trigger refresh...');
+      try {
+        const uploaderPreCacheTable = getTableName('uploader_page_pre_cache_2025');
+        await pool.query(`
+          UPDATE ${uploaderPreCacheTable} 
+          SET last_new_data_date = NOW()
+          WHERE id = 1
+        `);
+        console.log('[TDDF-JSON-CLEAR] New data flag set successfully');
+      } catch (flagError) {
+        console.log('[TDDF-JSON-CLEAR] Could not set new data flag:', flagError.message);
+      }
+      
       res.json({
         success: true,
         recordsDeleted: recordsToDelete,
         precacheTablesCleared: precacheTablesCleared,
         tableName: tableName,
-        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables`
+        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables`,
+        newDataFlagSet: true
       });
       
     } catch (error) {
