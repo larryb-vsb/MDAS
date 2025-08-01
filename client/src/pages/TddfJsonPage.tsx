@@ -1103,6 +1103,24 @@ export default function TddfJsonPage() {
   const recordTypeOptions = stats?.recordTypeBreakdown ? 
     Object.keys(stats.recordTypeBreakdown).sort() : [];
 
+  // Function to get record count for a specific type and year based on current data
+  const getRecordCountForYear = (recordType: string, year: number) => {
+    if (!recordsData) return 0;
+    
+    // For "other" tab, count all non-DT, non-BH, non-P1, non-P2 records
+    if (recordType === 'OTHER') {
+      const otherTypes = ['AD', 'DR', 'E1', 'G2'];
+      return recordsData.records?.filter(record => 
+        otherTypes.includes(record.record_type)
+      ).length || 0;
+    }
+    
+    // For specific record types, count matching records
+    return recordsData.records?.filter(record => 
+      record.record_type === recordType
+    ).length || 0;
+  };
+
   return (
     <MainLayout>
       <div className="p-6 space-y-6">
@@ -1314,15 +1332,105 @@ export default function TddfJsonPage() {
         </Card>
 
         {/* Record Type Tabs */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <Tabs value={selectedTab} onValueChange={(newTab) => {
+          // Auto-switch to 'all' if trying to access a disabled tab
+          if (selectedYear) {
+            if ((newTab === 'BH' && getRecordCountForYear('BH', selectedYear) === 0) ||
+                (newTab === 'P1' && getRecordCountForYear('P1', selectedYear) === 0) ||
+                (newTab === 'P2' && getRecordCountForYear('P2', selectedYear) === 0) ||
+                (newTab === 'other' && getRecordCountForYear('OTHER', selectedYear) === 0)) {
+              setSelectedTab('all');
+              return;
+            }
+          }
+          setSelectedTab(newTab);
+        }}>
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="all">All Records</TabsTrigger>
-            <TabsTrigger value="DT">DT - Transactions</TabsTrigger>
-            <TabsTrigger value="BH">BH - Batch Headers</TabsTrigger>
+            <TabsTrigger value="all">
+              All Records
+              {recordsData && (
+                <Badge className="ml-1 text-xs bg-blue-100 text-blue-800">
+                  {recordsData.total || 0}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="DT">
+              DT - Transactions
+              {selectedYear && (
+                <Badge className="ml-1 text-xs bg-green-100 text-green-800">
+                  {getRecordCountForYear('DT', selectedYear)}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="BH"
+              disabled={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0}
+              className={!selectedYear || getRecordCountForYear('BH', selectedYear) === 0 ? 'opacity-50' : ''}
+            >
+              BH - Batch Headers
+              {selectedYear && getRecordCountForYear('BH', selectedYear) > 0 && (
+                <Badge className="ml-1 text-xs bg-orange-100 text-orange-800">
+                  {getRecordCountForYear('BH', selectedYear)}
+                </Badge>
+              )}
+              {selectedYear && getRecordCountForYear('BH', selectedYear) === 0 && (
+                <Badge className="ml-1 text-xs bg-gray-100 text-gray-600">
+                  0
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="batch">Batch Relationships</TabsTrigger>
-            <TabsTrigger value="P1">P1 - Purchasing</TabsTrigger>
-            <TabsTrigger value="P2">P2 - Purchasing 2</TabsTrigger>
-            <TabsTrigger value="other">Other Types</TabsTrigger>
+            <TabsTrigger 
+              value="P1"
+              disabled={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0}
+              className={!selectedYear || getRecordCountForYear('P1', selectedYear) === 0 ? 'opacity-50' : ''}
+            >
+              P1 - Purchasing
+              {selectedYear && getRecordCountForYear('P1', selectedYear) > 0 && (
+                <Badge className="ml-1 text-xs bg-purple-100 text-purple-800">
+                  {getRecordCountForYear('P1', selectedYear)}
+                </Badge>
+              )}
+              {selectedYear && getRecordCountForYear('P1', selectedYear) === 0 && (
+                <Badge className="ml-1 text-xs bg-gray-100 text-gray-600">
+                  0
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="P2"
+              disabled={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0}
+              className={!selectedYear || getRecordCountForYear('P2', selectedYear) === 0 ? 'opacity-50' : ''}
+            >
+              P2 - Purchasing 2
+              {selectedYear && getRecordCountForYear('P2', selectedYear) > 0 && (
+                <Badge className="ml-1 text-xs bg-indigo-100 text-indigo-800">
+                  {getRecordCountForYear('P2', selectedYear)}
+                </Badge>
+              )}
+              {selectedYear && getRecordCountForYear('P2', selectedYear) === 0 && (
+                <Badge className="ml-1 text-xs bg-gray-100 text-gray-600">
+                  0
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="other"
+              disabled={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0}
+              className={!selectedYear || getRecordCountForYear('OTHER', selectedYear) === 0 ? 'opacity-50' : ''}
+            >
+              Other Types
+              {selectedYear && getRecordCountForYear('OTHER', selectedYear) > 0 && (
+                <Badge className="ml-1 text-xs bg-gray-100 text-gray-800">
+                  {getRecordCountForYear('OTHER', selectedYear)}
+                </Badge>
+              )}
+              {selectedYear && getRecordCountForYear('OTHER', selectedYear) === 0 && (
+                <Badge className="ml-1 text-xs bg-gray-100 text-gray-600">
+                  0
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={selectedTab} className="mt-6">
@@ -1350,8 +1458,34 @@ export default function TddfJsonPage() {
                     onRefresh={refetchPreCacheStatus}
                   />
                 ) : recordsData?.records?.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No records found matching your criteria
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FileJson className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">No Records Found</h3>
+                    <p className="text-sm">
+                      {selectedTab === 'all' ? (
+                        'No TDDF records found for the selected year and filters.'
+                      ) : selectedTab === 'BH' ? (
+                        `No BH (Batch Header) records found for ${selectedYear}. This year only contains DT records.`
+                      ) : selectedTab === 'P1' ? (
+                        `No P1 (Purchasing) records found for ${selectedYear}. This year only contains DT records.`
+                      ) : selectedTab === 'P2' ? (
+                        `No P2 (Purchasing 2) records found for ${selectedYear}. This year only contains DT records.`
+                      ) : selectedTab === 'other' ? (
+                        `No other record types found for ${selectedYear}. This year only contains DT records.`
+                      ) : (
+                        'No records found matching your criteria'
+                      )}
+                    </p>
+                    {selectedTab !== 'all' && selectedTab !== 'DT' && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSelectedTab('DT')} 
+                        className="mt-4"
+                      >
+                        View DT Records Instead
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
