@@ -13435,10 +13435,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Drop all TDDF1 file tables and totals tables
         for (const tddf1Table of tddf1Tables) {
           try {
-            const fullTableName = getTableName(tddf1Table);
-            console.log(`[TDDF-JSON-CLEAR] Dropping TDDF1 table: ${fullTableName}`);
-            await pool.query(`DROP TABLE IF EXISTS ${fullTableName} CASCADE`);
-            console.log(`[TDDF-JSON-CLEAR] Successfully dropped TDDF1 table: ${fullTableName}`);
+            // TDDF1 tables already have proper names, don't use getTableName()
+            console.log(`[TDDF-JSON-CLEAR] Dropping TDDF1 table: ${tddf1Table}`);
+            await pool.query(`DROP TABLE IF EXISTS "${tddf1Table}" CASCADE`);
+            console.log(`[TDDF-JSON-CLEAR] Successfully dropped TDDF1 table: ${tddf1Table}`);
           } catch (dropError) {
             console.error(`[TDDF-JSON-CLEAR] Error dropping TDDF1 table ${tddf1Table}:`, dropError.message);
           }
