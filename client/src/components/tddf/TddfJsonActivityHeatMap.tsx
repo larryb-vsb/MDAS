@@ -164,7 +164,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   React.useEffect(() => {
     if (initialYear && initialYear !== currentYear) {
       setCurrentYear(initialYear);
-      setCurrentMonthOffset(0); // Reset to beginning of year when year changes
+      // Note: currentMonthOffset will be auto-set by optimalMonthOffset effect
     }
   }, [initialYear, currentYear]);
   
@@ -343,6 +343,43 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     return months;
   }, [calendarData, currentYear]);
 
+  // Auto-calculate optimal month offset based on data
+  const optimalMonthOffset = useMemo(() => {
+    if (!activityResponse?.records || activityResponse.records.length === 0) {
+      // No data, show current month or start of year
+      const todayMonth = new Date().getMonth();
+      const todayYear = new Date().getFullYear();
+      
+      if (currentYear === todayYear) {
+        // For current year, center around current month
+        return Math.max(0, Math.min(9, todayMonth - 1)); // Show current month in middle of 3-month view
+      } else {
+        // For other years, start from beginning
+        return 0;
+      }
+    }
+
+    // Find the most recent date with activity
+    const sortedDates = activityResponse.records
+      .map(record => new Date(record.date || record.transaction_date))
+      .sort((a, b) => b.getTime() - a.getTime());
+    
+    if (sortedDates.length > 0) {
+      const latestDate = sortedDates[0];
+      const latestMonth = latestDate.getMonth();
+      
+      // Position the 3-month window to show the latest activity month in the middle
+      return Math.max(0, Math.min(9, latestMonth - 1));
+    }
+    
+    return 0; // Default to beginning of year
+  }, [activityResponse, currentYear]);
+
+  // Auto-set the month offset when data loads or year changes
+  React.useEffect(() => {
+    setCurrentMonthOffset(optimalMonthOffset);
+  }, [optimalMonthOffset]);
+
   // Get current 3-month window
   const currentThreeMonths = useMemo(() => {
     return monthlyData.slice(currentMonthOffset, currentMonthOffset + 3);
@@ -450,8 +487,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear - 1;
               setCurrentYear(newYear);
-              setCurrentMonthOffset(0); // Reset to beginning of year
               // Clear internal selected dates when year changes
+              // Note: currentMonthOffset will be auto-set by optimalMonthOffset effect
               setInternalSelectedDates([]);
               // Invalidate query cache to force new data fetch for the new year
               queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity', newYear, 'DT'] });
@@ -477,8 +514,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear + 1;
               setCurrentYear(newYear);
-              setCurrentMonthOffset(0); // Reset to beginning of year
               // Clear internal selected dates when year changes
+              // Note: currentMonthOffset will be auto-set by optimalMonthOffset effect
               setInternalSelectedDates([]);
               // Invalidate query cache to force new data fetch for the new year
               queryClient.invalidateQueries({ queryKey: ['/api/tddf-json/activity', newYear, 'DT'] });
@@ -517,6 +554,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               <span className="text-green-700">
                 {currentThreeMonths[0]?.fullName} - {currentThreeMonths[currentThreeMonths.length - 1]?.fullName}
               </span>
+            )}
+            {activityResponse?.records && activityResponse.records.length > 0 && (
+              <div className="text-xs text-gray-500 mt-1">
+                Auto-positioned to latest activity
+              </div>
             )}
           </div>
           
