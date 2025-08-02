@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink, TrendingUp, BarChart3 } from "lucide-react";
+import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink, TrendingUp, BarChart3, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -866,9 +866,85 @@ export default function TddfJsonPage() {
   const [activeTab, setActiveTab] = useState<'dt' | 'expanded' | 'raw' | 'p1'>('dt');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // Track selected year from heat map
+  
+  // Quick range view state
+  const [quickRangeMode, setQuickRangeMode] = useState<'1month' | '2month' | '3month'>('1month');
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); // 0-11
+  const [currentRangeYear, setCurrentRangeYear] = useState(new Date().getFullYear());
 
 
   const { toast } = useToast();
+
+  // Debug logging for range changes
+  React.useEffect(() => {
+    console.log('[TDDF-JSON-PAGE] Quick range updated:', {
+      mode: quickRangeMode,
+      currentMonth,
+      currentRangeYear,
+      display: getQuickRangeDisplay(),
+      dateRange: getDateRangeFilter()
+    });
+  }, [quickRangeMode, currentMonth, currentRangeYear]);
+
+  // Helper functions for quick range view
+  const getMonthName = (month: number) => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    return monthNames[month];
+  };
+
+  const getQuickRangeDisplay = () => {
+    const startMonth = currentMonth;
+    const monthsToAdd = quickRangeMode === '1month' ? 0 : quickRangeMode === '2month' ? 1 : 2;
+    let endMonth = (currentMonth + monthsToAdd) % 12;
+    let endYear = currentRangeYear;
+    
+    // Handle year overflow
+    if (currentMonth + monthsToAdd >= 12) {
+      endYear++;
+    }
+
+    if (quickRangeMode === '1month') {
+      return `${getMonthName(startMonth)} ${currentRangeYear}`;
+    }
+    
+    if (currentRangeYear === endYear) {
+      return `${getMonthName(startMonth)} - ${getMonthName(endMonth)} ${currentRangeYear}`;
+    } else {
+      return `${getMonthName(startMonth)} ${currentRangeYear} - ${getMonthName(endMonth)} ${endYear}`;
+    }
+  };
+
+  const getDateRangeFilter = () => {
+    const startDate = new Date(currentRangeYear, currentMonth, 1);
+    const monthsToAdd = quickRangeMode === '1month' ? 1 : quickRangeMode === '2month' ? 2 : 3;
+    const endDate = new Date(currentRangeYear, currentMonth + monthsToAdd, 0); // Last day of the range
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    };
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    const increment = direction === 'next' ? 1 : -1;
+    let newMonth = currentMonth + increment;
+    let newYear = currentRangeYear;
+    
+    if (newMonth < 0) {
+      newMonth = 11;
+      newYear--;
+    } else if (newMonth > 11) {
+      newMonth = 0;
+      newYear++;
+    }
+    
+    setCurrentMonth(newMonth);
+    setCurrentRangeYear(newYear);
+    setSelectedYear(newYear); // Update the main year for components
+    setCurrentPage(1); // Reset pagination
+    setDateFilter(''); // Clear date filter
+  };
 
   // Fetch last data year to dynamically set the initial year for heat map
   const { data: lastDataYear } = useQuery({
@@ -1233,13 +1309,75 @@ export default function TddfJsonPage() {
         {/* TDDF JSON Activity Visualization - Heat Map and Chart Views */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5" />
-              TDDF JSON Activity Analysis
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Daily transaction activity from TDDF JSON records (dev_tddf_jsonb table)
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  TDDF JSON Activity Analysis
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Daily transaction activity from TDDF JSON records (dev_tddf_jsonb table)
+                </p>
+              </div>
+              
+              {/* Quick Range View Controls */}
+              <div className="flex items-center gap-3">
+                {/* Range Mode Selector */}
+                <Select value={quickRangeMode} onValueChange={(value: '1month' | '2month' | '3month') => setQuickRangeMode(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1month">1 Month</SelectItem>
+                    <SelectItem value="2month">2 Months</SelectItem>
+                    <SelectItem value="3month">3 Months</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {/* Month Navigation */}
+                <div className="flex items-center gap-2 border rounded-lg p-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigateMonth('prev')}
+                    className="h-8 w-8 p-0"
+                    title="Previous month"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  <div className="px-3 py-1 text-sm font-medium min-w-[120px] text-center">
+                    {getQuickRangeDisplay()}
+                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigateMonth('next')}
+                    className="h-8 w-8 p-0"
+                    title="Next month"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                {/* Current Month Indicator */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setCurrentMonth(new Date().getMonth());
+                    setCurrentRangeYear(new Date().getFullYear());
+                    setSelectedYear(new Date().getFullYear());
+                  }}
+                  className="flex items-center gap-2"
+                  title="Go to current month"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Today
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="heatmap" className="w-full">
@@ -1257,12 +1395,13 @@ export default function TddfJsonPage() {
               <TabsContent value="heatmap" className="mt-6">
                 <TddfJsonActivityHeatMap 
                   onDateSelect={handleDateSelect}
-                  initialYear={(lastDataYear as any)?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
+                  initialYear={currentRangeYear} // Use range year instead of last data year
                   selectedDate={dateFilter}
                   enableDebugLogging={true} // Enable debug logging to track year navigation
                   onYearChange={(year) => {
                     console.log('[TDDF-JSON-PAGE] Year changed to:', year);
                     setSelectedYear(year);
+                    setCurrentRangeYear(year); // Update range year too
                     setCurrentPage(1); // Reset pagination when year changes
                     setDateFilter(''); // Clear date filter when year changes to avoid mismatches
                     console.log('[TDDF-JSON-PAGE] Date filter cleared due to year change');
@@ -1272,27 +1411,37 @@ export default function TddfJsonPage() {
               
               <TabsContent value="chart" className="mt-6">
                 <TddfJsonActivityChart 
-                  currentYear={selectedYear}
+                  currentYear={currentRangeYear} // Use range year
                   enableDebugLogging={true}
                 />
               </TabsContent>
             </Tabs>
             
-            {dateFilter && (
-              <div className="mt-4 flex items-center gap-2">
-                <Badge variant="secondary">
-                  Filtered by: {formatDate(dateFilter)}
-                </Badge>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={clearDateFilter}
-                  className="text-xs"
-                >
-                  Clear Filter
-                </Button>
-              </div>
-            )}
+            {/* Range and Date Filter Indicators */}
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              {/* Current Range Indicator */}
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <Calendar className="w-3 h-3 mr-1" />
+                {quickRangeMode === '1month' ? '1 Month' : quickRangeMode === '2month' ? '2 Months' : '3 Months'} View: {getQuickRangeDisplay()}
+              </Badge>
+              
+              {/* Date Filter Badge */}
+              {dateFilter && (
+                <>
+                  <Badge variant="secondary">
+                    Filtered by: {formatDate(dateFilter)}
+                  </Badge>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={clearDateFilter}
+                    className="text-xs"
+                  >
+                    Clear Filter
+                  </Button>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
