@@ -46,15 +46,31 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>('bar');
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-  // Fetch the same activity data as the heat map
-  const { data: activityResponse, isLoading, error } = useQuery<ActivityResponse>({
-    queryKey: ['/api/tddf-json/activity', currentYear, 'DT'],
+  // Fetch activity data for all record types
+  const { data: allActivityData, isLoading, error } = useQuery<{ [key: string]: ActivityResponse }>({
+    queryKey: ['/api/tddf-json/activity-all-types', currentYear],
     queryFn: async () => {
-      const response = await fetch(`/api/tddf-json/activity?year=${currentYear}&recordType=DT`, {
-        credentials: 'include'
+      const recordTypes = ['DT', 'BH', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE'];
+      const responses = await Promise.all(
+        recordTypes.map(async (type) => {
+          try {
+            const response = await fetch(`/api/tddf-json/activity?year=${currentYear}&recordType=${type}`, {
+              credentials: 'include'
+            });
+            if (!response.ok) return { type, data: { records: [] } };
+            const data = await response.json();
+            return { type, data };
+          } catch (error) {
+            return { type, data: { records: [] } };
+          }
+        })
+      );
+      
+      const result: { [key: string]: ActivityResponse } = {};
+      responses.forEach(({ type, data }) => {
+        result[type] = data;
       });
-      if (!response.ok) throw new Error('Failed to fetch activity data');
-      return response.json();
+      return result;
     },
     enabled: true,
     staleTime: Infinity, // Never refresh automatically - "never re-fresh" policy
@@ -65,64 +81,113 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
     refetchInterval: false,
   });
 
-  // Process data for different view modes
+  // Process data for different view modes with stacked record types
   const chartData = useMemo(() => {
-    if (!activityResponse?.records) return [];
+    if (!allActivityData) return [];
 
-    const records = activityResponse.records.map(item => ({
-      date: item.date || item.transaction_date?.split('T')[0],
-      count: item.transaction_count || 0
-    })).filter(item => item.date);
+    // Combine all record types into a single dataset
+    const allDates = new Set<string>();
+    const recordTypes = ['DT', 'BH', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE'];
+    
+    // Collect all unique dates
+    recordTypes.forEach(type => {
+      const response = allActivityData[type];
+      if (response?.records) {
+        response.records.forEach(item => {
+          const date = item.date || item.transaction_date?.split('T')[0];
+          if (date) allDates.add(date);
+        });
+      }
+    });
 
-    if (viewMode === 'daily') {
-      return records.map(item => ({
-        date: item.date,
-        displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        count: item.count
-      })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }
-
-    if (viewMode === 'weekly') {
-      const weeklyData = new Map<string, number>();
+    // Create a map for each date with all record type counts
+    const dateDataMap = new Map<string, any>();
+    
+    Array.from(allDates).forEach(date => {
+      const dayData: any = {
+        date,
+        displayDate: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        total: 0
+      };
       
-      records.forEach(item => {
+      recordTypes.forEach(type => {
+        const response = allActivityData[type];
+        const record = response?.records?.find(r => 
+          (r.date || r.transaction_date?.split('T')[0]) === date
+        );
+        const count = record?.transaction_count || 0;
+        dayData[type] = count;
+        dayData.total += count;
+      });
+      
+      dateDataMap.set(date, dayData);
+    });
+
+    let processedData = Array.from(dateDataMap.values())
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Apply view mode aggregation
+    if (viewMode === 'weekly') {
+      const weeklyData = new Map<string, any>();
+      
+      processedData.forEach(item => {
         const date = new Date(item.date);
         const weekStart = new Date(date);
         weekStart.setDate(date.getDate() - date.getDay());
         const weekKey = weekStart.toISOString().split('T')[0];
         
-        weeklyData.set(weekKey, (weeklyData.get(weekKey) || 0) + item.count);
+        if (!weeklyData.has(weekKey)) {
+          weeklyData.set(weekKey, {
+            date: weekKey,
+            displayDate: `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+            total: 0,
+            ...Object.fromEntries(recordTypes.map(type => [type, 0]))
+          });
+        }
+        
+        const weekData = weeklyData.get(weekKey)!;
+        recordTypes.forEach(type => {
+          weekData[type] += item[type] || 0;
+        });
+        weekData.total += item.total;
       });
 
-      return Array.from(weeklyData.entries()).map(([date, count]) => ({
-        date,
-        displayDate: `Week of ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-        count
-      })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return Array.from(weeklyData.values())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
 
     if (viewMode === 'monthly') {
-      const monthlyData = new Map<string, number>();
+      const monthlyData = new Map<string, any>();
       
-      records.forEach(item => {
+      processedData.forEach(item => {
         const date = new Date(item.date);
         const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-01`;
         
-        monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + item.count);
+        if (!monthlyData.has(monthKey)) {
+          monthlyData.set(monthKey, {
+            date: monthKey,
+            displayDate: new Date(monthKey).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            total: 0,
+            ...Object.fromEntries(recordTypes.map(type => [type, 0]))
+          });
+        }
+        
+        const monthData = monthlyData.get(monthKey)!;
+        recordTypes.forEach(type => {
+          monthData[type] += item[type] || 0;
+        });
+        monthData.total += item.total;
       });
 
-      return Array.from(monthlyData.entries()).map(([date, count]) => ({
-        date,
-        displayDate: new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        count
-      })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return Array.from(monthlyData.values())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
 
-    return [];
-  }, [activityResponse, viewMode]);
+    return processedData;
+  }, [allActivityData, viewMode]);
 
   const totalTransactions = useMemo(() => {
-    return chartData.reduce((sum, item) => sum + item.count, 0);
+    return chartData.reduce((sum, item) => sum + item.total, 0);
   }, [chartData]);
 
   const averageDaily = useMemo(() => {
@@ -130,11 +195,11 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
   }, [chartData, totalTransactions]);
 
   const peakActivity = useMemo(() => {
-    return chartData.reduce((max, item) => Math.max(max, item.count), 0);
+    return chartData.reduce((max, item) => Math.max(max, item.total), 0);
   }, [chartData]);
 
   if (enableDebugLogging) {
-    console.log('[TDDF-CHART] Activity response:', activityResponse);
+    console.log('[TDDF-CHART] All activity data:', allActivityData);
     console.log('[TDDF-CHART] Chart data:', chartData);
     console.log('[TDDF-CHART] Current year:', currentYear);
   }
@@ -160,17 +225,49 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0];
+      const data = payload[0].payload;
       return (
-        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
-          <p className="font-medium text-gray-900">{data.payload.displayDate}</p>
-          <p className="text-sm text-blue-600">
-            <span className="font-medium">{data.value.toLocaleString()}</span> transactions
-          </p>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg max-w-xs">
+          <p className="font-medium text-gray-900 mb-2">{data.displayDate}</p>
+          <div className="space-y-1">
+            {payload.map((entry: any, index: number) => (
+              <div key={index} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-sm" 
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-sm text-gray-700">{entry.dataKey}:</span>
+                </div>
+                <span className="text-sm font-medium">{entry.value.toLocaleString()}</span>
+              </div>
+            ))}
+            <div className="border-t pt-1 mt-2">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-medium text-gray-900">Total:</span>
+                <span className="text-sm font-bold">{data.total.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
     return null;
+  };
+
+  // Define colors for each record type
+  const recordTypeColors = {
+    'DT': '#3b82f6', // Blue
+    'BH': '#10b981', // Green
+    'P1': '#f59e0b', // Orange
+    'P2': '#f97316', // Orange-Red
+    'E1': '#6b7280', // Gray
+    'G2': '#8b5cf6', // Purple
+    'AD': '#ef4444', // Red
+    'DR': '#06b6d4', // Cyan
+    'CK': '#84cc16', // Lime
+    'LG': '#ec4899', // Pink
+    'GE': '#64748b'  // Slate
   };
 
   const renderChart = () => {
@@ -178,6 +275,11 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
       data: chartData,
       margin: { top: 5, right: 30, left: 20, bottom: 5 }
     };
+
+    const recordTypes = ['DT', 'BH', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE'];
+    const activeTypes = recordTypes.filter(type => 
+      chartData.some(item => item[type] > 0)
+    );
 
     switch (chartType) {
       case 'line':
@@ -191,14 +293,17 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
-            <Line 
-              type="monotone" 
-              dataKey="count" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
-              dot={{ fill: '#3b82f6', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, stroke: '#3b82f6', strokeWidth: 2 }}
-            />
+            {activeTypes.map(type => (
+              <Line 
+                key={type}
+                type="monotone" 
+                dataKey={type} 
+                stroke={recordTypeColors[type as keyof typeof recordTypeColors]} 
+                strokeWidth={2}
+                dot={{ strokeWidth: 0, r: 2 }}
+                activeDot={{ r: 4, stroke: recordTypeColors[type as keyof typeof recordTypeColors], strokeWidth: 2 }}
+              />
+            ))}
           </LineChart>
         );
       
@@ -213,14 +318,18 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
-            <Area 
-              type="monotone" 
-              dataKey="count" 
-              stroke="#3b82f6" 
-              fill="#3b82f6"
-              fillOpacity={0.3}
-              strokeWidth={2}
-            />
+            {activeTypes.map(type => (
+              <Area 
+                key={type}
+                type="monotone" 
+                dataKey={type} 
+                stackId="1"
+                stroke={recordTypeColors[type as keyof typeof recordTypeColors]} 
+                fill={recordTypeColors[type as keyof typeof recordTypeColors]}
+                fillOpacity={0.7}
+                strokeWidth={1}
+              />
+            ))}
           </AreaChart>
         );
       
@@ -235,11 +344,15 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
             />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar 
-              dataKey="count" 
-              fill="#3b82f6"
-              radius={[2, 2, 0, 0]}
-            />
+            {activeTypes.map(type => (
+              <Bar 
+                key={type}
+                dataKey={type} 
+                stackId="1"
+                fill={recordTypeColors[type as keyof typeof recordTypeColors]}
+                radius={type === activeTypes[activeTypes.length - 1] ? [2, 2, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
           </BarChart>
         );
     }
@@ -303,12 +416,9 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
       </div>
 
       {/* Cache Status Footer */}
-      {activityResponse?.fromCache && (
+      {allActivityData && Object.values(allActivityData).some(data => data.fromCache) && (
         <div className="text-xs text-gray-500 text-center">
-          Data served from cache • Query time: {activityResponse.queryTime}ms
-          {activityResponse.metadata?.aggregationLevel && 
-            ` • ${activityResponse.metadata.aggregationLevel} aggregation`
-          }
+          Data served from cache • Multiple record types aggregated
         </div>
       )}
     </div>
