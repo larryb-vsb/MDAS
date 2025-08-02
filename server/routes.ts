@@ -16708,24 +16708,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [totalsTableName]);
       
       if (totalsTableExists.rows[0].exists) {
-        // Get aggregated stats from totals table for all encoded files
+        // Get aggregated stats from the pre-cache totals table
         const totalsResult = await pool.query(`
-          SELECT * FROM ${totalsTableName}
-          ORDER BY updated_at DESC
-          LIMIT 1
+          SELECT 
+            COUNT(DISTINCT file_name) as file_count,
+            SUM(total_records) as total_records,
+            SUM(total_transaction_value) as total_transaction_value,
+            COUNT(*) as total_cache_entries
+          FROM ${totalsTableName}
+        `);
+        
+        // Get record type breakdown from pre-cache
+        const breakdownResult = await pool.query(`
+          SELECT record_type_breakdown 
+          FROM ${totalsTableName}
         `);
         
         if (totalsResult.rows.length > 0) {
-          const totals = totalsResult.rows[0];
+          const summary = totalsResult.rows[0];
+          const totalRecords = parseInt(summary.total_records) || 0;
+          const totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
+          const fileCount = parseInt(summary.file_count) || 0;
+          
+          // Aggregate record type breakdowns
+          const recordTypeBreakdown: Record<string, number> = {};
+          for (const row of breakdownResult.rows) {
+            const breakdown = typeof row.record_type_breakdown === 'string' 
+              ? JSON.parse(row.record_type_breakdown) 
+              : row.record_type_breakdown;
+            
+            if (breakdown && typeof breakdown === 'object') {
+              for (const [type, count] of Object.entries(breakdown)) {
+                recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
+              }
+            }
+          }
+          
           return res.json({
-            totalFiles: totals.total_files || 0,
-            totalRecords: totals.total_records || 0,
-            totalTransactionValue: parseFloat(totals.total_transaction_value || '0'),
-            recordTypeBreakdown: totals.record_type_breakdown || {},
+            totalFiles: fileCount,
+            totalRecords: totalRecords,
+            totalTransactionValue: totalTransactionValue,
+            recordTypeBreakdown: recordTypeBreakdown,
             activeTables: [],
-            lastProcessedDate: totals.updated_at,
+            lastProcessedDate: new Date().toISOString(),
             cached: true,
-            cacheDate: totals.updated_at
+            cacheSource: 'pre-cache totals aggregation',
+            cacheDate: new Date().toISOString()
           });
         }
         
