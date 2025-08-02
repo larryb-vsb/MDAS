@@ -867,10 +867,19 @@ export default function TddfJsonPage() {
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // Track selected year from heat map
   
-  // Quick range view state
-  const [quickRangeMode, setQuickRangeMode] = useState<'1month' | '2month' | '3month'>('1month');
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth()); // 0-11
-  const [currentRangeYear, setCurrentRangeYear] = useState(new Date().getFullYear());
+  // Quick range view state - default to 6 months for better data visibility
+  const [quickRangeMode, setQuickRangeMode] = useState<'1month' | '2month' | '3month'>('3month');
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    // Start 5 months back to show 6 months total, handling year boundary
+    const now = new Date();
+    const targetMonth = now.getMonth() - 5;
+    return targetMonth < 0 ? targetMonth + 12 : targetMonth;
+  });
+  const [currentRangeYear, setCurrentRangeYear] = useState(() => {
+    const now = new Date();
+    const targetMonth = now.getMonth() - 5;
+    return targetMonth < 0 ? now.getFullYear() - 1 : now.getFullYear();
+  });
 
 
   const { toast } = useToast();
@@ -1385,6 +1394,25 @@ export default function TddfJsonPage() {
                 >
                   <Calendar className="w-3 h-3" />
                   Now
+                </Button>
+                
+                {/* Quick July 2025 Navigation - for user's uploaded data */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Navigate to July 2025 to see user's uploaded data
+                    setCurrentMonth(6); // July is month 6 (0-based)
+                    setCurrentRangeYear(2025);
+                    setSelectedYear(2025);
+                    setCurrentPage(1);
+                    setDateFilter('');
+                  }}
+                  className="flex items-center gap-1 h-6 px-2 text-xs bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                  title="Go to July 2025 (user data)"
+                >
+                  <Database className="w-3 h-3" />
+                  July
                 </Button>
               </div>
             </div>
