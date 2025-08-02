@@ -572,17 +572,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.updateUserPassword(userId, newPassword);
         
-        // Log password change by user
-        await storage.createAuditLog({
-          entityType: "user",
-          entityId: `${userId}`,
-          action: "password_change",
-          oldValues: { passwordChanged: false },
-          newValues: { passwordChanged: true },
-          username: req.user?.username || "System",
-          notes: `User '${targetUser.username}' changed their own password`,
-          timestamp: new Date()
-        });
+        // Log password change by user (skip if database size limit reached)
+        try {
+          await storage.createAuditLog({
+            entityType: "user",
+            entityId: `${userId}`,
+            action: "password_change",
+            oldValues: { passwordChanged: false },
+            newValues: { passwordChanged: true },
+            username: req.user?.username || "System",
+            notes: `User '${targetUser.username}' changed their own password`,
+            timestamp: new Date()
+          });
+        } catch (auditError) {
+          console.warn("Audit logging skipped due to database size limit:", auditError.message);
+        }
         
         return res.json({ success: true });
       } else {
@@ -594,17 +598,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.updateUserPassword(userId, newPassword);
         
-        // Log admin password reset
-        await storage.createAuditLog({
-          entityType: "user",
-          entityId: `${userId}`,
-          action: "password_reset",
-          oldValues: { passwordChanged: false },
-          newValues: { passwordChanged: true },
-          username: req.user?.username || "System",
-          notes: `Admin '${req.user?.username}' reset password for user '${targetUser.username}'`,
-          timestamp: new Date()
-        });
+        // Log admin password reset (skip if database size limit reached)
+        try {
+          await storage.createAuditLog({
+            entityType: "user",
+            entityId: `${userId}`,
+            action: "password_reset",
+            oldValues: { passwordChanged: false },
+            newValues: { passwordChanged: true },
+            username: req.user?.username || "System",
+            notes: `Admin '${req.user?.username}' reset password for user '${targetUser.username}'`,
+            timestamp: new Date()
+          });
+        } catch (auditError) {
+          console.warn("Audit logging skipped due to database size limit:", auditError.message);
+        }
         
         return res.json({ success: true });
       }
