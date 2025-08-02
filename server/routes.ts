@@ -16771,7 +16771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND table_name LIKE $2
           AND table_name != $3
         ORDER BY table_name
-      `, [`${tablePrefix}%`, `%${dateFormatted}%`, `${tablePrefix}totals`]);
+      `, [`${tablePrefix}file_%`, `%${dateFormatted}%`, `${tablePrefix}totals`]);
       
       const activeTables = tablesResult.rows.map(row => row.table_name);
       
@@ -16846,9 +16846,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Extract file name from table name (dev_tddf1_filename_date format)
-          const fileNameMatch = tableName.match(/^dev_tddf1_(.+?)_(\d{8})$/);
-          const fileName = fileNameMatch ? fileNameMatch[1] : tableName.replace('dev_tddf1_', '');
+          // Extract file name from table name (dev_tddf1_file_filename format)
+          const fileNameMatch = tableName.match(/^dev_tddf1_file_(.+)$/);
+          const fileName = fileNameMatch ? fileNameMatch[1] : tableName.replace('dev_tddf1_file_', '');
           
           // Try to get processing details from uploaded_files if available
           let processingTime = undefined;
@@ -16934,7 +16934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND table_name != $2
         ORDER BY table_name DESC
         LIMIT 10
-      `, [`${tablePrefix}%`, `${tablePrefix}totals`]);
+      `, [`${tablePrefix}file_%`, `${tablePrefix}totals`]);
       
       const recentActivity = [];
       
@@ -17015,7 +17015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND table_name LIKE $1
           AND table_name != $2
         ORDER BY table_name
-      `, [`${tablePrefix}%`, totalsTableName]);
+      `, [`${tablePrefix}file_%`, totalsTableName]);
       
       const activeTables = tablesResult.rows.map(row => row.table_name);
       
@@ -17121,7 +17121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .replace(/[^a-zA-Z0-9_]/g, '_') // Replace special chars with underscores
         .toLowerCase();
       
-      const tableName = `${tablePrefix}${sanitizedFilename}`;
+      const tableName = `${tablePrefix}file_${sanitizedFilename}`;
       
       // Create table for this specific file
       await pool.query(`
