@@ -16708,6 +16708,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [totalsTableName]);
       
       if (totalsTableExists.rows[0].exists) {
+        // Check for currently encoding files first (real-time progress)
+        const encodingFiles = await pool.query(`
+          SELECT id, filename, current_phase 
+          FROM ${getTableName('uploader_uploads')} 
+          WHERE current_phase = 'encoding' 
+            AND final_file_type = 'tddf'
+        `);
+        
+        if (encodingFiles.rows.length > 0) {
+          console.log(`📊 Found ${encodingFiles.rows.length} files currently encoding - showing real-time progress`);
+          
+          // Get real-time stats from active file tables
+          const activeTablesResult = await pool.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+              AND table_name LIKE $1
+              AND table_name != $2
+            ORDER BY table_name DESC
+          `, [`${tablePrefix}file_%`, totalsTableName]);
+          
+          let realtimeRecords = 0;
+          let realtimeTransactionValue = 0;
+          const realtimeBreakdown: Record<string, number> = {};
+          let activeFileCount = 0;
+          
+          for (const tableRow of activeTablesResult.rows) {
+            try {
+              const tableName = tableRow.table_name;
+              const tableStatsResult = await pool.query(`
+                SELECT 
+                  COUNT(*) as record_count,
+                  record_type,
+                  COALESCE(SUM(CASE 
+                    WHEN record_type = 'DT' AND transaction_amount IS NOT NULL AND transaction_amount != '' 
+                    THEN CAST(transaction_amount AS DECIMAL) 
+                    ELSE 0 
+                  END), 0) as transaction_value
+                FROM ${tableName}
+                GROUP BY record_type
+              `);
+              
+              if (tableStatsResult.rows.length > 0) {
+                activeFileCount++;
+                for (const row of tableStatsResult.rows) {
+                  realtimeRecords += parseInt(row.record_count);
+                  realtimeTransactionValue += parseFloat(row.transaction_value || '0');
+                  realtimeBreakdown[row.record_type] = (realtimeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+                }
+              }
+            } catch (error) {
+              console.warn(`Error querying table ${tableRow.table_name}:`, error);
+            }
+          }
+          
+          return res.json({
+            totalFiles: activeFileCount,
+            totalRecords: realtimeRecords,
+            totalTransactionValue: realtimeTransactionValue,
+            recordTypeBreakdown: realtimeBreakdown,
+            activeTables: activeTablesResult.rows.map(r => r.table_name),
+            lastProcessedDate: new Date().toISOString(),
+            isRealTime: true,
+            encodingInProgress: true,
+            encodingFileCount: encodingFiles.rows.length,
+            encodingFiles: encodingFiles.rows.map(f => ({ 
+              id: f.id, 
+              filename: f.filename, 
+              phase: f.current_phase 
+            })),
+            cached: false,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+        
         // Use pre-cached data from totals table with enhanced breakdown
         const totalsResult = await pool.query(`
           SELECT 
@@ -16754,7 +16829,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             performanceMetrics: row.performance_metrics || {},
             cached: true,
             cacheDate: row.created_at,
-            lastUpdated: row.updated_at
+            lastUpdated: row.updated_at,
+            isRealTime: false,
+            encodingInProgress: false
           });
           return;
         }
