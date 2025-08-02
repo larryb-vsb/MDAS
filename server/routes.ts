@@ -17146,6 +17146,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Monthly Comparison - Current and Previous Month
+  app.get('/api/tddf1/monthly-comparison', isAuthenticated, async (req, res) => {
+    console.log('📅 Getting TDDF1 monthly comparison');
+    
+    try {
+      const { month } = req.query; // Expected format: 'YYYY-MM'
+      
+      if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
+      }
+      
+      const [year, monthNum] = month.split('-');
+      
+      // Calculate previous month
+      const currentDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+      const previousDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+      const previousMonth = `${previousDate.getFullYear()}-${(previousDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      // Helper function to get month data
+      const getMonthData = async (targetMonth: string) => {
+        const [yr, mth] = targetMonth.split('-');
+        const startDate = `${targetMonth}-01`;
+        const lastDay = new Date(parseInt(yr), parseInt(mth), 0).getDate();
+        const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+        
+        // Get daily breakdown for the month
+        const dailyBreakdown = await pool.query(`
+          SELECT 
+            date_processed as date,
+            COUNT(*) as files,
+            SUM(total_records) as records,
+            SUM(total_transaction_value) as transaction_value,
+            SUM(total_net_deposit_bh) as net_deposit_bh
+          FROM dev_tddf1_totals 
+          WHERE date_processed >= $1 AND date_processed <= $2
+          GROUP BY date_processed
+          ORDER BY date_processed
+        `, [startDate, endDate]);
+        
+        return dailyBreakdown.rows.map((day, index) => ({
+          date: day.date,
+          files: parseInt(day.files),
+          records: parseInt(day.records),
+          transactionValue: parseFloat(day.transaction_value || '0'),
+          netDepositBh: parseFloat(day.net_deposit_bh || '0'),
+          dayOfMonth: index + 1
+        }));
+      };
+      
+      // Get data for both months
+      const [currentMonthData, previousMonthData] = await Promise.all([
+        getMonthData(month),
+        getMonthData(previousMonth)
+      ]);
+      
+      console.log(`📅 [COMPARISON] Current month (${month}): ${currentMonthData.length} days, Previous month (${previousMonth}): ${previousMonthData.length} days`);
+      
+      res.json({
+        currentMonth: {
+          month,
+          dailyBreakdown: currentMonthData
+        },
+        previousMonth: {
+          month: previousMonth,
+          dailyBreakdown: previousMonthData
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ Error fetching TDDF1 monthly comparison:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // End of TDDF1 APIs
 
   // DUPLICATE ENDPOINT REMOVED - Using the first one only

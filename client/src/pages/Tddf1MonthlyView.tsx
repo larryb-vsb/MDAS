@@ -24,6 +24,31 @@ interface MonthlyTotals {
   }>;
 }
 
+interface MonthlyComparison {
+  currentMonth: {
+    month: string;
+    dailyBreakdown: Array<{
+      date: string;
+      files: number;
+      records: number;
+      transactionValue: number;
+      netDepositBh: number;
+      dayOfMonth: number;
+    }>;
+  };
+  previousMonth: {
+    month: string;
+    dailyBreakdown: Array<{
+      date: string;
+      files: number;
+      records: number;
+      transactionValue: number;
+      netDepositBh: number;
+      dayOfMonth: number;
+    }>;
+  };
+}
+
 export default function Tddf1MonthlyView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [, setLocation] = useLocation();
@@ -34,6 +59,15 @@ export default function Tddf1MonthlyView() {
     queryFn: async (): Promise<MonthlyTotals> => {
       const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`);
       if (!response.ok) throw new Error('Failed to fetch monthly data');
+      return response.json();
+    }
+  });
+
+  const { data: comparisonData, isLoading: comparisonLoading } = useQuery({
+    queryKey: ['tddf1-monthly-comparison', format(currentMonth, 'yyyy-MM')],
+    queryFn: async (): Promise<MonthlyComparison> => {
+      const response = await fetch(`/api/tddf1/monthly-comparison?month=${format(currentMonth, 'yyyy-MM')}`);
+      if (!response.ok) throw new Error('Failed to fetch monthly comparison data');
       return response.json();
     }
   });
@@ -226,64 +260,126 @@ export default function Tddf1MonthlyView() {
             </CardContent>
           </Card>
 
-          {/* Monthly Trend Chart */}
+          {/* Monthly Comparison Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <LineChart className="h-5 w-5 mr-2" />
-                Monthly Financial Trends
+                Monthly Financial Trends Comparison
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsLineChart data={monthlyData.dailyBreakdown}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => format(new Date(value), 'MMM dd')}
-                      stroke="#666"
-                      fontSize={12}
-                    />
-                    <YAxis 
-                      stroke="#666"
-                      fontSize={12}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                    />
-                    <Tooltip 
-                      formatter={(value: number, name: string) => [
-                        formatCurrency(value), 
-                        name === 'transactionValue' ? 'DT Transaction Value' : 'BH Net Deposit'
-                      ]}
-                      labelFormatter={(value) => format(new Date(value), 'EEEE, MMMM dd, yyyy')}
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                      }}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="transactionValue" 
-                      stroke="#8b5cf6" 
-                      strokeWidth={3}
-                      name="DT Transaction Value"
-                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2 }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="netDepositBh" 
-                      stroke="#3b82f6" 
-                      strokeWidth={3}
-                      name="BH Net Deposit"
-                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-                    />
-                  </RechartsLineChart>
-                </ResponsiveContainer>
+                {comparisonLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-gray-500">Loading comparison data...</div>
+                  </div>
+                ) : comparisonData ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsLineChart 
+                      data={(() => {
+                        // Create combined dataset with proper day alignment
+                        const maxDays = Math.max(
+                          comparisonData.currentMonth.dailyBreakdown.length,
+                          comparisonData.previousMonth.dailyBreakdown.length
+                        );
+                        
+                        const combinedData = [];
+                        for (let day = 1; day <= maxDays; day++) {
+                          const currentDay = comparisonData.currentMonth.dailyBreakdown.find(d => d.dayOfMonth === day);
+                          const previousDay = comparisonData.previousMonth.dailyBreakdown.find(d => d.dayOfMonth === day);
+                          
+                          combinedData.push({
+                            dayOfMonth: day,
+                            currentTransactionValue: currentDay?.transactionValue || 0,
+                            currentNetDepositBh: currentDay?.netDepositBh || 0,
+                            previousTransactionValue: previousDay?.transactionValue || 0,
+                            previousNetDepositBh: previousDay?.netDepositBh || 0,
+                            currentDate: currentDay?.date,
+                            previousDate: previousDay?.date
+                          });
+                        }
+                        return combinedData;
+                      })()}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="dayOfMonth" 
+                        stroke="#666"
+                        fontSize={12}
+                        tickFormatter={(value) => `Day ${value}`}
+                      />
+                      <YAxis 
+                        stroke="#666"
+                        fontSize={12}
+                        tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                      />
+                      <Tooltip 
+                        formatter={(value: number, name: string) => {
+                          const displayNames: Record<string, string> = {
+                            'currentTransactionValue': `${format(currentMonth, 'MMM yyyy')} - DT Transaction Value`,
+                            'currentNetDepositBh': `${format(currentMonth, 'MMM yyyy')} - BH Net Deposit`,
+                            'previousTransactionValue': `${format(subMonths(currentMonth, 1), 'MMM yyyy')} - DT Transaction Value`,
+                            'previousNetDepositBh': `${format(subMonths(currentMonth, 1), 'MMM yyyy')} - BH Net Deposit`
+                          };
+                          return [formatCurrency(value), displayNames[name] || name];
+                        }}
+                        labelFormatter={(value) => `Day ${value} of Month`}
+                        contentStyle={{
+                          backgroundColor: '#fff',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                      />
+                      <Legend />
+                      {/* Current Month Lines - Solid */}
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentTransactionValue" 
+                        stroke="#8b5cf6" 
+                        strokeWidth={3}
+                        name={`${format(currentMonth, 'MMM yyyy')} Transaction Value`}
+                        dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="currentNetDepositBh" 
+                        stroke="#3b82f6" 
+                        strokeWidth={3}
+                        name={`${format(currentMonth, 'MMM yyyy')} Net Deposit`}
+                        dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+                      />
+                      {/* Previous Month Lines - Dashed */}
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousTransactionValue" 
+                        stroke="#d946ef" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        name={`${format(subMonths(currentMonth, 1), 'MMM yyyy')} Transaction Value`}
+                        dot={{ fill: '#d946ef', strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 5, stroke: '#d946ef', strokeWidth: 2 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="previousNetDepositBh" 
+                        stroke="#06b6d4" 
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        name={`${format(subMonths(currentMonth, 1), 'MMM yyyy')} Net Deposit`}
+                        dot={{ fill: '#06b6d4', strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 5, stroke: '#06b6d4', strokeWidth: 2 }}
+                      />
+                    </RechartsLineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-gray-500">No comparison data available</div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
