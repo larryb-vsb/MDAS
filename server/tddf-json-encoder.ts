@@ -1169,6 +1169,21 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     }
     
     console.log(`[TDDF1-ENCODER] ✅ Successfully updated totals cache for ${processedDate.toISOString().split('T')[0]}`);
+    
+    // Also update BH Net Deposit values if we have BH records
+    if (bhNetDepositResult.length > 0) {
+      await sql(`
+        UPDATE ${totalsTableName} 
+        SET total_net_deposit_bh = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE file_name = $2
+      `, [
+        parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0'),
+        upload.filename
+      ]);
+      console.log(`[TDDF1-ENCODER] ✅ Updated BH Net Deposit totals: $${parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0').toLocaleString()}`);
+    }
+    
+    console.log(`[TDDF1-ENCODER] 🎯 AUTO-CACHE UPDATE: All precache tables automatically updated for monthly view`);
   } catch (cacheError: any) {
     console.error(`[TDDF1-ENCODER] Failed to update totals cache:`, cacheError);
     results.errors.push(`Failed to update totals cache: ${cacheError.message}`);
