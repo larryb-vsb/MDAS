@@ -290,33 +290,66 @@ export const BH_RECORD_FIELDS: TddfFieldDefinition[] = [
 /**
  * Extract field value from TDDF line using field definition
  */
-function extractFieldValue(line: string, field: TddfFieldDefinition): any {
+/**
+ * Enhanced field extraction with comprehensive validation
+ */
+function extractFieldValue(line: string, field: TddfFieldDefinition): {
+  value: any;
+  isValid: boolean;
+  validationError?: string;
+} {
   const [start, end] = field.positions;
   const rawValue = line.substring(start - 1, end).trim(); // Convert to 0-based indexing
   
   // Special handling for cardType field - allow "00" and other values
   if (field.name === 'cardType') {
     if (rawValue.length > 0) {
-      return rawValue; // Return any non-empty value for card type
+      return { value: rawValue, isValid: true }; // Return any non-empty value for card type
     }
-    return null;
+    return { value: null, isValid: true };
   }
   
   // Special handling for terminalId field - allow numeric terminal IDs and mixed values
   if (field.name === 'terminalId') {
     if (rawValue.length > 0) {
-      return rawValue; // Return any non-empty value for terminal ID
+      return { value: rawValue, isValid: true }; // Return any non-empty value for terminal ID
     }
-    return null;
+    return { value: null, isValid: true };
   }
   
-  if (!rawValue) return null;
+  if (!rawValue) return { value: null, isValid: true };
   
   switch (field.type) {
     case 'numeric':
       const numValue = parseFloat(rawValue);
-      if (isNaN(numValue)) return null;
-      return field.scale ? numValue / Math.pow(10, field.scale) : numValue;
+      if (isNaN(numValue)) {
+        return { 
+          value: null, 
+          isValid: false, 
+          validationError: `Invalid numeric value: "${rawValue}" for field ${field.name}` 
+        };
+      }
+      const finalValue = field.scale ? numValue / Math.pow(10, field.scale) : numValue;
+      
+      // Additional validation for financial amounts
+      if (field.name === 'transactionAmount' || field.name === 'authAmount') {
+        if (finalValue < 0) {
+          return { 
+            value: finalValue, 
+            isValid: false, 
+            validationError: `Negative amount not allowed: ${finalValue} for field ${field.name}` 
+          };
+        }
+        if (finalValue > 999999.99) {
+          return { 
+            value: finalValue, 
+            isValid: false, 
+            validationError: `Amount exceeds maximum: ${finalValue} for field ${field.name}` 
+          };
+        }
+      }
+      
+      return { value: finalValue, isValid: true };
       
     case 'date':
       // TDDF dates are in MMDDCCYY format
@@ -324,30 +357,118 @@ function extractFieldValue(line: string, field: TddfFieldDefinition): any {
         const month = rawValue.substring(0, 2);
         const day = rawValue.substring(2, 4);
         const year = rawValue.substring(4, 8);
-        return `${year}-${month}-${day}`;
+        
+        // Validate date components
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (monthNum < 1 || monthNum > 12) {
+          return { 
+            value: null, 
+            isValid: false, 
+            validationError: `Invalid month: ${monthNum} in date ${rawValue}` 
+          };
+        }
+        
+        if (dayNum < 1 || dayNum > 31) {
+          return { 
+            value: null, 
+            isValid: false, 
+            validationError: `Invalid day: ${dayNum} in date ${rawValue}` 
+          };
+        }
+        
+        if (yearNum < 1900 || yearNum > 2100) {
+          return { 
+            value: null, 
+            isValid: false, 
+            validationError: `Invalid year: ${yearNum} in date ${rawValue}` 
+          };
+        }
+        
+        // Test date validity
+        const testDate = new Date(`${year}-${month}-${day}`);
+        if (isNaN(testDate.getTime())) {
+          return { 
+            value: null, 
+            isValid: false, 
+            validationError: `Invalid date: ${rawValue} (${year}-${month}-${day})` 
+          };
+        }
+        
+        return { value: `${year}-${month}-${day}`, isValid: true };
       }
-      return null;
+      return { 
+        value: null, 
+        isValid: false, 
+        validationError: `Invalid date format: "${rawValue}" (expected MMDDCCYY)` 
+      };
       
     case 'text':
     default:
-      return rawValue;
+      // Text field validation
+      if (field.name === 'merchantId' && rawValue.length < 4) {
+        return { 
+          value: rawValue, 
+          isValid: false, 
+          validationError: `Merchant ID too short: "${rawValue}" (minimum 4 characters)` 
+        };
+      }
+      
+      return { value: rawValue, isValid: true };
   }
 }
 
 /**
  * Encode TDDF line to JSON using record type schema definitions
  */
+/**
+ * Enhanced TDDF line encoding with comprehensive row validation
+ */
 function encodeTddfLineToJson(line: string, lineNumber: number): any {
+  const validationResults = {
+    isValid: true,
+    errors: [] as string[],
+    warnings: [] as string[]
+  };
+  
+  // Basic line length validation
   if (line.length < 19) {
-    return { error: 'Line too short for TDDF format', lineNumber, rawLine: line };
+    return { 
+      error: 'Line too short for TDDF format', 
+      lineNumber, 
+      rawLine: line,
+      validationResults: {
+        isValid: false,
+        errors: ['Line length insufficient for TDDF format (minimum 19 characters)'],
+        warnings: []
+      }
+    };
   }
   
+  // Extract and validate record type
   const recordType = line.substring(17, 19); // Positions 18-19
+  if (!recordType || recordType.trim().length === 0) {
+    validationResults.isValid = false;
+    validationResults.errors.push('Missing record type at positions 18-19');
+  }
+  
+  // Validate record type against known types
+  const validRecordTypes = ['DT', 'BH', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE'];
+  if (!validRecordTypes.includes(recordType)) {
+    validationResults.warnings.push(`Unknown record type: ${recordType}`);
+  }
+  
   let fields: TddfFieldDefinition[] = [];
   
   switch (recordType) {
     case 'DT':
       fields = DT_RECORD_FIELDS;
+      // Additional DT-specific validations
+      if (line.length < 650) { // DT records should be approximately 650+ characters
+        validationResults.warnings.push(`DT record shorter than expected: ${line.length} characters`);
+      }
       break;
     case 'P1':
     case 'P2':
@@ -355,6 +476,10 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
       break;
     case 'BH':
       fields = BH_RECORD_FIELDS;
+      // Additional BH-specific validations
+      if (line.length < 200) { // BH records should be approximately 200+ characters
+        validationResults.warnings.push(`BH record shorter than expected: ${line.length} characters`);
+      }
       break;
     default:
       // For other record types (E1, G2, AD, DR, etc.), extract basic header fields
@@ -370,15 +495,77 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
     recordType,
     lineNumber,
     rawLine: line,
-    extractedFields: {}
+    extractedFields: {},
+    validationResults
   };
   
-  // Extract all defined fields
+  // Extract all defined fields with enhanced validation
+  let fieldValidationErrors = 0;
   for (const field of fields) {
-    const value = extractFieldValue(line, field);
-    if (value !== null) {
-      jsonRecord.extractedFields[field.name] = value;
+    const fieldResult = extractFieldValue(line, field);
+    
+    // Store the extracted value
+    if (fieldResult.value !== null) {
+      jsonRecord.extractedFields[field.name] = fieldResult.value;
     }
+    
+    // Track validation results
+    if (!fieldResult.isValid) {
+      validationResults.isValid = false;
+      validationResults.errors.push(fieldResult.validationError || `Field validation failed: ${field.name}`);
+      fieldValidationErrors++;
+    }
+  }
+  
+  // Additional transaction-specific validations for DT records
+  if (recordType === 'DT') {
+    const transactionAmount = jsonRecord.extractedFields.transactionAmount;
+    const authAmount = jsonRecord.extractedFields.authAmount;
+    const merchantId = jsonRecord.extractedFields.merchantId;
+    const cardNumber = jsonRecord.extractedFields.cardNumber;
+    
+    // Critical DT record validations
+    if (!transactionAmount && transactionAmount !== 0) {
+      validationResults.errors.push('DT record missing required transaction amount');
+      validationResults.isValid = false;
+    }
+    
+    if (!merchantId) {
+      validationResults.errors.push('DT record missing required merchant ID');
+      validationResults.isValid = false;
+    }
+    
+    if (transactionAmount && authAmount && Math.abs(transactionAmount - authAmount) > transactionAmount * 0.10) {
+      validationResults.warnings.push(`Large discrepancy between transaction (${transactionAmount}) and auth (${authAmount}) amounts`);
+    }
+    
+    // Card number basic validation (should be masked or valid format)
+    if (cardNumber && cardNumber.length > 0) {
+      const cardStr = String(cardNumber);
+      if (cardStr.length < 12 || cardStr.length > 19) {
+        validationResults.warnings.push(`Unusual card number length: ${cardStr.length} digits`);
+      }
+    }
+  }
+  
+  // Batch Header validation for BH records
+  if (recordType === 'BH') {
+    const batchDate = jsonRecord.extractedFields.batchDate;
+    const batchTime = jsonRecord.extractedFields.batchTime;
+    
+    if (!batchDate) {
+      validationResults.errors.push('BH record missing required batch date');
+      validationResults.isValid = false;
+    }
+  }
+  
+  // Log validation results for monitoring
+  if (!validationResults.isValid) {
+    console.warn(`[TDDF-VALIDATION] Line ${lineNumber} validation failed:`, validationResults.errors);
+  }
+  
+  if (validationResults.warnings.length > 0) {
+    console.info(`[TDDF-VALIDATION] Line ${lineNumber} validation warnings:`, validationResults.warnings);
   }
   
   return jsonRecord;
@@ -402,12 +589,19 @@ export async function encodeTddfToJsonb(fileContent: string, upload: UploaderUpl
     },
     jsonRecords: [] as any[],
     encodingTimeMs: 0,
-    errors: [] as string[]
+    errors: [] as string[],
+    validationStats: {
+      validRecords: 0,
+      invalidRecords: 0,
+      warnings: 0,
+      criticalErrors: 0,
+      byRecordType: {} as Record<string, { valid: number; invalid: number; warnings: number }>
+    }
   };
   
-  console.log(`[TDDF-JSON-ENCODER] Starting encoding for ${upload.filename} (${lines.length} lines)`);
+  console.log(`[TDDF-JSON-ENCODER] Starting enhanced validation encoding for ${upload.filename} (${lines.length} lines)`);
   
-  // Process each line
+  // Process each line with comprehensive validation
   for (let i = 0; i < lines.length; i++) {
     try {
       const jsonRecord = encodeTddfLineToJson(lines[i], i + 1);
@@ -419,18 +613,51 @@ export async function encodeTddfToJsonb(fileContent: string, upload: UploaderUpl
           (results.recordCounts.byType[jsonRecord.recordType] || 0) + 1;
       }
       
+      // Track validation statistics
+      if (jsonRecord.validationResults) {
+        const validation = jsonRecord.validationResults;
+        const recordType = jsonRecord.recordType || 'UNKNOWN';
+        
+        // Initialize record type stats if needed
+        if (!results.validationStats.byRecordType[recordType]) {
+          results.validationStats.byRecordType[recordType] = { valid: 0, invalid: 0, warnings: 0 };
+        }
+        
+        if (validation.isValid) {
+          results.validationStats.validRecords++;
+          results.validationStats.byRecordType[recordType].valid++;
+        } else {
+          results.validationStats.invalidRecords++;
+          results.validationStats.byRecordType[recordType].invalid++;
+          results.validationStats.criticalErrors += validation.errors?.length || 0;
+        }
+        
+        if (validation.warnings?.length > 0) {
+          results.validationStats.warnings += validation.warnings.length;
+          results.validationStats.byRecordType[recordType].warnings += validation.warnings.length;
+        }
+      }
+      
     } catch (error: any) {
       const errorMsg = `Line ${i + 1}: ${error.message}`;
       results.errors.push(errorMsg);
-      console.error(`[TDDF-JSON-ENCODER] ${errorMsg}`);
+      results.validationStats.criticalErrors++;
+      console.error(`[TDDF-VALIDATION] Critical processing error: ${errorMsg}`);
     }
   }
   
   results.recordCounts.total = results.totalRecords;
   results.encodingTimeMs = Date.now() - startTime;
   
-  console.log(`[TDDF-JSON-ENCODER] Completed encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
-  console.log(`[TDDF-JSON-ENCODER] Record type breakdown:`, results.recordCounts.byType);
+  // Enhanced completion logging with validation statistics
+  console.log(`[TDDF-VALIDATION] Completed enhanced encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
+  console.log(`[TDDF-VALIDATION] Record type breakdown:`, results.recordCounts.byType);
+  console.log(`[TDDF-VALIDATION] Validation summary:`);
+  console.log(`  ✅ Valid records: ${results.validationStats.validRecords}`);
+  console.log(`  ❌ Invalid records: ${results.validationStats.invalidRecords}`);
+  console.log(`  ⚠️  Warnings: ${results.validationStats.warnings}`);
+  console.log(`  🚨 Critical errors: ${results.validationStats.criticalErrors}`);
+  console.log(`[TDDF-VALIDATION] Validation by record type:`, results.validationStats.byRecordType);
   
   return results;
 }
@@ -487,11 +714,16 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
     
     const batchRecords: any[] = [];
     
-    // Process batch
+    // Process batch with enhanced validation tracking
     for (let i = 0; i < batch.length; i++) {
       try {
         const lineNumber = batchStart + i + 1;
         const jsonRecord = encodeTddfLineToJson(batch[i], lineNumber);
+        
+        // Log validation results for critical issues
+        if (jsonRecord.validationResults && !jsonRecord.validationResults.isValid) {
+          console.warn(`[TDDF-VALIDATION] Line ${lineNumber} failed validation:`, jsonRecord.validationResults.errors);
+        }
         
         // Add universal TDDF processing datetime to extracted fields
         if (tddfDatetime.isValidTddfFilename) {

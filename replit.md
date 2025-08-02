@@ -11,13 +11,14 @@ Critical System Requirement: "Never re-fresh" policy - all auto-refresh function
 ## Known Critical Issues
 **Sidebar Menu Disappearing Bug (RESOLVED 2025-08-02)**: Fixed critical navigation issue affecting both mobile and desktop sidebar menus. Root cause was missing onClick handlers in desktop navigation and Radix Dialog auto-close behavior in mobile navigation. Solution implemented comprehensive click handling for both mobile Sheet navigation and desktop sidebar navigation with proper event management to prevent unwanted automatic closure. Both mobile and desktop navigation now work correctly with proper debugging and state management.
 
-**TDDF1 System Implementation (COMPLETED 2025-08-02)**: Successfully implemented comprehensive TDDF1 file-based encoding system with dynamic table creation and pre-cache totals management. Features include:
+**TDDF1 System Implementation (COMPLETED 2025-08-02)**: Successfully implemented comprehensive TDDF1 file-based encoding system with dynamic table creation, pre-cache totals management, and enhanced row-by-row transaction validation. Features include:
 - Dynamic table creation using `dev_tddf1_filename` pattern for each uploaded file
 - Pre-cache totals table (`dev_tddf1_totals`) for optimized dashboard performance  
 - File processing API endpoint that parses TDDF records and extracts transaction data
 - Totals cache management widget with manual rebuild functionality
 - Enhanced navigation with back button and simplified day navigation
 - Environment-aware table prefixes (dev_/prod_) for proper isolation
+- **Comprehensive Row-by-Row Validation**: Enhanced encoding process validates each transaction row during file processing with field-level validation, record type validation, transaction amount validation, date format validation, merchant ID validation, and comprehensive logging of validation results
 
 **Production TDDF Processing Fixed (2025-08-01)**: Resolved critical production database schema issue where TDDF files failed encoding with "error" phase. Missing production tables (tddf_records_json, tddf_transactions, tddf_purchasing_cards, tddf_purchasing_cards_2) were created from development templates. File phase reset and type classification fixes implemented. Production TDDF processing now matches development environment capabilities.
 
