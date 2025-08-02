@@ -17018,6 +17018,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TDDF1 Day Breakdown - Daily data breakdown
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
+    // Force no cache for fresh data
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    
     try {
       const date = req.query.date as string;
       if (!date) {
