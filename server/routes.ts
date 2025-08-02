@@ -16595,6 +16595,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // TDDF1 API ENDPOINTS
+  // ==========================================
+
+  // TDDF1 Dashboard Stats - File-based TDDF statistics
+  app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
+    try {
+      console.log("📊 Getting TDDF1 stats");
+      
+      // Get all file-based TDDF tables (dev_tddf1_filename pattern)
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE '${getCurrentEnvironment()}_tddf1_%'
+      `);
+      
+      const activeTables = tablesResult.rows.map(row => row.table_name);
+      
+      // Since no TDDF1 tables exist yet, return empty data
+      console.log(`📊 Found ${activeTables.length} TDDF1 tables`);
+      
+      res.json({
+        totalFiles: activeTables.length,
+        totalRecords: 0,
+        totalTransactionValue: 0,
+        recordTypeBreakdown: {},
+        activeTables,
+        lastProcessedDate: null
+      });
+      
+    } catch (error) {
+      console.error("Error getting TDDF1 stats:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get TDDF1 stats",
+        totalFiles: 0,
+        totalRecords: 0,
+        totalTransactionValue: 0,
+        recordTypeBreakdown: {},
+        activeTables: [],
+        lastProcessedDate: null
+      });
+    }
+  });
+
+  // TDDF1 Day Breakdown - Daily data breakdown
+  app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
+    try {
+      const date = req.query.date as string;
+      if (!date) {
+        return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD format)" });
+      }
+      
+      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
+      
+      res.json({
+        date,
+        totalRecords: 0,
+        recordTypes: {},
+        transactionValue: 0,
+        fileCount: 0,
+        tables: []
+      });
+      
+    } catch (error) {
+      console.error("Error getting TDDF1 day breakdown:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get TDDF1 day breakdown",
+        date: req.query.date,
+        totalRecords: 0,
+        recordTypes: {},
+        transactionValue: 0,
+        fileCount: 0,
+        tables: []
+      });
+    }
+  });
+
+  // TDDF1 Recent Activity - Latest processed files
+  app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
+    try {
+      console.log("📋 Getting TDDF1 recent activity");
+      
+      res.json([]);
+      
+    } catch (error) {
+      console.error("Error getting TDDF1 recent activity:", error);
+      res.status(500).json([]);
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
@@ -16827,3 +16918,5 @@ function parseAmount(amountStr: string): number | null {
   // Convert from cents to dollars (divide by 100)
   return amount / 100;
 }
+
+
