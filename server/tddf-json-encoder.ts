@@ -878,8 +878,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   
   // Create file-specific table with TDDF1 schema
   try {
-    // Use regular string concatenation for table name as it's an identifier
-    await sql.unsafe(`
+    // Build the CREATE TABLE query with string interpolation for table name
+    const createTableQuery = `
       CREATE TABLE IF NOT EXISTS ${tableName} (
         id SERIAL PRIMARY KEY,
         record_type VARCHAR(10) NOT NULL,
@@ -897,7 +897,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         parsed_datetime TIMESTAMP,
         record_time_source VARCHAR(50)
       )
-    `);
+    `;
+    
+    await sql(createTableQuery);
     console.log(`[TDDF1-ENCODER] Successfully created table: ${tableName}`);
   } catch (tableError: any) {
     console.error(`[TDDF1-ENCODER] Failed to create table ${tableName}:`, tableError);
@@ -1000,9 +1002,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     // Batch insert to file-specific table
     if (batchRecords.length > 0) {
       try {
-        // Build insert query for the file-specific table
+        // Build insert query for the file-specific table using template literals
         for (const record of batchRecords) {
-          await sql.unsafe(`
+          const insertQuery = `
             INSERT INTO ${tableName} (
               record_type, raw_line, record_sequence, field_data, transaction_amount,
               merchant_id, terminal_id, batch_id, transaction_date, source_filename,
@@ -1010,7 +1012,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
             ) VALUES (
               $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
             )
-          `, [
+          `;
+          
+          await sql(insertQuery, [
             record.record_type, record.raw_line, record.record_sequence, 
             JSON.stringify(record.field_data), record.transaction_amount,
             record.merchant_id, record.terminal_id, record.batch_id,
