@@ -17018,10 +17018,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TDDF1 Day Breakdown - Daily data breakdown
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
-    // Force no cache for fresh data
+    // Force no cache for fresh data with unique timestamp
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
+    res.set('ETag', `"${Date.now()}"`);
+    res.set('Last-Modified', new Date().toUTCString());
     
     try {
       const date = req.query.date as string;
@@ -17054,6 +17056,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`📅 Found ${activeTables.length} tables for date ${date}:`, activeTables);
       
       if (activeTables.length === 0) {
+        console.log(`📅 NO TABLES FOUND for date ${date}, formatted as ${dateFormatted}`);
+        console.log(`📅 Query was: ${tablePrefix}file_% AND %${dateFormatted}%`);
         return res.json({
           date,
           totalRecords: 0,
