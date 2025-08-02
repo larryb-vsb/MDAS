@@ -192,11 +192,11 @@ function Tddf1Page() {
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => setLocation('/tddf1-monthly')} variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
+              <CalendarIcon className="h-4 w-4 mr-2" />
               Monthly View
             </Button>
             <Button onClick={navigateToToday} variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
+              <CalendarIcon className="h-4 w-4 mr-2" />
               Today
             </Button>
             {!showProgressTracking && (
