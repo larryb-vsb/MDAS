@@ -101,26 +101,24 @@ function Tddf1Page() {
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // API Queries with enhanced refresh options - TEMP: Force production environment for testing
+  // API Queries with enhanced refresh options
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<Tddf1Stats>({
-    queryKey: ['/api/tddf1/stats?env=production'],
-    queryFn: () => fetch('/api/tddf1/stats?env=production').then(res => res.json()),
+    queryKey: ['/api/tddf1/stats'],
     refetchInterval: 10000, // Refetch every 10 seconds
     refetchOnWindowFocus: true,
     staleTime: 5000, // Consider data fresh for 5 seconds
   });
 
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
-    queryKey: ['/api/tddf1/day-breakdown', selectedDateStr, 'production'],
+    queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
     queryFn: () => {
-      return fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}&env=production`).then(res => res.json());
+      return fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json());
     },
     enabled: !!selectedDateStr,
   });
 
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
-    queryKey: ['/api/tddf1/recent-activity?env=production'],
-    queryFn: () => fetch('/api/tddf1/recent-activity?env=production').then(res => res.json()),
+    queryKey: ['/api/tddf1/recent-activity'],
   });
 
   // Progress tracking query (only when tracking is enabled)
