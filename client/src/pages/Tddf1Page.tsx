@@ -490,7 +490,7 @@ function Tddf1Page() {
                           .filter(type => dayBreakdown.recordTypes[type])
                           .map(type => {
                             const count = dayBreakdown.recordTypes[type];
-                            const config = recordTypeConfig[type];
+                            const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
                             return (
@@ -716,7 +716,7 @@ function Tddf1Page() {
                       .filter(type => stats.recordTypeBreakdown[type])
                       .map(type => {
                         const count = stats.recordTypeBreakdown[type];
-                        const config = recordTypeConfig[type];
+                        const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                         
                         return (
                           <div key={type} className={`text-center rounded-lg p-4 border ${config.bgColor} ${config.color.split(' ')[2]}`}>
