@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity } from "lucide-react";
-import { format, addDays, subDays, startOfMonth, endOfMonth, isToday, isSameDay } from "date-fns";
-import { cn } from "@/lib/utils";
+import { format, addDays, subDays, isToday } from "date-fns";
+
 
 interface Tddf1Stats {
   totalFiles: number;
@@ -36,11 +36,9 @@ interface Tddf1RecentActivity {
 
 function Tddf1Page() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const currentMonthStr = format(currentMonth, 'yyyy-MM');
 
   // API Queries
   const { data: stats, isLoading: statsLoading } = useQuery<Tddf1Stats>({
@@ -60,16 +58,6 @@ function Tddf1Page() {
   const navigateToToday = () => setSelectedDate(new Date());
   const navigateToPreviousDay = () => setSelectedDate(prev => subDays(prev, 1));
   const navigateToNextDay = () => setSelectedDate(prev => addDays(prev, 1));
-  const navigateToPreviousMonth = () => setCurrentMonth(prev => subDays(startOfMonth(prev), 1));
-  const navigateToNextMonth = () => setCurrentMonth(prev => addDays(endOfMonth(prev), 1));
-
-  // Get days in current month
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const daysInMonth = [];
-  for (let date = monthStart; date <= monthEnd; date = addDays(date, 1)) {
-    daysInMonth.push(new Date(date));
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -174,39 +162,31 @@ function Tddf1Page() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Month Calendar */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">{format(currentMonth, 'MMMM yyyy')}</h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={navigateToPreviousMonth}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={navigateToNextMonth}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-gray-500 p-2">
-                    {day}
-                  </div>
-                ))}
-                {daysInMonth.map(date => (
-                  <button
-                    key={date.toISOString()}
-                    onClick={() => setSelectedDate(date)}
-                    className={cn(
-                      "text-center p-2 text-sm rounded hover:bg-gray-100 transition-colors",
-                      isSameDay(date, selectedDate) && "bg-blue-100 text-blue-700 font-semibold",
-                      isToday(date) && "ring-2 ring-blue-500"
-                    )}
-                  >
-                    {format(date, 'd')}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant="outline"
+                onClick={navigateToPreviousDay}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous Day
+              </Button>
+              <Button
+                onClick={navigateToToday}
+                variant={isToday(selectedDate) ? "default" : "outline"}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                onClick={navigateToNextDay}
+                className="flex items-center gap-2"
+              >
+                Next Day
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -16609,7 +16609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-          AND table_name LIKE '${getCurrentEnvironment()}_tddf1_%'
+          AND table_name LIKE 'dev_tddf1_%'
       `);
       
       const activeTables = tablesResult.rows.map(row => row.table_name);
