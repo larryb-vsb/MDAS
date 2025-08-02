@@ -16806,55 +16806,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // If no encoding files, fall through to normal totals table query
+        // If no encoding files, use pre-cache totals for much faster performance
       } else {
-        // Get aggregated stats from all encoded files
-        const allFilesResult = await pool.query(`
-          SELECT table_name 
-          FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-            AND table_name LIKE $1
-            AND table_name != $2
-        `, [`${tablePrefix}file_%`, totalsTableName]);
+        // Get aggregated stats from the pre-cache totals table
+        const totalsResult = await pool.query(`
+          SELECT 
+            COUNT(DISTINCT file_name) as file_count,
+            SUM(total_records) as total_records,
+            SUM(total_transaction_value) as total_transaction_value,
+            COUNT(*) as total_cache_entries
+          FROM ${totalsTableName}
+        `);
+        
+        // Get record type breakdown from pre-cache
+        const breakdownResult = await pool.query(`
+          SELECT record_type_breakdown 
+          FROM ${totalsTableName}
+        `);
         
         let totalRecords = 0;
         let totalTransactionValue = 0;
+        let fileCount = 0;
         const recordTypeBreakdown: Record<string, number> = {};
         
-        for (const tableRow of allFilesResult.rows) {
-          try {
-            const tableName = tableRow.table_name;
-            const tableStatsResult = await pool.query(`
-              SELECT 
-                COUNT(*) as record_count,
-                record_type,
-                COALESCE(SUM(CASE 
-                  WHEN record_type = 'DT' AND transaction_amount IS NOT NULL 
-                  THEN transaction_amount 
-                  ELSE 0 
-                END), 0) as transaction_value
-              FROM ${tableName}
-              GROUP BY record_type
-            `);
-            
-            for (const row of tableStatsResult.rows) {
-              totalRecords += parseInt(row.record_count);
-              totalTransactionValue += parseFloat(row.transaction_value || '0');
-              recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+        if (totalsResult.rows.length > 0) {
+          const summary = totalsResult.rows[0];
+          totalRecords = parseInt(summary.total_records) || 0;
+          totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
+          fileCount = parseInt(summary.file_count) || 0;
+        }
+        
+        // Aggregate record type breakdowns
+        for (const row of breakdownResult.rows) {
+          const breakdown = typeof row.record_type_breakdown === 'string' 
+            ? JSON.parse(row.record_type_breakdown) 
+            : row.record_type_breakdown;
+          
+          if (breakdown && typeof breakdown === 'object') {
+            for (const [type, count] of Object.entries(breakdown)) {
+              recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
             }
-          } catch (error) {
-            console.warn(`Error querying table ${tableRow.table_name}:`, error);
           }
         }
         
         return res.json({
-          totalFiles: allFilesResult.rows.length,
+          totalFiles: fileCount,
           totalRecords: totalRecords,
           totalTransactionValue: totalTransactionValue,
           recordTypeBreakdown: recordTypeBreakdown,
-          activeTables: allFilesResult.rows.map(r => r.table_name),
+          activeTables: [],
           lastProcessedDate: new Date().toISOString(),
-          cached: false,
+          cached: true,
+          cacheSource: 'pre-cache totals aggregation',
           lastUpdated: new Date().toISOString()
         });
       }
