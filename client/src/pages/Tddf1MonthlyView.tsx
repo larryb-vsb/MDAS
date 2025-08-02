@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -57,7 +57,7 @@ export default function Tddf1MonthlyView() {
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
 
   // Initialize theme from user preference on component mount
   useEffect(() => {
@@ -592,6 +592,20 @@ ${monthlyData.dailyBreakdown.map(day =>
           </CardContent>
         </Card>
       )}
+
+      {/* Big Logout Button at Bottom */}
+      <div className="mt-8 mb-4">
+        <Button 
+          onClick={() => logoutMutation.mutate()}
+          disabled={logoutMutation.isPending}
+          size="lg"
+          variant="destructive"
+          className="w-full py-4 text-lg font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <LogOut className="h-6 w-6 mr-3" />
+          {logoutMutation.isPending ? 'Logging out...' : 'Log Out'}
+        </Button>
+      </div>
     </div>
   );
 }
