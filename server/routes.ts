@@ -6212,15 +6212,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TDDF1 Dashboard API endpoints
   app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
     try {
-      // Mock stats for now - will be implemented with real data
-      const stats = {
-        totalFiles: 0,
-        totalRecords: 0,
-        totalTables: 0,
-        totalAmount: 0,
-        processingHealth: 'healthy',
-        processingProgress: 100
-      };
+      const selectedDate = req.query.selectedDate as string;
+      console.log(`📊 Getting TDDF1 stats for date: ${selectedDate}`);
+
+      // Get TDDF file statistics for the selected date
+      const stats = await storage.getTddf1DailyStats(selectedDate);
 
       res.json(stats);
     } catch (error: any) {
@@ -6233,8 +6229,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
     try {
-      // Mock activity data - will be implemented with real data
-      const activities: any[] = [];
+      const selectedDate = req.query.selectedDate as string;
+      console.log(`📋 Getting TDDF1 recent activity for date: ${selectedDate}`);
+
+      // Get recent file processing activity for the selected date
+      const activities = await storage.getTddf1DailyActivity(selectedDate);
 
       res.json(activities);
     } catch (error: any) {
@@ -6247,14 +6246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tddf1/database-status", isAuthenticated, async (req, res) => {
     try {
-      // Mock database status - will be implemented with real data
-      const dbStatus = {
-        status: 'healthy',
-        activeTables: 0,
-        totalRecords: 0,
-        storageUsed: '0 MB',
-        lastChecked: new Date().toISOString()
-      };
+      const selectedDate = req.query.selectedDate as string;
+      console.log(`💾 Getting TDDF1 database status for date: ${selectedDate}`);
+
+      // Get database status for TDDF1 tables for the selected date
+      const dbStatus = await storage.getTddf1DatabaseStatus(selectedDate);
 
       res.json(dbStatus);
     } catch (error: any) {

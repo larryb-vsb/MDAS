@@ -545,6 +545,41 @@ export interface IStorage {
   
   // Records gauge peak value from database (direct access)
   getRecordsPeakFromDatabase(): Promise<{peakRecords: number, allSamples: Array<{timestamp: string, totalRecords: number}>}>;
+
+  // TDDF1 Dashboard operations
+  getTddf1DailyStats(selectedDate: string): Promise<{
+    totalFiles: number;
+    totalRecords: number;
+    totalTables: number;
+    totalAmount: number;
+    processingHealth: string;
+    processingProgress: number;
+    recordTypes: {
+      DT: number;
+      BH: number;
+      P1: number;
+      P2: number;
+      E1: number;
+      Other: number;
+    };
+  }>;
+  
+  getTddf1DailyActivity(selectedDate: string): Promise<Array<{
+    id: string;
+    timestamp: string;
+    action: string;
+    fileName: string;
+    recordsProcessed: number;
+    status: string;
+  }>>;
+  
+  getTddf1DatabaseStatus(selectedDate: string): Promise<{
+    status: string;
+    activeTables: number;
+    totalRecords: number;
+    storageUsed: string;
+    lastChecked: string;
+  }>;
 }
 
 // Database storage implementation
@@ -14330,6 +14365,173 @@ export class DatabaseStorage implements IStorage {
     dateRange: { earliest: string; latest: string };
   }> {
     return await tddf1Encoder.getTableStats(tableName);
+  }
+
+  // TDDF1 Dashboard operations
+  async getTddf1DailyStats(selectedDate: string): Promise<{
+    totalFiles: number;
+    totalRecords: number;
+    totalTables: number;
+    totalAmount: number;
+    processingHealth: string;
+    processingProgress: number;
+    recordTypes: {
+      DT: number;
+      BH: number;
+      P1: number;
+      P2: number;
+      E1: number;
+      Other: number;
+    };
+  }> {
+    try {
+      console.log(`📊 Getting TDDF1 daily stats for ${selectedDate}`);
+
+      // Get file-based TDDF tables count and stats
+      const tables = await this.getFileBasedTddfTables();
+      
+      // Filter tables for the selected date
+      const dailyTables = tables.filter(table => {
+        const tableDate = table.createdAt.toISOString().split('T')[0];
+        return tableDate === selectedDate;
+      });
+
+      let totalRecords = 0;
+      let totalAmount = 0;
+      const recordTypes = { DT: 0, BH: 0, P1: 0, P2: 0, E1: 0, Other: 0 };
+
+      // Aggregate stats from all daily tables
+      for (const table of dailyTables) {
+        totalRecords += table.recordCount;
+        
+        // Get detailed stats for each table
+        try {
+          const tableStats = await this.getFileBasedTddfTableStats(table.tableName);
+          
+          // Add record type counts
+          Object.keys(tableStats.recordTypes).forEach(type => {
+            if (type in recordTypes) {
+              recordTypes[type as keyof typeof recordTypes] += tableStats.recordTypes[type];
+            } else {
+              recordTypes.Other += tableStats.recordTypes[type];
+            }
+          });
+
+          // Calculate approximate total amount (placeholder logic)
+          // In a real implementation, you'd sum actual transaction amounts
+          totalAmount += tableStats.recordTypes.DT * 50; // $50 avg per DT record
+        } catch (error) {
+          console.warn(`Error getting stats for table ${table.tableName}:`, error);
+        }
+      }
+
+      return {
+        totalFiles: dailyTables.length,
+        totalRecords,
+        totalTables: dailyTables.length,
+        totalAmount,
+        processingHealth: 'healthy',
+        processingProgress: 100,
+        recordTypes
+      };
+    } catch (error) {
+      console.error('Error getting TDDF1 daily stats:', error);
+      
+      // Return zero values for days with no data
+      return {
+        totalFiles: 0,
+        totalRecords: 0,
+        totalTables: 0,
+        totalAmount: 0,
+        processingHealth: 'healthy',
+        processingProgress: 100,
+        recordTypes: { DT: 0, BH: 0, P1: 0, P2: 0, E1: 0, Other: 0 }
+      };
+    }
+  }
+
+  async getTddf1DailyActivity(selectedDate: string): Promise<Array<{
+    id: string;
+    timestamp: string;
+    action: string;
+    fileName: string;
+    recordsProcessed: number;
+    status: string;
+  }>> {
+    try {
+      console.log(`📋 Getting TDDF1 daily activity for ${selectedDate}`);
+
+      // Get uploaded files for the selected date
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      
+      const result = await pool.query(`
+        SELECT id, original_filename, upload_date, file_size, status, processing_summary
+        FROM ${uploadedFilesTableName}
+        WHERE DATE(upload_date) = $1 
+          AND (file_type = 'tddf' OR original_filename LIKE '%.TSYSO')
+        ORDER BY upload_date DESC
+        LIMIT 10
+      `, [selectedDate]);
+
+      return result.rows.map(file => ({
+        id: file.id.toString(),
+        timestamp: file.upload_date,
+        action: 'File Processed',
+        fileName: file.original_filename || 'Unknown',
+        recordsProcessed: file.processing_summary?.recordsProcessed || 0,
+        status: file.status || 'Unknown'
+      }));
+    } catch (error) {
+      console.error('Error getting TDDF1 daily activity:', error);
+      return [];
+    }
+  }
+
+  async getTddf1DatabaseStatus(selectedDate: string): Promise<{
+    status: string;
+    activeTables: number;
+    totalRecords: number;
+    storageUsed: string;
+    lastChecked: string;
+  }> {
+    try {
+      console.log(`💾 Getting TDDF1 database status for ${selectedDate}`);
+
+      // Get file-based TDDF tables count
+      const tables = await this.getFileBasedTddfTables();
+      
+      // Filter for tables created on the selected date
+      const dailyTables = tables.filter(table => {
+        const tableDate = table.createdAt.toISOString().split('T')[0];
+        return tableDate === selectedDate;
+      });
+
+      let totalRecords = 0;
+      dailyTables.forEach(table => {
+        totalRecords += table.recordCount;
+      });
+
+      // Estimate storage used (approximate)
+      const storageUsedMB = Math.round(totalRecords * 0.5); // ~0.5KB per record estimate
+
+      return {
+        status: 'healthy',
+        activeTables: dailyTables.length,
+        totalRecords,
+        storageUsed: `${storageUsedMB} MB`,
+        lastChecked: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting TDDF1 database status:', error);
+      
+      return {
+        status: 'error',
+        activeTables: 0,
+        totalRecords: 0,
+        storageUsed: '0 MB',
+        lastChecked: new Date().toISOString()
+      };
+    }
   }
 }
 

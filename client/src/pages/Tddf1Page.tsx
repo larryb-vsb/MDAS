@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { format, parseISO, addDays, subDays } from "date-fns";
 import { 
   Activity, 
   Database, 
@@ -23,7 +24,10 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Calendar
 } from "lucide-react";
 
 // Define widget types
@@ -75,9 +79,9 @@ const defaultWidgets: Widget[] = [
 ];
 
 // Transaction Statistics Widget
-function TransactionStatsWidget() {
+function TransactionStatsWidget({ selectedDate }: { selectedDate: string }) {
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['/api/tddf1/stats'],
+    queryKey: ['/api/tddf1/stats', selectedDate],
     enabled: true
   });
 
@@ -93,6 +97,13 @@ function TransactionStatsWidget() {
 
   return (
     <div className="p-4 space-y-4">
+      <div className="text-center mb-4">
+        <div className="text-lg font-semibold text-gray-700">
+          {selectedDate ? format(parseISO(selectedDate), 'MMMM d, yyyy') : 'Today'}
+        </div>
+        <div className="text-sm text-gray-500">Daily Summary</div>
+      </div>
+      
       <div className="grid grid-cols-2 gap-4">
         <div className="text-center">
           <div className="text-2xl font-bold text-blue-600">
@@ -122,23 +133,43 @@ function TransactionStatsWidget() {
       
       <Separator />
       
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className="text-sm">Processing Health</span>
-          <Badge variant={stats?.processingHealth === 'healthy' ? 'default' : 'destructive'}>
-            {stats?.processingHealth || 'Unknown'}
-          </Badge>
+      <div className="space-y-3">
+        <div className="text-sm font-medium text-gray-700">Record Type Breakdown</div>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="bg-blue-50 p-2 rounded text-center">
+            <div className="font-bold text-blue-600">{stats?.recordTypes?.DT || 0}</div>
+            <div className="text-blue-700">DT Records</div>
+          </div>
+          <div className="bg-green-50 p-2 rounded text-center">
+            <div className="font-bold text-green-600">{stats?.recordTypes?.BH || 0}</div>
+            <div className="text-green-700">BH Records</div>
+          </div>
+          <div className="bg-purple-50 p-2 rounded text-center">
+            <div className="font-bold text-purple-600">{stats?.recordTypes?.P1 || 0}</div>
+            <div className="text-purple-700">P1 Records</div>
+          </div>
+          <div className="bg-orange-50 p-2 rounded text-center">
+            <div className="font-bold text-orange-600">{stats?.recordTypes?.P2 || 0}</div>
+            <div className="text-orange-700">P2 Records</div>
+          </div>
+          <div className="bg-red-50 p-2 rounded text-center">
+            <div className="font-bold text-red-600">{stats?.recordTypes?.E1 || 0}</div>
+            <div className="text-red-700">E1 Records</div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded text-center">
+            <div className="font-bold text-gray-600">{stats?.recordTypes?.Other || 0}</div>
+            <div className="text-gray-700">Other</div>
+          </div>
         </div>
-        <Progress value={stats?.processingProgress || 0} className="h-2" />
       </div>
     </div>
   );
 }
 
 // Recent Activity Widget
-function RecentActivityWidget() {
+function RecentActivityWidget({ selectedDate }: { selectedDate: string }) {
   const { data: activities, isLoading } = useQuery({
-    queryKey: ['/api/tddf1/recent-activity'],
+    queryKey: ['/api/tddf1/recent-activity', selectedDate],
     enabled: true
   });
 
@@ -196,12 +227,12 @@ function RecentActivityWidget() {
 }
 
 // File Management Widget
-function FileManagementWidget() {
+function FileManagementWidget({ selectedDate }: { selectedDate: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const { data: files, isLoading } = useQuery({
-    queryKey: ['/api/uploads'],
+    queryKey: ['/api/uploads', selectedDate],
     enabled: true
   });
 
@@ -310,9 +341,9 @@ function FileManagementWidget() {
 }
 
 // Database Status Widget
-function DatabaseStatusWidget() {
+function DatabaseStatusWidget({ selectedDate }: { selectedDate: string }) {
   const { data: dbStatus, isLoading } = useQuery({
-    queryKey: ['/api/tddf1/database-status'],
+    queryKey: ['/api/tddf1/database-status', selectedDate],
     enabled: true
   });
 
@@ -374,17 +405,17 @@ function DatabaseStatusWidget() {
 }
 
 // Widget renderer
-function renderWidget(widget: Widget) {
+function renderWidget(widget: Widget, selectedDate: string) {
   const content = () => {
     switch (widget.type) {
       case "stats":
-        return <TransactionStatsWidget />;
+        return <TransactionStatsWidget selectedDate={selectedDate} />;
       case "activity":
-        return <RecentActivityWidget />;
+        return <RecentActivityWidget selectedDate={selectedDate} />;
       case "files":
-        return <FileManagementWidget />;
+        return <FileManagementWidget selectedDate={selectedDate} />;
       case "database":
-        return <DatabaseStatusWidget />;
+        return <DatabaseStatusWidget selectedDate={selectedDate} />;
       default:
         return <div className="p-4 text-gray-500">Unknown widget type</div>;
     }
@@ -423,6 +454,7 @@ function renderWidget(widget: Widget) {
 export default function Tddf1Page() {
   const [widgets, setWidgets] = useState<Widget[]>(defaultWidgets);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const { toast } = useToast();
 
   // Load saved widget configuration
@@ -459,6 +491,23 @@ export default function Tddf1Page() {
     });
   };
 
+  const navigateDate = (direction: 'prev' | 'next') => {
+    try {
+      const currentDate = selectedDate ? parseISO(selectedDate) : new Date();
+      const newDate = direction === 'prev' 
+        ? subDays(currentDate, 1) 
+        : addDays(currentDate, 1);
+      setSelectedDate(format(newDate, 'yyyy-MM-dd'));
+    } catch (error) {
+      console.error('Error navigating date:', error);
+      setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+    }
+  };
+
+  const goToToday = () => {
+    setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -483,6 +532,50 @@ export default function Tddf1Page() {
           </Button>
         </div>
       </div>
+
+      {/* Date Navigation */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              <div>
+                <div className="text-lg font-semibold">
+                  {selectedDate ? format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy') : 'Today'}
+                </div>
+                <div className="text-sm text-gray-600">
+                  Viewing TDDF data for selected date
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigateDate('prev')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous Day
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={goToToday}
+              >
+                Today
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigateDate('next')}
+              >
+                Next Day
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Edit Mode Controls */}
       {isEditMode && (
@@ -512,7 +605,7 @@ export default function Tddf1Page() {
 
       {/* Widget Grid */}
       <div className="grid grid-cols-12 gap-6 auto-rows-auto">
-        {widgets.filter(w => w.isVisible).map(widget => renderWidget(widget))}
+        {widgets.filter(w => w.isVisible).map(widget => renderWidget(widget, selectedDate))}
       </div>
 
       {/* Information Card */}
