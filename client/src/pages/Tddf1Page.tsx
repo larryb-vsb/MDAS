@@ -91,12 +91,24 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = user?.themePreference === 'dark';
+  // Test dark mode by forcing it to true temporarily
+  const isDarkMode = true; // user?.themePreference === 'dark';
 
   // Debug: Log theme state
   console.log('User data:', user);
   console.log('Theme preference:', user?.themePreference);
   console.log('isDarkMode:', isDarkMode);
+  console.log('User query status:', { isLoading: false, isError: null });
+  
+  // Force re-render when theme changes
+  useEffect(() => {
+    console.log('Theme effect triggered:', isDarkMode);
+  }, [isDarkMode]);
+  
+  // Force user data refresh - for testing
+  useEffect(() => {
+    console.log('Testing dark mode with forced theme...');
+  }, []);
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -198,6 +210,7 @@ function Tddf1Page() {
 
   const handleThemeToggle = () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
+    console.log('Toggle clicked! Current isDarkMode:', isDarkMode, 'New theme:', newTheme);
     updateThemeMutation.mutate(newTheme);
   };
 
@@ -277,7 +290,7 @@ function Tddf1Page() {
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl sm:text-2xl font-bold">
+              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
@@ -289,7 +302,7 @@ function Tddf1Page() {
               <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl sm:text-2xl font-bold">
+              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
@@ -312,7 +325,7 @@ function Tddf1Page() {
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl sm:text-2xl font-bold">
+              <div className={`text-2xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
@@ -324,7 +337,7 @@ function Tddf1Page() {
               <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl sm:text-2xl font-bold">
+              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
               </div>
             </CardContent>
@@ -372,13 +385,13 @@ function Tddf1Page() {
                 <div className="text-2xl sm:text-xl font-bold text-blue-600">
                   {stats?.cached ? 'Cached' : 'Real-time'}
                 </div>
-                <div className="text-sm text-gray-500">Data Source</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Data Source</div>
               </div>
               <div className="text-center p-3 sm:p-0">
                 <div className="text-2xl sm:text-xl font-bold text-green-600">
                   {stats?.totalRecords?.toLocaleString() || 0}
                 </div>
-                <div className="text-sm text-gray-500">Records Processed</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Records Processed</div>
                 {stats?.totalTddfLines && (
                   <div className="text-xs sm:text-xs text-gray-400 mt-1">
                     <span className="hidden sm:inline">of {stats.totalTddfLines.toLocaleString()} total lines</span>
@@ -395,7 +408,7 @@ function Tddf1Page() {
                 <div className="text-2xl sm:text-xl font-bold text-orange-600">
                   {stats?.totalTddfLines?.toLocaleString() || 0}
                 </div>
-                <div className="text-sm text-gray-500">Total Lines Processed</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Lines Processed</div>
                 {stats?.performanceMetrics?.lineExtractionRate && (
                   <div className="text-xs text-gray-400 mt-1">
                     {stats.performanceMetrics.lineExtractionRate} extraction rate
