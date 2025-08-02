@@ -17512,31 +17512,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Clear existing cache and insert new totals with enhanced breakdown
+      // Clear existing cache and insert new totals using actual table schema
       await pool.query(`DELETE FROM ${totalsTableName}`);
+      
+      // Calculate individual record type counts for the schema
+      const dtRecords = recordTypeBreakdown['DT'] || 0;
+      const bhRecords = recordTypeBreakdown['BH'] || 0;
+      const p1Records = recordTypeBreakdown['P1'] || 0;
+      const e1Records = recordTypeBreakdown['E1'] || 0;
+      const g2Records = recordTypeBreakdown['G2'] || 0;
+      const adRecords = recordTypeBreakdown['AD'] || 0;
+      const drRecords = recordTypeBreakdown['DR'] || 0;
+      const p2Records = recordTypeBreakdown['P2'] || 0;
+      const otherRecords = Object.keys(recordTypeBreakdown)
+        .filter(key => !['DT', 'BH', 'P1', 'E1', 'G2', 'AD', 'DR', 'P2'].includes(key))
+        .reduce((sum, key) => sum + (recordTypeBreakdown[key] || 0), 0);
+      
       await pool.query(`
         INSERT INTO ${totalsTableName} (
-          total_files, total_records, total_transaction_value,
-          record_type_breakdown, active_tables, last_processed_date,
-          file_name, processing_duration_ms, total_tddf_lines, 
-          total_json_lines_inserted, processing_start_time, 
-          processing_end_time, validation_summary, performance_metrics
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          filename, file_name, file_date, total_records, total_transactions, total_transaction_value,
+          dt_records, bh_records, p1_records, e1_records, g2_records, ad_records, dr_records, p2_records, other_records,
+          total_files, last_processed_date, processing_date, date_processed, total_net_deposit_bh,
+          record_type_breakdown, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       `, [
-        activeTables.length,
-        totalRecords,
-        totalTransactionValue,
-        JSON.stringify(recordTypeBreakdown),
-        activeTables,
-        lastProcessedDate,
-        `Rebuilt from ${activeTables.length} files`,
-        null, // processing_duration_ms
-        totalRecords, // total_tddf_lines = total_records for rebuild
-        totalRecords, // total_json_lines_inserted = total_records for rebuild
-        null, // processing_start_time
-        new Date().toISOString(), // processing_end_time = now
-        JSON.stringify({ rebuild_operation: true, files_processed: activeTables.length }),
-        JSON.stringify({ rebuild_timestamp: new Date().toISOString(), table_count: activeTables.length })
+        `Rebuilt_Cache_${activeTables.length}_files`, // filename
+        `Rebuilt from ${activeTables.length} files`, // file_name
+        lastProcessedDate ? new Date(lastProcessedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // file_date
+        totalRecords, // total_records
+        0, // total_transactions (legacy field)
+        totalTransactionValue, // total_transaction_value
+        dtRecords, // dt_records
+        bhRecords, // bh_records
+        p1Records, // p1_records
+        e1Records, // e1_records
+        g2Records, // g2_records
+        adRecords, // ad_records
+        drRecords, // dr_records
+        p2Records, // p2_records
+        otherRecords, // other_records
+        activeTables.length, // total_files
+        lastProcessedDate ? new Date(lastProcessedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // last_processed_date
+        new Date().toISOString(), // processing_date
+        new Date().toISOString(), // date_processed
+        0, // total_net_deposit_bh
+        JSON.stringify(recordTypeBreakdown), // record_type_breakdown
+        new Date().toISOString(), // created_at
+        new Date().toISOString() // updated_at
       ]);
       
       console.log(`✅ TDDF1 totals cache rebuilt: ${activeTables.length} files, ${totalRecords} records`);
