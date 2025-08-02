@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -84,6 +84,13 @@ function Tddf1Page() {
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
 
+  // Get user info for theme preferences
+  const { data: user } = useQuery({
+    queryKey: ['/api/user'],
+  });
+
+  const isDarkMode = user?.theme_preference === 'dark';
+
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
@@ -159,6 +166,34 @@ function Tddf1Page() {
     setTrackingUploadId(null);
   };
 
+  // Theme toggle mutation
+  const updateThemeMutation = useMutation({
+    mutationFn: (newTheme: 'light' | 'dark') => apiRequest('/api/user/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ theme_preference: newTheme }),
+      headers: { 'Content-Type': 'application/json' }
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      toast({
+        title: "Theme Updated",
+        description: "Your theme preference has been saved",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Failed to update theme preference",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleThemeToggle = () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    updateThemeMutation.mutate(newTheme);
+  };
+
   // Auto-stop tracking when encoding completes
   useEffect(() => {
     if (encodingProgress?.status === 'completed') {
@@ -173,7 +208,7 @@ function Tddf1Page() {
   }, [encodingProgress?.status]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+    <div className={`min-h-screen transition-colors p-3 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Mobile-Optimized Header */}
         <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
@@ -188,8 +223,8 @@ function Tddf1Page() {
               <span className="hidden sm:inline">Back</span>
             </Button>
             <div>
-              <h1 className="text-xl sm:text-3xl font-bold text-gray-900">TDDF1 Dashboard</h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 hidden sm:block">File-based TDDF processing with day-level analytics</p>
+              <h1 className={`text-xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>TDDF1 Dashboard</h1>
+              <p className={`text-sm sm:text-base mt-1 hidden sm:block transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>File-based TDDF processing with day-level analytics</p>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
@@ -201,6 +236,16 @@ function Tddf1Page() {
             <Button onClick={navigateToToday} variant="outline" size="sm" className="flex-1 sm:flex-none">
               <CalendarIcon className="h-4 w-4 mr-1 sm:mr-2" />
               Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleThemeToggle}
+              className="flex items-center gap-1 sm:gap-2"
+              disabled={updateThemeMutation.isPending}
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span className="hidden sm:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
             </Button>
             {!showProgressTracking && (
               <Button 
@@ -361,55 +406,37 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Calendar Date Selector */}
-        <Card>
+        {/* Streamlined Date Selector */}
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader>
             <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 <CalendarIcon className="h-5 w-5" />
                 Date Selection
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={navigateToPreviousDay}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={navigateToNextDay}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                  <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-                  <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
-                </div>
-                <div className="text-sm text-gray-500 mb-4">
-                  {dayBreakdown ? (
-                    <>
-                      <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
-                      <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
-                    </>
-                  ) : 'No data'}
-                </div>
+            <div className="text-center mb-4">
+              <div className={`text-lg sm:text-xl font-semibold mb-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
+              </div>
+              <div className={`text-sm mb-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {dayBreakdown ? (
+                  <>
+                    <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
+                    <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
+                  </>
+                ) : 'No data'}
               </div>
             </div>
             
-            <div className="flex items-center justify-center gap-2 sm:gap-4">
+            <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"
                 onClick={navigateToPreviousDay}
-                className="flex items-center gap-1 sm:gap-2"
+                className="flex items-center gap-1"
                 size="sm"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -421,7 +448,7 @@ function Tddf1Page() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center gap-1 sm:gap-2 min-w-[120px] justify-center"
+                    className="flex items-center gap-1 min-w-[100px] justify-center"
                     size="sm"
                   >
                     <CalendarIcon className="h-4 w-4" />
@@ -446,7 +473,7 @@ function Tddf1Page() {
               <Button
                 onClick={navigateToToday}
                 variant={isToday(selectedDate) ? "default" : "outline"}
-                className="flex items-center gap-1 sm:gap-2"
+                className="flex items-center gap-1"
                 size="sm"
               >
                 <CalendarIcon className="h-4 w-4" />
@@ -456,7 +483,7 @@ function Tddf1Page() {
               <Button
                 variant="outline"
                 onClick={navigateToNextDay}
-                className="flex items-center gap-1 sm:gap-2"
+                className="flex items-center gap-1"
                 size="sm"
               >
                 <span className="hidden sm:inline">Next</span>
