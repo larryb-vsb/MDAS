@@ -16718,10 +16718,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
-      const tablePrefix = 'tddf1_';
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
       
-      console.log(`📊 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
+      // Environment-aware table naming
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const tablePrefix = `${envPrefix}tddf1_`;
+      
+      console.log(`📊 Environment: ${environment}, Using TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Check if pre-cache totals table exists
       const totalsTableName = `${tablePrefix}totals`;
@@ -16944,10 +16949,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
-      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
-      const totalsTableName = 'tddf1_totals';
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
       
-      console.log(`📅 Using standard TDDF1 totals table: ${totalsTableName}`);
+      // Environment-aware table naming
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const totalsTableName = `${envPrefix}tddf1_totals`;
+      
+      console.log(`📅 Environment: ${environment}, Using TDDF1 totals table: ${totalsTableName}`);
       
       // Check if totals table exists first
       const tableExistsResult = await pool.query(`
@@ -17279,8 +17289,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📋 Getting TDDF1 recent activity");
       
-      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      
+      // Environment-aware table naming
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const tablePrefix = `${envPrefix}tddf1_`;
       
       // Get all file-based TDDF tables and their last processing info
       const tablesResult = await pool.query(`
@@ -17337,11 +17352,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("🔄 Rebuilding TDDF1 totals cache");
       
-      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
-      const tablePrefix = 'tddf1_';
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      
+      // Environment-aware table naming
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const tablePrefix = `${envPrefix}tddf1_`;
       const totalsTableName = `${tablePrefix}totals`;
       
-      console.log(`🔄 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`🔄 Environment: ${environment}, Using TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Create totals table if it doesn't exist - Enhanced with comprehensive breakdown
       await pool.query(`
