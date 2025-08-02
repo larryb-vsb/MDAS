@@ -16708,7 +16708,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [totalsTableName]);
       
       if (totalsTableExists.rows[0].exists) {
-        // Check for currently encoding files first (real-time progress)
+        // Get aggregated stats from totals table for all encoded files
+        const totalsResult = await pool.query(`
+          SELECT * FROM ${totalsTableName}
+          ORDER BY last_updated DESC
+          LIMIT 1
+        `);
+        
+        if (totalsResult.rows.length > 0) {
+          const totals = totalsResult.rows[0];
+          return res.json({
+            totalFiles: totals.total_files || 0,
+            totalRecords: totals.total_records || 0,
+            totalTransactionValue: parseFloat(totals.total_transaction_value || '0'),
+            recordTypeBreakdown: totals.record_type_breakdown || {},
+            activeTables: [],
+            lastProcessedDate: totals.last_updated,
+            cached: true,
+            cacheDate: totals.last_updated
+          });
+        }
+        
+        // Check for currently encoding files (real-time progress)
         const encodingFiles = await pool.query(`
           SELECT id, filename, current_phase 
           FROM ${getTableName('uploader_uploads')} 
@@ -16785,128 +16806,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Use pre-cached data from totals table with enhanced breakdown
-        const totalsResult = await pool.query(`
-          SELECT 
-            total_files,
-            total_records,
-            total_transaction_value,
-            record_type_breakdown,
-            active_tables,
-            last_processed_date,
-            file_name,
-            processing_duration_ms,
-            total_tddf_lines,
-            total_json_lines_inserted,
-            processing_start_time,
-            processing_end_time,
-            validation_summary,
-            performance_metrics,
-            created_at,
-            updated_at
-          FROM ${totalsTableName}
-          ORDER BY created_at DESC
-          LIMIT 1
-        `);
+        // If no encoding files, fall through to normal totals table query
+      } else {
+        // Get aggregated stats from all encoded files
+        const allFilesResult = await pool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+            AND table_name LIKE $1
+            AND table_name != $2
+        `, [`${tablePrefix}file_%`, totalsTableName]);
         
-        if (totalsResult.rows.length > 0) {
-          const row = totalsResult.rows[0];
-          console.log(`📊 Using enhanced TDDF1 stats from ${totalsTableName}`);
-          
-          res.json({
-            totalFiles: row.total_files || 0,
-            totalRecords: row.total_records || 0,
-            totalTransactionValue: parseFloat(row.total_transaction_value || '0'),
-            recordTypeBreakdown: row.record_type_breakdown || {},
-            activeTables: row.active_tables || [],
-            lastProcessedDate: row.last_processed_date,
-            // Enhanced breakdown fields
-            fileName: row.file_name,
-            processingDurationMs: row.processing_duration_ms,
-            totalTddfLines: row.total_tddf_lines || 0,
-            totalJsonLinesInserted: row.total_json_lines_inserted || 0,
-            processingStartTime: row.processing_start_time,
-            processingEndTime: row.processing_end_time,
-            validationSummary: row.validation_summary || {},
-            performanceMetrics: row.performance_metrics || {},
-            cached: true,
-            cacheDate: row.created_at,
-            lastUpdated: row.updated_at,
-            isRealTime: false,
-            encodingInProgress: false
-          });
-          return;
-        }
-      }
-      
-      // Fallback: Get all file-based TDDF tables dynamically
-      const tablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name LIKE $1
-          AND table_name != $2
-        ORDER BY table_name
-      `, [`${tablePrefix}%`, totalsTableName]);
-      
-      const activeTables = tablesResult.rows.map(row => row.table_name);
-      console.log(`📊 Found ${activeTables.length} TDDF1 tables (real-time)`);
-      
-      // Calculate totals from individual tables
-      let totalRecords = 0;
-      let totalTransactionValue = 0;
-      const recordTypeBreakdown: Record<string, number> = {};
-      let lastProcessedDate: string | null = null;
-      
-      for (const tableName of activeTables) {
-        try {
-          const tableStatsResult = await pool.query(`
-            SELECT 
-              COUNT(*) as record_count,
-              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value,
-              record_type,
-              MAX(processed_at) as max_processed_at
-            FROM ${tableName}
-            GROUP BY record_type
-          `);
-          
-          for (const row of tableStatsResult.rows) {
-            totalRecords += parseInt(row.record_count);
-            totalTransactionValue += parseFloat(row.transaction_value || '0');
-            recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+        let totalRecords = 0;
+        let totalTransactionValue = 0;
+        const recordTypeBreakdown: Record<string, number> = {};
+        
+        for (const tableRow of allFilesResult.rows) {
+          try {
+            const tableName = tableRow.table_name;
+            const tableStatsResult = await pool.query(`
+              SELECT 
+                COUNT(*) as record_count,
+                record_type,
+                COALESCE(SUM(CASE 
+                  WHEN record_type = 'DT' AND transaction_amount IS NOT NULL 
+                  THEN transaction_amount 
+                  ELSE 0 
+                END), 0) as transaction_value
+              FROM ${tableName}
+              GROUP BY record_type
+            `);
             
-            if (row.max_processed_at && (!lastProcessedDate || row.max_processed_at > lastProcessedDate)) {
-              lastProcessedDate = row.max_processed_at;
+            for (const row of tableStatsResult.rows) {
+              totalRecords += parseInt(row.record_count);
+              totalTransactionValue += parseFloat(row.transaction_value || '0');
+              recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
             }
+          } catch (error) {
+            console.warn(`Error querying table ${tableRow.table_name}:`, error);
           }
-        } catch (tableError) {
-          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
         }
+        
+        return res.json({
+          totalFiles: allFilesResult.rows.length,
+          totalRecords: totalRecords,
+          totalTransactionValue: totalTransactionValue,
+          recordTypeBreakdown: recordTypeBreakdown,
+          activeTables: allFilesResult.rows.map(r => r.table_name),
+          lastProcessedDate: new Date().toISOString(),
+          cached: false,
+          lastUpdated: new Date().toISOString()
+        });
       }
       
-      res.json({
-        totalFiles: activeTables.length,
-        totalRecords,
-        totalTransactionValue,
-        recordTypeBreakdown,
-        activeTables,
-        lastProcessedDate,
-        cached: false
-      });
-      
-    } catch (error) {
-      console.error("Error getting TDDF1 stats:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to get TDDF1 stats",
+      // Return empty stats if nothing found
+      return res.json({
         totalFiles: 0,
         totalRecords: 0,
         totalTransactionValue: 0,
         recordTypeBreakdown: {},
         activeTables: [],
-        lastProcessedDate: null
+        lastProcessedDate: null,
+        cached: false,
+        lastUpdated: new Date().toISOString()
       });
+    } catch (error) {
+      console.error("Error getting TDDF1 stats:", error);
+      res.status(500).json({ error: "Failed to get TDDF1 stats" });
     }
   });
+
+  // TDDF1 Daily Breakdown - Enhanced daily statistics for file-based TDDF
+  app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
+    try {
+      const date = req.query.date as string || format(new Date(), 'yyyy-MM-dd');
+      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
+      
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Get all file tables that match the date
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name LIKE $2
+        ORDER BY table_name
+      `, [`${tablePrefix}file_%`, `%${date.replace(/-/g, '')}%`]);
+      
+      let totalRecords = 0;
+      let transactionValue = 0;
+      const recordTypes: Record<string, number> = {};
+      const filesProcessed: Array<{
+        fileName: string;
+        tableName: string;
+        recordCount: number;
+      }> = [];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const tableName = tableRow.table_name;
+          const statsResult = await pool.query(`
+            SELECT 
+              COUNT(*) as record_count,
+              record_type,
+              source_filename,
+              COALESCE(SUM(CASE 
+                WHEN record_type = 'DT' AND transaction_amount IS NOT NULL 
+                THEN transaction_amount 
+                ELSE 0 
+              END), 0) as transaction_value
+            FROM ${tableName}
+            GROUP BY record_type, source_filename
+          `);
+          
+          if (statsResult.rows.length > 0) {
+            let fileRecordCount = 0;
+            for (const row of statsResult.rows) {
+              const count = parseInt(row.record_count);
+              totalRecords += count;
+              fileRecordCount += count;
+              transactionValue += parseFloat(row.transaction_value || '0');
+              recordTypes[row.record_type] = (recordTypes[row.record_type] || 0) + count;
+            }
+            
+            filesProcessed.push({
+              fileName: statsResult.rows[0].source_filename || tableName,
+              tableName: tableName,
+              recordCount: fileRecordCount
+            });
+          }
+        } catch (error) {
+          console.warn(`Error querying table ${tableRow.table_name}:`, error);
+        }
+      }
+      
+      res.json({
+        date: date,
+        totalRecords: totalRecords,
+        recordTypes: recordTypes,
+        transactionValue: transactionValue,
+        fileCount: tablesResult.rows.length,
+        tables: tablesResult.rows.map(r => r.table_name),
+        filesProcessed: filesProcessed
+      });
+    } catch (error) {
+      console.error("Error getting TDDF1 day breakdown:", error);
+      res.status(500).json({ error: "Failed to get day breakdown" });
+    }
+  });
+
+  // TDDF1 Recent Activity - Latest processed files
+  app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
+    try {
+      console.log("📋 Getting TDDF1 recent activity");
+      
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Get recent file tables
+      const recentTablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+        ORDER BY table_name DESC
+        LIMIT 10
+      `, [`${tablePrefix}file_%`]);
+      
+      const recentActivity: Tddf1RecentActivity[] = [];
+      
+      for (const tableRow of recentTablesResult.rows) {
+        try {
+          const tableName = tableRow.table_name;
+          const activityResult = await pool.query(`
+            SELECT 
+              source_filename,
+              COUNT(*) as record_count,
+              MIN(parsed_datetime) as processed_at
+            FROM ${tableName}
+            WHERE source_filename IS NOT NULL
+            GROUP BY source_filename
+            LIMIT 1
+          `);
+          
+          if (activityResult.rows.length > 0) {
+            const row = activityResult.rows[0];
+            recentActivity.push({
+              id: tableName,
+              fileName: row.source_filename,
+              recordCount: parseInt(row.record_count),
+              processedAt: row.processed_at || new Date().toISOString(),
+              status: 'encoded',
+              tableName: tableName
+            });
+          }
+        } catch (error) {
+          console.warn(`Error querying recent activity for ${tableRow.table_name}:`, error);
+        }
+      }
+      
+      res.json(recentActivity);
+    } catch (error) {
+      console.error("Error getting TDDF1 recent activity:", error);
+      res.status(500).json({ error: "Failed to get recent activity" });
+    }
+  });
+
+  // End of TDDF1 APIs
 
   // TDDF1 Day Breakdown - Daily data breakdown
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
