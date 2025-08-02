@@ -866,9 +866,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
   console.log(`[TDDF1-ENCODER] Extracted from ${upload.filename}:`, tddfDatetime);
   
-  // Determine environment and create file-based table name
-  const environment = process.env.NODE_ENV || 'development';
-  const tablePrefix = environment === 'production' ? 'prod_tddf1_file_' : 'dev_tddf1_file_';
+  // Use standard naming convention - no environment prefixes (like merchants, transactions, uploaded_files)
+  const tablePrefix = 'tddf1_file_';
   
   // Sanitize filename for table name (remove special characters, keep only alphanumeric and underscores)
   const sanitizedFilename = upload.filename
@@ -1085,8 +1084,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   // Update TDDF1 totals cache for daily breakdown widget
   try {
     console.log(`[TDDF1-ENCODER] Updating totals cache for daily breakdown`);
-    const environment = process.env.NODE_ENV || 'development';
-    const totalsTableName = environment === 'development' ? 'dev_tddf1_totals' : 'prod_tddf1_totals';
+    const totalsTableName = 'tddf1_totals';
     
     // Calculate total transaction value from DT records
     const totalTransactionValue = Object.entries(results.recordCounts.byType)
@@ -1108,31 +1106,30 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       processedDate = new Date(year, month - 1, day);
     }
     
-    // Insert or update totals cache entry
+    // Insert or update totals cache entry using correct column structure
     await sql(`
       INSERT INTO ${totalsTableName} (
-        date_processed, file_name, table_name, total_records, 
-        total_transaction_value, record_type_breakdown, processing_time_ms,
-        total_net_deposit_bh, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (date_processed, file_name) 
+        last_processed_date, file_name, total_records, 
+        total_transaction_value, record_type_breakdown, processing_duration_ms,
+        active_tables
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (file_name) 
       DO UPDATE SET 
-        table_name = EXCLUDED.table_name,
+        last_processed_date = EXCLUDED.last_processed_date,
         total_records = EXCLUDED.total_records,
         total_transaction_value = EXCLUDED.total_transaction_value,
         record_type_breakdown = EXCLUDED.record_type_breakdown,
-        processing_time_ms = EXCLUDED.processing_time_ms,
-        total_net_deposit_bh = EXCLUDED.total_net_deposit_bh,
+        processing_duration_ms = EXCLUDED.processing_duration_ms,
+        active_tables = EXCLUDED.active_tables,
         updated_at = CURRENT_TIMESTAMP
     `, [
-      processedDate.toISOString().split('T')[0], // Date in YYYY-MM-DD format
+      processedDate, // Full timestamp
       upload.filename,
-      tableName,
       results.totalRecords,
       0, // Will be calculated in a separate query
       JSON.stringify(results.recordCounts.byType),
       results.encodingTimeMs,
-      0 // Will be calculated in a separate query
+      [tableName] // Array of active tables
     ]);
     
     // Calculate DT Transaction Amount totals from raw TDDF positions 93-103 with regex validation
@@ -1153,15 +1150,13 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$'
     `);
     
-    if (transactionValueResult.length > 0 || bhNetDepositResult.length > 0) {
+    if (transactionValueResult.length > 0) {
       await sql(`
         UPDATE ${totalsTableName} 
-        SET total_transaction_value = $1, total_net_deposit_bh = $2, updated_at = CURRENT_TIMESTAMP
-        WHERE date_processed = $3 AND file_name = $4
+        SET total_transaction_value = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE file_name = $2
       `, [
         parseFloat(transactionValueResult[0]?.total_value || '0'),
-        parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0'),
-        processedDate.toISOString().split('T')[0],
         upload.filename
       ]);
     }

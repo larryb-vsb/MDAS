@@ -16939,21 +16939,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
         SELECT 
-          date_processed,
+          last_processed_date,
           file_name,
           total_records,
           total_transaction_value,
-          total_net_deposit_bh,
           record_type_breakdown,
           created_at
         FROM ${totalsTableName}
-        WHERE date_processed = $1
+        WHERE DATE(last_processed_date) = $1
         ORDER BY created_at DESC
       `, [date]);
       
       let totalRecords = 0;
       let transactionValue = 0;
-      let totalNetDepositBH = 0;
       const recordTypes: Record<string, number> = {};
       const filesProcessed: Array<{
         fileName: string;
@@ -16965,14 +16963,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of totalsResult.rows) {
         const records = parseInt(row.total_records) || 0;
         const value = parseFloat(row.total_transaction_value) || 0;
-        const netDepositValue = parseFloat(row.total_net_deposit_bh || '0');
         const breakdown = typeof row.record_type_breakdown === 'string' 
           ? JSON.parse(row.record_type_breakdown) 
           : row.record_type_breakdown;
         
         totalRecords += records;
         transactionValue += value;
-        totalNetDepositBH += netDepositValue;
         
         // Aggregate record types
         if (breakdown && typeof breakdown === 'object') {
@@ -16983,7 +16979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Add to files processed
         const fileName = row.file_name || 'Unknown';
-        const tableName = `dev_tddf1_file_${fileName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        const tableName = `tddf1_file_${fileName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
         
         filesProcessed.push({
           fileName: fileName,
@@ -16993,7 +16989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Debug logging for the ACTUAL endpoint being used
-      console.log(`📅 [FIRST ENDPOINT] Aggregated data for ${date}: ${totalRecords} records, $${transactionValue} value, $${totalNetDepositBH} BH Net Deposit`);
+      console.log(`📅 [FIRST ENDPOINT] Aggregated data for ${date}: ${totalRecords} records, $${transactionValue} value`);
       console.log(`📅 [FIRST ENDPOINT] Total files processed: ${filesProcessed.length}`);
       
       const responseData = {
@@ -17001,7 +16997,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords: totalRecords,
         recordTypes: recordTypes,
         transactionValue: transactionValue,
-        totalNetDepositBH: totalNetDepositBH,
         fileCount: filesProcessed.length,
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
