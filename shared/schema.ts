@@ -1893,6 +1893,34 @@ export const tddfJsonRecordTypeCountsPreCache = pgTable(getTableName("tddf_json_
   totalRecordsIdx: index("tddf_json_record_type_counts_pre_cache_total_records_idx").on(table.total_records)
 }));
 
+// TDDF1 Totals Table - Comprehensive breakdown tracking
+export const tddf1Totals = pgTable(getTableName("tddf1_totals"), {
+  id: serial("id").primaryKey(),
+  total_files: integer("total_files").notNull().default(0),
+  total_records: integer("total_records").notNull().default(0),
+  total_transaction_value: numeric("total_transaction_value", { precision: 15, scale: 2 }).notNull().default('0'),
+  record_type_breakdown: jsonb("record_type_breakdown").notNull().default('{}'),
+  active_tables: text("active_tables").array().notNull().default('{}'),
+  last_processed_date: timestamp("last_processed_date"),
+  
+  // Enhanced fields for comprehensive tracking
+  file_name: text("file_name"), // Current processing file name
+  processing_duration_ms: integer("processing_duration_ms"), // Processing time in milliseconds
+  total_tddf_lines: integer("total_tddf_lines").default(0), // Total lines in TDDF file
+  total_json_lines_inserted: integer("total_json_lines_inserted").default(0), // Lines inserted into JSON table
+  processing_start_time: timestamp("processing_start_time"), // When processing started
+  processing_end_time: timestamp("processing_end_time"), // When processing ended
+  validation_summary: jsonb("validation_summary").default('{}'), // Validation results breakdown
+  performance_metrics: jsonb("performance_metrics").default('{}'), // Performance tracking data
+  
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  fileNameIdx: index("tddf1_totals_file_name_idx").on(table.file_name),
+  lastProcessedIdx: index("tddf1_totals_last_processed_idx").on(table.last_processed_date),
+  processingTimeIdx: index("tddf1_totals_processing_time_idx").on(table.processing_duration_ms)
+}));
+
 // Pre-Cache Table Types and Schemas
 export type DashboardPagePreCache = typeof dashboardPagePreCache.$inferSelect;
 export type MerchantsPagePreCache = typeof merchantsPagePreCache.$inferSelect;
@@ -1903,6 +1931,7 @@ export type UploaderPagePreCache = typeof uploaderPagePreCache.$inferSelect;
 export type SettingsPagePreCache = typeof settingsPagePreCache.$inferSelect;
 export type HeatMapTestingCache2025 = typeof heatMapTestingCache2025.$inferSelect;
 export type TddfJsonRecordTypeCountsPreCache = typeof tddfJsonRecordTypeCountsPreCache.$inferSelect;
+export type Tddf1Totals = typeof tddf1Totals.$inferSelect;
 
 // Insert schemas for pre-cache tables
 export const insertDashboardPagePreCacheSchema = createInsertSchema(dashboardPagePreCache).omit({ id: true, created_at: true });
@@ -1914,6 +1943,7 @@ export const insertUploaderPagePreCacheSchema = createInsertSchema(uploaderPageP
 export const insertSettingsPagePreCacheSchema = createInsertSchema(settingsPagePreCache).omit({ id: true, created_at: true });
 export const insertHeatMapTestingCache2025Schema = createInsertSchema(heatMapTestingCache2025).omit({ id: true, created_at: true });
 export const insertTddfJsonRecordTypeCountsPreCacheSchema = createInsertSchema(tddfJsonRecordTypeCountsPreCache).omit({ id: true, created_at: true });
+export const insertTddf1TotalsSchema = createInsertSchema(tddf1Totals).omit({ id: true, created_at: true, updated_at: true });
 
 // Remove duplicate Terminal type declarations - they are defined below
 

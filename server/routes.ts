@@ -16912,7 +16912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       const totalsTableName = `${tablePrefix}totals`;
       
-      // Create totals table if it doesn't exist
+      // Create totals table if it doesn't exist - Enhanced with comprehensive breakdown
       await pool.query(`
         CREATE TABLE IF NOT EXISTS ${totalsTableName} (
           id SERIAL PRIMARY KEY,
@@ -16922,6 +16922,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_type_breakdown JSONB NOT NULL DEFAULT '{}',
           active_tables TEXT[] NOT NULL DEFAULT '{}',
           last_processed_date TIMESTAMP,
+          file_name TEXT,
+          processing_duration_ms INTEGER,
+          total_tddf_lines INTEGER DEFAULT 0,
+          total_json_lines_inserted INTEGER DEFAULT 0,
+          processing_start_time TIMESTAMP,
+          processing_end_time TIMESTAMP,
+          validation_summary JSONB DEFAULT '{}',
+          performance_metrics JSONB DEFAULT '{}',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -16971,20 +16979,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Clear existing cache and insert new totals
+      // Clear existing cache and insert new totals with enhanced breakdown
       await pool.query(`DELETE FROM ${totalsTableName}`);
       await pool.query(`
         INSERT INTO ${totalsTableName} (
           total_files, total_records, total_transaction_value,
-          record_type_breakdown, active_tables, last_processed_date
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+          record_type_breakdown, active_tables, last_processed_date,
+          file_name, processing_duration_ms, total_tddf_lines, 
+          total_json_lines_inserted, processing_start_time, 
+          processing_end_time, validation_summary, performance_metrics
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       `, [
         activeTables.length,
         totalRecords,
         totalTransactionValue,
         JSON.stringify(recordTypeBreakdown),
         activeTables,
-        lastProcessedDate
+        lastProcessedDate,
+        `Rebuilt from ${activeTables.length} files`,
+        null, // processing_duration_ms
+        totalRecords, // total_tddf_lines = total_records for rebuild
+        totalRecords, // total_json_lines_inserted = total_records for rebuild
+        null, // processing_start_time
+        new Date().toISOString(), // processing_end_time = now
+        JSON.stringify({ rebuild_operation: true, files_processed: activeTables.length }),
+        JSON.stringify({ rebuild_timestamp: new Date().toISOString(), table_count: activeTables.length })
       ]);
       
       console.log(`✅ TDDF1 totals cache rebuilt: ${activeTables.length} files, ${totalRecords} records`);
