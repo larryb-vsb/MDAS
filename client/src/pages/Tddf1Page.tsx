@@ -36,6 +36,7 @@ interface Tddf1DayBreakdown {
   totalRecords: number;
   recordTypes: Record<string, number>;
   transactionValue: number;
+  totalNetDepositBH?: number;
   fileCount: number;
   tables: string[];
   filesProcessed: Array<{
@@ -498,6 +499,11 @@ function Tddf1Page() {
                                 <div>
                                   <span className="text-sm font-bold">{config.label}</span>
                                   <div className="text-xs opacity-80">{config.description}</div>
+                                  {type === 'BH' && dayBreakdown.totalNetDepositBH && (
+                                    <div className="text-xs font-medium text-blue-700 mt-1">
+                                      Net Deposit: ${dayBreakdown.totalNetDepositBH.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="text-lg font-bold">{displayCount.toLocaleString()}</div>
                               </div>

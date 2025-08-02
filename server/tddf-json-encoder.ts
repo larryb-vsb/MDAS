@@ -272,18 +272,21 @@ export const BH_RECORD_FIELDS: TddfFieldDefinition[] = [
   { name: 'sequenceWithinRun', positions: [14, 17], type: 'text', description: 'Sequence within entry run' },
   { name: 'recordIdentifier', positions: [18, 19], type: 'text', description: 'Always "BH"' },
   
-  // Bank and account fields (positions 20-55) 
+  // Bank and account fields (positions 20-39) 
   { name: 'bankNumber', positions: [20, 23], type: 'text', description: 'Global Payments bank number' },
   { name: 'merchantAccountNumber', positions: [24, 39], type: 'text', description: 'GP account number (16 chars)' },
+  
+  // Enhanced BH fields (positions 40-103) - User requested fields
   { name: 'associationNumber', positions: [40, 45], type: 'text', description: 'Association ID (6 chars)' },
   { name: 'groupNumber', positions: [46, 51], type: 'text', description: 'Group number (6 chars)' },
-  { name: 'transactionCode', positions: [52, 55], type: 'text', description: 'GP transaction code (4 chars)' },
-  
-  // Batch information (positions 56-126) - aligned with schema
+  { name: 'transactionCode', positions: [52, 55], type: 'numeric', description: 'GP transaction code (4 chars)' },
   { name: 'batchDate', positions: [56, 63], type: 'date', description: 'Batch date (MMDDCCYY)' },
-  { name: 'batchJulianDate', positions: [64, 68], type: 'text', description: 'Batch Julian Date DDDYY format (5 chars)' },
+  { name: 'batchJulianDate', positions: [64, 68], type: 'numeric', description: 'Batch Julian Date DDDYY format (5 chars)' },
   { name: 'netDeposit', positions: [69, 83], type: 'numeric', precision: 15, scale: 2, description: 'Net deposit amount (15 chars)' },
   { name: 'rejectReason', positions: [84, 87], type: 'text', description: 'Global Payments Reject Reason Code (4 chars)' },
+  { name: 'merchantReferenceNumber', positions: [88, 103], type: 'numeric', description: 'Merchant reference number (16 chars)' },
+  
+  // Legacy batch ID for compatibility (positions 124-126) 
   { name: 'batchId', positions: [124, 126], type: 'text', description: 'Batch ID (3 chars)' }
 ];
 
@@ -1110,8 +1113,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       INSERT INTO ${totalsTableName} (
         date_processed, file_name, table_name, total_records, 
         total_transaction_value, record_type_breakdown, processing_time_ms,
-        created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        total_net_deposit_bh, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT (date_processed, file_name) 
       DO UPDATE SET 
         table_name = EXCLUDED.table_name,
@@ -1119,6 +1122,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         total_transaction_value = EXCLUDED.total_transaction_value,
         record_type_breakdown = EXCLUDED.record_type_breakdown,
         processing_time_ms = EXCLUDED.processing_time_ms,
+        total_net_deposit_bh = EXCLUDED.total_net_deposit_bh,
         updated_at = CURRENT_TIMESTAMP
     `, [
       processedDate.toISOString().split('T')[0], // Date in YYYY-MM-DD format
@@ -1127,23 +1131,32 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       results.totalRecords,
       0, // Will be calculated in a separate query
       JSON.stringify(results.recordCounts.byType),
-      results.encodingTimeMs
+      results.encodingTimeMs,
+      0 // Will be calculated in a separate query
     ]);
     
-    // Now calculate and update the actual transaction value
+    // Now calculate and update the actual transaction value and BH Net Deposit totals
     const transactionValueResult = await sql(`
       SELECT COALESCE(SUM(transaction_amount), 0) as total_value
       FROM ${tableName}
       WHERE record_type = 'DT' AND transaction_amount IS NOT NULL
     `);
     
-    if (transactionValueResult.length > 0) {
+    // Calculate BH Net Deposit totals
+    const bhNetDepositResult = await sql(`
+      SELECT COALESCE(SUM(net_deposit), 0) as total_net_deposit_bh
+      FROM ${tableName}
+      WHERE record_type = 'BH' AND net_deposit IS NOT NULL
+    `);
+    
+    if (transactionValueResult.length > 0 || bhNetDepositResult.length > 0) {
       await sql(`
         UPDATE ${totalsTableName} 
-        SET total_transaction_value = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE date_processed = $2 AND file_name = $3
+        SET total_transaction_value = $1, total_net_deposit_bh = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE date_processed = $3 AND file_name = $4
       `, [
-        parseFloat(transactionValueResult[0].total_value || '0'),
+        parseFloat(transactionValueResult[0]?.total_value || '0'),
+        parseFloat(bhNetDepositResult[0]?.total_net_deposit_bh || '0'),
         processedDate.toISOString().split('T')[0],
         upload.filename
       ]);

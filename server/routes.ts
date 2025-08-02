@@ -17064,13 +17064,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
       
-      // Query the totals cache table for the specific date
+      // Query the totals cache table for the specific date including BH Net Deposit totals
       const totalsResult = await pool.query(`
         SELECT 
           file_name,
           table_name,
           total_records,
           total_transaction_value,
+          total_net_deposit_bh,
           record_type_breakdown,
           processing_time_ms,
           created_at
@@ -17095,6 +17096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             Others: 0
           },
           transactionValue: 0,
+          totalNetDepositBH: 0,
           fileCount: 0,
           tables: [],
           filesProcessed: []
@@ -17104,6 +17106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Aggregate data from all cached entries for the date
       let totalRecords = 0;
       let totalTransactionValue = 0;
+      let totalNetDepositBH = 0;
       const aggregatedRecordTypes: Record<string, number> = {
         BH: 0,
         DT: 0,
@@ -17123,6 +17126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of totalsResult.rows) {
         totalRecords += parseInt(row.total_records || '0');
         totalTransactionValue += parseFloat(row.total_transaction_value || '0');
+        totalNetDepositBH += parseFloat(row.total_net_deposit_bh || '0');
         
         // Parse record type breakdown
         const breakdown = row.record_type_breakdown || {};
@@ -17151,6 +17155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords,
         recordTypes: aggregatedRecordTypes,
         transactionValue: totalTransactionValue,
+        totalNetDepositBH: totalNetDepositBH,
         fileCount: totalsResult.rows.length,
         tables,
         filesProcessed
