@@ -933,6 +933,8 @@ export const users = pgTable(getTableName("users"), {
   lastName: text("last_name"),
   role: text("role").default("user").notNull(),
   developerFlag: boolean("developer_flag").default(false),
+  defaultDashboard: text("default_dashboard").default("main").notNull(), // "main" or "monthly"
+  themePreference: text("theme_preference").default("light").notNull(), // "light" or "dark"
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastLogin: timestamp("last_login")
 });

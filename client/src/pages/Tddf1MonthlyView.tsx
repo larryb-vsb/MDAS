@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { useAuth } from '@/hooks/use-auth';
+import { apiRequest } from '@/lib/queryClient';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface MonthlyTotals {
@@ -55,6 +57,38 @@ export default function Tddf1MonthlyView() {
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { user } = useAuth();
+
+  // Initialize theme from user preference on component mount
+  useEffect(() => {
+    if (user?.themePreference) {
+      setIsDarkMode(user.themePreference === 'dark');
+    }
+  }, [user]);
+
+  // Mutation to update user theme preference
+  const updateThemeMutation = useMutation({
+    mutationFn: async (theme: 'light' | 'dark') => {
+      if (!user) return;
+      return apiRequest(`/api/users/${user.id}`, {
+        method: 'PUT',
+        body: {
+          ...user,
+          themePreference: theme
+        }
+      });
+    },
+    onSuccess: () => {
+      // Refresh user data to get updated preferences
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    }
+  });
+
+  const handleThemeToggle = () => {
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    setIsDarkMode(!isDarkMode);
+    updateThemeMutation.mutate(newTheme);
+  };
 
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
@@ -194,8 +228,9 @@ ${monthlyData.dailyBreakdown.map(day =>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={handleThemeToggle}
               className="flex items-center space-x-1"
+              disabled={updateThemeMutation.isPending}
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="hidden sm:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
@@ -278,41 +313,43 @@ ${monthlyData.dailyBreakdown.map(day =>
             </Card>
           </div>
 
-          {/* Record Type Breakdown - Mobile Optimized */}
+          {/* Primary Record Types - Financial Focus */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center text-base sm:text-lg">
                 <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span className="hidden sm:inline">Record Type Breakdown</span>
-                <span className="sm:hidden">Record Types</span>
+                <span className="hidden sm:inline">Primary Financial Record Types</span>
+                <span className="sm:hidden">Primary Records</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
-                {Object.entries(monthlyData.recordTypeBreakdown).map(([type, count]) => {
-                  const colors = {
-                    'BH': 'bg-blue-100 text-blue-800 border-blue-200',
-                    'DT': 'bg-green-100 text-green-800 border-green-200',
-                    'P1': 'bg-cyan-100 text-cyan-800 border-cyan-200',
-                    'P2': 'bg-pink-100 text-pink-800 border-pink-200',
-                    'E1': 'bg-orange-100 text-orange-800 border-orange-200',
-                    'G2': 'bg-purple-100 text-purple-800 border-purple-200',
-                    'AD': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-                    'DR': 'bg-red-100 text-red-800 border-red-200'
-                  };
-                  
-                  return (
-                    <div key={type} className="text-center">
-                      <Badge 
-                        variant="outline" 
-                        className={`${colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'} w-full justify-center py-1 sm:py-2 text-xs sm:text-sm`}
-                      >
-                        {type}
-                      </Badge>
-                      <p className="text-xs sm:text-sm font-semibold mt-1">{formatNumber(count)}</p>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                {Object.entries(monthlyData.recordTypeBreakdown)
+                  .filter(([type]) => ['BH', 'DT'].includes(type))
+                  .map(([type, count]) => {
+                    const colors = {
+                      'BH': isDarkMode ? 'bg-blue-900 text-blue-100 border-blue-700' : 'bg-blue-100 text-blue-800 border-blue-200',
+                      'DT': isDarkMode ? 'bg-green-900 text-green-100 border-green-700' : 'bg-green-100 text-green-800 border-green-200'
+                    };
+                    
+                    const descriptions = {
+                      'BH': 'Batch Headers',
+                      'DT': 'Detail Transactions'
+                    };
+                    
+                    return (
+                      <div key={type} className="text-center">
+                        <Badge 
+                          variant="outline" 
+                          className={`${colors[type as keyof typeof colors]} w-full justify-center py-2 sm:py-3 text-sm sm:text-base font-semibold mb-2`}
+                        >
+                          {type}
+                        </Badge>
+                        <p className="text-lg sm:text-xl font-bold">{formatNumber(count)}</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{descriptions[type as keyof typeof descriptions]}</p>
+                      </div>
+                    );
+                  })}
               </div>
             </CardContent>
           </Card>

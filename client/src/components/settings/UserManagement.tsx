@@ -66,6 +66,8 @@ type User = {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  defaultDashboard: string;
+  themePreference: string;
   createdAt: string;
   lastLogin: string | null;
 };
@@ -88,6 +90,8 @@ const userSchema = z.object({
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
   role: z.enum(["user", "admin"]).default("user"),
+  defaultDashboard: z.enum(["main", "monthly"]).default("main"),
+  themePreference: z.enum(["light", "dark"]).default("light"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -107,6 +111,8 @@ const editUserSchema = z.object({
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
   role: z.enum(["user", "admin"]).default("user"),
+  defaultDashboard: z.enum(["main", "monthly"]).default("main"),
+  themePreference: z.enum(["light", "dark"]).default("light"),
 });
 
 // Schema for changing password
@@ -153,6 +159,8 @@ export default function UserManagement() {
       firstName: "",
       lastName: "",
       role: "user",
+      defaultDashboard: "main",
+      themePreference: "light",
     },
   });
 
@@ -165,6 +173,8 @@ export default function UserManagement() {
       firstName: "",
       lastName: "",
       role: "user",
+      defaultDashboard: "main",
+      themePreference: "light",
     },
   });
 
@@ -317,6 +327,8 @@ export default function UserManagement() {
       firstName: user.firstName || "",
       lastName: user.lastName || "",
       role: user.role as "user" | "admin",
+      defaultDashboard: user.defaultDashboard as "main" | "monthly",
+      themePreference: user.themePreference as "light" | "dark",
     });
     setIsEditDialogOpen(true);
   };
@@ -431,6 +443,8 @@ export default function UserManagement() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Dashboard</TableHead>
+                  <TableHead>Theme</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -448,6 +462,16 @@ export default function UserManagement() {
                     <TableCell>
                       <Badge variant={user.role === "admin" ? "default" : "secondary"}>
                         {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {user.defaultDashboard === "monthly" ? "MMS Monthly" : "Main Dashboard"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {user.themePreference === "dark" ? "Dark Mode" : "Light Mode"}
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(user.lastLogin)}</TableCell>
@@ -628,6 +652,56 @@ export default function UserManagement() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={addForm.control}
+                  name="defaultDashboard"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Dashboard</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select dashboard" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="main">Main Dashboard</SelectItem>
+                          <SelectItem value="monthly">MMS Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={addForm.control}
+                  name="themePreference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Theme Preference</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select theme" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="light">Light Mode</SelectItem>
+                          <SelectItem value="dark">Dark Mode</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" type="button">Cancel</Button>
@@ -752,6 +826,56 @@ export default function UserManagement() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="defaultDashboard"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Dashboard</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select dashboard" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="main">Main Dashboard</SelectItem>
+                          <SelectItem value="monthly">MMS Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="themePreference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Theme Preference</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select theme" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="light">Light Mode</SelectItem>
+                          <SelectItem value="dark">Dark Mode</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" type="button">Cancel</Button>
