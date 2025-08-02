@@ -119,10 +119,12 @@ const DaySquare: React.FC<DaySquareProps> = ({ date, activity, isCurrentMonth = 
 
   return (
     <div
-      className={`w-4 h-4 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} cursor-pointer`}
+      className={`w-6 h-6 rounded-sm relative group transition-all duration-200 ${getBackgroundColor(count, isSelected)} ${!isCurrentMonth ? 'opacity-30' : ''} cursor-pointer flex items-center justify-center text-xs font-medium ${count > 0 ? 'text-white' : 'text-gray-500'}`}
       title={`${formatDate(date)}: ${count} JSON records (Click to filter)`}
       onClick={handleClick}
-    />
+    >
+      {date.getDate()}
+    </div>
   );
 };
 
@@ -153,8 +155,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   onYearChange
 }) => {
   const [currentYear, setCurrentYear] = useState(initialYear || new Date().getFullYear()); // Use dynamic year from last data found
+  const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // Track 3-month window position
   const [internalSelectedDates, setInternalSelectedDates] = useState<string[]>([]);
-  // Removed old refresh state - now using admin controls
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -162,6 +164,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   React.useEffect(() => {
     if (initialYear && initialYear !== currentYear) {
       setCurrentYear(initialYear);
+      setCurrentMonthOffset(0); // Reset to beginning of year when year changes
     }
   }, [initialYear, currentYear]);
   
@@ -332,11 +335,18 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
       const monthDays = calendarData.filter(day => day.date.getMonth() === month);
       months.push({
         name: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'short' }),
-        days: monthDays
+        fullName: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        days: monthDays,
+        monthIndex: month
       });
     }
     return months;
   }, [calendarData, currentYear]);
+
+  // Get current 3-month window
+  const currentThreeMonths = useMemo(() => {
+    return monthlyData.slice(currentMonthOffset, currentMonthOffset + 3);
+  }, [monthlyData, currentMonthOffset]);
 
   // Calculate stats with enhanced metadata support
   const totalDays = activityResponse?.records?.length || 0;
@@ -427,9 +437,10 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
 
   return (
     <div className="bg-gray-50 rounded-lg p-4">
-      {/* Header with year navigation and cache refresh */}
+      {/* Header with year navigation, month navigation, and cache refresh */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
+          {/* Year Navigation */}
           <Button
             variant="ghost"
             size="sm"
@@ -439,6 +450,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear - 1;
               setCurrentYear(newYear);
+              setCurrentMonthOffset(0); // Reset to beginning of year
               // Clear internal selected dates when year changes
               setInternalSelectedDates([]);
               // Invalidate query cache to force new data fetch for the new year
@@ -465,6 +477,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
               }
               const newYear = currentYear + 1;
               setCurrentYear(newYear);
+              setCurrentMonthOffset(0); // Reset to beginning of year
               // Clear internal selected dates when year changes
               setInternalSelectedDates([]);
               // Invalidate query cache to force new data fetch for the new year
@@ -478,6 +491,44 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
             disabled={currentYear >= new Date().getFullYear()}
             className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 border border-gray-300"
             title="Next year"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          {/* Three-Month View Separator */}
+          <div className="mx-2 h-6 w-px bg-gray-300"></div>
+
+          {/* Month Navigation for 3-month view */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setCurrentMonthOffset(Math.max(0, currentMonthOffset - 1));
+            }}
+            disabled={currentMonthOffset <= 0}
+            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
+            title="Previous month"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="text-sm font-medium min-w-[200px] text-center">
+            {currentThreeMonths.length > 0 && (
+              <span className="text-green-700">
+                {currentThreeMonths[0]?.fullName} - {currentThreeMonths[currentThreeMonths.length - 1]?.fullName}
+              </span>
+            )}
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setCurrentMonthOffset(Math.min(9, currentMonthOffset + 1)); // Max offset is 9 (Oct-Dec)
+            }}
+            disabled={currentMonthOffset >= 9} // Can't go past October (for Oct-Nov-Dec view)
+            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
+            title="Next month"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -608,39 +659,64 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
         </div>
       )}
 
-      {/* Calendar grid */}
+      {/* Three-Month Calendar grid */}
       <div className="space-y-2">
-        {/* Month labels */}
-        <div className="grid grid-cols-12 gap-2 text-xs text-gray-500 font-medium">
-          {monthlyData.map((month, index) => (
-            <div key={index} className="text-center">{month.name}</div>
+        {/* Month labels for 3-month view */}
+        <div className="grid grid-cols-3 gap-6 text-sm text-gray-700 font-medium">
+          {currentThreeMonths.map((month, index) => (
+            <div key={index} className="text-center bg-gray-100 py-2 rounded">{month.fullName}</div>
           ))}
         </div>
         
-        {/* Days grid */}
-        <div className="grid grid-cols-12 gap-2">
-          {monthlyData.map((month, monthIndex) => (
+        {/* Days grid for 3-month view */}
+        <div className="grid grid-cols-3 gap-6">
+          {currentThreeMonths.map((month, monthIndex) => (
             <div key={monthIndex} className="space-y-1">
-              {/* Create weeks for this month */}
-              {Array.from({ length: Math.ceil(month.days.length / 7) }, (_, weekIndex) => (
-                <div key={weekIndex} className="grid grid-cols-7 gap-1">
-                  {month.days.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => (
-                    <DaySquare
-                      key={`${monthIndex}-${weekIndex}-${dayIndex}`}
-                      date={day.date}
-                      activity={day.activity}
-                      onDateSelect={handleDateSelect}
-                      selectedDates={selectedDates}
-                    />
-                  ))}
-                  {/* Fill empty spots in the last week */}
-                  {month.days.slice(weekIndex * 7, (weekIndex + 1) * 7).length < 7 &&
-                    Array.from({ length: 7 - month.days.slice(weekIndex * 7, (weekIndex + 1) * 7).length }, (_, i) => (
-                      <div key={`empty-${i}`} className="w-4 h-4" />
-                    ))
-                  }
-                </div>
-              ))}
+              {/* Week headers */}
+              <div className="grid grid-cols-7 gap-1 text-xs text-gray-500 font-medium mb-1">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                  <div key={i} className="text-center">{day}</div>
+                ))}
+              </div>
+              
+              {/* Add padding for first week of month */}
+              {(() => {
+                const firstDay = new Date(currentYear, month.monthIndex, 1);
+                const startPadding = firstDay.getDay(); // Number of empty cells before first day
+                const totalCells = startPadding + month.days.length;
+                const weeks = Math.ceil(totalCells / 7);
+                
+                return Array.from({ length: weeks }, (_, weekIndex) => (
+                  <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: 7 }, (_, dayIndex) => {
+                      const cellIndex = weekIndex * 7 + dayIndex;
+                      
+                      // Empty cell before first day of month
+                      if (cellIndex < startPadding) {
+                        return <div key={`empty-start-${dayIndex}`} className="w-6 h-6" />;
+                      }
+                      
+                      // Day cell
+                      const dayArrayIndex = cellIndex - startPadding;
+                      if (dayArrayIndex < month.days.length) {
+                        const day = month.days[dayArrayIndex];
+                        return (
+                          <DaySquare
+                            key={`${monthIndex}-${weekIndex}-${dayIndex}`}
+                            date={day.date}
+                            activity={day.activity}
+                            onDateSelect={handleDateSelect}
+                            selectedDates={selectedDates}
+                          />
+                        );
+                      }
+                      
+                      // Empty cell after last day of month
+                      return <div key={`empty-end-${dayIndex}`} className="w-6 h-6" />;
+                    })}
+                  </div>
+                ));
+              })()}
             </div>
           ))}
         </div>
@@ -651,11 +727,11 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
         <div className="flex items-center gap-2">
           <span>Less</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 bg-gray-100 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-200 rounded-sm"></div>
-            <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-            <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-            <div className="w-3 h-3 bg-purple-600 rounded-sm"></div>
+            <div className="w-4 h-4 bg-gray-100 rounded-sm"></div>
+            <div className="w-4 h-4 bg-green-200 rounded-sm"></div>
+            <div className="w-4 h-4 bg-green-500 rounded-sm"></div>
+            <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+            <div className="w-4 h-4 bg-purple-600 rounded-sm"></div>
           </div>
           <span>More</span>
         </div>
