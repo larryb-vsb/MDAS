@@ -179,10 +179,22 @@ function Tddf1Page() {
               <p className="text-gray-600 mt-1">File-based TDDF processing with day-level analytics</p>
             </div>
           </div>
-          <Button onClick={navigateToToday} variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
-            Today
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={navigateToToday} variant="outline">
+              <Calendar className="h-4 w-4 mr-2" />
+              Today
+            </Button>
+            {!showProgressTracking && (
+              <Button 
+                onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Activity className="h-4 w-4 mr-2 animate-pulse" />
+                Track Live Encoding
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Totals Band */}
