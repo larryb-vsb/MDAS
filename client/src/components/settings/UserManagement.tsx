@@ -344,6 +344,8 @@ export default function UserManagement() {
         title: "Dashboard updated",
         description: "User dashboard preference has been updated successfully.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       refetch();
     },
     onError: (error: Error) => {
@@ -374,6 +376,8 @@ export default function UserManagement() {
         title: "Theme updated",
         description: "User theme preference has been updated successfully.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       refetch();
     },
     onError: (error: Error) => {
