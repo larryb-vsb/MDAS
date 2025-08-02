@@ -411,23 +411,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: new Date()
       });
       
-      // Log user creation
-      await storage.createAuditLog({
-        entityType: "user",
-        entityId: `${user.id}`,
-        action: "create",
-        oldValues: {},
-        newValues: {
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role
-        },
-        username: req.user?.username || "System",
-        notes: `New user '${user.username}' created with role '${user.role}'`,
-        timestamp: new Date()
-      });
+      // Log user creation (skip if database size limit reached)
+      try {
+        await storage.createAuditLog({
+          entityType: "user",
+          entityId: `${user.id}`,
+          action: "create",
+          oldValues: {},
+          newValues: {
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role
+          },
+          username: req.user?.username || "System",
+          notes: `New user '${user.username}' created with role '${user.role}'`,
+          timestamp: new Date()
+        });
+      } catch (auditError) {
+        console.warn("Audit logging skipped due to database size limit:", auditError.message);
+      }
       
       res.status(201).json(user);
     } catch (error) {
