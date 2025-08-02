@@ -4,10 +4,13 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 
 interface Tddf1Stats {
@@ -357,7 +360,7 @@ function Tddf1Page() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <CalendarIcon className="h-5 w-5" />
                 Day Navigation
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -389,7 +392,41 @@ function Tddf1Page() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center space-x-4">
+              <div className="text-center">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[280px] justify-start text-left font-normal bg-blue-50 border-blue-200 hover:bg-blue-100",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
+                      {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setSelectedDate(date);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="text-sm text-gray-500 mt-1">
+                  {dayBreakdown ? `${dayBreakdown.totalRecords} records • ${dayBreakdown.fileCount} files` : 'No data'}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center gap-4 mt-4">
               <Button
                 variant="outline"
                 onClick={navigateToPreviousDay}
@@ -403,7 +440,7 @@ function Tddf1Page() {
                 variant={isToday(selectedDate) ? "default" : "outline"}
                 className="flex items-center gap-2"
               >
-                <Calendar className="h-4 w-4" />
+                <CalendarIcon className="h-4 w-4" />
                 Today
               </Button>
               <Button
