@@ -32,6 +32,15 @@ export function ProtectedRoute({
     );
   }
 
+  // Handle home route redirection based on user preference
+  if (path === "/" && user.defaultDashboard === "monthly") {
+    return (
+      <Route path={path}>
+        {() => <Redirect to="/tddf1-monthly" />}
+      </Route>
+    );
+  }
+
   return (
     <Route path={path}>
       {(params) => <Component {...params} />}

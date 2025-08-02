@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 type User = {
   id: number;
@@ -72,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Login successful",
         description: `Welcome back, ${user.username}!`,
       });
+      
+      // Redirect to user's preferred dashboard
+      const preferredRoute = user.defaultDashboard === "monthly" ? "/tddf1-monthly" : "/";
+      window.location.href = preferredRoute;
     },
     onError: (error: Error) => {
       toast({
