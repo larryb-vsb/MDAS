@@ -329,23 +329,21 @@ app.use((req, res, next) => {
     // Create http server
     const httpServer = createServer(app);
     
-    // Register routes FIRST, before any static file serving
+    // Register routes
     await registerRoutes(app);
 
     // Set up Vite in development, serve static in production
     if (NODE_ENV === "development") {
       await setupVite(app, httpServer);
     } else {
-      // Serve static files AFTER API routes are registered
-      // This ensures API routes are handled before static file serving
-      serveStatic(app);
-      
-      // Add fallback for unmatched API routes (after static files)
+      // Add API route protection before static files
       app.use('/api/*', (req, res, next) => {
         // If we reach here, it means the API route wasn't handled
         // Return 404 instead of serving HTML
         res.status(404).json({ error: 'API endpoint not found' });
       });
+      
+      serveStatic(app);
     }
 
     // Start the server on port 5000
