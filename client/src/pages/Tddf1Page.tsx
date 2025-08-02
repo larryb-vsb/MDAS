@@ -383,41 +383,16 @@ function Tddf1Page() {
 
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center space-x-4">
-              <div className="text-center">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[280px] justify-start text-left font-normal bg-blue-50 border-blue-200 hover:bg-blue-100",
-                        !selectedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-                      {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setSelectedDate(date);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <div className="text-sm text-gray-500 mt-1">
-                  {dayBreakdown ? `${dayBreakdown.totalRecords} records • ${dayBreakdown.fileCount} files` : 'No data'}
-                </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-900 mb-2">
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </div>
+              <div className="text-sm text-gray-500 mb-6">
+                {dayBreakdown ? `${dayBreakdown.totalRecords} records • ${dayBreakdown.fileCount} files` : 'No data'}
               </div>
             </div>
             
-            <div className="flex items-center justify-center gap-4 mt-4">
+            <div className="flex items-center justify-center gap-4">
               <Button
                 variant="outline"
                 onClick={navigateToPreviousDay}
