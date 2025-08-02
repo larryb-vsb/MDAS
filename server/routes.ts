@@ -13447,8 +13447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const discoveredTables = allTablesResult.rows.map(row => row.table_name);
       console.log(`[TDDF-JSON-CLEAR] Found ${discoveredTables.length} TDDF-related tables:`, discoveredTables);
       
-      // IMPORTANT: Do NOT clear TDDF1 tables - they are a separate system!
-      // Find TDDF1 tables but skip them (only log for visibility)
+      // Clear TDDF1 tables as part of complete TDDF system clear
       const tddf1Tables = discoveredTables.filter(table => 
         table.includes('tddf1_file_') || 
         table.startsWith('prod_tddf1_') || 
@@ -13459,8 +13458,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (tddf1Tables.length > 0) {
-        console.log(`[TDDF-JSON-CLEAR] Found ${tddf1Tables.length} TDDF1 tables (PRESERVING - separate system):`, tddf1Tables);
-        console.log(`[TDDF-JSON-CLEAR] ⚠️  TDDF1 tables are NOT cleared by this operation - they are a separate file-based system`);
+        console.log(`[TDDF-CLEAR] Found ${tddf1Tables.length} TDDF1 tables to clear:`, tddf1Tables);
+        
+        // Drop all TDDF1 file tables and totals tables
+        for (const tddf1Table of tddf1Tables) {
+          try {
+            console.log(`[TDDF-CLEAR] Dropping TDDF1 table: ${tddf1Table}`);
+            await pool.query(`DROP TABLE IF EXISTS "${tddf1Table}" CASCADE`);
+            console.log(`[TDDF-CLEAR] Successfully dropped TDDF1 table: ${tddf1Table}`);
+          } catch (dropError) {
+            console.error(`[TDDF-CLEAR] Error dropping TDDF1 table ${tddf1Table}:`, dropError.message);
+          }
+        }
       }
       
       // Also include known cache tables that might not have "tddf" but are related
@@ -13478,9 +13487,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let precacheTablesCleared = 0;
       
       for (const table of precacheTables) {
-        // Skip ALL TDDF1 tables - they are a separate system and should NOT be cleared
+        // Skip TDDF1 tables since they were already dropped above
         if (table.includes('tddf1') || table.startsWith('prod_tddf1') || table.startsWith('dev_tddf1')) {
-          console.log(`[TDDF-JSON-CLEAR] Skipping TDDF1 table (separate system): ${table}`);
+          console.log(`[TDDF-CLEAR] Skipping TDDF1 table (already dropped): ${table}`);
           continue;
         }
         
