@@ -17219,6 +17219,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Monthly Heat Map endpoint for file counts
+  app.get("/api/tddf1/monthly-heatmap", isAuthenticated, async (req, res) => {
+    try {
+      const { year, month } = req.query;
+      console.log(`📊 Getting TDDF1 monthly heat map for ${year}-${month}`);
+      
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      const totalsTableName = `${currentEnv === 'production' ? 'prod' : 'dev'}_tddf1_totals`;
+      
+      // Default to current year and month if not provided
+      const currentDate = new Date();
+      const targetYear = year ? parseInt(year as string) : currentDate.getFullYear();
+      const targetMonth = month ? parseInt(month as string) : currentDate.getMonth() + 1;
+      
+      // Get start and end dates for the month
+      const startDate = new Date(targetYear, targetMonth - 1, 1);
+      const endDate = new Date(targetYear, targetMonth, 0); // Last day of month
+      
+      const result = await pool.query(`
+        SELECT 
+          date_processed as date,
+          COUNT(*) as file_count,
+          SUM(total_records) as total_records,
+          SUM(total_transaction_value) as total_value
+        FROM ${totalsTableName}
+        WHERE date_processed >= $1 AND date_processed <= $2
+        GROUP BY date_processed
+        ORDER BY date_processed
+      `, [
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      ]);
+      
+      // Create a complete calendar grid with all days of the month
+      const daysInMonth = endDate.getDate();
+      const heatMapData = [];
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(targetYear, targetMonth - 1, day);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const dayData = result.rows.find(r => r.date === dateStr);
+        
+        heatMapData.push({
+          date: dateStr,
+          day: day,
+          dayOfWeek: date.getDay(), // 0=Sunday, 6=Saturday
+          fileCount: dayData ? parseInt(dayData.file_count) : 0,
+          totalRecords: dayData ? parseInt(dayData.total_records) : 0,
+          totalValue: dayData ? parseFloat(dayData.total_value || '0') : 0
+        });
+      }
+      
+      res.json({
+        year: targetYear,
+        month: targetMonth,
+        monthName: new Date(targetYear, targetMonth - 1, 1).toLocaleString('default', { month: 'long' }),
+        data: heatMapData,
+        totalFiles: result.rows.reduce((sum, r) => sum + parseInt(r.file_count), 0),
+        totalRecords: result.rows.reduce((sum, r) => sum + parseInt(r.total_records), 0)
+      });
+    } catch (error: any) {
+      console.error("Error getting TDDF1 monthly heat map:", error);
+      res.status(500).json({ error: "Failed to fetch monthly heat map data" });
+    }
+  });
+
   // TDDF1 Rebuild Totals Cache - Manually trigger totals cache rebuild
   app.post("/api/tddf1/rebuild-totals-cache", isAuthenticated, async (req, res) => {
     try {

@@ -2436,3 +2436,22 @@ export type InsertTddfRecordsP1PreCache = z.infer<typeof insertTddfRecordsP1PreC
 export type InsertTddfRecordsP2PreCache = z.infer<typeof insertTddfRecordsP2PreCacheSchema>;
 export type InsertTddfRecordsOtherPreCache = z.infer<typeof insertTddfRecordsOtherPreCacheSchema>;
 export type InsertTddfRecordsTabProcessingStatus = z.infer<typeof insertTddfRecordsTabProcessingStatusSchema>;
+
+// TDDF1 Monthly Heat Map Types
+export type Tddf1MonthlyHeatMapDay = {
+  date: string;
+  day: number;
+  dayOfWeek: number; // 0=Sunday, 6=Saturday
+  fileCount: number;
+  totalRecords: number;
+  totalValue: number;
+};
+
+export type Tddf1MonthlyHeatMap = {
+  year: number;
+  month: number;
+  monthName: string;
+  data: Tddf1MonthlyHeatMapDay[];
+  totalFiles: number;
+  totalRecords: number;
+};
