@@ -495,7 +495,8 @@ function Tddf1Page() {
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
                             // Special layout for BH records showing Net Deposit prominently
-                            if (type === 'BH' && dayBreakdown.totalNetDepositBH) {
+                            if (type === 'BH') {
+                              const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
                                   <div className="flex items-center justify-between mb-2">
@@ -509,7 +510,7 @@ function Tddf1Page() {
                                   </div>
                                   <div className="text-center">
                                     <div className="text-2xl font-bold text-blue-800">
-                                      ${dayBreakdown.totalNetDepositBH.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      ${netDepositAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </div>
                                     <div className="text-xs font-medium text-blue-600">Net Deposit Total</div>
                                   </div>
