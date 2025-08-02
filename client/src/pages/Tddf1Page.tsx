@@ -71,7 +71,8 @@ interface Tddf1EncodingProgress {
 }
 
 function Tddf1Page() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Default to August 1st, 2025 where our TDDF1 data exists
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-08-01'));
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
