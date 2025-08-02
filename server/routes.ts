@@ -13447,15 +13447,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const discoveredTables = allTablesResult.rows.map(row => row.table_name);
       console.log(`[TDDF-JSON-CLEAR] Found ${discoveredTables.length} TDDF-related tables:`, discoveredTables);
       
-      // Specifically find and log TDDF1 tables
-      const tddf1Tables = discoveredTables.filter(table => table.includes('tddf1'));
+      // Find TDDF1 tables with both standard and legacy naming patterns
+      const tddf1Tables = discoveredTables.filter(table => 
+        table.includes('tddf1_file_') || 
+        table.startsWith('prod_tddf1_') || 
+        table.startsWith('dev_tddf1_') ||
+        table === 'tddf1_totals' ||
+        table === 'prod_tddf1_totals' ||
+        table === 'dev_tddf1_totals'
+      );
+      
       if (tddf1Tables.length > 0) {
         console.log(`[TDDF-JSON-CLEAR] Found ${tddf1Tables.length} TDDF1 tables to drop:`, tddf1Tables);
         
-        // Drop all TDDF1 file tables and totals tables
+        // Drop all TDDF1 file tables and totals tables (both standard and legacy naming)
         for (const tddf1Table of tddf1Tables) {
           try {
-            // TDDF1 tables already have proper names, don't use getTableName()
             console.log(`[TDDF-JSON-CLEAR] Dropping TDDF1 table: ${tddf1Table}`);
             await pool.query(`DROP TABLE IF EXISTS "${tddf1Table}" CASCADE`);
             console.log(`[TDDF-JSON-CLEAR] Successfully dropped TDDF1 table: ${tddf1Table}`);
