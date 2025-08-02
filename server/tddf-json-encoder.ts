@@ -878,8 +878,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   
   // Create file-specific table with TDDF1 schema
   try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS ${sql(tableName)} (
+    // Use regular string concatenation for table name as it's an identifier
+    await sql.unsafe(`
+      CREATE TABLE IF NOT EXISTS ${tableName} (
         id SERIAL PRIMARY KEY,
         record_type VARCHAR(10) NOT NULL,
         raw_line TEXT NOT NULL,
@@ -891,12 +892,12 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         batch_id VARCHAR(50),
         transaction_date DATE,
         processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        source_filename VARCHAR(255) DEFAULT ${upload.filename},
+        source_filename VARCHAR(255),
         line_number INTEGER,
         parsed_datetime TIMESTAMP,
         record_time_source VARCHAR(50)
       )
-    `;
+    `);
     console.log(`[TDDF1-ENCODER] Successfully created table: ${tableName}`);
   } catch (tableError: any) {
     console.error(`[TDDF1-ENCODER] Failed to create table ${tableName}:`, tableError);
@@ -1001,19 +1002,21 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       try {
         // Build insert query for the file-specific table
         for (const record of batchRecords) {
-          await sql`
-            INSERT INTO ${sql(tableName)} (
+          await sql.unsafe(`
+            INSERT INTO ${tableName} (
               record_type, raw_line, record_sequence, field_data, transaction_amount,
               merchant_id, terminal_id, batch_id, transaction_date, source_filename,
               line_number, parsed_datetime, record_time_source
             ) VALUES (
-              ${record.record_type}, ${record.raw_line}, ${record.record_sequence}, 
-              ${JSON.stringify(record.field_data)}, ${record.transaction_amount},
-              ${record.merchant_id}, ${record.terminal_id}, ${record.batch_id},
-              ${record.transaction_date}, ${record.source_filename}, ${record.line_number},
-              ${record.parsed_datetime}, ${record.record_time_source}
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
             )
-          `;
+          `, [
+            record.record_type, record.raw_line, record.record_sequence, 
+            JSON.stringify(record.field_data), record.transaction_amount,
+            record.merchant_id, record.terminal_id, record.batch_id,
+            record.transaction_date, record.source_filename, record.line_number,
+            record.parsed_datetime, record.record_time_source
+          ]);
         }
         
         processedCount += batchRecords.length;
