@@ -171,159 +171,164 @@ function Tddf1Page() {
   }, [encodingProgress?.status]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Mobile-Optimized Header */}
+        <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               onClick={() => setLocation('/')} 
               variant="outline" 
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              <span className="hidden sm:inline">Back</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">TDDF1 Dashboard</h1>
-              <p className="text-gray-600 mt-1">File-based TDDF processing with day-level analytics</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900">TDDF1 Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 hidden sm:block">File-based TDDF processing with day-level analytics</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setLocation('/tddf1-monthly')} variant="outline">
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Monthly View
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            <Button onClick={() => setLocation('/tddf1-monthly')} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              <CalendarIcon className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Monthly View</span>
+              <span className="sm:hidden">Monthly</span>
             </Button>
-            <Button onClick={navigateToToday} variant="outline">
-              <CalendarIcon className="h-4 w-4 mr-2" />
+            <Button onClick={navigateToToday} variant="outline" size="sm" className="flex-1 sm:flex-none">
+              <CalendarIcon className="h-4 w-4 mr-1 sm:mr-2" />
               Today
             </Button>
             {!showProgressTracking && (
               <Button 
                 onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
                 variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
               >
-                <Activity className="h-4 w-4 mr-2 animate-pulse" />
-                Track Live Encoding
+                <Activity className="h-4 w-4 mr-1 sm:mr-2 animate-pulse" />
+                <span className="hidden sm:inline">Track Live Encoding</span>
+                <span className="sm:hidden">Track</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Totals Band */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
+        {/* Mobile-Optimized Totals Band */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          <Card className="min-h-[120px] sm:min-h-[140px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Files</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm sm:text-base font-medium">Total Files</CardTitle>
+              <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl sm:text-2xl font-bold">
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-h-[120px] sm:min-h-[140px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Records Processed</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm sm:text-base font-medium">Total Records Processed</CardTitle>
+              <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl sm:text-2xl font-bold">
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  of {stats.totalTddfLines.toLocaleString()} total lines processed
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  <span className="hidden sm:inline">of {stats.totalTddfLines.toLocaleString()} total lines processed</span>
+                  <span className="sm:hidden">of {(stats.totalTddfLines/1000000).toFixed(1)}M lines</span>
                   {stats.totalTddfLines > 0 && stats.totalRecords && (
                     <span className="text-blue-600 font-medium">
-                      {' '}({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}% extraction rate)
+                      {' '}({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}%)
                     </span>
-                  )}
-                  {stats.totalJsonLinesInserted && stats.totalJsonLinesInserted !== stats.totalRecords && (
-                    <span> • {stats.totalJsonLinesInserted.toLocaleString()} inserted</span>
                   )}
                 </p>
               )}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-h-[120px] sm:min-h-[140px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Transaction Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm sm:text-base font-medium">Authorizations</CardTitle>
+              <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl sm:text-2xl font-bold">
                 {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-h-[120px] sm:min-h-[140px]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Tables</CardTitle>
-              <Database className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm sm:text-base font-medium">Active Tables</CardTitle>
+              <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl sm:text-2xl font-bold">
                 {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Pre-Cache Totals Widget */}
+        {/* Mobile-Optimized Pre-Cache Totals Widget */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Database className="h-5 w-5" />
-                Pre-Cache Totals Management
+                <span className="hidden sm:inline">Pre-Cache Totals Management</span>
+                <span className="sm:hidden">Cache Management</span>
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => refetchStats()}
                   disabled={statsLoading}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
                 >
                   <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-                  Refresh Data
+                  <span className="hidden sm:inline">Refresh Data</span>
+                  <span className="sm:hidden">Refresh</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => rebuildCacheMutation.mutate()}
                   disabled={rebuildCacheMutation.isPending}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
                 >
                   <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
-                  Rebuild Cache
+                  <span className="hidden sm:inline">Rebuild Cache</span>
+                  <span className="sm:hidden">Rebuild</span>
                 </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="text-center p-3 sm:p-0">
+                <div className="text-2xl sm:text-xl font-bold text-blue-600">
                   {stats?.cached ? 'Cached' : 'Real-time'}
                 </div>
                 <div className="text-sm text-gray-500">Data Source</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-0">
+                <div className="text-2xl sm:text-xl font-bold text-green-600">
                   {stats?.totalRecords?.toLocaleString() || 0}
                 </div>
                 <div className="text-sm text-gray-500">Records Processed</div>
                 {stats?.totalTddfLines && (
-                  <div className="text-xs text-gray-400">
-                    of {stats.totalTddfLines.toLocaleString()} total lines
+                  <div className="text-xs sm:text-xs text-gray-400 mt-1">
+                    <span className="hidden sm:inline">of {stats.totalTddfLines.toLocaleString()} total lines</span>
+                    <span className="sm:hidden">of {(stats.totalTddfLines/1000000).toFixed(1)}M lines</span>
                     {stats.totalTddfLines > 0 && stats.totalRecords && (
                       <span className="ml-1 text-blue-500">
                         ({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}%)
@@ -332,13 +337,13 @@ function Tddf1Page() {
                   </div>
                 )}
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
+              <div className="text-center p-3 sm:p-0">
+                <div className="text-2xl sm:text-xl font-bold text-orange-600">
                   {stats?.totalTddfLines?.toLocaleString() || 0}
                 </div>
                 <div className="text-sm text-gray-500">Total Lines Processed</div>
                 {stats?.performanceMetrics?.lineExtractionRate && (
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-gray-400 mt-1">
                     {stats.performanceMetrics.lineExtractionRate} extraction rate
                   </div>
                 )}
@@ -354,19 +359,20 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Day Navigation */}
+        {/* Mobile-Optimized Day Navigation */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <CalendarIcon className="h-5 w-5" />
                 Day Navigation
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 sm:hidden">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={navigateToPreviousDay}
+                  className="flex-1"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -374,36 +380,45 @@ function Tddf1Page() {
                   variant="outline"
                   size="sm"
                   onClick={navigateToNextDay}
+                  className="flex-1"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-
           </CardHeader>
           <CardContent>
             <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900 mb-2">
-                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              <div className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+                <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
               </div>
-              <div className="text-sm text-gray-500 mb-6">
-                {dayBreakdown ? `${dayBreakdown.totalRecords} records • ${dayBreakdown.fileCount} files` : 'No data'}
+              <div className="text-sm text-gray-500 mb-4 sm:mb-6">
+                {dayBreakdown ? (
+                  <>
+                    <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
+                    <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
+                  </>
+                ) : 'No data'}
               </div>
             </div>
             
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-2 sm:gap-4">
               <Button
                 variant="outline"
                 onClick={navigateToPreviousDay}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                size="sm"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous Day
+                <span className="hidden sm:inline">Previous Day</span>
+                <span className="sm:hidden">Prev</span>
               </Button>
               <Button
                 onClick={navigateToToday}
                 variant={isToday(selectedDate) ? "default" : "outline"}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                size="sm"
               >
                 <CalendarIcon className="h-4 w-4" />
                 Today
@@ -411,34 +426,38 @@ function Tddf1Page() {
               <Button
                 variant="outline"
                 onClick={navigateToNextDay}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                size="sm"
               >
-                Next Day
+                <span className="hidden sm:inline">Next Day</span>
+                <span className="sm:hidden">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Day Breakdown Widget */}
+        {/* Mobile-Optimized Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Mobile-Optimized Day Breakdown Widget */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
+              <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <BarChart3 className="h-5 w-5" />
-                  Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}
+                  <span className="hidden sm:inline">Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}</span>
+                  <span className="sm:hidden">Daily - {format(selectedDate, 'MMM d')}</span>
                 </CardTitle>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => refetchDayBreakdown()}
                   disabled={dayLoading}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 sm:gap-2"
                 >
                   <RefreshCw className={`h-4 w-4 ${dayLoading ? 'animate-spin' : ''}`} />
-                  Refresh Day
+                  <span className="hidden sm:inline">Refresh Day</span>
+                  <span className="sm:hidden">Refresh</span>
                 </Button>
               </div>
             </CardHeader>
@@ -447,18 +466,22 @@ function Tddf1Page() {
                 <div className="text-center py-8 text-gray-500">Loading day data...</div>
               ) : dayBreakdown ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{dayBreakdown.totalRecords.toLocaleString()}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="text-center p-3 sm:p-0">
+                      <div className="text-2xl sm:text-xl font-bold text-blue-600">
+                        <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()}</span>
+                        <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k</span>
+                      </div>
                       <div className="text-sm text-gray-600">Records Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
-                          {dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total
+                          <span className="hidden sm:inline">{dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total</span>
+                          <span className="sm:hidden">{(dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0)/1000).toFixed(0)}k total</span>
                         </div>
                       )}
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{dayBreakdown.fileCount}</div>
+                    <div className="text-center p-3 sm:p-0">
+                      <div className="text-2xl sm:text-xl font-bold text-green-600">{dayBreakdown.fileCount}</div>
                       <div className="text-sm text-gray-600">Files Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
@@ -466,22 +489,23 @@ function Tddf1Page() {
                         </div>
                       )}
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        ${dayBreakdown.transactionValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <div className="text-center p-3 sm:p-0">
+                      <div className="text-xl sm:text-xl font-bold text-purple-600">
+                        <span className="hidden sm:inline">${dayBreakdown.transactionValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="sm:hidden">${(dayBreakdown.transactionValue/1000).toFixed(0)}k</span>
                       </div>
-                      <div className="text-sm text-gray-600">Transaction Value</div>
+                      <div className="text-sm text-gray-600">Authorizations</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{dayBreakdown.tables.length}</div>
+                    <div className="text-center p-3 sm:p-0">
+                      <div className="text-2xl sm:text-xl font-bold text-orange-600">{dayBreakdown.tables.length}</div>
                       <div className="text-sm text-gray-600">Active Tables</div>
                     </div>
                   </div>
 
-                  {/* Record Type Breakdown */}
+                  {/* Mobile-Optimized Record Type Breakdown */}
                   <div>
-                    <h4 className="font-semibold mb-3">Record Types</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <h4 className="font-semibold mb-3 text-sm sm:text-base">Record Types</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                       {(() => {
                         // Define consistent order and colors for record types
                         const recordTypeConfig = {
@@ -548,7 +572,7 @@ function Tddf1Page() {
                                     <div className="text-2xl font-bold text-green-800">
                                       ${transactionAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </div>
-                                    <div className="text-xs font-medium text-green-600">Transaction Amount Total</div>
+                                    <div className="text-xs font-medium text-green-600">Authorizations Total</div>
                                   </div>
                                 </div>
                               );
