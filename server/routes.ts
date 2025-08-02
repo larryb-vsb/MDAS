@@ -16876,24 +16876,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TDDF1 Daily Breakdown - Enhanced daily statistics for file-based TDDF
+  // TDDF1 Daily Breakdown - Enhanced daily statistics using pre-cache totals
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
     try {
       const date = req.query.date as string || format(new Date(), 'yyyy-MM-dd');
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
       const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
       
-      // Get all file tables that match the date
-      const tablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name LIKE $1
-          AND table_name LIKE $2
-        ORDER BY table_name
-      `, [`${tablePrefix}file_%`, `%${date.replace(/-/g, '')}%`]);
+      // Query the pre-cache totals table for the specific date
+      const totalsResult = await pool.query(`
+        SELECT 
+          date_processed,
+          file_name,
+          total_records,
+          total_transaction_value,
+          record_type_breakdown,
+          created_at
+        FROM ${totalsTableName}
+        WHERE date_processed = $1
+        ORDER BY created_at DESC
+      `, [date]);
       
       let totalRecords = 0;
       let transactionValue = 0;
@@ -16904,42 +16908,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordCount: number;
       }> = [];
       
-      for (const tableRow of tablesResult.rows) {
-        try {
-          const tableName = tableRow.table_name;
-          const statsResult = await pool.query(`
-            SELECT 
-              COUNT(*) as record_count,
-              record_type,
-              source_filename,
-              COALESCE(SUM(CASE 
-                WHEN record_type = 'DT' AND transaction_amount IS NOT NULL 
-                THEN transaction_amount 
-                ELSE 0 
-              END), 0) as transaction_value
-            FROM ${tableName}
-            GROUP BY record_type, source_filename
-          `);
-          
-          if (statsResult.rows.length > 0) {
-            let fileRecordCount = 0;
-            for (const row of statsResult.rows) {
-              const count = parseInt(row.record_count);
-              totalRecords += count;
-              fileRecordCount += count;
-              transactionValue += parseFloat(row.transaction_value || '0');
-              recordTypes[row.record_type] = (recordTypes[row.record_type] || 0) + count;
-            }
-            
-            filesProcessed.push({
-              fileName: statsResult.rows[0].source_filename || tableName,
-              tableName: tableName,
-              recordCount: fileRecordCount
-            });
+      // Process cached totals data
+      for (const row of totalsResult.rows) {
+        const records = parseInt(row.total_records) || 0;
+        const value = parseFloat(row.total_transaction_value) || 0;
+        const breakdown = typeof row.record_type_breakdown === 'string' 
+          ? JSON.parse(row.record_type_breakdown) 
+          : row.record_type_breakdown;
+        
+        totalRecords += records;
+        transactionValue += value;
+        
+        // Aggregate record types
+        if (breakdown && typeof breakdown === 'object') {
+          for (const [type, count] of Object.entries(breakdown)) {
+            recordTypes[type] = (recordTypes[type] || 0) + (parseInt(count as string) || 0);
           }
-        } catch (error) {
-          console.warn(`Error querying table ${tableRow.table_name}:`, error);
         }
+        
+        // Add to files processed
+        const fileName = row.file_name || 'Unknown';
+        const tableName = `dev_tddf1_file_${fileName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        
+        filesProcessed.push({
+          fileName: fileName,
+          tableName: tableName,
+          recordCount: records
+        });
       }
       
       res.json({
@@ -16947,9 +16942,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords: totalRecords,
         recordTypes: recordTypes,
         transactionValue: transactionValue,
-        fileCount: tablesResult.rows.length,
-        tables: tablesResult.rows.map(r => r.table_name),
-        filesProcessed: filesProcessed
+        fileCount: filesProcessed.length,
+        tables: filesProcessed.map(f => f.tableName),
+        filesProcessed: filesProcessed,
+        cached: true,
+        cacheSource: 'pre-cache totals table'
       });
     } catch (error) {
       console.error("Error getting TDDF1 day breakdown:", error);
