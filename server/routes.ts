@@ -16578,6 +16578,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TDDF1 API ENDPOINTS
   // ==========================================
 
+  // Get real-time encoding progress for a specific file
+  app.get("/api/tddf1/encoding-progress/:uploadId", isAuthenticated, async (req, res) => {
+    try {
+      const uploadId = req.params.uploadId;
+      console.log(`[TDDF1-PROGRESS] Getting encoding progress for upload: ${uploadId}`);
+      
+      // Get upload info from uploader table
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      const uploadResult = await pool.query(`
+        SELECT filename, current_phase, file_size, final_file_type
+        FROM ${uploaderTableName}
+        WHERE id = $1
+      `, [uploadId]);
+      
+      if (uploadResult.rows.length === 0) {
+        return res.status(404).json({ error: "Upload not found" });
+      }
+      
+      const upload = uploadResult.rows[0];
+      const filename = upload.filename;
+      
+      // Extract expected line count from file size (rough estimate: 700 chars per line)
+      const estimatedLines = Math.floor((upload.file_size || 10700) / 700);
+      
+      // Create table name from filename
+      const environment = process.env.NODE_ENV || 'development';
+      const tablePrefix = environment === 'production' ? 'prod_tddf1_file_' : 'dev_tddf1_file_';
+      const sanitizedFilename = filename
+        .replace(/\.TSYSO$/i, '')
+        .replace(/[^a-zA-Z0-9_]/g, '_')
+        .toLowerCase();
+      const tableName = `${tablePrefix}${sanitizedFilename}`;
+      
+      // Check if table exists and get current progress
+      const tableExistsResult = await pool.query(`
+        SELECT table_name FROM information_schema.tables 
+        WHERE table_name = $1
+      `, [tableName]);
+      
+      if (tableExistsResult.rows.length === 0) {
+        return res.json({
+          uploadId,
+          filename,
+          status: 'not_started',
+          progress: 0,
+          currentRecords: 0,
+          estimatedTotal: estimatedLines,
+          recordBreakdown: {},
+          phase: upload.current_phase
+        });
+      }
+      
+      // Get current record count and breakdown
+      const currentCountResult = await pool.query(`
+        SELECT COUNT(*) as total FROM ${tableName}
+      `);
+      
+      const breakdownResult = await pool.query(`
+        SELECT record_type, COUNT(*) as count 
+        FROM ${tableName}
+        GROUP BY record_type
+        ORDER BY record_type
+      `);
+      
+      const currentRecords = parseInt(currentCountResult.rows[0].total);
+      const recordBreakdown = breakdownResult.rows.reduce((acc: any, row: any) => {
+        acc[row.record_type] = parseInt(row.count);
+        return acc;
+      }, {});
+      
+      // Calculate progress percentage
+      const progressPercent = estimatedLines > 0 
+        ? Math.min(Math.round((currentRecords / estimatedLines) * 100), 100)
+        : 0;
+      
+      // Determine status based on phase and current progress
+      const status = upload.current_phase === 'completed' 
+        ? 'completed' 
+        : upload.current_phase === 'encoding'
+          ? 'encoding'
+          : currentRecords > 0 
+            ? 'encoding' 
+            : 'started';
+      
+      res.json({
+        uploadId,
+        filename,
+        status,
+        progress: progressPercent,
+        currentRecords,
+        estimatedTotal: estimatedLines,
+        actualFileSize: upload.file_size,
+        recordBreakdown,
+        tableName,
+        phase: upload.current_phase,
+        lastUpdated: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error("[TDDF1-PROGRESS] Error getting encoding progress:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to get encoding progress" 
+      });
+    }
+  });
+
   // TDDF1 Dashboard Stats - File-based TDDF statistics
   app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
     try {

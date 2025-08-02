@@ -56,11 +56,27 @@ interface Tddf1RecentActivity {
   tableName: string;
 }
 
+interface Tddf1EncodingProgress {
+  uploadId: string;
+  filename: string;
+  status: 'not_started' | 'started' | 'encoding' | 'completed';
+  progress: number;
+  currentRecords: number;
+  estimatedTotal: number;
+  actualFileSize?: number;
+  recordBreakdown: Record<string, number>;
+  tableName: string;
+  phase: string;
+  lastUpdated: string;
+}
+
 function Tddf1Page() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showProgressTracking, setShowProgressTracking] = useState(false);
+  const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -78,6 +94,14 @@ function Tddf1Page() {
 
   const { data: recentActivity, isLoading: activityLoading } = useQuery<Tddf1RecentActivity[]>({
     queryKey: ['/api/tddf1/recent-activity'],
+  });
+
+  // Progress tracking query (only when tracking is enabled)
+  const { data: encodingProgress, isLoading: progressLoading } = useQuery<Tddf1EncodingProgress>({
+    queryKey: ['/api/tddf1/encoding-progress', trackingUploadId],
+    queryFn: () => fetch(`/api/tddf1/encoding-progress/${trackingUploadId}`).then(res => res.json()),
+    enabled: !!trackingUploadId && showProgressTracking,
+    refetchInterval: trackingUploadId ? 2000 : false, // Poll every 2 seconds when tracking
   });
 
   // Navigation functions
@@ -106,6 +130,34 @@ function Tddf1Page() {
       });
     }
   });
+
+  // Progress tracking functions
+  const startProgressTracking = (uploadId: string) => {
+    setTrackingUploadId(uploadId);
+    setShowProgressTracking(true);
+    toast({
+      title: "Progress Tracking Started",
+      description: `Now tracking encoding progress for ${uploadId}`,
+    });
+  };
+
+  const stopProgressTracking = () => {
+    setShowProgressTracking(false);
+    setTrackingUploadId(null);
+  };
+
+  // Auto-stop tracking when encoding completes
+  useEffect(() => {
+    if (encodingProgress?.status === 'completed') {
+      setTimeout(() => {
+        stopProgressTracking();
+        toast({
+          title: "Encoding Complete!",
+          description: `File ${encodingProgress.filename} has finished encoding with ${encodingProgress.currentRecords} records`,
+        });
+      }, 3000); // Show completion for 3 seconds before auto-stopping
+    }
+  }, [encodingProgress?.status]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -400,6 +452,67 @@ function Tddf1Page() {
             </CardContent>
           </Card>
 
+          {/* Progress Tracking Widget */}
+          {showProgressTracking && encodingProgress && (
+            <Card className="border-2 border-blue-200 bg-blue-50/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
+                    Live Encoding Progress
+                  </CardTitle>
+                  <Button 
+                    onClick={stopProgressTracking} 
+                    variant="outline" 
+                    size="sm"
+                  >
+                    Stop
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-sm truncate">{encodingProgress.filename}</span>
+                      <Badge variant={encodingProgress.status === 'completed' ? 'default' : 'secondary'}>
+                        {encodingProgress.status}
+                      </Badge>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+                        style={{ width: `${encodingProgress.progress}%` }}
+                      />
+                    </div>
+                    
+                    <div className="text-xs text-gray-600">
+                      {encodingProgress.currentRecords.toLocaleString()} / {encodingProgress.estimatedTotal.toLocaleString()} records ({encodingProgress.progress}%)
+                    </div>
+                  </div>
+                  
+                  {/* Record Type Breakdown */}
+                  {Object.keys(encodingProgress.recordBreakdown).length > 0 && (
+                    <div className="grid grid-cols-2 gap-1">
+                      {Object.entries(encodingProgress.recordBreakdown).map(([type, count]) => (
+                        <div key={type} className="flex justify-between bg-white/70 px-2 py-1 rounded text-xs">
+                          <span>{type}:</span>
+                          <span>{count.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-gray-500">
+                    Updated: {format(new Date(encodingProgress.lastUpdated), 'HH:mm:ss')}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Recent Activity Widget */}
           <Card>
             <CardHeader>
@@ -417,9 +530,21 @@ function Tddf1Page() {
                     <div key={activity.id} className="border-l-2 border-blue-200 pl-3 py-2">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-sm truncate">{activity.fileName}</span>
-                        <Badge variant={activity.status === 'completed' ? 'default' : 'secondary'}>
-                          {activity.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={activity.status === 'completed' ? 'default' : 'secondary'}>
+                            {activity.status}
+                          </Badge>
+                          {activity.status === 'encoding' && (
+                            <Button 
+                              onClick={() => startProgressTracking(activity.id)} 
+                              variant="outline" 
+                              size="sm"
+                              className="text-xs h-6 px-2"
+                            >
+                              Track
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
                         {activity.recordCount} records • {activity.tableName}
