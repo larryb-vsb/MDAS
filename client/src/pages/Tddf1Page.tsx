@@ -449,7 +449,7 @@ function Tddf1Page() {
                         <div key={type} className="flex items-center justify-between bg-gray-50 rounded p-2">
                           <span className="text-sm font-medium">{type}</span>
                           <Badge variant="secondary">
-                            {typeof count === 'object' && count !== null && 'count' in count ? count.count : count}
+                            {typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count)}
                           </Badge>
                         </div>
                       ))}
