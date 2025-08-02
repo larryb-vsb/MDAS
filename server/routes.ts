@@ -17148,7 +17148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tables.push(row.table_name);
       }
       
-      console.log(`📅 Aggregated data for ${date}: ${totalRecords} records, $${totalTransactionValue} value`);
+      console.log(`📅 Aggregated data for ${date}: ${totalRecords} records, $${totalTransactionValue} value, $${totalNetDepositBH} BH Net Deposit`);
       
       return res.json({
         date,
