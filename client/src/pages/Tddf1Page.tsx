@@ -70,24 +70,6 @@ interface Tddf1EncodingProgress {
   lastUpdated: string;
 }
 
-interface Tddf1MonthlyHeatMapDay {
-  date: string;
-  day: number;
-  dayOfWeek: number;
-  fileCount: number;
-  totalRecords: number;
-  totalValue: number;
-}
-
-interface Tddf1MonthlyHeatMap {
-  year: number;
-  month: number;
-  monthName: string;
-  data: Tddf1MonthlyHeatMapDay[];
-  totalFiles: number;
-  totalRecords: number;
-}
-
 function Tddf1Page() {
   // Default to August 1st, 2025 where our TDDF1 data exists
   const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-08-01'));
@@ -96,11 +78,6 @@ function Tddf1Page() {
   const queryClient = useQueryClient();
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
-  
-  // Heat map navigation state
-  const [heatMapDate, setHeatMapDate] = useState<Date>(new Date());
-  const heatMapYear = heatMapDate.getFullYear();
-  const heatMapMonth = heatMapDate.getMonth() + 1;
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -123,12 +100,6 @@ function Tddf1Page() {
     queryKey: ['/api/tddf1/recent-activity'],
   });
 
-  // Monthly heat map query
-  const { data: heatMapData, isLoading: heatMapLoading, refetch: refetchHeatMap } = useQuery<Tddf1MonthlyHeatMap>({
-    queryKey: ['/api/tddf1/monthly-heatmap', heatMapYear, heatMapMonth],
-    queryFn: () => fetch(`/api/tddf1/monthly-heatmap?year=${heatMapYear}&month=${heatMapMonth}`).then(res => res.json()),
-  });
-
   // Progress tracking query (only when tracking is enabled)
   const { data: encodingProgress, isLoading: progressLoading } = useQuery<Tddf1EncodingProgress>({
     queryKey: ['/api/tddf1/encoding-progress', trackingUploadId],
@@ -141,16 +112,6 @@ function Tddf1Page() {
   const navigateToToday = () => setSelectedDate(new Date());
   const navigateToPreviousDay = () => setSelectedDate(prev => subDays(prev, 1));
   const navigateToNextDay = () => setSelectedDate(prev => addDays(prev, 1));
-
-  // Heat map navigation functions
-  const navigateHeatMapToPreviousMonth = () => setHeatMapDate(prev => subMonths(prev, 1));
-  const navigateHeatMapToNextMonth = () => setHeatMapDate(prev => addMonths(prev, 1));
-  const navigateHeatMapToCurrentMonth = () => setHeatMapDate(new Date());
-  
-  // Handle heat map day click to update the day breakdown view
-  const handleHeatMapDayClick = (date: string) => {
-    setSelectedDate(new Date(date));
-  };
 
   // Totals cache rebuild mutation
   const rebuildCacheMutation = useMutation({
