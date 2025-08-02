@@ -17218,6 +17218,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
       }
       
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const totalsTableName = `${envPrefix}tddf1_totals`;
+      
+      console.log(`📅 [MONTHLY-COMPARISON] Environment: ${environment}, Using table: ${totalsTableName}`);
+      
       const [year, monthNum] = month.split('-');
       
       // Calculate previous month
@@ -17232,7 +17240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastDay = new Date(parseInt(yr), parseInt(mth), 0).getDate();
         const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
-        // Get daily breakdown for the month
+        // Get daily breakdown for the month using environment-aware table name
         const dailyBreakdown = await pool.query(`
           SELECT 
             date_processed as date,
@@ -17240,7 +17248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             SUM(total_records) as records,
             SUM(total_transaction_value) as transaction_value,
             SUM(total_net_deposit_bh) as net_deposit_bh
-          FROM dev_tddf1_totals 
+          FROM ${totalsTableName} 
           WHERE date_processed >= $1 AND date_processed <= $2
           GROUP BY date_processed
           ORDER BY date_processed
