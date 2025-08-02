@@ -16711,7 +16711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get aggregated stats from totals table for all encoded files
         const totalsResult = await pool.query(`
           SELECT * FROM ${totalsTableName}
-          ORDER BY last_updated DESC
+          ORDER BY updated_at DESC
           LIMIT 1
         `);
         
@@ -16723,9 +16723,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalTransactionValue: parseFloat(totals.total_transaction_value || '0'),
             recordTypeBreakdown: totals.record_type_breakdown || {},
             activeTables: [],
-            lastProcessedDate: totals.last_updated,
+            lastProcessedDate: totals.updated_at,
             cached: true,
-            cacheDate: totals.last_updated
+            cacheDate: totals.updated_at
           });
         }
         
