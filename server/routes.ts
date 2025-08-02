@@ -16604,8 +16604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      const { getCurrentEnvironment } = await import("./table-config");
-      const currentEnv = getCurrentEnvironment();
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       
       // Check if pre-cache totals table exists
@@ -16759,8 +16758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📋 Getting TDDF1 recent activity");
       
-      const { getCurrentEnvironment } = await import("./table-config");
-      const currentEnv = getCurrentEnvironment();
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       
       // Get all file-based TDDF tables and their last processing info
@@ -16818,8 +16816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("🔄 Rebuilding TDDF1 totals cache");
       
-      const { getCurrentEnvironment } = await import("./table-config");
-      const currentEnv = getCurrentEnvironment();
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       const totalsTableName = `${tablePrefix}totals`;
       
@@ -16932,8 +16929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔄 Processing TDDF1 file: ${filename}`);
       
-      const { getCurrentEnvironment } = await import("./table-config");
-      const currentEnv = getCurrentEnvironment();
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       
       // Sanitize filename for table name (remove extension, special chars)
