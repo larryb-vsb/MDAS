@@ -380,16 +380,7 @@ function Tddf1Page() {
                 </Button>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Badge variant={isToday(selectedDate) ? "default" : "secondary"}>
-                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
-              </Badge>
-              {dayBreakdown && (
-                <span className="text-sm text-gray-600">
-                  {dayBreakdown.totalRecords} records • {dayBreakdown.fileCount} files
-                </span>
-              )}
-            </div>
+
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center space-x-4">
