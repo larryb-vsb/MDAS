@@ -499,8 +499,9 @@ function Tddf1Page() {
                             const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
+                            // TEMPORARILY COMMENTED OUT - Net Deposit functionality needs debugging
                             // Special layout for BH records showing Net Deposit prominently
-                            if (type === 'BH') {
+                            /*if (type === 'BH') {
                               const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
                               console.log('🔍 BH Box Render:', { 
                                 date: dayBreakdown.date, 
@@ -527,7 +528,7 @@ function Tddf1Page() {
                                   </div>
                                 </div>
                               );
-                            }
+                            }*/
                             
                             // Standard layout for other record types
                             return (
