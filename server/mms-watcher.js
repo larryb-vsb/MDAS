@@ -310,9 +310,9 @@ class MMSWatcher {
         throw new Error('File content not accessible');
       }
 
-      // Encode TDDF to JSONB
-      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.js');
-      const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);
+      // Encode TDDF to TDDF1 file-based tables
+      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.js');
+      const encodingResult = await encodeTddfToTddf1FileBased(fileContent, upload);
 
       // Re-parse existing processing notes safely (they may have been updated during encoding)
       try {
@@ -721,15 +721,15 @@ class MMSWatcher {
       let encodingResults;
       
       if (fileType === 'tddf') {
-        // Import and use the TDDF JSON encoder
-        const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder.ts');
-        encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
+        // Import and use the TDDF1 file-based encoder
+        const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.ts');
+        encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
         
         // Update to encoded phase with TDDF results
         await this.storage.updateUploaderPhase(upload.id, 'encoded', {
           encodingCompletedAt: new Date(),
           encodingStatus: 'completed',
-          encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+          encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file-based table`,
           jsonRecordsCreated: encodingResults.totalRecords,
           recordTypeBreakdown: encodingResults.recordCounts.byType,
           processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`

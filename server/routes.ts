@@ -7905,8 +7905,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get file content from storage
           const fileContent = await ReplitStorageService.getFileContent(storageKey);
           
-          // Perform encoding
-          const encodingResult = await encodeTddfToJsonbDirect(fileContent, upload);
+          // Perform TDDF1 file-based encoding
+          const encodingResult = await encodeTddfToTddf1FileBased(fileContent, upload);
           
           // Transition to encoded phase
           await storage.updateUploaderUpload(uploadId, {
@@ -11829,8 +11829,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stage 5: Encoding API endpoints
   
-  // Import the TDDF JSON encoder
-  const { encodeTddfToJsonbDirect } = await import("./tddf-json-encoder");
+  // Import the TDDF encoders
+  const { encodeTddfToJsonbDirect, encodeTddfToTddf1FileBased } = await import("./tddf-json-encoder");
   
 
 
@@ -11876,20 +11876,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Failed to retrieve file content from storage. S3Key: ${upload.s3Key}, StoragePath: ${upload.storagePath}`);
       }
 
-      // Perform TDDF JSON encoding using schema definitions
-      console.log(`[STAGE-5-ENCODING] Starting line-by-line TDDF processing for ${fileContent.split('\n').length} lines...`);
-      const encodingResults = await encodeTddfToJsonbDirect(fileContent, upload);
+      // Perform TDDF1 file-based encoding using schema definitions
+      console.log(`[STAGE-5-ENCODING] Starting TDDF1 file-based processing for ${fileContent.split('\n').length} lines...`);
+      const encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
       
       // Update to encoded phase with completion metadata
       await storage.updateUploaderPhase(id, 'encoded', {
         encodingStrategy: strategy,
         encodingStatus: 'completed',
         encodingTimeMs: encodingResults.encodingTimeMs,
-        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB database`,
+        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file table: ${encodingResults.tableName}`,
         jsonRecordsCreated: encodingResults.recordCounts.total,
         tddfRecordsCreated: encodingResults.recordCounts.byType.DT || 0,
         encodingMetadata: encodingResults,
-        jsonbTableUsed: process.env.NODE_ENV === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb'
+        tddf1TableUsed: encodingResults.tableName
       });
       
       // Create JSON sample with highlighted record identifier
@@ -11905,7 +11905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         strategy: strategy,
         status: 'completed',
         progress: 100,
-        message: `Successfully encoded ${encodingResults.totalRecords} TDDF records to JSONB format`,
+        message: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file table: ${encodingResults.tableName}`,
         jsonSample: jsonSample, // Include JSON sample for display
         recordTypeBreakdown: encodingResults.recordCounts.byType,
         results: encodingResults
@@ -12054,87 +12054,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Failed to read file content" });
       }
       
-      // Clear existing JSONB records
+      // Clear existing TDDF1 file-based table records
       const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      const tablePrefix = environment === 'production' ? 'prod_tddf1_file_' : 'dev_tddf1_file_';
       
-      console.log(`[RE-ENCODE] Clearing existing records from ${tableName}`);
-      await pool.query(`DELETE FROM ${tableName} WHERE upload_id = $1`, [id]);
+      // Sanitize filename for table name (same logic as encoder)
+      const sanitizedFilename = upload.filename
+        .replace(/\.TSYSO$/i, '')
+        .replace(/[^a-zA-Z0-9_]/g, '_')
+        .toLowerCase();
       
-      // Process real TDDF lines
-      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
-      console.log(`[RE-ENCODE] Processing ${lines.length} real TDDF lines`);
+      const tableName = `${tablePrefix}${sanitizedFilename}`;
       
-      let recordsInserted = 0;
+      console.log(`[RE-ENCODE] Clearing existing records from TDDF1 table: ${tableName}`);
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const lineNumber = i + 1;
-        
-        // Extract record type (first 2 characters)
-        const recordType = line.substring(0, 2);
-        
-        // Extract fields based on record type
-        let extractedFields: any = {
-          recordType: recordType,
-          recordIdentifier: `${recordType}-${lineNumber}`
-        };
-        
-        if (recordType === 'DT') {
-          // DT record - extract transaction fields
-          const merchantAccount = line.substring(2, 22).trim();
-          const authCode = line.substring(36, 42).trim();
-          const amountStr = line.substring(101, 112).trim();
-          const amount = amountStr ? (parseFloat(amountStr) / 100).toFixed(2) : '0.00';
-          const dateStr = line.substring(90, 98);
-          
-          extractedFields = {
-            recordType: 'DT',
-            merchantAccountNumber: merchantAccount,
-            authorizationCode: authCode,
-            transactionAmount: amount,
-            transactionDate: formatTddfDate(dateStr),
-            cardType: line.substring(187, 188),
-            merchantName: line.substring(217, 242).trim(),
-            recordIdentifier: `DT-${merchantAccount}-${lineNumber}`
-          };
-        } else if (recordType === 'BH') {
-          // BH record - batch header
-          const batchId = line.substring(2, 22).trim();
-          const dateStr = line.substring(90, 98);
-          
-          extractedFields = {
-            recordType: 'BH',
-            batchId: batchId,
-            batchDate: formatTddfDate(dateStr),
-            recordIdentifier: `BH-${batchId}-${lineNumber}`
-          };
-        }
-        
-        // Insert record
-        const recordData = {
-          rawLine: line,
-          lineNumber: lineNumber,
-          recordType: recordType,
-          extractedFields: extractedFields
-        };
-        
-        await pool.query(`
-          INSERT INTO ${tableName} (
-            upload_id, record_type, record_data, processing_status, created_at
-          ) VALUES ($1, $2, $3, $4, NOW())
-        `, [id, recordType, JSON.stringify(recordData), 'completed']);
-        
-        recordsInserted++;
+      // Check if table exists and clear it
+      try {
+        await pool.query(`DELETE FROM ${tableName} WHERE source_filename = $1`, [upload.filename]);
+        console.log(`[RE-ENCODE] Cleared existing records from ${tableName}`);
+      } catch (clearError: any) {
+        console.warn(`[RE-ENCODE] Could not clear existing records (table may not exist): ${clearError.message}`);
       }
       
-      console.log(`[RE-ENCODE] Successfully inserted ${recordsInserted} real records`);
+      // Use TDDF1 file-based encoding
+      console.log(`[RE-ENCODE] Using TDDF1 file-based encoding for ${upload.filename}`);
+      const encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
+      
+      console.log(`[RE-ENCODE] TDDF1 encoding completed: ${encodingResults.totalRecords} records`);
+      console.log(`[RE-ENCODE] Record type breakdown:`, encodingResults.recordCounts.byType);
+      console.log(`[RE-ENCODE] TDDF1 table: ${encodingResults.tableName}`);
       
       res.json({
         success: true,
-        message: `Re-encoded ${recordsInserted} records with real TDDF data`,
-        recordsInserted: recordsInserted,
-        tableName: tableName
+        message: `Re-encoded ${encodingResults.totalRecords} records with TDDF1 file-based encoding`,
+        recordsInserted: encodingResults.totalRecords,
+        tableName: encodingResults.tableName,
+        recordCounts: encodingResults.recordCounts
       });
       
     } catch (error: any) {
@@ -14401,14 +14356,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objectKeyParts = storageObject.object_key.split('/');
       const filename = objectKeyParts[objectKeyParts.length - 1] || 'unknown.tsyso';
       
-      // Encode to JSONB using the upload object with filename
+      // Encode to TDDF1 file-based table using the upload object with filename
       const startTime = Date.now();
-      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
+      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
       const uploadObject = { 
         id: storageObject.upload_id,
         filename: filename
       };
-      const result = await encodeTddfToJsonbDirect(fileContent, uploadObject);
+      const result = await encodeTddfToTddf1FileBased(fileContent, uploadObject);
       const processingTime = Date.now() - startTime;
       
       // Update storage object status
@@ -14418,7 +14373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE id = $1
       `, [objectId]);
       
-      console.log(`[STORAGE-STEP-5] Encoding complete for ${objectId}: ${result.totalRecords} JSONB records`);
+      console.log(`[STORAGE-STEP-5] Encoding complete for ${objectId}: ${result.totalRecords} TDDF1 records`);
       
       res.json({
         success: true,
@@ -14522,11 +14477,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfResult = await storage.processTddfFileFromContent(uploadRecord.id, fileContent);
       const step4Time = Date.now() - step4StartTime;
       
-      // Step 5: Encode to JSONB
+      // Step 5: Encode to TDDF1 file-based table
       const step5StartTime = Date.now();
-      const { encodeTddfToJsonbDirect } = await import('./tddf-json-encoder');
+      const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder');
       
-      // Extract filename from object key for proper JSONB encoding
+      // Extract filename from object key for proper TDDF1 encoding
       const objectKeyParts = storageObject.object_key.split('/');
       const filename = objectKeyParts[objectKeyParts.length - 1] || 'unknown.tsyso';
       const uploadObjectWithFilename = { 
@@ -14534,7 +14489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filename: filename
       };
       
-      const jsonbResult = await encodeTddfToJsonbDirect(fileContent, uploadObjectWithFilename);
+      const jsonbResult = await encodeTddfToTddf1FileBased(fileContent, uploadObjectWithFilename);
       const step5Time = Date.now() - step5StartTime;
       
       const totalTime = Date.now() - totalStartTime;
@@ -14546,7 +14501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE id = $1
       `, [objectId]);
       
-      console.log(`[STORAGE-FULL-PROCESS] Full processing complete for ${objectId}: ${jsonbResult.totalRecords} JSONB records`);
+      console.log(`[STORAGE-FULL-PROCESS] Full processing complete for ${objectId}: ${jsonbResult.totalRecords} TDDF1 records`);
       
       res.json({
         success: true,
@@ -16942,14 +16897,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const activityResult = await pool.query(`
             SELECT 
-              '$2' as filename,
+              '${tableRow.table_name}' as filename,
               COUNT(*) as record_count,
               MAX(processed_at) as processed_at,
               'completed' as status,
-              '$2' as table_name
+              '${tableRow.table_name}' as table_name
             FROM ${tableRow.table_name}
-            GROUP BY 1, 4, 5
-          `, [tableRow.table_name, tableRow.table_name]);
+            GROUP BY filename, status, table_name
+          `);
           
           if (activityResult.rows.length > 0) {
             const row = activityResult.rows[0];

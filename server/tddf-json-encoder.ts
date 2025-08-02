@@ -844,3 +844,196 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
   await pool.end();
   return results;
 }
+
+/**
+ * TDDF1 File-Based Encoding Function
+ * Creates individual file-based tables with dev_tddf1_file_{filename} naming convention
+ * Replaces dev_tddf_jsonb approach with file-specific tables
+ */
+export async function encodeTddfToTddf1FileBased(fileContent: string, upload: UploaderUpload): Promise<any> {
+  const startTime = Date.now();
+  const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+  
+  // Import database connection
+  const { neon } = await import('@neondatabase/serverless');
+  const sql = neon(process.env.DATABASE_URL!);
+  
+  // Extract universal TDDF processing datetime from filename
+  const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
+  console.log(`[TDDF1-ENCODER] Extracted from ${upload.filename}:`, tddfDatetime);
+  
+  // Determine environment and create file-based table name
+  const environment = process.env.NODE_ENV || 'development';
+  const tablePrefix = environment === 'production' ? 'prod_tddf1_file_' : 'dev_tddf1_file_';
+  
+  // Sanitize filename for table name (remove special characters, keep only alphanumeric and underscores)
+  const sanitizedFilename = upload.filename
+    .replace(/\.TSYSO$/i, '')
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .toLowerCase();
+  
+  const tableName = `${tablePrefix}${sanitizedFilename}`;
+  
+  console.log(`[TDDF1-ENCODER] Creating file-based table: ${tableName}`);
+  
+  // Create file-specific table with TDDF1 schema
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS ${sql(tableName)} (
+        id SERIAL PRIMARY KEY,
+        record_type VARCHAR(10) NOT NULL,
+        raw_line TEXT NOT NULL,
+        record_sequence INTEGER,
+        field_data JSONB,
+        transaction_amount DECIMAL(12,2),
+        merchant_id VARCHAR(50),
+        terminal_id VARCHAR(50),
+        batch_id VARCHAR(50),
+        transaction_date DATE,
+        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        source_filename VARCHAR(255) DEFAULT ${upload.filename},
+        line_number INTEGER,
+        parsed_datetime TIMESTAMP,
+        record_time_source VARCHAR(50)
+      )
+    `;
+    console.log(`[TDDF1-ENCODER] Successfully created table: ${tableName}`);
+  } catch (tableError: any) {
+    console.error(`[TDDF1-ENCODER] Failed to create table ${tableName}:`, tableError);
+    throw new Error(`Failed to create TDDF1 table: ${tableError.message}`);
+  }
+  
+  const results = {
+    uploadId: upload.id,
+    filename: upload.filename,
+    tableName: tableName,
+    totalLines: lines.length,
+    totalRecords: 0,
+    recordCounts: {
+      total: 0,
+      byType: {} as Record<string, number>
+    },
+    encodingTimeMs: 0,
+    errors: [] as string[],
+    timingData: {
+      startTime: new Date(startTime).toISOString(),
+      finishTime: '',
+      totalProcessingTime: 0
+    }
+  };
+  
+  // Process lines and insert into file-specific table
+  const batchSize = 500;
+  let processedCount = 0;
+  
+  for (let batchStart = 0; batchStart < lines.length; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, lines.length);
+    const batch = lines.slice(batchStart, batchEnd);
+    
+    const batchRecords: any[] = [];
+    
+    for (let i = 0; i < batch.length; i++) {
+      try {
+        const lineNumber = batchStart + i + 1;
+        const jsonRecord = encodeTddfLineToJson(batch[i], lineNumber);
+        
+        // Calculate universal timestamp
+        const universalTimestamp = calculateUniversalTimestamp(
+          jsonRecord.recordType, 
+          jsonRecord.extractedFields, 
+          upload.filename, 
+          lineNumber
+        );
+        
+        // Extract key fields for TDDF1 structure
+        const recordType = jsonRecord.recordType || 'UNK';
+        const extractedFields = jsonRecord.extractedFields || {};
+        
+        // Extract transaction amount for DT records
+        let transactionAmount = null;
+        if (recordType === 'DT' && extractedFields.transactionAmount) {
+          transactionAmount = parseFloat(extractedFields.transactionAmount) / 100; // Convert from cents
+        }
+        
+        // Extract merchant ID
+        const merchantId = extractedFields.merchantAccountNumber || extractedFields.merchantId || null;
+        
+        // Extract terminal ID
+        const terminalId = extractedFields.terminalId || null;
+        
+        // Extract batch information
+        const batchId = extractedFields.batchId || extractedFields.entryRunNumber || null;
+        
+        // Extract transaction date
+        let transactionDate = null;
+        if (extractedFields.transactionDate && tddfDatetime.processingDate) {
+          transactionDate = tddfDatetime.processingDate;
+        }
+        
+        batchRecords.push({
+          record_type: recordType,
+          raw_line: batch[i],
+          record_sequence: lineNumber,
+          field_data: extractedFields,
+          transaction_amount: transactionAmount,
+          merchant_id: merchantId,
+          terminal_id: terminalId,
+          batch_id: batchId,
+          transaction_date: transactionDate,
+          source_filename: upload.filename,
+          line_number: lineNumber,
+          parsed_datetime: universalTimestamp.parsedDatetime,
+          record_time_source: universalTimestamp.recordTimeSource
+        });
+        
+        results.totalRecords++;
+        results.recordCounts.byType[recordType] = (results.recordCounts.byType[recordType] || 0) + 1;
+        
+      } catch (error: any) {
+        const errorMsg = `Line ${batchStart + i + 1}: ${error.message}`;
+        results.errors.push(errorMsg);
+        console.error(`[TDDF1-ENCODER] ${errorMsg}`);
+      }
+    }
+    
+    // Batch insert to file-specific table
+    if (batchRecords.length > 0) {
+      try {
+        // Build insert query for the file-specific table
+        for (const record of batchRecords) {
+          await sql`
+            INSERT INTO ${sql(tableName)} (
+              record_type, raw_line, record_sequence, field_data, transaction_amount,
+              merchant_id, terminal_id, batch_id, transaction_date, source_filename,
+              line_number, parsed_datetime, record_time_source
+            ) VALUES (
+              ${record.record_type}, ${record.raw_line}, ${record.record_sequence}, 
+              ${JSON.stringify(record.field_data)}, ${record.transaction_amount},
+              ${record.merchant_id}, ${record.terminal_id}, ${record.batch_id},
+              ${record.transaction_date}, ${record.source_filename}, ${record.line_number},
+              ${record.parsed_datetime}, ${record.record_time_source}
+            )
+          `;
+        }
+        
+        processedCount += batchRecords.length;
+        console.log(`[TDDF1-ENCODER] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records (${processedCount}/${lines.length})`);
+        
+      } catch (dbError: any) {
+        console.error(`[TDDF1-ENCODER] Database batch insert failed:`, dbError);
+        results.errors.push(`Database batch insert failed: ${dbError.message}`);
+      }
+    }
+  }
+  
+  results.recordCounts.total = results.totalRecords;
+  results.encodingTimeMs = Date.now() - startTime;
+  results.timingData.finishTime = new Date().toISOString();
+  results.timingData.totalProcessingTime = results.encodingTimeMs;
+  
+  console.log(`[TDDF1-ENCODER] Completed file-based encoding: ${results.totalRecords} records in ${results.encodingTimeMs}ms`);
+  console.log(`[TDDF1-ENCODER] Record type breakdown:`, results.recordCounts.byType);
+  console.log(`[TDDF1-ENCODER] File table: ${tableName}`);
+  
+  return results;
+}
