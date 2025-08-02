@@ -16618,7 +16618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [totalsTableName]);
       
       if (totalsTableExists.rows[0].exists) {
-        // Use pre-cached data from totals table
+        // Use pre-cached data from totals table with enhanced breakdown
         const totalsResult = await pool.query(`
           SELECT 
             total_files,
@@ -16627,7 +16627,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             record_type_breakdown,
             active_tables,
             last_processed_date,
-            created_at
+            file_name,
+            processing_duration_ms,
+            total_tddf_lines,
+            total_json_lines_inserted,
+            processing_start_time,
+            processing_end_time,
+            validation_summary,
+            performance_metrics,
+            created_at,
+            updated_at
           FROM ${totalsTableName}
           ORDER BY created_at DESC
           LIMIT 1
@@ -16635,7 +16644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (totalsResult.rows.length > 0) {
           const row = totalsResult.rows[0];
-          console.log(`📊 Using cached TDDF1 stats from ${totalsTableName}`);
+          console.log(`📊 Using enhanced TDDF1 stats from ${totalsTableName}`);
           
           res.json({
             totalFiles: row.total_files || 0,
@@ -16644,8 +16653,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recordTypeBreakdown: row.record_type_breakdown || {},
             activeTables: row.active_tables || [],
             lastProcessedDate: row.last_processed_date,
+            // Enhanced breakdown fields
+            fileName: row.file_name,
+            processingDurationMs: row.processing_duration_ms,
+            totalTddfLines: row.total_tddf_lines || 0,
+            totalJsonLinesInserted: row.total_json_lines_inserted || 0,
+            processingStartTime: row.processing_start_time,
+            processingEndTime: row.processing_end_time,
+            validationSummary: row.validation_summary || {},
+            performanceMetrics: row.performance_metrics || {},
             cached: true,
-            cacheDate: row.created_at
+            cacheDate: row.created_at,
+            lastUpdated: row.updated_at
           });
           return;
         }

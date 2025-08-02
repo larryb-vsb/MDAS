@@ -17,6 +17,18 @@ interface Tddf1Stats {
   recordTypeBreakdown: Record<string, number>;
   activeTables: string[];
   lastProcessedDate: string | null;
+  // Enhanced breakdown fields
+  fileName?: string;
+  processingDurationMs?: number;
+  totalTddfLines?: number;
+  totalJsonLinesInserted?: number;
+  processingStartTime?: string;
+  processingEndTime?: string;
+  validationSummary?: Record<string, any>;
+  performanceMetrics?: Record<string, any>;
+  cached?: boolean;
+  cacheDate?: string;
+  lastUpdated?: string;
 }
 
 interface Tddf1DayBreakdown {
@@ -387,28 +399,98 @@ function Tddf1Page() {
           </Card>
         </div>
 
-        {/* Record Type Breakdown Widget */}
+        {/* Enhanced Record Type Breakdown Widget */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Overall Record Type Breakdown
             </CardTitle>
+            {stats?.fileName && (
+              <p className="text-sm text-gray-600 mt-1">
+                Latest File: {stats.fileName} • 
+                {stats.processingDurationMs && ` Processed in ${(stats.processingDurationMs / 1000).toFixed(2)}s`}
+                {stats.validationSummary?.validation_passed && ` • ${stats.validationSummary.validation_passed} validated`}
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             {statsLoading ? (
               <div className="text-center py-4 text-gray-500">Loading...</div>
             ) : stats?.recordTypeBreakdown ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {Object.entries(stats.recordTypeBreakdown).map(([type, count]) => (
-                  <div key={type} className="text-center bg-gray-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-blue-600">{count.toLocaleString()}</div>
-                    <div className="text-sm font-medium text-gray-700">{type}</div>
-                    <div className="text-xs text-gray-500">
-                      {((count / (stats.totalRecords || 1)) * 100).toFixed(1)}%
+              <div className="space-y-6">
+                {/* Record Type Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {Object.entries(stats.recordTypeBreakdown).map(([type, count]) => (
+                    <div key={type} className="text-center bg-gray-50 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-600">{count.toLocaleString()}</div>
+                      <div className="text-sm font-medium text-gray-700">{type}</div>
+                      <div className="text-xs text-gray-500">
+                        {((count / (stats.totalRecords || 1)) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Enhanced Processing Metrics */}
+                {(stats.totalTddfLines || stats.totalJsonLinesInserted || stats.performanceMetrics) && (
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold mb-3 text-gray-700">Processing Metrics</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {stats.totalTddfLines && (
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-blue-700">{stats.totalTddfLines.toLocaleString()}</div>
+                          <div className="text-xs text-blue-600">TDDF Lines Read</div>
+                        </div>
+                      )}
+                      {stats.totalJsonLinesInserted && (
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-green-700">{stats.totalJsonLinesInserted.toLocaleString()}</div>
+                          <div className="text-xs text-green-600">JSON Lines Inserted</div>
+                        </div>
+                      )}
+                      {stats.performanceMetrics?.records_per_second && (
+                        <div className="bg-purple-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-purple-700">{parseFloat(stats.performanceMetrics.records_per_second).toFixed(1)}</div>
+                          <div className="text-xs text-purple-600">Records/Second</div>
+                        </div>
+                      )}
+                      {stats.performanceMetrics?.memory_usage_mb && (
+                        <div className="bg-orange-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-orange-700">{parseFloat(stats.performanceMetrics.memory_usage_mb).toFixed(1)} MB</div>
+                          <div className="text-xs text-orange-600">Memory Used</div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* Validation Summary */}
+                {stats.validationSummary && Object.keys(stats.validationSummary).length > 0 && (
+                  <div className="border-t pt-4">
+                    <h4 className="font-semibold mb-3 text-gray-700">Validation Results</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {stats.validationSummary.validation_passed && (
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-green-700">{stats.validationSummary.validation_passed.toLocaleString()}</div>
+                          <div className="text-xs text-green-600">Records Validated</div>
+                        </div>
+                      )}
+                      {stats.validationSummary.validation_failed !== undefined && (
+                        <div className="bg-red-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-red-700">{stats.validationSummary.validation_failed}</div>
+                          <div className="text-xs text-red-600">Validation Failures</div>
+                        </div>
+                      )}
+                      {stats.validationSummary.row_by_row_validation && (
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <div className="text-lg font-bold text-blue-700">✓</div>
+                          <div className="text-xs text-blue-600">Row-by-Row Validation</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500">No record type data available</div>
