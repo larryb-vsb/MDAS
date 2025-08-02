@@ -100,7 +100,7 @@ export default function Tddf1MonthlyView() {
     
     // Create a simple text-based report that can be downloaded
     const reportContent = `
-TDDF1 Monthly Report - ${format(currentMonth, 'MMMM yyyy')}
+MMS Monthly Report - ${format(currentMonth, 'MMMM yyyy')}
 Generated on: ${format(new Date(), 'PPP')}
 
 SUMMARY
@@ -127,7 +127,7 @@ ${monthlyData.dailyBreakdown.map(day =>
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `TDDF1-Monthly-Report-${format(currentMonth, 'yyyy-MM')}.txt`;
+    a.download = `MMS-Monthly-Report-${format(currentMonth, 'yyyy-MM')}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -153,8 +153,8 @@ ${monthlyData.dailyBreakdown.map(day =>
             </Button>
             <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             <h1 className={`text-xl sm:text-3xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-              <span className="hidden sm:inline">TDDF1 Monthly Overview</span>
-              <span className="sm:hidden">TDDF1 Monthly</span>
+              <span className="hidden sm:inline">MMS Monthly Overview</span>
+              <span className="sm:hidden">MMS Monthly</span>
             </h1>
           </div>
         </div>
@@ -521,7 +521,7 @@ ${monthlyData.dailyBreakdown.map(day =>
               </CardHeader>
               <CardContent>
                 <div className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>{formatNumber(monthlyData.totalFiles)}</div>
-                <p className={`text-xs ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>TDDF files processed</p>
+                <p className={`text-xs ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>MMS files processed</p>
               </CardContent>
             </Card>
 

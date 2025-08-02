@@ -7,7 +7,7 @@ import MerchantList from "@/components/merchants/MerchantList";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import FileUploadModal from "@/components/uploads/FileUploadModal";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, RefreshCw, Upload } from "lucide-react";
+import { PlusCircle, RefreshCw, Upload, Calendar } from "lucide-react";
 import { DashboardStats as DashboardStatsType } from "@/lib/types";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -196,6 +196,14 @@ export default function Dashboard() {
                   >
                     <PlusCircle className="w-4 h-4 mr-2" />
                     New Merchant
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/tddf1/monthly')}
+                    className="inline-flex items-center justify-center text-sm"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    MMS Monthly
                   </Button>
                   <Button
                     onClick={toggleUploadModal}
