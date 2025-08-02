@@ -91,7 +91,7 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = user?.themePreference === 'dark';
+  const isDarkMode = false; // Default to light mode since user object doesn't have themePreference
 
   // Force re-render when theme changes
   useEffect(() => {
@@ -433,8 +433,8 @@ function Tddf1Page() {
               <div className={`text-sm mb-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {dayBreakdown ? (
                   <>
-                    <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
-                    <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
+                    <span className="hidden sm:inline">{(dayBreakdown.totalRecords || 0).toLocaleString()} records • {dayBreakdown.fileCount || 0} files</span>
+                    <span className="sm:hidden">{((dayBreakdown.totalRecords || 0)/1000).toFixed(0)}k records • {dayBreakdown.fileCount || 0} files</span>
                   </>
                 ) : 'No data'}
               </div>

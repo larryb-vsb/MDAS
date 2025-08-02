@@ -16734,6 +16734,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [totalsTableName]);
       
       if (totalsTableExists.rows[0].exists) {
+        console.log("📊 Found tddf1_totals table, getting cached stats");
+      } else {
+        console.log("📊 No tddf1_totals table found, returning empty stats");
+        return res.json({
+          totalFiles: 0,
+          totalRecords: 0,
+          totalTransactionValue: 0,
+          recordTypeBreakdown: {},
+          activeTables: [],
+          lastProcessedDate: null,
+          cached: true,
+          cacheSource: 'empty state - no tables exist',
+          cacheDate: new Date().toISOString()
+        });
+      }
+      
+      if (totalsTableExists.rows[0].exists) {
         // Get aggregated stats from the pre-cache totals table
         const totalsResult = await pool.query(`
           SELECT 
@@ -16943,6 +16960,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalsTableName = 'tddf1_totals';
       
       console.log(`📅 Using standard TDDF1 totals table: ${totalsTableName}`);
+      
+      // Check if totals table exists first
+      const tableExistsResult = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+            AND table_name = $1
+        )
+      `, [totalsTableName]);
+      
+      if (!tableExistsResult.rows[0].exists) {
+        console.log("📅 No tddf1_totals table found, returning empty day breakdown");
+        return res.json({
+          totalRecords: 0,
+          fileCount: 0,
+          totalTransactionValue: 0,
+          recordTypeBreakdown: {},
+          files: [],
+          date: date
+        });
+      }
       
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
