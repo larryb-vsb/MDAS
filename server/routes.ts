@@ -17085,28 +17085,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const tableName of activeTables) {
         try {
-          // Get record counts and transaction value for this table
+          // Get record counts for this table
           const tableStatsResult = await pool.query(`
             SELECT 
               record_type,
-              COUNT(*) as record_count,
-              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value
+              COUNT(*) as record_count
             FROM ${tableName}
             GROUP BY record_type
           `);
           
+          // Get total transaction value for DT records only
+          const transactionValueResult = await pool.query(`
+            SELECT 
+              COALESCE(SUM(CAST(transaction_amount AS DECIMAL)), 0) as total_transaction_value
+            FROM ${tableName}
+            WHERE record_type = 'DT' AND transaction_amount IS NOT NULL
+          `);
+          
           let tableRecordCount = 0;
+          const tableTransactionValue = parseFloat(transactionValueResult.rows[0]?.total_transaction_value || '0');
+          totalTransactionValue += tableTransactionValue;
+          
           for (const row of tableStatsResult.rows) {
             const recordType = row.record_type;
             const count = parseInt(row.record_count);
-            const amount = parseFloat(row.transaction_value || '0');
             
             totalRecords += count;
             tableRecordCount += count;
-            
-            if (recordType === 'DT') {
-              totalTransactionValue += amount;
-            }
             
             // Map record types (unknown types go to "Others")
             if (recordTypes[recordType] !== undefined) {
