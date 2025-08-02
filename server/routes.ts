@@ -17029,8 +17029,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
       
-      // Format date for table matching (remove hyphens: 2025-07-30 -> 20250730)
-      const dateFormatted = date.replace(/-/g, '');
+      // Format date for table matching (2025-08-01 -> 08012025 MM/DD/YYYY format)
+      const dateParts = date.split('-');
+      const dateFormatted = `${dateParts[1]}${dateParts[2]}${dateParts[0]}`; // MM/DD/YYYY
+      console.log(`📅 Looking for tables with date format: ${dateFormatted} (converted from ${date})`);
       
       // Get all TDDF1 tables that match the date
       const tablesResult = await pool.query(`
@@ -17044,6 +17046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [`${tablePrefix}file_%`, `%${dateFormatted}%`, `${tablePrefix}totals`]);
       
       const activeTables = tablesResult.rows.map(row => row.table_name);
+      console.log(`📅 Found ${activeTables.length} tables for date ${date}:`, activeTables);
       
       if (activeTables.length === 0) {
         return res.json({
