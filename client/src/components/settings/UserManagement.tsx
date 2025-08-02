@@ -344,9 +344,12 @@ export default function UserManagement() {
         title: "Dashboard updated",
         description: "User dashboard preference has been updated successfully.",
       });
+      // Force a complete cache refresh
+      queryClient.removeQueries({ queryKey: ["/api/users"] });
+      queryClient.removeQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      refetch();
+      setTimeout(() => refetch(), 100);
     },
     onError: (error: Error) => {
       toast({
@@ -376,9 +379,12 @@ export default function UserManagement() {
         title: "Theme updated",
         description: "User theme preference has been updated successfully.",
       });
+      // Force a complete cache refresh
+      queryClient.removeQueries({ queryKey: ["/api/users"] });
+      queryClient.removeQueries({ queryKey: ["/api/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
-      refetch();
+      setTimeout(() => refetch(), 100);
     },
     onError: (error: Error) => {
       toast({
