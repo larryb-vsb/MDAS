@@ -94,7 +94,6 @@ function Tddf1Page() {
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
     queryFn: () => {
-      console.log(`🔍 Frontend requesting day breakdown for date: ${selectedDateStr}`);
       return fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json());
     },
     enabled: !!selectedDateStr,
@@ -499,7 +498,30 @@ function Tddf1Page() {
                             const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
-                            // Net Deposit functionality removed for now
+                            // Special layout for BH records showing Net Deposit prominently
+                            if (type === 'BH') {
+                              const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
+                              
+                              return (
+                                <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <span className="text-sm font-bold">{config.label}</span>
+                                      <div className="text-xs opacity-80">{config.description}</div>
+                                    </div>
+                                    <div className="text-sm font-medium text-blue-700">
+                                      {displayCount.toLocaleString()} records
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-800">
+                                      ${netDepositAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <div className="text-xs font-medium text-blue-600">Net Deposit Total</div>
+                                  </div>
+                                </div>
+                              );
+                            }
                             
                             // Standard layout for other record types
                             return (
