@@ -691,7 +691,7 @@ class MMSWatcher {
         }
 
         try {
-          await this.encodeFile(upload);
+          await this.encodeFileWithRetry(upload);
         } catch (error) {
           console.error(`[MMS-WATCHER] Error encoding file ${upload.filename}:`, error);
           await this.markEncodingFailed(upload, error.message);
@@ -810,15 +810,157 @@ class MMSWatcher {
     }
   }
 
+  // Enhanced encoding with retry logic and silent conflict handling
+  async encodeFileWithRetry(upload, maxRetries = 3) {
+    let retryCount = 0;
+    let lastError = null;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        if (retryCount > 0) {
+          console.log(`[MMS-WATCHER] [RETRY-${retryCount}] Retrying encoding for ${upload.filename}`);
+          
+          // Reset file to identified phase for retry
+          await this.storage.updateUploaderPhase(upload.id, 'identified', {
+            processingNotes: `Retry attempt ${retryCount}/${maxRetries} - Previous error: ${lastError?.message || 'Unknown error'}`,
+            retryCount: retryCount,
+            lastRetryAt: new Date()
+          });
+          
+          // Brief delay before retry to avoid conflicts
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+        
+        await this.encodeFile(upload);
+        
+        // Success - clear any retry metadata
+        if (retryCount > 0) {
+          await this.logConflictWarning(upload, `Successfully recovered after ${retryCount} retry attempts`, 'recovery_success');
+        }
+        
+        return; // Success - exit retry loop
+        
+      } catch (error) {
+        lastError = error;
+        retryCount++;
+        
+        // Log conflict/error details to file metadata without stopping processing
+        await this.logConflictWarning(upload, error.message, 'encoding_conflict', retryCount, maxRetries);
+        
+        // If this is a database conflict or constraint violation, try to reset and continue
+        if (this.isRetryableError(error) && retryCount <= maxRetries) {
+          console.log(`[MMS-WATCHER] [SILENT-CONFLICT] ${upload.filename}: ${error.message} (Retry ${retryCount}/${maxRetries})`);
+          continue;
+        }
+        
+        // Non-retryable error or max retries exceeded
+        if (retryCount > maxRetries) {
+          console.log(`[MMS-WATCHER] [MAX-RETRIES] ${upload.filename}: Exceeded ${maxRetries} retries, marking as failed`);
+          throw new Error(`Failed after ${maxRetries} retry attempts. Last error: ${error.message}`);
+        } else {
+          throw error; // Re-throw non-retryable errors immediately
+        }
+      }
+    }
+  }
+
+  // Check if error is retryable (database conflicts, timeouts, etc.)
+  isRetryableError(error) {
+    const retryablePatterns = [
+      /duplicate key value violates unique constraint/i,
+      /could not serialize access due to concurrent update/i,
+      /deadlock detected/i,
+      /connection timeout/i,
+      /server closed the connection unexpectedly/i,
+      /relation.*already exists/i,
+      /constraint.*already exists/i,
+      /conflicting.*operation/i,
+      /resource temporarily unavailable/i
+    ];
+    
+    const errorMsg = error.message || '';
+    return retryablePatterns.some(pattern => pattern.test(errorMsg));
+  }
+
+  // Silent conflict logging to file metadata - doesn't slow processing
+  async logConflictWarning(upload, errorMessage, conflictType, retryCount = 0, maxRetries = 0) {
+    try {
+      const timestamp = new Date().toISOString();
+      const warningEntry = {
+        timestamp,
+        type: conflictType,
+        message: errorMessage,
+        retryCount,
+        maxRetries,
+        phase: 'auto_45_processing'
+      };
+      
+      // Get existing warnings or create new array
+      const currentUpload = await this.storage.getUploaderUpload(upload.id);
+      let warnings = [];
+      
+      try {
+        if (currentUpload.processingWarnings) {
+          warnings = typeof currentUpload.processingWarnings === 'string' 
+            ? JSON.parse(currentUpload.processingWarnings) 
+            : currentUpload.processingWarnings;
+        }
+      } catch (e) {
+        // If parsing fails, start fresh
+        warnings = [];
+      }
+      
+      warnings.push(warningEntry);
+      
+      // Keep only last 10 warnings to prevent metadata bloat
+      if (warnings.length > 10) {
+        warnings = warnings.slice(-10);
+      }
+      
+      // Update metadata with warning log (silent update - no phase change)
+      await this.storage.updateUploaderUpload(upload.id, {
+        processingWarnings: JSON.stringify(warnings),
+        lastWarningAt: timestamp,
+        warningCount: warnings.length
+      });
+      
+      // Log to console but continue processing
+      console.log(`[MMS-WATCHER] [SILENT-LOG] ${upload.filename}: ${conflictType} - ${errorMessage}`);
+      
+    } catch (metaError) {
+      // If we can't log metadata, at least log to console - don't fail processing
+      console.warn(`[MMS-WATCHER] [META-WARNING] Could not log conflict metadata for ${upload.filename}:`, metaError.message);
+    }
+  }
+
   async markEncodingFailed(upload, errorMessage) {
+    // Enhanced failure marking with retry information
+    const retryInfo = await this.getRetryInfo(upload);
+    
     await this.storage.updateUploaderUpload(upload.id, {
       currentPhase: 'failed',
-      processingNotes: `Encoding failed: ${errorMessage}`,
+      processingNotes: `Encoding failed after ${retryInfo.totalRetries} retry attempts: ${errorMessage}`,
       encodingStatus: 'failed',
-      encodingNotes: `Auto-encoding failed: ${errorMessage}`
+      encodingNotes: `Auto-encoding failed: ${errorMessage}`,
+      failedAt: new Date(),
+      canRetry: true, // Allow manual retry reset
+      lastFailureReason: errorMessage
     });
     
-    console.log(`[MMS-WATCHER] ❌ Failed to encode: ${upload.filename} - ${errorMessage}`);
+    console.log(`[MMS-WATCHER] ❌ Failed to encode: ${upload.filename} - ${errorMessage} (${retryInfo.totalRetries} retries attempted)`);
+  }
+
+  async getRetryInfo(upload) {
+    try {
+      const currentUpload = await this.storage.getUploaderUpload(upload.id);
+      return {
+        totalRetries: currentUpload.retryCount || 0,
+        lastRetryAt: currentUpload.lastRetryAt || null,
+        warningCount: currentUpload.warningCount || 0
+      };
+    } catch (error) {
+      return { totalRetries: 0, lastRetryAt: null, warningCount: 0 };
+    }
   }
 
   // JSONB Duplicate Cleanup Service - runs during legacy import

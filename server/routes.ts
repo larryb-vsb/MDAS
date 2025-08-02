@@ -12912,7 +12912,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
+  // File Retry Information API - Shows retry statistics for Auto 4-5 processing  
+  app.get("/api/mms-watcher/file-retry-stats", isAuthenticated, async (req, res) => {
+    try {
+      console.log('[AUTO45-API] Getting file retry statistics...');
+      
+      // Get detailed retry and conflict statistics from uploader uploads
+      const retryStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_files,
+          COUNT(CASE WHEN retry_count > 0 THEN 1 END) as files_with_retries,
+          COUNT(CASE WHEN warning_count > 0 THEN 1 END) as files_with_warnings,
+          COUNT(CASE WHEN current_phase = 'failed' AND can_retry = true THEN 1 END) as retryable_failed,
+          COUNT(CASE WHEN current_phase = 'failed' AND can_retry = false THEN 1 END) as permanent_failed,
+          AVG(retry_count) as avg_retries,
+          MAX(retry_count) as max_retries,
+          MAX(warning_count) as max_warnings,
+          COUNT(CASE WHEN last_retry_at IS NOT NULL THEN 1 END) as files_retried_recently
+        FROM dev_uploader_uploads 
+        WHERE filename LIKE '%.TSYSO'
+      `);
+      
+      // Get files with warnings for details
+      const warningFiles = await pool.query(`
+        SELECT filename, warning_count, last_warning_at, retry_count, current_phase
+        FROM dev_uploader_uploads 
+        WHERE warning_count > 0 AND filename LIKE '%.TSYSO'
+        ORDER BY last_warning_at DESC
+        LIMIT 10
+      `);
+      
+      const stats = retryStats.rows[0];
+      
+      const response = {
+        success: true,
+        statistics: {
+          totalFiles: parseInt(stats.total_files) || 0,
+          filesWithRetries: parseInt(stats.files_with_retries) || 0,
+          filesWithWarnings: parseInt(stats.files_with_warnings) || 0,
+          retryableFailedFiles: parseInt(stats.retryable_failed) || 0,
+          permanentFailedFiles: parseInt(stats.permanent_failed) || 0,
+          filesRetriedRecently: parseInt(stats.files_retried_recently) || 0,
+          averageRetries: parseFloat(stats.avg_retries) || 0,
+          maxRetries: parseInt(stats.max_retries) || 0,
+          maxWarnings: parseInt(stats.max_warnings) || 0
+        },
+        recentWarningFiles: warningFiles.rows.map(file => ({
+          filename: file.filename,
+          warningCount: file.warning_count,
+          lastWarningAt: file.last_warning_at,
+          retryCount: file.retry_count,
+          currentPhase: file.current_phase
+        })),
+        lastUpdate: new Date().toISOString()
+      };
+      
+      console.log('[AUTO45-API] File retry stats retrieved');
+      res.json(response);
+    } catch (error) {
+      console.error('[AUTO45-API] Error getting file retry stats:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get file retry statistics"
+      });
+    }
+  });
 
   // Auto 4-5 Toggle Control API endpoints
   app.get("/api/mms-watcher/auto45-status", isAuthenticated, async (req, res) => {

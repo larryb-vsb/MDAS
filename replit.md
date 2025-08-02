@@ -7,6 +7,8 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **ENVIRONMENT-AWARE TDDF1 SYSTEM (2025-08-02)**: Fixed critical environment separation issues for TDDF1 file processing. All TDDF1 endpoints (stats, rebuild-totals-cache, day-breakdown, recent-activity) now properly detect NODE_ENV and use appropriate table prefixes: 'dev_tddf1_' for development, 'tddf1_' for production. TDDF encoder updated to create environment-specific file tables and totals tables. "Rebuild TDDF1 Totals Cache" button now works correctly in both development and production environments.
 
+**ENHANCED AUTO 4-5 RETRY SYSTEM (2025-08-02)**: Implemented comprehensive retry logic and conflict handling for the Auto 4-5 processing pipeline. System now automatically retries encoding failures up to 3 times, silently logs conflicts to file metadata without stopping processing, and continues batch processing even with database conflicts. Added retry tracking columns and API endpoint for monitoring retry statistics and warning logs.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
