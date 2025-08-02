@@ -521,7 +521,7 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
   if (recordType === 'DT') {
     const transactionAmount = jsonRecord.extractedFields.transactionAmount;
     const authAmount = jsonRecord.extractedFields.authAmount;
-    const merchantId = jsonRecord.extractedFields.merchantId;
+    const merchantId = jsonRecord.extractedFields.merchantAccountNumber;
     const cardNumber = jsonRecord.extractedFields.cardNumber;
     
     // Critical DT record validations
@@ -531,7 +531,7 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
     }
     
     if (!merchantId) {
-      validationResults.errors.push('DT record missing required merchant ID');
+      validationResults.errors.push('DT record missing required merchant account number (positions 24-39)');
       validationResults.isValid = false;
     }
     
@@ -958,8 +958,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
           transactionAmount = parseFloat(extractedFields.transactionAmount) / 100; // Convert from cents
         }
         
-        // Extract merchant ID
-        const merchantId = extractedFields.merchantAccountNumber || extractedFields.merchantId || null;
+        // Extract merchant ID - use merchantAccountNumber from TDDF positions 24-39
+        const merchantId = extractedFields.merchantAccountNumber || null;
         
         // Extract terminal ID
         const terminalId = extractedFields.terminalId || null;
