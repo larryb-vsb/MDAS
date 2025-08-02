@@ -72,8 +72,8 @@ interface Tddf1EncodingProgress {
 }
 
 function Tddf1Page() {
-  // Default to August 2nd, 2025 where our TDDF1 data exists
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-08-02'));
+  // Default to today's date
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,6 +93,10 @@ function Tddf1Page() {
 
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
+    queryFn: () => {
+      console.log(`🔍 Frontend requesting day breakdown for date: ${selectedDateStr}`);
+      return fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json());
+    },
     enabled: !!selectedDateStr,
   });
 
