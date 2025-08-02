@@ -16730,13 +16730,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
+      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Format date for table matching (remove hyphens: 2025-07-30 -> 20250730)
+      const dateFormatted = date.replace(/-/g, '');
+      
+      // Get all TDDF1 tables that match the date
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name LIKE $2
+          AND table_name != $3
+        ORDER BY table_name
+      `, [`${tablePrefix}%`, `%${dateFormatted}%`, `${tablePrefix}totals`]);
+      
+      const activeTables = tablesResult.rows.map(row => row.table_name);
+      
+      if (activeTables.length === 0) {
+        return res.json({
+          date,
+          totalRecords: 0,
+          recordTypes: {
+            BH: { count: 0, amount: 0 },
+            DT: { count: 0, amount: 0 },
+            G2: { count: 0, amount: 0 },
+            P1: { count: 0, amount: 0 },
+            P2: { count: 0, amount: 0 },
+            Others: { count: 0, amount: 0 }
+          },
+          transactionValue: 0,
+          fileCount: 0,
+          tables: []
+        });
+      }
+      
+      // Calculate totals from all matching tables
+      let totalRecords = 0;
+      let totalTransactionValue = 0;
+      const recordTypes: Record<string, { count: number; amount: number }> = {
+        BH: { count: 0, amount: 0 },
+        DT: { count: 0, amount: 0 },
+        G2: { count: 0, amount: 0 },
+        P1: { count: 0, amount: 0 },
+        P2: { count: 0, amount: 0 },
+        Others: { count: 0, amount: 0 }
+      };
+      
+      for (const tableName of activeTables) {
+        try {
+          const tableStatsResult = await pool.query(`
+            SELECT 
+              record_type,
+              COUNT(*) as record_count,
+              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value
+            FROM ${tableName}
+            GROUP BY record_type
+          `);
+          
+          for (const row of tableStatsResult.rows) {
+            const recordType = row.record_type;
+            const count = parseInt(row.record_count);
+            const amount = parseFloat(row.transaction_value || '0');
+            
+            totalRecords += count;
+            
+            if (recordType === 'DT') {
+              totalTransactionValue += amount;
+            }
+            
+            // Map record types (unknown types go to "Others")
+            if (recordTypes[recordType]) {
+              recordTypes[recordType].count += count;
+              recordTypes[recordType].amount += amount;
+            } else {
+              recordTypes.Others.count += count;
+              recordTypes.Others.amount += amount;
+            }
+          }
+        } catch (tableError) {
+          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
+        }
+      }
+      
       res.json({
         date,
-        totalRecords: 0,
-        recordTypes: {},
-        transactionValue: 0,
-        fileCount: 0,
-        tables: []
+        totalRecords,
+        recordTypes,
+        transactionValue: totalTransactionValue,
+        fileCount: activeTables.length,
+        tables: activeTables
       });
       
     } catch (error) {
@@ -16745,7 +16830,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error instanceof Error ? error.message : "Failed to get TDDF1 day breakdown",
         date: req.query.date,
         totalRecords: 0,
-        recordTypes: {},
+        recordTypes: {
+          BH: { count: 0, amount: 0 },
+          DT: { count: 0, amount: 0 },
+          G2: { count: 0, amount: 0 },
+          P1: { count: 0, amount: 0 },
+          P2: { count: 0, amount: 0 },
+          Others: { count: 0, amount: 0 }
+        },
         transactionValue: 0,
         fileCount: 0,
         tables: []
