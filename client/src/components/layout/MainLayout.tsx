@@ -413,18 +413,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <SheetContent 
         side="left" 
         className="w-72 p-0 bg-gray-800 text-white"
-        onEscapeKeyDown={(e) => {
-          console.log('Escape key pressed - keeping menu open');
-          e.preventDefault();
-        }}
-        onPointerDownOutside={(e) => {
-          console.log('Clicked outside - keeping menu open');
-          e.preventDefault();
-        }}
-        onInteractOutside={(e) => {
-          console.log('Interact outside - keeping menu open');
-          e.preventDefault();
-        }}
       >
         <ScrollArea className="h-full py-6">
           <div className="flex flex-col gap-6 px-4">
@@ -446,10 +434,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   }
                   onClick={() => {
                     console.log('Mobile nav item clicked:', item.label);
-                    // Close immediately for navigation items
-                    if (item.href && !item.submenu) {
-                      setOpen(false);
-                    }
+                    // Close the sheet immediately for navigation
+                    setOpen(false);
                   }}
                   submenu={item.submenu}
                   isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
