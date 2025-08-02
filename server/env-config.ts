@@ -20,7 +20,11 @@ function detectEnvironment(): string {
     process.env.ENVIRONMENT === 'production',
     // Check for common production domains
     process.env.REPL_SLUG && process.env.REPL_SLUG.includes('.replit.app'),
-    process.env.REPLIT_DOMAINS && process.env.REPLIT_DOMAINS.includes('.replit.app')
+    process.env.REPLIT_DOMAINS && process.env.REPLIT_DOMAINS.includes('.replit.app'),
+    // Check for production URL in hostname
+    process.env.HOSTNAME && process.env.HOSTNAME.includes('replit.app'),
+    // Force production mode for deployed apps
+    typeof window === 'undefined' && process.env.REPL_SLUG
   ];
   
   // If any production indicators are present, use production mode

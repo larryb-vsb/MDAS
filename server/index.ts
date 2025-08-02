@@ -215,8 +215,8 @@ app.use((req, res, next) => {
       const { MemStorageFallback } = await import('./mem-storage-fallback');
       const { setStorageImplementation } = await import('./storage');
       
-      // Create and set the fallback storage
-      const fallbackStorage = new MemStorageFallback();
+      // Create and set the fallback storage - using any to fix type compatibility
+      const fallbackStorage = new MemStorageFallback() as any;
       setStorageImplementation(fallbackStorage);
       
       console.log("In-memory fallback storage initialized. Data will not persist between restarts.");
