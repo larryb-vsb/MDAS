@@ -16710,8 +16710,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      // Allow environment override via query parameter for testing
+      const envOverride = req.query.env as string;
+      const currentEnv = envOverride === 'production' ? 'production' : 
+                         process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      console.log(`📊 TDDF1 Stats - Environment: ${currentEnv}, Table Prefix: ${tablePrefix}, NODE_ENV: ${process.env.NODE_ENV}, Override: ${envOverride}`);
       
       // Check if pre-cache totals table exists
       const totalsTableName = `${tablePrefix}totals`;
@@ -16929,7 +16934,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
-      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      // Allow environment override via query parameter for testing
+      const envOverride = req.query.env as string;
+      const currentEnv = envOverride === 'production' ? 'production' : 
+                         process.env.NODE_ENV === 'production' ? 'production' : 'development';
       const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
       
       // Query the pre-cache totals table for the specific date
