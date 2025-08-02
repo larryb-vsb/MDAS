@@ -1118,8 +1118,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       INSERT INTO ${totalsTableName} (
         last_processed_date, file_name, total_records, 
         total_transaction_value, record_type_breakdown, processing_duration_ms,
-        active_tables
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        active_tables, total_net_deposit_bh
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (file_name) 
       DO UPDATE SET 
         last_processed_date = EXCLUDED.last_processed_date,
@@ -1128,6 +1128,7 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         record_type_breakdown = EXCLUDED.record_type_breakdown,
         processing_duration_ms = EXCLUDED.processing_duration_ms,
         active_tables = EXCLUDED.active_tables,
+        total_net_deposit_bh = EXCLUDED.total_net_deposit_bh,
         updated_at = CURRENT_TIMESTAMP
     `, [
       processedDate, // Full timestamp
@@ -1136,7 +1137,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       0, // Will be calculated in a separate query
       JSON.stringify(results.recordCounts.byType),
       results.encodingTimeMs,
-      [tableName] // Array of active tables
+      [tableName], // Array of active tables
+      0 // Initial BH net deposit value
     ]);
     
     // Calculate DT Transaction Amount totals from raw TDDF positions 93-103 with regex validation
