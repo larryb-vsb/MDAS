@@ -925,8 +925,8 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     }
   };
   
-  // Process lines and insert into file-specific table
-  const batchSize = 500;
+  // Process lines and insert into file-specific table with optimized bulk inserts
+  const batchSize = 2000; // Increased from 500 to 2000 for lightning-fast processing
   let processedCount = 0;
   
   for (let batchStart = 0; batchStart < lines.length; batchStart += batchSize) {
@@ -999,32 +999,46 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       }
     }
     
-    // Batch insert to file-specific table
+    // Lightning-fast bulk insert to file-specific table (like yesterday's performance)
     if (batchRecords.length > 0) {
       try {
-        // Build insert query for the file-specific table using template literals
-        for (const record of batchRecords) {
-          const insertQuery = `
-            INSERT INTO ${tableName} (
-              record_type, raw_line, record_sequence, field_data, transaction_amount,
-              merchant_id, terminal_id, batch_id, transaction_date, source_filename,
-              line_number, parsed_datetime, record_time_source
-            ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-            )
-          `;
-          
-          await sql(insertQuery, [
-            record.record_type, record.raw_line, record.record_sequence, 
-            JSON.stringify(record.field_data), record.transaction_amount,
-            record.merchant_id, record.terminal_id, record.batch_id,
-            record.transaction_date, record.source_filename, record.line_number,
-            record.parsed_datetime, record.record_time_source
-          ]);
-        }
+        const batchInsertStart = Date.now();
         
+        // Build single bulk insert query with all records
+        const insertQuery = `
+          INSERT INTO ${tableName} (
+            record_type, raw_line, record_sequence, field_data, transaction_amount,
+            merchant_id, terminal_id, batch_id, transaction_date, source_filename,
+            line_number, parsed_datetime, record_time_source
+          ) VALUES ${batchRecords.map((_, index) => 
+            `($${index * 13 + 1}, $${index * 13 + 2}, $${index * 13 + 3}, $${index * 13 + 4}, $${index * 13 + 5}, $${index * 13 + 6}, $${index * 13 + 7}, $${index * 13 + 8}, $${index * 13 + 9}, $${index * 13 + 10}, $${index * 13 + 11}, $${index * 13 + 12}, $${index * 13 + 13})`
+          ).join(', ')}
+        `;
+        
+        // Flatten all record values for bulk insert
+        const values = batchRecords.flatMap(record => [
+          record.record_type, 
+          record.raw_line, 
+          record.record_sequence, 
+          JSON.stringify(record.field_data), 
+          record.transaction_amount,
+          record.merchant_id, 
+          record.terminal_id, 
+          record.batch_id,
+          record.transaction_date, 
+          record.source_filename, 
+          record.line_number,
+          record.parsed_datetime, 
+          record.record_time_source
+        ]);
+        
+        await sql(insertQuery, values);
+        
+        const batchInsertTime = Date.now() - batchInsertStart;
         processedCount += batchRecords.length;
-        console.log(`[TDDF1-ENCODER] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records (${processedCount}/${lines.length})`);
+        
+        // Lightning-fast processing metrics (like yesterday's performance)
+        console.log(`[TDDF1-ENCODER] Batch ${Math.floor(batchStart/batchSize) + 1}: Inserted ${batchRecords.length} records in ${batchInsertTime}ms (${processedCount}/${lines.length})`);
         
       } catch (dbError: any) {
         console.error(`[TDDF1-ENCODER] Database batch insert failed:`, dbError);
