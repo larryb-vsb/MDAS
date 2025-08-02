@@ -90,13 +90,13 @@ function Tddf1Page() {
     staleTime: 5000, // Consider data fresh for 5 seconds
   });
 
-  const { data: dayBreakdown, isLoading: dayLoading } = useQuery<Tddf1DayBreakdown>({
+  const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
     queryFn: () => fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json()),
     enabled: !!selectedDateStr,
   });
 
-  const { data: recentActivity, isLoading: activityLoading } = useQuery<Tddf1RecentActivity[]>({
+  const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
     queryKey: ['/api/tddf1/recent-activity'],
   });
 
@@ -414,10 +414,22 @@ function Tddf1Page() {
           {/* Day Breakdown Widget */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchDayBreakdown()}
+                  disabled={dayLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${dayLoading ? 'animate-spin' : ''}`} />
+                  Refresh Day
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {dayLoading ? (
@@ -605,10 +617,22 @@ function Tddf1Page() {
           {/* Recent Activity Widget */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Recent Activity
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Recent Activity
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchActivity()}
+                  disabled={activityLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${activityLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {activityLoading ? (
