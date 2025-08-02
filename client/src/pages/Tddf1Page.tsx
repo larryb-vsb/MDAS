@@ -661,14 +661,14 @@ function Tddf1Page() {
                   {/* Files Processed on This Day */}
                   {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                     <div>
-                      <h4 className="font-semibold mb-3">Files Processed ({dayBreakdown.filesProcessed.length})</h4>
+                      <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Files Processed ({dayBreakdown.filesProcessed.length})</h4>
                       <div className="space-y-2">
                         {dayBreakdown.filesProcessed.map((file, index) => (
-                          <div key={index} className="bg-blue-50 rounded-lg p-3 border">
+                          <div key={index} className={`rounded-lg p-3 border transition-colors ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
-                                <div className="font-medium text-blue-900">{file.fileName}</div>
-                                <div className="text-sm text-blue-700">
+                                <div className={`font-medium transition-colors ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>{file.fileName}</div>
+                                <div className={`text-sm transition-colors ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                                   <span className="font-semibold">{file.recordCount.toLocaleString()} records processed</span>
                                   {file.fileSize && ` • Size: ${file.fileSize}`}
                                   {file.processingTime && ` • Duration: ${file.processingTime}s`}
@@ -687,7 +687,7 @@ function Tddf1Page() {
                   {/* Active Tables (fallback) */}
                   {(!dayBreakdown.filesProcessed || dayBreakdown.filesProcessed.length === 0) && dayBreakdown.tables.length > 0 && (
                     <div>
-                      <h4 className="font-semibold mb-3">Active Tables</h4>
+                      <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Active Tables</h4>
                       <div className="flex flex-wrap gap-2">
                         {dayBreakdown.tables.map(table => (
                           <Badge key={table} variant="outline">{table}</Badge>
