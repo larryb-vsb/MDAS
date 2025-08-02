@@ -11834,11 +11834,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
 
 
-  // Start encoding for a single file (individual testing)
+  // Start encoding for a single file (individual testing) - Updated to use Manual Queue for TDDF1 processing
   app.post("/api/uploader/:id/encode", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const { strategy = 'tddf_json' } = req.body;
+      const { strategy = 'tddf1' } = req.body; // Default to TDDF1 strategy
       
       const upload = await storage.getUploaderUploadById(id);
       if (!upload) {
@@ -11857,58 +11857,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`[STAGE-5-ENCODING] Starting encoding for upload ${id} with strategy: ${strategy}`);
+      console.log(`[INDIVIDUAL-ENCODE] Adding file ${id} to manual queue for TDDF1 processing`);
       
-      // Update to encoding phase
-      await storage.updateUploaderPhase(id, 'encoding', {
-        encodingStrategy: strategy,
-        encodingNotes: `Started encoding with strategy: ${strategy}`
-      });
-      
-      // Get file content for TDDF encoding
-      console.log(`[STAGE-5-ENCODING] Getting file content for ${upload.filename}`);
-      const { ReplitStorageService } = await import('./replit-storage-service');
-      const fileContent = await ReplitStorageService.getFileContent(upload.s3Key || upload.storagePath || '');
-      console.log(`[STAGE-5-ENCODING] File content length: ${fileContent ? fileContent.length : 0} characters`);
-      
-      // Check if file content was retrieved
-      if (!fileContent) {
-        throw new Error(`Failed to retrieve file content from storage. S3Key: ${upload.s3Key}, StoragePath: ${upload.storagePath}`);
+      // Get MMS Watcher instance to add file to manual queue
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          error: 'MMS Watcher service not available'
+        });
       }
 
-      // Perform TDDF1 file-based encoding using schema definitions
-      console.log(`[STAGE-5-ENCODING] Starting TDDF1 file-based processing for ${fileContent.split('\n').length} lines...`);
-      const encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
+      // Add file to manual queue for TDDF1 processing
+      mmsWatcher.addToManualQueue([id]);
       
-      // Update to encoded phase with completion metadata
-      await storage.updateUploaderPhase(id, 'encoded', {
-        encodingStrategy: strategy,
-        encodingStatus: 'completed',
-        encodingTimeMs: encodingResults.encodingTimeMs,
-        encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file table: ${encodingResults.tableName}`,
-        jsonRecordsCreated: encodingResults.recordCounts.total,
-        tddfRecordsCreated: encodingResults.recordCounts.byType.DT || 0,
-        encodingMetadata: encodingResults,
-        tddf1TableUsed: encodingResults.tableName
+      // Update processing notes to indicate manual encoding was triggered
+      await storage.updateUploaderUpload(id, {
+        processingNotes: JSON.stringify({
+          manualEncodingTriggered: new Date().toISOString(),
+          triggerMethod: 'individual_encode_button',
+          strategy: strategy,
+          addedToManualQueue: true
+        })
       });
-      
-      // Create JSON sample with highlighted record identifier
-      const jsonSample = encodingResults.jsonRecords.slice(0, 3).map((record: any) => ({
-        ...record,
-        highlightedRecordIdentifier: record.extractedFields.recordIdentifier, // Highlight this field in red
-        extractedFieldsCount: Object.keys(record.extractedFields).length
-      }));
       
       const result = {
         uploadId: id,
         filename: upload.filename,
         strategy: strategy,
-        status: 'completed',
-        progress: 100,
-        message: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file table: ${encodingResults.tableName}`,
-        jsonSample: jsonSample, // Include JSON sample for display
-        recordTypeBreakdown: encodingResults.recordCounts.byType,
-        results: encodingResults
+        status: 'queued',
+        progress: 0,
+        message: `File added to TDDF1 manual processing queue. Processing will complete within 15 seconds.`,
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        note: 'TDDF1 processing uses file-based tables with enhanced validation and universal timestamping'
       };
       
       res.json(result);
@@ -11935,16 +11915,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bulk encoding with selector
+  // Bulk encoding with selector - Updated to use Manual Queue for TDDF1 processing
   app.post("/api/uploader/bulk-encode", isAuthenticated, async (req, res) => {
     try {
-      const { uploadIds, strategy = 'tddf_json', fileTypeFilter = 'tddf' } = req.body;
+      const { uploadIds, strategy = 'tddf1', fileTypeFilter = 'tddf' } = req.body;
       
       if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
         return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
       }
       
-      console.log(`[STAGE-5-BULK-ENCODING] Bulk encoding request for ${uploadIds.length} files with strategy: ${strategy}`);
+      console.log(`[BULK-ENCODE] Bulk encoding request for ${uploadIds.length} files with TDDF1 strategy`);
       
       // Validate all files are in correct phase and type
       const uploads = await Promise.all(
@@ -11967,15 +11947,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // TODO: Implement bulk encoding logic here
-      // For now, just simulate setup without processing
+      // Get MMS Watcher instance to add files to manual queue
+      const mmsWatcher = req.app.locals.mmsWatcher;
+      if (!mmsWatcher) {
+        return res.status(500).json({
+          error: 'MMS Watcher service not available'
+        });
+      }
+
+      // Add all valid files to manual queue for TDDF1 processing
+      mmsWatcher.addToManualQueue(uploadIds);
+      
+      // Update processing notes for all files to indicate bulk encoding was triggered
+      for (const id of uploadIds) {
+        await storage.updateUploaderUpload(id, {
+          processingNotes: JSON.stringify({
+            bulkEncodingTriggered: new Date().toISOString(),
+            triggerMethod: 'bulk_encode_button',
+            strategy: strategy,
+            addedToManualQueue: true,
+            bulkBatchSize: uploadIds.length
+          })
+        });
+      }
+      
       const results = uploadIds.map(id => {
         const upload = uploads.find(u => u?.id === id);
         return {
           uploadId: id,
           filename: upload?.filename,
           strategy: strategy,
-          status: 'encoding_setup_ready'
+          status: 'queued'
         };
       });
       
@@ -11985,7 +11987,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         strategy: strategy,
         fileTypeFilter: fileTypeFilter,
         results: results,
-        message: 'Bulk encoding infrastructure ready - no actual processing performed yet'
+        queueStatus: mmsWatcher.getManualQueueStatus(),
+        message: `All ${uploadIds.length} files added to TDDF1 manual processing queue. Processing will complete within 15 seconds.`,
+        note: 'TDDF1 processing uses file-based tables with enhanced validation and universal timestamping'
       });
     } catch (error: any) {
       console.error('Bulk encoding error:', error);
