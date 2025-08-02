@@ -4,6 +4,8 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -359,20 +361,19 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Mobile-Optimized Day Navigation */}
+        {/* Calendar Date Selector */}
         <Card>
           <CardHeader>
             <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <CalendarIcon className="h-5 w-5" />
-                Day Navigation
+                Date Selection
               </CardTitle>
-              <div className="flex items-center gap-1 sm:gap-2 sm:hidden">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={navigateToPreviousDay}
-                  className="flex-1"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -380,7 +381,6 @@ function Tddf1Page() {
                   variant="outline"
                   size="sm"
                   onClick={navigateToNextDay}
-                  className="flex-1"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -388,18 +388,20 @@ function Tddf1Page() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-center">
-              <div className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-                <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
-              </div>
-              <div className="text-sm text-gray-500 mb-4 sm:mb-6">
-                {dayBreakdown ? (
-                  <>
-                    <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
-                    <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
-                  </>
-                ) : 'No data'}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+                  <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                  <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
+                </div>
+                <div className="text-sm text-gray-500 mb-4">
+                  {dayBreakdown ? (
+                    <>
+                      <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()} records • {dayBreakdown.fileCount} files</span>
+                      <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k records • {dayBreakdown.fileCount} files</span>
+                    </>
+                  ) : 'No data'}
+                </div>
               </div>
             </div>
             
@@ -407,29 +409,57 @@ function Tddf1Page() {
               <Button
                 variant="outline"
                 onClick={navigateToPreviousDay}
-                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                className="flex items-center gap-1 sm:gap-2"
                 size="sm"
               >
                 <ChevronLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Previous Day</span>
+                <span className="hidden sm:inline">Previous</span>
                 <span className="sm:hidden">Prev</span>
               </Button>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-1 sm:gap-2 min-w-[120px] justify-center"
+                    size="sm"
+                  >
+                    <CalendarIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Select Date</span>
+                    <span className="sm:hidden">Date</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedDate(date);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
               <Button
                 onClick={navigateToToday}
                 variant={isToday(selectedDate) ? "default" : "outline"}
-                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                className="flex items-center gap-1 sm:gap-2"
                 size="sm"
               >
                 <CalendarIcon className="h-4 w-4" />
                 Today
               </Button>
+              
               <Button
                 variant="outline"
                 onClick={navigateToNextDay}
-                className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
+                className="flex items-center gap-1 sm:gap-2"
                 size="sm"
               >
-                <span className="hidden sm:inline">Next Day</span>
+                <span className="hidden sm:inline">Next</span>
                 <span className="sm:hidden">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
