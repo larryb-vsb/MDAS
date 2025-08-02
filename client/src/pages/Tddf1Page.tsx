@@ -222,7 +222,12 @@ function Tddf1Page() {
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  of {stats.totalTddfLines.toLocaleString()} total lines
+                  of {stats.totalTddfLines.toLocaleString()} total lines processed
+                  {stats.totalTddfLines > 0 && stats.totalRecords && (
+                    <span className="text-blue-600 font-medium">
+                      {' '}({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}% extraction rate)
+                    </span>
+                  )}
                   {stats.totalJsonLinesInserted && stats.totalJsonLinesInserted !== stats.totalRecords && (
                     <span> • {stats.totalJsonLinesInserted.toLocaleString()} inserted</span>
                   )}
@@ -290,18 +295,28 @@ function Tddf1Page() {
                 <div className="text-2xl font-bold text-green-600">
                   {stats?.totalRecords?.toLocaleString() || 0}
                 </div>
-                <div className="text-sm text-gray-500">Total Records</div>
+                <div className="text-sm text-gray-500">Records Processed</div>
                 {stats?.totalTddfLines && (
                   <div className="text-xs text-gray-400">
-                    of {stats.totalTddfLines.toLocaleString()} lines
+                    of {stats.totalTddfLines.toLocaleString()} total lines
+                    {stats.totalTddfLines > 0 && stats.totalRecords && (
+                      <span className="ml-1 text-blue-500">
+                        ({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}%)
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
-                  {stats?.lastProcessedDate ? format(new Date(stats.lastProcessedDate), 'MMM dd, yyyy') : 'Never'}
+                  {stats?.totalTddfLines?.toLocaleString() || 0}
                 </div>
-                <div className="text-sm text-gray-500">Last Processed</div>
+                <div className="text-sm text-gray-500">Total Lines Processed</div>
+                {stats?.performanceMetrics?.lineExtractionRate && (
+                  <div className="text-xs text-gray-400">
+                    {stats.performanceMetrics.lineExtractionRate} extraction rate
+                  </div>
+                )}
               </div>
             </div>
             {rebuildCacheMutation.isPending && (
