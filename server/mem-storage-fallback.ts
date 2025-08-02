@@ -92,6 +92,9 @@ export class MemStorageFallback implements IStorage {
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       role: userData.role || 'user',
+      developerFlag: userData.developerFlag || false,
+      darkMode: userData.darkMode || false,
+      canCreateUsers: userData.canCreateUsers || false,
       createdAt: new Date(),
       lastLogin: null
     };

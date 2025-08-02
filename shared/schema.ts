@@ -934,6 +934,7 @@ export const users = pgTable(getTableName("users"), {
   role: text("role").default("user").notNull(), // user, admin, MonthlyD
   developerFlag: boolean("developer_flag").default(false),
   darkMode: boolean("dark_mode").default(false),
+  canCreateUsers: boolean("can_create_users").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastLogin: timestamp("last_login")
 });
