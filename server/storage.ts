@@ -57,6 +57,7 @@ import { eq, gt, gte, lt, lte, and, or, count, desc, asc, sql, between, like, il
 import { getTableName } from "./table-config";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { tddf1Encoder } from "./tddf1-encoder";
 
 // Utility function to detect decommission-related terms in terminal names
 function isTerminalDecommissioned(terminalName: string): boolean {
@@ -123,6 +124,12 @@ export interface IStorage {
 
   // Dev Upload operations for compressed storage testing
   createDevUpload(insertDevUpload: any): Promise<any>;
+
+  // File-based TDDF encoding operations
+  createFileBasedTddfTable(tableName: string): Promise<void>;
+  encodeFileToTddf1Table(fileId: string, fileName: string): Promise<{ success: boolean; tableName: string; recordCount: number; errors: string[] }>;
+  getFileBasedTddfRecords(tableName: string, options?: { recordType?: string; limit?: number; offset?: number }): Promise<any[]>;
+  deleteFileBasedTddfTable(tableName: string): Promise<void>;
   getDevUploads(): Promise<any[]>;
   getDevUploadById(id: string): Promise<any | undefined>;
 
@@ -14238,6 +14245,91 @@ export class DatabaseStorage implements IStorage {
       console.error('[P1-LOOKUP] Error fetching associated P1 record:', error);
       throw error;
     }
+  }
+
+  // File-based TDDF encoding operations
+  async createFileBasedTddfTable(tableName: string): Promise<void> {
+    await tddf1Encoder.createFileBasedTable(tableName);
+  }
+
+  async encodeFileToTddf1Table(fileId: string, fileName: string): Promise<{ success: boolean; tableName: string; recordCount: number; errors: string[] }> {
+    try {
+      // Get file content from uploaded_files table
+      const uploadedFilesTableName = getTableName('uploaded_files');
+      const fileResult = await pool.query(`
+        SELECT file_content, original_filename 
+        FROM ${uploadedFilesTableName} 
+        WHERE id = $1
+      `, [fileId]);
+
+      if (fileResult.rows.length === 0) {
+        return {
+          success: false,
+          tableName: '',
+          recordCount: 0,
+          errors: ['File not found']
+        };
+      }
+
+      const file = fileResult.rows[0];
+      let fileContent = file.file_content;
+
+      // Check if content is Base64 encoded
+      if (fileContent && fileContent.length > 100 && !fileContent.includes('DT') && !fileContent.includes('BH')) {
+        try {
+          const decoded = Buffer.from(fileContent, 'base64').toString('utf8');
+          if (decoded.includes('DT') || decoded.includes('BH')) {
+            fileContent = decoded;
+            console.log('✅ Decoded Base64 TDDF content for file-based encoding');
+          }
+        } catch (decodeError) {
+          console.log('ℹ️ Content not Base64, processing as-is');
+        }
+      }
+
+      if (!fileContent) {
+        return {
+          success: false,
+          tableName: '',
+          recordCount: 0,
+          errors: ['File content is empty']
+        };
+      }
+
+      // Use the original filename or provided fileName
+      const finalFileName = fileName || file.original_filename || `file_${fileId}`;
+      
+      // Encode file using TDDF1 encoder
+      const result = await tddf1Encoder.encodeFile(fileId, finalFileName, fileContent);
+      
+      console.log(`✅ File-based TDDF encoding completed for ${finalFileName}:`, result);
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ Error in file-based TDDF encoding:', error);
+      return {
+        success: false,
+        tableName: '',
+        recordCount: 0,
+        errors: [error.message]
+      };
+    }
+  }
+
+  async getFileBasedTddfRecords(tableName: string, options?: { recordType?: string; limit?: number; offset?: number }): Promise<any[]> {
+    return await tddf1Encoder.getRecords(tableName, options);
+  }
+
+  async deleteFileBasedTddfTable(tableName: string): Promise<void> {
+    await tddf1Encoder.deleteTable(tableName);
+  }
+
+  async getFileBasedTddfTableStats(tableName: string): Promise<{
+    totalRecords: number;
+    recordTypes: Record<string, number>;
+    dateRange: { earliest: string; latest: string };
+  }> {
+    return await tddf1Encoder.getTableStats(tableName);
   }
 }
 
