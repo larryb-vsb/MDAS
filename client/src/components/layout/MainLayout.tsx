@@ -258,7 +258,14 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
     return (
       <div className="relative">
         <div
-          onClick={onToggle}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Submenu toggle clicked:', label);
+            if (onToggle) {
+              onToggle();
+            }
+          }}
           className={cn(
             "flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer min-h-[44px] touch-manipulation relative z-50 select-none",
             isExpanded ? "text-white bg-gray-700 shadow-lg" : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
@@ -288,8 +295,9 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
               <Link
                 key={index}
                 href={subItem.href}
-                onClick={() => {
+                onClick={(e) => {
                   // Force close mobile menu for submenu items
+                  console.log('Submenu item clicked:', subItem.label);
                   if (onClick) {
                     onClick();
                   }
@@ -321,8 +329,9 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
   return (
     <Link
       href={href!}
-      onClick={() => {
+      onClick={(e) => {
         // Force close mobile menu for main navigation items
+        console.log('Main nav item clicked:', label);
         if (onClick) {
           onClick();
         }
@@ -389,7 +398,12 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Mobile navigation
   const MobileNav = () => (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(isOpen) => {
+      // Only allow manual closing, prevent automatic closing
+      if (!isOpen) {
+        setOpen(false);
+      }
+    }}>
       <SheetTrigger asChild>
         <Button 
           variant="ghost" 
@@ -419,7 +433,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                       (item.href !== "/" && location.startsWith(item.href + "/"))
                     ) : false
                   }
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    // Only close for actual navigation clicks, not submenu toggles
+                    console.log('Mobile nav item clicked:', item.label);
+                    setOpen(false);
+                  }}
                   submenu={item.submenu}
                   isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
                   onToggle={item.label === "Legacy" ? () => setLegacyExpanded(!legacyExpanded) : undefined}
