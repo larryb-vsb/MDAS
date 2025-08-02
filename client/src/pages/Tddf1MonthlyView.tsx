@@ -119,34 +119,103 @@ export default function Tddf1MonthlyView() {
   };
 
   const generatePDFReport = () => {
-    if (!monthlyData) return;
+    if (!monthlyData || !comparisonData) return;
     
-    // Create a simple text-based report that can be downloaded
+    // Create comprehensive HTML content that includes chart data and tables
+    const chartData = comparisonData.chartData || [];
+    const maxValue = Math.max(...chartData.map(d => Math.max(d.current || 0, d.previous || 0)));
+    
+    // Generate ASCII-style chart representation
+    const generateChartBars = () => {
+      return chartData.map(point => {
+        const currentBar = '█'.repeat(Math.round((point.current || 0) / maxValue * 20));
+        const previousBar = '▓'.repeat(Math.round((point.previous || 0) / maxValue * 20));
+        return `${point.day.toString().padStart(2, '0')}: ${currentBar.padEnd(22, ' ')} ($${((point.current || 0) / 1000).toFixed(0)}k)
+    ${previousBar.padEnd(22, ' ')} ($${((point.previous || 0) / 1000).toFixed(0)}k prev)`;
+      }).join('\n');
+    };
+    
     const reportContent = `
-MMS Monthly Report - ${format(currentMonth, 'MMMM yyyy')}
+===============================================================================
+                            MMS MONTHLY REPORT
+                         ${format(currentMonth, 'MMMM yyyy')}
+===============================================================================
 Generated on: ${format(new Date(), 'PPP')}
 
-SUMMARY
-=======
-Net Deposits Processed: ${formatCurrency(monthlyData.totalNetDepositBh)}
-Transaction Authorizations Processed: ${formatCurrency(monthlyData.totalTransactionValue)}
-Total Records: ${formatNumber(monthlyData.totalRecords)}
-Total Files: ${formatNumber(monthlyData.totalFiles)}
+EXECUTIVE SUMMARY
+================================================================================
+Net Deposits Processed:           ${formatCurrency(monthlyData.totalNetDepositBh)}
+Transaction Authorizations:       ${formatCurrency(monthlyData.totalTransactionValue)}
+Total Records Processed:          ${formatNumber(monthlyData.totalRecords)}
+Total Files Processed:            ${formatNumber(monthlyData.totalFiles)}
+
+MONTH-OVER-MONTH COMPARISON
+================================================================================
+Current Month (${format(currentMonth, 'MMM yyyy')}):
+- Transaction Value: ${formatCurrency(comparisonData.currentMonth.transactionValue)}
+- Net Deposits:      ${formatCurrency(comparisonData.currentMonth.netDeposit)}
+- Total Records:     ${formatNumber(comparisonData.currentMonth.records)}
+- Processing Days:   ${comparisonData.currentMonth.days}
+
+Previous Month (${format(subMonths(currentMonth, 1), 'MMM yyyy')}):
+- Transaction Value: ${formatCurrency(comparisonData.previousMonth.transactionValue)}
+- Net Deposits:      ${formatCurrency(comparisonData.previousMonth.netDeposit)}
+- Total Records:     ${formatNumber(comparisonData.previousMonth.records)}
+- Processing Days:   ${comparisonData.previousMonth.days}
+
+DAILY TRANSACTION VALUE CHART (Current vs Previous Month)
+================================================================================
+Day: Current Month ████████████████████ Previous Month ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+${generateChartBars()}
 
 RECORD TYPE BREAKDOWN
-====================
-${Object.entries(monthlyData.recordTypeBreakdown).map(([type, count]) => 
-  `${type}: ${formatNumber(count)}`
-).join('\n')}
+================================================================================
+${Object.entries(monthlyData.recordTypeBreakdown)
+  .sort(([,a], [,b]) => (b as number) - (a as number))
+  .map(([type, count]) => {
+    const typeDescriptions = {
+      'BH': 'Batch Headers',
+      'DT': 'Detail Transactions', 
+      'P1': 'Purchasing Card 1',
+      'P2': 'Purchasing Card 2',
+      'E1': 'Electronic Check',
+      'G2': 'General Data 2',
+      'AD': 'Merchant Adjustment',
+      'DR': 'Direct Marketing'
+    };
+    const desc = typeDescriptions[type as keyof typeof typeDescriptions] || 'Unknown';
+    return `${type} (${desc}): ${formatNumber(count as number).padStart(12, ' ')}`;
+  }).join('\n')}
 
-DAILY BREAKDOWN
-===============
-${monthlyData.dailyBreakdown.map(day => 
-  `${format(new Date(day.date), 'MMM dd, yyyy')}: ${day.files} files, ${formatNumber(day.records)} records, ${formatCurrency(day.transactionValue)} DT, ${formatCurrency(day.netDepositBh)} BH`
-).join('\n')}
+DAILY PROCESSING BREAKDOWN
+================================================================================
+Date          Files  Records      DT Transaction Value    BH Net Deposit
+${monthlyData.dailyBreakdown.map(day => {
+  const dateStr = format(new Date(day.date), 'MMM dd, yyyy');
+  const filesStr = day.files.toString().padStart(5, ' ');
+  const recordsStr = formatNumber(day.records).padStart(10, ' ');
+  const dtStr = formatCurrency(day.transactionValue).padStart(18, ' ');
+  const bhStr = formatCurrency(day.netDepositBh).padStart(15, ' ');
+  return `${dateStr}  ${filesStr}  ${recordsStr}  ${dtStr}  ${bhStr}`;
+}).join('\n')}
+
+PERFORMANCE METRICS
+================================================================================
+Average Files per Day:             ${(monthlyData.totalFiles / monthlyData.dailyBreakdown.length).toFixed(1)}
+Average Records per File:          ${(monthlyData.totalRecords / monthlyData.totalFiles).toFixed(0)}
+Average Transaction Value per Day: ${formatCurrency(monthlyData.totalTransactionValue / monthlyData.dailyBreakdown.length)}
+Peak Processing Day:               ${monthlyData.dailyBreakdown.reduce((max, day) => 
+  day.records > max.records ? day : max).date}
+
+===============================================================================
+                              END OF REPORT
+===============================================================================
+Report generated by MMS (Merchant Management System)
+For questions or support, contact your system administrator.
 `;
 
-    const blob = new Blob([reportContent], { type: 'text/plain' });
+    // Create blob and download
+    const blob = new Blob([reportContent], { type: 'text/plain; charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -240,7 +309,7 @@ ${monthlyData.dailyBreakdown.map(day =>
               size="sm"
               onClick={generatePDFReport}
               className="flex items-center space-x-1"
-              disabled={!monthlyData}
+              disabled={!monthlyData || !comparisonData}
             >
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Report</span>
