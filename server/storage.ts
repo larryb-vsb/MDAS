@@ -643,9 +643,29 @@ export class DatabaseStorage implements IStorage {
       updates.push(`username = $${paramIndex++}`);
       values.push(userData.username);
     }
+    if (userData.email !== undefined) {
+      updates.push(`email = $${paramIndex++}`);
+      values.push(userData.email);
+    }
+    if (userData.firstName !== undefined) {
+      updates.push(`first_name = $${paramIndex++}`);
+      values.push(userData.firstName);
+    }
+    if (userData.lastName !== undefined) {
+      updates.push(`last_name = $${paramIndex++}`);
+      values.push(userData.lastName);
+    }
     if (userData.role !== undefined) {
       updates.push(`role = $${paramIndex++}`);
       values.push(userData.role);
+    }
+    if (userData.defaultDashboard !== undefined) {
+      updates.push(`default_dashboard = $${paramIndex++}`);
+      values.push(userData.defaultDashboard);
+    }
+    if (userData.themePreference !== undefined) {
+      updates.push(`theme_preference = $${paramIndex++}`);
+      values.push(userData.themePreference);
     }
     
     // Add userId for WHERE clause
