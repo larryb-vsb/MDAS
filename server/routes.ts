@@ -16710,17 +16710,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      // Proper environment detection using REPLIT_ENVIRONMENT or NODE_ENV
-      const envOverride = req.query.env as string;
-      const currentEnv = envOverride === 'production' ? 'production' : 
-                         process.env.NODE_ENV === 'production' ? 'production' :
-                         process.env.REPLIT_ENVIRONMENT === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
+      const tablePrefix = 'prod_tddf1_';
       
-      console.log(`📊 Environment: ${currentEnv} (REPLIT_ENVIRONMENT=${process.env.REPLIT_ENVIRONMENT}, NODE_ENV=${process.env.NODE_ENV})`);
-      console.log(`📊 Using table prefix: ${tablePrefix}`);
-      
-      console.log(`📊 TDDF1 Stats - Environment: ${currentEnv}, Table Prefix: ${tablePrefix}, NODE_ENV: ${process.env.NODE_ENV}, Override: ${envOverride}`);
+      console.log(`📊 Using production TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Check if pre-cache totals table exists
       const totalsTableName = `${tablePrefix}totals`;
@@ -16938,12 +16931,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
-      // Proper environment detection using REPLIT_ENVIRONMENT or NODE_ENV
-      const envOverride = req.query.env as string;
-      const currentEnv = envOverride === 'production' ? 'production' : 
-                         process.env.NODE_ENV === 'production' ? 'production' :
-                         process.env.REPLIT_ENVIRONMENT === 'production' ? 'production' : 'development';
-      const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
+      // Simplified: Since we're in production environment, use prod_tddf1_totals directly
+      const totalsTableName = 'prod_tddf1_totals';
+      
+      console.log(`📅 Using production TDDF1 totals table: ${totalsTableName}`);
       
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
@@ -17037,15 +17028,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📋 Getting TDDF1 recent activity");
       
-      // Proper environment detection using REPLIT_ENVIRONMENT or NODE_ENV
-      const envOverride = req.query.env as string;
-      const currentEnv = envOverride === 'production' ? 'production' : 
-                         process.env.NODE_ENV === 'production' ? 'production' :
-                         process.env.REPLIT_ENVIRONMENT === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
+      const tablePrefix = 'prod_tddf1_';
       
-      console.log(`📋 Environment: ${currentEnv} (REPLIT_ENVIRONMENT=${process.env.REPLIT_ENVIRONMENT}, NODE_ENV=${process.env.NODE_ENV})`);
-      console.log(`📋 Using table prefix: ${tablePrefix}`);
+      console.log(`📋 Using production TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Get recent file tables
       const recentTablesResult = await pool.query(`
@@ -17322,14 +17308,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("🔄 Rebuilding TDDF1 totals cache");
       
-      // Proper environment detection using REPLIT_ENVIRONMENT or NODE_ENV
-      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' :
-                         process.env.REPLIT_ENVIRONMENT === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
+      const tablePrefix = 'prod_tddf1_';
       const totalsTableName = `${tablePrefix}totals`;
       
-      console.log(`🔄 Environment: ${currentEnv} (REPLIT_ENVIRONMENT=${process.env.REPLIT_ENVIRONMENT}, NODE_ENV=${process.env.NODE_ENV})`);
-      console.log(`🔄 Using table prefix: ${tablePrefix}`);
+      console.log(`🔄 Using production TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Create totals table if it doesn't exist - Enhanced with comprehensive breakdown
       await pool.query(`
