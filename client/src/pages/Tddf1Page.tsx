@@ -94,10 +94,6 @@ function Tddf1Page() {
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
     enabled: !!selectedDateStr,
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache in memory  
-    refetchOnMount: true,
-    refetchOnWindowFocus: true
   });
 
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
@@ -428,11 +424,11 @@ function Tddf1Page() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => rebuildCacheMutation.mutate()}
-                  disabled={dayLoading || rebuildCacheMutation.isPending}
+                  onClick={() => refetchDayBreakdown()}
+                  disabled={dayLoading}
                   className="flex items-center gap-2"
                 >
-                  <RefreshCw className={`h-4 w-4 ${(dayLoading || rebuildCacheMutation.isPending) ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 ${dayLoading ? 'animate-spin' : ''}`} />
                   Refresh Day
                 </Button>
               </div>
@@ -499,36 +495,7 @@ function Tddf1Page() {
                             const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
-                            // TEMPORARILY COMMENTED OUT - Net Deposit functionality needs debugging
-                            // Special layout for BH records showing Net Deposit prominently
-                            /*if (type === 'BH') {
-                              const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
-                              console.log('🔍 BH Box Render:', { 
-                                date: dayBreakdown.date, 
-                                netDepositAmount, 
-                                rawValue: dayBreakdown.totalNetDepositBH,
-                                type: typeof dayBreakdown.totalNetDepositBH 
-                              });
-                              return (
-                                <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div>
-                                      <span className="text-sm font-bold">{config.label}</span>
-                                      <div className="text-xs opacity-80">{config.description}</div>
-                                    </div>
-                                    <div className="text-sm font-medium text-blue-700">
-                                      {displayCount.toLocaleString()} records
-                                    </div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-2xl font-bold text-blue-800">
-                                      ${netDepositAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </div>
-                                    <div className="text-xs font-medium text-blue-600">Net Deposit Total</div>
-                                  </div>
-                                </div>
-                              );
-                            }*/
+                            // Net Deposit functionality removed for now
                             
                             // Standard layout for other record types
                             return (
