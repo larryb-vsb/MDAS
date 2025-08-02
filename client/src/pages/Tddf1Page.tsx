@@ -459,14 +459,39 @@ function Tddf1Page() {
                   <div>
                     <h4 className="font-semibold mb-3">Record Types</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {Object.entries(dayBreakdown.recordTypes).map(([type, count]) => (
-                        <div key={type} className="flex items-center justify-between bg-gray-50 rounded p-2">
-                          <span className="text-sm font-medium">{type}</span>
-                          <Badge variant="secondary">
-                            {typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count)}
-                          </Badge>
-                        </div>
-                      ))}
+                      {(() => {
+                        // Define consistent order and colors for record types
+                        const recordTypeConfig = {
+                          'BH': { color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'BH', description: 'Batch Header' },
+                          'DT': { color: 'bg-green-100 text-green-800 border-green-200', label: 'DT', description: 'Detail Transaction' },
+                          'G2': { color: 'bg-purple-100 text-purple-800 border-purple-200', label: 'G2', description: 'Geographic Data' },
+                          'E1': { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'E1', description: 'Extension 1' },
+                          'P1': { color: 'bg-cyan-100 text-cyan-800 border-cyan-200', label: 'P1', description: 'Purchasing Card 1' },
+                          'P2': { color: 'bg-pink-100 text-pink-800 border-pink-200', label: 'P2', description: 'Purchasing Card 2' },
+                          'DR': { color: 'bg-red-100 text-red-800 border-red-200', label: 'DR', description: 'Detail Reversal' },
+                          'AD': { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', label: 'AD', description: 'Adjustment' },
+                          'UNK': { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'UNK', description: 'Unknown' }
+                        };
+                        
+                        const orderedTypes = Object.keys(recordTypeConfig);
+                        return orderedTypes
+                          .filter(type => dayBreakdown.recordTypes[type])
+                          .map(type => {
+                            const count = dayBreakdown.recordTypes[type];
+                            const config = recordTypeConfig[type];
+                            const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
+                            
+                            return (
+                              <div key={type} className={`flex items-center justify-between rounded-lg p-3 border ${config.color}`}>
+                                <div>
+                                  <span className="text-sm font-bold">{config.label}</span>
+                                  <div className="text-xs opacity-80">{config.description}</div>
+                                </div>
+                                <div className="text-lg font-bold">{displayCount.toLocaleString()}</div>
+                              </div>
+                            );
+                          });
+                      })()}
                     </div>
                   </div>
 
@@ -648,15 +673,39 @@ function Tddf1Page() {
               <div className="space-y-6">
                 {/* Record Type Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {Object.entries(stats.recordTypeBreakdown).map(([type, count]) => (
-                    <div key={type} className="text-center bg-gray-50 rounded-lg p-4">
-                      <div className="text-2xl font-bold text-blue-600">{count.toLocaleString()}</div>
-                      <div className="text-sm font-medium text-gray-700">{type}</div>
-                      <div className="text-xs text-gray-500">
-                        {((count / (stats.totalRecords || 1)) * 100).toFixed(1)}%
-                      </div>
-                    </div>
-                  ))}
+                  {(() => {
+                    // Define consistent order and colors for record types
+                    const recordTypeConfig = {
+                      'BH': { color: 'bg-blue-100 text-blue-800 border-blue-200', bgColor: 'bg-blue-50', textColor: 'text-blue-600', label: 'BH', description: 'Batch Header' },
+                      'DT': { color: 'bg-green-100 text-green-800 border-green-200', bgColor: 'bg-green-50', textColor: 'text-green-600', label: 'DT', description: 'Detail Transaction' },
+                      'G2': { color: 'bg-purple-100 text-purple-800 border-purple-200', bgColor: 'bg-purple-50', textColor: 'text-purple-600', label: 'G2', description: 'Geographic Data' },
+                      'E1': { color: 'bg-orange-100 text-orange-800 border-orange-200', bgColor: 'bg-orange-50', textColor: 'text-orange-600', label: 'E1', description: 'Extension 1' },
+                      'P1': { color: 'bg-cyan-100 text-cyan-800 border-cyan-200', bgColor: 'bg-cyan-50', textColor: 'text-cyan-600', label: 'P1', description: 'Purchasing Card 1' },
+                      'P2': { color: 'bg-pink-100 text-pink-800 border-pink-200', bgColor: 'bg-pink-50', textColor: 'text-pink-600', label: 'P2', description: 'Purchasing Card 2' },
+                      'DR': { color: 'bg-red-100 text-red-800 border-red-200', bgColor: 'bg-red-50', textColor: 'text-red-600', label: 'DR', description: 'Detail Reversal' },
+                      'AD': { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', bgColor: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'AD', description: 'Adjustment' },
+                      'UNK': { color: 'bg-gray-100 text-gray-800 border-gray-200', bgColor: 'bg-gray-50', textColor: 'text-gray-600', label: 'UNK', description: 'Unknown' }
+                    };
+                    
+                    const orderedTypes = Object.keys(recordTypeConfig);
+                    return orderedTypes
+                      .filter(type => stats.recordTypeBreakdown[type])
+                      .map(type => {
+                        const count = stats.recordTypeBreakdown[type];
+                        const config = recordTypeConfig[type];
+                        
+                        return (
+                          <div key={type} className={`text-center rounded-lg p-4 border ${config.bgColor} ${config.color.split(' ')[2]}`}>
+                            <div className={`text-2xl font-bold ${config.textColor}`}>{count.toLocaleString()}</div>
+                            <div className="text-sm font-bold text-gray-700">{config.label}</div>
+                            <div className="text-xs text-gray-600 mb-1">{config.description}</div>
+                            <div className="text-xs text-gray-500">
+                              {((count / (stats.totalRecords || 1)) * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        );
+                      });
+                  })()}
                 </div>
 
                 {/* Enhanced Processing Metrics */}
