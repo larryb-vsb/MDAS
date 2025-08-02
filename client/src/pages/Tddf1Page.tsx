@@ -91,24 +91,12 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  // Test dark mode by forcing it to true temporarily
-  const isDarkMode = true; // user?.themePreference === 'dark';
+  const isDarkMode = user?.themePreference === 'dark';
 
-  // Debug: Log theme state
-  console.log('User data:', user);
-  console.log('Theme preference:', user?.themePreference);
-  console.log('isDarkMode:', isDarkMode);
-  console.log('User query status:', { isLoading: false, isError: null });
-  
   // Force re-render when theme changes
   useEffect(() => {
-    console.log('Theme effect triggered:', isDarkMode);
+    // Theme has changed - any additional logic can go here
   }, [isDarkMode]);
-  
-  // Force user data refresh - for testing
-  useEffect(() => {
-    console.log('Testing dark mode with forced theme...');
-  }, []);
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -709,7 +697,7 @@ function Tddf1Page() {
                   )}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className={`text-center py-8 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   No data available for {format(selectedDate, 'MMM d, yyyy')}
                 </div>
               )}
@@ -799,13 +787,13 @@ function Tddf1Page() {
             </CardHeader>
             <CardContent>
               {activityLoading ? (
-                <div className="text-center py-4 text-gray-500">Loading...</div>
+                <div className={`text-center py-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</div>
               ) : recentActivity && recentActivity.length > 0 ? (
                 <div className="space-y-3">
                   {recentActivity.slice(0, 10).map(activity => (
-                    <div key={activity.id} className="border-l-2 border-blue-200 pl-3 py-2">
+                    <div key={activity.id} className={`border-l-2 border-blue-200 pl-3 py-2 transition-colors ${isDarkMode ? 'border-blue-400' : 'border-blue-200'}`}>
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm truncate">{activity.fileName}</span>
+                        <span className={`font-medium text-sm truncate transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>{activity.fileName}</span>
                         <div className="flex items-center gap-2">
                           <Badge variant={activity.status === 'completed' ? 'default' : 'secondary'}>
                             {activity.status}
@@ -822,17 +810,17 @@ function Tddf1Page() {
                           )}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className={`text-xs mt-1 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         {activity.recordCount} records • {activity.tableName}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                         {format(new Date(activity.processedAt), 'MMM d, h:mm a')}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-gray-500">No recent activity</div>
+                <div className={`text-center py-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No recent activity</div>
               )}
             </CardContent>
           </Card>
@@ -846,7 +834,7 @@ function Tddf1Page() {
               Overall Record Type Breakdown
             </CardTitle>
             {stats?.fileName && (
-              <p className="text-sm text-gray-600 mt-1">
+              <p className={`text-sm mt-1 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 Latest File: {stats.fileName} • 
                 {stats.processingDurationMs && ` Processed in ${(stats.processingDurationMs / 1000).toFixed(2)}s`}
                 {stats.validationSummary?.validation_passed && ` • ${stats.validationSummary.validation_passed} validated`}
@@ -855,7 +843,7 @@ function Tddf1Page() {
           </CardHeader>
           <CardContent>
             {statsLoading ? (
-              <div className="text-center py-4 text-gray-500">Loading...</div>
+              <div className={`text-center py-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading...</div>
             ) : stats?.recordTypeBreakdown ? (
               <div className="space-y-6">
                 {/* Record Type Grid */}
@@ -884,9 +872,9 @@ function Tddf1Page() {
                         return (
                           <div key={type} className={`text-center rounded-lg p-4 border ${config.bgColor} ${config.color.split(' ')[2]}`}>
                             <div className={`text-2xl font-bold ${config.textColor}`}>{count.toLocaleString()}</div>
-                            <div className="text-sm font-bold text-gray-700">{config.label}</div>
-                            <div className="text-xs text-gray-600 mb-1">{config.description}</div>
-                            <div className="text-xs text-gray-500">
+                            <div className={`text-sm font-bold transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{config.label}</div>
+                            <div className={`text-xs mb-1 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{config.description}</div>
+                            <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               {((count / (stats.totalRecords || 1)) * 100).toFixed(1)}%
                             </div>
                           </div>
@@ -898,7 +886,7 @@ function Tddf1Page() {
                 {/* Enhanced Processing Metrics */}
                 {(stats.totalTddfLines || stats.totalJsonLinesInserted || stats.performanceMetrics) && (
                   <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-3 text-gray-700">Processing Metrics</h4>
+                    <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Processing Metrics</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {stats.totalTddfLines && (
                         <div className="bg-blue-50 rounded-lg p-3">
@@ -931,7 +919,7 @@ function Tddf1Page() {
                 {/* Validation Summary */}
                 {stats.validationSummary && Object.keys(stats.validationSummary).length > 0 && (
                   <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-3 text-gray-700">Validation Results</h4>
+                    <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Validation Results</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {stats.validationSummary.validation_passed && (
                         <div className="bg-green-50 rounded-lg p-3">
@@ -956,7 +944,7 @@ function Tddf1Page() {
                 )}
               </div>
             ) : (
-              <div className="text-center py-4 text-gray-500">No record type data available</div>
+              <div className={`text-center py-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No record type data available</div>
             )}
           </CardContent>
         </Card>
