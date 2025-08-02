@@ -16742,7 +16742,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   COUNT(*) as record_count,
                   record_type,
                   COALESCE(SUM(CASE 
-                    WHEN record_type = 'DT' AND transaction_amount IS NOT NULL AND transaction_amount != '' 
+                    WHEN record_type = 'DT' AND transaction_amount IS NOT NULL 
+                         AND transaction_amount != '' 
+                         AND transaction_amount ~ '^[0-9]+\.?[0-9]*$'
                     THEN CAST(transaction_amount AS DECIMAL) 
                     ELSE 0 
                   END), 0) as transaction_value

@@ -956,7 +956,10 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
         // Extract transaction amount for DT records
         let transactionAmount = null;
         if (recordType === 'DT' && extractedFields.transactionAmount) {
-          transactionAmount = parseFloat(extractedFields.transactionAmount) / 100; // Convert from cents
+          const amountStr = extractedFields.transactionAmount.toString().trim();
+          if (amountStr && amountStr !== '' && !isNaN(parseFloat(amountStr))) {
+            transactionAmount = parseFloat(amountStr) / 100; // Convert from cents
+          }
         }
         
         // Extract merchant ID - use merchantAccountNumber from TDDF positions 24-39
