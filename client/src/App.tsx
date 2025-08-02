@@ -61,6 +61,7 @@ function Router() {
       <ProtectedRoute path="/tddf-json" component={TddfJsonPage} />
       <ProtectedRoute path="/tddf-json-test" component={TddfJsonTestPage} />
       <ProtectedRoute path="/tddf1" component={Tddf1Page} />
+      <ProtectedRoute path="/tddf1/monthly" component={Tddf1MonthlyView} />
       <ProtectedRoute path="/tddf1-monthly" component={Tddf1MonthlyView} />
 
       <ProtectedRoute path="/settings" component={Settings} />

@@ -3,10 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAuth } from '@/hooks/use-auth';
 
 interface MonthlyTotals {
   month: string;
@@ -55,6 +56,7 @@ export default function Tddf1MonthlyView() {
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { user, logoutMutation } = useAuth();
 
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
@@ -132,6 +134,10 @@ ${monthlyData.dailyBreakdown.map(day =>
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
 
   return (
@@ -583,6 +589,31 @@ ${monthlyData.dailyBreakdown.map(day =>
               </CardContent>
             )}
           </Card>
+
+          {/* Big Logout Button for MonthlyD Users */}
+          {user?.role === "MonthlyD" && (
+            <div className="pt-8">
+              <Card className={`${isDarkMode ? 'bg-red-900 border-red-700' : 'bg-red-50 border-red-200'} transition-colors`}>
+                <CardContent className="py-6">
+                  <div className="text-center">
+                    <Button 
+                      onClick={handleLogout}
+                      disabled={logoutMutation.isPending}
+                      size="lg"
+                      variant="destructive"
+                      className="text-lg px-8 py-4 h-auto"
+                    >
+                      <LogOut className="h-6 w-6 mr-3" />
+                      {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+                    </Button>
+                    <p className={`text-sm mt-3 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>
+                      Click here to securely log out of your session
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </>
       ) : (
         <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>

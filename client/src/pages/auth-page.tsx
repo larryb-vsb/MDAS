@@ -67,9 +67,13 @@ export default function AuthPage() {
     },
   });
   
-  // If user is already logged in, redirect to dashboard
+  // If user is already logged in, redirect based on user role
   // IMPORTANT: Move this after hook declarations to avoid React hook rules violation
   if (user) {
+    // Route MonthlyD users directly to MMS Monthly page
+    if (user.role === "MonthlyD") {
+      return <Redirect to="/tddf1/monthly" />;
+    }
     return <Redirect to="/" />;
   }
 
