@@ -735,6 +735,9 @@ class MMSWatcher {
           processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
         });
 
+        // Update TDDF1 totals cache for newly encoded file
+        await this.updateTddf1TotalsCache(upload.filename, encodingResults);
+
         console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
       } 
       else if (fileType === 'merchant_csv') {
@@ -1027,6 +1030,109 @@ class MMSWatcher {
       enabled: this.auto45Enabled,
       status: this.auto45Enabled ? 'enabled' : 'disabled'
     };
+  }
+
+  // TDDF1 Totals Cache Management
+  async updateTddf1TotalsCache(filename, encodingResults) {
+    try {
+      console.log(`[MMS-WATCHER] [TDDF1-CACHE] Updating totals cache for ${filename}...`);
+      
+      // Extract date from filename (VERMNTSB.6759_TDDF_830_07282025_083340.TSYSO -> 2025-07-28)
+      const fileDate = this.extractDateFromFilename(filename);
+      
+      // Determine environment and table prefix
+      const environment = process.env.NODE_ENV || 'development';
+      const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+      const totalsTableName = `${tablePrefix}totals`;
+      
+      // Prepare totals record
+      const totalsRecord = {
+        filename: filename,
+        file_name: filename,
+        file_date: fileDate,
+        total_records: encodingResults.totalRecords,
+        total_transactions: 0.00,
+        total_transaction_value: 0.00,
+        dt_records: encodingResults.recordCounts?.byType?.DT || 0,
+        bh_records: encodingResults.recordCounts?.byType?.BH || 0,
+        p1_records: encodingResults.recordCounts?.byType?.P1 || 0,
+        e1_records: encodingResults.recordCounts?.byType?.E1 || 0,
+        g2_records: encodingResults.recordCounts?.byType?.G2 || 0,
+        ad_records: encodingResults.recordCounts?.byType?.AD || 0,
+        dr_records: encodingResults.recordCounts?.byType?.DR || 0,
+        p2_records: encodingResults.recordCounts?.byType?.P2 || 0,
+        other_records: encodingResults.recordCounts?.byType?.OTHER || 0,
+        total_files: 1,
+        last_processed_date: fileDate,
+        processing_date: new Date(),
+        date_processed: new Date(),
+        total_net_deposit_bh: 0.00,
+        record_type_breakdown: JSON.stringify(encodingResults.recordCounts?.byType || {}),
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      
+      // Insert into totals table (or update if exists)
+      const query = `
+        INSERT INTO ${totalsTableName} (
+          filename, file_name, file_date, total_records, total_transactions, total_transaction_value,
+          dt_records, bh_records, p1_records, e1_records, g2_records, ad_records, dr_records, p2_records, other_records,
+          total_files, last_processed_date, processing_date, date_processed, total_net_deposit_bh,
+          record_type_breakdown, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+        )
+        ON CONFLICT (filename) DO UPDATE SET
+          total_records = EXCLUDED.total_records,
+          dt_records = EXCLUDED.dt_records,
+          bh_records = EXCLUDED.bh_records,
+          p1_records = EXCLUDED.p1_records,
+          e1_records = EXCLUDED.e1_records,
+          g2_records = EXCLUDED.g2_records,
+          ad_records = EXCLUDED.ad_records,
+          dr_records = EXCLUDED.dr_records,
+          p2_records = EXCLUDED.p2_records,
+          other_records = EXCLUDED.other_records,
+          record_type_breakdown = EXCLUDED.record_type_breakdown,
+          updated_at = EXCLUDED.updated_at
+      `;
+      
+      const values = [
+        totalsRecord.filename, totalsRecord.file_name, totalsRecord.file_date, 
+        totalsRecord.total_records, totalsRecord.total_transactions, totalsRecord.total_transaction_value,
+        totalsRecord.dt_records, totalsRecord.bh_records, totalsRecord.p1_records, totalsRecord.e1_records,
+        totalsRecord.g2_records, totalsRecord.ad_records, totalsRecord.dr_records, totalsRecord.p2_records,
+        totalsRecord.other_records, totalsRecord.total_files, totalsRecord.last_processed_date,
+        totalsRecord.processing_date, totalsRecord.date_processed, totalsRecord.total_net_deposit_bh,
+        totalsRecord.record_type_breakdown, totalsRecord.created_at, totalsRecord.updated_at
+      ];
+      
+      await this.storage.db.execute(query, values);
+      
+      console.log(`[MMS-WATCHER] [TDDF1-CACHE] ✅ Successfully updated ${totalsTableName} for ${filename}: ${encodingResults.totalRecords} records`);
+      
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [TDDF1-CACHE] ❌ Failed to update totals cache for ${filename}:`, error);
+      // Don't throw error - cache update failure shouldn't stop file processing
+    }
+  }
+
+  extractDateFromFilename(filename) {
+    try {
+      // Extract date from VERMNTSB.6759_TDDF_830_07282025_083340.TSYSO format
+      // Look for pattern: MMDDYYYY
+      const dateMatch = filename.match(/(\d{2})(\d{2})(\d{4})/);
+      if (dateMatch) {
+        const [, month, day, year] = dateMatch;
+        return `${year}-${month}-${day}`;
+      }
+      
+      // Fallback to current date
+      return new Date().toISOString().split('T')[0];
+    } catch (error) {
+      console.warn(`[MMS-WATCHER] Could not extract date from filename ${filename}, using current date`);
+      return new Date().toISOString().split('T')[0];
+    }
   }
 }
 
