@@ -8,8 +8,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Databas
 import { format, addDays, subDays, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { cn } from "@/lib/utils";
 
 
