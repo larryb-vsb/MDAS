@@ -94,49 +94,60 @@ export default function Tddf1MonthlyView() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header with Navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button 
-            onClick={() => setLocation('/tddf1')} 
-            variant="outline" 
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Daily
-          </Button>
-          <Calendar className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">TDDF1 Monthly Overview</h1>
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Header with Navigation - Mobile Optimized */}
+      <div className="space-y-4">
+        {/* Mobile Header Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <Button 
+              onClick={() => setLocation('/tddf1')} 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-1 sm:gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to Daily</span>
+              <span className="sm:hidden">Back</span>
+            </Button>
+            <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">
+              <span className="hidden sm:inline">TDDF1 Monthly Overview</span>
+              <span className="sm:hidden">TDDF1 Monthly</span>
+            </h1>
+          </div>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigateMonth('prev')}
-            className="flex items-center space-x-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            <span>Previous</span>
-          </Button>
-          
-          <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-            <span className="text-lg font-semibold text-blue-900">
-              {format(currentMonth, 'MMMM yyyy')}
-            </span>
+        {/* Navigation Controls Row - Mobile Optimized */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-1 sm:space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateMonth('prev')}
+              className="flex items-center space-x-1"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Previous</span>
+            </Button>
+            
+            <div className="bg-blue-50 px-2 sm:px-4 py-1 sm:py-2 rounded-lg border border-blue-200">
+              <span className="text-sm sm:text-lg font-semibold text-blue-900">
+                <span className="hidden sm:inline">{format(currentMonth, 'MMMM yyyy')}</span>
+                <span className="sm:hidden">{format(currentMonth, 'MMM yyyy')}</span>
+              </span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateMonth('next')}
+              className="flex items-center space-x-1"
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigateMonth('next')}
-            className="flex items-center space-x-1"
-          >
-            <span>Next</span>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
 
           <Button
             variant="outline"
@@ -146,20 +157,20 @@ export default function Tddf1MonthlyView() {
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader className="pb-2">
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
               </CardHeader>
               <CardContent>
-                <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="h-6 sm:h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
                 <div className="h-3 bg-gray-200 rounded w-full"></div>
               </CardContent>
             </Card>
@@ -167,71 +178,73 @@ export default function Tddf1MonthlyView() {
         </div>
       ) : monthlyData ? (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Summary Cards - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-700 flex items-center">
+                <CardTitle className="text-xs sm:text-sm font-medium text-blue-700 flex items-center">
                   <FileText className="h-4 w-4 mr-1" />
                   Total Files
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-900">{formatNumber(monthlyData.totalFiles)}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-900">{formatNumber(monthlyData.totalFiles)}</div>
                 <p className="text-xs text-blue-600 mt-1">TDDF files processed</p>
               </CardContent>
             </Card>
 
             <Card className="bg-green-50 border-green-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-green-700 flex items-center">
+                <CardTitle className="text-xs sm:text-sm font-medium text-green-700 flex items-center">
                   <TrendingUp className="h-4 w-4 mr-1" />
                   Total Records
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-900">{formatNumber(monthlyData.totalRecords)}</div>
+                <div className="text-xl sm:text-2xl font-bold text-green-900">{formatNumber(monthlyData.totalRecords)}</div>
                 <p className="text-xs text-green-600 mt-1">All record types</p>
               </CardContent>
             </Card>
 
             <Card className="bg-purple-50 border-purple-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-purple-700 flex items-center">
+                <CardTitle className="text-xs sm:text-sm font-medium text-purple-700 flex items-center">
                   <DollarSign className="h-4 w-4 mr-1" />
-                  DT Transaction Value
+                  <span className="hidden sm:inline">DT Transaction Value</span>
+                  <span className="sm:hidden">DT Transaction</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-900">{formatCurrency(monthlyData.totalTransactionValue)}</div>
+                <div className="text-lg sm:text-2xl font-bold text-purple-900">{formatCurrency(monthlyData.totalTransactionValue)}</div>
                 <p className="text-xs text-purple-600 mt-1">Detail Transaction totals</p>
               </CardContent>
             </Card>
 
             <Card className="bg-indigo-50 border-indigo-200">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-indigo-700 flex items-center">
+                <CardTitle className="text-xs sm:text-sm font-medium text-indigo-700 flex items-center">
                   <DollarSign className="h-4 w-4 mr-1" />
                   BH Net Deposit
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-indigo-900">{formatCurrency(monthlyData.totalNetDepositBh)}</div>
+                <div className="text-lg sm:text-2xl font-bold text-indigo-900">{formatCurrency(monthlyData.totalNetDepositBh)}</div>
                 <p className="text-xs text-indigo-600 mt-1">Batch Header totals</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Record Type Breakdown */}
+          {/* Record Type Breakdown - Mobile Optimized */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                Record Type Breakdown
+              <CardTitle className="flex items-center text-base sm:text-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Record Type Breakdown</span>
+                <span className="sm:hidden">Record Types</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
                 {Object.entries(monthlyData.recordTypeBreakdown).map(([type, count]) => {
                   const colors = {
                     'BH': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -248,11 +261,11 @@ export default function Tddf1MonthlyView() {
                     <div key={type} className="text-center">
                       <Badge 
                         variant="outline" 
-                        className={`${colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'} w-full justify-center py-2`}
+                        className={`${colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'} w-full justify-center py-1 sm:py-2 text-xs sm:text-sm`}
                       >
                         {type}
                       </Badge>
-                      <p className="text-sm font-semibold mt-1">{formatNumber(count)}</p>
+                      <p className="text-xs sm:text-sm font-semibold mt-1">{formatNumber(count)}</p>
                     </div>
                   );
                 })}
@@ -260,16 +273,17 @@ export default function Tddf1MonthlyView() {
             </CardContent>
           </Card>
 
-          {/* Monthly Comparison Chart */}
+          {/* Monthly Comparison Chart - Mobile Optimized */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <LineChart className="h-5 w-5 mr-2" />
-                Monthly Financial Trends Comparison
+              <CardTitle className="flex items-center text-base sm:text-lg">
+                <LineChart className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                <span className="hidden sm:inline">Monthly Financial Trends Comparison</span>
+                <span className="sm:hidden">Monthly Trends</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-64 sm:h-80">
                 {comparisonLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-gray-500">Loading comparison data...</div>
@@ -384,36 +398,58 @@ export default function Tddf1MonthlyView() {
             </CardContent>
           </Card>
 
-          {/* Daily Breakdown */}
+          {/* Daily Breakdown - Mobile Optimized */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center text-base sm:text-lg">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Daily Breakdown
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs sm:text-sm">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 px-4 font-medium text-gray-700">Date</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-700">Files</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-700">Records</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-700">DT Transaction Value</th>
-                      <th className="text-right py-2 px-4 font-medium text-gray-700">BH Net Deposit</th>
+                      <th className="text-left py-1 sm:py-2 px-2 sm:px-4 font-medium text-gray-700">Date</th>
+                      <th className="text-right py-1 sm:py-2 px-1 sm:px-4 font-medium text-gray-700">
+                        <span className="hidden sm:inline">Files</span>
+                        <span className="sm:hidden">F</span>
+                      </th>
+                      <th className="text-right py-1 sm:py-2 px-1 sm:px-4 font-medium text-gray-700">
+                        <span className="hidden sm:inline">Records</span>
+                        <span className="sm:hidden">Rec</span>
+                      </th>
+                      <th className="text-right py-1 sm:py-2 px-1 sm:px-4 font-medium text-gray-700">
+                        <span className="hidden sm:inline">DT Transaction Value</span>
+                        <span className="sm:hidden">DT Value</span>
+                      </th>
+                      <th className="text-right py-1 sm:py-2 px-1 sm:px-4 font-medium text-gray-700">
+                        <span className="hidden sm:inline">BH Net Deposit</span>
+                        <span className="sm:hidden">BH Net</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {monthlyData.dailyBreakdown.map((day) => (
                       <tr key={day.date} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 px-4 font-medium text-gray-900">
-                          {format(new Date(day.date), 'MMM dd, yyyy')}
+                        <td className="py-1 sm:py-2 px-2 sm:px-4 font-medium text-gray-900">
+                          <span className="hidden sm:inline">{format(new Date(day.date), 'MMM dd, yyyy')}</span>
+                          <span className="sm:hidden">{format(new Date(day.date), 'MMM dd')}</span>
                         </td>
-                        <td className="py-2 px-4 text-right text-gray-700">{day.files}</td>
-                        <td className="py-2 px-4 text-right text-gray-700">{formatNumber(day.records)}</td>
-                        <td className="py-2 px-4 text-right text-gray-700">{formatCurrency(day.transactionValue)}</td>
-                        <td className="py-2 px-4 text-right text-gray-700">{formatCurrency(day.netDepositBh)}</td>
+                        <td className="py-1 sm:py-2 px-1 sm:px-4 text-right text-gray-700">{day.files}</td>
+                        <td className="py-1 sm:py-2 px-1 sm:px-4 text-right text-gray-700">
+                          <span className="hidden sm:inline">{formatNumber(day.records)}</span>
+                          <span className="sm:hidden">{day.records > 1000 ? `${(day.records/1000).toFixed(1)}k` : day.records}</span>
+                        </td>
+                        <td className="py-1 sm:py-2 px-1 sm:px-4 text-right text-gray-700">
+                          <span className="hidden sm:inline">{formatCurrency(day.transactionValue)}</span>
+                          <span className="sm:hidden">${(day.transactionValue/1000).toFixed(0)}k</span>
+                        </td>
+                        <td className="py-1 sm:py-2 px-1 sm:px-4 text-right text-gray-700">
+                          <span className="hidden sm:inline">{formatCurrency(day.netDepositBh)}</span>
+                          <span className="sm:hidden">${(day.netDepositBh/1000).toFixed(0)}k</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -424,10 +460,10 @@ export default function Tddf1MonthlyView() {
         </>
       ) : (
         <Card>
-          <CardContent className="py-8">
+          <CardContent className="py-6 sm:py-8">
             <div className="text-center text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No data available for {format(currentMonth, 'MMMM yyyy')}</p>
+              <Calendar className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-sm sm:text-base">No data available for {format(currentMonth, 'MMMM yyyy')}</p>
             </div>
           </CardContent>
         </Card>
