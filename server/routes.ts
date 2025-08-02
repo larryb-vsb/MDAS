@@ -13458,8 +13458,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear all TDDF precache tables to ensure consistent state
       console.log('[TDDF-JSON-CLEAR] Clearing all TDDF precache tables...');
       
-      // Get ALL tables with TDDF in the name dynamically
-      console.log('[TDDF-JSON-CLEAR] Discovering all TDDF-related tables...');
+      // Get ALL tables with TDDF in the name dynamically (including TDDF1 tables)
+      console.log('[TDDF-JSON-CLEAR] Discovering all TDDF-related tables including TDDF1...');
       const allTablesResult = await pool.query(`
         SELECT table_name 
         FROM information_schema.tables 
@@ -13471,6 +13471,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const discoveredTables = allTablesResult.rows.map(row => row.table_name);
       console.log(`[TDDF-JSON-CLEAR] Found ${discoveredTables.length} TDDF-related tables:`, discoveredTables);
+      
+      // Specifically find and log TDDF1 tables
+      const tddf1Tables = discoveredTables.filter(table => table.includes('tddf1'));
+      if (tddf1Tables.length > 0) {
+        console.log(`[TDDF-JSON-CLEAR] Found ${tddf1Tables.length} TDDF1 tables to clear:`, tddf1Tables);
+      }
       
       // Also include known cache tables that might not have "tddf" but are related
       const additionalCacheTables = [
@@ -13526,7 +13532,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordsDeleted: recordsToDelete,
         precacheTablesCleared: precacheTablesCleared,
         tableName: tableName,
-        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables`,
+        tddf1TablesFound: tddf1Tables.length,
+        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables (including ${tddf1Tables.length} TDDF1 tables)`,
         newDataFlagSet: true
       });
       
