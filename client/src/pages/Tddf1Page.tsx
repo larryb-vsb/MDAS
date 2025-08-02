@@ -78,7 +78,6 @@ interface Tddf1EncodingProgress {
 function Tddf1Page() {
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -101,7 +100,6 @@ function Tddf1Page() {
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const selectedMonthStr = format(selectedDate, 'yyyy-MM');
 
   // API Queries with enhanced refresh options
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<Tddf1Stats>({
@@ -116,16 +114,7 @@ function Tddf1Page() {
     queryFn: () => {
       return fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json());
     },
-    enabled: !!selectedDateStr && viewMode === 'day',
-  });
-
-  // Monthly data query
-  const { data: monthlyData, isLoading: monthlyLoading, refetch: refetchMonthlyData } = useQuery({
-    queryKey: ['/api/tddf1/monthly-totals', selectedMonthStr],
-    queryFn: () => {
-      return fetch(`/api/tddf1/monthly-totals?month=${selectedMonthStr}`).then(res => res.json());
-    },
-    enabled: !!selectedMonthStr && viewMode === 'month',
+    enabled: !!selectedDateStr,
   });
 
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
@@ -144,14 +133,6 @@ function Tddf1Page() {
   const navigateToToday = () => setSelectedDate(new Date());
   const navigateToPreviousDay = () => setSelectedDate(prev => subDays(prev, 1));
   const navigateToNextDay = () => setSelectedDate(prev => addDays(prev, 1));
-  
-  // Month navigation functions
-  const navigateToPreviousMonth = () => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  const navigateToNextMonth = () => setSelectedDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  const navigateToThisMonth = () => {
-    const now = new Date();
-    setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
-  };
 
   // Totals cache rebuild mutation
   const rebuildCacheMutation = useMutation({
@@ -166,7 +147,6 @@ function Tddf1Page() {
       // Refresh all queries to get fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/tddf1/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tddf1/day-breakdown'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/tddf1/monthly-totals'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tddf1/recent-activity'] });
     },
     onError: (error: any) => {
@@ -434,204 +414,122 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Date Selector with View Mode Toggle */}
+        {/* Streamlined Date Selector */}
         <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader>
             <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
               <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 <CalendarIcon className="h-5 w-5" />
-                {viewMode === 'day' ? 'Date Selection' : 'Month Selection'}
+                Date Selection
               </CardTitle>
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                <Button 
-                  size="sm" 
-                  variant={viewMode === 'day' ? 'default' : 'ghost'}
-                  onClick={() => setViewMode('day')}
-                  className="text-xs"
-                >
-                  Daily
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant={viewMode === 'month' ? 'default' : 'ghost'}
-                  onClick={() => setViewMode('month')}
-                  className="text-xs"
-                >
-                  Monthly
-                </Button>
-              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-center mb-4">
               <div className={`text-lg sm:text-xl font-semibold mb-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                {viewMode === 'day' ? (
-                  <>
-                    <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-                    <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="hidden sm:inline">{format(selectedDate, 'MMMM yyyy')}</span>
-                    <span className="sm:hidden">{format(selectedDate, 'MMM yyyy')}</span>
-                  </>
-                )}
+                <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+                <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
               </div>
               <div className={`text-sm mb-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {viewMode === 'day' && dayBreakdown ? (
+                {dayBreakdown ? (
                   <>
                     <span className="hidden sm:inline">{(dayBreakdown.totalRecords || 0).toLocaleString()} records • {dayBreakdown.fileCount || 0} files</span>
                     <span className="sm:hidden">{((dayBreakdown.totalRecords || 0)/1000).toFixed(0)}k records • {dayBreakdown.fileCount || 0} files</span>
-                  </>
-                ) : viewMode === 'month' && monthlyData ? (
-                  <>
-                    <span className="hidden sm:inline">{(monthlyData.totalRecords || 0).toLocaleString()} records • {monthlyData.totalFiles || 0} files</span>
-                    <span className="sm:hidden">{((monthlyData.totalRecords || 0)/1000).toFixed(0)}k records • {monthlyData.totalFiles || 0} files</span>
                   </>
                 ) : 'No data'}
               </div>
             </div>
             
             <div className="flex items-center justify-center gap-2">
-              {viewMode === 'day' ? (
-                <>
+              <Button
+                variant="outline"
+                onClick={navigateToPreviousDay}
+                className="flex items-center gap-1"
+                size="sm"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </Button>
+              
+              <Popover>
+                <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    onClick={navigateToPreviousDay}
-                    className="flex items-center gap-1"
-                    size="sm"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-1 min-w-[100px] justify-center"
-                        size="sm"
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">Select Date</span>
-                        <span className="sm:hidden">Date</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="center">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setSelectedDate(date);
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  
-                  <Button
-                    onClick={navigateToToday}
-                    variant={isToday(selectedDate) ? "default" : "outline"}
-                    className="flex items-center gap-1"
+                    className="flex items-center gap-1 min-w-[100px] justify-center"
                     size="sm"
                   >
                     <CalendarIcon className="h-4 w-4" />
-                    Today
+                    <span className="hidden sm:inline">Select Date</span>
+                    <span className="sm:hidden">Date</span>
                   </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={navigateToNextDay}
-                    className="flex items-center gap-1"
-                    size="sm"
-                  >
-                    <span className="hidden sm:inline">Next</span>
-                    <span className="sm:hidden">Next</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={navigateToPreviousMonth}
-                    className="flex items-center gap-1"
-                    size="sm"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    <span className="hidden sm:inline">Previous Month</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-                  
-                  <Button
-                    onClick={navigateToThisMonth}
-                    variant={format(selectedDate, 'yyyy-MM') === format(new Date(), 'yyyy-MM') ? "default" : "outline"}
-                    className="flex items-center gap-1"
-                    size="sm"
-                  >
-                    <CalendarIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">This Month</span>
-                    <span className="sm:hidden">Current</span>
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={navigateToNextMonth}
-                    className="flex items-center gap-1"
-                    size="sm"
-                  >
-                    <span className="hidden sm:inline">Next Month</span>
-                    <span className="sm:hidden">Next</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedDate(date);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Button
+                onClick={navigateToToday}
+                variant={isToday(selectedDate) ? "default" : "outline"}
+                className="flex items-center gap-1"
+                size="sm"
+              >
+                <CalendarIcon className="h-4 w-4" />
+                Today
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={navigateToNextDay}
+                className="flex items-center gap-1"
+                size="sm"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Mobile-Optimized Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Mobile-Optimized Breakdown Widget - Day or Month */}
+          {/* Mobile-Optimized Day Breakdown Widget */}
           <Card className={`lg:col-span-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader>
               <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
                 <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                   <BarChart3 className="h-5 w-5" />
-                  {viewMode === 'day' ? (
-                    <>
-                      <span className="hidden sm:inline">Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}</span>
-                      <span className="sm:hidden">Daily - {format(selectedDate, 'MMM d')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">Monthly Breakdown - {format(selectedDate, 'MMMM yyyy')}</span>
-                      <span className="sm:hidden">Monthly - {format(selectedDate, 'MMM yyyy')}</span>
-                    </>
-                  )}
+                  <span className="hidden sm:inline">Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}</span>
+                  <span className="sm:hidden">Daily - {format(selectedDate, 'MMM d')}</span>
                 </CardTitle>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => viewMode === 'day' ? refetchDayBreakdown() : refetchMonthlyData()}
-                  disabled={viewMode === 'day' ? dayLoading : monthlyLoading}
+                  onClick={() => refetchDayBreakdown()}
+                  disabled={dayLoading}
                   className="flex items-center gap-1 sm:gap-2"
                 >
-                  <RefreshCw className={`h-4 w-4 ${(viewMode === 'day' ? dayLoading : monthlyLoading) ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh {viewMode === 'day' ? 'Day' : 'Month'}</span>
+                  <RefreshCw className={`h-4 w-4 ${dayLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh Day</span>
                   <span className="sm:hidden">Refresh</span>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {(viewMode === 'day' && dayLoading) || (viewMode === 'month' && monthlyLoading) ? (
-                <div className="text-center py-8 text-gray-500">
-                  Loading {viewMode === 'day' ? 'day' : 'month'} data...
-                </div>
-              ) : viewMode === 'day' && dayBreakdown ? (
+              {dayLoading ? (
+                <div className="text-center py-8 text-gray-500">Loading day data...</div>
+              ) : dayBreakdown ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div className="text-center p-3 sm:p-0">
@@ -798,96 +696,9 @@ function Tddf1Page() {
                     </div>
                   )}
                 </div>
-              ) : viewMode === 'month' && monthlyData ? (
-                <div className="space-y-4">
-                  {/* Monthly Overview Stats */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div className="text-center p-3 sm:p-0">
-                      <div className="text-2xl sm:text-xl font-bold text-blue-600">
-                        <span className="hidden sm:inline">{(monthlyData.totalRecords || 0).toLocaleString()}</span>
-                        <span className="sm:hidden">{((monthlyData.totalRecords || 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className="text-sm text-gray-600">Total Records</div>
-                    </div>
-                    <div className="text-center p-3 sm:p-0">
-                      <div className="text-2xl sm:text-xl font-bold text-green-600">{monthlyData.totalFiles || 0}</div>
-                      <div className="text-sm text-gray-600">Total Files</div>
-                    </div>
-                    <div className="text-center p-3 sm:p-0">
-                      <div className="text-xl sm:text-xl font-bold text-purple-600">
-                        <span className="hidden sm:inline">${(monthlyData.totalTransactionValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        <span className="sm:hidden">${((monthlyData.totalTransactionValue || 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className="text-sm text-gray-600">Transaction Value</div>
-                    </div>
-                    <div className="text-center p-3 sm:p-0">
-                      <div className="text-xl sm:text-xl font-bold text-orange-600">
-                        <span className="hidden sm:inline">${(monthlyData.totalNetDepositBh || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        <span className="sm:hidden">${((monthlyData.totalNetDepositBh || 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className="text-sm text-gray-600">Net Deposit (BH)</div>
-                    </div>
-                  </div>
-
-                  {/* Monthly Record Type Breakdown */}
-                  {monthlyData.recordTypeBreakdown && Object.keys(monthlyData.recordTypeBreakdown).length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-3 text-sm sm:text-base">Record Types for {format(selectedDate, 'MMMM yyyy')}</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                        {Object.entries(monthlyData.recordTypeBreakdown).map(([type, count]) => (
-                          <div key={type} className="rounded-lg p-3 border bg-gray-50">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="text-sm font-bold">{type}</span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-lg font-bold text-blue-600">{(count as number).toLocaleString()}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Daily Breakdown Chart for Month */}
-                  {monthlyData.dailyBreakdown && monthlyData.dailyBreakdown.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-3 text-sm sm:text-base">Daily Activity in {format(selectedDate, 'MMMM yyyy')}</h4>
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {monthlyData.dailyBreakdown.map((day: any) => (
-                          <div key={day.date} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                            <div className="flex items-center gap-3">
-                              <div className="text-sm font-medium">
-                                {format(new Date(day.date), 'MMM d')}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {format(new Date(day.date), 'EEEE')}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <div className="text-center">
-                                <div className="text-blue-600 font-medium">{day.files}</div>
-                                <div className="text-xs text-gray-500">files</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-green-600 font-medium">{(day.records || 0).toLocaleString()}</div>
-                                <div className="text-xs text-gray-500">records</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-purple-600 font-medium">${(day.transactionValue || 0).toLocaleString()}</div>
-                                <div className="text-xs text-gray-500">value</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
               ) : (
                 <div className={`text-center py-8 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  No data available for {viewMode === 'day' ? format(selectedDate, 'MMM d, yyyy') : format(selectedDate, 'MMMM yyyy')}
+                  No data available for {format(selectedDate, 'MMM d, yyyy')}
                 </div>
               )}
             </CardContent>
