@@ -534,8 +534,8 @@ function Tddf1Page() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-2xl sm:text-xl font-bold text-blue-600">
-                        <span className="hidden sm:inline">{dayBreakdown.totalRecords.toLocaleString()}</span>
-                        <span className="sm:hidden">{(dayBreakdown.totalRecords/1000).toFixed(0)}k</span>
+                        <span className="hidden sm:inline">{(dayBreakdown.totalRecords ?? 0).toLocaleString()}</span>
+                        <span className="sm:hidden">{((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className="text-sm text-gray-600">Records Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
@@ -546,7 +546,7 @@ function Tddf1Page() {
                       )}
                     </div>
                     <div className="text-center p-3 sm:p-0">
-                      <div className="text-2xl sm:text-xl font-bold text-green-600">{dayBreakdown.fileCount}</div>
+                      <div className="text-2xl sm:text-xl font-bold text-green-600">{dayBreakdown.fileCount ?? 0}</div>
                       <div className="text-sm text-gray-600">Files Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
@@ -556,13 +556,13 @@ function Tddf1Page() {
                     </div>
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-xl sm:text-xl font-bold text-purple-600">
-                        <span className="hidden sm:inline">${dayBreakdown.transactionValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        <span className="sm:hidden">${(dayBreakdown.transactionValue/1000).toFixed(0)}k</span>
+                        <span className="hidden sm:inline">${(dayBreakdown.transactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="sm:hidden">${((dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className="text-sm text-gray-600">Authorizations</div>
                     </div>
                     <div className="text-center p-3 sm:p-0">
-                      <div className="text-2xl sm:text-xl font-bold text-orange-600">{dayBreakdown.tables.length}</div>
+                      <div className="text-2xl sm:text-xl font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
                       <div className="text-sm text-gray-600">Active Tables</div>
                     </div>
                   </div>
@@ -587,15 +587,15 @@ function Tddf1Page() {
                         
                         const orderedTypes = Object.keys(recordTypeConfig);
                         return orderedTypes
-                          .filter(type => dayBreakdown.recordTypes[type])
+                          .filter(type => (dayBreakdown.recordTypes ?? {})[type])
                           .map(type => {
-                            const count = dayBreakdown.recordTypes[type];
+                            const count = (dayBreakdown.recordTypes ?? {})[type];
                             const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
                             // Special layout for BH records showing Net Deposit prominently
                             if (type === 'BH') {
-                              const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
+                              const netDepositAmount = (dayBreakdown.totalNetDepositBH ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
@@ -605,12 +605,12 @@ function Tddf1Page() {
                                       <div className="text-xs opacity-80">{config.description}</div>
                                     </div>
                                     <div className="text-sm font-medium text-blue-700">
-                                      {displayCount.toLocaleString()} records
+                                      {(displayCount ?? 0).toLocaleString()} records
                                     </div>
                                   </div>
                                   <div className="text-center">
                                     <div className="text-2xl font-bold text-blue-800">
-                                      ${netDepositAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      ${(netDepositAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </div>
                                     <div className="text-xs font-medium text-blue-600">Net Deposit Total</div>
                                   </div>
@@ -620,7 +620,7 @@ function Tddf1Page() {
                             
                             // Special layout for DT records showing Transaction Amount prominently
                             if (type === 'DT') {
-                              const transactionAmount = dayBreakdown.transactionValue || 0;
+                              const transactionAmount = (dayBreakdown.transactionValue ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
@@ -630,12 +630,12 @@ function Tddf1Page() {
                                       <div className="text-xs opacity-80">{config.description}</div>
                                     </div>
                                     <div className="text-sm font-medium text-green-700">
-                                      {displayCount.toLocaleString()} records
+                                      {(displayCount ?? 0).toLocaleString()} records
                                     </div>
                                   </div>
                                   <div className="text-center">
                                     <div className="text-2xl font-bold text-green-800">
-                                      ${transactionAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      ${(transactionAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </div>
                                     <div className="text-xs font-medium text-green-600">Authorizations Total</div>
                                   </div>
@@ -650,7 +650,7 @@ function Tddf1Page() {
                                   <span className="text-sm font-bold">{config.label}</span>
                                   <div className="text-xs opacity-80">{config.description}</div>
                                 </div>
-                                <div className="text-lg font-bold">{displayCount.toLocaleString()}</div>
+                                <div className="text-lg font-bold">{(displayCount ?? 0).toLocaleString()}</div>
                               </div>
                             );
                           });
@@ -661,7 +661,7 @@ function Tddf1Page() {
                   {/* Files Processed on This Day */}
                   {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                     <div>
-                      <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Files Processed ({dayBreakdown.filesProcessed.length})</h4>
+                      <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Files Processed ({(dayBreakdown.filesProcessed ?? []).length})</h4>
                       <div className="space-y-2">
                         {dayBreakdown.filesProcessed.map((file, index) => (
                           <div key={index} className={`rounded-lg p-3 border transition-colors ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
@@ -669,7 +669,7 @@ function Tddf1Page() {
                               <div className="flex-1">
                                 <div className={`font-medium transition-colors ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>{file.fileName}</div>
                                 <div className={`text-sm transition-colors ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                                  <span className="font-semibold">{file.recordCount.toLocaleString()} records processed</span>
+                                  <span className="font-semibold">{(file.recordCount ?? 0).toLocaleString()} records processed</span>
                                   {file.fileSize && ` • Size: ${file.fileSize}`}
                                   {file.processingTime && ` • Duration: ${file.processingTime}s`}
                                 </div>
@@ -685,11 +685,11 @@ function Tddf1Page() {
                   )}
 
                   {/* Active Tables (fallback) */}
-                  {(!dayBreakdown.filesProcessed || dayBreakdown.filesProcessed.length === 0) && dayBreakdown.tables.length > 0 && (
+                  {(!dayBreakdown.filesProcessed || dayBreakdown.filesProcessed.length === 0) && (dayBreakdown.tables ?? []).length > 0 && (
                     <div>
                       <h4 className={`font-semibold mb-3 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Active Tables</h4>
                       <div className="flex flex-wrap gap-2">
-                        {dayBreakdown.tables.map(table => (
+                        {(dayBreakdown.tables ?? []).map(table => (
                           <Badge key={table} variant="outline">{table}</Badge>
                         ))}
                       </div>
