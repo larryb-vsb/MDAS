@@ -16604,26 +16604,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      // Get all file-based TDDF tables (dev_tddf1_filename pattern)
+      const { getCurrentEnvironment } = await import("./table-config");
+      const currentEnv = getCurrentEnvironment();
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Check if pre-cache totals table exists
+      const totalsTableName = `${tablePrefix}totals`;
+      const totalsTableExists = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+            AND table_name = $1
+        )
+      `, [totalsTableName]);
+      
+      if (totalsTableExists.rows[0].exists) {
+        // Use pre-cached data from totals table
+        const totalsResult = await pool.query(`
+          SELECT 
+            total_files,
+            total_records,
+            total_transaction_value,
+            record_type_breakdown,
+            active_tables,
+            last_processed_date,
+            created_at
+          FROM ${totalsTableName}
+          ORDER BY created_at DESC
+          LIMIT 1
+        `);
+        
+        if (totalsResult.rows.length > 0) {
+          const row = totalsResult.rows[0];
+          console.log(`📊 Using cached TDDF1 stats from ${totalsTableName}`);
+          
+          res.json({
+            totalFiles: row.total_files || 0,
+            totalRecords: row.total_records || 0,
+            totalTransactionValue: parseFloat(row.total_transaction_value || '0'),
+            recordTypeBreakdown: row.record_type_breakdown || {},
+            activeTables: row.active_tables || [],
+            lastProcessedDate: row.last_processed_date,
+            cached: true,
+            cacheDate: row.created_at
+          });
+          return;
+        }
+      }
+      
+      // Fallback: Get all file-based TDDF tables dynamically
       const tablesResult = await pool.query(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-          AND table_name LIKE 'dev_tddf1_%'
-      `);
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name
+      `, [`${tablePrefix}%`, totalsTableName]);
       
       const activeTables = tablesResult.rows.map(row => row.table_name);
+      console.log(`📊 Found ${activeTables.length} TDDF1 tables (real-time)`);
       
-      // Since no TDDF1 tables exist yet, return empty data
-      console.log(`📊 Found ${activeTables.length} TDDF1 tables`);
+      // Calculate totals from individual tables
+      let totalRecords = 0;
+      let totalTransactionValue = 0;
+      const recordTypeBreakdown: Record<string, number> = {};
+      let lastProcessedDate: string | null = null;
+      
+      for (const tableName of activeTables) {
+        try {
+          const tableStatsResult = await pool.query(`
+            SELECT 
+              COUNT(*) as record_count,
+              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value,
+              record_type,
+              MAX(processed_at) as max_processed_at
+            FROM ${tableName}
+            GROUP BY record_type
+          `);
+          
+          for (const row of tableStatsResult.rows) {
+            totalRecords += parseInt(row.record_count);
+            totalTransactionValue += parseFloat(row.transaction_value || '0');
+            recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+            
+            if (row.max_processed_at && (!lastProcessedDate || row.max_processed_at > lastProcessedDate)) {
+              lastProcessedDate = row.max_processed_at;
+            }
+          }
+        } catch (tableError) {
+          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
+        }
+      }
       
       res.json({
         totalFiles: activeTables.length,
-        totalRecords: 0,
-        totalTransactionValue: 0,
-        recordTypeBreakdown: {},
+        totalRecords,
+        totalTransactionValue,
+        recordTypeBreakdown,
         activeTables,
-        lastProcessedDate: null
+        lastProcessedDate,
+        cached: false
       });
       
     } catch (error) {
@@ -16678,11 +16759,326 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📋 Getting TDDF1 recent activity");
       
-      res.json([]);
+      const { getCurrentEnvironment } = await import("./table-config");
+      const currentEnv = getCurrentEnvironment();
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Get all file-based TDDF tables and their last processing info
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name DESC
+        LIMIT 10
+      `, [`${tablePrefix}%`, `${tablePrefix}totals`]);
+      
+      const recentActivity = [];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const activityResult = await pool.query(`
+            SELECT 
+              '$2' as filename,
+              COUNT(*) as record_count,
+              MAX(processed_at) as processed_at,
+              'completed' as status,
+              '$2' as table_name
+            FROM ${tableRow.table_name}
+            GROUP BY 1, 4, 5
+          `, [tableRow.table_name, tableRow.table_name]);
+          
+          if (activityResult.rows.length > 0) {
+            const row = activityResult.rows[0];
+            recentActivity.push({
+              id: tableRow.table_name,
+              fileName: row.filename.replace(tablePrefix, ''),
+              recordCount: parseInt(row.record_count),
+              processedAt: row.processed_at,
+              status: row.status,
+              tableName: row.table_name
+            });
+          }
+        } catch (tableError) {
+          console.warn(`Failed to get activity for table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      res.json(recentActivity);
       
     } catch (error) {
       console.error("Error getting TDDF1 recent activity:", error);
       res.status(500).json([]);
+    }
+  });
+
+  // TDDF1 Rebuild Totals Cache - Manually trigger totals cache rebuild
+  app.post("/api/tddf1/rebuild-totals-cache", isAuthenticated, async (req, res) => {
+    try {
+      console.log("🔄 Rebuilding TDDF1 totals cache");
+      
+      const { getCurrentEnvironment } = await import("./table-config");
+      const currentEnv = getCurrentEnvironment();
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      const totalsTableName = `${tablePrefix}totals`;
+      
+      // Create totals table if it doesn't exist
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${totalsTableName} (
+          id SERIAL PRIMARY KEY,
+          total_files INTEGER NOT NULL DEFAULT 0,
+          total_records INTEGER NOT NULL DEFAULT 0,
+          total_transaction_value DECIMAL(12,2) NOT NULL DEFAULT 0,
+          record_type_breakdown JSONB NOT NULL DEFAULT '{}',
+          active_tables TEXT[] NOT NULL DEFAULT '{}',
+          last_processed_date TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Get all file-based TDDF tables
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name
+      `, [`${tablePrefix}%`, totalsTableName]);
+      
+      const activeTables = tablesResult.rows.map(row => row.table_name);
+      
+      // Calculate totals from all tables
+      let totalRecords = 0;
+      let totalTransactionValue = 0;
+      const recordTypeBreakdown: Record<string, number> = {};
+      let lastProcessedDate: string | null = null;
+      
+      for (const tableName of activeTables) {
+        try {
+          const tableStatsResult = await pool.query(`
+            SELECT 
+              COUNT(*) as record_count,
+              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value,
+              record_type,
+              MAX(processed_at) as max_processed_at
+            FROM ${tableName}
+            GROUP BY record_type
+          `);
+          
+          for (const row of tableStatsResult.rows) {
+            totalRecords += parseInt(row.record_count);
+            totalTransactionValue += parseFloat(row.transaction_value || '0');
+            recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+            
+            if (row.max_processed_at && (!lastProcessedDate || row.max_processed_at > lastProcessedDate)) {
+              lastProcessedDate = row.max_processed_at;
+            }
+          }
+        } catch (tableError) {
+          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
+        }
+      }
+      
+      // Clear existing cache and insert new totals
+      await pool.query(`DELETE FROM ${totalsTableName}`);
+      await pool.query(`
+        INSERT INTO ${totalsTableName} (
+          total_files, total_records, total_transaction_value,
+          record_type_breakdown, active_tables, last_processed_date
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        activeTables.length,
+        totalRecords,
+        totalTransactionValue,
+        JSON.stringify(recordTypeBreakdown),
+        activeTables,
+        lastProcessedDate
+      ]);
+      
+      console.log(`✅ TDDF1 totals cache rebuilt: ${activeTables.length} files, ${totalRecords} records`);
+      
+      res.json({
+        success: true,
+        message: "TDDF1 totals cache rebuilt successfully",
+        stats: {
+          totalFiles: activeTables.length,
+          totalRecords,
+          totalTransactionValue,
+          recordTypeBreakdown,
+          activeTables,
+          lastProcessedDate
+        }
+      });
+      
+    } catch (error) {
+      console.error("Error rebuilding TDDF1 totals cache:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to rebuild TDDF1 totals cache"
+      });
+    }
+  });
+
+  // TDDF1 File Processing - Process uploaded TDDF file into dynamic table
+  app.post("/api/tddf1/process-file", isAuthenticated, async (req, res) => {
+    try {
+      const { filename, fileContent } = req.body;
+      
+      if (!filename || !fileContent) {
+        return res.status(400).json({ error: "Filename and file content are required" });
+      }
+      
+      console.log(`🔄 Processing TDDF1 file: ${filename}`);
+      
+      const { getCurrentEnvironment } = await import("./table-config");
+      const currentEnv = getCurrentEnvironment();
+      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      
+      // Sanitize filename for table name (remove extension, special chars)
+      const sanitizedFilename = filename
+        .replace(/\.[^/.]+$/, '') // Remove extension
+        .replace(/[^a-zA-Z0-9_]/g, '_') // Replace special chars with underscores
+        .toLowerCase();
+      
+      const tableName = `${tablePrefix}${sanitizedFilename}`;
+      
+      // Create table for this specific file
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${tableName} (
+          id SERIAL PRIMARY KEY,
+          record_type VARCHAR(10) NOT NULL,
+          raw_line TEXT NOT NULL,
+          record_sequence INTEGER,
+          field_data JSONB,
+          transaction_amount DECIMAL(12,2),
+          merchant_id VARCHAR(50),
+          terminal_id VARCHAR(50),
+          batch_id VARCHAR(50),
+          transaction_date DATE,
+          processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          source_filename VARCHAR(255) DEFAULT '${filename}',
+          line_number INTEGER
+        )
+      `);
+      
+      // Create indexes for performance
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_${sanitizedFilename}_record_type ON ${tableName}(record_type);
+        CREATE INDEX IF NOT EXISTS idx_${sanitizedFilename}_transaction_date ON ${tableName}(transaction_date);
+        CREATE INDEX IF NOT EXISTS idx_${sanitizedFilename}_merchant_id ON ${tableName}(merchant_id);
+        CREATE INDEX IF NOT EXISTS idx_${sanitizedFilename}_processed_at ON ${tableName}(processed_at);
+      `);
+      
+      // Process file content line by line
+      const lines = fileContent.split('\n').filter((line: string) => line.trim());
+      let processedRecords = 0;
+      let errorCount = 0;
+      const recordTypes: Record<string, number> = {};
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        try {
+          // Extract record type (first 2-3 characters)
+          const recordType = line.substring(0, 2);
+          recordTypes[recordType] = (recordTypes[recordType] || 0) + 1;
+          
+          // Basic field extraction - can be enhanced based on TDDF spec
+          let transactionAmount = null;
+          let merchantId = null;
+          let terminalId = null;
+          let transactionDate = null;
+          
+          // DT (Detail Transaction) record processing
+          if (recordType === 'DT') {
+            // Extract amount from positions 22-33 (12 digits, last 2 are cents)
+            const amountStr = line.substring(21, 33);
+            if (amountStr && /^\d+$/.test(amountStr)) {
+              transactionAmount = parseFloat(amountStr) / 100;
+            }
+            
+            // Extract merchant ID from positions 2-17
+            merchantId = line.substring(1, 17).trim();
+            
+            // Extract terminal ID from positions 17-21
+            terminalId = line.substring(16, 21).trim();
+            
+            // Extract transaction date from positions 33-41 (YYYYMMDD)
+            const dateStr = line.substring(32, 40);
+            if (dateStr && /^\d{8}$/.test(dateStr)) {
+              const year = dateStr.substring(0, 4);
+              const month = dateStr.substring(4, 6);
+              const day = dateStr.substring(6, 8);
+              transactionDate = `${year}-${month}-${day}`;
+            }
+          }
+          
+          // Insert record into table
+          await pool.query(`
+            INSERT INTO ${tableName} (
+              record_type, raw_line, record_sequence, line_number,
+              transaction_amount, merchant_id, terminal_id, transaction_date,
+              field_data
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `, [
+            recordType,
+            line,
+            i + 1,
+            i + 1,
+            transactionAmount,
+            merchantId,
+            terminalId,
+            transactionDate,
+            JSON.stringify({ recordType, lineLength: line.length })
+          ]);
+          
+          processedRecords++;
+          
+        } catch (lineError) {
+          console.warn(`Error processing line ${i + 1} in ${filename}:`, lineError);
+          errorCount++;
+        }
+      }
+      
+      console.log(`✅ TDDF1 file processed: ${filename} -> ${tableName}`);
+      console.log(`📊 Records: ${processedRecords}, Errors: ${errorCount}, Types: ${JSON.stringify(recordTypes)}`);
+      
+      // Update totals cache after processing
+      try {
+        const totalsTableName = `${tablePrefix}totals`;
+        const rebuildResponse = await fetch(`${req.protocol}://${req.get('host')}/api/tddf1/rebuild-totals-cache`, {
+          method: 'POST',
+          headers: {
+            'Authorization': req.headers.authorization || '',
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log(`🔄 Totals cache rebuild triggered: ${rebuildResponse.status}`);
+      } catch (cacheError) {
+        console.warn('Failed to trigger totals cache rebuild:', cacheError);
+      }
+      
+      res.json({
+        success: true,
+        message: `TDDF1 file processed successfully`,
+        tableName,
+        stats: {
+          filename,
+          processedRecords,
+          errorCount,
+          recordTypes,
+          linesTotal: lines.length
+        }
+      });
+      
+    } catch (error) {
+      console.error("Error processing TDDF1 file:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to process TDDF1 file"
+      });
     }
   });
 

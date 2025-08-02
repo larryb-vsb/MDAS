@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 
 interface Tddf1Stats {
@@ -38,6 +40,8 @@ interface Tddf1RecentActivity {
 function Tddf1Page() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -60,6 +64,28 @@ function Tddf1Page() {
   const navigateToToday = () => setSelectedDate(new Date());
   const navigateToPreviousDay = () => setSelectedDate(prev => subDays(prev, 1));
   const navigateToNextDay = () => setSelectedDate(prev => addDays(prev, 1));
+
+  // Totals cache rebuild mutation
+  const rebuildCacheMutation = useMutation({
+    mutationFn: () => apiRequest('/api/tddf1/rebuild-totals-cache', {
+      method: 'POST',
+    }),
+    onSuccess: () => {
+      toast({
+        title: "Cache Rebuilt",
+        description: "TDDF1 totals cache has been successfully rebuilt",
+      });
+      // Refresh the stats query
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf1/stats'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cache Rebuild Failed",
+        description: error.message || "Failed to rebuild TDDF1 totals cache",
+        variant: "destructive",
+      });
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -137,6 +163,59 @@ function Tddf1Page() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pre-Cache Totals Widget */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Pre-Cache Totals Management
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => rebuildCacheMutation.mutate()}
+                  disabled={rebuildCacheMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                  Rebuild Cache
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {stats?.cached ? 'Cached' : 'Real-time'}
+                </div>
+                <div className="text-sm text-gray-500">Data Source</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {stats?.activeTables?.length || 0}
+                </div>
+                <div className="text-sm text-gray-500">Active Tables</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
+                  {stats?.lastProcessedDate ? format(new Date(stats.lastProcessedDate), 'MMM dd, yyyy') : 'Never'}
+                </div>
+                <div className="text-sm text-gray-500">Last Processed</div>
+              </div>
+            </div>
+            {rebuildCacheMutation.isPending && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                <div className="text-sm text-blue-800">
+                  Rebuilding TDDF1 totals cache... This may take a few moments.
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Day Navigation */}
         <Card>
