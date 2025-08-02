@@ -523,6 +523,31 @@ function Tddf1Page() {
                               );
                             }
                             
+                            // Special layout for DT records showing Transaction Amount prominently
+                            if (type === 'DT') {
+                              const transactionAmount = dayBreakdown.transactionValue || 0;
+                              
+                              return (
+                                <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <span className="text-sm font-bold">{config.label}</span>
+                                      <div className="text-xs opacity-80">{config.description}</div>
+                                    </div>
+                                    <div className="text-sm font-medium text-green-700">
+                                      {displayCount.toLocaleString()} records
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-green-800">
+                                      ${transactionAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <div className="text-xs font-medium text-green-600">Transaction Amount Total</div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
                             // Standard layout for other record types
                             return (
                               <div key={type} className={`flex items-center justify-between rounded-lg p-3 border ${config.color}`}>
