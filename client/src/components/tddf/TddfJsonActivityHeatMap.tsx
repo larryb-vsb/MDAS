@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, X, RefreshCw, Clock, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, RefreshCw, Clock, Shield, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -431,10 +431,16 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     setCurrentMonthOffset(optimalMonthOffset);
   }, [optimalMonthOffset]);
 
-  // Get current 3-month window
+  // Get current month window - respects month range filtering
   const currentThreeMonths = useMemo(() => {
-    return monthlyData.slice(currentMonthOffset, currentMonthOffset + 3);
-  }, [monthlyData, currentMonthOffset]);
+    if (monthRange) {
+      // When month range is provided, show all months in that range (ignore 3-month offset)
+      return monthlyData;
+    } else {
+      // Default 3-month window behavior
+      return monthlyData.slice(currentMonthOffset, currentMonthOffset + 3);
+    }
+  }, [monthlyData, currentMonthOffset, monthRange]);
 
   // Calculate stats with enhanced metadata support
   const totalDays = activityResponse?.records?.length || 0;
@@ -769,17 +775,25 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
           </div>
         )}
         
-        {/* Month labels for 3-month view - only show if there's data */}
-        {(!activityResponse?.records || activityResponse.records.length > 0) && (
-          <div className="grid grid-cols-3 gap-6 text-sm text-gray-700 font-medium">
+        {/* Month labels - responsive grid based on number of months */}
+        {(!activityResponse?.records || activityResponse.records.length > 0) && currentThreeMonths.length > 0 && (
+          <div className={`grid gap-6 text-sm text-gray-700 font-medium ${
+            currentThreeMonths.length === 1 ? 'grid-cols-1' : 
+            currentThreeMonths.length === 2 ? 'grid-cols-2' : 
+            'grid-cols-3'
+          }`}>
             {currentThreeMonths.map((month, index) => (
               <div key={index} className="text-center bg-gray-100 py-2 rounded">{month.fullName}</div>
             ))}
           </div>
         )}
         
-        {/* Days grid for 3-month view */}
-        <div className="grid grid-cols-3 gap-6">
+        {/* Days grid - responsive based on number of months */}
+        <div className={`grid gap-6 ${
+          currentThreeMonths.length === 1 ? 'grid-cols-1' : 
+          currentThreeMonths.length === 2 ? 'grid-cols-2' : 
+          'grid-cols-3'
+        }`}>
           {currentThreeMonths.map((month, monthIndex) => (
             <div key={monthIndex} className="space-y-1">
               {/* Week headers */}
