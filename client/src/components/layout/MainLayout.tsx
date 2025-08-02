@@ -550,6 +550,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     (item.href !== "/" && location.startsWith(item.href + "/"))
                   ) : false
                 }
+                onClick={() => {
+                  // Desktop navigation click handler
+                  console.log('Desktop nav item clicked:', item.label);
+                }}
                 submenu={item.submenu}
                 isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
                 onToggle={item.label === "Legacy" ? () => setLegacyExpanded(!legacyExpanded) : undefined}

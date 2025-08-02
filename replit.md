@@ -9,7 +9,7 @@ Timezone: CST (America/Chicago) - All dates and times should display in Central 
 Critical System Requirement: "Never re-fresh" policy - all auto-refresh functionality permanently disabled and verified working.
 
 ## Known Critical Issues
-**Sidebar Menu Disappearing Bug**: When adding new pages, the mobile sidebar menu disappears after clicking. This is caused by missing `onClick={() => setOpen(false)}` in the mobile navigation NavItem components. The fix is documented in `client/src/components/layout/MainLayout.tsx` with comprehensive comments and examples. ALWAYS test mobile navigation after adding new pages.
+**Sidebar Menu Disappearing Bug (RESOLVED 2025-08-02)**: Fixed critical navigation issue affecting both mobile and desktop sidebar menus. Root cause was missing onClick handlers in desktop navigation and Radix Dialog auto-close behavior in mobile navigation. Solution implemented comprehensive click handling for both mobile Sheet navigation and desktop sidebar navigation with proper event management to prevent unwanted automatic closure. Both mobile and desktop navigation now work correctly with proper debugging and state management.
 
 **Production TDDF Processing Fixed (2025-08-01)**: Resolved critical production database schema issue where TDDF files failed encoding with "error" phase. Missing production tables (tddf_records_json, tddf_transactions, tddf_purchasing_cards, tddf_purchasing_cards_2) were created from development templates. File phase reset and type classification fixes implemented. Production TDDF processing now matches development environment capabilities.
 
