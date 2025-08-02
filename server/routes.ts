@@ -17297,6 +17297,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const envPrefix = isDevelopment ? 'dev_' : '';
       const tablePrefix = `${envPrefix}tddf1_`;
       
+      console.log(`📋 Environment: ${environment}, Using TDDF1 tables with prefix: ${tablePrefix}`);
+      
       // Get all file-based TDDF tables and their last processing info
       const tablesResult = await pool.query(`
         SELECT table_name 

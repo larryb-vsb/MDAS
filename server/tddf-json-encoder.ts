@@ -866,8 +866,13 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
   console.log(`[TDDF1-ENCODER] Extracted from ${upload.filename}:`, tddfDatetime);
   
-  // Use standard naming convention - no environment prefixes (like merchants, transactions, uploaded_files)
-  const tablePrefix = 'tddf1_file_';
+  // Environment-aware table naming
+  const environment = process.env.NODE_ENV || 'development';
+  const isDevelopment = environment === 'development';
+  const envPrefix = isDevelopment ? 'dev_' : '';
+  const tablePrefix = `${envPrefix}tddf1_file_`;
+  
+  console.log(`[TDDF1-ENCODER] Environment: ${environment}, Using table prefix: ${tablePrefix}`);
   
   // Sanitize filename for table name (remove special characters, keep only alphanumeric and underscores)
   const sanitizedFilename = upload.filename
@@ -1084,7 +1089,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   // Update TDDF1 totals cache for daily breakdown widget
   try {
     console.log(`[TDDF1-ENCODER] Updating totals cache for daily breakdown`);
-    const totalsTableName = 'tddf1_totals';
+    // Use same environment-aware naming as the file tables
+    const totalsTableName = `${envPrefix}tddf1_totals`;
+    console.log(`[TDDF1-ENCODER] Using totals table: ${totalsTableName}`);
     
     // Calculate total transaction value from DT records
     const totalTransactionValue = Object.entries(results.recordCounts.byType)

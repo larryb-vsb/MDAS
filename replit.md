@@ -5,6 +5,8 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **DEPLOYMENT-READY STATUS (2025-08-02)**: System successfully implements complete TDDF data clearing functionality with robust error handling. Clear TDDF button now properly removes all TDDF data (both TDDF JSON and TDDF1 systems) and gracefully handles empty states without crashes. All client-side null-safety issues resolved. Active TDDF processing pipeline verified working with multi-file batch processing capabilities.
 
+**ENVIRONMENT-AWARE TDDF1 SYSTEM (2025-08-02)**: Fixed critical environment separation issues for TDDF1 file processing. All TDDF1 endpoints (stats, rebuild-totals-cache, day-breakdown, recent-activity) now properly detect NODE_ENV and use appropriate table prefixes: 'dev_tddf1_' for development, 'tddf1_' for production. TDDF encoder updated to create environment-specific file tables and totals tables. "Rebuild TDDF1 Totals Cache" button now works correctly in both development and production environments.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
