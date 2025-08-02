@@ -47,6 +47,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -55,7 +61,7 @@ import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Pencil, Plus, Trash2, Key, Loader2, Users, RefreshCw } from "lucide-react";
+import { Pencil, Plus, Trash2, Key, Loader2, Users, RefreshCw, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 
 // Types for user data
@@ -319,6 +325,66 @@ export default function UserManagement() {
     deleteUserMutation.mutate(selectedUser.id);
   };
 
+  // Mutation to update user dashboard preference directly from table
+  const updateDashboardMutation = useMutation({
+    mutationFn: async ({ userId, dashboard }: { userId: number; dashboard: string }) => {
+      const user = users?.find(u => u.id === userId);
+      if (!user) throw new Error('User not found');
+      
+      return apiRequest(`/api/users/${userId}`, {
+        method: 'PUT',
+        body: {
+          ...user,
+          defaultDashboard: dashboard
+        }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Dashboard updated",
+        description: "User dashboard preference has been updated successfully.",
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update dashboard preference",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Mutation to update user theme preference directly from table
+  const updateThemeMutation = useMutation({
+    mutationFn: async ({ userId, theme }: { userId: number; theme: string }) => {
+      const user = users?.find(u => u.id === userId);
+      if (!user) throw new Error('User not found');
+      
+      return apiRequest(`/api/users/${userId}`, {
+        method: 'PUT',
+        body: {
+          ...user,
+          themePreference: theme
+        }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Theme updated",
+        description: "User theme preference has been updated successfully.",
+      });
+      refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update theme preference",
+        variant: "destructive",
+      });
+    }
+  });
+
   const openEditDialog = (user: User) => {
     setSelectedUser(user);
     editForm.reset({
@@ -465,14 +531,74 @@ export default function UserManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {user.defaultDashboard === "monthly" ? "MMS Monthly" : "Main Dashboard"}
-                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            disabled={updateDashboardMutation.isPending}
+                          >
+                            {user.defaultDashboard === "monthly" ? "MMS Monthly" : "Main Dashboard"}
+                            <ChevronDown className="ml-1 h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem 
+                            onClick={() => updateDashboardMutation.mutate({ 
+                              userId: user.id, 
+                              dashboard: "main" 
+                            })}
+                            disabled={user.defaultDashboard === "main"}
+                          >
+                            Main Dashboard
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => updateDashboardMutation.mutate({ 
+                              userId: user.id, 
+                              dashboard: "monthly" 
+                            })}
+                            disabled={user.defaultDashboard === "monthly"}
+                          >
+                            MMS Monthly
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {user.themePreference === "dark" ? "Dark Mode" : "Light Mode"}
-                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            disabled={updateThemeMutation.isPending}
+                          >
+                            {user.themePreference === "dark" ? "Dark Mode" : "Light Mode"}
+                            <ChevronDown className="ml-1 h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem 
+                            onClick={() => updateThemeMutation.mutate({ 
+                              userId: user.id, 
+                              theme: "light" 
+                            })}
+                            disabled={user.themePreference === "light"}
+                          >
+                            Light Mode
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => updateThemeMutation.mutate({ 
+                              userId: user.id, 
+                              theme: "dark" 
+                            })}
+                            disabled={user.themePreference === "dark"}
+                          >
+                            Dark Mode
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                     <TableCell>{formatDate(user.lastLogin)}</TableCell>
                     <TableCell className="text-right">

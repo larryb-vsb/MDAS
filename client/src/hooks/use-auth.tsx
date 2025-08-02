@@ -14,6 +14,8 @@ type User = {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  defaultDashboard: string;
+  themePreference: string;
   createdAt: string;
   lastLogin: string | null;
 };

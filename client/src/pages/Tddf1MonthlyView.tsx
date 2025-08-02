@@ -313,46 +313,7 @@ ${monthlyData.dailyBreakdown.map(day =>
             </Card>
           </div>
 
-          {/* Primary Record Types - Financial Focus */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center text-base sm:text-lg">
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                <span className="hidden sm:inline">Primary Financial Record Types</span>
-                <span className="sm:hidden">Primary Records</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                {Object.entries(monthlyData.recordTypeBreakdown)
-                  .filter(([type]) => ['BH', 'DT'].includes(type))
-                  .map(([type, count]) => {
-                    const colors = {
-                      'BH': isDarkMode ? 'bg-blue-900 text-blue-100 border-blue-700' : 'bg-blue-100 text-blue-800 border-blue-200',
-                      'DT': isDarkMode ? 'bg-green-900 text-green-100 border-green-700' : 'bg-green-100 text-green-800 border-green-200'
-                    };
-                    
-                    const descriptions = {
-                      'BH': 'Batch Headers',
-                      'DT': 'Detail Transactions'
-                    };
-                    
-                    return (
-                      <div key={type} className="text-center">
-                        <Badge 
-                          variant="outline" 
-                          className={`${colors[type as keyof typeof colors]} w-full justify-center py-2 sm:py-3 text-sm sm:text-base font-semibold mb-2`}
-                        >
-                          {type}
-                        </Badge>
-                        <p className="text-lg sm:text-xl font-bold">{formatNumber(count)}</p>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{descriptions[type as keyof typeof descriptions]}</p>
-                      </div>
-                    );
-                  })}
-              </div>
-            </CardContent>
-          </Card>
+
 
           {/* Monthly Comparison Chart - Mobile Optimized */}
           <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>
