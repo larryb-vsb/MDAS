@@ -313,10 +313,20 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     });
   }
 
-  // Generate calendar data for the current year
+  // Generate calendar data - filtered by month range if provided
   const calendarData = useMemo(() => {
-    const startDate = new Date(currentYear, 0, 1);
-    const endDate = new Date(currentYear, 11, 31);
+    let startDate: Date, endDate: Date;
+    
+    if (monthRange) {
+      // Use month range for filtering
+      startDate = new Date(monthRange.startDate);
+      endDate = new Date(monthRange.endDate);
+    } else {
+      // Default to full year
+      startDate = new Date(currentYear, 0, 1);
+      endDate = new Date(currentYear, 11, 31);
+    }
+    
     const days = [];
     
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -328,22 +338,61 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
     }
     
     return days;
-  }, [currentYear, activityMap]);
+  }, [currentYear, activityMap, monthRange]);
 
   // Group days by month for better layout
   const monthlyData = useMemo(() => {
     const months = [];
-    for (let month = 0; month < 12; month++) {
-      const monthDays = calendarData.filter(day => day.date.getMonth() === month);
-      months.push({
-        name: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'short' }),
-        fullName: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        days: monthDays,
-        monthIndex: month
-      });
+    
+    if (monthRange) {
+      // When filtering by month range, only show months that have days in the range
+      const startMonth = new Date(monthRange.startDate).getMonth();
+      const endMonth = new Date(monthRange.endDate).getMonth();
+      const startYear = new Date(monthRange.startDate).getFullYear();
+      const endYear = new Date(monthRange.endDate).getFullYear();
+      
+      // Handle cross-year ranges
+      if (startYear === endYear) {
+        for (let month = startMonth; month <= endMonth; month++) {
+          const monthDays = calendarData.filter(day => day.date.getMonth() === month);
+          if (monthDays.length > 0) {
+            months.push({
+              name: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'short' }),
+              fullName: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+              days: monthDays,
+              monthIndex: month
+            });
+          }
+        }
+      } else {
+        // Cross-year range - show all months with data
+        for (let month = 0; month < 12; month++) {
+          const monthDays = calendarData.filter(day => day.date.getMonth() === month);
+          if (monthDays.length > 0) {
+            months.push({
+              name: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'short' }),
+              fullName: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+              days: monthDays,
+              monthIndex: month
+            });
+          }
+        }
+      }
+    } else {
+      // Show all months when no range filter
+      for (let month = 0; month < 12; month++) {
+        const monthDays = calendarData.filter(day => day.date.getMonth() === month);
+        months.push({
+          name: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'short' }),
+          fullName: new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          days: monthDays,
+          monthIndex: month
+        });
+      }
     }
+    
     return months;
-  }, [calendarData, currentYear]);
+  }, [calendarData, currentYear, monthRange]);
 
   // Auto-calculate optimal month offset based on data
   const optimalMonthOffset = useMemo(() => {
