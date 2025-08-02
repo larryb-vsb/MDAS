@@ -1056,5 +1056,24 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   console.log(`[TDDF1-ENCODER] Record type breakdown:`, results.recordCounts.byType);
   console.log(`[TDDF1-ENCODER] File table: ${tableName}`);
   
+  // Update upload status to "encoded" when processing completes
+  try {
+    console.log(`[TDDF1-ENCODER] Updating upload ${upload.id} status to 'encoded'`);
+    const environment = process.env.NODE_ENV || 'development';
+    const uploadsTableName = environment === 'development' ? 'dev_uploader_uploads' : 'uploader_uploads';
+    
+    await sql(`
+      UPDATE ${uploadsTableName} 
+      SET current_phase = 'encoded', 
+          updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $1
+    `, [upload.id]);
+    
+    console.log(`[TDDF1-ENCODER] ✅ Successfully updated upload ${upload.id} to 'encoded' status`);
+  } catch (updateError: any) {
+    console.error(`[TDDF1-ENCODER] Failed to update upload status to 'encoded':`, updateError);
+    results.errors.push(`Failed to update status: ${updateError.message}`);
+  }
+  
   return results;
 }
