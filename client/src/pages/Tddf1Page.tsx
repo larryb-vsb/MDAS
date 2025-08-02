@@ -125,10 +125,12 @@ function Tddf1Page() {
     onSuccess: () => {
       toast({
         title: "Cache Rebuilt",
-        description: "TDDF1 totals cache has been successfully rebuilt",
+        description: "TDDF1 totals cache has been successfully rebuilt with fresh Net Deposit calculations",
       });
-      // Refresh the stats query
+      // Refresh all queries to get fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/tddf1/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf1/day-breakdown'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tddf1/recent-activity'] });
     },
     onError: (error: any) => {
       toast({
@@ -426,11 +428,11 @@ function Tddf1Page() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => refetchDayBreakdown()}
-                  disabled={dayLoading}
+                  onClick={() => rebuildCacheMutation.mutate()}
+                  disabled={dayLoading || rebuildCacheMutation.isPending}
                   className="flex items-center gap-2"
                 >
-                  <RefreshCw className={`h-4 w-4 ${dayLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 ${(dayLoading || rebuildCacheMutation.isPending) ? 'animate-spin' : ''}`} />
                   Refresh Day
                 </Button>
               </div>
