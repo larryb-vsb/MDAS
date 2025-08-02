@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useAuth } from '@/hooks/use-auth';
-import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface MonthlyTotals {
   month: string;
@@ -56,28 +54,7 @@ export default function Tddf1MonthlyView() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
-  const { user, logoutMutation } = useAuth();
-  const [isDarkMode, setIsDarkMode] = useState(user?.darkMode || false);
-
-  // Load dark mode from user profile
-  useEffect(() => {
-    if (user?.darkMode !== undefined) {
-      setIsDarkMode(user.darkMode);
-    }
-  }, [user]);
-
-  // Mutation to update user dark mode preference
-  const updateDarkModeMutation = useMutation({
-    mutationFn: async (darkMode: boolean) => {
-      return await apiRequest(`/api/user/dark-mode`, {
-        method: 'PUT',
-        body: { darkMode }
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-    }
-  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
@@ -119,103 +96,34 @@ export default function Tddf1MonthlyView() {
   };
 
   const generatePDFReport = () => {
-    if (!monthlyData || !comparisonData) return;
+    if (!monthlyData) return;
     
-    // Create comprehensive HTML content that includes chart data and tables
-    const chartData = comparisonData.chartData || [];
-    const maxValue = Math.max(...chartData.map(d => Math.max(d.current || 0, d.previous || 0)));
-    
-    // Generate ASCII-style chart representation
-    const generateChartBars = () => {
-      return chartData.map(point => {
-        const currentBar = '█'.repeat(Math.round((point.current || 0) / maxValue * 20));
-        const previousBar = '▓'.repeat(Math.round((point.previous || 0) / maxValue * 20));
-        return `${point.day.toString().padStart(2, '0')}: ${currentBar.padEnd(22, ' ')} ($${((point.current || 0) / 1000).toFixed(0)}k)
-    ${previousBar.padEnd(22, ' ')} ($${((point.previous || 0) / 1000).toFixed(0)}k prev)`;
-      }).join('\n');
-    };
-    
+    // Create a simple text-based report that can be downloaded
     const reportContent = `
-===============================================================================
-                            MMS MONTHLY REPORT
-                         ${format(currentMonth, 'MMMM yyyy')}
-===============================================================================
+MMS Monthly Report - ${format(currentMonth, 'MMMM yyyy')}
 Generated on: ${format(new Date(), 'PPP')}
 
-EXECUTIVE SUMMARY
-================================================================================
-Net Deposits Processed:           ${formatCurrency(monthlyData.totalNetDepositBh)}
-Transaction Authorizations:       ${formatCurrency(monthlyData.totalTransactionValue)}
-Total Records Processed:          ${formatNumber(monthlyData.totalRecords)}
-Total Files Processed:            ${formatNumber(monthlyData.totalFiles)}
-
-MONTH-OVER-MONTH COMPARISON
-================================================================================
-Current Month (${format(currentMonth, 'MMM yyyy')}):
-- Transaction Value: ${formatCurrency(comparisonData.currentMonth.transactionValue)}
-- Net Deposits:      ${formatCurrency(comparisonData.currentMonth.netDeposit)}
-- Total Records:     ${formatNumber(comparisonData.currentMonth.records)}
-- Processing Days:   ${comparisonData.currentMonth.days}
-
-Previous Month (${format(subMonths(currentMonth, 1), 'MMM yyyy')}):
-- Transaction Value: ${formatCurrency(comparisonData.previousMonth.transactionValue)}
-- Net Deposits:      ${formatCurrency(comparisonData.previousMonth.netDeposit)}
-- Total Records:     ${formatNumber(comparisonData.previousMonth.records)}
-- Processing Days:   ${comparisonData.previousMonth.days}
-
-DAILY TRANSACTION VALUE CHART (Current vs Previous Month)
-================================================================================
-Day: Current Month ████████████████████ Previous Month ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
-${generateChartBars()}
+SUMMARY
+=======
+Net Deposits Processed: ${formatCurrency(monthlyData.totalNetDepositBh)}
+Transaction Authorizations Processed: ${formatCurrency(monthlyData.totalTransactionValue)}
+Total Records: ${formatNumber(monthlyData.totalRecords)}
+Total Files: ${formatNumber(monthlyData.totalFiles)}
 
 RECORD TYPE BREAKDOWN
-================================================================================
-${Object.entries(monthlyData.recordTypeBreakdown)
-  .sort(([,a], [,b]) => (b as number) - (a as number))
-  .map(([type, count]) => {
-    const typeDescriptions = {
-      'BH': 'Batch Headers',
-      'DT': 'Detail Transactions', 
-      'P1': 'Purchasing Card 1',
-      'P2': 'Purchasing Card 2',
-      'E1': 'Electronic Check',
-      'G2': 'General Data 2',
-      'AD': 'Merchant Adjustment',
-      'DR': 'Direct Marketing'
-    };
-    const desc = typeDescriptions[type as keyof typeof typeDescriptions] || 'Unknown';
-    return `${type} (${desc}): ${formatNumber(count as number).padStart(12, ' ')}`;
-  }).join('\n')}
+====================
+${Object.entries(monthlyData.recordTypeBreakdown).map(([type, count]) => 
+  `${type}: ${formatNumber(count)}`
+).join('\n')}
 
-DAILY PROCESSING BREAKDOWN
-================================================================================
-Date          Files  Records      DT Transaction Value    BH Net Deposit
-${monthlyData.dailyBreakdown.map(day => {
-  const dateStr = format(new Date(day.date), 'MMM dd, yyyy');
-  const filesStr = day.files.toString().padStart(5, ' ');
-  const recordsStr = formatNumber(day.records).padStart(10, ' ');
-  const dtStr = formatCurrency(day.transactionValue).padStart(18, ' ');
-  const bhStr = formatCurrency(day.netDepositBh).padStart(15, ' ');
-  return `${dateStr}  ${filesStr}  ${recordsStr}  ${dtStr}  ${bhStr}`;
-}).join('\n')}
-
-PERFORMANCE METRICS
-================================================================================
-Average Files per Day:             ${(monthlyData.totalFiles / monthlyData.dailyBreakdown.length).toFixed(1)}
-Average Records per File:          ${(monthlyData.totalRecords / monthlyData.totalFiles).toFixed(0)}
-Average Transaction Value per Day: ${formatCurrency(monthlyData.totalTransactionValue / monthlyData.dailyBreakdown.length)}
-Peak Processing Day:               ${monthlyData.dailyBreakdown.reduce((max, day) => 
-  day.records > max.records ? day : max).date}
-
-===============================================================================
-                              END OF REPORT
-===============================================================================
-Report generated by MMS (Merchant Management System)
-For questions or support, contact your system administrator.
+DAILY BREAKDOWN
+===============
+${monthlyData.dailyBreakdown.map(day => 
+  `${format(new Date(day.date), 'MMM dd, yyyy')}: ${day.files} files, ${formatNumber(day.records)} records, ${formatCurrency(day.transactionValue)} DT, ${formatCurrency(day.netDepositBh)} BH`
+).join('\n')}
 `;
 
-    // Create blob and download
-    const blob = new Blob([reportContent], { type: 'text/plain; charset=utf-8' });
+    const blob = new Blob([reportContent], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -224,16 +132,6 @@ For questions or support, contact your system administrator.
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  };
-
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
-
-  const toggleDarkMode = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    updateDarkModeMutation.mutate(newDarkMode);
   };
 
   return (
@@ -296,8 +194,7 @@ For questions or support, contact your system administrator.
             <Button
               variant="outline"
               size="sm"
-              onClick={toggleDarkMode}
-              disabled={updateDarkModeMutation.isPending}
+              onClick={() => setIsDarkMode(!isDarkMode)}
               className="flex items-center space-x-1"
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -309,7 +206,7 @@ For questions or support, contact your system administrator.
               size="sm"
               onClick={generatePDFReport}
               className="flex items-center space-x-1"
-              disabled={!monthlyData || !comparisonData}
+              disabled={!monthlyData}
             >
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Report</span>
@@ -686,31 +583,6 @@ For questions or support, contact your system administrator.
               </CardContent>
             )}
           </Card>
-
-          {/* Big Logout Button for MonthlyD Users */}
-          {user?.role === "MonthlyD" && (
-            <div className="pt-8">
-              <Card className={`${isDarkMode ? 'bg-red-900 border-red-700' : 'bg-red-50 border-red-200'} transition-colors`}>
-                <CardContent className="py-6">
-                  <div className="text-center">
-                    <Button 
-                      onClick={handleLogout}
-                      disabled={logoutMutation.isPending}
-                      size="lg"
-                      variant="destructive"
-                      className="text-lg px-8 py-4 h-auto"
-                    >
-                      <LogOut className="h-6 w-6 mr-3" />
-                      {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
-                    </Button>
-                    <p className={`text-sm mt-3 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>
-                      Click here to securely log out of your session
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </>
       ) : (
         <Card className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} transition-colors`}>

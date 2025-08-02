@@ -620,14 +620,6 @@ export class DatabaseStorage implements IStorage {
       [userId]
     );
   }
-
-  async updateUserDarkMode(userId: number, darkMode: boolean): Promise<void> {
-    const usersTableName = getTableName('users');
-    await pool.query(
-      `UPDATE ${usersTableName} SET dark_mode = $1 WHERE id = $2`,
-      [darkMode, userId]
-    );
-  }
   
   // @ENVIRONMENT-CRITICAL - User management operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
@@ -654,22 +646,6 @@ export class DatabaseStorage implements IStorage {
     if (userData.role !== undefined) {
       updates.push(`role = $${paramIndex++}`);
       values.push(userData.role);
-    }
-    if (userData.email !== undefined) {
-      updates.push(`email = $${paramIndex++}`);
-      values.push(userData.email);
-    }
-    if (userData.firstName !== undefined) {
-      updates.push(`first_name = $${paramIndex++}`);
-      values.push(userData.firstName);
-    }
-    if (userData.lastName !== undefined) {
-      updates.push(`last_name = $${paramIndex++}`);
-      values.push(userData.lastName);
-    }
-    if (userData.canCreateUsers !== undefined) {
-      updates.push(`can_create_users = $${paramIndex++}`);
-      values.push(userData.canCreateUsers);
     }
     
     // Add userId for WHERE clause

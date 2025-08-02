@@ -92,9 +92,6 @@ export class MemStorageFallback implements IStorage {
       firstName: userData.firstName || null,
       lastName: userData.lastName || null,
       role: userData.role || 'user',
-      developerFlag: userData.developerFlag || false,
-      darkMode: userData.darkMode || false,
-      canCreateUsers: userData.canCreateUsers || false,
       createdAt: new Date(),
       lastLogin: null
     };
@@ -122,13 +119,6 @@ export class MemStorageFallback implements IStorage {
     const userIndex = this.users.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       this.users[userIndex].lastLogin = new Date();
-    }
-  }
-
-  async updateUserDarkMode(userId: number, darkMode: boolean): Promise<void> {
-    const userIndex = this.users.findIndex(u => u.id === userId);
-    if (userIndex !== -1) {
-      this.users[userIndex].darkMode = darkMode;
     }
   }
 

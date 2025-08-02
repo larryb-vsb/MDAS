@@ -66,7 +66,6 @@ type User = {
   firstName: string | null;
   lastName: string | null;
   role: string;
-  canCreateUsers: boolean;
   createdAt: string;
   lastLogin: string | null;
 };
@@ -88,7 +87,7 @@ const userSchema = z.object({
     .optional(),
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
-  role: z.enum(["user", "admin", "MonthlyD"]).default("user"),
+  role: z.enum(["user", "admin"]).default("user"),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -107,7 +106,7 @@ const editUserSchema = z.object({
     .optional(),
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
-  role: z.enum(["user", "admin", "MonthlyD"]).default("user"),
+  role: z.enum(["user", "admin"]).default("user"),
 });
 
 // Schema for changing password
@@ -388,12 +387,10 @@ export default function UserManagement() {
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            {currentUser?.canCreateUsers && (
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            )}
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -418,14 +415,12 @@ export default function UserManagement() {
         ) : users && users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-muted-foreground">No users found.</p>
-            {currentUser?.canCreateUsers && (
-              <Button 
-                onClick={() => setIsAddDialogOpen(true)}
-                className="mt-4"
-              >
-                Add a user
-              </Button>
-            )}
+            <Button 
+              onClick={() => setIsAddDialogOpen(true)}
+              className="mt-4"
+            >
+              Add a user
+            </Button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -451,14 +446,9 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>{user.email || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === "admin" ? "default" : user.role === "MonthlyD" ? "outline" : "secondary"}>
+                      <Badge variant={user.role === "admin" ? "default" : "secondary"}>
                         {user.role}
                       </Badge>
-                      {user.canCreateUsers && (
-                        <Badge variant="outline" className="ml-1 text-xs">
-                          Can Create Users
-                        </Badge>
-                      )}
                     </TableCell>
                     <TableCell>{formatDate(user.lastLogin)}</TableCell>
                     <TableCell className="text-right">
@@ -629,11 +619,10 @@ export default function UserManagement() {
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="MonthlyD">Monthly Dashboard User</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Admin users have full access. MonthlyD users only see monthly dashboards.
+                      Admin users have full access to all features.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -754,11 +743,10 @@ export default function UserManagement() {
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="MonthlyD">Monthly Dashboard User</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Admin users have full access. MonthlyD users only see monthly dashboards.
+                      Admin users have full access to all features.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

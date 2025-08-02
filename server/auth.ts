@@ -166,7 +166,7 @@ export function setupAuth(app: Express) {
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
-        role: req.body.role || "user", // Allow setting role, default to "user"
+        role: "user", // Default role for new users
         createdAt: new Date()
       });
 
@@ -312,24 +312,6 @@ export function setupAuth(app: Express) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     res.json(req.user);
-  });
-
-  app.put("/api/user/dark-mode", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
-    try {
-      const { darkMode } = req.body;
-      const user = req.user as SelectUser;
-      
-      await storage.updateUserDarkMode(user.id, darkMode);
-      
-      res.json({ success: true, darkMode });
-    } catch (error) {
-      console.error("Error updating dark mode:", error);
-      res.status(500).json({ error: "Failed to update dark mode preference" });
-    }
   });
 
   // Middleware to check if user is authenticated
