@@ -94,6 +94,10 @@ function Tddf1Page() {
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
     enabled: !!selectedDateStr,
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache in memory  
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
@@ -496,8 +500,12 @@ function Tddf1Page() {
                             // Special layout for BH records showing Net Deposit prominently
                             if (type === 'BH') {
                               const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
-                              console.log('🔍 BH Debug Full Response:', JSON.stringify(dayBreakdown, null, 2));
-                              console.log('🔍 totalNetDepositBH field exists:', 'totalNetDepositBH' in (dayBreakdown || {}));
+                              console.log('🔍 BH Box Render:', { 
+                                date: dayBreakdown.date, 
+                                netDepositAmount, 
+                                rawValue: dayBreakdown.totalNetDepositBH,
+                                type: typeof dayBreakdown.totalNetDepositBH 
+                              });
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
                                   <div className="flex items-center justify-between mb-2">
