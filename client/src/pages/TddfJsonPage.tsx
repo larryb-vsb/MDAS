@@ -1414,6 +1414,26 @@ export default function TddfJsonPage() {
                   <Database className="w-3 h-3" />
                   July
                 </Button>
+                
+                {/* August 2025 Navigation - for testing empty months with 1-month view */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Navigate to August 2025 to test empty month display
+                    setCurrentMonth(7); // August is month 7 (0-based)
+                    setCurrentRangeYear(2025);
+                    setSelectedYear(2025);
+                    setQuickRangeMode('1month'); // Set to 1-month view
+                    setCurrentPage(1);
+                    setDateFilter('');
+                  }}
+                  className="flex items-center gap-1 h-6 px-2 text-xs bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                  title="Go to August 2025 (empty month test)"
+                >
+                  <Calendar className="w-3 h-3" />
+                  Aug
+                </Button>
               </div>
             </div>
           </CardHeader>

@@ -412,7 +412,7 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
 
     // Find the most recent date with activity
     const sortedDates = activityResponse.records
-      .map(record => new Date(record.date || record.transaction_date))
+      .map(record => new Date(record.transaction_date))
       .sort((a, b) => b.getTime() - a.getTime());
     
     if (sortedDates.length > 0) {
@@ -754,12 +754,29 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
 
       {/* Three-Month Calendar grid */}
       <div className="space-y-2">
-        {/* Month labels for 3-month view */}
-        <div className="grid grid-cols-3 gap-6 text-sm text-gray-700 font-medium">
-          {currentThreeMonths.map((month, index) => (
-            <div key={index} className="text-center bg-gray-100 py-2 rounded">{month.fullName}</div>
-          ))}
-        </div>
+        {/* Handle empty data state for no activity months */}
+        {!isLoading && !error && currentThreeMonths.length > 0 && (!activityResponse?.records || activityResponse.records.length === 0) && (
+          <div className="flex flex-col items-center justify-center py-12 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <Calendar className="w-16 h-16 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Data</h3>
+            <p className="text-gray-500 max-w-md">
+              No TDDF transaction activity found for the selected months in {currentYear}. 
+              Try uploading TDDF files or navigating to a time period with data using the July or August buttons above.
+            </p>
+            <div className="text-sm text-gray-400 mt-2">
+              Current view: {currentThreeMonths[0]?.fullName} - {currentThreeMonths[currentThreeMonths.length - 1]?.fullName}
+            </div>
+          </div>
+        )}
+        
+        {/* Month labels for 3-month view - only show if there's data */}
+        {(!activityResponse?.records || activityResponse.records.length > 0) && (
+          <div className="grid grid-cols-3 gap-6 text-sm text-gray-700 font-medium">
+            {currentThreeMonths.map((month, index) => (
+              <div key={index} className="text-center bg-gray-100 py-2 rounded">{month.fullName}</div>
+            ))}
+          </div>
+        )}
         
         {/* Days grid for 3-month view */}
         <div className="grid grid-cols-3 gap-6">

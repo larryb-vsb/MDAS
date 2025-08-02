@@ -101,6 +101,20 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
       }
     });
 
+    // Filter dates by month range if provided
+    if (monthRange && monthRange.startDate && monthRange.endDate) {
+      const startDate = new Date(monthRange.startDate);
+      const endDate = new Date(monthRange.endDate);
+      
+      const filteredDates = Array.from(allDates).filter(date => {
+        const dateObj = new Date(date);
+        return dateObj >= startDate && dateObj <= endDate;
+      });
+      
+      allDates.clear();
+      filteredDates.forEach(date => allDates.add(date));
+    }
+
     // Create a map for each date with all record type counts
     const dateDataMap = new Map<string, any>();
     
@@ -270,6 +284,38 @@ export default function TddfJsonActivityChart({ currentYear, enableDebugLogging 
     'LG': '#ec4899', // Pink
     'GE': '#64748b'  // Slate
   };
+
+  // Add empty state handling for August 2025 or other months with no data
+  if (!isLoading && !error && chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            TDDF Activity Chart ({currentYear})
+          </CardTitle>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>View Mode: {viewMode}</span>
+            <span>Chart Type: {chartType}</span>
+            {monthRange && (
+              <span>Range: {new Date(monthRange.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - {new Date(monthRange.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <BarChart3 className="w-12 h-12 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+            <p className="text-gray-500 max-w-md">
+              No TDDF activity data found for {monthRange ? 
+                `${new Date(monthRange.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} - ${new Date(monthRange.endDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : 
+                currentYear}. Try selecting a different date range or upload TDDF files for this time period.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const renderChart = () => {
     const chartProps = {
