@@ -608,7 +608,7 @@ export class DatabaseStorage implements IStorage {
           created_at as "createdAt",
           last_login as "lastLogin"
         FROM ${usersTableName} 
-        WHERE username = $1
+        WHERE LOWER(username) = LOWER($1)
       `, [username]);
       const user = result.rows[0];
       if (user) {
@@ -634,14 +634,53 @@ export class DatabaseStorage implements IStorage {
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async createUser(insertUser: InsertUser): Promise<User> {
     const usersTableName = getTableName('users');
-    const columns = Object.keys(insertUser).join(', ');
-    const placeholders = Object.keys(insertUser).map((_, i) => `$${i + 1}`).join(', ');
-    const values = Object.values(insertUser);
     
-    const result = await pool.query(
-      `INSERT INTO ${usersTableName} (${columns}) VALUES (${placeholders}) RETURNING *`,
-      values
-    );
+    // Filter out any fields that don't exist in the database and map to proper column names
+    const fieldMapping = {
+      username: 'username',
+      password: 'password',
+      email: 'email',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      role: 'role',
+      defaultDashboard: 'default_dashboard',
+      themePreference: 'theme_preference',
+      createdAt: 'created_at'
+    };
+    
+    const dbFields = {};
+    const values = [];
+    let paramIndex = 1;
+    
+    // Only include fields that exist in our mapping
+    for (const [key, value] of Object.entries(insertUser)) {
+      if (fieldMapping[key]) {
+        dbFields[fieldMapping[key]] = `$${paramIndex++}`;
+        values.push(value);
+      }
+    }
+    
+    const columns = Object.keys(dbFields).join(', ');
+    const placeholders = Object.values(dbFields).join(', ');
+    
+    const result = await pool.query(`
+      INSERT INTO ${usersTableName} (${columns}) 
+      VALUES (${placeholders}) 
+      RETURNING 
+        id,
+        username,
+        password,
+        email,
+        first_name as "firstName",
+        last_name as "lastName",
+        role,
+        developer_flag as "developerFlag",
+        default_dashboard as "defaultDashboard",
+        theme_preference as "themePreference",
+        created_at as "createdAt",
+        last_login as "lastLogin"
+    `, values);
+    
     return result.rows[0];
   }
   
