@@ -620,6 +620,14 @@ export class DatabaseStorage implements IStorage {
       [userId]
     );
   }
+
+  async updateUserDarkMode(userId: number, darkMode: boolean): Promise<void> {
+    const usersTableName = getTableName('users');
+    await pool.query(
+      `UPDATE ${usersTableName} SET dark_mode = $1 WHERE id = $2`,
+      [darkMode, userId]
+    );
+  }
   
   // @ENVIRONMENT-CRITICAL - User management operations
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming

@@ -314,6 +314,24 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 
+  app.put("/api/user/dark-mode", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    try {
+      const { darkMode } = req.body;
+      const user = req.user as SelectUser;
+      
+      await storage.updateUserDarkMode(user.id, darkMode);
+      
+      res.json({ success: true, darkMode });
+    } catch (error) {
+      console.error("Error updating dark mode:", error);
+      res.status(500).json({ error: "Failed to update dark mode preference" });
+    }
+  });
+
   // Middleware to check if user is authenticated
   app.use("/api/protected/*", (req, res, next) => {
     if (!req.isAuthenticated()) {

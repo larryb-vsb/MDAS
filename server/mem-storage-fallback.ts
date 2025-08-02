@@ -122,6 +122,13 @@ export class MemStorageFallback implements IStorage {
     }
   }
 
+  async updateUserDarkMode(userId: number, darkMode: boolean): Promise<void> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      this.users[userIndex].darkMode = darkMode;
+    }
+  }
+
   async updateUserPassword(userId: number, newPassword: string): Promise<void> {
     const userIndex = this.users.findIndex(u => u.id === userId);
     if (userIndex === -1) {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/hooks/use-auth';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface MonthlyTotals {
   month: string;
@@ -55,8 +56,28 @@ export default function Tddf1MonthlyView() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [showRecordTypes, setShowRecordTypes] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { user, logoutMutation } = useAuth();
+  const [isDarkMode, setIsDarkMode] = useState(user?.darkMode || false);
+
+  // Load dark mode from user profile
+  useEffect(() => {
+    if (user?.darkMode !== undefined) {
+      setIsDarkMode(user.darkMode);
+    }
+  }, [user]);
+
+  // Mutation to update user dark mode preference
+  const updateDarkModeMutation = useMutation({
+    mutationFn: async (darkMode: boolean) => {
+      return await apiRequest(`/api/user/dark-mode`, {
+        method: 'PUT',
+        body: { darkMode }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    }
+  });
 
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
@@ -140,6 +161,12 @@ ${monthlyData.dailyBreakdown.map(day =>
     logoutMutation.mutate();
   };
 
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    updateDarkModeMutation.mutate(newDarkMode);
+  };
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} p-3 sm:p-6 space-y-4 sm:space-y-6 transition-colors`}>
       {/* Header with Navigation - Mobile Optimized */}
@@ -200,7 +227,8 @@ ${monthlyData.dailyBreakdown.map(day =>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={toggleDarkMode}
+              disabled={updateDarkModeMutation.isPending}
               className="flex items-center space-x-1"
             >
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
