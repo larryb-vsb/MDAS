@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
+import { Search, Eye, Database, FileJson, ArrowUpDown, RefreshCw, ChevronUp, ChevronDown, ExternalLink, TrendingUp, BarChart3 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Link } from "wouter";
 import MainLayout from "@/components/layout/MainLayout";
 import TddfJsonActivityHeatMap from "@/components/tddf/TddfJsonActivityHeatMap";
+import TddfJsonActivityChart from "@/components/tddf/TddfJsonActivityChart";
 import {
   Dialog,
   DialogContent,
@@ -1229,31 +1230,54 @@ export default function TddfJsonPage() {
 
 
 
-        {/* TDDF JSON Activity Heat Map - Custom for JSON Data */}
+        {/* TDDF JSON Activity Visualization - Heat Map and Chart Views */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="w-5 h-5" />
-              TDDF JSON Activity Heat Map
+              TDDF JSON Activity Analysis
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               Daily transaction activity from TDDF JSON records (dev_tddf_jsonb table)
             </p>
           </CardHeader>
           <CardContent>
-            <TddfJsonActivityHeatMap 
-              onDateSelect={handleDateSelect}
-              initialYear={(lastDataYear as any)?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
-              selectedDate={dateFilter}
-              enableDebugLogging={true} // Enable debug logging to track year navigation
-              onYearChange={(year) => {
-                console.log('[TDDF-JSON-PAGE] Year changed to:', year);
-                setSelectedYear(year);
-                setCurrentPage(1); // Reset pagination when year changes
-                setDateFilter(''); // Clear date filter when year changes to avoid mismatches
-                console.log('[TDDF-JSON-PAGE] Date filter cleared due to year change');
-              }}
-            />
+            <Tabs defaultValue="heatmap" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="heatmap" className="flex items-center gap-2">
+                  <Database className="w-4 h-4" />
+                  Heat Map
+                </TabsTrigger>
+                <TabsTrigger value="chart" className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  Chart View
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="heatmap" className="mt-6">
+                <TddfJsonActivityHeatMap 
+                  onDateSelect={handleDateSelect}
+                  initialYear={(lastDataYear as any)?.lastDataYear || new Date().getFullYear()} // Dynamic year based on last data found
+                  selectedDate={dateFilter}
+                  enableDebugLogging={true} // Enable debug logging to track year navigation
+                  onYearChange={(year) => {
+                    console.log('[TDDF-JSON-PAGE] Year changed to:', year);
+                    setSelectedYear(year);
+                    setCurrentPage(1); // Reset pagination when year changes
+                    setDateFilter(''); // Clear date filter when year changes to avoid mismatches
+                    console.log('[TDDF-JSON-PAGE] Date filter cleared due to year change');
+                  }}
+                />
+              </TabsContent>
+              
+              <TabsContent value="chart" className="mt-6">
+                <TddfJsonActivityChart 
+                  currentYear={selectedYear}
+                  enableDebugLogging={true}
+                />
+              </TabsContent>
+            </Tabs>
+            
             {dateFilter && (
               <div className="mt-4 flex items-center gap-2">
                 <Badge variant="secondary">
