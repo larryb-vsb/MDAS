@@ -295,7 +295,7 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
               <Link
                 key={index}
                 href={subItem.href}
-                onClick={(e) => {
+                onClick={() => {
                   // Force close mobile menu for submenu items
                   console.log('Submenu item clicked:', subItem.label);
                   if (onClick) {
@@ -329,7 +329,7 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
   return (
     <Link
       href={href!}
-      onClick={(e) => {
+      onClick={() => {
         // Force close mobile menu for main navigation items
         console.log('Main nav item clicked:', label);
         if (onClick) {
@@ -398,12 +398,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Mobile navigation
   const MobileNav = () => (
-    <Sheet open={open} onOpenChange={(isOpen) => {
-      // Only allow manual closing, prevent automatic closing
-      if (!isOpen) {
-        setOpen(false);
-      }
-    }}>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button 
           variant="ghost" 
@@ -414,7 +409,22 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0 bg-gray-800 text-white">
+      <SheetContent 
+        side="left" 
+        className="w-72 p-0 bg-gray-800 text-white"
+        onEscapeKeyDown={(e) => {
+          console.log('Escape key pressed - keeping menu open');
+          e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          console.log('Clicked outside - keeping menu open');
+          e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          console.log('Interact outside - keeping menu open');
+          e.preventDefault();
+        }}
+      >
         <ScrollArea className="h-full py-6">
           <div className="flex flex-col gap-6 px-4">
             <div className="flex h-12 items-center gap-2 px-4">
@@ -434,9 +444,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     ) : false
                   }
                   onClick={() => {
-                    // Only close for actual navigation clicks, not submenu toggles
                     console.log('Mobile nav item clicked:', item.label);
-                    setOpen(false);
+                    // Close immediately for navigation items
+                    if (item.href && !item.submenu) {
+                      setOpen(false);
+                    }
                   }}
                   submenu={item.submenu}
                   isExpanded={item.label === "Legacy" ? legacyExpanded : undefined}
