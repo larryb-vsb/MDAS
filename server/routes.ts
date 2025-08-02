@@ -13430,7 +13430,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Specifically find and log TDDF1 tables
       const tddf1Tables = discoveredTables.filter(table => table.includes('tddf1'));
       if (tddf1Tables.length > 0) {
-        console.log(`[TDDF-JSON-CLEAR] Found ${tddf1Tables.length} TDDF1 tables to clear:`, tddf1Tables);
+        console.log(`[TDDF-JSON-CLEAR] Found ${tddf1Tables.length} TDDF1 tables to drop:`, tddf1Tables);
+        
+        // Drop all TDDF1 file tables and totals tables
+        for (const tddf1Table of tddf1Tables) {
+          try {
+            const fullTableName = getTableName(tddf1Table);
+            console.log(`[TDDF-JSON-CLEAR] Dropping TDDF1 table: ${fullTableName}`);
+            await pool.query(`DROP TABLE IF EXISTS ${fullTableName} CASCADE`);
+            console.log(`[TDDF-JSON-CLEAR] Successfully dropped TDDF1 table: ${fullTableName}`);
+          } catch (dropError) {
+            console.error(`[TDDF-JSON-CLEAR] Error dropping TDDF1 table ${tddf1Table}:`, dropError.message);
+          }
+        }
       }
       
       // Also include known cache tables that might not have "tddf" but are related
@@ -13448,6 +13460,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let precacheTablesCleared = 0;
       
       for (const table of precacheTables) {
+        // Skip TDDF1 tables as they are already handled above
+        if (table.includes('tddf1')) {
+          continue;
+        }
+        
         const fullTableName = getTableName(table);
         try {
           // Check if table exists first
@@ -13488,7 +13505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         precacheTablesCleared: precacheTablesCleared,
         tableName: tableName,
         tddf1TablesFound: tddf1Tables.length,
-        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database and ${precacheTablesCleared} precache tables (including ${tddf1Tables.length} TDDF1 tables)`,
+        message: `Successfully cleared ${recordsToDelete} records from TDDF JSON database, ${precacheTablesCleared} precache tables, and dropped ${tddf1Tables.length} TDDF1 tables`,
         newDataFlagSet: true
       });
       
