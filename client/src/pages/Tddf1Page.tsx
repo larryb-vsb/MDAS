@@ -213,13 +213,21 @@ function Tddf1Page() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Records Processed</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
+              {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  of {stats.totalTddfLines.toLocaleString()} total lines
+                  {stats.totalJsonLinesInserted && stats.totalJsonLinesInserted !== stats.totalRecords && (
+                    <span> • {stats.totalJsonLinesInserted.toLocaleString()} inserted</span>
+                  )}
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -280,9 +288,14 @@ function Tddf1Page() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {stats?.activeTables?.length || 0}
+                  {stats?.totalRecords?.toLocaleString() || 0}
                 </div>
-                <div className="text-sm text-gray-500">Active Tables</div>
+                <div className="text-sm text-gray-500">Total Records</div>
+                {stats?.totalTddfLines && (
+                  <div className="text-xs text-gray-400">
+                    of {stats.totalTddfLines.toLocaleString()} lines
+                  </div>
+                )}
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
@@ -384,22 +397,32 @@ function Tddf1Page() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{dayBreakdown.totalRecords}</div>
-                      <div className="text-sm text-gray-600">Total Records</div>
+                      <div className="text-2xl font-bold text-blue-600">{dayBreakdown.totalRecords.toLocaleString()}</div>
+                      <div className="text-sm text-gray-600">Records Processed</div>
+                      {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total
+                        </div>
+                      )}
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">{dayBreakdown.fileCount}</div>
-                      <div className="text-sm text-gray-600">Files</div>
+                      <div className="text-sm text-gray-600">Files Processed</div>
+                      {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {dayBreakdown.filesProcessed.filter(f => f.processingTime).length} completed
+                        </div>
+                      )}
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-purple-600">
                         ${dayBreakdown.transactionValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </div>
-                      <div className="text-sm text-gray-600">Value</div>
+                      <div className="text-sm text-gray-600">Transaction Value</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-orange-600">{dayBreakdown.tables.length}</div>
-                      <div className="text-sm text-gray-600">Tables</div>
+                      <div className="text-sm text-gray-600">Active Tables</div>
                     </div>
                   </div>
 
@@ -429,9 +452,9 @@ function Tddf1Page() {
                               <div className="flex-1">
                                 <div className="font-medium text-blue-900">{file.fileName}</div>
                                 <div className="text-sm text-blue-700">
-                                  {file.recordCount.toLocaleString()} records
-                                  {file.fileSize && ` • ${file.fileSize}`}
-                                  {file.processingTime && ` • ${file.processingTime}s processing`}
+                                  <span className="font-semibold">{file.recordCount.toLocaleString()} records processed</span>
+                                  {file.fileSize && ` • Size: ${file.fileSize}`}
+                                  {file.processingTime && ` • Duration: ${file.processingTime}s`}
                                 </div>
                               </div>
                               <Badge variant="outline" className="text-xs">
