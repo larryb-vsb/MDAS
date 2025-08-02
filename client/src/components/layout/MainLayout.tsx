@@ -154,11 +154,7 @@ const navItems = [
     label: "Transactions",
     href: "/transactions"
   },
-  {
-    icon: <FileJson className="h-5 w-5 text-blue-400" />,
-    label: "TDDF 1",
-    href: "/tddf1"
-  },
+
   {
     icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
     label: "Analytics",

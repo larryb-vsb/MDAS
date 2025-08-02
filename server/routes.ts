@@ -6120,146 +6120,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // File-based TDDF encoding routes (TDDF1 system)
-  app.post("/api/tddf1/encode-file", isAuthenticated, async (req, res) => {
-    try {
-      const { fileId, fileName } = req.body;
-      
-      if (!fileId) {
-        return res.status(400).json({ error: "File ID is required" });
-      }
-      
-      console.log(`🚀 Starting file-based TDDF encoding for file: ${fileId} (${fileName || 'auto-detect name'})`);
-      
-      const result = await storage.encodeFileToTddf1Table(fileId, fileName);
-      
-      console.log(`✅ File-based TDDF encoding completed:`, result);
-      
-      res.json(result);
-    } catch (error: any) {
-      console.error('❌ Error in file-based TDDF encoding:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to encode file to TDDF1 table" 
-      });
-    }
-  });
 
-  app.get("/api/tddf1/tables/:tableName/records", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      const { recordType, limit = 100, offset = 0 } = req.query;
-      
-      const options = {
-        recordType: recordType as string,
-        limit: parseInt(limit as string),
-        offset: parseInt(offset as string)
-      };
-      
-      const records = await storage.getFileBasedTddfRecords(tableName, options);
-      
-      res.json({
-        success: true,
-        tableName,
-        records,
-        totalReturned: records.length,
-        options
-      });
-    } catch (error: any) {
-      console.error('Error retrieving file-based TDDF records:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to retrieve records" 
-      });
-    }
-  });
 
-  app.get("/api/tddf1/tables/:tableName/stats", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      
-      const stats = await storage.getFileBasedTddfTableStats(tableName);
-      
-      res.json({
-        success: true,
-        tableName,
-        stats
-      });
-    } catch (error: any) {
-      console.error('Error retrieving table stats:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to retrieve table statistics" 
-      });
-    }
-  });
 
-  app.delete("/api/tddf1/tables/:tableName", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.params;
-      
-      await storage.deleteFileBasedTddfTable(tableName);
-      
-      res.json({
-        success: true,
-        message: `Table ${tableName} deleted successfully`
-      });
-    } catch (error: any) {
-      console.error('Error deleting file-based TDDF table:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to delete table" 
-      });
-    }
-  });
 
-  // TDDF1 Dashboard API endpoints
-  app.get("/api/tddf1/stats", isAuthenticated, async (req, res) => {
-    try {
-      const selectedDate = req.query.selectedDate as string;
-      console.log(`📊 Getting TDDF1 stats for date: ${selectedDate}`);
 
-      // Get TDDF file statistics for the selected date
-      const stats = await storage.getTddf1DailyStats(selectedDate);
 
-      res.json(stats);
-    } catch (error: any) {
-      console.error('Error getting TDDF1 stats:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to get statistics" 
-      });
-    }
-  });
 
-  app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
-    try {
-      const selectedDate = req.query.selectedDate as string;
-      console.log(`📋 Getting TDDF1 recent activity for date: ${selectedDate}`);
 
-      // Get recent file processing activity for the selected date
-      const activities = await storage.getTddf1DailyActivity(selectedDate);
 
-      res.json(activities);
-    } catch (error: any) {
-      console.error('Error getting recent activity:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to get recent activity" 
-      });
-    }
-  });
 
-  app.get("/api/tddf1/database-status", isAuthenticated, async (req, res) => {
-    try {
-      const selectedDate = req.query.selectedDate as string;
-      console.log(`💾 Getting TDDF1 database status for date: ${selectedDate}`);
 
-      // Get database status for TDDF1 tables for the selected date
-      const dbStatus = await storage.getTddf1DatabaseStatus(selectedDate);
 
-      res.json(dbStatus);
-    } catch (error: any) {
-      console.error('Error getting database status:', error);
-      res.status(500).json({ 
-        error: error.message || "Failed to get database status" 
-      });
-    }
-  });
+
 
   // Process pending BH records from raw import into hierarchical table
   app.post("/api/tddf/process-pending-bh", isAuthenticated, async (req, res) => {
