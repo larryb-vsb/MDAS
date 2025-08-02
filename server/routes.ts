@@ -16751,20 +16751,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (totalsTableExists.rows[0].exists) {
-        // Get aggregated stats from the pre-cache totals table
+        // Get aggregated stats from the pre-cache totals table (use the actual total_files column)
         const totalsResult = await pool.query(`
           SELECT 
-            COUNT(DISTINCT file_name) as file_count,
-            SUM(total_records) as total_records,
-            SUM(total_transaction_value) as total_transaction_value,
-            COUNT(*) as total_cache_entries
+            total_files as file_count,
+            total_records,
+            total_transaction_value,
+            record_type_breakdown
           FROM ${totalsTableName}
-        `);
-        
-        // Get record type breakdown from pre-cache
-        const breakdownResult = await pool.query(`
-          SELECT record_type_breakdown 
-          FROM ${totalsTableName}
+          ORDER BY created_at DESC
+          LIMIT 1
         `);
         
         if (totalsResult.rows.length > 0) {
@@ -16773,17 +16769,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
           const fileCount = parseInt(summary.file_count) || 0;
           
-          // Aggregate record type breakdowns
+          // Parse record type breakdown from the single row
           const recordTypeBreakdown: Record<string, number> = {};
-          for (const row of breakdownResult.rows) {
-            const breakdown = typeof row.record_type_breakdown === 'string' 
-              ? JSON.parse(row.record_type_breakdown) 
-              : row.record_type_breakdown;
-            
-            if (breakdown && typeof breakdown === 'object') {
-              for (const [type, count] of Object.entries(breakdown)) {
-                recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
-              }
+          const breakdown = typeof summary.record_type_breakdown === 'string' 
+            ? JSON.parse(summary.record_type_breakdown) 
+            : summary.record_type_breakdown;
+          
+          if (breakdown && typeof breakdown === 'object') {
+            for (const [type, count] of Object.entries(breakdown)) {
+              recordTypeBreakdown[type] = parseInt(count as string) || 0;
             }
           }
           
@@ -16879,20 +16873,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If no encoding files, use pre-cache totals for much faster performance
       } else {
-        // Get aggregated stats from the pre-cache totals table
+        // Get aggregated stats from the pre-cache totals table (use the actual total_files column)  
         const totalsResult = await pool.query(`
           SELECT 
-            COUNT(DISTINCT file_name) as file_count,
-            SUM(total_records) as total_records,
-            SUM(total_transaction_value) as total_transaction_value,
-            COUNT(*) as total_cache_entries
+            total_files as file_count,
+            total_records,
+            total_transaction_value,
+            record_type_breakdown
           FROM ${totalsTableName}
-        `);
-        
-        // Get record type breakdown from pre-cache
-        const breakdownResult = await pool.query(`
-          SELECT record_type_breakdown 
-          FROM ${totalsTableName}
+          ORDER BY created_at DESC
+          LIMIT 1
         `);
         
         let totalRecords = 0;
@@ -16905,17 +16895,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalRecords = parseInt(summary.total_records) || 0;
           totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
           fileCount = parseInt(summary.file_count) || 0;
-        }
-        
-        // Aggregate record type breakdowns
-        for (const row of breakdownResult.rows) {
-          const breakdown = typeof row.record_type_breakdown === 'string' 
-            ? JSON.parse(row.record_type_breakdown) 
-            : row.record_type_breakdown;
+          
+          // Parse record type breakdown from the single row
+          const breakdown = typeof summary.record_type_breakdown === 'string' 
+            ? JSON.parse(summary.record_type_breakdown) 
+            : summary.record_type_breakdown;
           
           if (breakdown && typeof breakdown === 'object') {
             for (const [type, count] of Object.entries(breakdown)) {
-              recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
+              recordTypeBreakdown[type] = parseInt(count as string) || 0;
             }
           }
         }
