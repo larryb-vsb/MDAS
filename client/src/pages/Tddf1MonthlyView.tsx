@@ -30,10 +30,10 @@ export default function Tddf1MonthlyView() {
 
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
-    queryFn: async () => {
+    queryFn: async (): Promise<MonthlyTotals> => {
       const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`);
       if (!response.ok) throw new Error('Failed to fetch monthly data');
-      return response.json() as MonthlyTotals;
+      return response.json();
     }
   });
 
