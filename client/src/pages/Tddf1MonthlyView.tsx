@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 
@@ -26,8 +26,9 @@ interface MonthlyTotals {
 export default function Tddf1MonthlyView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
-  const { data: monthlyData, isLoading } = useQuery({
+  const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
     queryFn: async () => {
       const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`);
@@ -38,6 +39,10 @@ export default function Tddf1MonthlyView() {
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentMonth(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
+  };
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   const formatCurrency = (amount: number) => {
@@ -96,6 +101,17 @@ export default function Tddf1MonthlyView() {
           >
             <span>Next</span>
             <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="flex items-center space-x-1"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </Button>
         </div>
       </div>

@@ -17073,8 +17073,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
+      // Get last day of the month correctly - month index is 0-based, so we use parseInt(monthNum) directly
       const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
-      const endDate = `${month}-${lastDay.toString().padStart(2, '0')}`;
+      const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
