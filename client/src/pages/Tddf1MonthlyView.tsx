@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 
 interface MonthlyTotals {
@@ -24,6 +25,7 @@ interface MonthlyTotals {
 
 export default function Tddf1MonthlyView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [, setLocation] = useLocation();
 
   const { data: monthlyData, isLoading } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
@@ -56,6 +58,15 @@ export default function Tddf1MonthlyView() {
       {/* Header with Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
+          <Button 
+            onClick={() => setLocation('/tddf1')} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Daily
+          </Button>
           <Calendar className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold text-gray-900">TDDF1 Monthly Overview</h1>
         </div>

@@ -17071,8 +17071,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
       }
       
+      const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
-      const endDate = `${month}-31`; // SQL will handle month boundaries correctly
+      const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      const endDate = `${month}-${lastDay.toString().padStart(2, '0')}`;
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
