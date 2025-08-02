@@ -16972,7 +16972,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json({
+      // Debug logging for the ACTUAL endpoint being used
+      console.log(`📅 [FIRST ENDPOINT] Aggregated data for ${date}: ${totalRecords} records, $${transactionValue} value, $${totalNetDepositBH} BH Net Deposit`);
+      console.log(`📅 [FIRST ENDPOINT] Total files processed: ${filesProcessed.length}`);
+      
+      const responseData = {
         date: date,
         totalRecords: totalRecords,
         recordTypes: recordTypes,
@@ -16982,8 +16986,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
         cached: true,
-        cacheSource: 'pre-cache totals table'
-      });
+        cacheSource: 'pre-cache totals table',
+        timestamp: Date.now() // Force unique responses
+      };
+      
+      // Force no caching
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+      res.set('ETag', `"${date}-${Date.now()}"`);
+      
+      res.json(responseData);
     } catch (error) {
       console.error("Error getting TDDF1 day breakdown:", error);
       res.status(500).json({ error: "Failed to get day breakdown" });
@@ -17049,144 +17062,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // End of TDDF1 APIs
 
-  // TDDF1 Day Breakdown - Daily data breakdown (using pre-cache for performance)
-  app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
-    // Force no cache for fresh data with date-specific ETag
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    
-    const date = req.query.date as string;
-    res.set('ETag', `"${date}-${Date.now()}"`);
-    res.set('Last-Modified', new Date().toUTCString());
-    
-    try {
-      const date = req.query.date as string;
-      if (!date) {
-        return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD format)" });
-      }
-      
-      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date} (using pre-cache)`);
-      
-      const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
-      const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
-      
-      // Query the totals cache table for the specific date including BH Net Deposit totals
-      const totalsResult = await pool.query(`
-        SELECT 
-          file_name,
-          table_name,
-          total_records,
-          total_transaction_value,
-          total_net_deposit_bh,
-          record_type_breakdown,
-          processing_time_ms,
-          created_at
-        FROM ${totalsTableName}
-        WHERE date_processed = $1
-        ORDER BY created_at
-      `, [date]);
-      
-      console.log(`📅 Found ${totalsResult.rows.length} cached entries for date ${date}`);
-      
-      if (totalsResult.rows.length === 0) {
-        console.log(`📅 NO CACHED DATA found for date ${date}`);
-        return res.json({
-          date,
-          totalRecords: 0,
-          recordTypes: {
-            BH: 0,
-            DT: 0,
-            G2: 0,
-            P1: 0,
-            P2: 0,
-            Others: 0
-          },
-          transactionValue: 0,
-          totalNetDepositBH: 0,
-          fileCount: 0,
-          tables: [],
-          filesProcessed: []
-        });
-      }
-      
-      // Aggregate data from all cached entries for the date
-      let totalRecords = 0;
-      let totalTransactionValue = 0;
-      let totalNetDepositBH = 0;
-      const aggregatedRecordTypes: Record<string, number> = {
-        BH: 0,
-        DT: 0,
-        G2: 0,
-        P1: 0,
-        P2: 0,
-        Others: 0
-      };
-      const filesProcessed: Array<{
-        fileName: string;
-        tableName: string;
-        recordCount: number;
-        processingTime?: number;
-      }> = [];
-      const tables: string[] = [];
-      
-      for (const row of totalsResult.rows) {
-        totalRecords += parseInt(row.total_records || '0');
-        totalTransactionValue += parseFloat(row.total_transaction_value || '0');
-        const netDepositValue = parseFloat(row.total_net_deposit_bh || '0');
-        console.log(`📅 Processing row: ${row.file_name}, Net Deposit: ${row.total_net_deposit_bh} -> ${netDepositValue}`);
-        totalNetDepositBH += netDepositValue;
-        
-        // Parse record type breakdown
-        const breakdown = row.record_type_breakdown || {};
-        for (const [recordType, count] of Object.entries(breakdown)) {
-          if (aggregatedRecordTypes.hasOwnProperty(recordType)) {
-            aggregatedRecordTypes[recordType] += parseInt(count as string || '0');
-          } else {
-            aggregatedRecordTypes.Others += parseInt(count as string || '0');
-          }
-        }
-        
-        filesProcessed.push({
-          fileName: row.file_name,
-          tableName: row.table_name,
-          recordCount: parseInt(row.total_records || '0'),
-          processingTime: parseInt(row.processing_time_ms || '0')
-        });
-        
-        tables.push(row.table_name);
-      }
-      
-      console.log(`📅 Aggregated data for ${date}: ${totalRecords} records, $${totalTransactionValue} value, $${totalNetDepositBH} BH Net Deposit`);
-      
-      const responseData = {
-        date,
-        totalRecords,
-        recordTypes: aggregatedRecordTypes,
-        transactionValue: totalTransactionValue,
-        totalNetDepositBH: totalNetDepositBH,
-        fileCount: totalsResult.rows.length,
-        tables,
-        filesProcessed,
-        timestamp: Date.now() // Force unique responses
-      };
-      
-      console.log(`📅 API Response for ${date}:`, JSON.stringify(responseData, null, 2));
-      console.log(`📅 totalNetDepositBH value check: ${totalNetDepositBH} (type: ${typeof totalNetDepositBH})`);
-      
-      // Disable any possible caching mechanisms
-      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      res.set('Pragma', 'no-cache');
-      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
-      res.set('ETag', ''); // Remove ETag entirely
-      res.set('Last-Modified', ''); // Remove Last-Modified
-      
-      return res.json(responseData);
-    } catch (error) {
-      console.error("Error getting TDDF1 day breakdown from cache:", error);
-      res.status(500).json({ error: "Failed to get day breakdown" });
-    }
-  });
+  // DUPLICATE ENDPOINT REMOVED - Using the first one only
 
   // TDDF1 Recent Activity - Latest processed files
   app.get("/api/tddf1/recent-activity", isAuthenticated, async (req, res) => {
