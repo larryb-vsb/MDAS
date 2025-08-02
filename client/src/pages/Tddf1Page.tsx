@@ -494,16 +494,35 @@ function Tddf1Page() {
                             const config = recordTypeConfig[type as keyof typeof recordTypeConfig];
                             const displayCount = typeof count === 'number' ? count : (typeof count === 'object' && count !== null && 'count' in count ? (count as any).count : count);
                             
+                            // Special layout for BH records showing Net Deposit prominently
+                            if (type === 'BH' && dayBreakdown.totalNetDepositBH) {
+                              return (
+                                <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <span className="text-sm font-bold">{config.label}</span>
+                                      <div className="text-xs opacity-80">{config.description}</div>
+                                    </div>
+                                    <div className="text-sm font-medium text-blue-700">
+                                      {displayCount.toLocaleString()} records
+                                    </div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-800">
+                                      ${dayBreakdown.totalNetDepositBH.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <div className="text-xs font-medium text-blue-600">Net Deposit Total</div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            // Standard layout for other record types
                             return (
                               <div key={type} className={`flex items-center justify-between rounded-lg p-3 border ${config.color}`}>
                                 <div>
                                   <span className="text-sm font-bold">{config.label}</span>
                                   <div className="text-xs opacity-80">{config.description}</div>
-                                  {type === 'BH' && dayBreakdown.totalNetDepositBH && (
-                                    <div className="text-xs font-medium text-blue-700 mt-1">
-                                      Net Deposit: ${dayBreakdown.totalNetDepositBH.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </div>
-                                  )}
                                 </div>
                                 <div className="text-lg font-bold">{displayCount.toLocaleString()}</div>
                               </div>
