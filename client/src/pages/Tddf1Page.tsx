@@ -38,6 +38,13 @@ interface Tddf1DayBreakdown {
   transactionValue: number;
   fileCount: number;
   tables: string[];
+  filesProcessed: Array<{
+    fileName: string;
+    tableName: string;
+    recordCount: number;
+    processingTime?: number;
+    fileSize?: string;
+  }>;
 }
 
 interface Tddf1RecentActivity {
@@ -65,6 +72,7 @@ function Tddf1Page() {
 
   const { data: dayBreakdown, isLoading: dayLoading } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
+    queryFn: () => fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json()),
     enabled: !!selectedDateStr,
   });
 
@@ -338,21 +346,51 @@ function Tddf1Page() {
                       {Object.entries(dayBreakdown.recordTypes).map(([type, count]) => (
                         <div key={type} className="flex items-center justify-between bg-gray-50 rounded p-2">
                           <span className="text-sm font-medium">{type}</span>
-                          <Badge variant="secondary">{count}</Badge>
+                          <Badge variant="secondary">
+                            {typeof count === 'object' && count !== null && 'count' in count ? count.count : count}
+                          </Badge>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Active Tables */}
-                  <div>
-                    <h4 className="font-semibold mb-3">Active Tables</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {dayBreakdown.tables.map(table => (
-                        <Badge key={table} variant="outline">{table}</Badge>
-                      ))}
+                  {/* Files Processed on This Day */}
+                  {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-3">Files Processed ({dayBreakdown.filesProcessed.length})</h4>
+                      <div className="space-y-2">
+                        {dayBreakdown.filesProcessed.map((file, index) => (
+                          <div key={index} className="bg-blue-50 rounded-lg p-3 border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium text-blue-900">{file.fileName}</div>
+                                <div className="text-sm text-blue-700">
+                                  {file.recordCount.toLocaleString()} records
+                                  {file.fileSize && ` • ${file.fileSize}`}
+                                  {file.processingTime && ` • ${file.processingTime}s processing`}
+                                </div>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {file.tableName.replace('dev_tddf1_', '')}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Active Tables (fallback) */}
+                  {(!dayBreakdown.filesProcessed || dayBreakdown.filesProcessed.length === 0) && dayBreakdown.tables.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-3">Active Tables</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {dayBreakdown.tables.map(table => (
+                          <Badge key={table} variant="outline">{table}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">

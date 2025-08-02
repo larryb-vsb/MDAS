@@ -16773,33 +16773,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           date,
           totalRecords: 0,
           recordTypes: {
-            BH: { count: 0, amount: 0 },
-            DT: { count: 0, amount: 0 },
-            G2: { count: 0, amount: 0 },
-            P1: { count: 0, amount: 0 },
-            P2: { count: 0, amount: 0 },
-            Others: { count: 0, amount: 0 }
+            BH: 0,
+            DT: 0,
+            G2: 0,
+            P1: 0,
+            P2: 0,
+            Others: 0
           },
           transactionValue: 0,
           fileCount: 0,
-          tables: []
+          tables: [],
+          filesProcessed: []
         });
       }
       
-      // Calculate totals from all matching tables
+      // Calculate totals from all matching tables and get file details
       let totalRecords = 0;
       let totalTransactionValue = 0;
-      const recordTypes: Record<string, { count: number; amount: number }> = {
-        BH: { count: 0, amount: 0 },
-        DT: { count: 0, amount: 0 },
-        G2: { count: 0, amount: 0 },
-        P1: { count: 0, amount: 0 },
-        P2: { count: 0, amount: 0 },
-        Others: { count: 0, amount: 0 }
+      const recordTypes: Record<string, number> = {
+        BH: 0,
+        DT: 0,
+        G2: 0,
+        P1: 0,
+        P2: 0,
+        Others: 0
       };
+      const filesProcessed: Array<{
+        fileName: string;
+        tableName: string;
+        recordCount: number;
+        processingTime?: number;
+        fileSize?: string;
+      }> = [];
       
       for (const tableName of activeTables) {
         try {
+          // Get record counts and transaction value for this table
           const tableStatsResult = await pool.query(`
             SELECT 
               record_type,
@@ -16809,26 +16818,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             GROUP BY record_type
           `);
           
+          let tableRecordCount = 0;
           for (const row of tableStatsResult.rows) {
             const recordType = row.record_type;
             const count = parseInt(row.record_count);
             const amount = parseFloat(row.transaction_value || '0');
             
             totalRecords += count;
+            tableRecordCount += count;
             
             if (recordType === 'DT') {
               totalTransactionValue += amount;
             }
             
             // Map record types (unknown types go to "Others")
-            if (recordTypes[recordType]) {
-              recordTypes[recordType].count += count;
-              recordTypes[recordType].amount += amount;
+            if (recordTypes[recordType] !== undefined) {
+              recordTypes[recordType] += count;
             } else {
-              recordTypes.Others.count += count;
-              recordTypes.Others.amount += amount;
+              recordTypes.Others += count;
             }
           }
+          
+          // Extract file name from table name (dev_tddf1_filename_date format)
+          const fileNameMatch = tableName.match(/^dev_tddf1_(.+?)_(\d{8})$/);
+          const fileName = fileNameMatch ? fileNameMatch[1] : tableName.replace('dev_tddf1_', '');
+          
+          // Try to get processing details from uploaded_files if available
+          let processingTime = undefined;
+          let fileSize = undefined;
+          try {
+            const fileDetailsResult = await pool.query(`
+              SELECT 
+                processing_duration_seconds,
+                file_size_mb
+              FROM dev_uploaded_files 
+              WHERE original_file_name LIKE $1 
+              ORDER BY uploaded_at DESC 
+              LIMIT 1
+            `, [`%${fileName}%`]);
+            
+            if (fileDetailsResult.rows.length > 0) {
+              const fileDetails = fileDetailsResult.rows[0];
+              processingTime = fileDetails.processing_duration_seconds;
+              fileSize = fileDetails.file_size_mb ? `${fileDetails.file_size_mb} MB` : undefined;
+            }
+          } catch (fileDetailsError) {
+            // Ignore errors when fetching file details
+          }
+          
+          filesProcessed.push({
+            fileName,
+            tableName,
+            recordCount: tableRecordCount,
+            processingTime,
+            fileSize
+          });
+          
         } catch (tableError) {
           console.warn(`Failed to get stats for table ${tableName}:`, tableError);
         }
@@ -16840,7 +16885,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordTypes,
         transactionValue: totalTransactionValue,
         fileCount: activeTables.length,
-        tables: activeTables
+        tables: activeTables,
+        filesProcessed
       });
       
     } catch (error) {
