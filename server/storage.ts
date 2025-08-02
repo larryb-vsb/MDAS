@@ -567,7 +567,23 @@ export class DatabaseStorage implements IStorage {
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getUser(id: number): Promise<User | undefined> {
     const usersTableName = getTableName('users');
-    const result = await pool.query(`SELECT * FROM ${usersTableName} WHERE id = $1`, [id]);
+    const result = await pool.query(`
+      SELECT 
+        id,
+        username,
+        password,
+        email,
+        first_name as "firstName",
+        last_name as "lastName",
+        role,
+        developer_flag as "developerFlag",
+        default_dashboard as "defaultDashboard",
+        theme_preference as "themePreference",
+        created_at as "createdAt",
+        last_login as "lastLogin"
+      FROM ${usersTableName} 
+      WHERE id = $1
+    `, [id]);
     return result.rows[0] || undefined;
   }
   
@@ -577,13 +593,31 @@ export class DatabaseStorage implements IStorage {
     console.log(`[DEBUG storage] Looking up user by username: ${username}`);
     try {
       const usersTableName = getTableName('users');
-      const result = await pool.query(`SELECT * FROM ${usersTableName} WHERE username = $1`, [username]);
+      const result = await pool.query(`
+        SELECT 
+          id,
+          username,
+          password,
+          email,
+          first_name as "firstName",
+          last_name as "lastName",
+          role,
+          developer_flag as "developerFlag",
+          default_dashboard as "defaultDashboard",
+          theme_preference as "themePreference",
+          created_at as "createdAt",
+          last_login as "lastLogin"
+        FROM ${usersTableName} 
+        WHERE username = $1
+      `, [username]);
       const user = result.rows[0];
       if (user) {
         console.log(`[DEBUG storage] Found user: ${JSON.stringify({
           id: user.id,
           username: user.username,
           role: user.role,
+          defaultDashboard: user.defaultDashboard,
+          themePreference: user.themePreference,
           passwordLength: user.password?.length || 0
         })}`);
       } else {
@@ -625,7 +659,23 @@ export class DatabaseStorage implements IStorage {
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getUsers(): Promise<User[]> {
     const usersTableName = getTableName('users');
-    const result = await pool.query(`SELECT * FROM ${usersTableName} ORDER BY username`);
+    const result = await pool.query(`
+      SELECT 
+        id,
+        username,
+        password,
+        email,
+        first_name as "firstName",
+        last_name as "lastName",
+        role,
+        developer_flag as "developerFlag",
+        default_dashboard as "defaultDashboard",
+        theme_preference as "themePreference",
+        created_at as "createdAt",
+        last_login as "lastLogin"
+      FROM ${usersTableName} 
+      ORDER BY username
+    `);
     return result.rows;
   }
   
@@ -675,7 +725,19 @@ export class DatabaseStorage implements IStorage {
       UPDATE ${usersTableName} 
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
-      RETURNING *
+      RETURNING 
+        id,
+        username,
+        password,
+        email,
+        first_name as "firstName",
+        last_name as "lastName",
+        role,
+        developer_flag as "developerFlag",
+        default_dashboard as "defaultDashboard",
+        theme_preference as "themePreference",
+        created_at as "createdAt",
+        last_login as "lastLogin"
     `, values);
     
     return result.rows[0];
