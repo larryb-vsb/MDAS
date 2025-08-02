@@ -16710,10 +16710,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📊 Getting TDDF1 stats");
       
-      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
-      const tablePrefix = 'prod_tddf1_';
+      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
+      const tablePrefix = 'tddf1_';
       
-      console.log(`📊 Using production TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`📊 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Check if pre-cache totals table exists
       const totalsTableName = `${tablePrefix}totals`;
@@ -16931,10 +16931,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const date = req.query.date as string || new Date().toISOString().split('T')[0];
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
-      // Simplified: Since we're in production environment, use prod_tddf1_totals directly
-      const totalsTableName = 'prod_tddf1_totals';
+      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
+      const totalsTableName = 'tddf1_totals';
       
-      console.log(`📅 Using production TDDF1 totals table: ${totalsTableName}`);
+      console.log(`📅 Using standard TDDF1 totals table: ${totalsTableName}`);
       
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
@@ -17028,20 +17028,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📋 Getting TDDF1 recent activity");
       
-      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
-      const tablePrefix = 'prod_tddf1_';
+      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
+      const tablePrefix = 'tddf1_';
       
-      console.log(`📋 Using production TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`📋 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
       
-      // Get recent file tables
+      // Get recent file tables - check both standard naming and legacy prod_ naming
       const recentTablesResult = await pool.query(`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-          AND table_name LIKE $1
+          AND (table_name LIKE $1 OR table_name LIKE $2)
         ORDER BY table_name DESC
         LIMIT 10
-      `, [`${tablePrefix}file_%`]);
+      `, [`${tablePrefix}file_%`, `prod_${tablePrefix}file_%`]);
       
       const recentActivity: Tddf1RecentActivity[] = [];
       
@@ -17308,11 +17308,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("🔄 Rebuilding TDDF1 totals cache");
       
-      // Simplified: Since we're in production environment, use prod_tddf1_ tables directly
-      const tablePrefix = 'prod_tddf1_';
+      // Standard production naming: no prefix (like merchants, transactions, uploaded_files)
+      const tablePrefix = 'tddf1_';
       const totalsTableName = `${tablePrefix}totals`;
       
-      console.log(`🔄 Using production TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`🔄 Using standard TDDF1 tables with prefix: ${tablePrefix}`);
       
       // Create totals table if it doesn't exist - Enhanced with comprehensive breakdown
       await pool.query(`
