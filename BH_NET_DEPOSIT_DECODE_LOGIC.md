@@ -37,19 +37,21 @@ const netDepositDollars = netDepositCents / 100.0;
 // Example: 5502 → $55.02
 ```
 
-#### 4. Complete SQL Implementation
+#### 4. Complete SQL Implementation with Validation
 ```sql
 SELECT 
-  -- Extract Net Deposit from correct TDDF positions
-  SUBSTRING(raw_line, 69, 15) as net_deposit_raw,
-  
-  -- Convert to decimal and divide by 100 for dollar amount
-  CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0 as net_deposit_dollars
-  
+  COALESCE(SUM(CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0), 0) AS total_net_deposit_bh
 FROM tddf1_table_name 
 WHERE record_type = 'BH' 
-  AND LENGTH(raw_line) >= 83  -- Ensure line is long enough
+  AND LENGTH(raw_line) >= 83                           -- Ensure line is long enough
+  AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$'        -- Regex validation for numeric-only
 ```
+
+#### 5. Enhanced Validation Features
+- **Length Check**: `LENGTH(raw_line) >= 83` ensures complete TDDF record
+- **Regex Validation**: `~ '^[0-9]+$'` confirms numeric-only content
+- **Error Prevention**: Prevents CAST errors on malformed data
+- **Production Safety**: Handles corrupted TDDF files gracefully
 
 ### Real Data Examples
 

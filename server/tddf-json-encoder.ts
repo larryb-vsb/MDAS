@@ -1142,11 +1142,13 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
       WHERE record_type = 'DT' AND transaction_amount IS NOT NULL
     `);
     
-    // Calculate BH Net Deposit totals from raw TDDF positions 69-83
+    // Calculate BH Net Deposit totals from raw TDDF positions 69-83 with regex validation
     const bhNetDepositResult = await sql(`
       SELECT COALESCE(SUM(CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0), 0) as total_net_deposit_bh
       FROM ${tableName}
-      WHERE record_type = 'BH' AND LENGTH(raw_line) >= 83
+      WHERE record_type = 'BH' 
+        AND LENGTH(raw_line) >= 83
+        AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$'
     `);
     
     if (transactionValueResult.length > 0 || bhNetDepositResult.length > 0) {
