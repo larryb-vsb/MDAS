@@ -17060,6 +17060,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Monthly Totals
+  app.get('/api/tddf1/monthly-totals', isAuthenticated, async (req, res) => {
+    console.log('📅 Getting TDDF1 monthly totals');
+    
+    try {
+      const { month } = req.query; // Expected format: 'YYYY-MM'
+      
+      if (!month || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
+      }
+      
+      const startDate = `${month}-01`;
+      const endDate = `${month}-31`; // SQL will handle month boundaries correctly
+      
+      console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
+      
+      // Get monthly aggregated totals
+      const monthlyTotals = await pool.query(`
+        SELECT 
+          $1 as month,
+          COUNT(*) as total_files,
+          SUM(total_records) as total_records,
+          SUM(total_transaction_value) as total_transaction_value,
+          SUM(total_net_deposit_bh) as total_net_deposit_bh
+        FROM dev_tddf1_totals 
+        WHERE date_processed >= $2 AND date_processed <= $3
+      `, [month, startDate, endDate]);
+      
+      // Get record type breakdown for the month
+      const recordTypeData = await pool.query(`
+        SELECT record_type_breakdown::json as breakdown
+        FROM dev_tddf1_totals 
+        WHERE date_processed >= $1 AND date_processed <= $2
+      `, [startDate, endDate]);
+      
+      // Aggregate all record type breakdowns
+      const aggregatedBreakdown: Record<string, number> = {};
+      recordTypeData.rows.forEach(row => {
+        const breakdown = row.breakdown || {};
+        Object.entries(breakdown).forEach(([type, count]) => {
+          aggregatedBreakdown[type] = (aggregatedBreakdown[type] || 0) + (count as number);
+        });
+      });
+      
+      // Get daily breakdown for the month
+      const dailyBreakdown = await pool.query(`
+        SELECT 
+          date_processed as date,
+          COUNT(*) as files,
+          SUM(total_records) as records,
+          SUM(total_transaction_value) as transaction_value,
+          SUM(total_net_deposit_bh) as net_deposit_bh
+        FROM dev_tddf1_totals 
+        WHERE date_processed >= $1 AND date_processed <= $2
+        GROUP BY date_processed
+        ORDER BY date_processed
+      `, [startDate, endDate]);
+      
+      const result = {
+        month,
+        totalFiles: parseInt(monthlyTotals.rows[0]?.total_files || '0'),
+        totalRecords: parseInt(monthlyTotals.rows[0]?.total_records || '0'),
+        totalTransactionValue: parseFloat(monthlyTotals.rows[0]?.total_transaction_value || '0'),
+        totalNetDepositBh: parseFloat(monthlyTotals.rows[0]?.total_net_deposit_bh || '0'),
+        recordTypeBreakdown: aggregatedBreakdown,
+        dailyBreakdown: dailyBreakdown.rows.map(day => ({
+          date: day.date,
+          files: parseInt(day.files),
+          records: parseInt(day.records),
+          transactionValue: parseFloat(day.transaction_value || '0'),
+          netDepositBh: parseFloat(day.net_deposit_bh || '0')
+        }))
+      };
+      
+      console.log(`📅 [MONTHLY] Aggregated data for ${month}: ${result.totalFiles} files, ${result.totalRecords} records, $${result.totalTransactionValue.toLocaleString()} transaction value, $${result.totalNetDepositBh.toLocaleString()} net deposit`);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('❌ Error fetching TDDF1 monthly totals:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // End of TDDF1 APIs
 
   // DUPLICATE ENDPOINT REMOVED - Using the first one only
