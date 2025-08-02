@@ -81,9 +81,12 @@ function Tddf1Page() {
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // API Queries
-  const { data: stats, isLoading: statsLoading } = useQuery<Tddf1Stats>({
+  // API Queries with enhanced refresh options
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<Tddf1Stats>({
     queryKey: ['/api/tddf1/stats'],
+    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchOnWindowFocus: true,
+    staleTime: 5000, // Consider data fresh for 5 seconds
   });
 
   const { data: dayBreakdown, isLoading: dayLoading } = useQuery<Tddf1DayBreakdown>({
@@ -270,6 +273,16 @@ function Tddf1Page() {
                 Pre-Cache Totals Management
               </CardTitle>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchStats()}
+                  disabled={statsLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+                  Refresh Data
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
