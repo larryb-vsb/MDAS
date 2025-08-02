@@ -87,9 +87,16 @@ function Tddf1Page() {
   // Get user info for theme preferences
   const { data: user } = useQuery({
     queryKey: ['/api/user'],
+    staleTime: 0, // Always fetch fresh user data
+    refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = user?.theme_preference === 'dark';
+  const isDarkMode = user?.themePreference === 'dark';
+
+  // Debug: Log theme state
+  console.log('User data:', user);
+  console.log('Theme preference:', user?.themePreference);
+  console.log('isDarkMode:', isDarkMode);
 
   // Format dates for API calls
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -264,9 +271,9 @@ function Tddf1Page() {
 
         {/* Mobile-Optimized Totals Band */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          <Card className="min-h-[120px] sm:min-h-[140px]">
+          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm sm:text-base font-medium">Total Files</CardTitle>
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files</CardTitle>
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -276,9 +283,9 @@ function Tddf1Page() {
             </CardContent>
           </Card>
 
-          <Card className="min-h-[120px] sm:min-h-[140px]">
+          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm sm:text-base font-medium">Total Records Processed</CardTitle>
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records Processed</CardTitle>
               <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -299,9 +306,9 @@ function Tddf1Page() {
             </CardContent>
           </Card>
 
-          <Card className="min-h-[120px] sm:min-h-[140px]">
+          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm sm:text-base font-medium">Authorizations</CardTitle>
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -311,9 +318,9 @@ function Tddf1Page() {
             </CardContent>
           </Card>
 
-          <Card className="min-h-[120px] sm:min-h-[140px]">
+          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm sm:text-base font-medium">Active Tables</CardTitle>
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Active Tables</CardTitle>
               <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -325,10 +332,10 @@ function Tddf1Page() {
         </div>
 
         {/* Mobile-Optimized Pre-Cache Totals Widget */}
-        <Card>
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader>
             <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 <Database className="h-5 w-5" />
                 <span className="hidden sm:inline">Pre-Cache Totals Management</span>
                 <span className="sm:hidden">Cache Management</span>
@@ -497,10 +504,10 @@ function Tddf1Page() {
         {/* Mobile-Optimized Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Mobile-Optimized Day Breakdown Widget */}
-          <Card className="lg:col-span-2">
+          <Card className={`lg:col-span-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader>
               <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                   <BarChart3 className="h-5 w-5" />
                   <span className="hidden sm:inline">Daily Breakdown - {format(selectedDate, 'MMM d, yyyy')}</span>
                   <span className="sm:hidden">Daily - {format(selectedDate, 'MMM d')}</span>
@@ -758,10 +765,10 @@ function Tddf1Page() {
           )}
 
           {/* Recent Activity Widget */}
-          <Card>
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                   <Activity className="h-5 w-5" />
                   Recent Activity
                 </CardTitle>
@@ -819,9 +826,9 @@ function Tddf1Page() {
         </div>
 
         {/* Enhanced Record Type Breakdown Widget */}
-        <Card>
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className={`flex items-center gap-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
               <TrendingUp className="h-5 w-5" />
               Overall Record Type Breakdown
             </CardTitle>
