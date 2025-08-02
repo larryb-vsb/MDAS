@@ -1078,6 +1078,82 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     console.error(`[TDDF1-ENCODER] Failed to update upload status to 'encoded':`, updateError);
     results.errors.push(`Failed to update status: ${updateError.message}`);
   }
+
+  // Update TDDF1 totals cache for daily breakdown widget
+  try {
+    console.log(`[TDDF1-ENCODER] Updating totals cache for daily breakdown`);
+    const environment = process.env.NODE_ENV || 'development';
+    const totalsTableName = environment === 'development' ? 'dev_tddf1_totals' : 'prod_tddf1_totals';
+    
+    // Calculate total transaction value from DT records
+    const totalTransactionValue = Object.entries(results.recordCounts.byType)
+      .filter(([type]) => type === 'DT')
+      .reduce((sum, [, count]) => {
+        // For now, we'll need to query the actual table for transaction values
+        return sum;
+      }, 0);
+    
+    // Extract date from filename for daily grouping (MMDDYYYY format)
+    const dateMatch = upload.filename.match(/(\d{8})/);
+    let processedDate = new Date();
+    if (dateMatch) {
+      const dateStr = dateMatch[1];
+      // Parse MMDDYYYY format
+      const month = parseInt(dateStr.substring(0, 2));
+      const day = parseInt(dateStr.substring(2, 4));
+      const year = parseInt(dateStr.substring(4, 8));
+      processedDate = new Date(year, month - 1, day);
+    }
+    
+    // Insert or update totals cache entry
+    await sql(`
+      INSERT INTO ${totalsTableName} (
+        date_processed, file_name, table_name, total_records, 
+        total_transaction_value, record_type_breakdown, processing_time_ms,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT (date_processed, file_name) 
+      DO UPDATE SET 
+        table_name = EXCLUDED.table_name,
+        total_records = EXCLUDED.total_records,
+        total_transaction_value = EXCLUDED.total_transaction_value,
+        record_type_breakdown = EXCLUDED.record_type_breakdown,
+        processing_time_ms = EXCLUDED.processing_time_ms,
+        updated_at = CURRENT_TIMESTAMP
+    `, [
+      processedDate.toISOString().split('T')[0], // Date in YYYY-MM-DD format
+      upload.filename,
+      tableName,
+      results.totalRecords,
+      0, // Will be calculated in a separate query
+      JSON.stringify(results.recordCounts.byType),
+      results.encodingTimeMs
+    ]);
+    
+    // Now calculate and update the actual transaction value
+    const transactionValueResult = await sql(`
+      SELECT COALESCE(SUM(transaction_amount), 0) as total_value
+      FROM ${tableName}
+      WHERE record_type = 'DT' AND transaction_amount IS NOT NULL
+    `);
+    
+    if (transactionValueResult.length > 0) {
+      await sql(`
+        UPDATE ${totalsTableName} 
+        SET total_transaction_value = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE date_processed = $2 AND file_name = $3
+      `, [
+        parseFloat(transactionValueResult[0].total_value || '0'),
+        processedDate.toISOString().split('T')[0],
+        upload.filename
+      ]);
+    }
+    
+    console.log(`[TDDF1-ENCODER] ✅ Successfully updated totals cache for ${processedDate.toISOString().split('T')[0]}`);
+  } catch (cacheError: any) {
+    console.error(`[TDDF1-ENCODER] Failed to update totals cache:`, cacheError);
+    results.errors.push(`Failed to update totals cache: ${cacheError.message}`);
+  }
   
   return results;
 }

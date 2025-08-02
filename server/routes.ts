@@ -17016,7 +17016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // End of TDDF1 APIs
 
-  // TDDF1 Day Breakdown - Daily data breakdown
+  // TDDF1 Day Breakdown - Daily data breakdown (using pre-cache for performance)
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
     // Force no cache for fresh data with unique timestamp
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -17031,33 +17031,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD format)" });
       }
       
-      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
+      console.log(`📅 Getting TDDF1 daily breakdown for date: ${date} (using pre-cache)`);
       
       const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
-      const tablePrefix = currentEnv === 'production' ? 'prod_tddf1_' : 'dev_tddf1_';
+      const totalsTableName = currentEnv === 'production' ? 'prod_tddf1_totals' : 'dev_tddf1_totals';
       
-      // Format date for table matching (2025-08-01 -> 08012025 MM/DD/YYYY format)
-      const dateParts = date.split('-');
-      const dateFormatted = `${dateParts[1]}${dateParts[2]}${dateParts[0]}`; // MM/DD/YYYY
-      console.log(`📅 Looking for tables with date format: ${dateFormatted} (converted from ${date})`);
+      // Query the totals cache table for the specific date
+      const totalsResult = await pool.query(`
+        SELECT 
+          file_name,
+          table_name,
+          total_records,
+          total_transaction_value,
+          record_type_breakdown,
+          processing_time_ms,
+          created_at
+        FROM ${totalsTableName}
+        WHERE date_processed = $1
+        ORDER BY created_at
+      `, [date]);
       
-      // Get all TDDF1 tables that match the date
-      const tablesResult = await pool.query(`
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-          AND table_name LIKE $1
-          AND table_name LIKE $2
-          AND table_name != $3
-        ORDER BY table_name
-      `, [`${tablePrefix}file_%`, `%${dateFormatted}%`, `${tablePrefix}totals`]);
+      console.log(`📅 Found ${totalsResult.rows.length} cached entries for date ${date}`);
       
-      const activeTables = tablesResult.rows.map(row => row.table_name);
-      console.log(`📅 Found ${activeTables.length} tables for date ${date}:`, activeTables);
-      
-      if (activeTables.length === 0) {
-        console.log(`📅 NO TABLES FOUND for date ${date}, formatted as ${dateFormatted}`);
-        console.log(`📅 Query was: ${tablePrefix}file_% AND %${dateFormatted}%`);
+      if (totalsResult.rows.length === 0) {
+        console.log(`📅 NO CACHED DATA found for date ${date}`);
         return res.json({
           date,
           totalRecords: 0,
@@ -17076,10 +17073,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Calculate totals from all matching tables and get file details
+      // Aggregate data from all cached entries for the date
       let totalRecords = 0;
       let totalTransactionValue = 0;
-      const recordTypes: Record<string, number> = {
+      const aggregatedRecordTypes: Record<string, number> = {
         BH: 0,
         DT: 0,
         G2: 0,
@@ -17092,115 +17089,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tableName: string;
         recordCount: number;
         processingTime?: number;
-        fileSize?: string;
       }> = [];
+      const tables: string[] = [];
       
-      for (const tableName of activeTables) {
-        try {
-          // Get record counts for this table
-          const tableStatsResult = await pool.query(`
-            SELECT 
-              record_type,
-              COUNT(*) as record_count
-            FROM ${tableName}
-            GROUP BY record_type
-          `);
-          
-          // Get total transaction value for DT records only
-          const transactionValueResult = await pool.query(`
-            SELECT 
-              COALESCE(SUM(CAST(transaction_amount AS DECIMAL)), 0) as total_transaction_value
-            FROM ${tableName}
-            WHERE record_type = 'DT' AND transaction_amount IS NOT NULL
-          `);
-          
-          let tableRecordCount = 0;
-          const tableTransactionValue = parseFloat(transactionValueResult.rows[0]?.total_transaction_value || '0');
-          totalTransactionValue += tableTransactionValue;
-          
-          for (const row of tableStatsResult.rows) {
-            const recordType = row.record_type;
-            const count = parseInt(row.record_count);
-            
-            totalRecords += count;
-            tableRecordCount += count;
-            
-            // Map record types (unknown types go to "Others")
-            if (recordTypes[recordType] !== undefined) {
-              recordTypes[recordType] += count;
-            } else {
-              recordTypes.Others += count;
-            }
+      for (const row of totalsResult.rows) {
+        totalRecords += parseInt(row.total_records || '0');
+        totalTransactionValue += parseFloat(row.total_transaction_value || '0');
+        
+        // Parse record type breakdown
+        const breakdown = row.record_type_breakdown || {};
+        for (const [recordType, count] of Object.entries(breakdown)) {
+          if (aggregatedRecordTypes.hasOwnProperty(recordType)) {
+            aggregatedRecordTypes[recordType] += parseInt(count as string || '0');
+          } else {
+            aggregatedRecordTypes.Others += parseInt(count as string || '0');
           }
-          
-          // Extract file name from table name (dev_tddf1_file_filename format)
-          const fileNameMatch = tableName.match(/^dev_tddf1_file_(.+)$/);
-          const fileName = fileNameMatch ? fileNameMatch[1] : tableName.replace('dev_tddf1_file_', '');
-          
-          // Try to get processing details from uploaded_files if available
-          let processingTime = undefined;
-          let fileSize = undefined;
-          try {
-            const fileDetailsResult = await pool.query(`
-              SELECT 
-                processing_duration_seconds,
-                file_size_mb
-              FROM dev_uploaded_files 
-              WHERE original_file_name LIKE $1 
-              ORDER BY uploaded_at DESC 
-              LIMIT 1
-            `, [`%${fileName}%`]);
-            
-            if (fileDetailsResult.rows.length > 0) {
-              const fileDetails = fileDetailsResult.rows[0];
-              processingTime = fileDetails.processing_duration_seconds;
-              fileSize = fileDetails.file_size_mb ? `${fileDetails.file_size_mb} MB` : undefined;
-            }
-          } catch (fileDetailsError) {
-            // Ignore errors when fetching file details
-          }
-          
-          filesProcessed.push({
-            fileName,
-            tableName,
-            recordCount: tableRecordCount,
-            processingTime,
-            fileSize
-          });
-          
-        } catch (tableError) {
-          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
         }
+        
+        filesProcessed.push({
+          fileName: row.file_name,
+          tableName: row.table_name,
+          recordCount: parseInt(row.total_records || '0'),
+          processingTime: parseInt(row.processing_time_ms || '0')
+        });
+        
+        tables.push(row.table_name);
       }
       
-      res.json({
+      console.log(`📅 Aggregated data for ${date}: ${totalRecords} records, $${totalTransactionValue} value`);
+      
+      return res.json({
         date,
         totalRecords,
-        recordTypes,
+        recordTypes: aggregatedRecordTypes,
         transactionValue: totalTransactionValue,
-        fileCount: activeTables.length,
-        tables: activeTables,
+        fileCount: totalsResult.rows.length,
+        tables,
         filesProcessed
       });
-      
     } catch (error) {
-      console.error("Error getting TDDF1 day breakdown:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to get TDDF1 day breakdown",
-        date: req.query.date,
-        totalRecords: 0,
-        recordTypes: {
-          BH: { count: 0, amount: 0 },
-          DT: { count: 0, amount: 0 },
-          G2: { count: 0, amount: 0 },
-          P1: { count: 0, amount: 0 },
-          P2: { count: 0, amount: 0 },
-          Others: { count: 0, amount: 0 }
-        },
-        transactionValue: 0,
-        fileCount: 0,
-        tables: []
-      });
+      console.error("Error getting TDDF1 day breakdown from cache:", error);
+      res.status(500).json({ error: "Failed to get day breakdown" });
     }
   });
 
