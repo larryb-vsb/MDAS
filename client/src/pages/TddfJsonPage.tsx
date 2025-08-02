@@ -1320,33 +1320,33 @@ export default function TddfJsonPage() {
                 </p>
               </div>
               
-              {/* Quick Range View Controls */}
-              <div className="flex items-center gap-3">
+              {/* Quick Range View Controls - Compact Version */}
+              <div className="flex items-center gap-1.5 scale-75 origin-right">
                 {/* Range Mode Selector */}
                 <Select value={quickRangeMode} onValueChange={(value: '1month' | '2month' | '3month') => setQuickRangeMode(value)}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-24 h-7 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1month">1 Month</SelectItem>
-                    <SelectItem value="2month">2 Months</SelectItem>
-                    <SelectItem value="3month">3 Months</SelectItem>
+                    <SelectItem value="1month">1M</SelectItem>
+                    <SelectItem value="2month">2M</SelectItem>
+                    <SelectItem value="3month">3M</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 {/* Month Navigation */}
-                <div className="flex items-center gap-2 border rounded-lg p-1">
+                <div className="flex items-center gap-1 border rounded p-0.5">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => navigateMonth('prev')}
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                     title="Previous month"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3 h-3" />
                   </Button>
                   
-                  <div className="px-3 py-1 text-sm font-medium min-w-[120px] text-center">
+                  <div className="px-2 py-0.5 text-xs font-medium min-w-[80px] text-center">
                     {getQuickRangeDisplay()}
                   </div>
                   
@@ -1354,10 +1354,10 @@ export default function TddfJsonPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigateMonth('next')}
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                     title="Next month"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3 h-3" />
                   </Button>
                 </div>
                 
@@ -1370,11 +1370,11 @@ export default function TddfJsonPage() {
                     setCurrentRangeYear(new Date().getFullYear());
                     setSelectedYear(new Date().getFullYear());
                   }}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1 h-6 px-2 text-xs"
                   title="Go to current month"
                 >
-                  <Calendar className="w-4 h-4" />
-                  Today
+                  <Calendar className="w-3 h-3" />
+                  Now
                 </Button>
               </div>
             </div>
@@ -1419,10 +1419,10 @@ export default function TddfJsonPage() {
             
             {/* Range and Date Filter Indicators */}
             <div className="mt-4 flex items-center gap-2 flex-wrap">
-              {/* Current Range Indicator */}
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              {/* Current Range Indicator - Compact */}
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                 <Calendar className="w-3 h-3 mr-1" />
-                {quickRangeMode === '1month' ? '1 Month' : quickRangeMode === '2month' ? '2 Months' : '3 Months'} View: {getQuickRangeDisplay()}
+                {quickRangeMode === '1month' ? '1M' : quickRangeMode === '2month' ? '2M' : '3M'}: {getQuickRangeDisplay()}
               </Badge>
               
               {/* Date Filter Badge */}
