@@ -852,7 +852,8 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
  */
 export async function encodeTddfToTddf1FileBased(fileContent: string, upload: UploaderUpload): Promise<any> {
   const startTime = Date.now();
-  const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+  // Process ALL lines - do not filter out any lines including empty ones
+  const lines = fileContent.split('\n');
   
   // Import database connection
   const { neon } = await import('@neondatabase/serverless');
