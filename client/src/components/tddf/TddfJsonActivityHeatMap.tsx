@@ -589,48 +589,74 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
             <ChevronRight className="h-4 w-4" />
           </Button>
 
-          {/* Three-Month View Separator */}
-          <div className="mx-2 h-6 w-px bg-gray-300"></div>
+          {/* Month Navigation - only show when no monthRange is provided */}
+          {!monthRange && (
+            <>
+              {/* Three-Month View Separator */}
+              <div className="mx-2 h-6 w-px bg-gray-300"></div>
 
-          {/* Month Navigation for 3-month view */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentMonthOffset(Math.max(0, currentMonthOffset - 1));
-            }}
-            disabled={currentMonthOffset <= 0}
-            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
-            title="Previous month"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <div className="text-sm font-medium min-w-[200px] text-center">
-            {currentThreeMonths.length > 0 && (
-              <span className="text-green-700">
-                {currentThreeMonths[0]?.fullName} - {currentThreeMonths[currentThreeMonths.length - 1]?.fullName}
-              </span>
-            )}
-            {activityResponse?.records && activityResponse.records.length > 0 && (
-              <div className="text-xs text-gray-500 mt-1">
-                Auto-positioned to latest activity
+              {/* Month Navigation for 3-month view */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCurrentMonthOffset(Math.max(0, currentMonthOffset - 1));
+                }}
+                disabled={currentMonthOffset <= 0}
+                className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
+                title="Previous month"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="text-sm font-medium min-w-[200px] text-center">
+                {currentThreeMonths.length > 0 && (
+                  <span className="text-green-700">
+                    {currentThreeMonths[0]?.fullName} - {currentThreeMonths[currentThreeMonths.length - 1]?.fullName}
+                  </span>
+                )}
+                {activityResponse?.records && activityResponse.records.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Auto-positioned to latest activity
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCurrentMonthOffset(Math.min(9, currentMonthOffset + 1)); // Max offset is 9 (Oct-Dec)
+                }}
+                disabled={currentMonthOffset >= 9} // Can't go past October (for Oct-Nov-Dec view)
+                className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
+                title="Next month"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setCurrentMonthOffset(Math.min(9, currentMonthOffset + 1)); // Max offset is 9 (Oct-Dec)
-            }}
-            disabled={currentMonthOffset >= 9} // Can't go past October (for Oct-Nov-Dec view)
-            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 border border-gray-300"
-            title="Next month"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {/* Month Range Display - only show when monthRange is provided */}
+          {monthRange && (
+            <>
+              <div className="mx-2 h-6 w-px bg-gray-300"></div>
+              <div className="text-sm font-medium min-w-[200px] text-center">
+                {currentThreeMonths.length > 0 && (
+                  <span className="text-blue-700">
+                    {currentThreeMonths.length === 1 ? (
+                      currentThreeMonths[0]?.fullName
+                    ) : (
+                      `${currentThreeMonths[0]?.fullName} - ${currentThreeMonths[currentThreeMonths.length - 1]?.fullName}`
+                    )}
+                  </span>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  Filtered by parent page range
+                </div>
+              </div>
+            </>
+          )}
           
           {/* Cache Refresh Button */}
           {isAdmin ? (
