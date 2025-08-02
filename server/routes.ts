@@ -12418,7 +12418,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortBy = 'created_at',
         sortOrder = 'desc',
         dateFilter,
-        year
+        year,
+        startDate,
+        endDate
       } = req.query;
       
       const pageNum = parseInt(page as string) || 1;
@@ -12465,6 +12467,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[TDDF-JSON-RECORDS] Year filter received: ${year}`);
         whereConditions.push(`EXTRACT(YEAR FROM (extracted_fields->>'transactionDate')::date) = $${paramIndex}`);
         params.push(parseInt(year as string));
+        paramIndex++;
+      }
+      
+      // Month range filtering (startDate and endDate)
+      if (startDate && endDate) {
+        console.log(`[TDDF-JSON-RECORDS] Month range filter received: ${startDate} to ${endDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date >= $${paramIndex} AND (extracted_fields->>'transactionDate')::date <= $${paramIndex + 1}`);
+        params.push(startDate, endDate);
+        paramIndex += 2;
+      } else if (startDate) {
+        console.log(`[TDDF-JSON-RECORDS] Start date filter received: ${startDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date >= $${paramIndex}`);
+        params.push(startDate);
+        paramIndex++;
+      } else if (endDate) {
+        console.log(`[TDDF-JSON-RECORDS] End date filter received: ${endDate}`);
+        whereConditions.push(`(extracted_fields->>'transactionDate')::date <= $${paramIndex}`);
+        params.push(endDate);
         paramIndex++;
       }
       

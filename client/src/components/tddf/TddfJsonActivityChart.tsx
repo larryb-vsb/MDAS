@@ -40,9 +40,10 @@ interface ActivityResponse {
 interface TddfJsonActivityChartProps {
   currentYear: number;
   enableDebugLogging?: boolean;
+  monthRange?: { startDate: string; endDate: string }; // Month range for filtering
 }
 
-export default function TddfJsonActivityChart({ currentYear, enableDebugLogging = false }: TddfJsonActivityChartProps) {
+export default function TddfJsonActivityChart({ currentYear, enableDebugLogging = false, monthRange }: TddfJsonActivityChartProps) {
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area'>('bar');
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 

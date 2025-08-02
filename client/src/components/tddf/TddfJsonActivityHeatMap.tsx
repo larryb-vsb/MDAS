@@ -136,6 +136,7 @@ interface TddfJsonActivityHeatMapProps {
   isAdmin?: boolean;
   initialYear?: number; // Dynamic year from last data found
   onYearChange?: (year: number) => void; // Callback when year changes
+  monthRange?: { startDate: string; endDate: string }; // Month range for filtering
 }
 
 interface HeatMapCacheStatus {
@@ -152,7 +153,8 @@ const TddfJsonActivityHeatMap: React.FC<TddfJsonActivityHeatMapProps> = ({
   userId,
   isAdmin = false,
   initialYear,
-  onYearChange
+  onYearChange,
+  monthRange
 }) => {
   const [currentYear, setCurrentYear] = useState(initialYear || new Date().getFullYear()); // Use dynamic year from last data found
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // Track 3-month window position

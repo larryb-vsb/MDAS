@@ -971,6 +971,9 @@ export default function TddfJsonPage() {
     console.log('[TDDF-JSON-PAGE] Current selectedTab:', selectedTab);
   }
 
+  // Get current month range for table filtering
+  const currentDateRange = getDateRangeFilter();
+
   // Fetch TDDF JSON records with filtering and pagination (staggered after stats)
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery<TddfJsonResponse>({
     queryKey: ['/api/tddf-json/records', {
@@ -981,7 +984,8 @@ export default function TddfJsonPage() {
       sortBy,
       sortOrder,
       dateFilter: dateFilter || undefined,
-      year: selectedYear // Add year filtering
+      year: selectedYear, // Add year filtering
+      monthRange: currentDateRange // Add month range filtering
     }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -995,6 +999,12 @@ export default function TddfJsonPage() {
       if (searchTerm) params.append('search', searchTerm);
       if (dateFilter) params.append('dateFilter', dateFilter);
       if (selectedYear) params.append('year', selectedYear.toString()); // Add year parameter
+      
+      // Add month range filtering unless user has specific date filter
+      if (!dateFilter && currentDateRange) {
+        params.append('startDate', currentDateRange.startDate);
+        params.append('endDate', currentDateRange.endDate);
+      }
       
       return apiRequest(`/api/tddf-json/records?${params}`);
     },
@@ -1398,6 +1408,7 @@ export default function TddfJsonPage() {
                   initialYear={currentRangeYear} // Use range year instead of last data year
                   selectedDate={dateFilter}
                   enableDebugLogging={true} // Enable debug logging to track year navigation
+                  monthRange={getDateRangeFilter()} // Pass month range for filtering
                   onYearChange={(year) => {
                     console.log('[TDDF-JSON-PAGE] Year changed to:', year);
                     setSelectedYear(year);
@@ -1412,6 +1423,7 @@ export default function TddfJsonPage() {
               <TabsContent value="chart" className="mt-6">
                 <TddfJsonActivityChart 
                   currentYear={currentRangeYear} // Use range year
+                  monthRange={getDateRangeFilter()} // Pass month range for filtering
                   enableDebugLogging={true}
                 />
               </TabsContent>
