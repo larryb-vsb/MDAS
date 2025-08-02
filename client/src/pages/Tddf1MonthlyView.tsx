@@ -375,9 +375,9 @@ ${monthlyData.dailyBreakdown.map(day =>
                       <Tooltip 
                         formatter={(value: number, name: string) => {
                           const displayNames: Record<string, string> = {
-                            'currentTransactionValue': `${format(currentMonth, 'MMM yyyy')} - DT Transaction Value`,
+                            'currentTransactionValue': `${format(currentMonth, 'MMM yyyy')} - DT Authorizations`,
                             'currentNetDepositBh': `${format(currentMonth, 'MMM yyyy')} - BH Net Deposit`,
-                            'previousTransactionValue': `${format(subMonths(currentMonth, 1), 'MMM yyyy')} - DT Transaction Value`,
+                            'previousTransactionValue': `${format(subMonths(currentMonth, 1), 'MMM yyyy')} - DT Authorizations`,
                             'previousNetDepositBh': `${format(subMonths(currentMonth, 1), 'MMM yyyy')} - BH Net Deposit`
                           };
                           return [formatCurrency(value), displayNames[name] || name];
@@ -402,7 +402,7 @@ ${monthlyData.dailyBreakdown.map(day =>
                         dataKey="currentTransactionValue" 
                         stroke="#8b5cf6" 
                         strokeWidth={3}
-                        name={`${format(currentMonth, 'MMM yyyy')} Transaction Value`}
+                        name={`${format(currentMonth, 'MMM yyyy')} Authorizations`}
                         dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
                         activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2 }}
                       />
@@ -422,7 +422,7 @@ ${monthlyData.dailyBreakdown.map(day =>
                         stroke="#d946ef" 
                         strokeWidth={2}
                         strokeDasharray="5 5"
-                        name={`${format(subMonths(currentMonth, 1), 'MMM yyyy')} Transaction Value`}
+                        name={`${format(subMonths(currentMonth, 1), 'MMM yyyy')} Authorizations`}
                         dot={{ fill: '#d946ef', strokeWidth: 2, r: 3 }}
                         activeDot={{ r: 5, stroke: '#d946ef', strokeWidth: 2 }}
                       />
@@ -470,8 +470,8 @@ ${monthlyData.dailyBreakdown.map(day =>
                         <span className="sm:hidden">Rec</span>
                       </th>
                       <th className={`text-right py-1 sm:py-2 px-1 sm:px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span className="hidden sm:inline">DT Transaction Value</span>
-                        <span className="sm:hidden">DT Value</span>
+                        <span className="hidden sm:inline">DT Authorizations</span>
+                        <span className="sm:hidden">DT Auth</span>
                       </th>
                       <th className={`text-right py-1 sm:py-2 px-1 sm:px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="hidden sm:inline">BH Net Deposit</span>
