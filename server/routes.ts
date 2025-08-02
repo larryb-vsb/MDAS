@@ -456,29 +456,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedUser = await storage.updateUser(userId, userData);
       
-      // Log user update
-      await storage.createAuditLog({
-        entityType: "user",
-        entityId: `${userId}`,
-        action: "update",
-        oldValues: {
-          username: originalUser.username,
-          email: originalUser.email,
-          firstName: originalUser.firstName,
-          lastName: originalUser.lastName,
-          role: originalUser.role
-        },
-        newValues: {
-          username: updatedUser.username,
-          email: updatedUser.email,
-          firstName: updatedUser.firstName,
-          lastName: updatedUser.lastName,
-          role: updatedUser.role
-        },
-        username: req.user?.username || "System",
-        notes: `User '${originalUser.username}' profile updated`,
-        timestamp: new Date()
-      });
+      // Log user update (skip if database size limit reached)
+      try {
+        await storage.createAuditLog({
+          entityType: "user",
+          entityId: `${userId}`,
+          action: "update",
+          oldValues: {
+            username: originalUser.username,
+            email: originalUser.email,
+            firstName: originalUser.firstName,
+            lastName: originalUser.lastName,
+            role: originalUser.role
+          },
+          newValues: {
+            username: updatedUser.username,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            role: updatedUser.role
+          },
+          username: req.user?.username || "System",
+          notes: `User '${originalUser.username}' profile updated`,
+          timestamp: new Date()
+        });
+      } catch (auditError) {
+        console.warn("Audit logging skipped due to database size limit:", auditError.message);
+      }
       
       res.json(updatedUser);
     } catch (error) {
