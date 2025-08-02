@@ -17157,14 +17157,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(total_transaction_value) as total_transaction_value,
           SUM(total_net_deposit_bh) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE date_processed >= $2 AND date_processed <= $3
+        WHERE DATE(last_processed_date) >= $2 AND DATE(last_processed_date) <= $3
       `, [month, startDate, endDate]);
       
       // Get record type breakdown for the month using environment-aware table name
       const recordTypeData = await pool.query(`
         SELECT record_type_breakdown::json as breakdown
         FROM ${totalsTableName} 
-        WHERE date_processed >= $1 AND date_processed <= $2
+        WHERE DATE(last_processed_date) >= $1 AND DATE(last_processed_date) <= $2
       `, [startDate, endDate]);
       
       // Aggregate all record type breakdowns
@@ -17176,18 +17176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
       
-      // Get daily breakdown for the month
+      // Get daily breakdown for the month using environment-aware table name
       const dailyBreakdown = await pool.query(`
         SELECT 
-          date_processed as date,
+          DATE(last_processed_date) as date,
           COUNT(*) as files,
           SUM(total_records) as records,
           SUM(total_transaction_value) as transaction_value,
           SUM(total_net_deposit_bh) as net_deposit_bh
-        FROM dev_tddf1_totals 
-        WHERE date_processed >= $1 AND date_processed <= $2
-        GROUP BY date_processed
-        ORDER BY date_processed
+        FROM ${totalsTableName} 
+        WHERE DATE(last_processed_date) >= $1 AND DATE(last_processed_date) <= $2
+        GROUP BY DATE(last_processed_date)
+        ORDER BY DATE(last_processed_date)
       `, [startDate, endDate]);
       
       const result = {
