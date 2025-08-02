@@ -156,8 +156,8 @@ const navItems = [
   },
   {
     icon: <FileJson className="h-5 w-5 text-blue-400" />,
-    label: "TDDF JSON",
-    href: "/tddf-json"
+    label: "TDDF 1",
+    href: "/tddf1"
   },
   {
     icon: <BarChart3 className="h-5 w-5 text-gray-300" />,
@@ -202,6 +202,11 @@ const navItems = [
         icon: <FileText className="h-4 w-4 text-gray-300" />,
         label: "TDDF Records",
         href: "/tddf"
+      },
+      {
+        icon: <FileJson className="h-4 w-4 text-gray-300" />,
+        label: "TDDF JSON",
+        href: "/tddf-json"
       },
       {
         icon: <UploadCloud className="h-4 w-4 text-gray-300" />,
@@ -344,8 +349,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
   
   // Check if any Legacy submenu items are active
-  const isLegacyActive = location === "/tddf" || location === "/uploads" || 
-                        location.startsWith("/tddf/") || location.startsWith("/uploads/");
+  const isLegacyActive = location === "/tddf" || location === "/uploads" || location === "/tddf-json" ||
+                        location.startsWith("/tddf/") || location.startsWith("/uploads/") || location.startsWith("/tddf-json/");
   
   // Auto-expand Legacy submenu if any of its items are active
   useEffect(() => {
