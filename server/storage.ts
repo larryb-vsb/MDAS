@@ -14465,17 +14465,17 @@ export class DatabaseStorage implements IStorage {
       const uploadedFilesTableName = getTableName('uploaded_files');
       
       const result = await pool.query(`
-        SELECT id, original_filename, upload_date, file_size, status, processing_summary
+        SELECT id, original_filename, uploaded_at, file_size, status, processing_summary
         FROM ${uploadedFilesTableName}
-        WHERE DATE(upload_date) = $1 
+        WHERE DATE(uploaded_at) = $1 
           AND (file_type = 'tddf' OR original_filename LIKE '%.TSYSO')
-        ORDER BY upload_date DESC
+        ORDER BY uploaded_at DESC
         LIMIT 10
       `, [selectedDate]);
 
       return result.rows.map(file => ({
         id: file.id.toString(),
-        timestamp: file.upload_date,
+        timestamp: file.uploaded_at,
         action: 'File Processed',
         fileName: file.original_filename || 'Unknown',
         recordsProcessed: file.processing_summary?.recordsProcessed || 0,
