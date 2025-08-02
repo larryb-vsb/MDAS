@@ -336,6 +336,13 @@ app.use((req, res, next) => {
     if (NODE_ENV === "development") {
       await setupVite(app, httpServer);
     } else {
+      // Add API route protection before static files
+      app.use('/api/*', (req, res, next) => {
+        // If we reach here, it means the API route wasn't handled
+        // Return 404 instead of serving HTML
+        res.status(404).json({ error: 'API endpoint not found' });
+      });
+      
       serveStatic(app);
     }
 
