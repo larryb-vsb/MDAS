@@ -17051,11 +17051,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TDDF1 Day Breakdown - Daily data breakdown (using pre-cache for performance)
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
-    // Force no cache for fresh data with unique timestamp
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    // Force no cache for fresh data with date-specific ETag
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
-    res.set('ETag', `"${Date.now()}"`);
+    
+    const date = req.query.date as string;
+    res.set('ETag', `"${date}-${Date.now()}"`);
     res.set('Last-Modified', new Date().toUTCString());
     
     try {
@@ -17165,11 +17167,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalNetDepositBH: totalNetDepositBH,
         fileCount: totalsResult.rows.length,
         tables,
-        filesProcessed
+        filesProcessed,
+        timestamp: Date.now() // Force unique responses
       };
       
       console.log(`📅 API Response for ${date}:`, JSON.stringify(responseData, null, 2));
       console.log(`📅 totalNetDepositBH value check: ${totalNetDepositBH} (type: ${typeof totalNetDepositBH})`);
+      
+      // Disable any possible caching mechanisms
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+      res.set('ETag', ''); // Remove ETag entirely
+      res.set('Last-Modified', ''); // Remove Last-Modified
       
       return res.json(responseData);
     } catch (error) {
