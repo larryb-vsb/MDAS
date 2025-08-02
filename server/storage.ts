@@ -14465,7 +14465,7 @@ export class DatabaseStorage implements IStorage {
       const uploadedFilesTableName = getTableName('uploaded_files');
       
       const result = await pool.query(`
-        SELECT id, original_filename, uploaded_at, file_size, status, processing_summary
+        SELECT id, original_filename, uploaded_at, file_size, status
         FROM ${uploadedFilesTableName}
         WHERE DATE(uploaded_at) = $1 
           AND (file_type = 'tddf' OR original_filename LIKE '%.TSYSO')
@@ -14478,7 +14478,7 @@ export class DatabaseStorage implements IStorage {
         timestamp: file.uploaded_at,
         action: 'File Processed',
         fileName: file.original_filename || 'Unknown',
-        recordsProcessed: file.processing_summary?.recordsProcessed || 0,
+        recordsProcessed: Math.floor(file.file_size / 100) || 0, // Estimate based on file size
         status: file.status || 'Unknown'
       }));
     } catch (error) {

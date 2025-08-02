@@ -288,7 +288,12 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
               <Link
                 key={index}
                 href={subItem.href}
-                onClick={onClick}
+                onClick={() => {
+                  // Force close mobile menu for submenu items
+                  if (onClick) {
+                    onClick();
+                  }
+                }}
                 className={cn(
                   "flex items-center gap-3 px-4 py-2 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[36px] touch-manipulation relative z-50 select-none",
                   location === subItem.href 
@@ -316,7 +321,12 @@ function NavItem({ icon, label, href, isActive, onClick, submenu, isExpanded, on
   return (
     <Link
       href={href!}
-      onClick={onClick}
+      onClick={() => {
+        // Force close mobile menu for main navigation items
+        if (onClick) {
+          onClick();
+        }
+      }}
       className={cn(
         "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-md transition-all cursor-pointer block min-h-[44px] touch-manipulation relative z-50 select-none",
         isActive ? "text-white bg-gray-700 shadow-lg" : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-md"
