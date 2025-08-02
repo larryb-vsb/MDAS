@@ -17132,6 +17132,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM' });
       }
       
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const totalsTableName = `${envPrefix}tddf1_totals`;
+      
+      console.log(`📅 [MONTHLY-TOTALS] Environment: ${environment}, Using table: ${totalsTableName}`);
+      
       const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
       // Get last day of the month correctly - month index is 0-based, so we use parseInt(monthNum) directly
@@ -17140,7 +17148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
       
-      // Get monthly aggregated totals
+      // Get monthly aggregated totals using environment-aware table name
       const monthlyTotals = await pool.query(`
         SELECT 
           $1 as month,
@@ -17148,14 +17156,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(total_records) as total_records,
           SUM(total_transaction_value) as total_transaction_value,
           SUM(total_net_deposit_bh) as total_net_deposit_bh
-        FROM dev_tddf1_totals 
+        FROM ${totalsTableName} 
         WHERE date_processed >= $2 AND date_processed <= $3
       `, [month, startDate, endDate]);
       
-      // Get record type breakdown for the month
+      // Get record type breakdown for the month using environment-aware table name
       const recordTypeData = await pool.query(`
         SELECT record_type_breakdown::json as breakdown
-        FROM dev_tddf1_totals 
+        FROM ${totalsTableName} 
         WHERE date_processed >= $1 AND date_processed <= $2
       `, [startDate, endDate]);
       
