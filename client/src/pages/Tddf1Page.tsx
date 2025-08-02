@@ -72,8 +72,8 @@ interface Tddf1EncodingProgress {
 }
 
 function Tddf1Page() {
-  // Default to August 1st, 2025 where our TDDF1 data exists
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-08-01'));
+  // Default to August 2nd, 2025 where our TDDF1 data exists
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-08-02'));
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,7 +93,6 @@ function Tddf1Page() {
 
   const { data: dayBreakdown, isLoading: dayLoading, refetch: refetchDayBreakdown } = useQuery<Tddf1DayBreakdown>({
     queryKey: ['/api/tddf1/day-breakdown', selectedDateStr],
-    queryFn: () => fetch(`/api/tddf1/day-breakdown?date=${selectedDateStr}`).then(res => res.json()),
     enabled: !!selectedDateStr,
   });
 
@@ -497,6 +496,8 @@ function Tddf1Page() {
                             // Special layout for BH records showing Net Deposit prominently
                             if (type === 'BH') {
                               const netDepositAmount = dayBreakdown.totalNetDepositBH || 0;
+                              console.log('🔍 BH Debug Full Response:', JSON.stringify(dayBreakdown, null, 2));
+                              console.log('🔍 totalNetDepositBH field exists:', 'totalNetDepositBH' in (dayBreakdown || {}));
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
                                   <div className="flex items-center justify-between mb-2">

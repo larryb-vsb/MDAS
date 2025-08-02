@@ -16910,7 +16910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TDDF1 Daily Breakdown - Enhanced daily statistics using pre-cache totals
   app.get("/api/tddf1/day-breakdown", isAuthenticated, async (req, res) => {
     try {
-      const date = req.query.date as string || format(new Date(), 'yyyy-MM-dd');
+      const date = req.query.date as string || new Date().toISOString().split('T')[0];
       console.log(`📅 Getting TDDF1 daily breakdown for date: ${date}`);
       
       const currentEnv = process.env.NODE_ENV === 'production' ? 'production' : 'development';
@@ -16923,6 +16923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           file_name,
           total_records,
           total_transaction_value,
+          total_net_deposit_bh,
           record_type_breakdown,
           created_at
         FROM ${totalsTableName}
@@ -16932,6 +16933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let totalRecords = 0;
       let transactionValue = 0;
+      let totalNetDepositBH = 0;
       const recordTypes: Record<string, number> = {};
       const filesProcessed: Array<{
         fileName: string;
@@ -16943,12 +16945,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of totalsResult.rows) {
         const records = parseInt(row.total_records) || 0;
         const value = parseFloat(row.total_transaction_value) || 0;
+        const netDepositValue = parseFloat(row.total_net_deposit_bh || '0');
         const breakdown = typeof row.record_type_breakdown === 'string' 
           ? JSON.parse(row.record_type_breakdown) 
           : row.record_type_breakdown;
         
         totalRecords += records;
         transactionValue += value;
+        totalNetDepositBH += netDepositValue;
         
         // Aggregate record types
         if (breakdown && typeof breakdown === 'object') {
@@ -16973,6 +16977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords: totalRecords,
         recordTypes: recordTypes,
         transactionValue: transactionValue,
+        totalNetDepositBH: totalNetDepositBH,
         fileCount: filesProcessed.length,
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
@@ -17126,7 +17131,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of totalsResult.rows) {
         totalRecords += parseInt(row.total_records || '0');
         totalTransactionValue += parseFloat(row.total_transaction_value || '0');
-        totalNetDepositBH += parseFloat(row.total_net_deposit_bh || '0');
+        const netDepositValue = parseFloat(row.total_net_deposit_bh || '0');
+        console.log(`📅 Processing row: ${row.file_name}, Net Deposit: ${row.total_net_deposit_bh} -> ${netDepositValue}`);
+        totalNetDepositBH += netDepositValue;
         
         // Parse record type breakdown
         const breakdown = row.record_type_breakdown || {};
@@ -17150,7 +17157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 Aggregated data for ${date}: ${totalRecords} records, $${totalTransactionValue} value, $${totalNetDepositBH} BH Net Deposit`);
       
-      return res.json({
+      const responseData = {
         date,
         totalRecords,
         recordTypes: aggregatedRecordTypes,
@@ -17159,7 +17166,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileCount: totalsResult.rows.length,
         tables,
         filesProcessed
-      });
+      };
+      
+      console.log(`📅 API Response for ${date}:`, JSON.stringify(responseData, null, 2));
+      console.log(`📅 totalNetDepositBH value check: ${totalNetDepositBH} (type: ${typeof totalNetDepositBH})`);
+      
+      return res.json(responseData);
     } catch (error) {
       console.error("Error getting TDDF1 day breakdown from cache:", error);
       res.status(500).json({ error: "Failed to get day breakdown" });
