@@ -260,20 +260,66 @@ export default function Tddf1MonthlyView() {
       color: '#4B5563',
       flex: 1,
     },
-    chartPlaceholder: {
-      height: 200,
+    chartContainer: {
       backgroundColor: '#F9FAFB',
-      border: '1px solid #E5E7EB',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
       borderRadius: 5,
-      padding: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
+      padding: 15,
       marginTop: 10,
     },
-    chartText: {
+    chartContent: {
+      alignItems: 'center',
+    },
+    chartTitle: {
       fontSize: 14,
+      fontWeight: 'bold',
+      color: '#374151',
+      marginBottom: 10,
+      textAlign: 'center',
+    },
+    chartStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 15,
+      flexWrap: 'wrap',
+    },
+    chartStatItem: {
+      fontSize: 10,
       color: '#6B7280',
       textAlign: 'center',
+      minWidth: '30%',
+      marginBottom: 5,
+    },
+    chartBars: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'flex-end',
+      height: 60,
+      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E5E7EB',
+      paddingBottom: 5,
+    },
+    chartBar: {
+      alignItems: 'center',
+      minWidth: 15,
+    },
+    chartBarLabel: {
+      fontSize: 8,
+      color: '#9CA3AF',
+      marginBottom: 2,
+    },
+    chartBarValue: {
+      fontSize: 8,
+      color: '#3B82F6',
+      lineHeight: 10,
+    },
+    chartNote: {
+      fontSize: 9,
+      color: '#6B7280',
+      textAlign: 'center',
+      fontStyle: 'italic',
     },
     footer: {
       position: 'absolute',
@@ -326,41 +372,56 @@ export default function Tddf1MonthlyView() {
           </View>
         </View>
 
-        {/* Record Type Breakdown */}
-        <View style={pdfStyles.section}>
-          <Text style={pdfStyles.sectionTitle}>Record Type Analysis</Text>
-          <View style={pdfStyles.tableHeader}>
-            <Text style={pdfStyles.tableHeaderText}>Record Type</Text>
-            <Text style={pdfStyles.tableHeaderText}>Count</Text>
-            <Text style={pdfStyles.tableHeaderText}>Percentage</Text>
-          </View>
-          {Object.entries(data.recordTypeBreakdown).map(([type, count]) => (
-            <View key={type} style={pdfStyles.tableRow}>
-              <Text style={pdfStyles.tableCell}>{type}</Text>
-              <Text style={pdfStyles.tableCell}>{formatNumber(count)}</Text>
-              <Text style={pdfStyles.tableCell}>
-                {((count / data.totalRecords) * 100).toFixed(1)}%
-              </Text>
-            </View>
-          ))}
-        </View>
-
         {/* Daily Processing Activity */}
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.sectionTitle}>Daily Processing Activity</Text>
-          <View style={pdfStyles.chartPlaceholder}>
-            <Text style={pdfStyles.chartText}>
-              📊 Chart: Daily transaction volume trends
-            </Text>
-            <Text style={pdfStyles.chartText}>
-              Peak processing day: {data.dailyBreakdown.reduce((max, day) => 
-                day.transactionValue > max.transactionValue ? day : max, 
-                data.dailyBreakdown[0] || { date: 'N/A', transactionValue: 0 }
-              )?.date ? format(new Date(data.dailyBreakdown.reduce((max, day) => 
-                day.transactionValue > max.transactionValue ? day : max, 
-                data.dailyBreakdown[0]
-              ).date), 'MMM dd') : 'N/A'}
-            </Text>
+          <View style={pdfStyles.chartContainer}>
+            {/* Simple line chart representation using text */}
+            <View style={pdfStyles.chartContent}>
+              <Text style={pdfStyles.chartTitle}>
+                Daily Transaction Volume Trends
+              </Text>
+              <View style={pdfStyles.chartStats}>
+                <Text style={pdfStyles.chartStatItem}>
+                  Peak Day: {data.dailyBreakdown.length > 0 ? 
+                    format(new Date(data.dailyBreakdown.reduce((max, day) => 
+                      day.transactionValue > max.transactionValue ? day : max, 
+                      data.dailyBreakdown[0]
+                    ).date), 'MMM dd') : 'N/A'}
+                </Text>
+                <Text style={pdfStyles.chartStatItem}>
+                  Peak Amount: {data.dailyBreakdown.length > 0 ? 
+                    formatCurrency(data.dailyBreakdown.reduce((max, day) => 
+                      day.transactionValue > max.transactionValue ? day : max, 
+                      data.dailyBreakdown[0]
+                    ).transactionValue) : '$0'}
+                </Text>
+                <Text style={pdfStyles.chartStatItem}>
+                  Average Daily: {data.dailyBreakdown.length > 0 ? 
+                    formatCurrency(data.totalTransactionValue / data.dailyBreakdown.length) : '$0'}
+                </Text>
+              </View>
+              {/* Visual chart representation using ASCII-style bars */}
+              <View style={pdfStyles.chartBars}>
+                {data.dailyBreakdown.slice(0, 15).map((day, index) => {
+                  const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
+                  const barHeight = Math.max(1, Math.floor((day.transactionValue / maxValue) * 20));
+                  return (
+                    <View key={index} style={pdfStyles.chartBar}>
+                      <Text style={pdfStyles.chartBarLabel}>
+                        {format(new Date(day.date), 'dd')}
+                      </Text>
+                      <Text style={pdfStyles.chartBarValue}>
+                        {'█'.repeat(Math.ceil(barHeight / 4))}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={pdfStyles.chartNote}>
+                Visual representation of daily transaction volumes (showing first 15 days)
+              </Text>
+            </View>
           </View>
         </View>
 
