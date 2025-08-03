@@ -113,9 +113,11 @@ export default function Tddf1MonthlyView() {
   };
 
   const handleRefresh = () => {
-    // Clear both queries to force fresh data
+    // Clear all TDDF1 queries to force fresh data
     queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
     queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
+    queryClient.removeQueries({ queryKey: ['tddf1-monthly'] });
+    queryClient.removeQueries({ queryKey: ['tddf1-monthly-comparison'] });
     refetch();
   };
 
@@ -381,7 +383,11 @@ ${monthlyData.dailyBreakdown.map(day =>
                             previousDate: previousDay?.date
                           });
                         }
-                        return combinedData.filter(d => d.currentTransactionValue > 0 || d.currentNetDepositBh > 0 || d.previousTransactionValue > 0 || d.previousNetDepositBh > 0);
+                        // Only show days that have current month data OR previous month data, but filter correctly
+                        return combinedData.filter(d => 
+                          d.currentTransactionValue > 0 || d.currentNetDepositBh > 0 || 
+                          d.previousTransactionValue > 0 || d.previousNetDepositBh > 0
+                        );
                       })()}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#f0f0f0'} />
