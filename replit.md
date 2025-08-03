@@ -13,6 +13,8 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **SEPARATED BH/DT CALCULATIONS (2025-08-03)**: Critical fix - stopped incorrectly adding BH and DT values together. Now correctly calculates and displays separate totals: BH Net Deposits (batch totals from merchants) and DT Transaction Amounts (individual customer payments). These values should be close but separate, representing the business flow where customers pay transaction amounts during the day, then merchants batch at end of day with net deposits that may differ due to fees/adjustments. Added separate database columns (bh_net_deposits, dt_transaction_amounts) to properly track both values independently.
 
+**CRITICAL CACHE MISMATCH IDENTIFIED (2025-08-03)**: BH-DT-Cortex-Validator revealed massive discrepancies between cached totals and direct TDDF calculations. Root cause: Rebuild cache endpoint was using pre-parsed database fields instead of raw TDDF specification. Fixed rebuild cache logic to use PowerShell-equivalent calculations (SUBSTRING from raw_line positions with proper validation). Cache must be rebuilt to correct values: August 2025 should show $879,638.53 DT amounts vs current cached $8,800.43.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
