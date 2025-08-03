@@ -16839,43 +16839,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (totalsTableExists.rows[0].exists) {
-        // Get aggregated stats from the pre-cache totals table (use the actual total_files column)
+        // Get aggregated stats from the pre-cache totals table
         const totalsResult = await pool.query(`
           SELECT 
-            total_files as file_count,
-            total_records,
-            total_transaction_value,
-            record_type_breakdown
+            SUM(total_files) as total_files,
+            SUM(total_records) as total_records,
+            SUM(total_authorizations) as total_authorizations,
+            COUNT(DISTINCT processing_date) as active_tables,
+            json_agg(record_breakdown) as all_breakdowns,
+            MAX(last_updated) as last_updated
           FROM ${totalsTableName}
-          ORDER BY created_at DESC
-          LIMIT 1
         `);
         
         if (totalsResult.rows.length > 0) {
           const summary = totalsResult.rows[0];
+          const totalFiles = parseInt(summary.total_files) || 0;
           const totalRecords = parseInt(summary.total_records) || 0;
-          const totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
-          const fileCount = parseInt(summary.file_count) || 0;
+          const totalTransactionValue = parseFloat(summary.total_authorizations) || 0;
+          const activeTables = parseInt(summary.active_tables) || 0;
           
-          // Parse record type breakdown from the single row
+          // Aggregate record type breakdowns from all processing dates
           const recordTypeBreakdown: Record<string, number> = {};
-          const breakdown = typeof summary.record_type_breakdown === 'string' 
-            ? JSON.parse(summary.record_type_breakdown) 
-            : summary.record_type_breakdown;
-          
-          if (breakdown && typeof breakdown === 'object') {
-            for (const [type, count] of Object.entries(breakdown)) {
-              recordTypeBreakdown[type] = parseInt(count as string) || 0;
+          if (summary.all_breakdowns && Array.isArray(summary.all_breakdowns)) {
+            for (const breakdown of summary.all_breakdowns) {
+              if (breakdown && typeof breakdown === 'object') {
+                for (const [type, count] of Object.entries(breakdown)) {
+                  recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
+                }
+              }
             }
           }
           
+          console.log(`📊 Serving cached stats: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeTables} active tables`);
+          
           return res.json({
-            totalFiles: fileCount,
+            totalFiles: totalFiles,
             totalRecords: totalRecords,
             totalTransactionValue: totalTransactionValue,
             recordTypeBreakdown: recordTypeBreakdown,
-            activeTables: [],
-            lastProcessedDate: new Date().toISOString(),
+            activeTables: activeTables,
+            lastProcessedDate: summary.last_updated,
             cached: true,
             cacheSource: 'pre-cache totals aggregation',
             cacheDate: new Date().toISOString()
