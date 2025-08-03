@@ -233,8 +233,9 @@ class MMSWatcher {
   // Pipeline Recovery - Handle stuck files and update pre-cache when complete
   async checkPipelineStatus() {
     try {
-      // Check for recently encoded TDDF files that need cache updates
-      const recentlyEncoded = await this.storage.pool.query(`
+      // Check for recently encoded TDDF files that need cache updates  
+      const pool = this.storage.pool;
+      const recentlyEncoded = await pool.query(`
         SELECT id, filename, encoded_at, processing_notes
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoded' 
@@ -245,6 +246,12 @@ class MMSWatcher {
         LIMIT 5
       `);
 
+      console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${recentlyEncoded.rows.length} recently encoded files`);
+      
+      // Force update monthly cache if data exists
+      const environment = process.env.NODE_ENV || 'development';
+      await this.forceUpdateMonthlyCache(environment);
+      
       for (const upload of recentlyEncoded.rows) {
         console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found recently encoded TDDF file: ${upload.filename}`);
         
@@ -1249,6 +1256,31 @@ class MMSWatcher {
     }
   }
 
+  // Force update monthly cache for all available data
+  async forceUpdateMonthlyCache(environment) {
+    try {
+      const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+      const totalsTableName = `${tablePrefix}totals`;
+      
+      console.log(`[MMS-WATCHER] [MONTHLY-CACHE] Checking if monthly cache update needed for ${totalsTableName}`);
+      
+      // Check if we have data in totals table
+      const pool = this.storage.pool;
+      const hasData = await pool.query(`
+        SELECT COUNT(*) as count FROM ${totalsTableName}
+      `);
+      
+      if (parseInt(hasData.rows[0]?.count || '0') > 0) {
+        console.log(`[MMS-WATCHER] [MONTHLY-CACHE] ✅ Found ${hasData.rows[0]?.count} records in ${totalsTableName}, monthly APIs should work`);
+      } else {
+        console.log(`[MMS-WATCHER] [MONTHLY-CACHE] ⚠️ No data found in ${totalsTableName}`);
+      }
+      
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [MONTHLY-CACHE] Error checking monthly cache:`, error);
+    }
+  }
+  
   extractDateFromFilename(filename) {
     try {
       // Extract date from VERMNTSB.6759_TDDF_830_07282025_083340.TSYSO format

@@ -17273,7 +17273,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${totalsTableName} 
         WHERE processing_date >= $1 AND processing_date <= $2
         ORDER BY processing_date
-        ORDER BY DATE(last_processed_date)
       `, [startDate, endDate]);
       
       const result = {
@@ -17337,15 +17336,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get daily breakdown for the month using environment-aware table name
         const dailyBreakdown = await pool.query(`
           SELECT 
-            date_processed as date,
-            COUNT(*) as files,
-            SUM(total_records) as records,
-            SUM(total_transaction_value) as transaction_value,
-            SUM(total_net_deposit_bh) as net_deposit_bh
+            processing_date as date,
+            total_files as files,
+            total_records as records,
+            total_authorizations as transaction_value,
+            net_deposit as net_deposit_bh
           FROM ${totalsTableName} 
-          WHERE date_processed >= $1 AND date_processed <= $2
-          GROUP BY date_processed
-          ORDER BY date_processed
+          WHERE processing_date >= $1 AND processing_date <= $2
+          ORDER BY processing_date
         `, [startDate, endDate]);
         
         return dailyBreakdown.rows.map((day, index) => ({
