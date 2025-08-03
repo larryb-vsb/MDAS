@@ -17541,16 +17541,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Check if this table has data and get its processing date
           const tableInfoResult = await pool.query(`
             SELECT 
-              processing_date,
+              transaction_date as processing_date,
               COUNT(*) as total_records,
-              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as dt_transaction_amounts,
-              COALESCE(SUM(CASE WHEN record_type = 'BH' THEN CAST(net_deposit AS DECIMAL) ELSE 0 END), 0) as bh_net_deposits,
+              COALESCE(SUM(CASE WHEN record_type = 'DT' AND transaction_amount IS NOT NULL THEN transaction_amount ELSE 0 END), 0) as dt_transaction_amounts,
+              COALESCE(SUM(CASE WHEN record_type = 'BH' AND field_data ? 'netDeposit' THEN (field_data->>'netDeposit')::DECIMAL ELSE 0 END), 0) as bh_net_deposits,
               COUNT(DISTINCT record_type) as record_types
             FROM ${tableName} 
-            WHERE processing_date >= $1 AND processing_date <= $2
-              AND EXTRACT(YEAR FROM processing_date) = $3
-              AND EXTRACT(MONTH FROM processing_date) = $4
-            GROUP BY processing_date
+            WHERE transaction_date >= $1 AND transaction_date <= $2
+              AND EXTRACT(YEAR FROM transaction_date) = $3
+              AND EXTRACT(MONTH FROM transaction_date) = $4
+            GROUP BY transaction_date
           `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
           
           for (const dayData of tableInfoResult.rows) {
