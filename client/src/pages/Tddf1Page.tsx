@@ -75,6 +75,18 @@ interface Tddf1EncodingProgress {
   lastUpdated: string;
 }
 
+interface Tddf1PipelineStatus {
+  totalFiles: number;
+  uploadedFiles: number;
+  identifiedFiles: number;
+  encodingFiles: number;
+  encodedFiles: number;
+  failedFiles: number;
+  lastActivity: string | null;
+  phaseBreakdown: Record<string, number>;
+  lastUpdated: string;
+}
+
 function Tddf1Page() {
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -119,6 +131,14 @@ function Tddf1Page() {
 
   const { data: recentActivity, isLoading: activityLoading, refetch: refetchActivity } = useQuery<Tddf1RecentActivity[]>({
     queryKey: ['/api/tddf1/recent-activity'],
+  });
+
+  // Pipeline status query - updates every 30 seconds when page is visible
+  const { data: pipelineStatus, isLoading: pipelineLoading } = useQuery<Tddf1PipelineStatus>({
+    queryKey: ['/api/tddf1/pipeline-status'],
+    refetchInterval: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
+    staleTime: 10000, // Consider data fresh for 10 seconds
   });
 
   // Progress tracking query (only when tracking is enabled)
@@ -269,6 +289,61 @@ function Tddf1Page() {
             )}
           </div>
         </div>
+
+        {/* Processing Pipeline Status Widget */}
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <CardHeader>
+            <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <Activity className="h-5 w-5" />
+              Processing Pipeline Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4">
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.totalFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.uploadedFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-yellow-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.identifiedFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-orange-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.encodingFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-purple-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.encodedFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl sm:text-2xl font-bold text-red-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.failedFiles ?? 0)}
+                </div>
+                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
+              </div>
+            </div>
+            {pipelineStatus?.lastActivity && (
+              <div className="mt-3 text-xs text-gray-400 text-center">
+                Last activity: {format(new Date(pipelineStatus.lastActivity), 'MMM d, yyyy h:mm a')}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Mobile-Optimized Totals Band */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">

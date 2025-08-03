@@ -17584,6 +17584,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Pipeline Status - Get uploader metrics for TDDF1 Dashboard
+  app.get("/api/tddf1/pipeline-status", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      
+      // Get counts by phase for TDDF files only
+      const pipelineStatsResult = await pool.query(`
+        SELECT 
+          current_phase,
+          COUNT(*) as count,
+          final_file_type
+        FROM ${uploaderTableName}
+        WHERE final_file_type = 'tddf' OR detected_file_type = 'tddf' OR filename LIKE '%.TSYSO'
+        GROUP BY current_phase, final_file_type
+        ORDER BY current_phase
+      `);
+      
+      // Get overall totals for TDDF files
+      const totalStatsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_files,
+          COUNT(CASE WHEN current_phase = 'uploaded' THEN 1 END) as uploaded_files,
+          COUNT(CASE WHEN current_phase = 'identified' THEN 1 END) as identified_files, 
+          COUNT(CASE WHEN current_phase = 'encoding' THEN 1 END) as encoding_files,
+          COUNT(CASE WHEN current_phase = 'encoded' THEN 1 END) as encoded_files,
+          COUNT(CASE WHEN current_phase = 'failed' THEN 1 END) as failed_files,
+          MAX(updated_at) as last_activity
+        FROM ${uploaderTableName}
+        WHERE final_file_type = 'tddf' OR detected_file_type = 'tddf' OR filename LIKE '%.TSYSO'
+      `);
+      
+      const totalStats = totalStatsResult.rows[0] || {
+        total_files: 0,
+        uploaded_files: 0,
+        identified_files: 0,
+        encoding_files: 0,
+        encoded_files: 0,
+        failed_files: 0,
+        last_activity: null
+      };
+      
+      // Convert to numbers
+      const pipelineStatus = {
+        totalFiles: parseInt(totalStats.total_files) || 0,
+        uploadedFiles: parseInt(totalStats.uploaded_files) || 0,
+        identifiedFiles: parseInt(totalStats.identified_files) || 0,
+        encodingFiles: parseInt(totalStats.encoding_files) || 0,
+        encodedFiles: parseInt(totalStats.encoded_files) || 0,
+        failedFiles: parseInt(totalStats.failed_files) || 0,
+        lastActivity: totalStats.last_activity,
+        phaseBreakdown: pipelineStatsResult.rows.reduce((acc, row) => {
+          acc[row.current_phase] = parseInt(row.count);
+          return acc;
+        }, {}),
+        lastUpdated: new Date().toISOString()
+      };
+      
+      res.json(pipelineStatus);
+    } catch (error) {
+      console.error('Error getting TDDF1 pipeline status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get pipeline status',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // TDDF1 File Processing - Process uploaded TDDF file into dynamic table
   app.post("/api/tddf1/process-file", isAuthenticated, async (req, res) => {
     try {
