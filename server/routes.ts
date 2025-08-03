@@ -17263,16 +17263,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Get daily breakdown for the month using environment-aware table name
+      // Show all individual file entries, not aggregated by date
       const dailyBreakdown = await pool.query(`
         SELECT 
           processing_date as date,
           total_files as files,
           total_records as records,
           total_authorizations as transaction_value,
-          net_deposit as net_deposit_bh
+          net_deposit as net_deposit_bh,
+          id,
+          created_at
         FROM ${totalsTableName} 
         WHERE processing_date >= $1 AND processing_date <= $2
-        ORDER BY processing_date
+        ORDER BY processing_date, created_at
       `, [startDate, endDate]);
       
       const result = {
@@ -17282,12 +17285,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalTransactionValue: parseFloat(monthlyTotals.rows[0]?.total_transaction_value || '0'),
         totalNetDepositBh: parseFloat(monthlyTotals.rows[0]?.total_net_deposit_bh || '0'),
         recordTypeBreakdown: aggregatedBreakdown,
-        dailyBreakdown: dailyBreakdown.rows.map(day => ({
-          date: day.date,
-          files: parseInt(day.files),
-          records: parseInt(day.records),
-          transactionValue: parseFloat(day.transaction_value || '0'),
-          netDepositBh: parseFloat(day.net_deposit_bh || '0')
+        dailyBreakdown: dailyBreakdown.rows.map((entry, index) => ({
+          date: entry.date,
+          files: parseInt(entry.files),
+          records: parseInt(entry.records),
+          transactionValue: parseFloat(entry.transaction_value || '0'),
+          netDepositBh: parseFloat(entry.net_deposit_bh || '0'),
+          entryId: entry.id,
+          fileIndex: index + 1 // Show which file this is for the day
         }))
       };
       
@@ -17334,25 +17339,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const endDate = `${yr}-${mth.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
         
         // Get daily breakdown for the month using environment-aware table name
+        // Show all individual file entries, not aggregated by date
         const dailyBreakdown = await pool.query(`
           SELECT 
             processing_date as date,
             total_files as files,
             total_records as records,
             total_authorizations as transaction_value,
-            net_deposit as net_deposit_bh
+            net_deposit as net_deposit_bh,
+            id,
+            created_at
           FROM ${totalsTableName} 
           WHERE processing_date >= $1 AND processing_date <= $2
-          ORDER BY processing_date
+          ORDER BY processing_date, created_at
         `, [startDate, endDate]);
         
-        return dailyBreakdown.rows.map((day, index) => ({
-          date: day.date,
-          files: parseInt(day.files),
-          records: parseInt(day.records),
-          transactionValue: parseFloat(day.transaction_value || '0'),
-          netDepositBh: parseFloat(day.net_deposit_bh || '0'),
-          dayOfMonth: index + 1
+        return dailyBreakdown.rows.map((entry, index) => ({
+          date: entry.date,
+          files: parseInt(entry.files),
+          records: parseInt(entry.records),
+          transactionValue: parseFloat(entry.transaction_value || '0'),
+          netDepositBh: parseFloat(entry.net_deposit_bh || '0'),
+          entryId: entry.id,
+          fileIndex: index + 1 // Show which file this is chronologically
         }));
       };
       
