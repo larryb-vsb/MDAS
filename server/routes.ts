@@ -17256,8 +17256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           $1 as month,
           SUM(total_files) as total_files,
           SUM(total_records) as total_records,
-          SUM(total_authorizations) as total_transaction_value,
-          SUM(net_deposit) as total_net_deposit_bh
+          SUM(dt_transaction_amounts) as total_transaction_value,
+          SUM(bh_net_deposits) as total_net_deposit_bh
         FROM ${totalsTableName} 
         WHERE processing_date >= $2 AND processing_date <= $3
           AND EXTRACT(YEAR FROM processing_date) = $4
@@ -17290,8 +17290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_date as date,
           total_files as files,
           total_records as records,
-          total_authorizations as transaction_value,
-          net_deposit as net_deposit_bh,
+          dt_transaction_amounts as transaction_value,
+          bh_net_deposits as net_deposit_bh,
           id,
           created_at
         FROM ${totalsTableName} 
@@ -17369,8 +17369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processing_date as date,
             total_files as files,
             total_records as records,
-            total_authorizations as transaction_value,
-            net_deposit as net_deposit_bh,
+            dt_transaction_amounts as transaction_value,
+            bh_net_deposits as net_deposit_bh,
             id,
             created_at
           FROM ${totalsTableName} 
