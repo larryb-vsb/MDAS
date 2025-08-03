@@ -1295,13 +1295,105 @@ class MMSWatcher {
       
       if (allEncodedFiles.rows.length > cacheCount) {
         console.log(`[MMS-WATCHER] [CACHE-FIX] ⚠️ Mismatch: ${allEncodedFiles.rows.length} files vs ${cacheCount} cache entries`);
-        console.log(`[MMS-WATCHER] [CACHE-FIX] 🔧 Need to create individual cache entries for batch-processed files`);
+        console.log(`[MMS-WATCHER] [CACHE-FIX] 🔧 Creating individual cache entries for each file...`);
+        
+        // Create individual cache entries for each file
+        for (const fileRow of allEncodedFiles.rows) {
+          await this.createIndividualCacheEntry(fileRow, environment);
+        }
+        
       } else {
         console.log(`[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: ${cacheCount}`);
       }
       
     } catch (error) {
       console.error(`[MMS-WATCHER] [CACHE-FIX] Error checking cache entries:`, error);
+    }
+  }
+
+  // Create individual cache entry for a specific TDDF file
+  async createIndividualCacheEntry(fileRow, environment) {
+    try {
+      const pool = this.storage.pool;
+      const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+      const totalsTableName = `${tablePrefix}totals`;
+      
+      // Extract processing date from filename
+      const filename = fileRow.filename;
+      const dateMatch = filename.match(/(\d{8})/); // MMDDYYYY format
+      
+      if (!dateMatch) {
+        console.log(`[MMS-WATCHER] [CACHE-FIX] Cannot extract date from filename: ${filename}`);
+        return;
+      }
+      
+      const dateStr = dateMatch[1];
+      const month = dateStr.substring(0, 2);
+      const day = dateStr.substring(2, 4);
+      const year = dateStr.substring(4, 8);
+      const processingDate = `${year}-${month}-${day}`;
+      
+      // Get the corresponding TDDF1 file table name
+      const tableName = `${tablePrefix}file_` + filename.toLowerCase()
+        .replace(/\.tsyso$/, '')
+        .replace(/\./g, '_')
+        .replace(/-/g, '_');
+        
+      // Check if this individual file already has a cache entry
+      const existingEntry = await pool.query(`
+        SELECT id FROM ${totalsTableName} 
+        WHERE processing_date = $1 
+          AND (record_breakdown->>'source_file' = $2 OR 
+               record_breakdown->>'table_name' = $3)
+      `, [processingDate, filename, tableName]);
+      
+      if (existingEntry.rows.length > 0) {
+        console.log(`[MMS-WATCHER] [CACHE-FIX] Individual cache entry already exists for ${filename}`);
+        return;
+      }
+      
+      // Get stats from the actual file table
+      const fileStats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_records,
+          COUNT(CASE WHEN transaction_amount > 0 THEN 1 END) as total_transactions,
+          COALESCE(SUM(CASE WHEN transaction_amount > 0 THEN transaction_amount ELSE 0 END), 0) as total_authorizations,
+          jsonb_object_agg(record_type, type_count) as record_breakdown
+        FROM (
+          SELECT 
+            record_type,
+            COUNT(*) as type_count,
+            transaction_amount
+          FROM ${tableName}
+          GROUP BY record_type, transaction_amount
+        ) subquery
+      `);
+      
+      if (fileStats.rows.length > 0) {
+        const stats = fileStats.rows[0];
+        
+        // Insert individual cache entry
+        await pool.query(`
+          INSERT INTO ${totalsTableName} 
+          (processing_date, total_files, total_records, total_transactions, total_authorizations, net_deposit, record_breakdown)
+          VALUES ($1, 1, $2, $3, $4, $4, $5)
+        `, [
+          processingDate,
+          parseInt(stats.total_records),
+          parseInt(stats.total_transactions),
+          parseFloat(stats.total_authorizations),
+          JSON.stringify({
+            ...stats.record_breakdown,
+            source_file: filename,
+            table_name: tableName
+          })
+        ]);
+        
+        console.log(`[MMS-WATCHER] [CACHE-FIX] ✅ Created individual cache entry for ${filename}: ${stats.total_records} records, $${stats.total_authorizations}`);
+      }
+      
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [CACHE-FIX] Error creating individual cache entry for ${fileRow.filename}:`, error);
     }
   }
 
