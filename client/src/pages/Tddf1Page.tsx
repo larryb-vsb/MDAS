@@ -201,13 +201,16 @@ function Tddf1Page() {
       headers: { 'Content-Type': 'application/json' }
     }),
     onSuccess: () => {
+      // Force refetch user data with fresh settings
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      queryClient.refetchQueries({ queryKey: ['/api/user'] });
       toast({
         title: "Theme Updated",
         description: "Your theme preference has been saved",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Theme update error:', error);
       toast({
         title: "Update Failed",
         description: "Failed to update theme preference",
@@ -347,25 +350,25 @@ function Tddf1Page() {
 
         {/* Mobile-Optimized Totals Band */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files Processed</CardTitle>
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            <CardContent className="pt-1">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records Processed</CardTitle>
               <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            <CardContent className="pt-1">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
@@ -382,25 +385,25 @@ function Tddf1Page() {
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            <CardContent className="pt-1">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Active Tables</CardTitle>
               <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            <CardContent className="pt-1">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
               </div>
             </CardContent>
