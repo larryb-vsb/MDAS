@@ -113,6 +113,9 @@ export default function Tddf1MonthlyView() {
   };
 
   const handleRefresh = () => {
+    // Clear both queries to force fresh data
+    queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
+    queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
     refetch();
   };
 
@@ -480,8 +483,8 @@ ${monthlyData.dailyBreakdown.map(day =>
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyData.dailyBreakdown.map((day) => (
-                      <tr key={day.date} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} transition-colors`}>
+                    {monthlyData.dailyBreakdown.map((day, index) => (
+                      <tr key={`${day.date}-${index}`} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} transition-colors`}>
                         <td className={`py-1 sm:py-2 px-2 sm:px-4 font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                           <span className="hidden sm:inline">{format(new Date(day.date), 'MMM dd, yyyy')}</span>
                           <span className="sm:hidden">{format(new Date(day.date), 'MMM dd')}</span>
