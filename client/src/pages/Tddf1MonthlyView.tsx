@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, FileText, DollarSign, ArrowLeft, RefreshCw, LineChart, Download, ChevronDown, ChevronUp, Sun, Moon, LogOut, Database } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useAuth } from '@/hooks/use-auth';
@@ -131,6 +131,33 @@ export default function Tddf1MonthlyView() {
     queryClient.removeQueries({ queryKey: ['tddf1-monthly'] });
     queryClient.removeQueries({ queryKey: ['tddf1-monthly-comparison'] });
     refetch();
+  };
+
+  // Mutation for rebuilding cache
+  const rebuildMutation = useMutation({
+    mutationFn: async () => {
+      const month = format(currentMonth, 'yyyy-MM');
+      const response = await fetch(`/api/tddf1/rebuild-totals-cache?month=${month}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to rebuild cache');
+      return response.json();
+    },
+    onSuccess: () => {
+      // Clear and refetch data after successful rebuild
+      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly'] });
+      queryClient.invalidateQueries({ queryKey: ['tddf1-monthly-comparison'] });
+      queryClient.removeQueries({ queryKey: ['tddf1-monthly'] });
+      queryClient.removeQueries({ queryKey: ['tddf1-monthly-comparison'] });
+      refetch();
+    }
+  });
+
+  const handleRebuildCache = () => {
+    rebuildMutation.mutate();
   };
 
   const formatCurrency = (amount: number) => {
@@ -273,6 +300,18 @@ ${monthlyData.dailyBreakdown.map(day =>
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRebuildCache}
+              className="flex items-center space-x-1"
+              disabled={rebuildMutation.isPending}
+            >
+              <Database className={`h-4 w-4 ${rebuildMutation.isPending ? 'animate-pulse' : ''}`} />
+              <span className="hidden sm:inline">Rebuild Cache</span>
+              <span className="sm:hidden">Rebuild</span>
             </Button>
           </div>
         </div>

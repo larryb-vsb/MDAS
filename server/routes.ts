@@ -17484,10 +17484,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TDDF1 Rebuild Totals Cache - Manually trigger totals cache rebuild
+  // TDDF1 Rebuild Totals Cache - Manually trigger totals cache rebuild for specific month
   app.post("/api/tddf1/rebuild-totals-cache", isAuthenticated, async (req, res) => {
     try {
-      console.log("🔄 Rebuilding TDDF1 totals cache");
+      const { month } = req.query;
+      console.log(`🔄 Rebuilding TDDF1 totals cache for month: ${month}`);
+      
+      if (!month || typeof month !== 'string') {
+        return res.status(400).json({ error: 'Month parameter is required (format: YYYY-MM)' });
+      }
       
       // Detect environment and use appropriate naming
       const environment = process.env.NODE_ENV || 'development';
@@ -17495,35 +17500,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Environment-aware table naming
       const envPrefix = isDevelopment ? 'dev_' : '';
-      const tablePrefix = `${envPrefix}tddf1_`;
-      const totalsTableName = `${tablePrefix}totals`;
+      const totalsTableName = `${envPrefix}tddf1_totals`;
       
-      console.log(`🔄 Environment: ${environment}, Using TDDF1 tables with prefix: ${tablePrefix}`);
+      console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}`);
       
-      // Create totals table if it doesn't exist - Enhanced with comprehensive breakdown
+      // Parse month to get date range
+      const [year, monthNum] = month.split('-');
+      const startDate = `${month}-01`;
+      const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      
+      console.log(`🔄 Clearing month data: ${startDate} to ${endDate}`);
+      
+      // Clear existing entries for this specific month
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS ${totalsTableName} (
-          id SERIAL PRIMARY KEY,
-          total_files INTEGER NOT NULL DEFAULT 0,
-          total_records INTEGER NOT NULL DEFAULT 0,
-          total_transaction_value DECIMAL(12,2) NOT NULL DEFAULT 0,
-          record_type_breakdown JSONB NOT NULL DEFAULT '{}',
-          active_tables TEXT[] NOT NULL DEFAULT '{}',
-          last_processed_date TIMESTAMP,
-          file_name TEXT,
-          processing_duration_ms INTEGER,
-          total_tddf_lines INTEGER DEFAULT 0,
-          total_json_lines_inserted INTEGER DEFAULT 0,
-          processing_start_time TIMESTAMP,
-          processing_end_time TIMESTAMP,
-          validation_summary JSONB DEFAULT '{}',
-          performance_metrics JSONB DEFAULT '{}',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+        DELETE FROM ${totalsTableName} 
+        WHERE processing_date >= $1 AND processing_date <= $2
+          AND EXTRACT(YEAR FROM processing_date) = $3
+          AND EXTRACT(MONTH FROM processing_date) = $4
+      `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
-      // Get all file-based TDDF tables
+      console.log(`🔄 Cleared existing entries for ${month}`);
+      
+      // Get all file-based TDDF tables that have data for this month
       const tablesResult = await pool.query(`
         SELECT table_name 
         FROM information_schema.tables 
@@ -17531,110 +17530,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND table_name LIKE $1
           AND table_name != $2
         ORDER BY table_name
-      `, [`${tablePrefix}file_%`, totalsTableName]);
+      `, [`${envPrefix}tddf1_file_%`, totalsTableName]);
       
-      const activeTables = tablesResult.rows.map(row => row.table_name);
+      let rebuiltEntries = 0;
       
-      // Calculate totals from all tables
-      let totalRecords = 0;
-      let totalTransactionValue = 0;
-      const recordTypeBreakdown: Record<string, number> = {};
-      let lastProcessedDate: string | null = null;
-      
-      for (const tableName of activeTables) {
+      for (const tableRow of tablesResult.rows) {
+        const tableName = tableRow.table_name;
+        
         try {
-          const tableStatsResult = await pool.query(`
+          // Check if this table has data and get its processing date
+          const tableInfoResult = await pool.query(`
             SELECT 
-              COUNT(*) as record_count,
-              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as transaction_value,
-              record_type,
-              MAX(processed_at) as max_processed_at
-            FROM ${tableName}
-            GROUP BY record_type
-          `);
+              processing_date,
+              COUNT(*) as total_records,
+              COALESCE(SUM(CASE WHEN record_type = 'DT' THEN CAST(transaction_amount AS DECIMAL) ELSE 0 END), 0) as dt_transaction_amounts,
+              COALESCE(SUM(CASE WHEN record_type = 'BH' THEN CAST(net_deposit AS DECIMAL) ELSE 0 END), 0) as bh_net_deposits,
+              COUNT(DISTINCT record_type) as record_types
+            FROM ${tableName} 
+            WHERE processing_date >= $1 AND processing_date <= $2
+              AND EXTRACT(YEAR FROM processing_date) = $3
+              AND EXTRACT(MONTH FROM processing_date) = $4
+            GROUP BY processing_date
+          `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
           
-          for (const row of tableStatsResult.rows) {
-            totalRecords += parseInt(row.record_count);
-            totalTransactionValue += parseFloat(row.transaction_value || '0');
-            recordTypeBreakdown[row.record_type] = (recordTypeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
+          for (const dayData of tableInfoResult.rows) {
+            // Insert rebuilded entry for this day with correct schema
+            await pool.query(`
+              INSERT INTO ${totalsTableName} (
+                processing_date, 
+                total_files, 
+                total_records, 
+                dt_transaction_amounts, 
+                bh_net_deposits,
+                record_breakdown,
+                last_updated,
+                created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+            `, [
+              dayData.processing_date,
+              1, // total_files (1 file per entry)
+              parseInt(dayData.total_records),
+              parseFloat(dayData.dt_transaction_amounts || '0'),
+              parseFloat(dayData.bh_net_deposits || '0'),
+              JSON.stringify({ rebuiltFrom: tableName, recordTypes: dayData.record_types })
+            ]);
             
-            if (row.max_processed_at && (!lastProcessedDate || row.max_processed_at > lastProcessedDate)) {
-              lastProcessedDate = row.max_processed_at;
-            }
+            rebuiltEntries++;
           }
         } catch (tableError) {
-          console.warn(`Failed to get stats for table ${tableName}:`, tableError);
+          console.warn(`Failed to process table ${tableName}:`, tableError);
         }
       }
       
-      // Clear existing cache and insert new totals using actual table schema
-      await pool.query(`DELETE FROM ${totalsTableName}`);
-      
-      // Calculate individual record type counts for the schema
-      const dtRecords = recordTypeBreakdown['DT'] || 0;
-      const bhRecords = recordTypeBreakdown['BH'] || 0;
-      const p1Records = recordTypeBreakdown['P1'] || 0;
-      const e1Records = recordTypeBreakdown['E1'] || 0;
-      const g2Records = recordTypeBreakdown['G2'] || 0;
-      const adRecords = recordTypeBreakdown['AD'] || 0;
-      const drRecords = recordTypeBreakdown['DR'] || 0;
-      const p2Records = recordTypeBreakdown['P2'] || 0;
-      const otherRecords = Object.keys(recordTypeBreakdown)
-        .filter(key => !['DT', 'BH', 'P1', 'E1', 'G2', 'AD', 'DR', 'P2'].includes(key))
-        .reduce((sum, key) => sum + (recordTypeBreakdown[key] || 0), 0);
-      
-      await pool.query(`
-        INSERT INTO ${totalsTableName} (
-          filename, file_name, file_date, total_records, total_transactions, total_transaction_value,
-          dt_records, bh_records, p1_records, e1_records, g2_records, ad_records, dr_records, p2_records, other_records,
-          total_files, last_processed_date, processing_date, date_processed, total_net_deposit_bh,
-          record_type_breakdown, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
-      `, [
-        `Rebuilt_Cache_${activeTables.length}_files`, // filename
-        `Rebuilt from ${activeTables.length} files`, // file_name
-        lastProcessedDate ? new Date(lastProcessedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // file_date
-        totalRecords, // total_records
-        0, // total_transactions (legacy field)
-        totalTransactionValue, // total_transaction_value
-        dtRecords, // dt_records
-        bhRecords, // bh_records
-        p1Records, // p1_records
-        e1Records, // e1_records
-        g2Records, // g2_records
-        adRecords, // ad_records
-        drRecords, // dr_records
-        p2Records, // p2_records
-        otherRecords, // other_records
-        activeTables.length, // total_files
-        lastProcessedDate ? new Date(lastProcessedDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // last_processed_date
-        new Date().toISOString(), // processing_date
-        new Date().toISOString(), // date_processed
-        0, // total_net_deposit_bh
-        JSON.stringify(recordTypeBreakdown), // record_type_breakdown
-        new Date().toISOString(), // created_at
-        new Date().toISOString() // updated_at
-      ]);
-      
-      console.log(`✅ TDDF1 totals cache rebuilt: ${activeTables.length} files, ${totalRecords} records`);
+      console.log(`✅ TDDF1 totals cache rebuilt for ${month}: ${rebuiltEntries} entries recreated`);
       
       res.json({
         success: true,
-        message: "TDDF1 totals cache rebuilt successfully",
+        message: `TDDF1 totals cache rebuilt successfully for ${month}`,
         stats: {
-          totalFiles: activeTables.length,
-          totalRecords,
-          totalTransactionValue,
-          recordTypeBreakdown,
-          activeTables,
-          lastProcessedDate
+          month,
+          rebuiltEntries,
+          dateRange: `${startDate} to ${endDate}`
         }
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error rebuilding TDDF1 totals cache:", error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to rebuild TDDF1 totals cache"
+        error: "Failed to rebuild TDDF1 totals cache",
+        details: error.message 
       });
     }
   });
