@@ -16920,7 +16920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   record_type,
                   COALESCE(SUM(CASE 
                     WHEN record_type = 'BH' AND field_data->>'netDeposit' IS NOT NULL 
-                    THEN CAST(field_data->>'netDeposit' AS DECIMAL) 
+                    THEN CAST(field_data->>'netDeposit' AS DECIMAL)
+                    WHEN record_type = 'DT' AND field_data->>'authAmount' IS NOT NULL 
+                    THEN CAST(field_data->>'authAmount' AS DECIMAL)
                     ELSE 0 
                   END), 0) as transaction_value
                 FROM ${tableName}
