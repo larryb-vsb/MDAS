@@ -1235,7 +1235,7 @@ export const uploaderUploads = pgTable(getTableName("uploader_uploads"), {
   keepForReview: boolean("keep_for_review").default(false), // Whether to hold at uploaded phase for manual review
   
   // Current processing state
-  currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, encoding, processing, completed, failed
+  currentPhase: text("current_phase").default("started").notNull(), // started, uploading, uploaded, identified, hold, encoding, processing, completed, failed
   lastUpdated: timestamp("last_updated").defaultNow().notNull()
 }, (table) => ({
   currentPhaseIdx: index("uploader_uploads_current_phase_idx").on(table.currentPhase),

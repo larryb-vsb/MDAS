@@ -11819,6 +11819,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               updateData.identification_results = null;
               break;
               
+            case 'hold':
+              // From hold status, go back to identified (since hold is for preventing Auto 4-5 from identified->encoding)
+              newPhase = 'identified';
+              updateData.processing_notes = `Released from hold status to identified at ${new Date().toISOString()}`;
+              break;
+              
             case 'uploaded':
               errors.push(`Upload ${upload.filename} is already at the minimum level (uploaded)`);
               continue;
@@ -11858,6 +11864,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error: any) {
       console.error('Set previous level error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Hold files - sets selected files to "hold" status to prevent Auto 4-5 processing
+  app.post("/api/uploader/hold-files", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "Invalid request: uploadIds must be a non-empty array" });
+      }
+      
+      console.log(`[UPLOADER API] Hold files request for ${uploadIds.length} uploads:`, uploadIds);
+      
+      let heldCount = 0;
+      const errors = [];
+      
+      for (const uploadId of uploadIds) {
+        try {
+          const upload = await storage.getUploaderUploadById(uploadId);
+          
+          if (!upload) {
+            errors.push(`Upload ${uploadId} not found`);
+            continue;
+          }
+          
+          // Only hold files that are uploaded or identified (eligible for Auto 4-5 processing)
+          if (upload.currentPhase !== 'uploaded' && upload.currentPhase !== 'identified') {
+            errors.push(`Upload ${upload.filename} cannot be held from phase: ${upload.currentPhase} (must be uploaded or identified)`);
+            continue;
+          }
+          
+          const updateData = {
+            currentPhase: 'hold',
+            processing_notes: `Held from Auto 4-5 processing at ${new Date().toISOString()}. Previous phase: ${upload.currentPhase}`
+          };
+          
+          await storage.updateUploaderUpload(uploadId, updateData);
+          
+          heldCount++;
+          console.log(`[UPLOADER API] Held upload ${uploadId} (${upload.filename}) from phase ${upload.currentPhase}`);
+          
+        } catch (error: any) {
+          console.error(`Error holding upload ${uploadId}:`, error);
+          errors.push(`Failed to hold upload ${uploadId}: ${error.message}`);
+        }
+      }
+      
+      console.log(`[UPLOADER API] Successfully held ${heldCount} uploads from Auto 4-5 processing`);
+      
+      const response: any = { 
+        success: true, 
+        message: `Successfully held ${heldCount} files from Auto 4-5 processing`,
+        heldCount
+      };
+      
+      if (errors.length > 0) {
+        response.warnings = errors;
+        response.message += ` (${errors.length} warnings)`;
+      }
+      
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('Hold files error:', error);
       res.status(500).json({ error: error.message });
     }
   });

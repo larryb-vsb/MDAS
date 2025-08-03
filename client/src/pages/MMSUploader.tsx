@@ -32,12 +32,13 @@ interface UploaderUploadWithPresigned extends UploaderUpload {
   storageKey?: string;
 }
 
-// 8-State Processing Workflow
+// 9-State Processing Workflow
 const PROCESSING_PHASES = [
   { id: 'started', name: 'Started', icon: Play, color: 'blue', description: 'Upload initialized' },
   { id: 'uploading', name: 'Uploading', icon: Upload, color: 'purple', description: 'File transfer in progress' },
   { id: 'uploaded', name: 'Uploaded', icon: FileText, color: 'cyan', description: 'File stored temporarily' },
   { id: 'identified', name: 'Identified', icon: Search, color: 'orange', description: 'File type detected and analyzed' },
+  { id: 'hold', name: 'Hold', icon: Pause, color: 'yellow', description: 'Held from Auto 4-5 processing' },
   { id: 'encoding', name: 'Encoding', icon: Settings, color: 'pink', description: 'Data encoding and validation' },
   { id: 'processing', name: 'Processing', icon: Database, color: 'indigo', description: 'Data being processed' },
   { id: 'completed', name: 'Completed', icon: CheckCircle, color: 'green', description: 'Successfully processed' },
@@ -427,6 +428,33 @@ export default function MMSUploader() {
     }
   });
 
+  // Hold files mutation - sets files to "hold" status to prevent Auto 4-5 processing
+  const holdFilesMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/hold-files', {
+        method: 'POST',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+      toast({ 
+        title: 'Files Held', 
+        description: `Successfully held ${data.heldCount || uploadIds.length} files from Auto 4-5 processing` 
+      });
+    },
+    onError: (error) => {
+      console.error('Error holding files:', error);
+      toast({ 
+        title: 'Hold Failed', 
+        description: 'Failed to hold files. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Orphan scan mutation
   const orphanScanMutation = useMutation({
     mutationFn: async () => {
@@ -659,6 +687,33 @@ export default function MMSUploader() {
     }
   };
 
+  // Hold files handler - prevents Auto 4-5 processing
+  const handleHoldFiles = async () => {
+    console.log('[HOLD-FILES] Button clicked, selectedUploads:', selectedUploads);
+    
+    // Filter selected uploads to only include those that can be held
+    const eligibleUploads = selectedUploads.filter(id => {
+      const upload = uploads.find(u => u.id === id);
+      const isEligible = upload && (upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified');
+      console.log(`[HOLD-FILES] File ${upload?.filename} (${upload?.currentPhase}) eligible: ${isEligible}`);
+      return isEligible;
+    });
+    
+    console.log(`[HOLD-FILES] Found ${eligibleUploads.length} eligible uploads:`, eligibleUploads);
+    
+    if (eligibleUploads.length === 0) {
+      console.log('[HOLD-FILES] No eligible uploads found, returning');
+      return;
+    }
+    
+    try {
+      await holdFilesMutation.mutateAsync(eligibleUploads);
+      console.log(`[HOLD-FILES] Successfully held ${eligibleUploads.length} files`);
+    } catch (error) {
+      console.error('Hold files error:', error);
+    }
+  };
+
   // Set previous level handler (using existing bulk selection system)
   const handleSetPreviousLevelSelected = async () => {
     console.log('[SET-PREVIOUS-LEVEL] Button clicked, selectedUploads:', selectedUploads);
@@ -666,7 +721,7 @@ export default function MMSUploader() {
     // Filter selected uploads to only include those that can be moved back
     const eligibleUploads = selectedUploads.filter(id => {
       const upload = uploads.find(u => u.id === id);
-      const isEligible = upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+      const isEligible = upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold');
       console.log(`[SET-PREVIOUS-LEVEL] File ${upload?.filename} (${upload?.currentPhase}) eligible: ${isEligible}`);
       return isEligible;
     });
@@ -686,6 +741,8 @@ export default function MMSUploader() {
       console.error('[SET-PREVIOUS-LEVEL] Error:', error);
     }
   };
+
+
 
   // Stage 5: Single file encoding handler with progress tracking
   const handleSingleFileEncoding = async (uploadId: string) => {
@@ -2224,6 +2281,7 @@ export default function MMSUploader() {
                         <SelectItem value="uploading">Uploading</SelectItem>
                         <SelectItem value="uploaded">Uploaded</SelectItem>
                         <SelectItem value="identified">Identified</SelectItem>
+                        <SelectItem value="hold">Hold</SelectItem>
                         <SelectItem value="encoding">Encoding</SelectItem>
                         <SelectItem value="encoded">Encoded</SelectItem>
                         <SelectItem value="processing">Processing</SelectItem>
@@ -2386,10 +2444,10 @@ export default function MMSUploader() {
                         </Button>
                       )}
 
-                      {/* Set Previous Level Button - show when eligible files are selected */}
+                      {/* Hold Files Button - show when uploaded or identified files are selected */}
                       {selectedUploads.some(id => {
                         const upload = uploads.find(u => u.id === id);
-                        return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+                        return upload && (upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified');
                       }) && (
                         <Button
                           variant="outline"
@@ -2397,7 +2455,35 @@ export default function MMSUploader() {
                           onClick={() => {
                             const eligibleUploads = selectedUploads.filter(id => {
                               const upload = uploads.find(u => u.id === id);
-                              return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+                              return upload && (upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified');
+                            });
+                            if (eligibleUploads.length > 0) {
+                              handleHoldFiles();
+                            }
+                          }}
+                          disabled={holdFilesMutation.isPending}
+                          className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          {holdFilesMutation.isPending ? 'Holding...' : `Hold ${selectedUploads.filter(id => {
+                            const upload = uploads.find(u => u.id === id);
+                            return upload && (upload.currentPhase === 'uploaded' || upload.currentPhase === 'identified');
+                          }).length}`}
+                        </Button>
+                      )}
+
+                      {/* Set Previous Level Button - show when eligible files are selected */}
+                      {selectedUploads.some(id => {
+                        const upload = uploads.find(u => u.id === id);
+                        return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold');
+                      }) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const eligibleUploads = selectedUploads.filter(id => {
+                              const upload = uploads.find(u => u.id === id);
+                              return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold');
                             });
                             if (eligibleUploads.length > 0) {
                               handleSetPreviousLevelSelected();
@@ -2409,7 +2495,7 @@ export default function MMSUploader() {
                           <ChevronLeft className="h-4 w-4 mr-2" />
                           {setPreviousLevelMutation.isPending ? 'Setting...' : `Set Previous ${selectedUploads.filter(id => {
                             const upload = uploads.find(u => u.id === id);
-                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed');
+                            return upload && (upload.currentPhase === 'identified' || upload.currentPhase === 'encoded' || upload.currentPhase === 'failed' || upload.currentPhase === 'hold');
                           }).length}`}
                         </Button>
                       )}
@@ -2448,7 +2534,7 @@ export default function MMSUploader() {
                   <div className="text-center py-8">
                     <div className="text-muted-foreground">
                       {statusFilter === 'all' && fileTypeFilter === 'all' 
-                        ? 'No MMS uploads found. Upload files to start the 8-phase workflow.'
+                        ? 'No MMS uploads found. Upload files to start the 9-phase workflow.'
                         : 'No files match the selected filters.'
                       }
                     </div>
@@ -2457,7 +2543,7 @@ export default function MMSUploader() {
                   paginatedUploads.map((upload) => {
                     const Icon = getPhaseIcon(upload.currentPhase || 'started');
                     const phaseColor = getPhaseColor(upload.currentPhase || 'started');
-                    const canViewContent = ['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '');
+                    const canViewContent = ['uploaded', 'identified', 'hold', 'encoding', 'encoded', 'processing', 'completed'].includes(upload.currentPhase || '');
                     
                     return (
                       <div key={upload.id} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50">
