@@ -612,10 +612,15 @@ export default function Tddf1MonthlyView() {
                   <div className="flex items-center justify-center h-full">
                     <div className="text-gray-500">Loading comparison data...</div>
                   </div>
-                ) : comparisonData ? (
+                ) : comparisonData && comparisonData.currentMonth && comparisonData.currentMonth.dailyBreakdown ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsLineChart 
                       data={(() => {
+                        // Ensure we have valid data before processing
+                        if (!comparisonData.currentMonth.dailyBreakdown || comparisonData.currentMonth.dailyBreakdown.length === 0) {
+                          return [];
+                        }
+
                         // Group current month data by day (since API returns individual file entries)
                         const currentDayGroups = comparisonData.currentMonth.dailyBreakdown.reduce((acc, entry) => {
                           const day = new Date(entry.date).getDate();
@@ -627,8 +632,8 @@ export default function Tddf1MonthlyView() {
                           return acc;
                         }, {} as Record<number, { transactionValue: number; netDepositBh: number; date: string }>);
 
-                        // Group previous month data by day
-                        const previousDayGroups = comparisonData.previousMonth.dailyBreakdown.reduce((acc, entry) => {
+                        // Group previous month data by day - handle case where previous month has no data
+                        const previousDayGroups = (comparisonData.previousMonth && comparisonData.previousMonth.dailyBreakdown || []).reduce((acc, entry) => {
                           const day = new Date(entry.date).getDate();
                           if (!acc[day]) {
                             acc[day] = { transactionValue: 0, netDepositBh: 0, date: entry.date };
@@ -749,7 +754,9 @@ export default function Tddf1MonthlyView() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <div className="text-gray-500">No comparison data available</div>
+                    <div className="text-gray-500">
+                      {comparisonData ? 'No daily breakdown data available for comparison' : 'No comparison data available'}
+                    </div>
                   </div>
                 )}
               </div>
