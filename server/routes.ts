@@ -17250,7 +17250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate} (strict date filtering)`);
       
-      // Get monthly aggregated totals using environment-aware table name
+      // Get most recent day's data instead of aggregating entire month
+      // This aligns with user expectation: show individual daily amounts, not monthly sums
       const monthlyTotals = await pool.query(`
         SELECT 
           $1 as month,
@@ -17259,9 +17260,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(dt_transaction_amounts) as total_transaction_value,
           SUM(bh_net_deposits) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE processing_date >= $2 AND processing_date <= $3
-          AND EXTRACT(YEAR FROM processing_date) = $4
-          AND EXTRACT(MONTH FROM processing_date) = $5
+        WHERE processing_date = (
+          SELECT MAX(processing_date) 
+          FROM ${totalsTableName} 
+          WHERE processing_date >= $2 AND processing_date <= $3
+            AND EXTRACT(YEAR FROM processing_date) = $4
+            AND EXTRACT(MONTH FROM processing_date) = $5
+        )
       `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Get record type breakdown for the month using environment-aware table name
