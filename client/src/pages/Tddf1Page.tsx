@@ -103,7 +103,7 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = user?.theme_preference === 'dark';
+  const isDarkMode = user?.themePreference === 'dark';
 
   // Force re-render when theme changes
   useEffect(() => {
@@ -218,7 +218,7 @@ function Tddf1Page() {
 
   const handleThemeToggle = () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
-    console.log('Toggle clicked! Current isDarkMode:', isDarkMode, 'New theme:', newTheme);
+    console.log('Toggle clicked! Current isDarkMode:', isDarkMode, 'New theme:', newTheme, 'User:', user);
     updateThemeMutation.mutate(newTheme);
   };
 
@@ -301,40 +301,40 @@ function Tddf1Page() {
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4">
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                <div className="text-sm sm:text-base font-bold text-blue-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.totalFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-green-600">
+                <div className="text-sm sm:text-base font-bold text-green-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.uploadedFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-yellow-600">
+                <div className="text-sm sm:text-base font-bold text-yellow-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.identifiedFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-orange-600">
+                <div className="text-sm sm:text-base font-bold text-orange-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.encodingFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-purple-600">
+                <div className="text-sm sm:text-base font-bold text-purple-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.encodedFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
               </div>
               <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-red-600">
+                <div className="text-sm sm:text-base font-bold text-red-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.failedFiles ?? 0)}
                 </div>
-                <div className={`text-xs sm:text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
               </div>
             </div>
             {pipelineStatus?.lastActivity && (
@@ -353,7 +353,7 @@ function Tddf1Page() {
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
@@ -365,7 +365,7 @@ function Tddf1Page() {
               <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
@@ -388,7 +388,7 @@ function Tddf1Page() {
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
@@ -400,7 +400,7 @@ function Tddf1Page() {
               <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-lg sm:text-xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
               </div>
             </CardContent>
