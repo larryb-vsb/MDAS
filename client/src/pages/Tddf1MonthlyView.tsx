@@ -291,48 +291,26 @@ export default function Tddf1MonthlyView() {
       minWidth: '30%',
       marginBottom: 5,
     },
-    simpleChart: {
-      marginTop: 10,
+    summarySection: {
+      marginTop: 15,
+      padding: 15,
+      backgroundColor: '#F9FAFB',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      borderRadius: 4,
     },
-    chartSubtitle: {
-      fontSize: 12,
+    summaryTitle: {
+      fontSize: 14,
       fontWeight: 'bold',
       color: '#374151',
       marginBottom: 10,
       textAlign: 'center',
     },
-    comparisonContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 20,
-    },
-    comparisonSection: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: '#E5E7EB',
-      borderRadius: 4,
-      padding: 12,
-      backgroundColor: '#F9FAFB',
-    },
-    comparisonTitle: {
+    summaryText: {
       fontSize: 10,
-      fontWeight: 'bold',
-      color: '#374151',
+      color: '#4B5563',
       marginBottom: 8,
-      textAlign: 'center',
-    },
-    barContainer: {
-      marginBottom: 6,
-    },
-    barLabel: {
-      fontSize: 8,
-      color: '#6B7280',
-      marginBottom: 2,
-    },
-    barText: {
-      fontSize: 8,
-      color: '#3B82F6',
-      fontFamily: 'monospace',
+      lineHeight: 1.4,
     },
     chartNote: {
       fontSize: 9,
@@ -420,53 +398,20 @@ export default function Tddf1MonthlyView() {
                     formatCurrency(data.totalTransactionValue / data.dailyBreakdown.length) : '$0'}
                 </Text>
               </View>
-              {/* Simple comparison bars for Previous vs Current */}
-              <View style={pdfStyles.simpleChart}>
-                <Text style={pdfStyles.chartSubtitle}>
-                  Previous vs Current Month Comparison
+              {/* Executive Summary */}
+              <View style={pdfStyles.summarySection}>
+                <Text style={pdfStyles.summaryTitle}>
+                  Executive Summary
                 </Text>
-                
-                {/* Monthly comparison bars - simplified */}
-                <View style={pdfStyles.comparisonContainer}>
-                  {/* BH Net Deposits Comparison */}
-                  <View style={pdfStyles.comparisonSection}>
-                    <Text style={pdfStyles.comparisonTitle}>Batch Net Deposits (BH)</Text>
-                    <View style={pdfStyles.barContainer}>
-                      <Text style={pdfStyles.barLabel}>Previous Month</Text>
-                      <Text style={pdfStyles.barText}>
-                        ████████ {formatCurrency(data.totalNetDepositBh * 0.85)}
-                      </Text>
-                    </View>
-                    <View style={pdfStyles.barContainer}>
-                      <Text style={pdfStyles.barLabel}>Current Month</Text>
-                      <Text style={pdfStyles.barText}>
-                        ██████████ {formatCurrency(data.totalNetDepositBh)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* DT Transaction Amounts Comparison */}
-                  <View style={pdfStyles.comparisonSection}>
-                    <Text style={pdfStyles.comparisonTitle}>Transaction Amounts (DT)</Text>
-                    <View style={pdfStyles.barContainer}>
-                      <Text style={pdfStyles.barLabel}>Previous Month</Text>
-                      <Text style={pdfStyles.barText}>
-                        ██████ {formatCurrency(data.totalTransactionValue * 0.92)}
-                      </Text>
-                    </View>
-                    <View style={pdfStyles.barContainer}>
-                      <Text style={pdfStyles.barLabel}>Current Month</Text>
-                      <Text style={pdfStyles.barText}>
-                        ████████ {formatCurrency(data.totalTransactionValue)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+                <Text style={pdfStyles.summaryText}>
+                  Monthly processing completed with {data.totalFiles} files containing {data.totalRecords.toLocaleString()} records. 
+                  Total transaction value of {formatCurrency(data.totalTransactionValue)} and net deposits of {formatCurrency(data.totalNetDepositBh)} processed successfully.
+                </Text>
+                <Text style={pdfStyles.summaryText}>
+                  Average daily processing: {data.dailyBreakdown.length > 0 ? 
+                    Math.round(data.totalRecords / data.dailyBreakdown.length).toLocaleString() : '0'} records per day.
+                </Text>
               </View>
-              
-              <Text style={pdfStyles.chartNote}>
-                Volume levels and trends calculated from daily transaction amounts
-              </Text>
             </View>
           </View>
         </View>
