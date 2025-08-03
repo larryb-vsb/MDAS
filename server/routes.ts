@@ -17192,6 +17192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords: totalRecords,
         recordTypes: recordTypes,
         transactionValue: transactionAmountsTotal, // For backward compatibility
+        netDepositsTotal: netDepositsTotal, // Used by frontend
         netDepositsValue: netDepositsTotal, // New separate field
         transactionAmountsValue: transactionAmountsTotal, // New separate field
         fileCount: totalsResult.rows.length, // Use actual number of individual file entries

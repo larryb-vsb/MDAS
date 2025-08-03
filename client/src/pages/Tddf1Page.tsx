@@ -646,7 +646,7 @@ function Tddf1Page() {
                 <div className="text-center py-8 text-gray-500">Loading day data...</div>
               ) : dayBreakdown ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-2xl sm:text-xl font-bold text-blue-600">
                         <span className="hidden sm:inline">{(dayBreakdown.totalRecords ?? 0).toLocaleString()}</span>
@@ -675,6 +675,13 @@ function Tddf1Page() {
                         <span className="sm:hidden">${((dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Authorizations</div>
+                    </div>
+                    <div className="text-center p-3 sm:p-0">
+                      <div className="text-xl sm:text-xl font-bold text-emerald-600">
+                        <span className="hidden sm:inline">${(dayBreakdown.netDepositsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="sm:hidden">${((dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k</span>
+                      </div>
+                      <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Net Deposits</div>
                     </div>
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-2xl sm:text-xl font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
