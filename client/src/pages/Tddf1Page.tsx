@@ -160,13 +160,24 @@ function Tddf1Page() {
 
   // Totals cache rebuild mutation
   const rebuildCacheMutation = useMutation({
-    mutationFn: () => apiRequest('/api/tddf1/rebuild-totals-cache', {
-      method: 'POST',
-    }),
+    mutationFn: () => {
+      // Extract month from selected date for the API call
+      const month = format(selectedDate, 'yyyy-MM');
+      return fetch(`/api/tddf1/rebuild-totals-cache?month=${month}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to rebuild cache');
+        return res.json();
+      });
+    },
     onSuccess: () => {
+      const month = format(selectedDate, 'MMMM yyyy');
       toast({
         title: "Cache Rebuilt",
-        description: "TDDF1 totals cache has been successfully rebuilt with fresh Net Deposit calculations",
+        description: `TDDF1 totals cache for ${month} has been successfully rebuilt with fresh data`,
       });
       // Refresh all queries to get fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/tddf1/stats'] });
