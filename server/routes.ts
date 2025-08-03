@@ -17558,13 +17558,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Get aggregated data for this file regardless of transaction_date
+          // Get aggregated data using raw TDDF specification (matches PowerShell logic)
           const tableInfoResult = await pool.query(`
             SELECT 
               $1 as processing_date,
               COUNT(*) as total_records,
-              COALESCE(SUM(CASE WHEN record_type = 'DT' AND transaction_amount IS NOT NULL THEN transaction_amount ELSE 0 END), 0) as dt_transaction_amounts,
-              COALESCE(SUM(CASE WHEN record_type = 'BH' AND field_data ? 'netDeposit' THEN (field_data->>'netDeposit')::DECIMAL ELSE 0 END), 0) as bh_net_deposits,
+              COALESCE(SUM(CASE 
+                WHEN record_type = 'DT' 
+                  AND LENGTH(raw_line) >= 103 
+                  AND SUBSTRING(raw_line, 93, 11) ~ '^[0-9]+$' 
+                THEN CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0 
+                ELSE 0 
+              END), 0) as dt_transaction_amounts,
+              COALESCE(SUM(CASE 
+                WHEN record_type = 'BH' 
+                  AND LENGTH(raw_line) >= 83 
+                  AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$' 
+                THEN CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0 
+                ELSE 0 
+              END), 0) as bh_net_deposits,
               COUNT(DISTINCT record_type) as record_types
             FROM ${tableName}
           `, [fileDate]);
