@@ -641,7 +641,7 @@ function Tddf1Page() {
                         <span className="hidden sm:inline">{(dayBreakdown.totalRecords ?? 0).toLocaleString()}</span>
                         <span className="sm:hidden">{((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k</span>
                       </div>
-                      <div className="text-sm text-gray-600">Records Processed</div>
+                      <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Records Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
                           <span className="hidden sm:inline">{dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total</span>
@@ -651,7 +651,7 @@ function Tddf1Page() {
                     </div>
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-2xl sm:text-xl font-bold text-green-600">{dayBreakdown.fileCount ?? 0}</div>
-                      <div className="text-sm text-gray-600">Files Processed</div>
+                      <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Files Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
                           {dayBreakdown.filesProcessed.filter(f => f.processingTime).length} completed
@@ -663,17 +663,17 @@ function Tddf1Page() {
                         <span className="hidden sm:inline">${(dayBreakdown.transactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         <span className="sm:hidden">${((dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
                       </div>
-                      <div className="text-sm text-gray-600">Authorizations</div>
+                      <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Authorizations</div>
                     </div>
                     <div className="text-center p-3 sm:p-0">
                       <div className="text-2xl sm:text-xl font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
-                      <div className="text-sm text-gray-600">Active Tables</div>
+                      <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Active Tables</div>
                     </div>
                   </div>
 
                   {/* Mobile-Optimized Record Type Breakdown */}
                   <div>
-                    <h4 className="font-semibold mb-3 text-sm sm:text-base">Record Types</h4>
+                    <h4 className={`font-semibold mb-3 text-sm sm:text-base transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>Record Types</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                       {(() => {
                         // Define consistent order and colors for record types
