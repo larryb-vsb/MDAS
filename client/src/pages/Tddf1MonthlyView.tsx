@@ -93,7 +93,13 @@ export default function Tddf1MonthlyView() {
   const { data: monthlyData, isLoading, refetch } = useQuery({
     queryKey: ['tddf1-monthly', format(currentMonth, 'yyyy-MM')],
     queryFn: async (): Promise<MonthlyTotals> => {
-      const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`);
+      const response = await fetch(`/api/tddf1/monthly-totals?month=${format(currentMonth, 'yyyy-MM')}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch monthly data');
       return response.json();
     }
@@ -102,7 +108,13 @@ export default function Tddf1MonthlyView() {
   const { data: comparisonData, isLoading: comparisonLoading } = useQuery({
     queryKey: ['tddf1-monthly-comparison', format(currentMonth, 'yyyy-MM')],
     queryFn: async (): Promise<MonthlyComparison> => {
-      const response = await fetch(`/api/tddf1/monthly-comparison?month=${format(currentMonth, 'yyyy-MM')}`);
+      const response = await fetch(`/api/tddf1/monthly-comparison?month=${format(currentMonth, 'yyyy-MM')}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch monthly comparison data');
       return response.json();
     }
