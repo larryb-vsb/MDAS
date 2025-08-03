@@ -291,69 +291,51 @@ export default function Tddf1MonthlyView() {
       minWidth: '30%',
       marginBottom: 5,
     },
-    chartLines: {
-      height: 80,
-      marginBottom: 10,
-      position: 'relative',
+    simpleChart: {
+      marginTop: 10,
     },
-    chartGrid: {
-      flexDirection: 'row',
-      height: '100%',
+    chartSubtitle: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: '#374151',
+      marginBottom: 8,
+      textAlign: 'center',
     },
-    yAxisLabels: {
-      width: 30,
-      justifyContent: 'space-between',
-      alignItems: 'flex-end',
-      paddingRight: 5,
-    },
-    yAxisLabel: {
-      fontSize: 7,
-      color: '#9CA3AF',
-    },
-    chartArea: {
-      flex: 1,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-end',
-      borderLeftWidth: 1,
-      borderBottomWidth: 1,
+    chartTable: {
+      borderWidth: 1,
       borderColor: '#E5E7EB',
-      paddingLeft: 3,
-      paddingBottom: 15,
-      position: 'relative',
+      borderRadius: 4,
     },
-    chartColumn: {
-      flex: 1,
-      height: '100%',
-      alignItems: 'center',
-      position: 'relative',
+    chartRow: {
+      flexDirection: 'row',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
     },
-    chartPoint: {
-      position: 'absolute',
-      bottom: 15,
+    chartDay: {
+      fontSize: 9,
+      color: '#374151',
+      flex: 2,
+      fontWeight: 'bold',
     },
-    chartDot: {
-      fontSize: 8,
-      color: '#3B82F6',
+    chartVolume: {
+      fontSize: 9,
+      color: '#059669',
+      flex: 3,
+      textAlign: 'right',
+    },
+    chartLevel: {
+      fontSize: 9,
+      color: '#7C3AED',
+      flex: 2,
       textAlign: 'center',
     },
-    xAxisLabel: {
-      fontSize: 6,
-      color: '#9CA3AF',
-      position: 'absolute',
-      bottom: 0,
+    chartTrend: {
+      fontSize: 9,
+      color: '#DC2626',
+      flex: 2,
       textAlign: 'center',
-    },
-    trendLine: {
-      position: 'absolute',
-      bottom: 20,
-      left: 35,
-      right: 5,
-    },
-    lineText: {
-      fontSize: 6,
-      color: '#3B82F6',
-      letterSpacing: 1,
     },
     chartNote: {
       fontSize: 9,
@@ -441,66 +423,48 @@ export default function Tddf1MonthlyView() {
                     formatCurrency(data.totalTransactionValue / data.dailyBreakdown.length) : '$0'}
                 </Text>
               </View>
-              {/* Simple line chart using dots and dashes */}
-              <View style={pdfStyles.chartLines}>
-                <View style={pdfStyles.chartGrid}>
-                  {/* Y-axis labels */}
-                  <View style={pdfStyles.yAxisLabels}>
-                    {data.dailyBreakdown.length > 0 && (() => {
-                      const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
-                      return [0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => (
-                        <Text key={idx} style={pdfStyles.yAxisLabel}>
-                          ${Math.round(maxValue * ratio / 1000)}K
-                        </Text>
-                      ));
-                    })()}
-                  </View>
-                  
-                  {/* Chart area with line representation */}
-                  <View style={pdfStyles.chartArea}>
-                    {data.dailyBreakdown.slice(0, 20).map((day, index) => {
-                      const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
-                      const heightPercent = (day.transactionValue / maxValue) * 100;
-                      const isHighPoint = heightPercent > 70;
-                      const isMidPoint = heightPercent > 30 && heightPercent <= 70;
-                      
-                      return (
-                        <View key={index} style={pdfStyles.chartColumn}>
-                          <View style={[pdfStyles.chartPoint, { marginTop: `${100 - heightPercent}%` }]}>
-                            <Text style={pdfStyles.chartDot}>
-                              {isHighPoint ? '●' : isMidPoint ? '○' : '·'}
-                            </Text>
-                          </View>
-                          <Text style={pdfStyles.xAxisLabel}>
-                            {format(new Date(day.date), 'dd')}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
+              {/* Simple table-style chart display */}
+              <View style={pdfStyles.simpleChart}>
+                <Text style={pdfStyles.chartSubtitle}>
+                  Daily Volume Pattern (First 15 Days)
+                </Text>
                 
-                {/* Connect the dots with trend line */}
-                <View style={pdfStyles.trendLine}>
-                  <Text style={pdfStyles.lineText}>
-                    {data.dailyBreakdown.slice(0, 20).map((day, index) => {
-                      if (index === 0) return '';
-                      const prevDay = data.dailyBreakdown[index - 1];
-                      const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
-                      const currentHeight = (day.transactionValue / maxValue) * 100;
-                      const prevHeight = (prevDay.transactionValue / maxValue) * 100;
-                      
-                      // Create slope indicator
-                      if (currentHeight > prevHeight + 10) return '╱'; // Rising
-                      if (currentHeight < prevHeight - 10) return '╲'; // Falling  
-                      return '─'; // Flat
-                    }).join('')}
-                  </Text>
+                {/* Chart as simple rows */}
+                <View style={pdfStyles.chartTable}>
+                  {data.dailyBreakdown.slice(0, 15).map((day, index) => {
+                    const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
+                    const heightPercent = (day.transactionValue / maxValue) * 100;
+                    const volumeLevel = heightPercent > 70 ? 'High' : heightPercent > 30 ? 'Medium' : 'Low';
+                    const trendIcon = index > 0 ? (() => {
+                      const prevValue = data.dailyBreakdown[index - 1].transactionValue;
+                      const change = ((day.transactionValue - prevValue) / prevValue) * 100;
+                      if (change > 10) return '↗ Rising';
+                      if (change < -10) return '↘ Falling';
+                      return '→ Stable';
+                    })() : '— Start';
+
+                    return (
+                      <View key={index} style={pdfStyles.chartRow}>
+                        <Text style={pdfStyles.chartDay}>
+                          {format(new Date(day.date), 'MMM dd')}
+                        </Text>
+                        <Text style={pdfStyles.chartVolume}>
+                          {formatCurrency(day.transactionValue)}
+                        </Text>
+                        <Text style={pdfStyles.chartLevel}>
+                          {volumeLevel}
+                        </Text>
+                        <Text style={pdfStyles.chartTrend}>
+                          {trendIcon}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
               
               <Text style={pdfStyles.chartNote}>
-                Transaction trend: ● high ○ medium · low | Lines: ╱ rising ─ stable ╲ falling
+                Volume levels and trends calculated from daily transaction amounts
               </Text>
             </View>
           </View>
