@@ -15,7 +15,7 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **CRITICAL CACHE MISMATCH IDENTIFIED (2025-08-03)**: BH-DT-Cortex-Validator revealed massive discrepancies between cached totals and direct TDDF calculations. Root cause: Rebuild cache endpoint was using pre-parsed database fields instead of raw TDDF specification. Fixed rebuild cache logic to use PowerShell-equivalent calculations (SUBSTRING from raw_line positions with proper validation). Cache must be rebuilt to correct values: August 2025 should show $879,638.53 DT amounts vs current cached $8,800.43.
 
-**COMMON TOOLS FRAMEWORK (2025-08-03)**: Established reusable tools directory with BH-DT-Cortex-Validator as the first common diagnostic tool. Located in `tools/` directory with comprehensive documentation and usage guidelines. Tool provides PowerShell-compliant TDDF validation, cache consistency checks, and environment-aware processing for ongoing system maintenance.
+**COMMON TOOLS FRAMEWORK (2025-08-03)**: Established reusable tools directory with BH-DT-TDDF-Cortex-Validator as the first common diagnostic tool. Located in `tools/` directory with comprehensive documentation and usage guidelines. Tool provides PowerShell-compliant TDDF validation, cache consistency checks, and environment-aware processing for ongoing system maintenance. Originally developed in collaboration with Cortex.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

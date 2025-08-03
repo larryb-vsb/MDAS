@@ -1,9 +1,11 @@
 /**
- * BH-DT-Cortex-Validator
+ * BH-DT-TDDF-Cortex-Validator
  * Comprehensive validation of TDDF BH and DT calculations
  * Matches PowerShell script logic exactly
  * 
- * Usage: node tools/bh-dt-cortex-validator.cjs
+ * Originally developed in collaboration with Cortex
+ * 
+ * Usage: node tools/bh-dt-tddf-cortex-validator.cjs
  * 
  * This tool validates:
  * - TDDF BH Net Deposits (positions 69-83, divide by 100)
@@ -22,7 +24,7 @@ const pool = new Pool({
 });
 
 async function validateBHDTCalculations() {
-  console.log('🔍 BH-DT-Cortex-Validator Starting...\n');
+  console.log('🔍 BH-DT-TDDF-Cortex-Validator Starting... (Originally developed with Cortex)\n');
   
   try {
     // Environment detection
@@ -141,7 +143,7 @@ async function validateBHDTCalculations() {
     }
     
     console.log('\n' + '='.repeat(60));
-    console.log('🎯 BH-DT-CORTEX-VALIDATOR SUMMARY');
+    console.log('🎯 BH-DT-TDDF-CORTEX-VALIDATOR SUMMARY (Developed with Cortex)');
     console.log('='.repeat(60));
     console.log(`Files Processed: ${totalValidation.files}`);
     console.log(`Total Records: ${totalValidation.totalRecords.toLocaleString()}`);

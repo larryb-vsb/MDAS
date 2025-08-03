@@ -4,9 +4,10 @@ This directory contains reusable validation and diagnostic tools for the Merchan
 
 ## Available Tools
 
-### BH-DT-Cortex-Validator
-**File:** `bh-dt-cortex-validator.cjs`  
-**Purpose:** Comprehensive validation of TDDF BH and DT calculations
+### BH-DT-TDDF-Cortex-Validator
+**File:** `bh-dt-tddf-cortex-validator.cjs`  
+**Purpose:** Comprehensive validation of TDDF BH and DT calculations  
+**Credit:** Originally developed in collaboration with Cortex
 
 **Features:**
 - Validates TDDF BH Net Deposits (positions 69-83, ÷100)
@@ -18,7 +19,7 @@ This directory contains reusable validation and diagnostic tools for the Merchan
 
 **Usage:**
 ```bash
-node tools/bh-dt-cortex-validator.cjs
+node tools/bh-dt-tddf-cortex-validator.cjs
 ```
 
 **Output:**
