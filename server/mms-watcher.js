@@ -71,9 +71,15 @@ class MMSWatcher {
     //   this.runDuplicateCleanup();
     // }, 900000); // Check every 15 minutes (900000ms) during legacy import
     
+    // Pipeline recovery service - handles stuck files and updates pre-cache when complete
+    this.pipelineRecoveryIntervalId = setInterval(async () => {
+      await this.checkPipelineStatus();
+    }, 60000); // Check every minute for pipeline recovery
+    
     console.log('[MMS-WATCHER] Session cleanup service started - orphaned session detection active (runs every hour)');
     console.log('[MMS-WATCHER] File identification service started - processes uploaded files every 30 seconds (optimized)');
     console.log('[MMS-WATCHER] File encoding service started - processes identified files every 20 seconds (optimized)');
+    console.log('[MMS-WATCHER] Pipeline recovery service started - handles stuck files and cache updates every minute');
     console.log('[MMS-WATCHER] JSONB duplicate cleanup auto-start DISABLED - manual triggering only');
   }
 
@@ -96,6 +102,10 @@ class MMSWatcher {
     if (this.duplicateCleanupIntervalId) {
       clearInterval(this.duplicateCleanupIntervalId);
       this.duplicateCleanupIntervalId = null;
+    }
+    if (this.pipelineRecoveryIntervalId) {
+      clearInterval(this.pipelineRecoveryIntervalId);
+      this.pipelineRecoveryIntervalId = null;
     }
     console.log('[MMS-WATCHER] Service stopped');
   }
@@ -217,6 +227,127 @@ class MMSWatcher {
     } catch (error) {
       console.error(`[MMS-WATCHER] Error checking for files in phase ${phase}:`, error);
       return false;
+    }
+  }
+
+  // Pipeline Recovery - Handle stuck files and update pre-cache when complete
+  async checkPipelineStatus() {
+    try {
+      // Check for recently encoded TDDF files that need cache updates
+      const recentlyEncoded = await this.storage.db.query(`
+        SELECT id, filename, encoded_at, processing_notes
+        FROM ${this.storage.getTableName('uploader_uploads')}
+        WHERE current_phase = 'encoded' 
+          AND final_file_type = 'tddf'
+          AND encoded_at > NOW() - INTERVAL '10 minutes'
+          AND (processing_notes NOT LIKE '%cache_updated%' OR processing_notes IS NULL)
+        ORDER BY encoded_at DESC
+        LIMIT 5
+      `);
+
+      for (const upload of recentlyEncoded.rows) {
+        console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found recently encoded TDDF file: ${upload.filename}`);
+        
+        try {
+          // Simulate encoding results for cache update (use actual stats from file table)
+          const environment = process.env.NODE_ENV || 'development';
+          const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+          
+          // Get actual stats from the file table
+          const fileTableName = `${tablePrefix}file_${upload.filename.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+          const fileStatsResult = await this.storage.db.query(`
+            SELECT 
+              COUNT(*) as total_records,
+              COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
+              COUNT(*) FILTER (WHERE record_type = 'BH') as bh_count,
+              COUNT(*) FILTER (WHERE record_type = 'P1') as p1_count,
+              SUM(CASE WHEN record_type = 'DT' AND amount IS NOT NULL THEN amount::numeric ELSE 0 END) as total_amount
+            FROM ${fileTableName}
+          `);
+          
+          if (fileStatsResult.rows.length > 0) {
+            const stats = fileStatsResult.rows[0];
+            const mockEncodingResults = {
+              totalRecords: parseInt(stats.total_records) || 0,
+              totalTransactionAmount: parseFloat(stats.total_amount) || 0,
+              recordCounts: {
+                byType: {
+                  DT: parseInt(stats.dt_count) || 0,
+                  BH: parseInt(stats.bh_count) || 0,
+                  P1: parseInt(stats.p1_count) || 0
+                }
+              }
+            };
+
+            // Update TDDF1 totals cache
+            await this.updateTddf1TotalsCache(upload.filename, mockEncodingResults);
+            
+            // Mark as cache updated
+            const currentNotes = upload.processing_notes || '{}';
+            let notes = {};
+            try {
+              notes = JSON.parse(currentNotes);
+            } catch (e) {
+              notes = { legacy_notes: currentNotes };
+            }
+            notes.cache_updated = new Date().toISOString();
+            notes.pipeline_recovery = true;
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              processingNotes: JSON.stringify(notes)
+            });
+            
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] ✅ Updated cache for ${upload.filename}: ${mockEncodingResults.totalRecords} records`);
+          }
+        } catch (cacheError) {
+          console.error(`[MMS-WATCHER] [PIPELINE-RECOVERY] ❌ Failed to update cache for ${upload.filename}:`, cacheError);
+        }
+      }
+      
+      // Check for stuck files in encoding phase (over 5 minutes)
+      const stuckInEncoding = await this.storage.db.query(`
+        SELECT id, filename, current_phase, updated_at
+        FROM ${this.storage.getTableName('uploader_uploads')}
+        WHERE current_phase = 'encoding' 
+          AND updated_at < NOW() - INTERVAL '5 minutes'
+        LIMIT 3
+      `);
+      
+      if (stuckInEncoding.rows.length > 0) {
+        console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found ${stuckInEncoding.rows.length} files stuck in encoding phase`);
+        
+        for (const upload of stuckInEncoding.rows) {
+          // Check if file table exists (encoding may have completed but status not updated)
+          const environment = process.env.NODE_ENV || 'development';
+          const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+          const fileTableName = `${tablePrefix}file_${upload.filename.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
+          
+          const tableExists = await this.storage.db.query(`
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' AND table_name = $1
+            )
+          `, [fileTableName]);
+          
+          if (tableExists.rows[0].exists) {
+            // Table exists, mark as encoded
+            console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Recovering stuck file ${upload.filename} - table exists, marking as encoded`);
+            
+            await this.storage.updateUploaderUpload(upload.id, {
+              currentPhase: 'encoded',
+              encodedAt: new Date(),
+              processingNotes: JSON.stringify({
+                pipeline_recovery: true,
+                recovered_from: 'stuck_in_encoding',
+                recovered_at: new Date().toISOString()
+              })
+            });
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('[MMS-WATCHER] [PIPELINE-RECOVERY] Error checking pipeline status:', error);
     }
   }
 
@@ -1072,44 +1203,43 @@ class MMSWatcher {
         updated_at: new Date()
       };
       
-      // Insert into totals table (or update if exists)
+      // Insert into totals table using the correct simplified structure
       const query = `
         INSERT INTO ${totalsTableName} (
-          filename, file_name, file_date, total_records, total_transactions, total_transaction_value,
-          dt_records, bh_records, p1_records, e1_records, g2_records, ad_records, dr_records, p2_records, other_records,
-          total_files, last_processed_date, processing_date, date_processed, total_net_deposit_bh,
-          record_type_breakdown, created_at, updated_at
+          processing_date, total_files, total_records, total_transactions, 
+          total_authorizations, net_deposit, record_breakdown, created_at, last_updated
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+          $1, $2, $3, $4, $5, $6, $7, $8, $9
         )
-        ON CONFLICT (filename) DO UPDATE SET
-          total_records = EXCLUDED.total_records,
-          dt_records = EXCLUDED.dt_records,
-          bh_records = EXCLUDED.bh_records,
-          p1_records = EXCLUDED.p1_records,
-          e1_records = EXCLUDED.e1_records,
-          g2_records = EXCLUDED.g2_records,
-          ad_records = EXCLUDED.ad_records,
-          dr_records = EXCLUDED.dr_records,
-          p2_records = EXCLUDED.p2_records,
-          other_records = EXCLUDED.other_records,
-          record_type_breakdown = EXCLUDED.record_type_breakdown,
-          updated_at = EXCLUDED.updated_at
+        ON CONFLICT (processing_date) DO UPDATE SET
+          total_files = ${totalsTableName}.total_files + EXCLUDED.total_files,
+          total_records = ${totalsTableName}.total_records + EXCLUDED.total_records,
+          total_transactions = ${totalsTableName}.total_transactions + EXCLUDED.total_transactions,
+          total_authorizations = ${totalsTableName}.total_authorizations + EXCLUDED.total_authorizations,
+          net_deposit = ${totalsTableName}.net_deposit + EXCLUDED.net_deposit,
+          record_breakdown = EXCLUDED.record_breakdown,
+          last_updated = EXCLUDED.last_updated
       `;
       
+      // Calculate transaction totals from encoding results
+      const transactionTotal = encodingResults.recordCounts?.byType?.DT || 0;
+      const authorizationTotal = encodingResults.totalTransactionAmount || 0;
+      
       const values = [
-        totalsRecord.filename, totalsRecord.file_name, totalsRecord.file_date, 
-        totalsRecord.total_records, totalsRecord.total_transactions, totalsRecord.total_transaction_value,
-        totalsRecord.dt_records, totalsRecord.bh_records, totalsRecord.p1_records, totalsRecord.e1_records,
-        totalsRecord.g2_records, totalsRecord.ad_records, totalsRecord.dr_records, totalsRecord.p2_records,
-        totalsRecord.other_records, totalsRecord.total_files, totalsRecord.last_processed_date,
-        totalsRecord.processing_date, totalsRecord.date_processed, totalsRecord.total_net_deposit_bh,
-        totalsRecord.record_type_breakdown, totalsRecord.created_at, totalsRecord.updated_at
+        fileDate, // processing_date
+        1, // total_files (always 1 per file)
+        encodingResults.totalRecords || 0, // total_records
+        transactionTotal, // total_transactions (DT records)
+        authorizationTotal, // total_authorizations
+        authorizationTotal, // net_deposit (same as authorizations for now)
+        JSON.stringify(encodingResults.recordCounts?.byType || {}), // record_breakdown
+        new Date(), // created_at
+        new Date() // last_updated
       ];
       
       await this.storage.db.execute(query, values);
       
-      console.log(`[MMS-WATCHER] [TDDF1-CACHE] ✅ Successfully updated ${totalsTableName} for ${filename}: ${encodingResults.totalRecords} records`);
+      console.log(`[MMS-WATCHER] [TDDF1-CACHE] ✅ Successfully updated ${totalsTableName} for ${filename}: ${encodingResults.totalRecords} records, $${authorizationTotal}`);
       
     } catch (error) {
       console.error(`[MMS-WATCHER] [TDDF1-CACHE] ❌ Failed to update totals cache for ${filename}:`, error);
