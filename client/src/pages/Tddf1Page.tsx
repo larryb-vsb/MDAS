@@ -103,7 +103,7 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = false; // Default to light mode since user object doesn't have themePreference
+  const isDarkMode = user?.theme_preference === 'dark';
 
   // Force re-render when theme changes
   useEffect(() => {
@@ -349,7 +349,7 @@ function Tddf1Page() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           <Card className={`min-h-[120px] sm:min-h-[140px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files</CardTitle>
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files Processed</CardTitle>
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
