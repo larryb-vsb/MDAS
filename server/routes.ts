@@ -16970,17 +16970,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get aggregated stats from the pre-cache totals table (use the actual total_files column)  
         const totalsResult = await pool.query(`
           SELECT 
-            total_files as file_count,
-            total_records,
-            total_transaction_value,
+            SUM(total_files) as file_count,
+            SUM(total_records) as total_records,
+            SUM(total_transaction_value) as total_transaction_value,
+            SUM(COALESCE(bh_net_deposits, 0)) as total_net_deposits,
+            SUM(COALESCE(dt_transaction_amounts, 0)) as total_transaction_amounts,
             record_type_breakdown
           FROM ${totalsTableName}
-          ORDER BY created_at DESC
-          LIMIT 1
         `);
         
         let totalRecords = 0;
         let totalTransactionValue = 0;
+        let totalNetDeposits = 0;
+        let totalTransactionAmounts = 0;
         let fileCount = 0;
         const recordTypeBreakdown: Record<string, number> = {};
         
@@ -16988,6 +16990,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const summary = totalsResult.rows[0];
           totalRecords = parseInt(summary.total_records) || 0;
           totalTransactionValue = parseFloat(summary.total_transaction_value) || 0;
+          totalNetDeposits = parseFloat(summary.total_net_deposits) || 0;
+          totalTransactionAmounts = parseFloat(summary.total_transaction_amounts) || 0;
           fileCount = parseInt(summary.file_count) || 0;
           
           // Parse record type breakdown from the single row
@@ -17006,6 +17010,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalFiles: fileCount,
           totalRecords: totalRecords,
           totalTransactionValue: totalTransactionValue,
+          totalNetDeposits: totalNetDeposits,
+          totalTransactionAmounts: totalTransactionAmounts,
           recordTypeBreakdown: recordTypeBreakdown,
           activeTables: [],
           lastProcessedDate: new Date().toISOString(),

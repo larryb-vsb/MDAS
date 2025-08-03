@@ -18,6 +18,8 @@ interface Tddf1Stats {
   totalFiles: number;
   totalRecords: number;
   totalTransactionValue: number;
+  totalNetDeposits?: number;
+  totalTransactionAmounts?: number;
   recordTypeBreakdown: Record<string, number>;
   activeTables: string[];
   lastProcessedDate: string | null;
@@ -397,12 +399,24 @@ function Tddf1Page() {
 
           <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
+              <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-green-600" />
+            </CardHeader>
+            <CardContent className="pt-1">
+              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statsLoading ? "..." : `$${(stats?.totalNetDeposits ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
               <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-1">
               <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                {statsLoading ? "..." : `$${(stats?.totalTransactionAmounts ?? stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
           </Card>
