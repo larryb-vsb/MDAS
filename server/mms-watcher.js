@@ -822,8 +822,8 @@ class MMSWatcher {
 
       // Filter for files that need encoding (TDDF files and merchant CSV files)
       const encodableFiles = identifiedFiles.filter(upload => 
-        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' ||
-        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv'
+        upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
+        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv'
       );
 
       if (encodableFiles.length === 0) {
