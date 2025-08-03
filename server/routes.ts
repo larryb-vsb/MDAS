@@ -17069,14 +17069,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Query the pre-cache totals table for the specific date
       const totalsResult = await pool.query(`
         SELECT 
-          last_processed_date,
-          file_name,
+          processing_date,
+          total_files,
           total_records,
-          total_transaction_value,
-          record_type_breakdown,
+          total_transactions,
+          total_authorizations,
+          record_breakdown,
           created_at
         FROM ${totalsTableName}
-        WHERE DATE(last_processed_date) = $1
+        WHERE processing_date = $1
         ORDER BY created_at DESC
       `, [date]);
       
@@ -17092,13 +17093,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process cached totals data
       for (const row of totalsResult.rows) {
         const records = parseInt(row.total_records) || 0;
-        const value = parseFloat(row.total_transaction_value) || 0;
-        const breakdown = typeof row.record_type_breakdown === 'string' 
-          ? JSON.parse(row.record_type_breakdown) 
-          : row.record_type_breakdown;
+        const value = parseFloat(row.total_authorizations) || 0;
+        const breakdown = typeof row.record_breakdown === 'string' 
+          ? JSON.parse(row.record_breakdown) 
+          : row.record_breakdown;
         
         totalRecords += records;
         transactionValue += value;
+        
+        // Add file info
+        filesProcessed.push({
+          fileName: `Processing Date ${row.processing_date}`,
+          tableName: `${row.total_files} files`,
+          recordCount: records
+        });
         
         // Aggregate record types
         if (breakdown && typeof breakdown === 'object') {
@@ -17107,15 +17115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Add to files processed
-        const fileName = row.file_name || 'Unknown';
-        const tableName = `tddf1_file_${fileName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-        
-        filesProcessed.push({
-          fileName: fileName,
-          tableName: tableName,
-          recordCount: records
-        });
+
       }
       
       // Debug logging for the ACTUAL endpoint being used
@@ -17238,19 +17238,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthlyTotals = await pool.query(`
         SELECT 
           $1 as month,
-          COUNT(*) as total_files,
+          SUM(total_files) as total_files,
           SUM(total_records) as total_records,
-          SUM(total_transaction_value) as total_transaction_value,
-          SUM(total_net_deposit_bh) as total_net_deposit_bh
+          SUM(total_authorizations) as total_transaction_value,
+          SUM(net_deposit) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE DATE(last_processed_date) >= $2 AND DATE(last_processed_date) <= $3
+        WHERE processing_date >= $2 AND processing_date <= $3
       `, [month, startDate, endDate]);
       
       // Get record type breakdown for the month using environment-aware table name
       const recordTypeData = await pool.query(`
-        SELECT record_type_breakdown::json as breakdown
+        SELECT record_breakdown as breakdown
         FROM ${totalsTableName} 
-        WHERE DATE(last_processed_date) >= $1 AND DATE(last_processed_date) <= $2
+        WHERE processing_date >= $1 AND processing_date <= $2
       `, [startDate, endDate]);
       
       // Aggregate all record type breakdowns
@@ -17265,14 +17265,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get daily breakdown for the month using environment-aware table name
       const dailyBreakdown = await pool.query(`
         SELECT 
-          DATE(last_processed_date) as date,
-          COUNT(*) as files,
-          SUM(total_records) as records,
-          SUM(total_transaction_value) as transaction_value,
-          SUM(total_net_deposit_bh) as net_deposit_bh
+          processing_date as date,
+          total_files as files,
+          total_records as records,
+          total_authorizations as transaction_value,
+          net_deposit as net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE DATE(last_processed_date) >= $1 AND DATE(last_processed_date) <= $2
-        GROUP BY DATE(last_processed_date)
+        WHERE processing_date >= $1 AND processing_date <= $2
+        ORDER BY processing_date
         ORDER BY DATE(last_processed_date)
       `, [startDate, endDate]);
       

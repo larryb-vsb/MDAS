@@ -255,7 +255,9 @@ class MMSWatcher {
           
           // Get actual stats from the file table
           const fileTableName = `${tablePrefix}file_${upload.filename.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
-          const fileStatsResult = await this.storage.pool.query(`
+          // Use storage pool for raw SQL queries
+          const pool = this.storage.pool;
+          const fileStatsResult = await pool.query(`
             SELECT 
               COUNT(*) as total_records,
               COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
