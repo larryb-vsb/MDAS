@@ -17538,20 +17538,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const tableName = tableRow.table_name;
         
         try {
-          // Check if this table has data and get its processing date
+          // Extract date from table name since BH records have NULL transaction_date
+          const dateMatch = tableName.match(/(\d{2})(\d{2})(\d{4})/);
+          if (!dateMatch) {
+            console.warn(`Could not extract date from table name: ${tableName}`);
+            continue;
+          }
+          
+          const [, month_extracted, day_extracted, year_extracted] = dateMatch;
+          const fileDate = `${year_extracted}-${month_extracted}-${day_extracted}`;
+          
+          // Skip if this file doesn't belong to the target month
+          if (!fileDate.startsWith(month)) {
+            continue;
+          }
+          
+          // Get aggregated data for this file regardless of transaction_date
           const tableInfoResult = await pool.query(`
             SELECT 
-              transaction_date as processing_date,
+              $1 as processing_date,
               COUNT(*) as total_records,
               COALESCE(SUM(CASE WHEN record_type = 'DT' AND transaction_amount IS NOT NULL THEN transaction_amount ELSE 0 END), 0) as dt_transaction_amounts,
               COALESCE(SUM(CASE WHEN record_type = 'BH' AND field_data ? 'netDeposit' THEN (field_data->>'netDeposit')::DECIMAL ELSE 0 END), 0) as bh_net_deposits,
               COUNT(DISTINCT record_type) as record_types
-            FROM ${tableName} 
-            WHERE transaction_date >= $1 AND transaction_date <= $2
-              AND EXTRACT(YEAR FROM transaction_date) = $3
-              AND EXTRACT(MONTH FROM transaction_date) = $4
-            GROUP BY transaction_date
-          `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
+            FROM ${tableName}
+          `, [fileDate]);
           
           for (const dayData of tableInfoResult.rows) {
             // Insert rebuilded entry for this day with correct schema
