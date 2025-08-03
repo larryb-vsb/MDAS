@@ -355,7 +355,7 @@ export default function Tddf1MonthlyView() {
   });
 
   // PDF Document Component
-  const PDFReport = ({ data, comparisonData }: { data: MonthlyTotals; comparisonData?: MonthlyComparison }) => (
+  const PDFReport = ({ data, comparisonData }: { data: MonthlyTotals; comparisonData: MonthlyComparison }) => (
     <Document>
       <Page size="A4" style={pdfStyles.page}>
         {/* Header */}
@@ -429,57 +429,67 @@ export default function Tddf1MonthlyView() {
                 {/* Monthly comparison bars */}
                 <View style={pdfStyles.comparisonContainer}>
                   {(() => {
-                    const prevNetDeposits = comparisonData?.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + day.netDepositBh, 0) || 0;
-                    const prevTransactions = comparisonData?.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + day.transactionValue, 0) || 0;
-                    const currentNetDeposits = data.totalNetDepositBh;
-                    const currentTransactions = data.totalTransactionValue;
-                    
-                    // Calculate relative bar lengths (max 15 characters)
-                    const maxNetDeposits = Math.max(prevNetDeposits, currentNetDeposits);
-                    const maxTransactions = Math.max(prevTransactions, currentTransactions);
-                    
-                    const prevNetBars = Math.max(1, Math.round((prevNetDeposits / maxNetDeposits) * 15));
-                    const currentNetBars = Math.max(1, Math.round((currentNetDeposits / maxNetDeposits) * 15));
-                    const prevTxnBars = Math.max(1, Math.round((prevTransactions / maxTransactions) * 15));
-                    const currentTxnBars = Math.max(1, Math.round((currentTransactions / maxTransactions) * 15));
-                    
-                    return (
-                      <>
-                        {/* BH Net Deposits Comparison */}
-                        <View style={pdfStyles.comparisonSection}>
-                          <Text style={pdfStyles.comparisonTitle}>Batch Net Deposits (BH)</Text>
-                          <View style={pdfStyles.barContainer}>
-                            <Text style={pdfStyles.barLabel}>Previous Month</Text>
-                            <Text style={pdfStyles.barText}>
-                              {'█'.repeat(prevNetBars)} {formatCurrency(prevNetDeposits)}
-                            </Text>
+                    try {
+                      const prevNetDeposits = comparisonData.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + (day.netDepositBh || 0), 0) || 0;
+                      const prevTransactions = comparisonData.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + (day.transactionValue || 0), 0) || 0;
+                      const currentNetDeposits = data.totalNetDepositBh || 0;
+                      const currentTransactions = data.totalTransactionValue || 0;
+                      
+                      // Calculate relative bar lengths (max 15 characters)
+                      const maxNetDeposits = Math.max(prevNetDeposits, currentNetDeposits, 1);
+                      const maxTransactions = Math.max(prevTransactions, currentTransactions, 1);
+                      
+                      const prevNetBars = Math.max(1, Math.round((prevNetDeposits / maxNetDeposits) * 12));
+                      const currentNetBars = Math.max(1, Math.round((currentNetDeposits / maxNetDeposits) * 12));
+                      const prevTxnBars = Math.max(1, Math.round((prevTransactions / maxTransactions) * 12));
+                      const currentTxnBars = Math.max(1, Math.round((currentTransactions / maxTransactions) * 12));
+                      
+                      return (
+                        <>
+                          {/* BH Net Deposits Comparison */}
+                          <View style={pdfStyles.comparisonSection}>
+                            <Text style={pdfStyles.comparisonTitle}>Batch Net Deposits (BH)</Text>
+                            <View style={pdfStyles.barContainer}>
+                              <Text style={pdfStyles.barLabel}>Previous Month</Text>
+                              <Text style={pdfStyles.barText}>
+                                {'█'.repeat(prevNetBars)} {formatCurrency(prevNetDeposits)}
+                              </Text>
+                            </View>
+                            <View style={pdfStyles.barContainer}>
+                              <Text style={pdfStyles.barLabel}>Current Month</Text>
+                              <Text style={pdfStyles.barText}>
+                                {'█'.repeat(currentNetBars)} {formatCurrency(currentNetDeposits)}
+                              </Text>
+                            </View>
                           </View>
-                          <View style={pdfStyles.barContainer}>
-                            <Text style={pdfStyles.barLabel}>Current Month</Text>
-                            <Text style={pdfStyles.barText}>
-                              {'█'.repeat(currentNetBars)} {formatCurrency(currentNetDeposits)}
-                            </Text>
-                          </View>
-                        </View>
 
-                        {/* DT Transaction Amounts Comparison */}
+                          {/* DT Transaction Amounts Comparison */}
+                          <View style={pdfStyles.comparisonSection}>
+                            <Text style={pdfStyles.comparisonTitle}>Transaction Amounts (DT)</Text>
+                            <View style={pdfStyles.barContainer}>
+                              <Text style={pdfStyles.barLabel}>Previous Month</Text>
+                              <Text style={pdfStyles.barText}>
+                                {'█'.repeat(prevTxnBars)} {formatCurrency(prevTransactions)}
+                              </Text>
+                            </View>
+                            <View style={pdfStyles.barContainer}>
+                              <Text style={pdfStyles.barLabel}>Current Month</Text>
+                              <Text style={pdfStyles.barText}>
+                                {'█'.repeat(currentTxnBars)} {formatCurrency(currentTransactions)}
+                              </Text>
+                            </View>
+                          </View>
+                        </>
+                      );
+                    } catch (error) {
+                      console.error('Chart rendering error:', error);
+                      return (
                         <View style={pdfStyles.comparisonSection}>
-                          <Text style={pdfStyles.comparisonTitle}>Transaction Amounts (DT)</Text>
-                          <View style={pdfStyles.barContainer}>
-                            <Text style={pdfStyles.barLabel}>Previous Month</Text>
-                            <Text style={pdfStyles.barText}>
-                              {'█'.repeat(prevTxnBars)} {formatCurrency(prevTransactions)}
-                            </Text>
-                          </View>
-                          <View style={pdfStyles.barContainer}>
-                            <Text style={pdfStyles.barLabel}>Current Month</Text>
-                            <Text style={pdfStyles.barText}>
-                              {'█'.repeat(currentTxnBars)} {formatCurrency(currentTransactions)}
-                            </Text>
-                          </View>
+                          <Text style={pdfStyles.comparisonTitle}>Chart Data Unavailable</Text>
+                          <Text style={pdfStyles.barLabel}>Unable to render comparison chart</Text>
                         </View>
-                      </>
-                    );
+                      );
+                    }
                   })()}
                 </View>
               </View>
@@ -530,7 +540,14 @@ export default function Tddf1MonthlyView() {
   const { toast } = useToast();
 
   const generatePDFReport = async () => {
-    if (!monthlyData) return;
+    if (!monthlyData) {
+      toast({
+        title: "No Data Available",
+        description: "Monthly data is not loaded yet. Please wait and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       toast({
@@ -538,7 +555,13 @@ export default function Tddf1MonthlyView() {
         description: "Please wait while we create your monthly report...",
       });
 
-      const doc = <PDFReport data={monthlyData} comparisonData={comparisonData} />;
+      // Ensure comparison data is available
+      const safeComparisonData = comparisonData || {
+        currentMonth: { month: format(currentMonth, 'yyyy-MM'), dailyBreakdown: [] },
+        previousMonth: { month: format(subMonths(currentMonth, 1), 'yyyy-MM'), dailyBreakdown: [] }
+      };
+
+      const doc = <PDFReport data={monthlyData} comparisonData={safeComparisonData} />;
       const blob = await pdf(doc).toBlob();
       
       const url = window.URL.createObjectURL(blob);
