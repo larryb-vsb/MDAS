@@ -9,6 +9,8 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **ENHANCED AUTO 4-5 RETRY SYSTEM (2025-08-02)**: Implemented comprehensive retry logic and conflict handling for the Auto 4-5 processing pipeline. System now automatically retries encoding failures up to 3 times, silently logs conflicts to file metadata without stopping processing, and continues batch processing even with database conflicts. Added retry tracking columns and API endpoint for monitoring retry statistics and warning logs.
 
+**CRITICAL TDDF1 CALCULATION FIX (2025-08-03)**: Fixed major calculation error in TDDF1 amount processing. System was incorrectly using DT record transaction amounts (~$28K) instead of BH record net deposits (~$2.8M). Updated calculation logic to properly extract Net Deposit from BH (Batch Header) records at positions 69-83 according to TDDF specifications. This aligns with industry-standard TDDF processing and user validation via PowerShell script analysis.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Timezone: CST (America/Chicago) - All dates and times should display in Central Time.
