@@ -1142,9 +1142,9 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
     ]);
     
     // Calculate DT Transaction Amount totals from raw TDDF positions 93-103 with regex validation  
-    // NOTE: DT amounts appear to be in thousandths, need to divide by 1000 to get correct dollars
+    // NOTE: DT amounts are in cents, divide by 100 to get dollars (matches PowerShell logic)
     const transactionValueResult = await sql(`
-      SELECT COALESCE(SUM(CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 1000.0), 0) as total_value
+      SELECT COALESCE(SUM(CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0), 0) as total_value
       FROM ${tableName}
       WHERE record_type = 'DT' 
         AND LENGTH(raw_line) >= 103
