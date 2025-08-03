@@ -11781,48 +11781,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             processing_notes: `Moved from ${upload.currentPhase} to previous level at ${new Date().toISOString()}`
           };
           
-          // Determine previous level based on current phase
+          // Always set back to uploaded status (user preference)
+          newPhase = 'uploaded';
+          updateData.processing_notes = `Reset to uploaded status from ${upload.currentPhase} at ${new Date().toISOString()}`;
+          
+          // Clear all processing data based on current phase
           switch (upload.currentPhase) {
             case 'failed':
-              // For failed files, try to go back to last good state
-              if (upload.identifiedAt) {
-                newPhase = 'identified';
-                updateData.processing_notes = `RECOVERY: Failed encoding reset to identified state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
-              } else if (upload.uploadedAt) {
-                newPhase = 'uploaded';
-                updateData.processing_notes = `RECOVERY: Failed encoding reset to uploaded state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
-              } else {
-                newPhase = 'started';
-                updateData.processing_notes = `RECOVERY: Failed encoding reset to started state. Original failure: ${upload.processingNotes || 'Unknown error'}`;
-              }
-              // Clear failed status fields
-              updateData.encoding_status = null;
-              updateData.encoding_time_ms = null;
-              updateData.json_records_created = null;
-              updateData.tddf_records_created = null;
-              updateData.encoding_complete = null;
-              break;
             case 'encoded':
-              newPhase = 'identified';
               // Clear encoding data (using snake_case field names for database)
               updateData.encoding_status = null;
               updateData.encoding_time_ms = null;
               updateData.json_records_created = null;
               updateData.tddf_records_created = null;
               updateData.encoding_complete = null;
-              break;
-              
+              // Fall through to also clear identification data
             case 'identified':
-              newPhase = 'uploaded';
+            case 'hold':
               // Clear identification data (using snake_case field names for database)
               updateData.final_file_type = null;
               updateData.identification_results = null;
               break;
-              
-            case 'hold':
-              // From hold status, go back to identified (since hold is for preventing Auto 4-5 from identified->encoding)
-              newPhase = 'identified';
-              updateData.processing_notes = `Released from hold status to identified at ${new Date().toISOString()}`;
               break;
               
             case 'uploaded':
