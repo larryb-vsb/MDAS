@@ -1255,7 +1255,8 @@ class MMSWatcher {
         new Date() // last_updated
       ];
       
-      await this.storage.pool.query(query, values);
+      const pool = this.storage.pool || this.storage;
+      await pool.query(query, values);
       
       console.log(`[MMS-WATCHER] [TDDF1-CACHE] ✅ Successfully updated ${totalsTableName} for ${filename}: ${encodingResults.totalRecords} records, $${authorizationTotal}`);
       
