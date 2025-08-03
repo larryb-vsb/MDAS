@@ -494,6 +494,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update user" });
     }
   });
+
+  // Update user preferences (theme, dashboard, etc.)
+  app.patch("/api/user/preferences", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      
+      const updates = req.body;
+      console.log(`[USER-PREFS] Updating preferences for user ${userId}:`, updates);
+      
+      const updatedUser = await storage.updateUser(userId, updates);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user preferences:", error);
+      res.status(500).json({ error: "Failed to update preferences" });
+    }
+  });
   
   app.delete("/api/users/:id", async (req, res) => {
     try {

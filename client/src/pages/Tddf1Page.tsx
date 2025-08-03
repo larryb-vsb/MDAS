@@ -197,7 +197,7 @@ function Tddf1Page() {
   const updateThemeMutation = useMutation({
     mutationFn: (newTheme: 'light' | 'dark') => apiRequest('/api/user/preferences', {
       method: 'PATCH',
-      body: JSON.stringify({ theme_preference: newTheme }),
+      body: JSON.stringify({ themePreference: newTheme }),
       headers: { 'Content-Type': 'application/json' }
     }),
     onSuccess: () => {
@@ -207,6 +207,7 @@ function Tddf1Page() {
       toast({
         title: "Theme Updated",
         description: "Your theme preference has been saved",
+        duration: 2000, // Auto-dismiss after 2 seconds
       });
     },
     onError: (error: any) => {
@@ -215,6 +216,7 @@ function Tddf1Page() {
         title: "Update Failed",
         description: "Failed to update theme preference",
         variant: "destructive",
+        duration: 3000,
       });
     }
   });
@@ -356,7 +358,7 @@ function Tddf1Page() {
               <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-1">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
@@ -368,7 +370,7 @@ function Tddf1Page() {
               <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-1">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
               {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
@@ -391,7 +393,7 @@ function Tddf1Page() {
               <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-1">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : `$${(stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               </div>
             </CardContent>
@@ -403,7 +405,7 @@ function Tddf1Page() {
               <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="pt-1">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
               </div>
             </CardContent>
