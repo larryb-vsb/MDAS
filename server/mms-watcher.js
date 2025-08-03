@@ -234,7 +234,7 @@ class MMSWatcher {
   async checkPipelineStatus() {
     try {
       // Check for recently encoded TDDF files that need cache updates
-      const recentlyEncoded = await this.storage.db.query(`
+      const recentlyEncoded = await this.storage.pool.query(`
         SELECT id, filename, encoded_at, processing_notes
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoded' 
@@ -255,7 +255,7 @@ class MMSWatcher {
           
           // Get actual stats from the file table
           const fileTableName = `${tablePrefix}file_${upload.filename.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
-          const fileStatsResult = await this.storage.db.query(`
+          const fileStatsResult = await this.storage.pool.query(`
             SELECT 
               COUNT(*) as total_records,
               COUNT(*) FILTER (WHERE record_type = 'DT') as dt_count,
@@ -305,7 +305,7 @@ class MMSWatcher {
       }
       
       // Check for stuck files in encoding phase (over 5 minutes)
-      const stuckInEncoding = await this.storage.db.query(`
+      const stuckInEncoding = await this.storage.pool.query(`
         SELECT id, filename, current_phase, updated_at
         FROM ${this.storage.getTableName('uploader_uploads')}
         WHERE current_phase = 'encoding' 
@@ -322,7 +322,7 @@ class MMSWatcher {
           const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
           const fileTableName = `${tablePrefix}file_${upload.filename.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
           
-          const tableExists = await this.storage.db.query(`
+          const tableExists = await this.storage.pool.query(`
             SELECT EXISTS (
               SELECT FROM information_schema.tables 
               WHERE table_schema = 'public' AND table_name = $1
@@ -1237,7 +1237,7 @@ class MMSWatcher {
         new Date() // last_updated
       ];
       
-      await this.storage.db.execute(query, values);
+      await this.storage.pool.query(query, values);
       
       console.log(`[MMS-WATCHER] [TDDF1-CACHE] ✅ Successfully updated ${totalsTableName} for ${filename}: ${encodingResults.totalRecords} records, $${authorizationTotal}`);
       
