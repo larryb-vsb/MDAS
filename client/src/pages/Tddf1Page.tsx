@@ -42,6 +42,8 @@ interface Tddf1DayBreakdown {
   totalRecords: number;
   recordTypes: Record<string, number>;
   transactionValue: number;
+  netDepositsValue?: number;
+  transactionAmountsValue?: number;
   totalNetDepositBH?: number;
   fileCount: number;
   tables: string[];
@@ -697,7 +699,7 @@ function Tddf1Page() {
                             
                             // Special layout for BH records showing Net Deposit prominently
                             if (type === 'BH') {
-                              const netDepositAmount = (dayBreakdown.totalNetDepositBH ?? 0);
+                              const netDepositAmount = (dayBreakdown.netDepositsValue ?? dayBreakdown.totalNetDepositBH ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
@@ -722,7 +724,7 @@ function Tddf1Page() {
                             
                             // Special layout for DT records showing Transaction Amount prominently
                             if (type === 'DT') {
-                              const transactionAmount = (dayBreakdown.transactionValue ?? 0);
+                              const transactionAmount = (dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>

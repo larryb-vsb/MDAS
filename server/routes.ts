@@ -17083,6 +17083,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total_records,
           total_transactions,
           total_authorizations,
+          bh_net_deposits,
+          dt_transaction_amounts,
           record_breakdown,
           created_at
         FROM ${totalsTableName}
@@ -17091,7 +17093,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `, [date]);
       
       let totalRecords = 0;
-      let transactionValue = 0;
+      let netDepositsTotal = 0;
+      let transactionAmountsTotal = 0;
       const recordTypes: Record<string, number> = {};
       const filesProcessed: Array<{
         fileName: string;
@@ -17102,13 +17105,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process cached totals data - show each file entry separately
       for (const row of totalsResult.rows) {
         const records = parseInt(row.total_records) || 0;
-        const value = parseFloat(row.total_authorizations) || 0;
+        const netDeposits = parseFloat(row.bh_net_deposits) || 0;
+        const transactionAmounts = parseFloat(row.dt_transaction_amounts) || 0;
         const breakdown = typeof row.record_breakdown === 'string' 
           ? JSON.parse(row.record_breakdown) 
           : row.record_breakdown;
         
         totalRecords += records;
-        transactionValue += value;
+        netDepositsTotal += netDeposits;
+        transactionAmountsTotal += transactionAmounts;
         
         // Add file info for each individual file entry
         filesProcessed.push({
@@ -17128,14 +17133,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Debug logging for the ACTUAL endpoint being used
-      console.log(`📅 [DAILY-BREAKDOWN] Individual file data for ${date}: ${totalRecords} records, $${transactionValue} value`);
+      console.log(`📅 [DAILY-BREAKDOWN] Individual file data for ${date}: ${totalRecords} records, Net Deposits: $${netDepositsTotal}, Transaction Amounts: $${transactionAmountsTotal}`);
       console.log(`📅 [DAILY-BREAKDOWN] Individual file entries found: ${totalsResult.rows.length}`);
       
       const responseData = {
         date: date,
         totalRecords: totalRecords,
         recordTypes: recordTypes,
-        transactionValue: transactionValue,
+        transactionValue: transactionAmountsTotal, // For backward compatibility
+        netDepositsValue: netDepositsTotal, // New separate field
+        transactionAmountsValue: transactionAmountsTotal, // New separate field
         fileCount: totalsResult.rows.length, // Use actual number of individual file entries
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
