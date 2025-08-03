@@ -17248,7 +17248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
       const endDate = `${year}-${monthNum.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
       
-      console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate}`);
+      console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate} (strict date filtering)`);
       
       // Get monthly aggregated totals using environment-aware table name
       const monthlyTotals = await pool.query(`
@@ -17260,14 +17260,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(net_deposit) as total_net_deposit_bh
         FROM ${totalsTableName} 
         WHERE processing_date >= $2 AND processing_date <= $3
-      `, [month, startDate, endDate]);
+          AND EXTRACT(YEAR FROM processing_date) = $4
+          AND EXTRACT(MONTH FROM processing_date) = $5
+      `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Get record type breakdown for the month using environment-aware table name
       const recordTypeData = await pool.query(`
         SELECT record_breakdown as breakdown
         FROM ${totalsTableName} 
         WHERE processing_date >= $1 AND processing_date <= $2
-      `, [startDate, endDate]);
+          AND EXTRACT(YEAR FROM processing_date) = $3
+          AND EXTRACT(MONTH FROM processing_date) = $4
+      `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Aggregate all record type breakdowns
       const aggregatedBreakdown: Record<string, number> = {};
@@ -17280,6 +17284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get daily breakdown for the month using environment-aware table name
       // Show all individual file entries, not aggregated by date
+      // Use STRICT date filtering to ensure only the requested month's data
       const dailyBreakdown = await pool.query(`
         SELECT 
           processing_date as date,
@@ -17291,8 +17296,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           created_at
         FROM ${totalsTableName} 
         WHERE processing_date >= $1 AND processing_date <= $2
+          AND EXTRACT(YEAR FROM processing_date) = $3
+          AND EXTRACT(MONTH FROM processing_date) = $4
         ORDER BY processing_date, created_at
-      `, [startDate, endDate]);
+      `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       const result = {
         month,
@@ -17356,6 +17363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get daily breakdown for the month using environment-aware table name
         // Show all individual file entries, not aggregated by date
+        // Use STRICT date filtering to ensure only the requested month's data
         const dailyBreakdown = await pool.query(`
           SELECT 
             processing_date as date,
@@ -17367,8 +17375,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             created_at
           FROM ${totalsTableName} 
           WHERE processing_date >= $1 AND processing_date <= $2
+            AND EXTRACT(YEAR FROM processing_date) = $3
+            AND EXTRACT(MONTH FROM processing_date) = $4
           ORDER BY processing_date, created_at
-        `, [startDate, endDate]);
+        `, [startDate, endDate, parseInt(yr), parseInt(mth)]);
         
         return dailyBreakdown.rows.map((entry, index) => ({
           date: entry.date,
