@@ -17090,7 +17090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recordCount: number;
       }> = [];
       
-      // Process cached totals data
+      // Process cached totals data - show each file entry separately
       for (const row of totalsResult.rows) {
         const records = parseInt(row.total_records) || 0;
         const value = parseFloat(row.total_authorizations) || 0;
@@ -17101,10 +17101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalRecords += records;
         transactionValue += value;
         
-        // Add file info
+        // Add file info for each individual file entry
         filesProcessed.push({
-          fileName: `Processing Date ${row.processing_date}`,
-          tableName: `${row.total_files} files`,
+          fileName: `File #${row.id || filesProcessed.length + 1}`,
+          tableName: `${records.toLocaleString()} records`,
           recordCount: records
         });
         
@@ -17119,15 +17119,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Debug logging for the ACTUAL endpoint being used
-      console.log(`📅 [FIRST ENDPOINT] Aggregated data for ${date}: ${totalRecords} records, $${transactionValue} value`);
-      console.log(`📅 [FIRST ENDPOINT] Total files processed: ${filesProcessed.length}`);
+      console.log(`📅 [DAILY-BREAKDOWN] Individual file data for ${date}: ${totalRecords} records, $${transactionValue} value`);
+      console.log(`📅 [DAILY-BREAKDOWN] Individual file entries found: ${totalsResult.rows.length}`);
       
       const responseData = {
         date: date,
         totalRecords: totalRecords,
         recordTypes: recordTypes,
         transactionValue: transactionValue,
-        fileCount: filesProcessed.length,
+        fileCount: totalsResult.rows.length, // Use actual number of individual file entries
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
         cached: true,

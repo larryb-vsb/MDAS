@@ -233,6 +233,12 @@ class MMSWatcher {
   // Pipeline Recovery - Handle stuck files and update pre-cache when complete
   async checkPipelineStatus() {
     try {
+      // Ensure pool exists
+      if (!this.storage || !this.storage.pool) {
+        console.log('[MMS-WATCHER] [PIPELINE-RECOVERY] Storage pool not available, skipping pipeline recovery');
+        return;
+      }
+      
       // Check for recently encoded TDDF files that need cache updates  
       const pool = this.storage.pool;
       const recentlyEncoded = await pool.query(`
@@ -251,6 +257,9 @@ class MMSWatcher {
       // Force update monthly cache if data exists
       const environment = process.env.NODE_ENV || 'development';
       await this.forceUpdateMonthlyCache(environment);
+      
+      // Fix: Check if we have multiple encoded files that didn't get individual cache entries
+      await this.fixMissingCacheEntries(environment);
       
       for (const upload of recentlyEncoded.rows) {
         console.log(`[MMS-WATCHER] [PIPELINE-RECOVERY] Found recently encoded TDDF file: ${upload.filename}`);
@@ -1253,6 +1262,46 @@ class MMSWatcher {
     } catch (error) {
       console.error(`[MMS-WATCHER] [TDDF1-CACHE] ❌ Failed to update totals cache for ${filename}:`, error);
       // Don't throw error - cache update failure shouldn't stop file processing
+    }
+  }
+
+  // Fix missing individual cache entries for files that were processed in batches
+  async fixMissingCacheEntries(environment) {
+    try {
+      console.log(`[MMS-WATCHER] [CACHE-FIX] Checking for missing individual file cache entries`);
+      
+      const pool = this.storage.pool;
+      
+      // Get all encoded TDDF files that should have individual cache entries
+      const allEncodedFiles = await pool.query(`
+        SELECT id, filename, encoded_at, processing_notes
+        FROM ${this.storage.getTableName('uploader_uploads')}
+        WHERE current_phase = 'encoded' 
+          AND final_file_type = 'tddf'
+        ORDER BY encoded_at
+      `);
+      
+      console.log(`[MMS-WATCHER] [CACHE-FIX] Found ${allEncodedFiles.rows.length} total encoded TDDF files`);
+      
+      // Check how many have individual cache entries
+      const tablePrefix = environment === 'production' ? 'tddf1_' : 'dev_tddf1_';
+      const totalsTableName = `${tablePrefix}totals`;
+      
+      const cacheEntries = await pool.query(`
+        SELECT COUNT(*) as count FROM ${totalsTableName}
+      `);
+      
+      const cacheCount = parseInt(cacheEntries.rows[0]?.count || '0');
+      
+      if (allEncodedFiles.rows.length > cacheCount) {
+        console.log(`[MMS-WATCHER] [CACHE-FIX] ⚠️ Mismatch: ${allEncodedFiles.rows.length} files vs ${cacheCount} cache entries`);
+        console.log(`[MMS-WATCHER] [CACHE-FIX] 🔧 Need to create individual cache entries for batch-processed files`);
+      } else {
+        console.log(`[MMS-WATCHER] [CACHE-FIX] ✅ Cache entries match file count: ${cacheCount}`);
+      }
+      
+    } catch (error) {
+      console.error(`[MMS-WATCHER] [CACHE-FIX] Error checking cache entries:`, error);
     }
   }
 
