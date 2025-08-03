@@ -97,7 +97,7 @@ function Tddf1Page() {
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
 
   // Get user info for theme preferences
-  const { data: user } = useQuery({
+  const { data: user, refetch: refetchUser } = useQuery({
     queryKey: ['/api/user'],
     staleTime: 0, // Always fetch fresh user data
     refetchOnWindowFocus: true,
@@ -200,10 +200,18 @@ function Tddf1Page() {
       body: JSON.stringify({ themePreference: newTheme }),
       headers: { 'Content-Type': 'application/json' }
     }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Wait a moment for database update to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Force refetch user data with fresh settings
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      queryClient.refetchQueries({ queryKey: ['/api/user'] });
+      await refetchUser(); // Wait for refetch to complete
+      // Force one more refresh to ensure theme changes
+      setTimeout(() => {
+        refetchUser();
+      }, 200);
+      
       toast({
         title: "Theme Updated",
         description: "Your theme preference has been saved",
@@ -298,52 +306,52 @@ function Tddf1Page() {
         {/* Processing Pipeline Status Widget */}
         <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader>
-            <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-              <Activity className="h-5 w-5" />
+            <CardTitle className={`flex items-center gap-2 text-lg sm:text-xl transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <Activity className="h-6 w-6" />
               Processing Pipeline Status
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4">
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-blue-600">
+                <div className="text-lg sm:text-xl font-bold text-blue-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.totalFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
               </div>
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-green-600">
+                <div className="text-lg sm:text-xl font-bold text-green-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.uploadedFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
               </div>
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-yellow-600">
+                <div className="text-lg sm:text-xl font-bold text-yellow-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.identifiedFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
               </div>
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-orange-600">
+                <div className="text-lg sm:text-xl font-bold text-orange-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.encodingFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
               </div>
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-purple-600">
+                <div className="text-lg sm:text-xl font-bold text-purple-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.encodedFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
               </div>
               <div className="text-center">
-                <div className="text-sm sm:text-base font-bold text-red-600">
+                <div className="text-lg sm:text-xl font-bold text-red-600">
                   {pipelineLoading ? "..." : (pipelineStatus?.failedFiles ?? 0)}
                 </div>
-                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
+                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
               </div>
             </div>
             {pipelineStatus?.lastActivity && (
-              <div className="mt-3 text-xs text-gray-400 text-center">
+              <div className="mt-3 text-sm text-gray-400 text-center">
                 Last activity: {format(new Date(pipelineStatus.lastActivity), 'MMM d, yyyy h:mm a')}
               </div>
             )}
