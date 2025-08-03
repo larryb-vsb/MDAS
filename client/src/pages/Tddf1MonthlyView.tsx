@@ -337,16 +337,39 @@ ${monthlyData.dailyBreakdown.map(day =>
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsLineChart 
                       data={(() => {
-                        // Create combined dataset with proper day alignment
+                        // Group current month data by day (since API returns individual file entries)
+                        const currentDayGroups = comparisonData.currentMonth.dailyBreakdown.reduce((acc, entry) => {
+                          const day = new Date(entry.date).getDate();
+                          if (!acc[day]) {
+                            acc[day] = { transactionValue: 0, netDepositBh: 0, date: entry.date };
+                          }
+                          acc[day].transactionValue += entry.transactionValue;
+                          acc[day].netDepositBh += entry.netDepositBh;
+                          return acc;
+                        }, {} as Record<number, { transactionValue: number; netDepositBh: number; date: string }>);
+
+                        // Group previous month data by day
+                        const previousDayGroups = comparisonData.previousMonth.dailyBreakdown.reduce((acc, entry) => {
+                          const day = new Date(entry.date).getDate();
+                          if (!acc[day]) {
+                            acc[day] = { transactionValue: 0, netDepositBh: 0, date: entry.date };
+                          }
+                          acc[day].transactionValue += entry.transactionValue;
+                          acc[day].netDepositBh += entry.netDepositBh;
+                          return acc;
+                        }, {} as Record<number, { transactionValue: number; netDepositBh: number; date: string }>);
+
+                        // Create chart data for all days in the month
                         const maxDays = Math.max(
-                          comparisonData.currentMonth.dailyBreakdown.length,
-                          comparisonData.previousMonth.dailyBreakdown.length
+                          Math.max(...Object.keys(currentDayGroups).map(Number), 0),
+                          Math.max(...Object.keys(previousDayGroups).map(Number), 0),
+                          31 // Maximum possible days in a month
                         );
                         
                         const combinedData = [];
                         for (let day = 1; day <= maxDays; day++) {
-                          const currentDay = comparisonData.currentMonth.dailyBreakdown.find(d => d.dayOfMonth === day);
-                          const previousDay = comparisonData.previousMonth.dailyBreakdown.find(d => d.dayOfMonth === day);
+                          const currentDay = currentDayGroups[day];
+                          const previousDay = previousDayGroups[day];
                           
                           combinedData.push({
                             dayOfMonth: day,
@@ -358,7 +381,7 @@ ${monthlyData.dailyBreakdown.map(day =>
                             previousDate: previousDay?.date
                           });
                         }
-                        return combinedData;
+                        return combinedData.filter(d => d.currentTransactionValue > 0 || d.currentNetDepositBh > 0 || d.previousTransactionValue > 0 || d.previousNetDepositBh > 0);
                       })()}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#374151' : '#f0f0f0'} />
@@ -483,8 +506,31 @@ ${monthlyData.dailyBreakdown.map(day =>
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyData.dailyBreakdown.map((day, index) => (
-                      <tr key={`${day.date}-${index}`} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} transition-colors`}>
+                    {(() => {
+                      // Group daily breakdown by date and aggregate
+                      const dailyAggregated = monthlyData.dailyBreakdown.reduce((acc, entry) => {
+                        const dateKey = entry.date;
+                        if (!acc[dateKey]) {
+                          acc[dateKey] = {
+                            date: dateKey,
+                            files: 0,
+                            records: 0,
+                            transactionValue: 0,
+                            netDepositBh: 0
+                          };
+                        }
+                        acc[dateKey].files += entry.files;
+                        acc[dateKey].records += entry.records;
+                        acc[dateKey].transactionValue += entry.transactionValue;
+                        acc[dateKey].netDepositBh += entry.netDepositBh;
+                        return acc;
+                      }, {} as Record<string, { date: string; files: number; records: number; transactionValue: number; netDepositBh: number }>);
+
+                      // Convert to array and sort by date
+                      return Object.values(dailyAggregated)
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                    })().map((day, index) => (
+                      <tr key={`${day.date}-aggregated`} className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'} transition-colors`}>
                         <td className={`py-1 sm:py-2 px-2 sm:px-4 font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                           <span className="hidden sm:inline">{format(new Date(day.date), 'MMM dd, yyyy')}</span>
                           <span className="sm:hidden">{format(new Date(day.date), 'MMM dd')}</span>
