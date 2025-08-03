@@ -2,6 +2,15 @@
  * BH-DT-Cortex-Validator
  * Comprehensive validation of TDDF BH and DT calculations
  * Matches PowerShell script logic exactly
+ * 
+ * Usage: node tools/bh-dt-cortex-validator.cjs
+ * 
+ * This tool validates:
+ * - TDDF BH Net Deposits (positions 69-83, divide by 100)
+ * - TDDF DT Transaction Amounts (positions 93-103, divide by 100)
+ * - Cache consistency between direct calculations and stored values
+ * - Data integrity across all TDDF1 file tables
+ * - PowerShell script compliance validation
  */
 
 const { Pool } = require('pg');
