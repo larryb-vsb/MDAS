@@ -298,44 +298,41 @@ export default function Tddf1MonthlyView() {
       fontSize: 12,
       fontWeight: 'bold',
       color: '#374151',
-      marginBottom: 8,
+      marginBottom: 10,
       textAlign: 'center',
     },
-    chartTable: {
+    comparisonContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 20,
+    },
+    comparisonSection: {
+      flex: 1,
       borderWidth: 1,
       borderColor: '#E5E7EB',
       borderRadius: 4,
+      padding: 12,
+      backgroundColor: '#F9FAFB',
     },
-    chartRow: {
-      flexDirection: 'row',
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-      borderBottomWidth: 1,
-      borderBottomColor: '#F3F4F6',
-    },
-    chartDay: {
-      fontSize: 9,
-      color: '#374151',
-      flex: 2,
+    comparisonTitle: {
+      fontSize: 10,
       fontWeight: 'bold',
-    },
-    chartVolume: {
-      fontSize: 9,
-      color: '#059669',
-      flex: 3,
-      textAlign: 'right',
-    },
-    chartLevel: {
-      fontSize: 9,
-      color: '#7C3AED',
-      flex: 2,
+      color: '#374151',
+      marginBottom: 8,
       textAlign: 'center',
     },
-    chartTrend: {
-      fontSize: 9,
-      color: '#DC2626',
-      flex: 2,
-      textAlign: 'center',
+    barContainer: {
+      marginBottom: 6,
+    },
+    barLabel: {
+      fontSize: 8,
+      color: '#6B7280',
+      marginBottom: 2,
+    },
+    barText: {
+      fontSize: 8,
+      color: '#3B82F6',
+      fontFamily: 'monospace',
     },
     chartNote: {
       fontSize: 9,
@@ -358,7 +355,7 @@ export default function Tddf1MonthlyView() {
   });
 
   // PDF Document Component
-  const PDFReport = ({ data }: { data: MonthlyTotals }) => (
+  const PDFReport = ({ data, comparisonData }: { data: MonthlyTotals; comparisonData?: MonthlyComparison }) => (
     <Document>
       <Page size="A4" style={pdfStyles.page}>
         {/* Header */}
@@ -423,43 +420,67 @@ export default function Tddf1MonthlyView() {
                     formatCurrency(data.totalTransactionValue / data.dailyBreakdown.length) : '$0'}
                 </Text>
               </View>
-              {/* Simple table-style chart display */}
+              {/* Simple comparison bars for Previous vs Current */}
               <View style={pdfStyles.simpleChart}>
                 <Text style={pdfStyles.chartSubtitle}>
-                  Daily Volume Pattern (First 15 Days)
+                  Previous vs Current Month Comparison
                 </Text>
                 
-                {/* Chart as simple rows */}
-                <View style={pdfStyles.chartTable}>
-                  {data.dailyBreakdown.slice(0, 15).map((day, index) => {
-                    const maxValue = Math.max(...data.dailyBreakdown.map(d => d.transactionValue));
-                    const heightPercent = (day.transactionValue / maxValue) * 100;
-                    const volumeLevel = heightPercent > 70 ? 'High' : heightPercent > 30 ? 'Medium' : 'Low';
-                    const trendIcon = index > 0 ? (() => {
-                      const prevValue = data.dailyBreakdown[index - 1].transactionValue;
-                      const change = ((day.transactionValue - prevValue) / prevValue) * 100;
-                      if (change > 10) return '↗ Rising';
-                      if (change < -10) return '↘ Falling';
-                      return '→ Stable';
-                    })() : '— Start';
-
+                {/* Monthly comparison bars */}
+                <View style={pdfStyles.comparisonContainer}>
+                  {(() => {
+                    const prevNetDeposits = comparisonData?.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + day.netDepositBh, 0) || 0;
+                    const prevTransactions = comparisonData?.previousMonth?.dailyBreakdown?.reduce((sum, day) => sum + day.transactionValue, 0) || 0;
+                    const currentNetDeposits = data.totalNetDepositBh;
+                    const currentTransactions = data.totalTransactionValue;
+                    
+                    // Calculate relative bar lengths (max 15 characters)
+                    const maxNetDeposits = Math.max(prevNetDeposits, currentNetDeposits);
+                    const maxTransactions = Math.max(prevTransactions, currentTransactions);
+                    
+                    const prevNetBars = Math.max(1, Math.round((prevNetDeposits / maxNetDeposits) * 15));
+                    const currentNetBars = Math.max(1, Math.round((currentNetDeposits / maxNetDeposits) * 15));
+                    const prevTxnBars = Math.max(1, Math.round((prevTransactions / maxTransactions) * 15));
+                    const currentTxnBars = Math.max(1, Math.round((currentTransactions / maxTransactions) * 15));
+                    
                     return (
-                      <View key={index} style={pdfStyles.chartRow}>
-                        <Text style={pdfStyles.chartDay}>
-                          {format(new Date(day.date), 'MMM dd')}
-                        </Text>
-                        <Text style={pdfStyles.chartVolume}>
-                          {formatCurrency(day.transactionValue)}
-                        </Text>
-                        <Text style={pdfStyles.chartLevel}>
-                          {volumeLevel}
-                        </Text>
-                        <Text style={pdfStyles.chartTrend}>
-                          {trendIcon}
-                        </Text>
-                      </View>
+                      <>
+                        {/* BH Net Deposits Comparison */}
+                        <View style={pdfStyles.comparisonSection}>
+                          <Text style={pdfStyles.comparisonTitle}>Batch Net Deposits (BH)</Text>
+                          <View style={pdfStyles.barContainer}>
+                            <Text style={pdfStyles.barLabel}>Previous Month</Text>
+                            <Text style={pdfStyles.barText}>
+                              {'█'.repeat(prevNetBars)} {formatCurrency(prevNetDeposits)}
+                            </Text>
+                          </View>
+                          <View style={pdfStyles.barContainer}>
+                            <Text style={pdfStyles.barLabel}>Current Month</Text>
+                            <Text style={pdfStyles.barText}>
+                              {'█'.repeat(currentNetBars)} {formatCurrency(currentNetDeposits)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* DT Transaction Amounts Comparison */}
+                        <View style={pdfStyles.comparisonSection}>
+                          <Text style={pdfStyles.comparisonTitle}>Transaction Amounts (DT)</Text>
+                          <View style={pdfStyles.barContainer}>
+                            <Text style={pdfStyles.barLabel}>Previous Month</Text>
+                            <Text style={pdfStyles.barText}>
+                              {'█'.repeat(prevTxnBars)} {formatCurrency(prevTransactions)}
+                            </Text>
+                          </View>
+                          <View style={pdfStyles.barContainer}>
+                            <Text style={pdfStyles.barLabel}>Current Month</Text>
+                            <Text style={pdfStyles.barText}>
+                              {'█'.repeat(currentTxnBars)} {formatCurrency(currentTransactions)}
+                            </Text>
+                          </View>
+                        </View>
+                      </>
                     );
-                  })}
+                  })()}
                 </View>
               </View>
               
@@ -517,7 +538,7 @@ export default function Tddf1MonthlyView() {
         description: "Please wait while we create your monthly report...",
       });
 
-      const doc = <PDFReport data={monthlyData} />;
+      const doc = <PDFReport data={monthlyData} comparisonData={comparisonData} />;
       const blob = await pdf(doc).toBlob();
       
       const url = window.URL.createObjectURL(blob);
