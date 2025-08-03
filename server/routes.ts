@@ -16921,10 +16921,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   COALESCE(SUM(CASE 
                     WHEN record_type = 'BH' AND field_data->>'netDeposit' IS NOT NULL 
                     THEN CAST(field_data->>'netDeposit' AS DECIMAL)
+                    ELSE 0 
+                  END), 0) as bh_net_deposit,
+                  COALESCE(SUM(CASE 
                     WHEN record_type = 'DT' AND field_data->>'transactionAmount' IS NOT NULL 
                     THEN CAST(field_data->>'transactionAmount' AS DECIMAL)
                     ELSE 0 
-                  END), 0) as transaction_value
+                  END), 0) as dt_transaction_amount
                 FROM ${tableName}
                 GROUP BY record_type
               `);
@@ -16933,7 +16936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 activeFileCount++;
                 for (const row of tableStatsResult.rows) {
                   realtimeRecords += parseInt(row.record_count);
-                  realtimeTransactionValue += parseFloat(row.transaction_value || '0');
+                  realtimeTransactionValue += parseFloat(row.bh_net_deposit || '0');
                   realtimeBreakdown[row.record_type] = (realtimeBreakdown[row.record_type] || 0) + parseInt(row.record_count);
                 }
               }

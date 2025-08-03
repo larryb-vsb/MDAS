@@ -11,7 +11,7 @@ The Merchant Management System (MMS) is a comprehensive web application designed
 
 **CRITICAL TDDF1 CALCULATION FIX (2025-08-03)**: Fixed major calculation error in TDDF1 amount processing. System was incorrectly using DT record transaction amounts (~$28K) instead of BH record net deposits (~$2.8M). Updated calculation logic to properly extract Net Deposit from BH (Batch Header) records at positions 69-83 according to TDDF specifications. This aligns with industry-standard TDDF processing and user validation via PowerShell script analysis.
 
-**RESTORED CORRECT TDDF CALCULATION (2025-08-03)**: Fixed calculation to match TDDF specification and restore working functionality from 12 hours prior. System now correctly uses: BH records extract netDeposit from field_data JSONB (positions 69-83), DT records extract transactionAmount from field_data JSONB (positions 93-103). This aligns with user's requirement that "Net Deposits Processed are the BH records, and The DT Transaction is Authorization on the DT" using proper TDDF field positioning.
+**SEPARATED BH/DT CALCULATIONS (2025-08-03)**: Critical fix - stopped incorrectly adding BH and DT values together. Now correctly calculates and displays separate totals: BH Net Deposits (batch totals from merchants) and DT Transaction Amounts (individual customer payments). These values should be close but separate, representing the business flow where customers pay transaction amounts during the day, then merchants batch at end of day with net deposits that may differ due to fees/adjustments. Added separate database columns (bh_net_deposits, dt_transaction_amounts) to properly track both values independently.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
