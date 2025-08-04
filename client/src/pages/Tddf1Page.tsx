@@ -791,7 +791,6 @@ function Tddf1Page() {
                               <div className="flex-1">
                                 <div className={`font-medium transition-colors ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>{file.fileName}</div>
                                 <div className={`text-sm transition-colors ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                                  <div className="font-semibold">{(file.recordCount ?? 0).toLocaleString()} records processed</div>
                                   {file.fileSize && (
                                     <div className="text-xs mt-1 opacity-90">File Size: {file.fileSize}</div>
                                   )}
