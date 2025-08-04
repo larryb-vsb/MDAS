@@ -327,7 +327,7 @@ function Tddf1Page() {
             </CardHeader>
             <CardContent className="pt-0 p-3">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : `$${((stats?.totalNetDeposits ?? 0) / 1000000).toFixed(1)}M`}
+                {dayLoading ? "..." : `$${((dayBreakdown?.netDepositsValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
@@ -339,7 +339,7 @@ function Tddf1Page() {
             </CardHeader>
             <CardContent className="pt-0 p-3">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : `$${((stats?.totalTransactionAmounts ?? stats?.totalTransactionValue ?? 0) / 1000000).toFixed(2)}M`}
+                {dayLoading ? "..." : `$${((dayBreakdown?.transactionAmountsValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
