@@ -264,23 +264,23 @@ function Tddf1Page() {
   }, [encodingProgress?.status]);
 
   return (
-    <div className={`min-h-screen transition-colors p-3 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-        {/* Mobile-Optimized Header */}
-        <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 sm:gap-4">
+    <div className={`min-h-screen transition-colors p-2 sm:p-4 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4">
+        {/* Compact Header */}
+        <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button 
               onClick={() => setLocation('/')} 
               variant="outline" 
               size="sm"
-              className="flex items-center gap-1 sm:gap-2"
+              className="flex items-center gap-1"
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Back</span>
             </Button>
             <div>
-              <h1 className={`text-xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>TDDF1 Dashboard</h1>
-              <p className={`text-sm sm:text-base mt-1 hidden sm:block transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>File-based TDDF processing with day-level analytics</p>
+              <h1 className={`text-lg sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>TDDF1 Dashboard</h1>
+              <p className={`text-xs sm:text-sm hidden sm:block transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>File-based TDDF processing with day-level analytics</p>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
@@ -373,161 +373,89 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Mobile-Optimized Totals Band */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files Processed</CardTitle>
-              <FileText className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
+        {/* Compact Totals Band */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files Processed</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-1">
-              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <CardContent className="pt-0 p-3">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records Processed</CardTitle>
-              <BarChart3 className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records Processed</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-1">
-              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <CardContent className="pt-0 p-3">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
               </div>
-              {stats?.totalTddfLines && stats.totalTddfLines > 0 && (
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  <span className="hidden sm:inline">of {stats.totalTddfLines.toLocaleString()} total lines processed</span>
-                  <span className="sm:hidden">of {(stats.totalTddfLines/1000000).toFixed(1)}M lines</span>
-                  {stats.totalTddfLines > 0 && stats.totalRecords && (
-                    <span className="text-blue-600 font-medium">
-                      {' '}({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}%)
-                    </span>
-                  )}
-                </p>
-              )}
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
-              <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-green-600" />
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
-            <CardContent className="pt-1">
-              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : `$${(stats?.totalNetDeposits ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+            <CardContent className="pt-0 p-3">
+              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statsLoading ? "..." : `$${((stats?.totalNetDeposits ?? 0) / 1000000).toFixed(1)}M`}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
-              <DollarSign className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-1">
-              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : `$${(stats?.totalTransactionAmounts ?? stats?.totalTransactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+            <CardContent className="pt-0 p-3">
+              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statsLoading ? "..." : `$${((stats?.totalTransactionAmounts ?? stats?.totalTransactionValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`min-h-[80px] sm:min-h-[90px] transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardTitle className={`text-sm sm:text-base font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Active Tables</CardTitle>
-              <Database className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-1">
-              <div className={`text-4xl sm:text-5xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : (stats?.activeTables?.length ?? 0).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Mobile-Optimized Pre-Cache Totals Widget */}
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <CardHeader>
-            <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-              <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                <Database className="h-5 w-5" />
-                <span className="hidden sm:inline">Pre-Cache Totals Management</span>
-                <span className="sm:hidden">Cache Management</span>
-              </CardTitle>
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => refetchStats()}
-                  disabled={statsLoading}
-                  className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
-                >
-                  <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh Data</span>
-                  <span className="sm:hidden">Refresh</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => rebuildCacheMutation.mutate()}
-                  disabled={rebuildCacheMutation.isPending}
-                  className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none"
-                >
-                  <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Rebuild Cache</span>
-                  <span className="sm:hidden">Rebuild</span>
-                </Button>
-              </div>
+        {/* Compact Cache Management */}
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchStats()}
+            disabled={statsLoading}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => rebuildCacheMutation.mutate()}
+            disabled={rebuildCacheMutation.isPending}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
+            Rebuild TDDF1 Totals Cache
+          </Button>
+        </div>
+
+        {rebuildCacheMutation.isPending && (
+          <div className="text-center p-2 bg-blue-50 rounded-md">
+            <div className="text-sm text-blue-800">
+              Rebuilding TDDF1 totals cache... This may take a few moments.
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              <div className="text-center p-3 sm:p-0">
-                <div className="text-2xl sm:text-xl font-bold text-blue-600">
-                  {stats?.cached ? 'Cached' : 'Real-time'}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Data Source</div>
-              </div>
-              <div className="text-center p-3 sm:p-0">
-                <div className="text-2xl sm:text-xl font-bold text-green-600">
-                  {stats?.totalRecords?.toLocaleString() || 0}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Records Processed</div>
-                {stats?.totalTddfLines && (
-                  <div className="text-xs sm:text-xs text-gray-400 mt-1">
-                    <span className="hidden sm:inline">of {stats.totalTddfLines.toLocaleString()} total lines</span>
-                    <span className="sm:hidden">of {(stats.totalTddfLines/1000000).toFixed(1)}M lines</span>
-                    {stats.totalTddfLines > 0 && stats.totalRecords && (
-                      <span className="ml-1 text-blue-500">
-                        ({((stats.totalRecords / stats.totalTddfLines) * 100).toFixed(1)}%)
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="text-center p-3 sm:p-0">
-                <div className="text-2xl sm:text-xl font-bold text-orange-600">
-                  {stats?.totalTddfLines?.toLocaleString() || 0}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Lines Processed</div>
-                {stats?.performanceMetrics?.lineExtractionRate && (
-                  <div className="text-xs text-gray-400 mt-1">
-                    {stats.performanceMetrics.lineExtractionRate} extraction rate
-                  </div>
-                )}
-              </div>
-            </div>
-            {rebuildCacheMutation.isPending && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                <div className="text-sm text-blue-800">
-                  Rebuilding TDDF1 totals cache... This may take a few moments.
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
         {/* Streamlined Date Selector */}
         <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
