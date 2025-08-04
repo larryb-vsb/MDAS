@@ -490,46 +490,46 @@ function Tddf1Page() {
               {dayLoading ? (
                 <div className="text-center py-4 text-gray-500 text-sm">Loading day data...</div>
               ) : dayBreakdown ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-                    <div className="text-center p-2">
-                      <div className="text-xl font-bold text-blue-600">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1">
+                    <div className="text-center p-1">
+                      <div className="text-lg font-bold text-blue-600">
                         <span className="hidden sm:inline">{(dayBreakdown.totalRecords ?? 0).toLocaleString()}</span>
                         <span className="sm:hidden">{((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Records Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs text-gray-500">
                           <span className="hidden sm:inline">{dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total</span>
                           <span className="sm:hidden">{(dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0)/1000).toFixed(0)}k total</span>
                         </div>
                       )}
                     </div>
-                    <div className="text-center p-2">
-                      <div className="text-xl font-bold text-green-600">{dayBreakdown.fileCount ?? 0}</div>
+                    <div className="text-center p-1">
+                      <div className="text-lg font-bold text-green-600">{dayBreakdown.fileCount ?? 0}</div>
                       <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Files Processed</div>
                       {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs text-gray-500">
                           {dayBreakdown.filesProcessed.filter(f => f.processingTime).length} completed
                         </div>
                       )}
                     </div>
-                    <div className="text-center p-2">
-                      <div className="text-lg font-bold text-purple-600">
-                        <span className="hidden sm:inline">${(dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <div className="text-center p-1">
+                      <div className="text-base font-bold text-purple-600">
+                        <span className="hidden sm:inline">${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
                         <span className="sm:hidden">${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Authorizations</div>
                     </div>
-                    <div className="text-center p-2">
-                      <div className="text-lg font-bold text-emerald-600">
-                        <span className="hidden sm:inline">${(dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <div className="text-center p-1">
+                      <div className="text-base font-bold text-emerald-600">
+                        <span className="hidden sm:inline">${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k</span>
                         <span className="sm:hidden">${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k</span>
                       </div>
                       <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Net Deposits</div>
                     </div>
-                    <div className="text-center p-2">
-                      <div className="text-xl font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
+                    <div className="text-center p-1">
+                      <div className="text-lg font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
                       <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Active Tables</div>
                     </div>
                   </div>
