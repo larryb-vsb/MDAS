@@ -17360,7 +17360,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (totalsTableExists.rows[0].exists) {
         console.log("📊 Found tddf1_totals table, getting cached stats");
       } else {
-        console.log("📊 No tddf1_totals table found, returning empty stats");
+        console.log("📊 No tddf1_totals table found, attempting self-repair...");
+        
+        // 🛠️ SELF-REPAIR: Try to create missing totals table
+        try {
+          await ensureTddf1TablesExist(envPrefix);
+          console.log("📊 Self-repair completed, but table is empty - returning empty stats");
+        } catch (repairError) {
+          console.warn("📊 Self-repair failed:", repairError);
+        }
+        
         return res.json({
           totalFiles: 0,
           totalRecords: 0,
@@ -17369,8 +17378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           activeTables: [],
           lastProcessedDate: null,
           cached: true,
-          cacheSource: 'empty state - no tables exist',
-          cacheDate: new Date().toISOString()
+          cacheSource: 'empty state - table created but no data',
+          cacheDate: new Date().toISOString(),
+          selfRepairAttempted: true
         });
       }
       
@@ -17779,6 +17789,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 [MONTHLY-TOTALS] Environment: ${environment}, Using table: ${totalsTableName}`);
       
+      // 🛠️ SELF-REPAIR: Ensure totals table exists before querying
+      await ensureTddf1TablesExist(envPrefix);
+      
       const [year, monthNum] = month.split('-');
       const startDate = `${month}-01`;
       // Get last day of the month correctly - month index is 0-based, so we use parseInt(monthNum) directly
@@ -18021,6 +18034,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to ensure TDDF1 critical tables exist
+  async function ensureTddf1TablesExist(envPrefix: string = ''): Promise<void> {
+    const totalsTableName = `${envPrefix}tddf1_totals`;
+    
+    try {
+      // Check if totals table exists
+      const tableCheckResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = $1
+      `, [totalsTableName]);
+      
+      if (tableCheckResult.rows.length === 0) {
+        console.log(`🛠️ Creating missing TDDF1 totals table: ${totalsTableName}`);
+        
+        // Create the totals table with proper schema
+        await pool.query(`
+          CREATE TABLE ${totalsTableName} (
+            id SERIAL PRIMARY KEY,
+            processing_date DATE NOT NULL,
+            file_date DATE,
+            total_files INTEGER DEFAULT 0,
+            total_records INTEGER DEFAULT 0,
+            dt_transaction_amounts DECIMAL(15,2) DEFAULT 0,
+            bh_net_deposits DECIMAL(15,2) DEFAULT 0,
+            record_breakdown JSONB,
+            last_updated TIMESTAMP DEFAULT NOW(),
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          )
+        `);
+        
+        // Add indexes for performance
+        await pool.query(`
+          CREATE INDEX IF NOT EXISTS idx_${envPrefix}tddf1_totals_date 
+          ON ${totalsTableName} (processing_date);
+        `);
+        
+        await pool.query(`
+          CREATE INDEX IF NOT EXISTS idx_${envPrefix}tddf1_totals_file_date 
+          ON ${totalsTableName} (file_date);
+        `);
+        
+        console.log(`✅ Successfully created TDDF1 totals table: ${totalsTableName}`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to ensure TDDF1 tables exist:`, error);
+      throw error;
+    }
+  }
+
   // TDDF1 Rebuild Totals Cache - Manually trigger totals cache rebuild for specific month
   app.post("/api/tddf1/rebuild-totals-cache", isAuthenticated, async (req, res) => {
     try {
@@ -18040,6 +18104,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalsTableName = `${envPrefix}tddf1_totals`;
       
       console.log(`🔄 Environment: ${environment}, Using totals table: ${totalsTableName}`);
+      
+      // 🛠️ SELF-REPAIR: Ensure critical tables exist before proceeding
+      await ensureTddf1TablesExist(envPrefix);
       
       // Parse month to get date range
       const [year, monthNum] = month.split('-');
