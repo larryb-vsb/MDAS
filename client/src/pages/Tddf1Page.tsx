@@ -320,24 +320,24 @@ function Tddf1Page() {
 
         {/* Main Financial Metrics */}
         <div className="grid grid-cols-2 gap-2 sm:gap-4">
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
               <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
               <DollarSign className="h-4 w-4 text-green-600" />
             </CardHeader>
-            <CardContent className="pt-0 p-3">
+            <CardContent className="pt-0 p-2">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {dayLoading ? "..." : `$${((dayBreakdown?.netDepositsValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
               <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="pt-0 p-3">
+            <CardContent className="pt-0 p-2">
               <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {dayLoading ? "..." : `$${((dayBreakdown?.transactionAmountsValue ?? 0) / 1000000).toFixed(2)}M`}
               </div>
@@ -377,23 +377,21 @@ function Tddf1Page() {
           </div>
         )}
 
-        {/* Streamlined Date Selector */}
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <CardHeader>
-            <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-              <CardTitle className={`flex items-center gap-2 text-base sm:text-lg transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                <CalendarIcon className="h-5 w-5" />
-                Date Selection
-              </CardTitle>
-            </div>
+        {/* Compact Processing Date Selector */}
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <CalendarIcon className="h-4 w-4" />
+              Processing Date Selection
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-center mb-4">
-              <div className={`text-lg sm:text-xl font-semibold mb-2 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+          <CardContent className="pt-0">
+            <div className="text-center mb-3">
+              <div className={`text-base sm:text-lg font-semibold mb-1 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
                 <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
                 <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
               </div>
-              <div className={`text-sm mb-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <div className={`text-xs mb-3 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {dayBreakdown ? (
                   <>
                     <span className="hidden sm:inline">{(dayBreakdown.totalRecords || 0).toLocaleString()} records • {dayBreakdown.fileCount || 0} files</span>
