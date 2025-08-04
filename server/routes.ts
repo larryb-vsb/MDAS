@@ -17390,7 +17390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SELECT 
             SUM(total_files) as total_files,
             SUM(total_records) as total_records,
-            SUM(COALESCE(total_authorizations, dt_transaction_amounts, 0)) as total_authorizations,
+            SUM(COALESCE(dt_transaction_amounts, 0)) as total_authorizations,
+            SUM(COALESCE(bh_net_deposits, 0)) as total_net_deposits,
             COUNT(DISTINCT processing_date) as active_tables,
             json_agg(record_breakdown) as all_breakdowns,
             MAX(last_updated) as last_updated
@@ -17627,8 +17628,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processing_date,
           total_files,
           total_records,
-          total_transactions,
-          total_authorizations,
           bh_net_deposits,
           dt_transaction_amounts,
           record_breakdown,
