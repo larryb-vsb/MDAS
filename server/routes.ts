@@ -17660,9 +17660,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         netDepositsTotal += netDeposits;
         transactionAmountsTotal += transactionAmounts;
         
-        // Add file info for each individual file entry
+        // Extract actual TSYSO filename from rebuiltFrom table reference
+        let actualFilename = `File #${row.id || filesProcessed.length + 1}`;
+        if (breakdown && breakdown.rebuiltFrom) {
+          // Extract filename from table name like "dev_tddf1_file_vermntsb_6759_tddf_2400_08012025_011442"
+          const tableMatch = breakdown.rebuiltFrom.match(/dev_tddf1_file_(.+)$/);
+          if (tableMatch) {
+            // Convert table suffix back to TSYSO filename format
+            const tableSuffix = tableMatch[1];
+            // Replace underscores with dots and add .TSYSO extension
+            actualFilename = tableSuffix.replace(/_/g, '.').toUpperCase() + '.TSYSO';
+          }
+        }
+        
+        // Add file info for each individual file entry using actual filename
         filesProcessed.push({
-          fileName: `File #${row.id || filesProcessed.length + 1}`,
+          fileName: actualFilename,
           tableName: `${records.toLocaleString()} records`,
           recordCount: records
         });
