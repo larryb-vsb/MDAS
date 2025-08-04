@@ -318,87 +318,8 @@ function Tddf1Page() {
           </div>
         </div>
 
-        {/* Processing Pipeline Status Widget */}
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <CardHeader>
-            <CardTitle className={`flex items-center gap-2 text-lg sm:text-xl transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-              <Activity className="h-6 w-6" />
-              Processing Pipeline Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 sm:gap-4">
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-blue-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.totalFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-green-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.uploadedFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-yellow-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.identifiedFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-orange-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.encodingFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-purple-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.encodedFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-red-600">
-                  {pipelineLoading ? "..." : (pipelineStatus?.failedFiles ?? 0)}
-                </div>
-                <div className={`text-sm transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
-              </div>
-            </div>
-            {pipelineStatus?.lastActivity && (
-              <div className="mt-3 text-sm text-gray-400 text-center">
-                Last activity: {format(new Date(pipelineStatus.lastActivity), 'MMM d, yyyy h:mm a')}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Compact Totals Band */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files Processed</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0 p-3">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records Processed</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0 p-3">
-              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-
+        {/* Main Financial Metrics */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
               <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
@@ -422,7 +343,6 @@ function Tddf1Page() {
               </div>
             </CardContent>
           </Card>
-
         </div>
 
         {/* Compact Cache Management */}
@@ -998,6 +918,88 @@ function Tddf1Page() {
               </div>
             ) : (
               <div className={`text-center py-4 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No record type data available</div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* System Totals - Global Stats */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Files (Global System)</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-0 p-3">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statsLoading ? "..." : (stats?.totalFiles ?? 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Records (Global System)</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-0 p-3">
+              <div className={`text-2xl sm:text-3xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {statsLoading ? "..." : (stats?.totalRecords ?? 0).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Compact Processing Pipeline Status - Bottom */}
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <CardHeader className="p-3">
+            <CardTitle className={`flex items-center gap-2 text-sm transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              <Activity className="h-4 w-4" />
+              Processing Pipeline Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.totalFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Files</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.uploadedFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Uploaded</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-yellow-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.identifiedFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-orange-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.encodingFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoding</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-purple-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.encodedFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Encoded</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-red-600">
+                  {pipelineLoading ? "..." : (pipelineStatus?.failedFiles ?? 0)}
+                </div>
+                <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Failed</div>
+              </div>
+            </div>
+            {pipelineStatus?.lastActivity && (
+              <div className="mt-2 text-xs text-gray-400 text-center">
+                Last activity: {format(new Date(pipelineStatus.lastActivity), 'MMM d, yyyy h:mm a')}
+              </div>
             )}
           </CardContent>
         </Card>
