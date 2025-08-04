@@ -17834,9 +17834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SUM(dt_transaction_amounts) as total_transaction_value,
           SUM(bh_net_deposits) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE file_date >= $2 AND file_date <= $3
-          AND EXTRACT(YEAR FROM file_date) = $4
-          AND EXTRACT(MONTH FROM file_date) = $5
+        WHERE processing_date >= $2 AND processing_date <= $3
+          AND EXTRACT(YEAR FROM processing_date) = $4
+          AND EXTRACT(MONTH FROM processing_date) = $5
       `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Get record type breakdown for the month using environment-aware table name
@@ -17845,9 +17845,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total_records, 
           JSONB_BUILD_OBJECT('BH', 1, 'DT', total_records - 1) as breakdown
         FROM ${totalsTableName} 
-        WHERE file_date >= $1 AND file_date <= $2
-          AND EXTRACT(YEAR FROM file_date) = $3
-          AND EXTRACT(MONTH FROM file_date) = $4
+        WHERE processing_date >= $1 AND processing_date <= $2
+          AND EXTRACT(YEAR FROM processing_date) = $3
+          AND EXTRACT(MONTH FROM processing_date) = $4
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Aggregate all record type breakdowns
@@ -17864,7 +17864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use STRICT date filtering to ensure only the requested month's data
       const dailyBreakdown = await pool.query(`
         SELECT 
-          file_date as date,
+          processing_date as date,
           1 as files,
           total_records as records,
           dt_transaction_amounts as transaction_value,
@@ -17872,10 +17872,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id,
           created_at
         FROM ${totalsTableName} 
-        WHERE file_date >= $1 AND file_date <= $2
-          AND EXTRACT(YEAR FROM file_date) = $3
-          AND EXTRACT(MONTH FROM file_date) = $4
-        ORDER BY file_date, created_at
+        WHERE processing_date >= $1 AND processing_date <= $2
+          AND EXTRACT(YEAR FROM processing_date) = $3
+          AND EXTRACT(MONTH FROM processing_date) = $4
+        ORDER BY processing_date, created_at
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       const result = {
@@ -17943,7 +17943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use STRICT date filtering to ensure only the requested month's data
         const dailyBreakdown = await pool.query(`
           SELECT 
-            file_date as date,
+            processing_date as date,
             1 as files,
             total_records as records,
             dt_transaction_amounts as transaction_value,
@@ -17951,10 +17951,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id,
             created_at
           FROM ${totalsTableName} 
-          WHERE file_date >= $1 AND file_date <= $2
-            AND EXTRACT(YEAR FROM file_date) = $3
-            AND EXTRACT(MONTH FROM file_date) = $4
-          ORDER BY file_date, created_at
+          WHERE processing_date >= $1 AND processing_date <= $2
+            AND EXTRACT(YEAR FROM processing_date) = $3
+            AND EXTRACT(MONTH FROM processing_date) = $4
+          ORDER BY processing_date, created_at
         `, [startDate, endDate, parseInt(yr), parseInt(mth)]);
         
         return dailyBreakdown.rows.map((entry, index) => ({
