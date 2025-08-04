@@ -17385,16 +17385,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (totalsTableExists.rows[0].exists) {
-        // Get aggregated stats from the pre-cache totals table
+        // Get aggregated stats from the pre-cache totals table  
         const totalsResult = await pool.query(`
           SELECT 
-            SUM(total_files) as total_files,
+            COUNT(*) as total_files,
             SUM(total_records) as total_records,
             SUM(COALESCE(dt_transaction_amounts, 0)) as total_authorizations,
             SUM(COALESCE(bh_net_deposits, 0)) as total_net_deposits,
-            COUNT(DISTINCT processing_date) as active_tables,
-            json_agg(record_breakdown) as all_breakdowns,
-            MAX(last_updated) as last_updated
+            COUNT(DISTINCT file_date) as active_tables,
+            MAX(updated_at) as last_updated
           FROM ${totalsTableName}
         `);
         
@@ -17405,17 +17404,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const totalTransactionValue = parseFloat(summary.total_authorizations) || 0;
           const activeTables = parseInt(summary.active_tables) || 0;
           
-          // Aggregate record type breakdowns from all processing dates
-          const recordTypeBreakdown: Record<string, number> = {};
-          if (summary.all_breakdowns && Array.isArray(summary.all_breakdowns)) {
-            for (const breakdown of summary.all_breakdowns) {
-              if (breakdown && typeof breakdown === 'object') {
-                for (const [type, count] of Object.entries(breakdown)) {
-                  recordTypeBreakdown[type] = (recordTypeBreakdown[type] || 0) + (parseInt(count as string) || 0);
-                }
-              }
-            }
-          }
+          // Create simple record type breakdown based on our data structure
+          const recordTypeBreakdown: Record<string, number> = {
+            'BH': totalFiles, // One BH record per file
+            'DT': Math.max(0, totalRecords - totalFiles) // Remaining records are DT
+          };
           
           console.log(`📊 Serving cached stats: ${totalFiles} files, ${totalRecords} records, $${totalTransactionValue.toLocaleString()}, ${activeTables} active tables`);
           
@@ -17832,27 +17825,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`📅 [MONTHLY] Getting data for ${month}: ${startDate} to ${endDate} (strict date filtering)`);
       
-      // Get aggregated data for the entire month
+      // Get aggregated data for the entire month from new monthly cache or individual file totals  
       const monthlyTotals = await pool.query(`
         SELECT 
           $1 as month,
-          SUM(total_files) as total_files,
+          COUNT(*) as total_files,
           SUM(total_records) as total_records,
           SUM(dt_transaction_amounts) as total_transaction_value,
           SUM(bh_net_deposits) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE processing_date >= $2 AND processing_date <= $3
-          AND EXTRACT(YEAR FROM processing_date) = $4
-          AND EXTRACT(MONTH FROM processing_date) = $5
+        WHERE file_date >= $2 AND file_date <= $3
+          AND EXTRACT(YEAR FROM file_date) = $4
+          AND EXTRACT(MONTH FROM file_date) = $5
       `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Get record type breakdown for the month using environment-aware table name
       const recordTypeData = await pool.query(`
-        SELECT record_breakdown as breakdown
+        SELECT 
+          total_records, 
+          JSONB_BUILD_OBJECT('BH', 1, 'DT', total_records - 1) as breakdown
         FROM ${totalsTableName} 
-        WHERE processing_date >= $1 AND processing_date <= $2
-          AND EXTRACT(YEAR FROM processing_date) = $3
-          AND EXTRACT(MONTH FROM processing_date) = $4
+        WHERE file_date >= $1 AND file_date <= $2
+          AND EXTRACT(YEAR FROM file_date) = $3
+          AND EXTRACT(MONTH FROM file_date) = $4
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Aggregate all record type breakdowns
@@ -17869,18 +17864,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use STRICT date filtering to ensure only the requested month's data
       const dailyBreakdown = await pool.query(`
         SELECT 
-          processing_date as date,
-          total_files as files,
+          file_date as date,
+          1 as files,
           total_records as records,
           dt_transaction_amounts as transaction_value,
           bh_net_deposits as net_deposit_bh,
           id,
-          created_at
+          created_at,
+          file_name
         FROM ${totalsTableName} 
-        WHERE processing_date >= $1 AND processing_date <= $2
-          AND EXTRACT(YEAR FROM processing_date) = $3
-          AND EXTRACT(MONTH FROM processing_date) = $4
-        ORDER BY processing_date, created_at
+        WHERE file_date >= $1 AND file_date <= $2
+          AND EXTRACT(YEAR FROM file_date) = $3
+          AND EXTRACT(MONTH FROM file_date) = $4
+        ORDER BY file_date, created_at
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       const result = {
@@ -17948,18 +17944,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use STRICT date filtering to ensure only the requested month's data
         const dailyBreakdown = await pool.query(`
           SELECT 
-            processing_date as date,
-            total_files as files,
+            file_date as date,
+            1 as files,
             total_records as records,
             dt_transaction_amounts as transaction_value,
             bh_net_deposits as net_deposit_bh,
             id,
-            created_at
+            created_at,
+            file_name
           FROM ${totalsTableName} 
-          WHERE processing_date >= $1 AND processing_date <= $2
-            AND EXTRACT(YEAR FROM processing_date) = $3
-            AND EXTRACT(MONTH FROM processing_date) = $4
-          ORDER BY processing_date, created_at
+          WHERE file_date >= $1 AND file_date <= $2
+            AND EXTRACT(YEAR FROM file_date) = $3
+            AND EXTRACT(MONTH FROM file_date) = $4
+          ORDER BY file_date, created_at
         `, [startDate, endDate, parseInt(yr), parseInt(mth)]);
         
         return dailyBreakdown.rows.map((entry, index) => ({
