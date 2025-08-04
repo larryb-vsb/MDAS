@@ -443,7 +443,7 @@ export default function MMSUploader() {
       setSelectedUploads([]);
       toast({ 
         title: 'Files Held', 
-        description: `Successfully held ${data.heldCount || uploadIds.length} files from Auto 4-5 processing` 
+        description: `Successfully held ${data.heldCount || 0} files from Auto 4-5 processing` 
       });
     },
     onError: (error) => {
@@ -462,7 +462,7 @@ export default function MMSUploader() {
       const response = await apiRequest('/api/uploader/scan-orphans', {
         method: 'POST',
         body: JSON.stringify({ 
-          storageLocation: selectedStorageLocation 
+          storageLocation: 'dev-uploader' 
         }),
         headers: {
           'Content-Type': 'application/json'
@@ -2627,7 +2627,14 @@ export default function MMSUploader() {
                               {/* Processing Notes for Cross-Env Transfer */}
                               {upload.sessionId === 'cross_env_transfer' && upload.processingNotes && (
                                 <span className="text-purple-600 text-xs">
-                                  Cross-env transfer: {JSON.parse(upload.processingNotes)?.file_size_kb || 'Unknown'}KB
+                                  Cross-env transfer: {(() => {
+                                    try {
+                                      const notes = JSON.parse(upload.processingNotes);
+                                      return `${notes?.file_size_kb || 'Unknown'}KB`;
+                                    } catch (e) {
+                                      return 'Unknown size';
+                                    }
+                                  })()}
                                 </span>
                               )}
                             </div>
