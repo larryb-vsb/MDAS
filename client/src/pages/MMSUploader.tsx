@@ -132,6 +132,7 @@ export default function MMSUploader() {
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [filenameFilter, setFilenameFilter] = useState('');
   const [selectedFileForView, setSelectedFileForView] = useState<UploaderUpload | null>(null);
+  const [environmentFilter, setEnvironmentFilter] = useState('current'); // current, development, production
   
   // Sorting state
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
@@ -223,9 +224,9 @@ export default function MMSUploader() {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   // Storage location state (dev-uploader or prod-uploader)
-  const [selectedStorageLocation, setSelectedStorageLocation] = React.useState<string>('auto');
 
-  // Get storage configuration with selected location
+
+  // Get storage configuration (unified cross-environment view)
   const { data: storageConfig } = useQuery<{
     available: boolean;
     service: string;
@@ -235,13 +236,9 @@ export default function MMSUploader() {
     environment?: string;
     folderPrefix?: string;
   }>({
-    queryKey: ['/api/uploader/storage-config', selectedStorageLocation],
+    queryKey: ['/api/uploader/storage-config'],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedStorageLocation !== 'auto') {
-        params.set('prefix', selectedStorageLocation);
-      }
-      const response = await fetch(`/api/uploader/storage-config?${params.toString()}`, {
+      const response = await fetch('/api/uploader/storage-config', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch storage config');
@@ -1196,22 +1193,9 @@ export default function MMSUploader() {
                   Bucket: {storageConfig?.bucket || 'default-replit-bucket'}
                 </div>
                 
-                {/* Storage Location Selector */}
-                <div className="flex items-center gap-2 mt-2">
-                  <Label className="text-xs text-blue-600">View:</Label>
-                  <Select 
-                    value={selectedStorageLocation} 
-                    onValueChange={setSelectedStorageLocation}
-                  >
-                    <SelectTrigger className="h-6 text-xs w-32 bg-white border-blue-300">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto ({storageConfig?.environment || 'dev'})</SelectItem>
-                      <SelectItem value="dev-uploader">Dev Files</SelectItem>
-                      <SelectItem value="prod-uploader">Prod Files</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Unified Environment Display */}
+                <div className="text-xs text-blue-500 mt-1">
+                  Environment: {storageConfig?.environment || 'development'} (includes cross-env transfers)
                 </div>
                 
                 <div className="text-xs text-blue-500 mt-1">
@@ -2353,6 +2337,20 @@ export default function MMSUploader() {
                         <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
                         <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
                         <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label>Environment:</Label>
+                    <Select value={environmentFilter} onValueChange={setEnvironmentFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="current">Current Environment</SelectItem>
+                        <SelectItem value="development">Development Files</SelectItem>
+                        <SelectItem value="production">Production Files</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

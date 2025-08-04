@@ -10468,25 +10468,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('[UPLOADER-DEBUG] GET /api/uploader endpoint reached');
     console.log('[UPLOADER-DEBUG] Query parameters:', req.query);
     try {
-      const { phase, sessionId, limit, offset } = req.query;
-      console.log('[UPLOADER-DEBUG] Parsed parameters:', { phase, sessionId, limit, offset });
-      const uploads = await storage.getUploaderUploads({
-        phase: phase as string,
-        sessionId: sessionId as string,
-        limit: limit ? parseInt(limit as string) : undefined,
-        offset: offset ? parseInt(offset as string) : undefined
-      });
+      const { phase, sessionId, limit, offset, environment } = req.query;
+      console.log('[UPLOADER-DEBUG] Parsed parameters:', { phase, sessionId, limit, offset, environment });
       
-      // Get total count for pagination (if limit/offset is used)
-      let totalCount = uploads.length;
-      if (limit || offset) {
-        totalCount = await storage.getUploaderUploadsCount({
-          phase: phase as string,
-          sessionId: sessionId as string
-        });
+      // Support cross-environment viewing: use specific table if environment is specified
+      let tableName = getTableName('uploader_uploads'); // Default to current environment
+      if (environment === 'production') {
+        tableName = 'uploader_uploads'; // Production table
+      } else if (environment === 'development') {
+        tableName = 'dev_uploader_uploads'; // Development table
       }
       
-      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'}, total: ${totalCount}`);
+      console.log('[UPLOADER-DEBUG] Using table:', tableName, 'for environment:', environment || 'current');
+      
+      // Query both environments and merge results to show cross-environment transferred files
+      let allUploads: any[] = [];
+      
+      try {
+        // Query current environment table
+        let query = `SELECT *, 'current' as source_env FROM ${tableName}`;
+        const params: any[] = [];
+        const conditions: string[] = [];
+        
+        if (phase) {
+          conditions.push(`current_phase = $${params.length + 1}`);
+          params.push(phase);
+        }
+        
+        if (sessionId) {
+          conditions.push(`session_id = $${params.length + 1}`);
+          params.push(sessionId);
+        }
+        
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+        
+        query += ` ORDER BY start_time DESC`;
+        
+        const currentResult = await pool.query(query, params);
+        allUploads = currentResult.rows;
+        
+        // Also query for cross-environment transferred files if we're in development
+        if (tableName.includes('dev_')) {
+          try {
+            const prodQuery = `SELECT *, 'production' as source_env FROM uploader_uploads WHERE session_id = 'cross_env_transfer'`;
+            const prodResult = await pool.query(prodQuery);
+            // Add production cross-env transfers to the list
+            allUploads = [...allUploads, ...prodResult.rows];
+          } catch (prodError) {
+            console.log('[CROSS-ENV] Production table not accessible, skipping cross-env files');
+          }
+        }
+        
+      } catch (error) {
+        console.error('[UPLOADER-DEBUG] Error querying uploads:', error);
+        // Fallback to direct query if cross-environment query fails
+        let query = `SELECT * FROM ${tableName}`;
+        const params: any[] = [];
+        const conditions: string[] = [];
+        
+        if (phase) {
+          conditions.push(`current_phase = $${params.length + 1}`);
+          params.push(phase);
+        }
+        
+        if (sessionId) {
+          conditions.push(`session_id = $${params.length + 1}`);
+          params.push(sessionId);
+        }
+        
+        if (conditions.length > 0) {
+          query += ` WHERE ${conditions.join(' AND ')}`;
+        }
+        
+        query += ` ORDER BY start_time DESC`;
+        
+        if (limit) {
+          query += ` LIMIT $${params.length + 1}`;
+          params.push(parseInt(limit as string));
+        }
+        
+        if (offset) {
+          query += ` OFFSET $${params.length + 1}`;
+          params.push(parseInt(offset as string));
+        }
+        
+        const result = await pool.query(query, params);
+        allUploads = result.rows;
+      }
+      
+      // Sort all uploads by start_time descending
+      allUploads.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+      
+      // Apply pagination after merging
+      const limitNum = limit ? parseInt(limit as string) : allUploads.length;
+      const offsetNum = offset ? parseInt(offset as string) : 0;
+      const paginatedUploads = allUploads.slice(offsetNum, offsetNum + limitNum);
+      
+      // Convert snake_case database fields to camelCase for frontend compatibility
+      const uploads = paginatedUploads.map(row => ({
+        ...row,
+        currentPhase: row.current_phase,
+        lastUpdated: row.last_updated,
+        uploadStartedAt: row.upload_started_at,
+        uploadStatus: row.upload_status,
+        uploadProgress: row.upload_progress,
+        chunkedUpload: row.chunked_upload,
+        chunkCount: row.chunk_count,
+        chunksUploaded: row.chunks_uploaded,
+        uploadedAt: row.uploaded_at,
+        storagePath: row.storage_path,
+        s3Bucket: row.s3_bucket,
+        s3Key: row.s3_key,
+        s3Url: row.s3_url,
+        s3Etag: row.s3_etag,
+        fileSize: row.file_size,
+        identifiedAt: row.identified_at,
+        detectedFileType: row.detected_file_type,
+        userClassifiedType: row.user_classified_type,
+        finalFileType: row.final_file_type,
+        lineCount: row.line_count,
+        dataSize: row.data_size,
+        keepForReview: row.keep_for_review,
+        hasHeaders: row.has_headers,
+        fileFormat: row.file_format,
+        compressionUsed: row.compression_used,
+        encodingDetected: row.encoding_detected,
+        validationErrors: row.validation_errors,
+        processingNotes: row.processing_notes,
+        createdBy: row.created_by,
+        serverId: row.server_id,
+        sessionId: row.session_id,
+        failedAt: row.failed_at,
+        completedAt: row.completed_at,
+        startTime: row.start_time,
+        // Mark cross-environment transferred files
+        isCrossEnvTransfer: row.session_id === 'cross_env_transfer',
+        sourceEnvironment: row.source_env || 'current'
+      }));
+      
+      // Get total count for pagination (if limit/offset is used)
+      let totalCount = allUploads.length; // Use merged count from all environments
+      
+      console.log(`[UPLOADER-DEBUG] Found ${uploads.length} uploads for session ${sessionId || 'all'} in environment ${environment || 'current'}, total: ${totalCount}`);
       
       // Return paginated response format when limit/offset is used
       if (limit || offset) {
