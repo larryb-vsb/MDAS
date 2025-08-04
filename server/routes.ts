@@ -17668,8 +17668,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (tableMatch) {
             // Convert table suffix back to TSYSO filename format
             const tableSuffix = tableMatch[1];
-            // Replace underscores with dots and add .TSYSO extension
-            actualFilename = tableSuffix.replace(/_/g, '.').toUpperCase() + '.TSYSO';
+            // Split by underscore and reconstruct with dots, keeping the structure intact
+            const parts = tableSuffix.split('_');
+            if (parts.length >= 6) {
+              // Format: vermntsb_6759_tddf_2400_08012025_011442 -> VERMNTSB.6759_TDDF_2400_08012025_011442.TSYSO
+              actualFilename = `${parts[0].toUpperCase()}.${parts[1]}_${parts[2].toUpperCase()}_${parts[3]}_${parts[4]}_${parts[5]}.TSYSO`;
+            }
           }
         }
         
