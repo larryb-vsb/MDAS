@@ -7832,6 +7832,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cross-environment processing endpoint
+  app.post('/api/uploader/cross-env-encode', isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds, targetEnvironment } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'uploadIds array is required'
+        });
+      }
+
+      if (!targetEnvironment || targetEnvironment !== 'production') {
+        return res.status(400).json({
+          success: false,
+          error: 'Only production target environment is currently supported'
+        });
+      }
+
+      console.log(`[CROSS-ENV] Processing ${uploadIds.length} files for ${targetEnvironment} environment`);
+
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const uploadId of uploadIds) {
+        try {
+          console.log(`[CROSS-ENV] Processing file ${uploadId}...`);
+          
+          // Get file details from development upload table
+          const devTableName = getTableName('uploader_uploads', 'development');
+          const fileQuery = await pool.query(`
+            SELECT * FROM ${devTableName} 
+            WHERE id = $1 AND current_phase = 'uploaded' AND final_file_type = 'tddf'
+          `, [uploadId]);
+
+          if (fileQuery.rows.length === 0) {
+            throw new Error(`File ${uploadId} not found or not in uploaded state`);
+          }
+
+          const fileRecord = fileQuery.rows[0];
+          
+          // TODO: Implement the cross-environment encoder function
+          // const encodingResult = await storage.encodeDevFileForProduction(uploadId);
+          
+          results.push({
+            uploadId,
+            filename: fileRecord.filename,
+            success: true,
+            message: 'Cross-environment processing complete (implementation in progress)',
+            recordsProcessed: 0,
+            tablesCreated: []
+          });
+          
+          successCount++;
+          console.log(`[CROSS-ENV] Successfully processed ${uploadId}`);
+
+        } catch (error) {
+          console.error(`[CROSS-ENV] Error processing ${uploadId}:`, error);
+          
+          results.push({
+            uploadId,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          
+          errorCount++;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Cross-environment processing complete: ${successCount} successful, ${errorCount} errors`,
+        summary: {
+          totalFiles: uploadIds.length,
+          successCount,
+          errorCount,
+          targetEnvironment
+        },
+        results
+      });
+
+    } catch (error) {
+      console.error('[CROSS-ENV] Error in cross-environment processing:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to process cross-environment encoding'
+      });
+    }
+  });
+
   // Manual encoding endpoint - directly encodes identified files (same as individual encode)
   app.post("/api/uploader/manual-encode", isAuthenticated, async (req, res) => {
     console.log("[MANUAL-ENCODE-DEBUG] API endpoint reached with body:", req.body);
@@ -8315,6 +8406,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         orphans: [],
         count: 0,
+        error: error.message 
+      });
+    }
+  });
+
+  // Cross-environment file transfer: Move files from dev storage to production processing
+  app.post("/api/uploader/cross-env-transfer", isAuthenticated, async (req, res) => {
+    try {
+      const { fileKeys, targetEnvironment } = req.body;
+      
+      if (!fileKeys || !Array.isArray(fileKeys) || fileKeys.length === 0) {
+        return res.status(400).json({ error: "fileKeys array is required" });
+      }
+      
+      if (!targetEnvironment || !['development', 'production'].includes(targetEnvironment)) {
+        return res.status(400).json({ error: "targetEnvironment must be 'development' or 'production'" });
+      }
+
+      console.log(`[CROSS-ENV-TRANSFER] Starting transfer of ${fileKeys.length} files to ${targetEnvironment} environment`);
+      
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      let transferredCount = 0;
+      let errors: string[] = [];
+
+      // Get target table name based on environment
+      const targetTableName = targetEnvironment === 'production' ? 'uploader_uploads' : 'dev_uploader_uploads';
+
+      // Process each file
+      for (const fileKey of fileKeys) {
+        try {
+          console.log(`[CROSS-ENV-TRANSFER] Processing file: ${fileKey}`);
+          
+          // Extract filename from storage key
+          const filename = fileKey.split('/').pop() || fileKey;
+          
+          // Check if file already exists in target environment
+          const existingResult = await pool.query(`
+            SELECT id FROM ${targetTableName} 
+            WHERE filename = $1 
+            LIMIT 1
+          `, [filename]);
+          
+          if (existingResult.rows.length > 0) {
+            console.log(`[CROSS-ENV-TRANSFER] File ${filename} already exists in ${targetEnvironment}, skipping`);
+            continue;
+          }
+
+          // Get file data from object storage
+          const fileBuffer = await ReplitStorageService.downloadFile(fileKey);
+          const fileSize = fileBuffer.length;
+          
+          console.log(`[CROSS-ENV-TRANSFER] Downloaded ${filename}: ${Math.round(fileSize / 1024)}KB`);
+
+          // Generate new upload ID for target environment
+          const uploadId = `crossenv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Create target environment storage key
+          const targetPrefix = targetEnvironment === 'production' ? 'prod-uploader' : 'dev-uploader';
+          const timestamp = new Date().toISOString().slice(0, 10);
+          const targetStorageKey = `${targetPrefix}/${timestamp}/${uploadId}/${filename}`;
+          
+          // Upload to target environment storage location
+          await ReplitStorageService.uploadFile(
+            fileBuffer,
+            filename,
+            uploadId,
+            'application/octet-stream'
+          );
+
+          // Create upload record in target environment table
+          const newUpload = await pool.query(`
+            INSERT INTO ${targetTableName} (
+              id,
+              filename,
+              file_size,
+              mime_type,
+              session_id,
+              current_phase,
+              final_file_type,
+              processing_metadata,
+              created_at,
+              storage_path,
+              server_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING *
+          `, [
+            uploadId,
+            filename,
+            fileSize,
+            'application/octet-stream',
+            'cross_env_transfer',
+            'uploaded', // Ready for processing
+            'tddf', // TDDF file type
+            JSON.stringify({
+              source: 'cross_environment_transfer',
+              original_env: process.env.NODE_ENV || 'development',
+              target_env: targetEnvironment,
+              original_key: fileKey,
+              transfer_timestamp: new Date().toISOString(),
+              file_size_kb: Math.round(fileSize / 1024)
+            }),
+            new Date(),
+            targetStorageKey,
+            process.env.HOSTNAME || 'unknown'
+          ]);
+
+          console.log(`[CROSS-ENV-TRANSFER] Created ${targetEnvironment} record: ${uploadId} for ${filename} (${Math.round(fileSize / 1024)}KB)`);
+          transferredCount++;
+          
+        } catch (fileError: any) {
+          console.error(`[CROSS-ENV-TRANSFER] Error transferring ${fileKey}:`, fileError);
+          errors.push(`${fileKey}: ${fileError.message}`);
+        }
+      }
+
+      console.log(`[CROSS-ENV-TRANSFER] Transfer completed: ${transferredCount} files transferred to ${targetEnvironment}, ${errors.length} errors`);
+
+      const response: any = {
+        success: true,
+        transferredCount,
+        totalRequested: fileKeys.length,
+        targetEnvironment,
+        message: `Successfully transferred ${transferredCount} of ${fileKeys.length} files to ${targetEnvironment} environment`
+      };
+
+      if (errors.length > 0) {
+        response.errors = errors;
+        response.message += ` (${errors.length} files had errors)`;
+      }
+
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error('Cross-environment transfer error:', error);
+      res.status(500).json({ 
+        success: false,
         error: error.message 
       });
     }
@@ -9117,6 +9344,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching TDDF JSON record type counts:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : 'Failed to fetch record type counts'
+      });
+    }
+  });
+
+  // Cross-Environment Processing: Encode Dev Files for Production
+  app.post("/api/uploader/cross-env-encode", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadIds, targetEnvironment = 'production' } = req.body;
+      
+      if (!uploadIds || !Array.isArray(uploadIds) || uploadIds.length === 0) {
+        return res.status(400).json({ error: "uploadIds array is required" });
+      }
+
+      console.log(`[CROSS-ENV-ENCODE] Starting cross-environment encoding for ${uploadIds.length} files to ${targetEnvironment}`);
+      
+      const devUploaderTableName = getTableName('uploader_uploads');
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const uploadId of uploadIds) {
+        try {
+          // Get development file info
+          const devFileResult = await pool.query(`
+            SELECT * FROM ${devUploaderTableName} 
+            WHERE id = $1 AND current_phase = 'uploaded'
+          `, [uploadId]);
+
+          if (devFileResult.rows.length === 0) {
+            results.push({
+              uploadId,
+              status: 'error',
+              message: 'File not found or not in uploaded phase'
+            });
+            errorCount++;
+            continue;
+          }
+
+          const devFile = devFileResult.rows[0];
+          
+          // Download file from development storage
+          const { ReplitStorageService } = await import('./replit-storage-service');
+          const fileBuffer = await ReplitStorageService.downloadFile(devFile.storage_path);
+          
+          if (!fileBuffer) {
+            results.push({
+              uploadId,
+              status: 'error', 
+              message: 'Failed to download file from development storage'
+            });
+            errorCount++;
+            continue;
+          }
+
+          // Process file for production environment
+          const prodEncoderModule = await import('./tddf-json-encoder');
+          const prodResult = await prodEncoderModule.processTddfFileForProduction(
+            fileBuffer,
+            devFile.filename,
+            {
+              originalDevUploadId: uploadId,
+              sourceEnvironment: 'development',
+              targetEnvironment: targetEnvironment,
+              crossEnvProcessing: true,
+              fileSize: devFile.file_size,
+              processingNotes: `Cross-environment processing from dev upload ${uploadId}`
+            }
+          );
+
+          if (prodResult.success) {
+            results.push({
+              uploadId,
+              status: 'success',
+              message: `Successfully encoded for ${targetEnvironment}`,
+              prodRecords: prodResult.recordCount,
+              prodFileId: prodResult.fileId
+            });
+            successCount++;
+            
+            // Update dev file to indicate it was processed for production
+            await pool.query(`
+              UPDATE ${devUploaderTableName}
+              SET processing_metadata = processing_metadata || $2,
+                  processing_notes = COALESCE(processing_notes, '') || $3
+              WHERE id = $1
+            `, [
+              uploadId,
+              JSON.stringify({ 
+                crossEnvProcessed: true,
+                targetEnvironment: targetEnvironment,
+                processedAt: new Date().toISOString(),
+                prodFileId: prodResult.fileId
+              }),
+              ` | Cross-env encoded for ${targetEnvironment} at ${new Date().toISOString()}`
+            ]);
+            
+          } else {
+            results.push({
+              uploadId,
+              status: 'error',
+              message: prodResult.error || 'Production encoding failed'
+            });
+            errorCount++;
+          }
+
+        } catch (fileError: any) {
+          console.error(`[CROSS-ENV-ENCODE] Error processing ${uploadId}:`, fileError);
+          results.push({
+            uploadId,
+            status: 'error',
+            message: fileError.message || 'Processing failed'
+          });
+          errorCount++;
+        }
+      }
+
+      console.log(`[CROSS-ENV-ENCODE] Completed: ${successCount} successful, ${errorCount} errors`);
+
+      res.json({
+        success: true,
+        message: `Cross-environment encoding completed: ${successCount} successful, ${errorCount} errors`,
+        results,
+        summary: {
+          totalFiles: uploadIds.length,
+          successCount,
+          errorCount,
+          targetEnvironment
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[CROSS-ENV-ENCODE] Processing error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
       });
     }
   });

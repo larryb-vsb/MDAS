@@ -22,6 +22,7 @@ import StorageObjectProcessor from '@/components/storage/StorageObjectProcessor'
 import ObjectStorageFileBrowser from '@/components/storage/ObjectStorageFileBrowser';
 import OrphanFileUploader from '@/components/uploads/OrphanFileUploader';
 import OrphanFilesDetector from '@/components/uploads/OrphanFilesDetector';
+import CrossEnvironmentTransfer from '@/components/uploads/CrossEnvironmentTransfer';
 import { formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -122,6 +123,9 @@ export default function MMSUploader() {
   
   // Auto 4-5 processing toggle state
   const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
+  
+  // Cross-environment processing state
+  const [crossEnvProcessing, setCrossEnvProcessing] = useState<boolean>(false);
   
   // Files tab state
   const [statusFilter, setStatusFilter] = useState('all');
@@ -531,6 +535,37 @@ export default function MMSUploader() {
     }
   });
 
+  // Cross-environment processing mutation
+  const crossEnvProcessingMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/cross-env-encode', {
+        method: 'POST',
+        body: { 
+          uploadIds,
+          targetEnvironment: 'production'
+        }
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      setCrossEnvProcessing(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      toast({ 
+        title: 'Cross-Environment Processing Complete', 
+        description: `Successfully processed ${data.summary?.successCount || 0} files for production. ${data.summary?.errorCount || 0} errors.`
+      });
+    },
+    onError: (error) => {
+      setCrossEnvProcessing(false);
+      console.error('Error with cross-environment processing:', error);
+      toast({ 
+        title: 'Cross-Environment Processing Failed', 
+        description: 'Failed to process files for production. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Manual identify mutation for progressing uploaded files to identified
   const manualIdentifyMutation = useMutation({
     mutationFn: async (uploadIds: string[]) => {
@@ -837,6 +872,13 @@ export default function MMSUploader() {
     } catch (error) {
       console.error('Bulk encoding error:', error);
     }
+  };
+
+  // Cross-environment processing handler
+  const handleCrossEnvProcessing = (uploadIds: string[]) => {
+    console.log(`[CROSS-ENV] Triggering cross-environment processing for: ${uploadIds}`);
+    setCrossEnvProcessing(true);
+    crossEnvProcessingMutation.mutate(uploadIds);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1268,9 +1310,10 @@ export default function MMSUploader() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="cross-env">Cross-Env Transfer</TabsTrigger>
           <TabsTrigger value="sub-terminals">Sub Terminals</TabsTrigger>
           <TabsTrigger value="encoding">Stage 5: Encoding</TabsTrigger>
           <TabsTrigger value="storage-browse">Storage Browse</TabsTrigger>
@@ -2248,6 +2291,10 @@ export default function MMSUploader() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="cross-env" className="space-y-4">
+          <CrossEnvironmentTransfer />
+        </TabsContent>
+
         <TabsContent value="files" className="space-y-4">
           {/* Orphan Files Detector */}
           <OrphanFilesDetector />
@@ -2606,8 +2653,23 @@ export default function MMSUploader() {
                                   <span className="text-sm">{Math.round(encodingProgress[upload.id])}%</span>
                                 </div>
                               )}
+                            </div>
+                          )}
 
-
+                          {/* Cross-Environment Processing Button (for uploaded dev TDDF files) */}
+                          {upload.currentPhase === 'uploaded' && upload.finalFileType === 'tddf' && upload.fileSize && upload.fileSize > 40 * 1024 * 1024 && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-purple-600 border-purple-200 hover:bg-purple-50"
+                                onClick={() => handleCrossEnvProcessing([upload.id])}
+                                title="Process large dev file for production (bypasses infrastructure limits)"
+                                disabled={crossEnvProcessing}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                {crossEnvProcessing ? 'Processing...' : 'Prod Encode'}
+                              </Button>
                             </div>
                           )}
                           

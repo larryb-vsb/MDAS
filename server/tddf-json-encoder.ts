@@ -1194,3 +1194,161 @@ export async function encodeTddfToTddf1FileBased(fileContent: string, upload: Up
   
   return results;
 }
+
+/**
+ * Cross-Environment Processing: Process TDDF file for production environment
+ * Downloads file from development storage and processes it for production tables
+ */
+export async function processTddfFileForProduction(
+  fileBuffer: Buffer,
+  filename: string,
+  options: {
+    originalDevUploadId: string;
+    sourceEnvironment: string;
+    targetEnvironment: string;
+    crossEnvProcessing: boolean;
+    fileSize: number;
+    processingNotes: string;
+  }
+): Promise<{ success: boolean; recordCount?: number; fileId?: string; error?: string }> {
+  try {
+    console.log(`[CROSS-ENV-TDDF] Processing ${filename} from ${options.sourceEnvironment} to ${options.targetEnvironment}`);
+    
+    // Convert buffer to string
+    const fileContent = fileBuffer.toString('utf8');
+    const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+    
+    console.log(`[CROSS-ENV-TDDF] File content: ${lines.length} lines, ${fileBuffer.length} bytes`);
+    
+    // Extract processing datetime from filename
+    const tddfDatetime = extractTddfProcessingDatetime(filename);
+    if (!tddfDatetime.isValidTddfFilename) {
+      return { success: false, error: 'Invalid TDDF filename format' };
+    }
+    
+    // Import required modules
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(process.env.DATABASE_URL!);
+    
+    // Determine target table names based on environment
+    const getTableName = (baseName: string) => {
+      return options.targetEnvironment === 'production' ? baseName : `dev_${baseName}`;
+    };
+    
+    const tddfTableName = getTableName('tddf1_records');
+    
+    console.log(`[CROSS-ENV-TDDF] Target table: ${tddfTableName}`);
+    
+    // Process each line using existing TDDF1 encoding logic
+    let recordCount = 0;
+    let skipCount = 0;
+    const batchRecords = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.length === 0) continue;
+      
+      try {
+        // Extract record type from first 2 characters
+        const recordType = line.substring(0, 2);
+        
+        // Parse record based on type using existing schemas
+        const extractedFields = extractFieldsByRecordType(recordType, line);
+        
+        // Calculate universal timestamp
+        const timestamp = calculateUniversalTimestamp(
+          recordType,
+          extractedFields,
+          filename,
+          i,
+          100 // 100ms line intervals
+        );
+        
+        // Create record for database using TDDF1 schema
+        const record = {
+          id: `cross_env_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${i}`,
+          filename: filename,
+          line_number: i + 1,
+          record_type: recordType,
+          raw_line: line,
+          extracted_fields: JSON.stringify(extractedFields),
+          processing_datetime: tddfDatetime.processingDatetime,
+          parsed_datetime: timestamp.parsedDatetime,
+          record_time_source: timestamp.recordTimeSource,
+          created_at: new Date().toISOString(),
+          metadata: JSON.stringify({
+            crossEnvProcessing: true,
+            sourceEnvironment: options.sourceEnvironment,
+            targetEnvironment: options.targetEnvironment,
+            originalDevUploadId: options.originalDevUploadId,
+            processingNotes: options.processingNotes
+          })
+        };
+        
+        batchRecords.push(record);
+        recordCount++;
+        
+      } catch (lineError) {
+        console.warn(`[CROSS-ENV-TDDF] Skipping line ${i + 1}: ${lineError}`);
+        skipCount++;
+      }
+    }
+    
+    // Batch insert records
+    if (batchRecords.length > 0) {
+      console.log(`[CROSS-ENV-TDDF] Inserting ${batchRecords.length} records into ${tddfTableName}`);
+      
+      // Insert in batches of 500 to avoid memory issues
+      const batchSize = 500;
+      for (let i = 0; i < batchRecords.length; i += batchSize) {
+        const batch = batchRecords.slice(i, i + batchSize);
+        
+        // Build values array for batch insert
+        const values = batch.map((record, index) => 
+          `($${index * 11 + 1}, $${index * 11 + 2}, $${index * 11 + 3}, $${index * 11 + 4}, $${index * 11 + 5}, $${index * 11 + 6}, $${index * 11 + 7}, $${index * 11 + 8}, $${index * 11 + 9}, $${index * 11 + 10}, $${index * 11 + 11})`
+        ).join(', ');
+        
+        const params = batch.flatMap(record => [
+          record.id,
+          record.filename,
+          record.line_number,
+          record.record_type,
+          record.raw_line,
+          record.extracted_fields,
+          record.processing_datetime,
+          record.parsed_datetime,
+          record.record_time_source,
+          record.created_at,
+          record.metadata
+        ]);
+        
+        await sql(`
+          INSERT INTO ${tddfTableName} (
+            id, filename, line_number, record_type, raw_line, extracted_fields,
+            processing_datetime, parsed_datetime, record_time_source, created_at, metadata
+          ) VALUES ${values}
+        `, params);
+        
+        console.log(`[CROSS-ENV-TDDF] Inserted batch ${Math.floor(i / batchSize) + 1} (${batch.length} records)`);
+      }
+    }
+    
+    // Generate file ID for tracking
+    const fileId = `cross_env_file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`[CROSS-ENV-TDDF] Successfully processed ${filename}: ${recordCount} records (${skipCount} skipped) for ${options.targetEnvironment}`);
+    
+    return { 
+      success: true, 
+      recordCount: recordCount,
+      fileId: fileId
+    };
+    
+  } catch (error: any) {
+    console.error(`[CROSS-ENV-TDDF] Processing error for ${filename}:`, error);
+    return { 
+      success: false, 
+      error: error.message || 'Cross-environment processing failed' 
+    };
+  }
+}
