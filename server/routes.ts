@@ -17619,12 +17619,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalsResult = await pool.query(`
         SELECT 
           processing_date,
-          total_files,
           total_records,
           bh_net_deposits,
           dt_transaction_amounts,
           record_breakdown,
-          created_at
+          created_at,
+          id
         FROM ${totalsTableName}
         WHERE processing_date = $1
         ORDER BY created_at DESC
@@ -17870,8 +17870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dt_transaction_amounts as transaction_value,
           bh_net_deposits as net_deposit_bh,
           id,
-          created_at,
-          file_name
+          created_at
         FROM ${totalsTableName} 
         WHERE file_date >= $1 AND file_date <= $2
           AND EXTRACT(YEAR FROM file_date) = $3
@@ -17950,8 +17949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dt_transaction_amounts as transaction_value,
             bh_net_deposits as net_deposit_bh,
             id,
-            created_at,
-            file_name
+            created_at
           FROM ${totalsTableName} 
           WHERE file_date >= $1 AND file_date <= $2
             AND EXTRACT(YEAR FROM file_date) = $3
