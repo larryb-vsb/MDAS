@@ -17677,11 +17677,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Get table size for this specific file
+        let tableSize = null;
+        if (breakdown && breakdown.rebuiltFrom) {
+          try {
+            const sizeResult = await pool.query(`
+              SELECT pg_size_pretty(pg_total_relation_size($1)) as size
+            `, [breakdown.rebuiltFrom]);
+            if (sizeResult.rows.length > 0) {
+              tableSize = sizeResult.rows[0].size;
+            }
+          } catch (sizeError) {
+            console.log(`⚠️ Could not get size for table ${breakdown.rebuiltFrom}:`, sizeError.message);
+          }
+        }
+
         // Add file info for each individual file entry using actual filename
         filesProcessed.push({
           fileName: actualFilename,
           tableName: `${records.toLocaleString()} records`,
-          recordCount: records
+          recordCount: records,
+          fileSize: tableSize
         });
         
         // Aggregate record types

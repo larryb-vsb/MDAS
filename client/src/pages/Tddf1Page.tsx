@@ -791,9 +791,13 @@ function Tddf1Page() {
                               <div className="flex-1">
                                 <div className={`font-medium transition-colors ${isDarkMode ? 'text-blue-200' : 'text-blue-900'}`}>{file.fileName}</div>
                                 <div className={`text-sm transition-colors ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                                  <span className="font-semibold">{(file.recordCount ?? 0).toLocaleString()} records processed</span>
-                                  {file.fileSize && ` • Size: ${file.fileSize}`}
-                                  {file.processingTime && ` • Duration: ${file.processingTime}s`}
+                                  <div className="font-semibold">{(file.recordCount ?? 0).toLocaleString()} records processed</div>
+                                  {file.fileSize && (
+                                    <div className="text-xs mt-1 opacity-90">File Size: {file.fileSize}</div>
+                                  )}
+                                  {file.processingTime && (
+                                    <div className="text-xs mt-1 opacity-90">Duration: {file.processingTime}s</div>
+                                  )}
                                 </div>
                               </div>
                               <Badge variant="outline" className="text-xs">
