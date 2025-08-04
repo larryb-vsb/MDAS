@@ -8475,27 +8475,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'application/octet-stream'
           );
 
-          // Create upload record in target environment table
+          // Create upload record in target environment table using correct column names
           const newUpload = await pool.query(`
             INSERT INTO ${targetTableName} (
               id,
               filename,
               file_size,
-              mime_type,
               session_id,
               current_phase,
               final_file_type,
-              processing_metadata,
+              processing_notes,
               created_at,
               storage_path,
               server_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
           `, [
             uploadId,
             filename,
             fileSize,
-            'application/octet-stream',
             'cross_env_transfer',
             'uploaded', // Ready for processing
             'tddf', // TDDF file type

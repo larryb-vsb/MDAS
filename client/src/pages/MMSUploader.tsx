@@ -616,7 +616,9 @@ export default function MMSUploader() {
   // Filter and sort uploads based on status, file type, filename, and sorting preferences
   const filteredUploads = uploads
     .filter(upload => {
-      const statusMatch = statusFilter === 'all' || upload.currentPhase === statusFilter;
+      const statusMatch = statusFilter === 'all' || 
+        upload.currentPhase === statusFilter ||
+        (statusFilter === 'cross_env_transfer' && upload.sessionId === 'cross_env_transfer');
       const typeMatch = fileTypeFilter === 'all' || upload.finalFileType === fileTypeFilter;
       const filenameMatch = filenameFilter === '' || upload.filename.toLowerCase().includes(filenameFilter.toLowerCase());
       return statusMatch && typeMatch && filenameMatch;
@@ -2324,6 +2326,7 @@ export default function MMSUploader() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="cross_env_transfer">Cross-Env Transfers</SelectItem>
                         <SelectItem value="started">Started</SelectItem>
                         <SelectItem value="uploading">Uploading</SelectItem>
                         <SelectItem value="uploaded">Uploaded</SelectItem>
@@ -2608,12 +2611,27 @@ export default function MMSUploader() {
                         <div className="flex items-center gap-3 flex-1">
                           <Icon className={`h-5 w-5 text-${phaseColor}-600`} />
                           <div className="flex-1">
-                            <div className="font-medium">{upload.filename}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium">{upload.filename}</div>
+                              {/* Cross-Environment Transfer Badge */}
+                              {upload.sessionId === 'cross_env_transfer' && (
+                                <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Dev→Prod
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-4">
                               <span>{formatFileSize(upload.fileSize)} • {upload.finalFileType || upload.detectedFileType || upload.userClassifiedType || 'TDDF'}</span>
                               <span>Started {upload.uploadStartedAt ? new Date(upload.uploadStartedAt).toLocaleDateString() + ' ' + new Date(upload.uploadStartedAt).toLocaleTimeString() : 'recently'}</span>
                               <span>Duration: {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || new Date()) : '0s'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
+                              {/* Processing Notes for Cross-Env Transfer */}
+                              {upload.sessionId === 'cross_env_transfer' && upload.processingNotes && (
+                                <span className="text-purple-600 text-xs">
+                                  Cross-env transfer: {JSON.parse(upload.processingNotes)?.file_size_kb || 'Unknown'}KB
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
