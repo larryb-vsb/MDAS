@@ -14116,7 +14116,13 @@ export class DatabaseStorage implements IStorage {
         identifyComplete: 'identify_complete',
         encodingStart: 'encoding_start',
         encodingComplete: 'encoding_complete',
-        encodedLines: 'encoded_lines'
+        encodedLines: 'encoded_lines',
+        // MMS Watcher field mappings
+        encodingNotes: 'encoding_notes',
+        canRetry: 'can_retry',
+        lastFailureReason: 'last_failure_reason',
+        retryCount: 'retry_count',
+        lastRetryAt: 'last_retry_at'
       };
       
       // Build dynamic update query
