@@ -1,5 +1,0 @@
-Transaction ID,Client ID,Amount,Transaction Date,Transaction Type,Merchant ID,Description
-TX_DEMO_001,DEMO001,45.75,2025-07-18,Sale,MID_DEMO_001,Coffee and Pastry
-TX_DEMO_002,DEMO002,125.00,2025-07-18,Sale,MID_DEMO_002,Dinner for Two
-TX_DEMO_003,DEMO003,89.99,2025-07-18,Sale,MID_DEMO_003,Clothing Purchase
-TX_DEMO_004,DEMO001,12.50,2025-07-18,Refund,MID_DEMO_001,Coffee Return

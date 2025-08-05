@@ -1,4 +1,0 @@
-Client ID,Client Legal Name,Client Primary Address,Client City,Client State,Client Zip Code,Client MID,As Of Date
-TEST_DELETE_001,Test Delete Merchant A,123 Test St,Test City,CA,90210,MID001,1/15/2024
-TEST_DELETE_002,Test Delete Merchant B,456 Demo Ave,Demo City,NY,10001,MID002,1/15/2024
-TEST_DELETE_003,Test Delete Merchant C,789 Sample Rd,Sample City,TX,75001,MID003,1/15/2024
