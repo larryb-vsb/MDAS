@@ -1,11 +1,8 @@
 /**
- * Space-Optimized TDDF Encoder
+ * Space-Optimized TDDF Encoder (JavaScript version)
  * Encodes TDDF files WITHOUT storing raw_line data in database
- * Uses on-demand reconstruction service for raw line access
  * Achieves 50%+ database space savings
  */
-
-// Simple imports for space-optimized encoder
 
 // Define field structures for space-optimized encoding
 const DT_RECORD_FIELDS = [
@@ -30,7 +27,7 @@ const P1_RECORD_FIELDS = [
 ];
 
 // Helper function for field extraction
-function extractFieldValue(line: string, field: any): { value: any; isValid: boolean; validationError?: string } {
+function extractFieldValue(line, field) {
   const [start, end] = field.positions;
   const rawValue = line.substring(start - 1, end).trim();
   
@@ -40,43 +37,22 @@ function extractFieldValue(line: string, field: any): { value: any; isValid: boo
 }
 
 // Simple timestamp calculation for space-optimized encoding
-function calculateUniversalTimestamp(recordType: string, extractedFields: any, filename: string, lineNumber: number) {
+function calculateUniversalTimestamp(recordType, extractedFields, filename, lineNumber) {
   return {
     parsedDatetime: new Date().toISOString(),
     recordTimeSource: 'space_optimized_encoding'
   };
 }
 
-interface OptimizedEncodingResult {
-  uploadId: string;
-  filename: string;
-  tableName: string;
-  totalLines: number;
-  totalRecords: number;
-  spaceSavingsBytes: number;
-  spaceSavingsPercentage: number;
-  recordCounts: {
-    total: number;
-    byType: any;
-  };
-  encodingTimeMs: number;
-  timingData: {
-    startTime: string;
-    finishTime: string;
-    totalProcessingTime: number;
-  };
-  reconstructorRef: string;
-}
-
-export class SpaceOptimizedTddfEncoder {
+class SpaceOptimizedTddfEncoder {
   constructor() {
-    // Initialize encoder
+    console.log('[SPACE-OPTIMIZED-ENCODER] Encoder initialized');
   }
 
   /**
    * Encode TDDF file with space optimization (no raw_line storage)
    */
-  async encodeTddfFileOptimized(fileContent: string, upload: any): Promise<OptimizedEncodingResult> {
+  async encodeTddfFileOptimized(fileContent, upload) {
     const startTime = Date.now();
     console.log(`[SPACE-OPTIMIZED-ENCODER] Starting optimized encoding for: ${upload.filename}`);
 
@@ -84,7 +60,7 @@ export class SpaceOptimizedTddfEncoder {
     
     // Import database connection
     const { neon } = await import('@neondatabase/serverless');
-    const sql = neon(process.env.DATABASE_URL!);
+    const sql = neon(process.env.DATABASE_URL);
     
     // Environment-aware table naming
     const environment = process.env.NODE_ENV || 'development';
@@ -105,7 +81,7 @@ export class SpaceOptimizedTddfEncoder {
     // Create optimized table WITHOUT raw_line column
     await this.createOptimizedTable(sql, tableName);
     
-    const results: OptimizedEncodingResult = {
+    const results = {
       uploadId: upload.id,
       filename: upload.filename,
       tableName: tableName,
@@ -118,7 +94,7 @@ export class SpaceOptimizedTddfEncoder {
         byType: {}
       },
       encodingTimeMs: 0,
-      reconstructorRef: tableName, // Table can be used for reconstruction
+      reconstructorRef: tableName,
       timingData: {
         startTime: new Date(startTime).toISOString(),
         finishTime: '',
@@ -127,14 +103,14 @@ export class SpaceOptimizedTddfEncoder {
     };
 
     // Process lines in optimized batches
-    const batchSize = 3000; // Larger batches for faster processing
+    const batchSize = 3000;
     let processedCount = 0;
 
     for (let batchStart = 0; batchStart < lines.length; batchStart += batchSize) {
       const batchEnd = Math.min(batchStart + batchSize, lines.length);
       const batch = lines.slice(batchStart, batchEnd);
       
-      const batchRecords: any[] = [];
+      const batchRecords = [];
       
       for (let i = 0; i < batch.length; i++) {
         const lineNumber = batchStart + i + 1;
@@ -190,12 +166,11 @@ export class SpaceOptimizedTddfEncoder {
   /**
    * Create optimized table WITHOUT raw_line column
    */
-  private async createOptimizedTable(sql: any, tableName: string): Promise<void> {
+  async createOptimizedTable(sql, tableName) {
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS ${tableName} (
         id SERIAL PRIMARY KEY,
         record_type VARCHAR(10) NOT NULL,
-        -- raw_line column REMOVED for space optimization
         record_sequence INTEGER,
         field_data JSONB,
         transaction_amount DECIMAL(12,2),
@@ -208,7 +183,6 @@ export class SpaceOptimizedTddfEncoder {
         line_number INTEGER,
         parsed_datetime TIMESTAMP,
         record_time_source VARCHAR(50),
-        -- Add reconstruction metadata
         can_reconstruct BOOLEAN DEFAULT TRUE,
         reconstruction_ref VARCHAR(255)
       )
@@ -221,7 +195,7 @@ export class SpaceOptimizedTddfEncoder {
   /**
    * Process single line for optimized encoding
    */
-  private processOptimizedLine(line: string, lineNumber: number, filename: string): any | null {
+  processOptimizedLine(line, lineNumber, filename) {
     // Detect record type from positions 18-19 (standard TDDF format)
     const recordType = line.substring(17, 19); // Convert to 0-based indexing
     
@@ -229,7 +203,7 @@ export class SpaceOptimizedTddfEncoder {
       return null; // Skip lines without clear record type
     }
 
-    let fieldDefinitions: any[] = [];
+    let fieldDefinitions = [];
     
     // Select field definitions based on record type
     switch (recordType) {
@@ -257,7 +231,7 @@ export class SpaceOptimizedTddfEncoder {
     }
 
     // Extract all fields
-    const extractedFields: any = {};
+    const extractedFields = {};
     
     for (const fieldDef of fieldDefinitions) {
       try {
@@ -300,12 +274,12 @@ export class SpaceOptimizedTddfEncoder {
   /**
    * Optimized batch insert without raw_line column
    */
-  private async batchInsertOptimized(sql: any, tableName: string, records: any[]): Promise<void> {
+  async batchInsertOptimized(sql, tableName, records) {
     if (records.length === 0) return;
 
     // Build multi-value INSERT statement
-    const values: any[] = [];
-    const placeholders: string[] = [];
+    const values = [];
+    const placeholders = [];
     
     let paramIndex = 1;
     
@@ -350,7 +324,7 @@ export class SpaceOptimizedTddfEncoder {
   /**
    * Parse numeric amount safely
    */
-  private parseAmount(amount: any): number | null {
+  parseAmount(amount) {
     if (!amount) return null;
     
     try {
@@ -364,7 +338,7 @@ export class SpaceOptimizedTddfEncoder {
   /**
    * Parse date safely
    */
-  private parseDate(dateValue: any): Date | null {
+  parseDate(dateValue) {
     if (!dateValue) return null;
     
     try {
@@ -387,67 +361,17 @@ export class SpaceOptimizedTddfEncoder {
       return null;
     }
   }
-
-  /**
-   * Get raw line using reconstruction service
-   */
-  async getRawLineOnDemand(tableName: string, lineNumber: number): Promise<string> {
-    try {
-      // Query the optimized table for record data
-      const { neon } = await import('@neondatabase/serverless');
-      const sql = neon(process.env.DATABASE_URL!);
-      
-      const result = await sql(`
-        SELECT record_type, field_data
-        FROM ${tableName}
-        WHERE line_number = $1
-        LIMIT 1
-      `, [lineNumber]);
-      
-      if (result.length === 0) {
-        return `[Line ${lineNumber} not found in table ${tableName}]`;
-      }
-      
-      const record = result[0];
-      
-      // Use reconstructor to rebuild raw line
-      return this.reconstructor.reconstructRawLine(record.record_type, record.field_data);
-      
-    } catch (error) {
-      console.error('[SPACE-OPTIMIZED-ENCODER] Error getting raw line:', error);
-      return `[Error reconstructing line ${lineNumber}: ${error instanceof Error ? error.message : String(error)}]`;
-    }
-  }
-
-  /**
-   * Calculate space savings for a given file
-   */
-  calculateSpaceSavings(originalFileSize: number, recordCount: number): {
-    savedBytes: number;
-    savedMB: number;
-    savedPercentage: number;
-  } {
-    // Estimate: raw_line column saves ~700 bytes per record on average
-    const avgRawLineSize = 700;
-    const savedBytes = recordCount * avgRawLineSize;
-    const savedMB = savedBytes / 1024 / 1024;
-    const savedPercentage = Math.round((savedBytes / originalFileSize) * 100);
-    
-    return {
-      savedBytes,
-      savedMB,
-      savedPercentage
-    };
-  }
 }
 
 /**
  * Main encoding function for space-optimized TDDF processing
  */
-export async function encodeTddfFileSpaceOptimized(
-  fileContent: string, 
-  upload: UploaderUpload
-): Promise<OptimizedEncodingResult> {
+async function encodeTddfFileSpaceOptimized(fileContent, upload) {
   const encoder = new SpaceOptimizedTddfEncoder();
   return encoder.encodeTddfFileOptimized(fileContent, upload);
 }
+
+module.exports = {
+  SpaceOptimizedTddfEncoder,
+  encodeTddfFileSpaceOptimized
+};
