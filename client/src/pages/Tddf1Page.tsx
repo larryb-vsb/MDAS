@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon } from "lucide-react";
 import { format, addDays, subDays, isToday, getDay } from "date-fns";
+import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -672,6 +673,28 @@ function Tddf1Page() {
                     <span className="sm:hidden">{((dayBreakdown.totalRecords || 0)/1000).toFixed(0)}k records • {dayBreakdown.fileCount || 0} files</span>
                   </>
                 ) : 'No data'}
+                {(() => {
+                  const nonProcessingInfo = isNonProcessingDay(selectedDate);
+                  const holiday = isFederalHoliday(selectedDate);
+                  
+                  if (nonProcessingInfo.isNonProcessing) {
+                    return (
+                      <div className="mt-1">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${
+                            holiday 
+                              ? 'border-red-300 bg-red-50 text-red-700' 
+                              : 'border-orange-300 bg-orange-50 text-orange-700'
+                          }`}
+                        >
+                          {holiday ? `🏛️ ${holiday.name}` : `🚫 ${nonProcessingInfo.reason}`}
+                        </Badge>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
             
