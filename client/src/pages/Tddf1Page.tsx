@@ -295,7 +295,7 @@ function Tddf1Page() {
           id: 'records',
           x: 100,
           y: 80,
-          color: 'bg-blue-500',
+          color: 'bg-gradient-to-br from-blue-400 to-blue-600',
           value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
           label: 'Records',
           isDragging: false
@@ -304,7 +304,7 @@ function Tddf1Page() {
           id: 'files',
           x: 200,
           y: 80,
-          color: 'bg-green-500',
+          color: 'bg-gradient-to-br from-green-400 to-green-600',
           value: `${dayBreakdown.fileCount ?? 0}`,
           label: 'Files',
           isDragging: false
@@ -313,7 +313,7 @@ function Tddf1Page() {
           id: 'auth',
           x: 300,
           y: 80,
-          color: 'bg-purple-500',
+          color: 'bg-gradient-to-br from-purple-400 to-purple-600',
           value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Auth',
           isDragging: false
@@ -322,7 +322,7 @@ function Tddf1Page() {
           id: 'deposits',
           x: 150,
           y: 160,
-          color: 'bg-emerald-500',
+          color: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
           value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
           isDragging: false
@@ -331,7 +331,7 @@ function Tddf1Page() {
           id: 'tables',
           x: 250,
           y: 160,
-          color: 'bg-orange-500',
+          color: 'bg-gradient-to-br from-orange-400 to-orange-600',
           value: `${(dayBreakdown.tables ?? []).length}`,
           label: 'Tables',
           isDragging: false
