@@ -134,10 +134,41 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
     const draggingCircle = circles.find(c => c.isDragging);
     if (!draggingCircle) return;
 
-    const newX = Math.max(48, Math.min(rect.width - 48, e.clientX - rect.left - dragOffset.x));
-    const newY = Math.max(48, Math.min(rect.height - 48, e.clientY - rect.top - dragOffset.y));
+    let newX = Math.max(48, Math.min(rect.width - 48, e.clientX - rect.left - dragOffset.x));
+    let newY = Math.max(48, Math.min(rect.height - 48, e.clientY - rect.top - dragOffset.y));
 
-    const updatedCircles = circles.map(c => 
+    // Check for collisions with other circles and push them away
+    const otherCircles = circles.filter(c => c.id !== draggingCircle.id);
+    const circleRadius = 48; // Half of circle size (24x24 = 48 radius)
+    const minDistance = circleRadius * 1.2; // Minimum distance between centers
+
+    let adjustedCircles = [...circles];
+    
+    otherCircles.forEach(otherCircle => {
+      const dx = newX - otherCircle.x;
+      const dy = newY - otherCircle.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < minDistance) {
+        // Calculate push direction
+        const angle = Math.atan2(dy, dx);
+        const pushDistance = minDistance - distance;
+        
+        // Push the other circle away
+        const pushX = Math.cos(angle) * pushDistance * 0.5;
+        const pushY = Math.sin(angle) * pushDistance * 0.5;
+        
+        const newOtherX = Math.max(48, Math.min(rect.width - 48, otherCircle.x - pushX));
+        const newOtherY = Math.max(48, Math.min(rect.height - 48, otherCircle.y - pushY));
+        
+        adjustedCircles = adjustedCircles.map(c => 
+          c.id === otherCircle.id ? { ...c, x: newOtherX, y: newOtherY } : c
+        );
+      }
+    });
+
+    // Update the dragging circle position
+    const updatedCircles = adjustedCircles.map(c => 
       c.isDragging ? { ...c, x: newX, y: newY } : c
     );
     onCircleUpdate(updatedCircles);
@@ -322,7 +353,7 @@ function Tddf1Page() {
           id: 'deposits',
           x: 150,
           y: 160,
-          color: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
+          color: 'bg-gradient-to-br from-pink-400 to-pink-600',
           value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
           isDragging: false
