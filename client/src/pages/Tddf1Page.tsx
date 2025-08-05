@@ -293,8 +293,8 @@ function Tddf1Page() {
       const newCircles: DraggableCircle[] = [
         {
           id: 'records',
-          x: 100,
-          y: 100,
+          x: 80,
+          y: 80,
           color: 'bg-blue-500',
           value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
           label: 'Records',
@@ -303,7 +303,7 @@ function Tddf1Page() {
         {
           id: 'files',
           x: 200,
-          y: 140,
+          y: 80,
           color: 'bg-green-500',
           value: `${dayBreakdown.fileCount ?? 0}`,
           label: 'Files',
@@ -311,8 +311,8 @@ function Tddf1Page() {
         },
         {
           id: 'auth',
-          x: 140,
-          y: 200,
+          x: 320,
+          y: 80,
           color: 'bg-purple-500',
           value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Auth',
@@ -320,8 +320,8 @@ function Tddf1Page() {
         },
         {
           id: 'deposits',
-          x: 240,
-          y: 100,
+          x: 140,
+          y: 180,
           color: 'bg-emerald-500',
           value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
@@ -329,8 +329,8 @@ function Tddf1Page() {
         },
         {
           id: 'tables',
-          x: 180,
-          y: 240,
+          x: 260,
+          y: 180,
           color: 'bg-orange-500',
           value: `${(dayBreakdown.tables ?? []).length}`,
           label: 'Tables',
@@ -682,7 +682,7 @@ function Tddf1Page() {
                   {/* Interactive Draggable Circles */}
                   <div 
                     ref={containerRef} 
-                    className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden"
+                    className="relative h-80 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden"
                     style={{ touchAction: 'none' }}
                   >
                     <div className="absolute top-2 left-2 text-xs text-gray-500 dark:text-gray-400">
