@@ -821,11 +821,11 @@ export class ScanlyWatcher {
           COUNT(CASE WHEN processing_status = 'processing' THEN 1 END) as processing_count,
           processing_server_id,
           original_filename,
-          processing_started_at
+          processing_started
         FROM ${sql.identifier(uploadsTable)}
         WHERE processing_status = 'processing'
-        GROUP BY processing_server_id, original_filename, processing_started_at
-        ORDER BY processing_started_at DESC
+        GROUP BY processing_server_id, original_filename, processing_started
+        ORDER BY processing_started DESC
         LIMIT 1
       `);
       
@@ -834,7 +834,7 @@ export class ScanlyWatcher {
       return {
         isRunning,
         currentlyProcessingFile: result.rows[0]?.original_filename || null,
-        processingStartedAt: result.rows[0]?.processing_started_at || null,
+        processingStartedAt: result.rows[0]?.processing_started || null,
         nextScheduledRun: new Date(Date.now() + 30000).toISOString(), // Next check in 30 seconds
         lastRunTime: new Date().toISOString()
       };

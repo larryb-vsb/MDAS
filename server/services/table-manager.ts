@@ -1,4 +1,5 @@
-import { sql } from '@neondatabase/serverless';
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
 import { getTableName } from '../table-config';
 
 export interface TableInfo {
@@ -24,15 +25,15 @@ export class TableManager {
       const tableName = getTableName(baseTableName);
       
       // Check if table exists
-      const existsResult = await sql`
+      const existsResult = await db.execute(sql`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
           WHERE table_schema = 'public' 
           AND table_name = ${tableName}
         ) as table_exists
-      `;
+      `);
       
-      const exists = existsResult[0]?.table_exists || false;
+      const exists = (existsResult as any).rows?.[0]?.table_exists || false;
       
       if (!exists) {
         return {
@@ -43,14 +44,14 @@ export class TableManager {
       }
       
       // Get table size and row count
-      const sizeResult = await sql`
+      const sizeResult = await db.execute(sql`
         SELECT 
           pg_total_relation_size(${tableName}) as size_bytes,
           ROUND(pg_total_relation_size(${tableName}) / 1024.0 / 1024.0, 2) as size_mb,
           (SELECT n_tup_ins FROM pg_stat_all_tables WHERE schemaname = 'public' AND relname = ${tableName}) as row_count
-      `;
+      `);
       
-      const sizeInfo = sizeResult[0];
+      const sizeInfo = (sizeResult as any).rows?.[0];
       
       // Check for expected columns based on table type
       const missingColumns = await this.checkMissingColumns(tableName, baseTableName);
@@ -80,13 +81,13 @@ export class TableManager {
   private static async checkMissingColumns(tableName: string, baseTableName: string): Promise<string[]> {
     try {
       // Get existing columns
-      const columnsResult = await sql`
+      const columnsResult = await db.execute(sql`
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = ${tableName}
-      `;
+      `);
       
-      const existingColumns = columnsResult.map(row => row.column_name as string);
+      const existingColumns = (columnsResult as any).rows?.map((row: any) => row.column_name as string) || [];
       
       // Define expected columns for each table type
       const expectedColumns = this.getExpectedColumns(baseTableName);

@@ -268,7 +268,7 @@ class FileProcessorService {
           processing_errors,
           deleted,
           processing_status,
-          processing_started_at,
+          processing_started,
           processing_server_id
         FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'queued'
@@ -292,7 +292,7 @@ class FileProcessorService {
         processingErrors: row.processing_errors,
         deleted: row.deleted,
         processingStatus: row.processing_status,
-        processingStartedAt: row.processing_started_at,
+        processingStartedAt: row.processing_started,
         processingServerId: row.processing_server_id
       }));
       

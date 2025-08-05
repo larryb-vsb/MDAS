@@ -21,6 +21,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import RefreshStatusIndicator from '@/components/shared/RefreshStatusIndicator';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface UploaderStats {
   totalUploads: number;
@@ -73,23 +75,62 @@ interface PerformanceMetrics {
 export default function ProcessingDashboardV2() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const queryClient = useQueryClient();
+  const [tableStatus, setTableStatus] = useState<any>(null);
+  const [showTableManager, setShowTableManager] = useState(false);
 
-  // Fetch uploader statistics
-  const { data: uploaderStats, refetch: refetchUploader } = useQuery<UploaderStats>({
+  // Fetch processing table status first
+  const { data: tableStatusData, isLoading: tableStatusLoading } = useQuery({
+    queryKey: ['/api/processing/table-status'],
+    staleTime: 60000,
+    retry: 1,
+    onSuccess: (data) => {
+      setTableStatus(data);
+      setShowTableManager(!data?.allHealthy);
+    }
+  });
+
+  // Fetch uploader statistics - only if tables are healthy
+  const { data: uploaderStats, refetch: refetchUploader, isLoading: uploaderLoading, error: uploaderError } = useQuery<UploaderStats>({
     queryKey: ['/api/uploader/dashboard-stats'],
     refetchInterval: 30000, // 30 seconds
+    enabled: tableStatus?.allHealthy !== false
   });
 
   // Fetch JSONB statistics
-  const { data: jsonbStats, refetch: refetchJsonb } = useQuery<JsonbStats>({
+  const { data: jsonbStats, refetch: refetchJsonb, isLoading: jsonbLoading, error: jsonbError } = useQuery<JsonbStats>({
     queryKey: ['/api/uploader/jsonb-stats'],
     refetchInterval: 30000,
+    enabled: tableStatus?.allHealthy !== false
   });
 
   // Fetch performance metrics
-  const { data: performanceMetrics, refetch: refetchPerformance } = useQuery<PerformanceMetrics>({
+  const { data: performanceMetrics, refetch: refetchPerformance, isLoading: performanceLoading, error: performanceError } = useQuery<PerformanceMetrics>({
     queryKey: ['/api/uploader/performance-metrics'],
     refetchInterval: 60000, // 1 minute
+    enabled: tableStatus?.allHealthy !== false
+  });
+
+  // Fetch real-time processing stats (fallback for table issues)
+  const { data: realTimeStats, isLoading: realTimeLoading, error: realTimeError } = useQuery({
+    queryKey: ['/api/processing/real-time-stats'],
+    staleTime: 15000,
+    refetchInterval: 15000,
+    retry: 1
+  });
+
+  // Create missing tables mutation
+  const { mutate: createMissingTables, isPending: isCreatingTables } = useMutation({
+    mutationFn: async (tables: any[]) => {
+      const response = await apiRequest('/api/processing/create-missing-tables', {
+        method: 'POST',
+        body: { tables }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/processing/table-status'] });
+      setShowTableManager(false);
+    }
   });
 
   // Cache refresh mutation - builds pre-cached data like style guide
@@ -113,6 +154,7 @@ export default function ProcessingDashboardV2() {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/jsonb-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/performance-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/processing/real-time-stats'] });
       setLastRefresh(new Date());
     },
     onError: (error) => {
@@ -120,8 +162,43 @@ export default function ProcessingDashboardV2() {
     }
   });
 
+  const { toast } = useToast();
+
   const handleManualRefresh = () => {
     refreshCache();
+  };
+
+  const handleCreateMissingTables = () => {
+    if (tableStatus?.tables) {
+      const tablesToCreate = tableStatus.tables.filter((t: any) => !t.exists || (t.missingColumns && t.missingColumns.length > 0));
+      createMissingTables(tablesToCreate);
+    }
+  };
+
+  // Helper functions for chart colors
+  const getPhaseColor = (phase: string): string => {
+    const colors: Record<string, string> = {
+      started: '#3b82f6',
+      uploading: '#8b5cf6', 
+      uploaded: '#06b6d4',
+      identified: '#f97316',
+      encoding: '#ec4899',
+      completed: '#10b981',
+      warning: '#ef4444'
+    };
+    return colors[phase] || '#6b7280';
+  };
+
+  const getRecordTypeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      DT: '#3b82f6',
+      BH: '#10b981', 
+      P1: '#f97316',
+      P2: '#8b5cf6',
+      G2: '#06b6d4',
+      E1: '#ef4444'
+    };
+    return colors[type] || '#6b7280';
   };
 
   // Prepare chart data for upload phases
@@ -169,6 +246,70 @@ export default function ProcessingDashboardV2() {
             </Button>
           </div>
         </div>
+
+        {/* Table Status Management */}
+        {showTableManager && tableStatus && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-orange-600" />
+                Processing Tables Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm text-orange-700">
+                  {tableStatus.summary}
+                </div>
+                
+                {tableStatus.tables && (
+                  <div className="grid gap-2">
+                    {tableStatus.tables.map((table: any) => (
+                      <div key={table.tableName} className="flex items-center justify-between p-2 bg-white rounded border">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={table.exists ? "default" : "destructive"}>
+                            {table.exists ? "Exists" : "Missing"}
+                          </Badge>
+                          <span className="text-sm font-mono">{table.tableName}</span>
+                          {table.missingColumns && table.missingColumns.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {table.missingColumns.length} missing columns
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {table.exists && table.rowCount !== undefined && `${table.rowCount.toLocaleString()} rows`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleCreateMissingTables}
+                    disabled={isCreatingTables}
+                    size="sm"
+                  >
+                    {isCreatingTables ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Database className="h-4 w-4 mr-2" />
+                    )}
+                    Create Missing Tables/Columns
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowTableManager(false)}
+                  >
+                    Hide
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics Grid - Mobile Responsive */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
