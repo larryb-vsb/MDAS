@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon } from "lucide-react";
-import { format, addDays, subDays, isToday } from "date-fns";
+import { format, addDays, subDays, isToday, getDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -656,8 +656,14 @@ function Tddf1Page() {
           <CardContent className="pt-0">
             <div className="text-center mb-3">
               <div className={`text-base sm:text-lg font-semibold mb-1 transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
-                <span className="sm:hidden">{format(selectedDate, 'MMM d, yyyy')}</span>
+                <span className="hidden sm:inline">
+                  <span className={getDay(selectedDate) === 0 ? 'text-orange-500 font-bold' : ''}>{format(selectedDate, 'EEEE')}</span>
+                  <span>, {format(selectedDate, 'MMMM d, yyyy')}</span>
+                </span>
+                <span className="sm:hidden">
+                  <span className={getDay(selectedDate) === 0 ? 'text-orange-500 font-bold' : ''}>{format(selectedDate, 'EEE')}</span>
+                  <span> {format(selectedDate, 'MMM d, yyyy')}</span>
+                </span>
               </div>
               <div className={`text-xs mb-3 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {dayBreakdown ? (
