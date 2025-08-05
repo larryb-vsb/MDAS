@@ -871,7 +871,7 @@ class MMSWatcher {
       
       if (fileType === 'tddf') {
         // Import and use the space-optimized TDDF encoder (saves 50%+ database space)
-        const { encodeTddfFileSpaceOptimized } = require('./services/space-optimized-tddf-encoder.js');
+        const { encodeTddfFileSpaceOptimized } = await import('./services/space-optimized-tddf-encoder.ts');
         encodingResults = await encodeTddfFileSpaceOptimized(fileContent, upload);
         
         // Update to encoded phase with TDDF results

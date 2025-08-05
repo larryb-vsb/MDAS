@@ -5,7 +5,8 @@
  * Achieves 50%+ database space savings
  */
 
-// Simple imports for space-optimized encoder
+import { UploaderUpload } from '@shared/schema';
+import { TddfLineReconstructorService } from './tddf-line-reconstructor';
 
 // Define field structures for space-optimized encoding
 const DT_RECORD_FIELDS = [
@@ -57,7 +58,7 @@ interface OptimizedEncodingResult {
   spaceSavingsPercentage: number;
   recordCounts: {
     total: number;
-    byType: any;
+    byType: Record<string, number>;
   };
   encodingTimeMs: number;
   timingData: {
@@ -65,18 +66,20 @@ interface OptimizedEncodingResult {
     finishTime: string;
     totalProcessingTime: number;
   };
-  reconstructorRef: string;
+  reconstructorRef: string; // Reference for future raw line reconstruction
 }
 
 export class SpaceOptimizedTddfEncoder {
+  private reconstructor: TddfLineReconstructorService;
+
   constructor() {
-    // Initialize encoder
+    this.reconstructor = new TddfLineReconstructorService();
   }
 
   /**
    * Encode TDDF file with space optimization (no raw_line storage)
    */
-  async encodeTddfFileOptimized(fileContent: string, upload: any): Promise<OptimizedEncodingResult> {
+  async encodeTddfFileOptimized(fileContent: string, upload: UploaderUpload): Promise<OptimizedEncodingResult> {
     const startTime = Date.now();
     console.log(`[SPACE-OPTIMIZED-ENCODER] Starting optimized encoding for: ${upload.filename}`);
 
