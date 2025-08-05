@@ -23,6 +23,7 @@ import ObjectStorageFileBrowser from '@/components/storage/ObjectStorageFileBrow
 import OrphanFileUploader from '@/components/uploads/OrphanFileUploader';
 import OrphanFilesDetector from '@/components/uploads/OrphanFilesDetector';
 import CrossEnvironmentTransfer from '@/components/uploads/CrossEnvironmentTransfer';
+import OldFilesCleanupWidget from '@/components/uploads/OldFilesCleanupWidget';
 import { formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -1530,6 +1531,9 @@ export default function MMSUploader() {
                     </div>
                   )}
                 </div>
+
+                {/* Old Files Cleanup Widget */}
+                <OldFilesCleanupWidget />
 
               </div>
               

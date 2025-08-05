@@ -4731,6 +4731,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cleanup old processing files endpoints
+  app.get("/api/cleanup/old-files-status", async (req, res) => {
+    try {
+      const { execAsync } = await import("./utils/exec-async");
+      
+      // Get today's date in YYYY-MM-DD format for comparison
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Count files older than today
+      const countResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
+      const fileCount = parseInt(countResult.stdout.trim()) || 0;
+      
+      // Get total size of files older than today
+      const sizeResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -exec du -ch {} + | tail -1`);
+      const sizeMatch = sizeResult.stdout.match(/^([0-9.]+)([KMGT]?)/);
+      const size = sizeMatch ? sizeMatch[1] + sizeMatch[2] : '0';
+      
+      // Get breakdown by file type
+      const tsysoResult = await execAsync(`find tmp_uploads/ -name "*.TSYSO" -not -newermt "${today}" | wc -l`);
+      const tsysoCount = parseInt(tsysoResult.stdout.trim()) || 0;
+      
+      const otherCount = fileCount - tsysoCount;
+      
+      res.json({
+        totalFiles: fileCount,
+        totalSize: size,
+        breakdown: {
+          tsysoFiles: tsysoCount,
+          otherFiles: otherCount
+        },
+        olderThan: today,
+        hasFilesToClean: fileCount > 0
+      });
+    } catch (error) {
+      console.error("Error checking old files status:", error);
+      res.status(500).json({ error: "Failed to check old files status" });
+    }
+  });
+
+  app.post("/api/cleanup/old-files", async (req, res) => {
+    try {
+      const { execAsync } = await import("./utils/exec-async");
+      
+      // Get today's date in YYYY-MM-DD format for comparison
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get file count and size before cleanup
+      const beforeCountResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
+      const beforeCount = parseInt(beforeCountResult.stdout.trim()) || 0;
+      
+      const beforeSizeResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -exec du -ch {} + | tail -1`);
+      const beforeSizeMatch = beforeSizeResult.stdout.match(/^([0-9.]+)([KMGT]?)/);
+      const beforeSize = beforeSizeMatch ? beforeSizeMatch[1] + beforeSizeMatch[2] : '0';
+      
+      if (beforeCount === 0) {
+        return res.json({
+          success: true,
+          message: "No old files found to clean up",
+          filesDeleted: 0,
+          spaceFreed: "0"
+        });
+      }
+      
+      // Delete files older than today
+      await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -delete`);
+      
+      // Verify cleanup by checking remaining files
+      const afterCountResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
+      const afterCount = parseInt(afterCountResult.stdout.trim()) || 0;
+      
+      const filesDeleted = beforeCount - afterCount;
+      
+      console.log(`[CLEANUP] Successfully deleted ${filesDeleted} old files, freed ${beforeSize}`);
+      
+      res.json({
+        success: true,
+        message: `Successfully cleaned up ${filesDeleted} old files`,
+        filesDeleted: filesDeleted,
+        spaceFreed: beforeSize,
+        olderThan: today
+      });
+    } catch (error) {
+      console.error("Error cleaning up old files:", error);
+      res.status(500).json({ error: "Failed to clean up old files" });
+    }
+  });
+
   // Terminal management endpoints
   
   // Get all terminals
