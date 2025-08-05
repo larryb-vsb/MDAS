@@ -134,8 +134,8 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
     const draggingCircle = circles.find(c => c.isDragging);
     if (!draggingCircle) return;
 
-    const newX = Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left - dragOffset.x));
-    const newY = Math.max(30, Math.min(rect.height - 30, e.clientY - rect.top - dragOffset.y));
+    const newX = Math.max(48, Math.min(rect.width - 48, e.clientX - rect.left - dragOffset.x));
+    const newY = Math.max(48, Math.min(rect.height - 48, e.clientY - rect.top - dragOffset.y));
 
     const updatedCircles = circles.map(c => 
       c.isDragging ? { ...c, x: newX, y: newY } : c
@@ -169,19 +169,19 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
             circle.isDragging ? 'scale-110 z-10' : 'hover:scale-105'
           }`}
           style={{
-            left: circle.x - 30,
-            top: circle.y - 30,
+            left: circle.x - 48,
+            top: circle.y - 48,
           }}
           onMouseDown={(e) => handleMouseDown(e, circle.id)}
         >
           <div
-            className={`w-16 h-16 ${circle.color} rounded-full flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/20 animate-pulse`}
+            className={`w-24 h-24 ${circle.color} rounded-full flex flex-col items-center justify-center text-white shadow-xl border-3 border-white/30 animate-pulse`}
             style={{
               animation: `wiggle-${circle.id.replace(/[^a-zA-Z]/g, '')} 3s ease-in-out infinite`
             }}
           >
-            <div className="text-xs font-bold leading-tight">{circle.value}</div>
-            <div className="text-xs opacity-80 leading-tight text-center">{circle.label}</div>
+            <div className="text-sm font-bold leading-tight">{circle.value}</div>
+            <div className="text-xs opacity-90 leading-tight text-center">{circle.label}</div>
           </div>
         </div>
       ))}
@@ -293,8 +293,8 @@ function Tddf1Page() {
       const newCircles: DraggableCircle[] = [
         {
           id: 'records',
-          x: 80,
-          y: 80,
+          x: 100,
+          y: 100,
           color: 'bg-blue-500',
           value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
           label: 'Records',
@@ -302,8 +302,8 @@ function Tddf1Page() {
         },
         {
           id: 'files',
-          x: 180,
-          y: 120,
+          x: 200,
+          y: 140,
           color: 'bg-green-500',
           value: `${dayBreakdown.fileCount ?? 0}`,
           label: 'Files',
@@ -311,8 +311,8 @@ function Tddf1Page() {
         },
         {
           id: 'auth',
-          x: 120,
-          y: 180,
+          x: 140,
+          y: 200,
           color: 'bg-purple-500',
           value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Auth',
@@ -320,8 +320,8 @@ function Tddf1Page() {
         },
         {
           id: 'deposits',
-          x: 220,
-          y: 80,
+          x: 240,
+          y: 100,
           color: 'bg-emerald-500',
           value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
@@ -329,8 +329,8 @@ function Tddf1Page() {
         },
         {
           id: 'tables',
-          x: 160,
-          y: 220,
+          x: 180,
+          y: 240,
           color: 'bg-orange-500',
           value: `${(dayBreakdown.tables ?? []).length}`,
           label: 'Tables',
