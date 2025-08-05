@@ -69,7 +69,8 @@ function Router() {
       <ProtectedRoute path="/analytics" component={Analytics} />
       <ProtectedRoute path="/processing-dashboard" component={ProcessingDashboardPage} />
       <ProtectedRoute path="/processing-dashboard-v2" component={ProcessingDashboardV2} />
-      <ProtectedRoute path="/processing" component={ProcessingPage} />
+      <ProtectedRoute path="/processing" component={ProcessingDashboardV2} />
+      <ProtectedRoute path="/processing-legacy" component={ProcessingPage} />
       <ProtectedRoute path="/exports" component={Exports} />
       <ProtectedRoute path="/uploads" component={Uploads} />
       <ProtectedRoute path="/uploader" component={MMSUploader} />

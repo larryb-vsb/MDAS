@@ -8990,6 +8990,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global Table Usage API Endpoints
+  const { getCachedTableUsage, performTableUsageScan, getTableUsageStatus } = await import('./routes/table-usage');
+  
+  app.get("/api/table-usage/status", isAuthenticated, getTableUsageStatus);
+  app.get("/api/table-usage/cached", isAuthenticated, getCachedTableUsage);
+  app.post("/api/table-usage/scan", isAuthenticated, performTableUsageScan);
+
   // V2 Dashboard API Endpoints for Session-Based Uploads and JSONB Processing
   
   // Uploader dashboard statistics with cache building functionality
@@ -9022,6 +9029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN upload_status = 'warning' THEN 1 END) as warning_uploads,
           COUNT(CASE WHEN phase IN ('started', 'uploading', 'encoding') THEN 1 END) as active_uploads
         FROM ${uploaderTableName}
+        WHERE phase IS NOT NULL AND phase != 'uploaded'::text
       `);
       
       const totals = totalResult.rows[0];

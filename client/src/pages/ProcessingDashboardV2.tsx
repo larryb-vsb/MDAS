@@ -82,12 +82,16 @@ export default function ProcessingDashboardV2() {
   const { data: tableStatusData, isLoading: tableStatusLoading } = useQuery({
     queryKey: ['/api/processing/table-status'],
     staleTime: 60000,
-    retry: 1,
-    onSuccess: (data) => {
-      setTableStatus(data);
-      setShowTableManager(!data?.allHealthy);
-    }
+    retry: 1
   });
+
+  // Update table status when data changes
+  React.useEffect(() => {
+    if (tableStatusData) {
+      setTableStatus(tableStatusData);
+      setShowTableManager(!(tableStatusData as any)?.allHealthy);
+    }
+  }, [tableStatusData]);
 
   // Fetch uploader statistics - only if tables are healthy
   const { data: uploaderStats, refetch: refetchUploader, isLoading: uploaderLoading, error: uploaderError } = useQuery<UploaderStats>({
@@ -118,6 +122,20 @@ export default function ProcessingDashboardV2() {
     retry: 1
   });
 
+  // Fetch global table usage status
+  const { data: tableUsageStatus, isLoading: tableUsageStatusLoading } = useQuery({
+    queryKey: ['/api/table-usage/status'],
+    staleTime: 30000,
+    refetchInterval: 30000
+  });
+
+  // Fetch cached table usage data
+  const { data: tableUsageData, isLoading: tableUsageLoading, refetch: refetchTableUsage } = useQuery({
+    queryKey: ['/api/table-usage/cached'],
+    staleTime: 60000,
+    enabled: (tableUsageStatus as any)?.hasCache || false
+  });
+
   // Create missing tables mutation
   const { mutate: createMissingTables, isPending: isCreatingTables } = useMutation({
     mutationFn: async (tables: any[]) => {
@@ -130,6 +148,33 @@ export default function ProcessingDashboardV2() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/processing/table-status'] });
       setShowTableManager(false);
+    }
+  });
+
+  // Table usage scan mutation
+  const { mutate: scanTableUsage, isPending: isScanningTables } = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('/api/table-usage/scan', {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: (data: any) => {
+      console.log('[TABLE-USAGE] Scan completed:', data);
+      queryClient.invalidateQueries({ queryKey: ['/api/table-usage/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/table-usage/cached'] });
+      toast({
+        title: "Table Usage Scan Complete",
+        description: `Scanned ${data.totalTables} tables (${data.totalSizeGB} GB total)`
+      });
+    },
+    onError: (error) => {
+      console.error('[TABLE-USAGE] Scan failed:', error);
+      toast({
+        title: "Scan Failed",
+        description: "Failed to scan table usage. Please try again.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -155,6 +200,8 @@ export default function ProcessingDashboardV2() {
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/jsonb-stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/uploader/performance-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/processing/real-time-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/table-usage/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/table-usage/cached'] });
       setLastRefresh(new Date());
     },
     onError: (error) => {
@@ -310,6 +357,126 @@ export default function ProcessingDashboardV2() {
             </CardContent>
           </Card>
         )}
+
+        {/* Global Table Usage Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Global Table Usage
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => scanTableUsage()}
+                  disabled={isScanningTables}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isScanningTables ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {isScanningTables ? 'Scanning...' : 'Manual Scan'}
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {tableUsageStatus && !(tableUsageStatus as any).hasCache && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">No scan data available</p>
+                <p className="text-sm mb-4">Run a manual scan to see table usage information</p>
+                <Button 
+                  onClick={() => scanTableUsage()}
+                  disabled={isScanningTables}
+                  size="sm"
+                >
+                  {isScanningTables ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {isScanningTables ? 'Scanning Tables...' : 'Start Manual Scan'}
+                </Button>
+              </div>
+            )}
+
+            {tableUsageData && (
+              <div className="space-y-4">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {(tableUsageData as any).totalTables}
+                    </div>
+                    <div className="text-sm text-blue-600">Total Tables</div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {(tableUsageData as any).totalSizeGB < 1 
+                        ? `${(tableUsageData as any).totalSizeMB} MB`
+                        : `${(tableUsageData as any).totalSizeGB} GB`
+                      }
+                    </div>
+                    <div className="text-sm text-green-600">Total Size</div>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {(tableUsageStatus as any)?.environment || 'Unknown'}
+                    </div>
+                    <div className="text-sm text-purple-600">Environment</div>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {(tableUsageData as any).scanAge ? `${Math.round((tableUsageData as any).scanAge / 60)}m` : 'Just now'}
+                    </div>
+                    <div className="text-sm text-orange-600">Scan Age</div>
+                  </div>
+                </div>
+
+                {/* Last Scan Info */}
+                <div className="text-sm text-muted-foreground">
+                  Last scan: {format(new Date((tableUsageData as any).lastScan), 'MMM dd, yyyy HH:mm:ss')}
+                  {(tableUsageData as any).scanAge && ` (${Math.round((tableUsageData as any).scanAge / 60)} minutes ago)`}
+                </div>
+
+                {/* Top Tables by Size */}
+                <div>
+                  <h4 className="font-medium mb-3">Largest Tables</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {(tableUsageData as any).tables
+                      ?.sort((a: any, b: any) => b.sizeBytes - a.sizeBytes)
+                      .slice(0, 10)
+                      .map((table: any) => (
+                        <div key={table.tableName} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex-1">
+                            <div className="font-mono text-sm">{table.tableName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {table.rowCount.toLocaleString()} rows
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">
+                              {table.sizeGB > 1 
+                                ? `${table.sizeGB} GB`
+                                : `${table.sizeMB} MB`
+                              }
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {table.sizeBytes.toLocaleString()} bytes
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Key Metrics Grid - Mobile Responsive */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
