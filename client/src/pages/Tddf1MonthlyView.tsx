@@ -527,8 +527,8 @@ export default function Tddf1MonthlyView() {
             </Button>
             <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             <h1 className={`text-xl sm:text-3xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-              <span className="hidden sm:inline">MMS Monthly Overview</span>
-              <span className="sm:hidden">MMS Monthly</span>
+              <span className="hidden sm:inline">Monthly Merchant Processing</span>
+              <span className="sm:hidden">Monthly Processing</span>
             </h1>
           </div>
         </div>
