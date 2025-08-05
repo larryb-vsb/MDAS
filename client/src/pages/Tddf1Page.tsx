@@ -140,27 +140,28 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
 
     // Check for collisions with other circles and push them away
     const otherCircles = circles.filter(c => c.id !== draggingCircle.id);
-    const minDistance = draggingRadius * 1.2; // Minimum distance between centers
 
     let adjustedCircles = [...circles];
     
     otherCircles.forEach(otherCircle => {
+      const otherRadius = (otherCircle.id === 'auth' || otherCircle.id === 'deposits') ? 56 : 48;
+      const minDistance = draggingRadius + otherRadius + 20; // Minimum distance = sum of radii + buffer
+      
       const dx = newX - otherCircle.x;
       const dy = newY - otherCircle.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      if (distance < minDistance) {
-        // Calculate push direction
+      if (distance < minDistance && distance > 0) {
+        // Calculate push direction (away from dragging circle)
         const angle = Math.atan2(dy, dx);
         const pushDistance = minDistance - distance;
         
-        // Push the other circle away
-        const pushX = Math.cos(angle) * pushDistance * 0.5;
-        const pushY = Math.sin(angle) * pushDistance * 0.5;
+        // Push the other circle away from the dragging circle
+        const pushX = Math.cos(angle) * pushDistance;
+        const pushY = Math.sin(angle) * pushDistance;
         
-        const otherRadius = (otherCircle.id === 'auth' || otherCircle.id === 'deposits') ? 56 : 48;
-        const newOtherX = Math.max(otherRadius, Math.min(rect.width - otherRadius, otherCircle.x - pushX));
-        const newOtherY = Math.max(otherRadius, Math.min(rect.height - otherRadius, otherCircle.y - pushY));
+        const newOtherX = Math.max(otherRadius, Math.min(rect.width - otherRadius, otherCircle.x + pushX));
+        const newOtherY = Math.max(otherRadius, Math.min(rect.height - otherRadius, otherCircle.y + pushY));
         
         adjustedCircles = adjustedCircles.map(c => 
           c.id === otherCircle.id ? { ...c, x: newOtherX, y: newOtherY } : c
