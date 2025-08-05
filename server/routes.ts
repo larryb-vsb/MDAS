@@ -18359,23 +18359,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Get aggregated data using raw TDDF specification (matches PowerShell logic)
+          // Get aggregated data from JSONB field_data (current table structure)
           const tableInfoResult = await pool.query(`
             SELECT 
               $1 as processing_date,
               COUNT(*) as total_records,
               COALESCE(SUM(CASE 
                 WHEN record_type = 'DT' 
-                  AND LENGTH(raw_line) >= 103 
-                  AND SUBSTRING(raw_line, 93, 11) ~ '^[0-9]+$' 
-                THEN CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0 
+                  AND field_data->>'transactionAmount' IS NOT NULL
+                THEN CAST(field_data->>'transactionAmount' AS DECIMAL)
                 ELSE 0 
               END), 0) as dt_transaction_amounts,
               COALESCE(SUM(CASE 
                 WHEN record_type = 'BH' 
-                  AND LENGTH(raw_line) >= 83 
-                  AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$' 
-                THEN CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0 
+                  AND field_data->>'netDeposit' IS NOT NULL
+                THEN CAST(field_data->>'netDeposit' AS DECIMAL)
                 ELSE 0 
               END), 0) as bh_net_deposits,
               COUNT(DISTINCT record_type) as record_types
