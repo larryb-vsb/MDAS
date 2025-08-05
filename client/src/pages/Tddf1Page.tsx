@@ -134,13 +134,13 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
     const draggingCircle = circles.find(c => c.isDragging);
     if (!draggingCircle) return;
 
-    let newX = Math.max(48, Math.min(rect.width - 48, e.clientX - rect.left - dragOffset.x));
-    let newY = Math.max(48, Math.min(rect.height - 48, e.clientY - rect.top - dragOffset.y));
+    const draggingRadius = (draggingCircle.id === 'auth' || draggingCircle.id === 'deposits') ? 56 : 48;
+    let newX = Math.max(draggingRadius, Math.min(rect.width - draggingRadius, e.clientX - rect.left - dragOffset.x));
+    let newY = Math.max(draggingRadius, Math.min(rect.height - draggingRadius, e.clientY - rect.top - dragOffset.y));
 
     // Check for collisions with other circles and push them away
     const otherCircles = circles.filter(c => c.id !== draggingCircle.id);
-    const circleRadius = 48; // Half of circle size (24x24 = 48 radius)
-    const minDistance = circleRadius * 1.2; // Minimum distance between centers
+    const minDistance = draggingRadius * 1.2; // Minimum distance between centers
 
     let adjustedCircles = [...circles];
     
@@ -158,8 +158,9 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
         const pushX = Math.cos(angle) * pushDistance * 0.5;
         const pushY = Math.sin(angle) * pushDistance * 0.5;
         
-        const newOtherX = Math.max(48, Math.min(rect.width - 48, otherCircle.x - pushX));
-        const newOtherY = Math.max(48, Math.min(rect.height - 48, otherCircle.y - pushY));
+        const otherRadius = (otherCircle.id === 'auth' || otherCircle.id === 'deposits') ? 56 : 48;
+        const newOtherX = Math.max(otherRadius, Math.min(rect.width - otherRadius, otherCircle.x - pushX));
+        const newOtherY = Math.max(otherRadius, Math.min(rect.height - otherRadius, otherCircle.y - pushY));
         
         adjustedCircles = adjustedCircles.map(c => 
           c.id === otherCircle.id ? { ...c, x: newOtherX, y: newOtherY } : c
@@ -200,23 +201,23 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
             circle.isDragging ? 'scale-110 z-10' : 'hover:scale-105'
           }`}
           style={{
-            left: circle.x - 48,
-            top: circle.y - 48,
+            left: circle.x - (circle.id === 'auth' || circle.id === 'deposits' ? 56 : 48),
+            top: circle.y - (circle.id === 'auth' || circle.id === 'deposits' ? 56 : 48),
           }}
           onMouseDown={(e) => handleMouseDown(e, circle.id)}
         >
           <div
-            className={`w-24 h-24 ${circle.color} rounded-full flex flex-col items-center justify-center text-white shadow-xl border-3 border-white/30 animate-pulse`}
+            className={`${circle.id === 'auth' || circle.id === 'deposits' ? 'w-28 h-28' : 'w-24 h-24'} ${circle.color} rounded-full flex flex-col items-center justify-center text-white shadow-xl border-3 border-white/30 animate-pulse`}
             style={{
               animation: `wiggle-${circle.id.replace(/[^a-zA-Z]/g, '')} 3s ease-in-out infinite`
             }}
           >
-            <div className="text-lg font-bold leading-tight">{circle.value}</div>
+            <div className={`${circle.id === 'auth' || circle.id === 'deposits' ? 'text-xl' : 'text-lg'} font-bold leading-tight`}>{circle.value}</div>
             <div className="text-xs opacity-90 leading-tight text-center">{circle.label}</div>
           </div>
         </div>
       ))}
-      <style jsx>{`
+      <style>{`
         @keyframes wiggle-records {
           0%, 100% { transform: rotate(-2deg) translateY(0); }
           25% { transform: rotate(1deg) translateY(-1px); }
@@ -268,7 +269,7 @@ function Tddf1Page() {
     refetchOnWindowFocus: true,
   });
 
-  const isDarkMode = user?.themePreference === 'dark';
+  const isDarkMode = false; // Theme handling simplified for now
 
   // Force re-render when theme changes
   useEffect(() => {
@@ -324,45 +325,45 @@ function Tddf1Page() {
       const newCircles: DraggableCircle[] = [
         {
           id: 'records',
-          x: 100,
-          y: 80,
-          color: 'bg-gradient-to-br from-blue-400 to-blue-600',
+          x: 80,
+          y: 160,
+          color: 'bg-gradient-to-br from-gray-400 to-gray-600',
           value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
           label: 'Records',
           isDragging: false
         },
         {
           id: 'files',
-          x: 200,
-          y: 80,
-          color: 'bg-gradient-to-br from-green-400 to-green-600',
+          x: 280,
+          y: 160,
+          color: 'bg-gradient-to-br from-slate-400 to-slate-600',
           value: `${dayBreakdown.fileCount ?? 0}`,
           label: 'Files',
           isDragging: false
         },
         {
           id: 'auth',
-          x: 300,
+          x: 120,
           y: 80,
-          color: 'bg-gradient-to-br from-purple-400 to-purple-600',
+          color: 'bg-gradient-to-br from-blue-400 to-blue-600',
           value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Auth',
           isDragging: false
         },
         {
           id: 'deposits',
-          x: 150,
-          y: 160,
-          color: 'bg-gradient-to-br from-pink-400 to-pink-600',
-          value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
+          x: 240,
+          y: 80,
+          color: 'bg-gradient-to-br from-green-400 to-green-600',
+          value: `$${((dayBreakdown.netDepositsValue ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
           isDragging: false
         },
         {
           id: 'tables',
-          x: 250,
-          y: 160,
-          color: 'bg-gradient-to-br from-orange-400 to-orange-600',
+          x: 180,
+          y: 200,
+          color: 'bg-gradient-to-br from-zinc-400 to-zinc-600',
           value: `${(dayBreakdown.tables ?? []).length}`,
           label: 'Tables',
           isDragging: false
