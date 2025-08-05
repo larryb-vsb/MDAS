@@ -180,7 +180,7 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
               animation: `wiggle-${circle.id.replace(/[^a-zA-Z]/g, '')} 3s ease-in-out infinite`
             }}
           >
-            <div className="text-sm font-bold leading-tight">{circle.value}</div>
+            <div className="text-lg font-bold leading-tight">{circle.value}</div>
             <div className="text-xs opacity-90 leading-tight text-center">{circle.label}</div>
           </div>
         </div>
@@ -293,7 +293,7 @@ function Tddf1Page() {
       const newCircles: DraggableCircle[] = [
         {
           id: 'records',
-          x: 80,
+          x: 100,
           y: 80,
           color: 'bg-blue-500',
           value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
@@ -311,7 +311,7 @@ function Tddf1Page() {
         },
         {
           id: 'auth',
-          x: 320,
+          x: 300,
           y: 80,
           color: 'bg-purple-500',
           value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
@@ -320,8 +320,8 @@ function Tddf1Page() {
         },
         {
           id: 'deposits',
-          x: 140,
-          y: 180,
+          x: 150,
+          y: 160,
           color: 'bg-emerald-500',
           value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
           label: 'Deposits',
@@ -329,8 +329,8 @@ function Tddf1Page() {
         },
         {
           id: 'tables',
-          x: 260,
-          y: 180,
+          x: 250,
+          y: 160,
           color: 'bg-orange-500',
           value: `${(dayBreakdown.tables ?? []).length}`,
           label: 'Tables',
