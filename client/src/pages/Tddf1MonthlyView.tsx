@@ -599,17 +599,19 @@ export default function Tddf1MonthlyView() {
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRebuildCache}
-              className="flex items-center space-x-1"
-              disabled={rebuildMutation.isPending}
-            >
-              <Database className={`h-4 w-4 ${rebuildMutation.isPending ? 'animate-pulse' : ''}`} />
-              <span className="hidden sm:inline">Rebuild Cache</span>
-              <span className="sm:hidden">Rebuild</span>
-            </Button>
+            {user?.username === 'admin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRebuildCache}
+                className="flex items-center space-x-1"
+                disabled={rebuildMutation.isPending}
+              >
+                <Database className={`h-4 w-4 ${rebuildMutation.isPending ? 'animate-pulse' : ''}`} />
+                <span className="hidden sm:inline">Rebuild Cache</span>
+                <span className="sm:hidden">Rebuild</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
