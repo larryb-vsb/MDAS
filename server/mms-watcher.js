@@ -870,24 +870,26 @@ class MMSWatcher {
       let encodingResults;
       
       if (fileType === 'tddf') {
-        // Import and use the TDDF1 file-based encoder
-        const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.ts');
-        encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
+        // Import and use the space-optimized TDDF encoder (saves 50%+ database space)
+        const { encodeTddfFileSpaceOptimized } = await import('./services/space-optimized-tddf-encoder.ts');
+        encodingResults = await encodeTddfFileSpaceOptimized(fileContent, upload);
         
         // Update to encoded phase with TDDF results
         await this.storage.updateUploaderPhase(upload.id, 'encoded', {
           encodingCompletedAt: new Date(),
           encodingStatus: 'completed',
-          encodingNotes: `Successfully encoded ${encodingResults.totalRecords} TDDF records to TDDF1 file-based table`,
+          encodingNotes: `Space-optimized encoding: ${encodingResults.totalRecords} records, saved ${(encodingResults.spaceSavingsBytes / 1024 / 1024).toFixed(2)}MB (${encodingResults.spaceSavingsPercentage}% space reduction)`,
           jsonRecordsCreated: encodingResults.totalRecords,
           recordTypeBreakdown: encodingResults.recordCounts.byType,
-          processingNotes: `Auto-encoded by MMS Watcher: ${encodingResults.totalRecords} records processed in ${encodingResults.totalProcessingTime}ms`
+          processingNotes: `Space-optimized auto-encoding: ${encodingResults.totalRecords} records, ${encodingResults.encodingTimeMs}ms, ${encodingResults.spaceSavingsPercentage}% space saved`,
+          spaceSavingsBytes: encodingResults.spaceSavingsBytes,
+          spaceSavingsPercentage: encodingResults.spaceSavingsPercentage
         });
 
         // Update TDDF1 totals cache for newly encoded file
         await this.updateTddf1TotalsCache(upload.filename, encodingResults);
 
-        console.log(`[MMS-WATCHER] ✅ File encoded: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.totalProcessingTime}ms)`);
+        console.log(`[MMS-WATCHER] ✅ Space-optimized encoding: ${upload.filename} -> ${encodingResults.totalRecords} records (${encodingResults.encodingTimeMs}ms, saved ${(encodingResults.spaceSavingsBytes / 1024 / 1024).toFixed(2)}MB)`);
       } 
       else if (fileType === 'merchant_csv') {
         // Save content to temporary file for CSV processing
