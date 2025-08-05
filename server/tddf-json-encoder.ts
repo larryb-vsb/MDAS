@@ -1253,7 +1253,7 @@ export async function processTddfFileForProduction(
         const recordType = line.substring(0, 2);
         
         // Parse record based on type using existing schemas
-        const extractedFields = extractFieldsByRecordType(recordType, line);
+        const extractedFields = encodeTddfLineToJson(line, i + 1).extractedFields;
         
         // Calculate universal timestamp
         const timestamp = calculateUniversalTimestamp(
