@@ -612,18 +612,7 @@ function Tddf1Page() {
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               <span className="hidden sm:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
             </Button>
-            {!showProgressTracking && (
-              <Button 
-                onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
-                variant="default"
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
-              >
-                <Activity className="h-4 w-4 mr-1 sm:mr-2 animate-pulse" />
-                <span className="hidden sm:inline">Track Live Encoding</span>
-                <span className="sm:hidden">Track</span>
-              </Button>
-            )}
+
           </div>
         </div>
 
@@ -1286,6 +1275,18 @@ function Tddf1Page() {
                 <span className="hidden sm:inline">Rebuild TDDF1 Totals Cache</span>
                 <span className="sm:hidden">Rebuild Cache</span>
               </Button>
+              {!showProgressTracking && (
+                <Button 
+                  onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
+                  variant="default"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+                >
+                  <Activity className="h-4 w-4 animate-pulse" />
+                  <span className="hidden sm:inline">Track Live Encoding</span>
+                  <span className="sm:hidden">Track</span>
+                </Button>
+              )}
             </div>
             
             {rebuildCacheMutation.isPending && (
