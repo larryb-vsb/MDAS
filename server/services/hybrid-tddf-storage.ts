@@ -22,9 +22,6 @@ export class HybridTddfStorageService {
       // Combine all raw lines into a single string with line breaks
       const combinedContent = rawLines.join('\n');
       
-      // Generate object storage path
-      const objectPath = `/objects/tddf1_raw_lines/${filename}.txt`;
-      
       // Get upload URL for object storage
       const uploadURL = await this.objectStorage.getObjectEntityUploadURL();
       
@@ -39,14 +36,15 @@ export class HybridTddfStorageService {
       });
       
       if (!response.ok) {
-        throw new Error(`Object storage upload failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Object storage upload failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
       
-      console.log(`[HYBRID-STORAGE] Stored ${rawLines.length} raw lines to object storage: ${objectPath}`);
+      console.log(`[HYBRID-STORAGE] Stored ${rawLines.length} raw lines to object storage`);
       console.log(`[HYBRID-STORAGE] Total size: ${combinedContent.length} bytes`);
       
-      // Return the object storage path for database reference
-      return uploadURL; // Return the upload URL which can be used to access the data
+      // Return the upload URL which can be used to access the data
+      return uploadURL;
       
     } catch (error) {
       console.error('[HYBRID-STORAGE] Error storing raw lines:', error);

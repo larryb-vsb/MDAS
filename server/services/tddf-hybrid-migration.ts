@@ -239,8 +239,8 @@ export class TddfHybridMigrationService {
           errors.push(`${table.tablename}: ${result.error}`);
         }
         
-        // Small delay between table migrations to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Longer delay between table migrations to prevent overwhelming object storage
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       const successfulResults = results.filter(r => r.success);
