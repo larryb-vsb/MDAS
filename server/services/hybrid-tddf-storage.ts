@@ -25,23 +25,28 @@ export class HybridTddfStorageService {
       // Generate object storage path
       const objectPath = `/objects/tddf1_raw_lines/${filename}.txt`;
       
-      // Store in object storage (using temporary file approach)
-      const tempFilePath = `/tmp/tddf_${Date.now()}_${filename}.txt`;
-      const fs = await import('fs');
+      // Get upload URL for object storage
+      const uploadURL = await this.objectStorage.getObjectEntityUploadURL();
       
-      // Write to temporary file
-      fs.writeFileSync(tempFilePath, combinedContent, 'utf8');
+      // Store in object storage using PUT request
+      const response = await fetch(uploadURL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/plain',
+          'Content-Length': combinedContent.length.toString(),
+        },
+        body: combinedContent,
+      });
       
-      // Store in object storage using the object storage service
-      // For now, return a mock path since we need to implement the actual object storage integration
-      console.log(`[HYBRID-STORAGE] Would store ${rawLines.length} raw lines to object storage: ${objectPath}`);
+      if (!response.ok) {
+        throw new Error(`Object storage upload failed: ${response.status} ${response.statusText}`);
+      }
+      
+      console.log(`[HYBRID-STORAGE] Stored ${rawLines.length} raw lines to object storage: ${objectPath}`);
       console.log(`[HYBRID-STORAGE] Total size: ${combinedContent.length} bytes`);
       
-      // Clean up temp file
-      fs.unlinkSync(tempFilePath);
-      
       // Return the object storage path for database reference
-      return objectPath;
+      return uploadURL; // Return the upload URL which can be used to access the data
       
     } catch (error) {
       console.error('[HYBRID-STORAGE] Error storing raw lines:', error);

@@ -171,7 +171,7 @@ export class TddfHybridMigrationService {
         if (batch.length === 0) break;
         
         // Extract raw lines and prepare for object storage
-        const rawLines = batch.map(record => record.mms_raw_line).filter(line => line);
+        const rawLines = batch.map(record => record.raw_line).filter(line => line);
         
         if (rawLines.length > 0) {
           // Store raw lines in object storage
@@ -270,14 +270,14 @@ export class TddfHybridMigrationService {
   }
 
   /**
-   * Check if a table has the mms_raw_line column
+   * Check if a table has the raw_line column (or legacy mms_raw_line column)
    */
   private async checkForRawLineColumn(tableName: string): Promise<boolean> {
     try {
       const query = `
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = $1 AND column_name = 'mms_raw_line'
+        WHERE table_name = $1 AND column_name IN ('raw_line', 'mms_raw_line')
       `;
       const result = await sql(query, [tableName]);
       return result.length > 0;
@@ -296,11 +296,17 @@ export class TddfHybridMigrationService {
     recordsWithRawLine: number;
   }> {
     try {
+      // First determine which raw line column exists
+      const rawLineColumn = await this.getRawLineColumnName(tableName);
+      if (!rawLineColumn) {
+        return { totalRecords: 0, recordsWithoutRawLine: 0, recordsWithRawLine: 0 };
+      }
+
       const countQuery = `
         SELECT 
           COUNT(*) as total,
-          COUNT(CASE WHEN mms_raw_line IS NULL OR mms_raw_line = '' THEN 1 END) as without_raw_line,
-          COUNT(CASE WHEN mms_raw_line IS NOT NULL AND mms_raw_line != '' THEN 1 END) as with_raw_line
+          COUNT(CASE WHEN ${rawLineColumn} IS NULL OR ${rawLineColumn} = '' THEN 1 END) as without_raw_line,
+          COUNT(CASE WHEN ${rawLineColumn} IS NOT NULL AND ${rawLineColumn} != '' THEN 1 END) as with_raw_line
         FROM ${tableName}
       `;
       
@@ -323,13 +329,19 @@ export class TddfHybridMigrationService {
    */
   private async getRawLineBatch(tableName: string, limit: number, offset: number): Promise<Array<{
     id: number;
-    mms_raw_line: string;
+    raw_line: string;
   }>> {
     try {
+      // First determine which raw line column exists
+      const rawLineColumn = await this.getRawLineColumnName(tableName);
+      if (!rawLineColumn) {
+        return [];
+      }
+
       const query = `
-        SELECT id, mms_raw_line
+        SELECT id, ${rawLineColumn} as raw_line
         FROM ${tableName}
-        WHERE mms_raw_line IS NOT NULL AND mms_raw_line != ''
+        WHERE ${rawLineColumn} IS NOT NULL AND ${rawLineColumn} != ''
         ORDER BY id
         LIMIT $1 OFFSET $2
       `;
@@ -337,7 +349,7 @@ export class TddfHybridMigrationService {
       const result = await sql(query, [limit, offset]);
       return result.map(row => ({
         id: parseInt(row.id as string),
-        mms_raw_line: row.mms_raw_line as string
+        raw_line: row.raw_line as string
       }));
     } catch (error) {
       console.error(`[HYBRID-MIGRATION] Error getting raw line batch for ${tableName}:`, error);
@@ -352,10 +364,16 @@ export class TddfHybridMigrationService {
     try {
       if (recordIds.length === 0) return;
       
+      // First determine which raw line column exists
+      const rawLineColumn = await this.getRawLineColumnName(tableName);
+      if (!rawLineColumn) {
+        throw new Error(`No raw line column found for table ${tableName}`);
+      }
+      
       const placeholders = recordIds.map((_, i) => `$${i + 1}`).join(',');
       const query = `
         UPDATE ${tableName} 
-        SET mms_raw_line = NULL
+        SET ${rawLineColumn} = NULL
         WHERE id IN (${placeholders})
       `;
       
@@ -363,6 +381,26 @@ export class TddfHybridMigrationService {
     } catch (error) {
       console.error(`[HYBRID-MIGRATION] Error clearing raw line data for ${tableName}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Get the actual raw line column name for a table
+   */
+  private async getRawLineColumnName(tableName: string): Promise<string | null> {
+    try {
+      const query = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name IN ('raw_line', 'mms_raw_line')
+        ORDER BY CASE WHEN column_name = 'raw_line' THEN 1 ELSE 2 END
+        LIMIT 1
+      `;
+      const result = await sql(query, [tableName]);
+      return result.length > 0 ? result[0].column_name as string : null;
+    } catch (error) {
+      console.error(`[HYBRID-MIGRATION] Error getting raw line column name for ${tableName}:`, error);
+      return null;
     }
   }
 }
