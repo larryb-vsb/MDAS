@@ -634,14 +634,14 @@ export default function Tddf1MonthlyView() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Net Deposits Processed - First Position */}
             <Card className={`${isDarkMode ? 'bg-indigo-900 border-indigo-700' : 'bg-indigo-50 border-indigo-200'} transition-colors`}>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-1">
                 <CardTitle className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'} flex items-center`}>
                   <DollarSign className="h-5 w-5 mr-2" />
                   Net Deposits Processed
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-indigo-100' : 'text-indigo-900'} mb-2`}>
+              <CardContent className="pt-2">
+                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-indigo-100' : 'text-indigo-900'} mb-1`}>
                   {formatCurrency(monthlyData.totalNetDepositBh)}
                 </div>
                 <p className={`text-sm ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>Batch Header (BH) totals</p>
@@ -650,15 +650,15 @@ export default function Tddf1MonthlyView() {
 
             {/* Transaction Authorizations Processed */}
             <Card className={`${isDarkMode ? 'bg-purple-900 border-purple-700' : 'bg-purple-50 border-purple-200'} transition-colors`}>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-1">
                 <CardTitle className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-purple-300' : 'text-purple-700'} flex items-center`}>
                   <DollarSign className="h-5 w-5 mr-2" />
                   <span className="hidden sm:inline">Transaction Authorizations Processed</span>
                   <span className="sm:hidden">Authorizations Processed</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-purple-100' : 'text-purple-900'} mb-2`}>
+              <CardContent className="pt-2">
+                <div className={`text-3xl sm:text-4xl font-bold ${isDarkMode ? 'text-purple-100' : 'text-purple-900'} mb-1`}>
                   {formatCurrency(monthlyData.totalTransactionValue)}
                 </div>
                 <p className={`text-sm ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>Detail Transaction (DT) totals</p>
