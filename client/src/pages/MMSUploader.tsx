@@ -1178,6 +1178,13 @@ export default function MMSUploader() {
                 <ExternalLink className="h-3 w-3" />
               </Button>
             </Link>
+            <Link href="/hybrid-migration">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100">
+                <Database className="h-4 w-4" />
+                Hybrid Migration
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </Link>
           </div>
         </div>
         

@@ -18572,6 +18572,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // ==================== HYBRID STORAGE MIGRATION ROUTES ====================
+  
+  // Get TDDF1 hybrid migration status
+  app.get("/api/tddf1/hybrid-migration/status", isAuthenticated, async (req, res) => {
+    try {
+      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
+      const migrationService = new TddfHybridMigrationService();
+      
+      const status = await migrationService.getMigrationStatus();
+      const tables = await migrationService.getTddf1Tables();
+      
+      const summary = {
+        totalTables: tables.length,
+        totalSizeMB: Math.round(tables.reduce((sum, t) => sum + t.size_bytes, 0) / 1024 / 1024),
+        migratedTables: status.filter(s => s.migration_complete).length,
+        pendingTables: status.filter(s => !s.migration_complete).length,
+        totalRecords: status.reduce((sum, s) => sum + s.total_records, 0),
+        migratedRecords: status.reduce((sum, s) => sum + s.migrated_records, 0)
+      };
+      
+      res.json({
+        success: true,
+        summary,
+        tables: status
+      });
+    } catch (error) {
+      console.error("Error getting hybrid migration status:", error);
+      res.status(500).json({ 
+        error: "Failed to get migration status",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Start hybrid migration for a specific table
+  app.post("/api/tddf1/hybrid-migration/migrate-table", isAuthenticated, async (req, res) => {
+    try {
+      const { tableName } = req.body;
+      
+      if (!tableName) {
+        return res.status(400).json({ error: "tableName is required" });
+      }
+      
+      console.log(`🔄 Starting hybrid migration for table: ${tableName}`);
+      
+      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
+      const migrationService = new TddfHybridMigrationService();
+      
+      const result = await migrationService.migrateTable(tableName);
+      
+      if (result.success) {
+        console.log(`✅ Migration completed for ${tableName}: ${result.recordsProcessed} records, ~${Math.round(result.spaceSaved / 1024 / 1024)}MB saved`);
+      } else {
+        console.error(`❌ Migration failed for ${tableName}: ${result.error}`);
+      }
+      
+      res.json({
+        success: result.success,
+        tableName,
+        recordsProcessed: result.recordsProcessed,
+        spaceSavedMB: Math.round(result.spaceSaved / 1024 / 1024),
+        error: result.error
+      });
+    } catch (error) {
+      console.error("Error migrating table:", error);
+      res.status(500).json({ 
+        error: "Failed to migrate table",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Start hybrid migration for all tables
+  app.post("/api/tddf1/hybrid-migration/migrate-all", isAuthenticated, async (req, res) => {
+    try {
+      console.log(`🔄 Starting hybrid migration for all TDDF1 tables`);
+      
+      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
+      const migrationService = new TddfHybridMigrationService();
+      
+      const result = await migrationService.migrateAllTables();
+      
+      console.log(`✅ Migration completed: ${result.tablesProcessed} tables, ${result.totalRecords} records, ~${Math.round(result.totalSpaceSaved / 1024 / 1024)}MB saved`);
+      
+      res.json({
+        success: result.success,
+        tablesProcessed: result.tablesProcessed,
+        totalRecords: result.totalRecords,
+        spaceSavedMB: Math.round(result.totalSpaceSaved / 1024 / 1024),
+        errors: result.errors
+      });
+    } catch (error) {
+      console.error("Error migrating all tables:", error);
+      res.status(500).json({ 
+        error: "Failed to migrate all tables",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   return httpServer;
 }
 
