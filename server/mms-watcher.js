@@ -13,7 +13,7 @@ class MMSWatcher {
     this.encodingIntervalId = null;
     this.duplicateCleanupIntervalId = null;
     this.duplicateCleanup = new JsonbDuplicateCleanup();
-    this.auto45Enabled = false; // Auto 4-5 processing disabled by default - controlled via API
+    this.auto45Enabled = true; // Auto 4-5 processing enabled by default
     this.manual45Queue = new Set(); // Manual processing queue for single-step progression
     console.log('[MMS-WATCHER] Watcher service initialized');
   }
@@ -871,8 +871,8 @@ class MMSWatcher {
       
       if (fileType === 'tddf') {
         // Import and use the TDDF1 file-based encoder
-        const { encodeTddfToTddf1FileBased } = await import('./tddf-json-encoder.ts');
-        encodingResults = await encodeTddfToTddf1FileBased(fileContent, upload);
+        const { encodeTddfToJsonb } = await import('./tddf-json-encoder.ts');
+        encodingResults = await encodeTddfToJsonb(fileContent, upload);
         
         // Update to encoded phase with TDDF results
         await this.storage.updateUploaderPhase(upload.id, 'encoded', {
