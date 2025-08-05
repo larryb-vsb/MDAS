@@ -902,22 +902,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-time database processing statistics endpoint with TDDF operations
   app.get("/api/processing/real-time-stats", async (req, res) => {
     try {
-      // Import table manager for graceful error handling
-      const { TableManager } = await import('./services/table-manager');
-      
-      // Check table health first
-      const tableStatus = await TableManager.getProcessingTablesStatus();
-      
-      // If critical tables are missing, return error with creation options
-      if (!tableStatus.allHealthy) {
-        return res.status(503).json({
-          error: 'Processing tables not ready',
-          details: tableStatus.summary,
-          tables: tableStatus.tables,
-          canCreateMissing: true
-        });
-      }
-      
       // Use environment-specific table names
       const uploadedFilesTableName = getTableName('uploaded_files');
       const transactionsTableName = getTableName('transactions');
@@ -926,17 +910,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}, ${tddfRecordsTableName}`);
       
-      // Get real-time file processing statistics using processing_status field
+      // Get real-time file processing statistics using new processing_status field
       const result = await pool.query(`
         SELECT 
           COUNT(*) as total_files,
-          COUNT(CASE WHEN processing_status = 'queued' AND COALESCE(deleted, false) = false THEN 1 END) as queued_files,
-          COUNT(CASE WHEN processing_status = 'completed' AND COALESCE(deleted, false) = false THEN 1 END) as processed_files,
-          COUNT(CASE WHEN processing_status = 'processing' AND COALESCE(deleted, false) = false THEN 1 END) as currently_processing,
-          COUNT(CASE WHEN processing_status = 'failed' AND COALESCE(deleted, false) = false THEN 1 END) as files_with_errors,
-          COUNT(CASE WHEN COALESCE(deleted, false) = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
-          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND COALESCE(deleted, false) = false THEN 1 END) as tddf_files_processed,
-          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND COALESCE(deleted, false) = false THEN 1 END) as tddf_files_queued
+          COUNT(CASE WHEN processing_status = 'queued' AND deleted = false THEN 1 END) as queued_files,
+          COUNT(CASE WHEN processing_status = 'completed' AND deleted = false THEN 1 END) as processed_files,
+          COUNT(CASE WHEN processing_status = 'processing' AND deleted = false THEN 1 END) as currently_processing,
+          COUNT(CASE WHEN processing_status = 'failed' AND deleted = false THEN 1 END) as files_with_errors,
+          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND deleted = false THEN 1 END) as tddf_files_processed,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND deleted = false THEN 1 END) as tddf_files_queued
         FROM ${uploadedFilesTableName}
       `);
 
@@ -4744,93 +4728,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching server info:", error);
       res.status(500).json({ error: "Failed to fetch server information" });
-    }
-  });
-
-  // Cleanup old processing files endpoints
-  app.get("/api/cleanup/old-files-status", async (req, res) => {
-    try {
-      const { execAsync } = await import("./utils/exec-async");
-      
-      // Get today's date in YYYY-MM-DD format for comparison
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Count files older than today
-      const countResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
-      const fileCount = parseInt(countResult.stdout.trim()) || 0;
-      
-      // Get total size of files older than today
-      const sizeResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -exec du -ch {} + | tail -1`);
-      const sizeMatch = sizeResult.stdout.match(/^([0-9.]+)([KMGT]?)/);
-      const size = sizeMatch ? sizeMatch[1] + sizeMatch[2] : '0';
-      
-      // Get breakdown by file type
-      const tsysoResult = await execAsync(`find tmp_uploads/ -name "*.TSYSO" -not -newermt "${today}" | wc -l`);
-      const tsysoCount = parseInt(tsysoResult.stdout.trim()) || 0;
-      
-      const otherCount = fileCount - tsysoCount;
-      
-      res.json({
-        totalFiles: fileCount,
-        totalSize: size,
-        breakdown: {
-          tsysoFiles: tsysoCount,
-          otherFiles: otherCount
-        },
-        olderThan: today,
-        hasFilesToClean: fileCount > 0
-      });
-    } catch (error) {
-      console.error("Error checking old files status:", error);
-      res.status(500).json({ error: "Failed to check old files status" });
-    }
-  });
-
-  app.post("/api/cleanup/old-files", async (req, res) => {
-    try {
-      const { execAsync } = await import("./utils/exec-async");
-      
-      // Get today's date in YYYY-MM-DD format for comparison
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Get file count and size before cleanup
-      const beforeCountResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
-      const beforeCount = parseInt(beforeCountResult.stdout.trim()) || 0;
-      
-      const beforeSizeResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -exec du -ch {} + | tail -1`);
-      const beforeSizeMatch = beforeSizeResult.stdout.match(/^([0-9.]+)([KMGT]?)/);
-      const beforeSize = beforeSizeMatch ? beforeSizeMatch[1] + beforeSizeMatch[2] : '0';
-      
-      if (beforeCount === 0) {
-        return res.json({
-          success: true,
-          message: "No old files found to clean up",
-          filesDeleted: 0,
-          spaceFreed: "0"
-        });
-      }
-      
-      // Delete files older than today
-      await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" -delete`);
-      
-      // Verify cleanup by checking remaining files
-      const afterCountResult = await execAsync(`find tmp_uploads/ -type f -not -newermt "${today}" | wc -l`);
-      const afterCount = parseInt(afterCountResult.stdout.trim()) || 0;
-      
-      const filesDeleted = beforeCount - afterCount;
-      
-      console.log(`[CLEANUP] Successfully deleted ${filesDeleted} old files, freed ${beforeSize}`);
-      
-      res.json({
-        success: true,
-        message: `Successfully cleaned up ${filesDeleted} old files`,
-        filesDeleted: filesDeleted,
-        spaceFreed: beforeSize,
-        olderThan: today
-      });
-    } catch (error) {
-      console.error("Error cleaning up old files:", error);
-      res.status(500).json({ error: "Failed to clean up old files" });
     }
   });
 
@@ -8926,77 +8823,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Table management endpoints for graceful handling of missing tables
-  app.get("/api/processing/table-status", isAuthenticated, async (req, res) => {
-    try {
-      const { TableManager } = await import('./services/table-manager');
-      const status = await TableManager.getProcessingTablesStatus();
-      res.json(status);
-    } catch (error) {
-      console.error('Error getting table status:', error);
-      res.status(500).json({ 
-        error: 'Failed to get table status',
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
-  app.post("/api/processing/create-missing-tables", isAuthenticated, async (req, res) => {
-    try {
-      const { TableManager } = await import('./services/table-manager');
-      const { tables } = req.body;
-      
-      if (!tables || !Array.isArray(tables)) {
-        return res.status(400).json({ error: 'tables array is required' });
-      }
-      
-      const results = [];
-      
-      for (const tableInfo of tables) {
-        try {
-          if (!tableInfo.exists) {
-            // Create missing table
-            const baseTableName = tableInfo.tableName.replace(/^dev_/, '').replace(/^prod_/, '');
-            await TableManager.createBasicTable(baseTableName);
-            results.push({ table: tableInfo.tableName, action: 'created', success: true });
-          } else if (tableInfo.missingColumns && tableInfo.missingColumns.length > 0) {
-            // Add missing columns
-            await TableManager.createMissingColumns(tableInfo.tableName, tableInfo.missingColumns);
-            results.push({ 
-              table: tableInfo.tableName, 
-              action: 'columns_added', 
-              success: true,
-              columns: tableInfo.missingColumns
-            });
-          }
-        } catch (error) {
-          results.push({ 
-            table: tableInfo.tableName, 
-            action: 'failed', 
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
-      
-      res.json({ success: true, results });
-      
-    } catch (error) {
-      console.error('Error creating missing tables:', error);
-      res.status(500).json({ 
-        error: 'Failed to create missing tables',
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
-  // Global Table Usage API Endpoints
-  const { getCachedTableUsage, performTableUsageScan, getTableUsageStatus } = await import('./routes/table-usage');
-  
-  app.get("/api/table-usage/status", isAuthenticated, getTableUsageStatus);
-  app.get("/api/table-usage/cached", isAuthenticated, getCachedTableUsage);
-  app.post("/api/table-usage/scan", isAuthenticated, performTableUsageScan);
-
   // V2 Dashboard API Endpoints for Session-Based Uploads and JSONB Processing
   
   // Uploader dashboard statistics with cache building functionality
@@ -9017,7 +8843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       const byPhase = phaseResult.rows.reduce((acc: Record<string, number>, row: any) => {
-        acc[row.phase] = parseInt(row.count.toString());
+        acc[row.phase] = parseInt(row.count);
         return acc;
       }, {});
       
@@ -9029,7 +8855,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN upload_status = 'warning' THEN 1 END) as warning_uploads,
           COUNT(CASE WHEN phase IN ('started', 'uploading', 'encoding') THEN 1 END) as active_uploads
         FROM ${uploaderTableName}
-        WHERE phase IS NOT NULL AND phase != 'uploaded'::text
       `);
       
       const totals = totalResult.rows[0];
@@ -18359,21 +18184,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Get aggregated data from JSONB field_data (current table structure)
+          // Get aggregated data using raw TDDF specification (matches PowerShell logic)
           const tableInfoResult = await pool.query(`
             SELECT 
               $1 as processing_date,
               COUNT(*) as total_records,
               COALESCE(SUM(CASE 
                 WHEN record_type = 'DT' 
-                  AND field_data->>'transactionAmount' IS NOT NULL
-                THEN CAST(field_data->>'transactionAmount' AS DECIMAL)
+                  AND LENGTH(raw_line) >= 103 
+                  AND SUBSTRING(raw_line, 93, 11) ~ '^[0-9]+$' 
+                THEN CAST(SUBSTRING(raw_line, 93, 11) AS DECIMAL) / 100.0 
                 ELSE 0 
               END), 0) as dt_transaction_amounts,
               COALESCE(SUM(CASE 
                 WHEN record_type = 'BH' 
-                  AND field_data->>'netDeposit' IS NOT NULL
-                THEN CAST(field_data->>'netDeposit' AS DECIMAL)
+                  AND LENGTH(raw_line) >= 83 
+                  AND SUBSTRING(raw_line, 69, 15) ~ '^[0-9]+$' 
+                THEN CAST(SUBSTRING(raw_line, 69, 15) AS DECIMAL) / 100.0 
                 ELSE 0 
               END), 0) as bh_net_deposits,
               COUNT(DISTINCT record_type) as record_types
@@ -18658,106 +18485,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  // ==================== HYBRID STORAGE MIGRATION ROUTES ====================
-  
-  // Get TDDF1 hybrid migration status
-  app.get("/api/tddf1/hybrid-migration/status", isAuthenticated, async (req, res) => {
-    try {
-      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
-      const migrationService = new TddfHybridMigrationService();
-      
-      const status = await migrationService.getMigrationStatus();
-      const tables = await migrationService.getTddf1Tables();
-      
-      const summary = {
-        totalTables: tables.length,
-        totalSizeMB: Math.round(tables.reduce((sum, t) => sum + t.size_bytes, 0) / 1024 / 1024),
-        migratedTables: status.filter(s => s.migration_complete).length,
-        pendingTables: status.filter(s => !s.migration_complete).length,
-        totalRecords: status.reduce((sum, s) => sum + s.total_records, 0),
-        migratedRecords: status.reduce((sum, s) => sum + s.migrated_records, 0)
-      };
-      
-      res.json({
-        success: true,
-        summary,
-        tables: status
-      });
-    } catch (error) {
-      console.error("Error getting hybrid migration status:", error);
-      res.status(500).json({ 
-        error: "Failed to get migration status",
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
-  // Start hybrid migration for a specific table
-  app.post("/api/tddf1/hybrid-migration/migrate-table", isAuthenticated, async (req, res) => {
-    try {
-      const { tableName } = req.body;
-      
-      if (!tableName) {
-        return res.status(400).json({ error: "tableName is required" });
-      }
-      
-      console.log(`🔄 Starting hybrid migration for table: ${tableName}`);
-      
-      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
-      const migrationService = new TddfHybridMigrationService();
-      
-      const result = await migrationService.migrateTable(tableName);
-      
-      if (result.success) {
-        console.log(`✅ Migration completed for ${tableName}: ${result.recordsProcessed} records, ~${Math.round(result.spaceSaved / 1024 / 1024)}MB saved`);
-      } else {
-        console.error(`❌ Migration failed for ${tableName}: ${result.error}`);
-      }
-      
-      res.json({
-        success: result.success,
-        tableName,
-        recordsProcessed: result.recordsProcessed,
-        spaceSavedMB: Math.round(result.spaceSaved / 1024 / 1024),
-        error: result.error
-      });
-    } catch (error) {
-      console.error("Error migrating table:", error);
-      res.status(500).json({ 
-        error: "Failed to migrate table",
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
-  // Start hybrid migration for all tables
-  app.post("/api/tddf1/hybrid-migration/migrate-all", isAuthenticated, async (req, res) => {
-    try {
-      console.log(`🔄 Starting hybrid migration for all TDDF1 tables`);
-      
-      const { TddfHybridMigrationService } = await import('./services/tddf-hybrid-migration');
-      const migrationService = new TddfHybridMigrationService();
-      
-      const result = await migrationService.migrateAllTables();
-      
-      console.log(`✅ Migration completed: ${result.tablesProcessed} tables, ${result.totalRecords} records, ~${Math.round(result.totalSpaceSaved / 1024 / 1024)}MB saved`);
-      
-      res.json({
-        success: result.success,
-        tablesProcessed: result.tablesProcessed,
-        totalRecords: result.totalRecords,
-        spaceSavedMB: Math.round(result.totalSpaceSaved / 1024 / 1024),
-        errors: result.errors
-      });
-    } catch (error) {
-      console.error("Error migrating all tables:", error);
-      res.status(500).json({ 
-        error: "Failed to migrate all tables",
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
   return httpServer;
 }
 

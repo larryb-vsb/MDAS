@@ -85,7 +85,7 @@ export class ConcurrencyCleanupService {
         SELECT 
           processing_server_id,
           COUNT(*) as files_processing,
-          MIN(processing_started) as earliest_start
+          MIN(processing_started_at) as earliest_start
         FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'processing'
         GROUP BY processing_server_id
@@ -97,12 +97,12 @@ export class ConcurrencyCleanupService {
         SELECT 
           original_filename,
           processing_server_id,
-          processing_started,
-          EXTRACT(EPOCH FROM (NOW() - processing_started))/60 as duration_minutes
+          processing_started_at,
+          EXTRACT(EPOCH FROM (NOW() - processing_started_at))/60 as duration_minutes
         FROM ${sql.identifier(uploadsTableName)}
         WHERE processing_status = 'processing'
-          AND processing_started < ${timeoutThreshold.toISOString()}
-        ORDER BY processing_started ASC
+          AND processing_started_at < ${timeoutThreshold.toISOString()}
+        ORDER BY processing_started_at ASC
         LIMIT 1
       `);
       
