@@ -902,6 +902,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-time database processing statistics endpoint with TDDF operations
   app.get("/api/processing/real-time-stats", async (req, res) => {
     try {
+      // Import table manager for graceful error handling
+      const { TableManager } = await import('./services/table-manager');
+      
+      // Check table health first
+      const tableStatus = await TableManager.getProcessingTablesStatus();
+      
+      // If critical tables are missing, return error with creation options
+      if (!tableStatus.allHealthy) {
+        return res.status(503).json({
+          error: 'Processing tables not ready',
+          details: tableStatus.summary,
+          tables: tableStatus.tables,
+          canCreateMissing: true
+        });
+      }
+      
       // Use environment-specific table names
       const uploadedFilesTableName = getTableName('uploaded_files');
       const transactionsTableName = getTableName('transactions');
@@ -910,17 +926,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[REAL-TIME STATS] Using tables: ${uploadedFilesTableName}, ${transactionsTableName}, ${tddfRecordsTableName}`);
       
-      // Get real-time file processing statistics using new processing_status field
+      // Get real-time file processing statistics using processing_status field
       const result = await pool.query(`
         SELECT 
           COUNT(*) as total_files,
-          COUNT(CASE WHEN processing_status = 'queued' AND deleted = false THEN 1 END) as queued_files,
-          COUNT(CASE WHEN processing_status = 'completed' AND deleted = false THEN 1 END) as processed_files,
-          COUNT(CASE WHEN processing_status = 'processing' AND deleted = false THEN 1 END) as currently_processing,
-          COUNT(CASE WHEN processing_status = 'failed' AND deleted = false THEN 1 END) as files_with_errors,
-          COUNT(CASE WHEN deleted = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
-          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND deleted = false THEN 1 END) as tddf_files_processed,
-          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND deleted = false THEN 1 END) as tddf_files_queued
+          COUNT(CASE WHEN processing_status = 'queued' AND COALESCE(deleted, false) = false THEN 1 END) as queued_files,
+          COUNT(CASE WHEN processing_status = 'completed' AND COALESCE(deleted, false) = false THEN 1 END) as processed_files,
+          COUNT(CASE WHEN processing_status = 'processing' AND COALESCE(deleted, false) = false THEN 1 END) as currently_processing,
+          COUNT(CASE WHEN processing_status = 'failed' AND COALESCE(deleted, false) = false THEN 1 END) as files_with_errors,
+          COUNT(CASE WHEN COALESCE(deleted, false) = false AND uploaded_at > NOW() - INTERVAL '1 hour' THEN 1 END) as recent_files,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'completed' AND COALESCE(deleted, false) = false THEN 1 END) as tddf_files_processed,
+          COUNT(CASE WHEN file_type = 'tddf' AND processing_status = 'queued' AND COALESCE(deleted, false) = false THEN 1 END) as tddf_files_queued
         FROM ${uploadedFilesTableName}
       `);
 
@@ -8910,6 +8926,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Table management endpoints for graceful handling of missing tables
+  app.get("/api/processing/table-status", isAuthenticated, async (req, res) => {
+    try {
+      const { TableManager } = await import('./services/table-manager');
+      const status = await TableManager.getProcessingTablesStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting table status:', error);
+      res.status(500).json({ 
+        error: 'Failed to get table status',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/processing/create-missing-tables", isAuthenticated, async (req, res) => {
+    try {
+      const { TableManager } = await import('./services/table-manager');
+      const { tables } = req.body;
+      
+      if (!tables || !Array.isArray(tables)) {
+        return res.status(400).json({ error: 'tables array is required' });
+      }
+      
+      const results = [];
+      
+      for (const tableInfo of tables) {
+        try {
+          if (!tableInfo.exists) {
+            // Create missing table
+            const baseTableName = tableInfo.tableName.replace(/^dev_/, '').replace(/^prod_/, '');
+            await TableManager.createBasicTable(baseTableName);
+            results.push({ table: tableInfo.tableName, action: 'created', success: true });
+          } else if (tableInfo.missingColumns && tableInfo.missingColumns.length > 0) {
+            // Add missing columns
+            await TableManager.createMissingColumns(tableInfo.tableName, tableInfo.missingColumns);
+            results.push({ 
+              table: tableInfo.tableName, 
+              action: 'columns_added', 
+              success: true,
+              columns: tableInfo.missingColumns
+            });
+          }
+        } catch (error) {
+          results.push({ 
+            table: tableInfo.tableName, 
+            action: 'failed', 
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+      
+      res.json({ success: true, results });
+      
+    } catch (error) {
+      console.error('Error creating missing tables:', error);
+      res.status(500).json({ 
+        error: 'Failed to create missing tables',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // V2 Dashboard API Endpoints for Session-Based Uploads and JSONB Processing
   
   // Uploader dashboard statistics with cache building functionality
@@ -8930,7 +9010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       const byPhase = phaseResult.rows.reduce((acc: Record<string, number>, row: any) => {
-        acc[row.phase] = parseInt(row.count);
+        acc[row.phase] = parseInt(row.count.toString());
         return acc;
       }, {});
       

@@ -1047,22 +1047,22 @@ export class ScanlyWatcher {
     const stuckResult = await db.execute(sql`
       SELECT COUNT(*) as stuck_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'processing' 
-      AND processing_started_at < ${thirtyMinutesAgo.toISOString()}
+      AND processing_started < ${thirtyMinutesAgo.toISOString()}
     `);
 
     // Find slow files (completed but took >10 minutes)
     const slowResult = await db.execute(sql`
       SELECT COUNT(*) as slow_files FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
-      AND processing_time_ms > ${10 * 60 * 1000}
-      AND processing_completed_at > ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}
+      AND COALESCE(processing_time_ms, 0) > ${10 * 60 * 1000}
+      AND processing_completed > ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}
     `);
 
     // Calculate average processing time for completed files in last 24 hours
     const avgTimeResult = await db.execute(sql`
       SELECT AVG(processing_time_ms) as avg_processing_time FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
-      AND processing_completed_at > ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}
+      AND processing_completed > ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}
       AND processing_time_ms IS NOT NULL
     `);
 
@@ -1070,7 +1070,7 @@ export class ScanlyWatcher {
     const throughputResult = await db.execute(sql`
       SELECT COUNT(*) as recent_completed FROM ${sql.identifier(tableName)}
       WHERE processing_status = 'completed' 
-      AND processing_completed_at > ${tenMinutesAgo.toISOString()}
+      AND processing_completed > ${tenMinutesAgo.toISOString()}
     `);
 
     // Get TDDF backlog information
