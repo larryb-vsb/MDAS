@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,16 @@ interface Tddf1RecentActivity {
   tableName: string;
 }
 
+interface DraggableCircle {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  value: string;
+  label: string;
+  isDragging: boolean;
+}
+
 interface Tddf1EncodingProgress {
   uploadId: string;
   filename: string;
@@ -91,6 +101,126 @@ interface Tddf1PipelineStatus {
   lastUpdated: string;
 }
 
+// Draggable Circles Component
+function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
+  circles: DraggableCircle[];
+  onCircleUpdate: (circles: DraggableCircle[]) => void;
+  containerRef: React.RefObject<HTMLDivElement>;
+}) {
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent, circleId: string) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const circle = circles.find(c => c.id === circleId);
+    if (!circle) return;
+
+    setDragOffset({
+      x: e.clientX - rect.left - circle.x,
+      y: e.clientY - rect.top - circle.y
+    });
+
+    const updatedCircles = circles.map(c => 
+      c.id === circleId ? { ...c, isDragging: true } : c
+    );
+    onCircleUpdate(updatedCircles);
+  }, [circles, containerRef, onCircleUpdate]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragOffset || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const draggingCircle = circles.find(c => c.isDragging);
+    if (!draggingCircle) return;
+
+    const newX = Math.max(30, Math.min(rect.width - 30, e.clientX - rect.left - dragOffset.x));
+    const newY = Math.max(30, Math.min(rect.height - 30, e.clientY - rect.top - dragOffset.y));
+
+    const updatedCircles = circles.map(c => 
+      c.isDragging ? { ...c, x: newX, y: newY } : c
+    );
+    onCircleUpdate(updatedCircles);
+  }, [dragOffset, circles, containerRef, onCircleUpdate]);
+
+  const handleMouseUp = useCallback(() => {
+    setDragOffset(null);
+    const updatedCircles = circles.map(c => ({ ...c, isDragging: false }));
+    onCircleUpdate(updatedCircles);
+  }, [circles, onCircleUpdate]);
+
+  useEffect(() => {
+    if (dragOffset) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragOffset, handleMouseMove, handleMouseUp]);
+
+  return (
+    <>
+      {circles.map((circle) => (
+        <div
+          key={circle.id}
+          className={`absolute cursor-move select-none transition-transform duration-200 ${
+            circle.isDragging ? 'scale-110 z-10' : 'hover:scale-105'
+          }`}
+          style={{
+            left: circle.x - 30,
+            top: circle.y - 30,
+          }}
+          onMouseDown={(e) => handleMouseDown(e, circle.id)}
+        >
+          <div
+            className={`w-16 h-16 ${circle.color} rounded-full flex flex-col items-center justify-center text-white shadow-lg border-2 border-white/20 animate-pulse`}
+            style={{
+              animation: `wiggle-${circle.id.replace(/[^a-zA-Z]/g, '')} 3s ease-in-out infinite`
+            }}
+          >
+            <div className="text-xs font-bold leading-tight">{circle.value}</div>
+            <div className="text-xs opacity-80 leading-tight text-center">{circle.label}</div>
+          </div>
+        </div>
+      ))}
+      <style jsx>{`
+        @keyframes wiggle-records {
+          0%, 100% { transform: rotate(-2deg) translateY(0); }
+          25% { transform: rotate(1deg) translateY(-1px); }
+          50% { transform: rotate(-1deg) translateY(1px); }
+          75% { transform: rotate(2deg) translateY(-1px); }
+        }
+        @keyframes wiggle-files {
+          0%, 100% { transform: rotate(1deg) translateY(0); }
+          25% { transform: rotate(-2deg) translateY(1px); }
+          50% { transform: rotate(2deg) translateY(-1px); }
+          75% { transform: rotate(-1deg) translateY(1px); }
+        }
+        @keyframes wiggle-auth {
+          0%, 100% { transform: rotate(-1deg) translateY(0); }
+          25% { transform: rotate(2deg) translateY(-1px); }
+          50% { transform: rotate(-2deg) translateY(1px); }
+          75% { transform: rotate(1deg) translateY(-1px); }
+        }
+        @keyframes wiggle-deposits {
+          0%, 100% { transform: rotate(2deg) translateY(0); }
+          25% { transform: rotate(-1deg) translateY(1px); }
+          50% { transform: rotate(1deg) translateY(-1px); }
+          75% { transform: rotate(-2deg) translateY(1px); }
+        }
+        @keyframes wiggle-tables {
+          0%, 100% { transform: rotate(-2deg) translateY(0); }
+          25% { transform: rotate(1deg) translateY(-1px); }
+          50% { transform: rotate(-1deg) translateY(1px); }
+          75% { transform: rotate(2deg) translateY(-1px); }
+        }
+      `}</style>
+    </>
+  );
+}
+
 function Tddf1Page() {
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -99,7 +229,7 @@ function Tddf1Page() {
   const queryClient = useQueryClient();
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
-
+  
   // Get user info for theme preferences
   const { data: user, refetch: refetchUser } = useQuery({
     queryKey: ['/api/user'],
@@ -152,6 +282,64 @@ function Tddf1Page() {
     enabled: !!trackingUploadId && showProgressTracking,
     refetchInterval: trackingUploadId ? 2000 : false, // Poll every 2 seconds when tracking
   });
+
+  // Draggable circles state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [circles, setCircles] = useState<DraggableCircle[]>([]);
+
+  // Initialize circles when dayBreakdown data is available
+  useEffect(() => {
+    if (dayBreakdown && containerRef.current) {
+      const newCircles: DraggableCircle[] = [
+        {
+          id: 'records',
+          x: 80,
+          y: 80,
+          color: 'bg-blue-500',
+          value: `${((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k`,
+          label: 'Records',
+          isDragging: false
+        },
+        {
+          id: 'files',
+          x: 180,
+          y: 120,
+          color: 'bg-green-500',
+          value: `${dayBreakdown.fileCount ?? 0}`,
+          label: 'Files',
+          isDragging: false
+        },
+        {
+          id: 'auth',
+          x: 120,
+          y: 180,
+          color: 'bg-purple-500',
+          value: `$${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k`,
+          label: 'Auth',
+          isDragging: false
+        },
+        {
+          id: 'deposits',
+          x: 220,
+          y: 80,
+          color: 'bg-emerald-500',
+          value: `$${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k`,
+          label: 'Deposits',
+          isDragging: false
+        },
+        {
+          id: 'tables',
+          x: 160,
+          y: 220,
+          color: 'bg-orange-500',
+          value: `${(dayBreakdown.tables ?? []).length}`,
+          label: 'Tables',
+          isDragging: false
+        }
+      ];
+      setCircles(newCircles);
+    }
+  }, [dayBreakdown]);
 
   // Navigation functions
   const navigateToToday = () => setSelectedDate(new Date());
@@ -490,48 +678,23 @@ function Tddf1Page() {
               {dayLoading ? (
                 <div className="text-center py-4 text-gray-500 text-sm">Loading day data...</div>
               ) : dayBreakdown ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1">
-                    <div className="text-center p-1">
-                      <div className="text-lg font-bold text-blue-600">
-                        <span className="hidden sm:inline">{(dayBreakdown.totalRecords ?? 0).toLocaleString()}</span>
-                        <span className="sm:hidden">{((dayBreakdown.totalRecords ?? 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Records Processed</div>
-                      {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
-                        <div className="text-xs text-gray-500">
-                          <span className="hidden sm:inline">{dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0).toLocaleString()} total</span>
-                          <span className="sm:hidden">{(dayBreakdown.filesProcessed.reduce((sum, file) => sum + (file.recordCount || 0), 0)/1000).toFixed(0)}k total</span>
-                        </div>
-                      )}
+                <div className="space-y-4">
+                  {/* Interactive Draggable Circles */}
+                  <div 
+                    ref={containerRef} 
+                    className="relative h-64 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden"
+                    style={{ touchAction: 'none' }}
+                  >
+                    <div className="absolute top-2 left-2 text-xs text-gray-500 dark:text-gray-400">
+                      Drag the circles around!
                     </div>
-                    <div className="text-center p-1">
-                      <div className="text-lg font-bold text-green-600">{dayBreakdown.fileCount ?? 0}</div>
-                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Files Processed</div>
-                      {dayBreakdown.filesProcessed && dayBreakdown.filesProcessed.length > 0 && (
-                        <div className="text-xs text-gray-500">
-                          {dayBreakdown.filesProcessed.filter(f => f.processingTime).length} completed
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-center p-1">
-                      <div className="text-base font-bold text-purple-600">
-                        <span className="hidden sm:inline">${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
-                        <span className="sm:hidden">${((dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Authorizations</div>
-                    </div>
-                    <div className="text-center p-1">
-                      <div className="text-base font-bold text-emerald-600">
-                        <span className="hidden sm:inline">${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k</span>
-                        <span className="sm:hidden">${((dayBreakdown.netDepositsValue ?? dayBreakdown.netDepositsTotal ?? 0)/1000).toFixed(0)}k</span>
-                      </div>
-                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Net Deposits</div>
-                    </div>
-                    <div className="text-center p-1">
-                      <div className="text-lg font-bold text-orange-600">{(dayBreakdown.tables ?? []).length}</div>
-                      <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Active Tables</div>
-                    </div>
+                    {circles.length > 0 && (
+                      <DraggableCircles 
+                        circles={circles}
+                        onCircleUpdate={setCircles}
+                        containerRef={containerRef}
+                      />
+                    )}
                   </div>
 
                   {/* Mobile-Optimized Record Type Breakdown */}
