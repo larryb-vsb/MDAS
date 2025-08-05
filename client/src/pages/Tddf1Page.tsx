@@ -108,6 +108,8 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
   containerRef: React.RefObject<HTMLDivElement>;
 }) {
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
+  const [isSettling, setIsSettling] = useState(false);
+  const animationRef = useRef<number | null>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent, circleId: string) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -135,8 +137,17 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
     if (!draggingCircle) return;
 
     const draggingRadius = (draggingCircle.id === 'auth' || draggingCircle.id === 'deposits') ? 56 : 48;
-    let newX = Math.max(draggingRadius, Math.min(rect.width - draggingRadius, e.clientX - rect.left - dragOffset.x));
-    let newY = Math.max(draggingRadius, Math.min(rect.height - draggingRadius, e.clientY - rect.top - dragOffset.y));
+    
+    // Smooth movement with reduced sensitivity
+    const targetX = e.clientX - rect.left - dragOffset.x;
+    const targetY = e.clientY - rect.top - dragOffset.y;
+    
+    // Lerp for smoother movement (0.3 = 30% interpolation for slower movement)
+    const lerpFactor = 0.3;
+    const newX = Math.max(draggingRadius, Math.min(rect.width - draggingRadius, 
+      draggingCircle.x + (targetX - draggingCircle.x) * lerpFactor));
+    const newY = Math.max(draggingRadius, Math.min(rect.height - draggingRadius, 
+      draggingCircle.y + (targetY - draggingCircle.y) * lerpFactor));
 
     // Check for collisions with other circles and push them away
     const otherCircles = circles.filter(c => c.id !== draggingCircle.id);
@@ -180,7 +191,84 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
     setDragOffset(null);
     const updatedCircles = circles.map(c => ({ ...c, isDragging: false }));
     onCircleUpdate(updatedCircles);
-  }, [circles, onCircleUpdate]);
+    
+    // Start settling animation
+    setIsSettling(true);
+    
+    // Start the settling animation with a small delay
+    setTimeout(() => {
+      if (!containerRef.current) return;
+      
+      const animate = () => {
+        if (!containerRef.current) return;
+        
+        const rect = containerRef.current.getBoundingClientRect();
+        let hasMovement = false;
+        
+        const settledCircles = updatedCircles.map(circle => {
+          if (circle.isDragging) return circle;
+          
+          const radius = (circle.id === 'auth' || circle.id === 'deposits') ? 56 : 48;
+          let newX = circle.x;
+          let newY = circle.y;
+          
+          // Check collisions and gently push away
+          updatedCircles.forEach(otherCircle => {
+            if (otherCircle.id === circle.id || otherCircle.isDragging) return;
+            
+            const otherRadius = (otherCircle.id === 'auth' || otherCircle.id === 'deposits') ? 56 : 48;
+            const minDistance = radius + otherRadius + 15;
+            
+            const dx = circle.x - otherCircle.x;
+            const dy = circle.y - otherCircle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < minDistance && distance > 0) {
+              const pushForce = (minDistance - distance) * 0.02;
+              const angle = Math.atan2(dy, dx);
+              
+              const pushX = Math.cos(angle) * pushForce;
+              const pushY = Math.sin(angle) * pushForce;
+              
+              newX = Math.max(radius, Math.min(rect.width - radius, newX + pushX));
+              newY = Math.max(radius, Math.min(rect.height - radius, newY + pushY));
+              
+              if (Math.abs(pushX) > 0.1 || Math.abs(pushY) > 0.1) {
+                hasMovement = true;
+              }
+            }
+          });
+          
+          return { ...circle, x: newX, y: newY };
+        });
+        
+        onCircleUpdate(settledCircles);
+        
+        if (hasMovement) {
+          animationRef.current = requestAnimationFrame(animate);
+        } else {
+          setIsSettling(false);
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+            animationRef.current = null;
+          }
+        }
+      };
+      
+      animationRef.current = requestAnimationFrame(animate);
+    }, 50);
+  }, [circles, onCircleUpdate, containerRef]);
+
+
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (dragOffset) {
@@ -198,9 +286,9 @@ function DraggableCircles({ circles, onCircleUpdate, containerRef }: {
       {circles.map((circle) => (
         <div
           key={circle.id}
-          className={`absolute cursor-move select-none transition-transform duration-200 ${
+          className={`absolute cursor-move select-none transition-all duration-300 ease-out ${
             circle.isDragging ? 'scale-110 z-10' : 'hover:scale-105'
-          }`}
+          } ${isSettling ? 'transition-all duration-500 ease-out' : ''}`}
           style={{
             left: circle.x - (circle.id === 'auth' || circle.id === 'deposits' ? 56 : 48),
             top: circle.y - (circle.id === 'auth' || circle.id === 'deposits' ? 56 : 48),
