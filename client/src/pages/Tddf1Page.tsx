@@ -1255,9 +1255,14 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Bottom Tool Widget */}
+        {/* Toolbox */}
         <Card className={`shadow-lg border-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-          <CardContent className="p-4">
+          <CardHeader className="pb-2">
+            <CardTitle className={`text-center text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+              🧰 Toolbox
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4">
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <Button
                 variant="outline"
