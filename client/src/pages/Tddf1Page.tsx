@@ -654,37 +654,7 @@ function Tddf1Page() {
           </Card>
         </div>
 
-        {/* Compact Cache Management */}
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetchStats()}
-            disabled={statsLoading}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => rebuildCacheMutation.mutate()}
-            disabled={rebuildCacheMutation.isPending}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
-            Rebuild TDDF1 Totals Cache
-          </Button>
-        </div>
 
-        {rebuildCacheMutation.isPending && (
-          <div className="text-center p-2 bg-blue-50 rounded-md">
-            <div className="text-sm text-blue-800">
-              Rebuilding TDDF1 totals cache... This may take a few moments.
-            </div>
-          </div>
-        )}
 
         {/* Compact Processing Date Selector */}
         <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
@@ -1284,7 +1254,48 @@ function Tddf1Page() {
             )}
           </CardContent>
         </Card>
+
+        {/* Bottom Tool Widget */}
+        <Card className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 shadow-2xl border-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchStats()}
+                disabled={statsLoading}
+                className="flex items-center gap-1"
+              >
+                <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh Data</span>
+                <span className="sm:hidden">Refresh</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => rebuildCacheMutation.mutate()}
+                disabled={rebuildCacheMutation.isPending}
+                className="flex items-center gap-1"
+              >
+                <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Rebuild TDDF1 Totals Cache</span>
+                <span className="sm:hidden">Rebuild Cache</span>
+              </Button>
+            </div>
+            
+            {rebuildCacheMutation.isPending && (
+              <div className={`text-center mt-2 p-2 rounded-md transition-colors ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-800'}`}>
+                <div className="text-xs">
+                  Rebuilding TDDF1 totals cache... This may take a few moments.
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+      
+      {/* Add bottom padding to prevent content from being hidden behind the fixed widget */}
+      <div className="h-20"></div>
     </div>
   );
 }
