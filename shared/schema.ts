@@ -2438,3 +2438,43 @@ export type InsertTddfRecordsP1PreCache = z.infer<typeof insertTddfRecordsP1PreC
 export type InsertTddfRecordsP2PreCache = z.infer<typeof insertTddfRecordsP2PreCacheSchema>;
 export type InsertTddfRecordsOtherPreCache = z.infer<typeof insertTddfRecordsOtherPreCacheSchema>;
 export type InsertTddfRecordsTabProcessingStatus = z.infer<typeof insertTddfRecordsTabProcessingStatusSchema>;
+
+// TDDF1 Merchants table for tracking merchant volume analytics and account changes
+export const tddf1Merchants = pgTable(getTableName("tddf1_merchants"), {
+  id: serial("id").primaryKey(),
+  
+  // Core merchant identifiers
+  merchantId: text("merchant_id").notNull().unique(), // Primary merchant ID (BH Merchant Account Number)
+  merchantName: text("merchant_name"), // DBA name from DT records (pos 218-242)
+  amexMerchantSellerName: text("amex_merchant_seller_name"), // Amex Merchant Seller Name from DT records (pos 513-537)
+  
+  // Volume analytics
+  totalTransactions: integer("total_transactions").notNull().default(0),
+  totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).notNull().default(0),
+  totalNetDeposits: numeric("total_net_deposits", { precision: 15, scale: 2 }).notNull().default(0),
+  uniqueTerminals: integer("unique_terminals").notNull().default(0),
+  
+  // Date ranges
+  firstSeenDate: date("first_seen_date"),
+  lastSeenDate: date("last_seen_date"),
+  
+  // Tracking metadata
+  recordCount: integer("record_count").notNull().default(0), // Total TDDF records processed
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // Processing tracking
+  sourceFiles: text("source_files").array().notNull().default([]), // Files this merchant appeared in
+  lastProcessedFile: text("last_processed_file") // Most recent file processed
+}, (table) => ({
+  merchantIdIdx: index("tddf1_merchants_merchant_id_idx").on(table.merchantId),
+  totalAmountIdx: index("tddf1_merchants_total_amount_idx").on(table.totalAmount),
+  totalTransactionsIdx: index("tddf1_merchants_total_transactions_idx").on(table.totalTransactions),
+  lastSeenIdx: index("tddf1_merchants_last_seen_idx").on(table.lastSeenDate)
+}));
+
+export type Tddf1Merchant = typeof tddf1Merchants.$inferSelect;
+export const insertTddf1MerchantSchema = createInsertSchema(tddf1Merchants).omit({ 
+  id: true, createdAt: true, lastUpdated: true 
+});
+export type InsertTddf1Merchant = z.infer<typeof insertTddf1MerchantSchema>;

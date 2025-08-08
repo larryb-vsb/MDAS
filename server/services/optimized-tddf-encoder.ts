@@ -140,6 +140,9 @@ export class OptimizedTddfEncoder {
     await this.createOptimizedTddfTable(db, tableName);
     await this.batchInsertRecords(db, tableName, records);
     
+    // Update merchant volume analytics
+    await this.updateMerchantAnalytics(db, records, filename);
+    
     return {
       processedRecords: records.length,
       storageSavings,
@@ -330,6 +333,183 @@ export class OptimizedTddfEncoder {
     if (bytes === 0) return '0 Bytes';
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  /**
+   * Update merchant volume analytics from processed TDDF records
+   */
+  private async updateMerchantAnalytics(db: any, records: TddfRecord[], filename: string): Promise<void> {
+    try {
+      const environment = process.env.NODE_ENV || 'development';
+      const merchantsTableName = environment === 'development' ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      
+      console.log(`[TDDF-MERCHANTS] Updating merchant analytics from ${records.length} records in ${filename}`);
+      
+      // Group records by merchant ID and extract merchant data
+      const merchantData = new Map<string, {
+        merchantId: string;
+        merchantName?: string;
+        amexMerchantSellerName?: string;
+        totalTransactions: number;
+        totalAmount: number;
+        totalNetDeposits: number;
+        uniqueTerminals: Set<string>;
+        firstSeenDate: Date | null;
+        lastSeenDate: Date | null;
+        recordCount: number;
+      }>();
+      
+      for (const record of records) {
+        let merchantId: string | null = null;
+        let merchantName: string | null = null;
+        let amexMerchantSellerName: string | null = null;
+        let transactionAmount = 0;
+        let netDeposit = 0;
+        let terminalId: string | null = null;
+        
+        // Extract merchant data based on record type
+        if (record.record_type === 'BH' && record.field_data) {
+          // BH records contain Merchant Account Number (pos 24-39) and Net Deposits
+          merchantId = record.merchant_id || record.field_data.batchId;
+          netDeposit = record.field_data.netDeposit || 0;
+        } else if (record.record_type === 'DT' && record.field_data) {
+          // DT records contain merchant names and transaction amounts
+          merchantId = record.merchant_id || record.field_data.merchantAccountNumber;
+          merchantName = record.field_data.merchantName;
+          amexMerchantSellerName = record.field_data.amexMerchantSellerName;
+          transactionAmount = record.transaction_amount || 0;
+          terminalId = record.terminal_id || record.field_data.terminalId;
+        }
+        
+        if (merchantId) {
+          if (!merchantData.has(merchantId)) {
+            merchantData.set(merchantId, {
+              merchantId,
+              merchantName: merchantName || undefined,
+              amexMerchantSellerName: amexMerchantSellerName || undefined,
+              totalTransactions: 0,
+              totalAmount: 0,
+              totalNetDeposits: 0,
+              uniqueTerminals: new Set(),
+              firstSeenDate: record.transaction_date,
+              lastSeenDate: record.transaction_date,
+              recordCount: 0
+            });
+          }
+          
+          const merchant = merchantData.get(merchantId)!;
+          
+          // Update merchant data
+          if (merchantName && !merchant.merchantName) {
+            merchant.merchantName = merchantName;
+          }
+          if (amexMerchantSellerName && !merchant.amexMerchantSellerName) {
+            merchant.amexMerchantSellerName = amexMerchantSellerName;
+          }
+          
+          if (record.record_type === 'DT') {
+            merchant.totalTransactions++;
+            merchant.totalAmount += transactionAmount;
+          }
+          if (record.record_type === 'BH') {
+            merchant.totalNetDeposits += netDeposit;
+          }
+          
+          if (terminalId) {
+            merchant.uniqueTerminals.add(terminalId);
+          }
+          
+          // Update date ranges
+          if (record.transaction_date) {
+            if (!merchant.firstSeenDate || record.transaction_date < merchant.firstSeenDate) {
+              merchant.firstSeenDate = record.transaction_date;
+            }
+            if (!merchant.lastSeenDate || record.transaction_date > merchant.lastSeenDate) {
+              merchant.lastSeenDate = record.transaction_date;
+            }
+          }
+          
+          merchant.recordCount++;
+        }
+      }
+      
+      // Update or insert merchant records using environment-aware queries
+      for (const [merchantId, data] of merchantData) {
+        try {
+          const checkExistsQuery = `SELECT merchant_id FROM ${merchantsTableName} WHERE merchant_id = $1`;
+          const existingResult = await db.query(checkExistsQuery, [data.merchantId]);
+          
+          if (existingResult.rows.length > 0) {
+            // Update existing merchant
+            const updateSQL = `
+              UPDATE ${merchantsTableName} SET
+                merchant_name = COALESCE($2, merchant_name),
+                amex_merchant_seller_name = COALESCE($3, amex_merchant_seller_name),
+                total_transactions = total_transactions + $4,
+                total_amount = total_amount + $5,
+                total_net_deposits = total_net_deposits + $6,
+                unique_terminals = unique_terminals + $7,
+                first_seen_date = LEAST(first_seen_date, $8),
+                last_seen_date = GREATEST(last_seen_date, $9),
+                record_count = record_count + $10,
+                last_updated = NOW(),
+                source_files = CASE 
+                  WHEN $11 = ANY(source_files) THEN source_files
+                  ELSE array_append(source_files, $11)
+                END,
+                last_processed_file = $11
+              WHERE merchant_id = $1
+            `;
+            
+            await db.query(updateSQL, [
+              data.merchantId,
+              data.merchantName,
+              data.amexMerchantSellerName,
+              data.totalTransactions,
+              data.totalAmount,
+              data.totalNetDeposits,
+              data.uniqueTerminals.size,
+              data.firstSeenDate,
+              data.lastSeenDate,
+              data.recordCount,
+              filename
+            ]);
+          } else {
+            // Insert new merchant
+            const insertSQL = `
+              INSERT INTO ${merchantsTableName} (
+                merchant_id, merchant_name, amex_merchant_seller_name,
+                total_transactions, total_amount, total_net_deposits, unique_terminals,
+                first_seen_date, last_seen_date, record_count, last_updated,
+                source_files, last_processed_file
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), ARRAY[$11], $11)
+            `;
+            
+            await db.query(insertSQL, [
+              data.merchantId,
+              data.merchantName,
+              data.amexMerchantSellerName,
+              data.totalTransactions,
+              data.totalAmount,
+              data.totalNetDeposits,
+              data.uniqueTerminals.size,
+              data.firstSeenDate,
+              data.lastSeenDate,
+              data.recordCount,
+              filename
+            ]);
+          }
+        } catch (merchantError) {
+          console.error(`[TDDF-MERCHANTS] Error updating merchant ${data.merchantId}:`, merchantError);
+        }
+      }
+      
+      console.log(`[TDDF-MERCHANTS] Updated ${merchantData.size} merchants from ${filename}`);
+      
+    } catch (error) {
+      console.error('[TDDF-MERCHANTS] Error updating merchant analytics:', error);
+      // Don't throw - merchant tracking is supplementary, shouldn't fail main processing
+    }
   }
 }
 

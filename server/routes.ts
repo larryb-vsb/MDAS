@@ -17992,6 +17992,265 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Merchant Volume Analytics API Endpoints
+  app.get('/api/tddf1/merchants', isAuthenticated, async (req, res) => {
+    console.log('[AUTH-DEBUG] Checking authentication for GET /api/tddf1/merchants');
+    console.log('[AUTH-DEBUG] User authenticated:', !!req.user?.username);
+    
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        search,
+        sortBy = 'totalTransactions',
+        sortOrder = 'desc',
+        minAmount,
+        maxAmount,
+        minTransactions,
+        maxTransactions,
+        minTerminals,
+        maxTerminals
+      } = req.query;
+      
+      console.log('[TDDF1 MERCHANTS API] Query params:', {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        search,
+        sortBy,
+        sortOrder,
+        minAmount,
+        maxAmount,
+        minTransactions,
+        maxTransactions,
+        minTerminals,
+        maxTerminals
+      });
+      
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const merchantsTableName = isDevelopment ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      
+      // Build WHERE conditions
+      const conditions = [];
+      const values = [];
+      let paramCount = 0;
+      
+      if (search) {
+        paramCount++;
+        conditions.push(`(merchant_id ILIKE $${paramCount} OR merchant_name ILIKE $${paramCount})`);
+        values.push(`%${search}%`);
+      }
+      
+      if (minAmount) {
+        paramCount++;
+        conditions.push(`total_amount >= $${paramCount}`);
+        values.push(parseFloat(minAmount as string));
+      }
+      
+      if (maxAmount) {
+        paramCount++;
+        conditions.push(`total_amount <= $${paramCount}`);
+        values.push(parseFloat(maxAmount as string));
+      }
+      
+      if (minTransactions) {
+        paramCount++;
+        conditions.push(`total_transactions >= $${paramCount}`);
+        values.push(parseInt(minTransactions as string));
+      }
+      
+      if (maxTransactions) {
+        paramCount++;
+        conditions.push(`total_transactions <= $${paramCount}`);
+        values.push(parseInt(maxTransactions as string));
+      }
+      
+      if (minTerminals) {
+        paramCount++;
+        conditions.push(`unique_terminals >= $${paramCount}`);
+        values.push(parseInt(minTerminals as string));
+      }
+      
+      if (maxTerminals) {
+        paramCount++;
+        conditions.push(`unique_terminals <= $${paramCount}`);
+        values.push(parseInt(maxTerminals as string));
+      }
+      
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      
+      // Build ORDER BY clause
+      const validSortColumns = ['merchantId', 'merchantName', 'totalTransactions', 'totalAmount', 'totalNetDeposits', 'uniqueTerminals', 'lastSeenDate'];
+      const sortColumn = validSortColumns.includes(sortBy as string) ? 
+        (sortBy as string).replace(/([A-Z])/g, '_$1').toLowerCase() : 'total_transactions';
+      const sortDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
+      
+      // Calculate pagination
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const offset = (pageNum - 1) * limitNum;
+      
+      // Get total count
+      const countQuery = `SELECT COUNT(*) as total FROM ${merchantsTableName} ${whereClause}`;
+      const countResult = await pool.query(countQuery, values);
+      const totalItems = parseInt(countResult.rows[0]?.total || '0');
+      
+      // Get paginated results
+      paramCount++;
+      const limitParam = paramCount;
+      paramCount++;
+      const offsetParam = paramCount;
+      values.push(limitNum, offset);
+      
+      const dataQuery = `
+        SELECT 
+          merchant_id,
+          merchant_name,
+          amex_merchant_seller_name,
+          total_transactions,
+          total_amount,
+          total_net_deposits,
+          unique_terminals,
+          first_seen_date,
+          last_seen_date,
+          record_count,
+          last_updated,
+          source_files,
+          last_processed_file
+        FROM ${merchantsTableName}
+        ${whereClause}
+        ORDER BY ${sortColumn} ${sortDirection}
+        LIMIT $${limitParam} OFFSET $${offsetParam}
+      `;
+      
+      const dataResult = await pool.query(dataQuery, values);
+      
+      res.json({
+        data: dataResult.rows.map(row => ({
+          merchantId: row.merchant_id,
+          merchantName: row.merchant_name,
+          amexMerchantSellerName: row.amex_merchant_seller_name,
+          totalTransactions: parseInt(row.total_transactions),
+          totalAmount: parseFloat(row.total_amount),
+          totalNetDeposits: parseFloat(row.total_net_deposits),
+          uniqueTerminals: parseInt(row.unique_terminals),
+          firstSeenDate: row.first_seen_date,
+          lastSeenDate: row.last_seen_date,
+          recordCount: parseInt(row.record_count),
+          lastUpdated: row.last_updated,
+          sourceFiles: row.source_files || [],
+          lastProcessedFile: row.last_processed_file
+        })),
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalItems / limitNum),
+          totalItems,
+          itemsPerPage: limitNum
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching TDDF1 merchants:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // TDDF1 Merchant Top 5 by Volume (for daily page analysis)
+  app.get('/api/tddf1/merchants/top-volume', isAuthenticated, async (req, res) => {
+    try {
+      const { limit = 5, excludeIds } = req.query;
+      
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const merchantsTableName = isDevelopment ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      
+      // Build exclusion clause
+      let excludeClause = '';
+      const values = [parseInt(limit as string)];
+      
+      if (excludeIds) {
+        const excludeArray = Array.isArray(excludeIds) ? excludeIds : [excludeIds];
+        const excludePlaceholders = excludeArray.map((_, index) => `$${index + 2}`).join(',');
+        excludeClause = `WHERE merchant_id NOT IN (${excludePlaceholders})`;
+        values.push(...excludeArray);
+      }
+      
+      const query = `
+        SELECT 
+          merchant_id,
+          merchant_name,
+          total_transactions,
+          total_amount,
+          total_net_deposits,
+          unique_terminals,
+          last_seen_date
+        FROM ${merchantsTableName}
+        ${excludeClause}
+        ORDER BY total_amount DESC
+        LIMIT $1
+      `;
+      
+      const result = await pool.query(query, values);
+      
+      res.json(result.rows.map(row => ({
+        merchantId: row.merchant_id,
+        merchantName: row.merchant_name || `Merchant ${row.merchant_id}`,
+        totalTransactions: parseInt(row.total_transactions),
+        totalAmount: parseFloat(row.total_amount),
+        totalNetDeposits: parseFloat(row.total_net_deposits),
+        uniqueTerminals: parseInt(row.unique_terminals),
+        lastSeenDate: row.last_seen_date
+      })));
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching top volume merchants:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // TDDF1 Merchant Statistics Summary
+  app.get('/api/tddf1/merchants/stats', isAuthenticated, async (req, res) => {
+    try {
+      // Environment-aware table naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const merchantsTableName = isDevelopment ? 'dev_tddf1_merchants' : 'tddf1_merchants';
+      
+      const query = `
+        SELECT 
+          COUNT(*) as total_merchants,
+          SUM(total_transactions) as total_transactions,
+          SUM(total_amount) as total_amount,
+          SUM(total_net_deposits) as total_net_deposits,
+          SUM(unique_terminals) as total_terminals,
+          AVG(total_amount) as avg_amount_per_merchant,
+          MAX(total_amount) as max_merchant_volume,
+          MIN(CASE WHEN total_amount > 0 THEN total_amount END) as min_merchant_volume
+        FROM ${merchantsTableName}
+      `;
+      
+      const result = await pool.query(query);
+      const stats = result.rows[0];
+      
+      res.json({
+        totalMerchants: parseInt(stats.total_merchants || '0'),
+        totalTransactions: parseInt(stats.total_transactions || '0'),
+        totalAmount: parseFloat(stats.total_amount || '0'),
+        totalNetDeposits: parseFloat(stats.total_net_deposits || '0'),
+        totalTerminals: parseInt(stats.total_terminals || '0'),
+        avgAmountPerMerchant: parseFloat(stats.avg_amount_per_merchant || '0'),
+        maxMerchantVolume: parseFloat(stats.max_merchant_volume || '0'),
+        minMerchantVolume: parseFloat(stats.min_merchant_volume || '0')
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching merchant statistics:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // End of TDDF1 APIs
 
   // DUPLICATE ENDPOINT REMOVED - Using the first one only

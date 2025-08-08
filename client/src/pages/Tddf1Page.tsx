@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon, Building2 } from "lucide-react";
 import { format, addDays, subDays, isToday, getDay } from "date-fns";
 import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tddf1MerchantVolumeTab } from "@/components/Tddf1MerchantVolumeTab";
 
 import { cn } from "@/lib/utils";
 
@@ -351,6 +353,7 @@ function Tddf1Page() {
   const queryClient = useQueryClient();
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('overview');
   
   // Get user info for theme preferences
   const { data: user, refetch: refetchUser } = useQuery({
@@ -617,7 +620,22 @@ function Tddf1Page() {
           </div>
         </div>
 
-        {/* Main Financial Metrics */}
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Daily Overview
+            </TabsTrigger>
+            <TabsTrigger value="merchants" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Merchant Volume
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab Content */}
+          <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+            {/* Main Financial Metrics */}
         <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
@@ -1327,6 +1345,13 @@ function Tddf1Page() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* Merchant Volume Tab Content */}
+          <TabsContent value="merchants" className="space-y-2 sm:space-y-4">
+            <Tddf1MerchantVolumeTab selectedDate={selectedDate} isDarkMode={isDarkMode} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
