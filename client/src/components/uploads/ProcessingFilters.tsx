@@ -340,6 +340,7 @@ export default function ProcessingFilters() {
   });
 
   const formatFileType = (type: string) => {
+    if (!type) return "Unknown";
     switch (type) {
       case "merchant": return "Merchant Demographics";
       case "transaction": return "Transaction Data";
