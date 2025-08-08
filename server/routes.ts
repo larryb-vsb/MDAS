@@ -2025,12 +2025,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const placeholderResult = await pool.query(placeholderQuery, [file.originalname, type]);
         console.log(`[UPLOAD] Placeholder lookup for ${file.originalname}: ${placeholderResult.rows.length} matches found`);
-        let fileId: string;
+        let fileId: number;
         let isUpdatingPlaceholder = false;
         
         if (placeholderResult.rows.length > 0) {
           // Update existing placeholder
-          fileId = placeholderResult.rows[0].id;
+          fileId = parseInt(placeholderResult.rows[0].id);
           isUpdatingPlaceholder = true;
           console.log(`[UPLOAD] ✅ Found placeholder entry ${fileId} for ${file.originalname} - will update with content`);
         } else {
