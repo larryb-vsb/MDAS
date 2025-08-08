@@ -741,6 +741,61 @@ function Tddf1Page() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Toolbox - Visible on All Tabs */}
+          <Card className={`shadow-lg border-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-center text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                🧰 Toolbox
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 pb-4">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchStats()}
+                  disabled={statsLoading}
+                  className="flex items-center gap-1"
+                >
+                  <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh Data</span>
+                  <span className="sm:hidden">Refresh</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => rebuildCacheMutation.mutate()}
+                  disabled={rebuildCacheMutation.isPending}
+                  className="flex items-center gap-1"
+                >
+                  <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Rebuild TDDF1 Totals Cache</span>
+                  <span className="sm:hidden">Rebuild Cache</span>
+                </Button>
+                {!showProgressTracking && (
+                  <Button 
+                    onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
+                    variant="default"
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Activity className="h-4 w-4 animate-pulse" />
+                    <span className="hidden sm:inline">Track Live Encoding</span>
+                    <span className="sm:hidden">Track</span>
+                  </Button>
+                )}
+              </div>
+              
+              {rebuildCacheMutation.isPending && (
+                <div className={`text-center mt-2 p-2 rounded-md transition-colors ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-800'}`}>
+                  <div className="text-xs">
+                    Rebuilding TDDF1 totals cache... This may take a few moments.
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Overview Tab Content */}
           <TabsContent value="overview" className="space-y-2 sm:space-y-4">
             {/* Main Financial Metrics */}
@@ -1287,60 +1342,7 @@ function Tddf1Page() {
           </CardContent>
         </Card>
 
-        {/* Toolbox */}
-        <Card className={`shadow-lg border-2 transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className={`text-center text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-              🧰 Toolbox
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 pb-4">
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchStats()}
-                disabled={statsLoading}
-                className="flex items-center gap-1"
-              >
-                <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Refresh Data</span>
-                <span className="sm:hidden">Refresh</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => rebuildCacheMutation.mutate()}
-                disabled={rebuildCacheMutation.isPending}
-                className="flex items-center gap-1"
-              >
-                <RefreshCw className={`h-4 w-4 ${rebuildCacheMutation.isPending ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Rebuild TDDF1 Totals Cache</span>
-                <span className="sm:hidden">Rebuild Cache</span>
-              </Button>
-              {!showProgressTracking && (
-                <Button 
-                  onClick={() => startProgressTracking('uploader_1754109681308_4m2wdlwnj')} 
-                  variant="default"
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1"
-                >
-                  <Activity className="h-4 w-4 animate-pulse" />
-                  <span className="hidden sm:inline">Track Live Encoding</span>
-                  <span className="sm:hidden">Track</span>
-                </Button>
-              )}
-            </div>
-            
-            {rebuildCacheMutation.isPending && (
-              <div className={`text-center mt-2 p-2 rounded-md transition-colors ${isDarkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-800'}`}>
-                <div className="text-xs">
-                  Rebuilding TDDF1 totals cache... This may take a few moments.
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
           </TabsContent>
 
           {/* Merchant Volume Tab Content */}
