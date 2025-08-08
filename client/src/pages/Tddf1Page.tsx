@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon, Building2 } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, Database, FileText, TrendingUp, DollarSign, Activity, ArrowLeft, RefreshCw, Sun, Moon, Building2, X } from "lucide-react";
 import { format, addDays, subDays, isToday, getDay } from "date-fns";
 import { isNonProcessingDay, isFederalHoliday } from "@/lib/federal-holidays";
 import { useToast } from "@/hooks/use-toast";
@@ -354,6 +354,7 @@ function Tddf1Page() {
   const [showProgressTracking, setShowProgressTracking] = useState(false);
   const [trackingUploadId, setTrackingUploadId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [focusedMerchant, setFocusedMerchant] = useState<{id: string, name: string} | null>(null);
   
   // Get user info for theme preferences
   const { data: user, refetch: refetchUser } = useQuery({
@@ -798,6 +799,33 @@ function Tddf1Page() {
 
           {/* Overview Tab Content */}
           <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+            {/* Focused Merchant Indicator */}
+            {focusedMerchant && (
+              <Card className={`border-2 border-blue-500 transition-colors ${isDarkMode ? 'bg-blue-900/20 border-blue-400' : 'bg-blue-50 border-blue-300'}`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-blue-600" />
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                        Focused on: {focusedMerchant.name}
+                      </span>
+                      <Badge variant="outline" className={`text-xs ${isDarkMode ? 'border-blue-400 text-blue-300' : 'border-blue-500 text-blue-600'}`}>
+                        ID: {focusedMerchant.id.slice(-8)}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFocusedMerchant(null)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             {/* Main Financial Metrics */}
         <div className="grid grid-cols-2 gap-2 sm:gap-4">
           <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
@@ -1347,7 +1375,14 @@ function Tddf1Page() {
 
           {/* Merchant Volume Tab Content */}
           <TabsContent value="merchants" className="space-y-2 sm:space-y-4">
-            <Tddf1MerchantVolumeTab selectedDate={selectedDate} isDarkMode={isDarkMode} />
+            <Tddf1MerchantVolumeTab 
+              selectedDate={selectedDate} 
+              isDarkMode={isDarkMode} 
+              onMerchantFocus={(merchantId, merchantName) => {
+                setFocusedMerchant({id: merchantId, name: merchantName});
+                setActiveTab('overview'); // Switch to overview tab to show focus
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, TrendingUp, Users, DollarSign, CreditCard, Building2, X } from 'lucide-react';
+import { Search, TrendingUp, Users, DollarSign, CreditCard, Building2, X, MousePointer2 } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
 interface Merchant {
@@ -48,14 +49,16 @@ interface TopMerchant {
 interface Tddf1MerchantVolumeTabProps {
   selectedDate: Date;
   isDarkMode: boolean;
+  onMerchantFocus?: (merchantId: string, merchantName: string) => void;
 }
 
-export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1MerchantVolumeTabProps) {
+export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode, onMerchantFocus }: Tddf1MerchantVolumeTabProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState('totalAmount');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [excludedMerchants, setExcludedMerchants] = useState<string[]>([]);
+  const [, setLocation] = useLocation();
 
   // Fetch merchant statistics
   const { data: stats } = useQuery<MerchantStats>({
@@ -120,6 +123,29 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
 
   const handleIncludeMerchant = (merchantId: string) => {
     setExcludedMerchants(prev => prev.filter(id => id !== merchantId));
+  };
+
+  const handleMerchantClick = (merchant: TopMerchant) => {
+    // Create a date string for today to simulate daily analysis
+    const dateStr = new Date().toISOString().split('T')[0];
+    
+    // Call focus callback if provided (for daily tab integration)
+    if (onMerchantFocus) {
+      onMerchantFocus(merchant.merchantId, merchant.merchantName);
+    }
+    
+    // Navigate to merchant view page 
+    setLocation(`/merchant/${merchant.merchantId}/${dateStr}`);
+  };
+
+  const getDisplayName = (merchant: TopMerchant) => {
+    // Extract meaningful name from the merchant name field
+    if (merchant.merchantName && merchant.merchantName !== `Merchant ${merchant.merchantId}`) {
+      return merchant.merchantName;
+    }
+    
+    // Create a more readable format
+    return `Merchant ${merchant.merchantId.slice(-8)}`;
   };
 
   // Refetch top merchants when exclusions change
@@ -197,7 +223,7 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
             Top 5 Merchants by Volume
           </CardTitle>
           <CardDescription className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Highest volume merchants with exclusion capability for deeper analysis
+            Click merchant names to focus on daily analysis. Shows accumulated net batch and authorization DT values.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -224,27 +250,49 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
 
           <div className="space-y-2">
             {topMerchants?.map((merchant, index) => (
-              <div key={merchant.merchantId} className={`flex items-center justify-between p-2 border rounded-lg transition-colors ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
-                  <div>
-                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantName}</div>
-                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>ID: {merchant.merchantId}</div>
+              <div key={merchant.merchantId} className={`flex items-center justify-between p-3 border rounded-lg transition-all hover:shadow-md ${isDarkMode ? 'border-gray-600 bg-gray-800 hover:bg-gray-750 hover:border-gray-500' : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300'}`}>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-xs font-medium">#{index + 1}</Badge>
+                  <div className="flex-1">
+                    <div 
+                      className={`text-sm font-medium cursor-pointer transition-colors hover:underline flex items-center gap-2 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
+                      onClick={() => handleMerchantClick(merchant)}
+                    >
+                      {getDisplayName(merchant)}
+                      <MousePointer2 className="h-3 w-3" />
+                    </div>
+                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      ID: {merchant.merchantId.slice(-8)}
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalAmount)}</div>
+                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                      {formatCurrency(merchant.totalAmount)}
+                    </div>
                     <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Net Deposits: {formatCurrency(merchant.totalNetDeposits)}
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {formatNumber(merchant.totalTransactions)} txns
+                    </div>
+                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {merchant.uniqueTerminals} terms
                     </div>
                   </div>
                   
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleExcludeMerchant(merchant.merchantId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExcludeMerchant(merchant.merchantId);
+                    }}
                     className="text-xs px-2 py-1"
                   >
                     Exclude
