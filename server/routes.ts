@@ -1896,7 +1896,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[INIT] Using table: ${uploadedFilesTableName} for environment: ${currentEnvironment}`);
 
       for (const fileInfo of files) {
-        const fileId = `${fileType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Generate numeric ID for database compatibility
+        const fileId = Date.now() + Math.floor(Math.random() * 1000);
         
         console.log(`[INIT] Creating placeholder for: ${fileInfo.name} → ID: ${fileId}`);
         
@@ -2034,7 +2035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[UPLOAD] ✅ Found placeholder entry ${fileId} for ${file.originalname} - will update with content`);
         } else {
           // Create new file record
-          fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          fileId = Date.now() + Math.floor(Math.random() * 1000);
           console.log(`[UPLOAD] 🆕 No placeholder found for ${file.originalname} - creating new entry ${fileId}`);
           
           // Additional debug: check if any placeholders exist for this file at all
@@ -2282,7 +2283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create file record with basic information and file content
-      const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const fileId = Date.now() + Math.floor(Math.random() * 1000);
       
       // Read file content and encode as base64 for database storage
       const fileContent = fs.readFileSync(req.file.path, 'utf8');
