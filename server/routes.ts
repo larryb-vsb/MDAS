@@ -1896,8 +1896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[INIT] Using table: ${uploadedFilesTableName} for environment: ${currentEnvironment}`);
 
       for (const fileInfo of files) {
-        // Generate numeric ID for database compatibility
-        const fileId = Date.now() + Math.floor(Math.random() * 1000);
+        const fileId = `${fileType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         console.log(`[INIT] Creating placeholder for: ${fileInfo.name} → ID: ${fileId}`);
         
@@ -2025,17 +2024,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const placeholderResult = await pool.query(placeholderQuery, [file.originalname, type]);
         console.log(`[UPLOAD] Placeholder lookup for ${file.originalname}: ${placeholderResult.rows.length} matches found`);
-        let fileId: number;
+        let fileId: string;
         let isUpdatingPlaceholder = false;
         
         if (placeholderResult.rows.length > 0) {
           // Update existing placeholder
-          fileId = parseInt(placeholderResult.rows[0].id);
+          fileId = placeholderResult.rows[0].id;
           isUpdatingPlaceholder = true;
           console.log(`[UPLOAD] ✅ Found placeholder entry ${fileId} for ${file.originalname} - will update with content`);
         } else {
           // Create new file record
-          fileId = Date.now() + Math.floor(Math.random() * 1000);
+          fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           console.log(`[UPLOAD] 🆕 No placeholder found for ${file.originalname} - creating new entry ${fileId}`);
           
           // Additional debug: check if any placeholders exist for this file at all
@@ -2283,7 +2282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create file record with basic information and file content
-      const fileId = Date.now() + Math.floor(Math.random() * 1000);
+      const fileId = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Read file content and encode as base64 for database storage
       const fileContent = fs.readFileSync(req.file.path, 'utf8');
