@@ -18251,6 +18251,430 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF1 Merchant View API endpoints
+  
+  // Get detailed merchant information for merchant view page
+  app.get('/api/tddf1/merchant/:merchantAccountNumber', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      console.log(`[TDDF1 MERCHANT VIEW] Getting merchant details for: ${merchantAccountNumber}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      const merchantsTableName = `${envPrefix}tddf1_merchants`;
+      
+      const merchantResult = await pool.query(`
+        SELECT * FROM ${merchantsTableName}
+        WHERE merchant_id = $1
+      `, [merchantAccountNumber]);
+      
+      if (merchantResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Merchant not found' });
+      }
+      
+      const merchant = merchantResult.rows[0];
+      
+      res.json({
+        merchantAccountNumber: merchant.merchant_id,
+        merchantName: merchant.merchant_name,
+        totalTransactions: parseInt(merchant.total_transactions || '0'),
+        totalAmount: parseFloat(merchant.total_amount || '0'),
+        totalNetDeposits: parseFloat(merchant.total_net_deposits || '0'),
+        uniqueTerminals: parseInt(merchant.unique_terminals || '0'),
+        firstTransactionDate: merchant.first_seen_date,
+        lastTransactionDate: merchant.last_seen_date,
+        avgTransactionAmount: parseFloat((merchant.total_amount / merchant.total_transactions) || '0'),
+        lastUpdated: merchant.last_updated
+      });
+      
+    } catch (error: any) {
+      console.error(`[TDDF1 MERCHANT VIEW] Error fetching merchant details:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get BH (Batch Header) records for merchant
+  app.get('/api/tddf1/merchant/:merchantAccountNumber/batches', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+      
+      console.log(`[TDDF1 MERCHANT BATCHES] Getting batches for merchant: ${merchantAccountNumber}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      // Query from file-based TDDF1 tables for BH records
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name DESC
+      `, [`${envPrefix}tddf1_file_%`, `${envPrefix}tddf1_totals`]);
+      
+      let allBatches = [];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const bhResult = await pool.query(`
+            SELECT 
+              record_type,
+              merchant_id,
+              batch_julian_date,
+              net_deposit_amount,
+              transaction_date,
+              batch_number,
+              source_file_name,
+              line_number,
+              processed_at,
+              '${tableRow.table_name}' as source_table
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'BH' 
+              AND merchant_id = $1
+            ORDER BY transaction_date DESC, line_number ASC
+          `, [merchantAccountNumber]);
+          
+          allBatches.push(...bhResult.rows);
+        } catch (tableError) {
+          console.error(`[TDDF1 MERCHANT BATCHES] Error querying table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Sort all batches by date and apply pagination
+      allBatches.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      
+      const totalCount = allBatches.length;
+      const paginatedBatches = allBatches.slice(offset, offset + limit);
+      
+      res.json({
+        data: paginatedBatches.map(batch => ({
+          recordType: batch.record_type,
+          merchantAccountNumber: batch.merchant_id,
+          batchJulianDate: batch.batch_julian_date,
+          netDepositAmount: parseFloat(batch.net_deposit_amount || '0'),
+          transactionDate: batch.transaction_date,
+          batchNumber: batch.batch_number,
+          sourceFileName: batch.source_file_name,
+          lineNumber: batch.line_number,
+          processedAt: batch.processed_at,
+          sourceTable: batch.source_table
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[TDDF1 MERCHANT BATCHES] Error fetching merchant batches:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get DT (Detail Transaction) records for merchant
+  app.get('/api/tddf1/merchant/:merchantAccountNumber/transactions', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+      const batchFilter = req.query.batchId as string;
+      
+      console.log(`[TDDF1 MERCHANT TRANSACTIONS] Getting transactions for merchant: ${merchantAccountNumber}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      // Query from file-based TDDF1 tables for DT records
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name DESC
+      `, [`${envPrefix}tddf1_file_%`, `${envPrefix}tddf1_totals`]);
+      
+      let allTransactions = [];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          let query = `
+            SELECT 
+              record_type,
+              merchant_id,
+              merchant_name,
+              transaction_amount,
+              transaction_date,
+              batch_julian_date,
+              reference_number,
+              authorization_number,
+              terminal_id,
+              card_type,
+              transaction_code,
+              mcc_code,
+              source_file_name,
+              line_number,
+              processed_at,
+              '${tableRow.table_name}' as source_table
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'DT' 
+              AND merchant_id = $1
+          `;
+          
+          let queryParams = [merchantAccountNumber];
+          
+          if (batchFilter) {
+            query += ` AND batch_julian_date = $2`;
+            queryParams.push(batchFilter);
+          }
+          
+          query += ` ORDER BY transaction_date DESC, line_number ASC`;
+          
+          const dtResult = await pool.query(query, queryParams);
+          allTransactions.push(...dtResult.rows);
+        } catch (tableError) {
+          console.error(`[TDDF1 MERCHANT TRANSACTIONS] Error querying table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Sort all transactions by date and apply pagination
+      allTransactions.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      
+      const totalCount = allTransactions.length;
+      const paginatedTransactions = allTransactions.slice(offset, offset + limit);
+      
+      res.json({
+        data: paginatedTransactions.map(txn => ({
+          recordType: txn.record_type,
+          merchantAccountNumber: txn.merchant_id,
+          merchantName: txn.merchant_name,
+          transactionAmount: parseFloat(txn.transaction_amount || '0'),
+          transactionDate: txn.transaction_date,
+          batchJulianDate: txn.batch_julian_date,
+          referenceNumber: txn.reference_number,
+          authorizationNumber: txn.authorization_number,
+          terminalId: txn.terminal_id,
+          cardType: txn.card_type,
+          transactionCode: txn.transaction_code,
+          mccCode: txn.mcc_code,
+          sourceFileName: txn.source_file_name,
+          lineNumber: txn.line_number,
+          processedAt: txn.processed_at,
+          sourceTable: txn.source_table
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[TDDF1 MERCHANT TRANSACTIONS] Error fetching merchant transactions:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get terminal analysis for merchant
+  app.get('/api/tddf1/merchant/:merchantAccountNumber/terminals', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      console.log(`[TDDF1 MERCHANT TERMINALS] Getting terminal analysis for merchant: ${merchantAccountNumber}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      // Query from file-based TDDF1 tables for terminal data
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name DESC
+      `, [`${envPrefix}tddf1_file_%`, `${envPrefix}tddf1_totals`]);
+      
+      let allTerminals = [];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const terminalResult = await pool.query(`
+            SELECT 
+              terminal_id,
+              COUNT(*) as transaction_count,
+              SUM(CAST(transaction_amount AS DECIMAL)) as total_amount,
+              MIN(transaction_date) as first_transaction,
+              MAX(transaction_date) as last_transaction,
+              COUNT(DISTINCT batch_julian_date) as unique_batches,
+              COUNT(DISTINCT card_type) as card_types_used
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'DT' 
+              AND merchant_id = $1
+              AND terminal_id IS NOT NULL
+              AND terminal_id != ''
+            GROUP BY terminal_id
+          `, [merchantAccountNumber]);
+          
+          allTerminals.push(...terminalResult.rows);
+        } catch (tableError) {
+          console.error(`[TDDF1 MERCHANT TERMINALS] Error querying table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Aggregate terminals data by terminal_id
+      const terminalMap = new Map();
+      
+      allTerminals.forEach(terminal => {
+        const terminalId = terminal.terminal_id;
+        if (terminalMap.has(terminalId)) {
+          const existing = terminalMap.get(terminalId);
+          existing.transactionCount += parseInt(terminal.transaction_count);
+          existing.totalAmount += parseFloat(terminal.total_amount);
+          existing.uniqueBatches += parseInt(terminal.unique_batches);
+          existing.cardTypesUsed = Math.max(existing.cardTypesUsed, parseInt(terminal.card_types_used));
+          
+          if (new Date(terminal.first_transaction) < new Date(existing.firstTransaction)) {
+            existing.firstTransaction = terminal.first_transaction;
+          }
+          if (new Date(terminal.last_transaction) > new Date(existing.lastTransaction)) {
+            existing.lastTransaction = terminal.last_transaction;
+          }
+        } else {
+          terminalMap.set(terminalId, {
+            terminalId: terminalId,
+            transactionCount: parseInt(terminal.transaction_count),
+            totalAmount: parseFloat(terminal.total_amount),
+            firstTransaction: terminal.first_transaction,
+            lastTransaction: terminal.last_transaction,
+            uniqueBatches: parseInt(terminal.unique_batches),
+            cardTypesUsed: parseInt(terminal.card_types_used)
+          });
+        }
+      });
+      
+      const aggregatedTerminals = Array.from(terminalMap.values())
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+      
+      res.json({
+        terminals: aggregatedTerminals,
+        summary: {
+          totalTerminals: aggregatedTerminals.length,
+          totalTransactions: aggregatedTerminals.reduce((sum, t) => sum + t.transactionCount, 0),
+          totalAmount: aggregatedTerminals.reduce((sum, t) => sum + t.totalAmount, 0)
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[TDDF1 MERCHANT TERMINALS] Error fetching merchant terminals:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get related records (P1, P2, G2, etc.) for merchant
+  app.get('/api/tddf1/merchant/:merchantAccountNumber/related-records', isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber } = req.params;
+      const recordType = req.query.recordType as string || 'ALL';
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = (page - 1) * limit;
+      
+      console.log(`[TDDF1 MERCHANT RELATED] Getting related records for merchant: ${merchantAccountNumber}, type: ${recordType}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      // Query from file-based TDDF1 tables for related records
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+          AND table_name != $2
+        ORDER BY table_name DESC
+      `, [`${envPrefix}tddf1_file_%`, `${envPrefix}tddf1_totals`]);
+      
+      let allRelatedRecords = [];
+      const relatedRecordTypes = recordType === 'ALL' ? ['P1', 'P2', 'G2', 'E1'] : [recordType];
+      
+      for (const tableRow of tablesResult.rows) {
+        try {
+          for (const rType of relatedRecordTypes) {
+            const recordResult = await pool.query(`
+              SELECT 
+                record_type,
+                merchant_id,
+                batch_julian_date,
+                transaction_date,
+                line_number,
+                raw_line,
+                source_file_name,
+                processed_at,
+                '${tableRow.table_name}' as source_table
+              FROM ${tableRow.table_name}
+              WHERE record_type = $1 
+                AND merchant_id = $2
+              ORDER BY transaction_date DESC, line_number ASC
+            `, [rType, merchantAccountNumber]);
+            
+            allRelatedRecords.push(...recordResult.rows);
+          }
+        } catch (tableError) {
+          console.error(`[TDDF1 MERCHANT RELATED] Error querying table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Sort all records by date and apply pagination
+      allRelatedRecords.sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+      
+      const totalCount = allRelatedRecords.length;
+      const paginatedRecords = allRelatedRecords.slice(offset, offset + limit);
+      
+      res.json({
+        data: paginatedRecords.map(record => ({
+          recordType: record.record_type,
+          merchantAccountNumber: record.merchant_id,
+          batchJulianDate: record.batch_julian_date,
+          transactionDate: record.transaction_date,
+          lineNumber: record.line_number,
+          rawLine: record.raw_line,
+          sourceFileName: record.source_file_name,
+          processedAt: record.processed_at,
+          sourceTable: record.source_table
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit
+        },
+        summary: {
+          recordTypeCounts: relatedRecordTypes.reduce((acc, type) => {
+            acc[type] = allRelatedRecords.filter(r => r.record_type === type).length;
+            return acc;
+          }, {} as Record<string, number>)
+        }
+      });
+      
+    } catch (error: any) {
+      console.error(`[TDDF1 MERCHANT RELATED] Error fetching merchant related records:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // End of TDDF1 APIs
 
   // DUPLICATE ENDPOINT REMOVED - Using the first one only
