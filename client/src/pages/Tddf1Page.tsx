@@ -620,51 +620,7 @@ function Tddf1Page() {
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Daily Overview
-            </TabsTrigger>
-            <TabsTrigger value="merchants" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Merchant Volume
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab Content */}
-          <TabsContent value="overview" className="space-y-2 sm:space-y-4">
-            {/* Main Financial Metrics */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-4">
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
-              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent className="pt-0 p-2">
-              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dayLoading ? "..." : `$${((dayBreakdown?.netDepositsValue ?? 0) / 1000000).toFixed(2)}M`}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
-              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="pt-0 p-2">
-              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {dayLoading ? "..." : `$${((dayBreakdown?.transactionAmountsValue ?? 0) / 1000000).toFixed(2)}M`}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-
-
-        {/* Compact Processing Date Selector */}
+        {/* Processing Date Selection - Moved to top */}
         <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
           <CardHeader className="pb-2">
             <CardTitle className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
@@ -749,26 +705,20 @@ function Tddf1Page() {
                         setSelectedDate(date);
                       }
                     }}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
               
               <Button
-                onClick={navigateToToday}
-                variant={isToday(selectedDate) ? "default" : "outline"}
-                className="flex items-center gap-1"
-                size="sm"
-              >
-                <CalendarIcon className="h-4 w-4" />
-                Today
-              </Button>
-              
-              <Button
                 variant="outline"
                 onClick={navigateToNextDay}
                 className="flex items-center gap-1"
                 size="sm"
+                disabled={isToday(selectedDate)}
               >
                 <span className="hidden sm:inline">Next</span>
                 <span className="sm:hidden">Next</span>
@@ -777,6 +727,52 @@ function Tddf1Page() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Daily Overview
+            </TabsTrigger>
+            <TabsTrigger value="merchants" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Merchant Volume
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab Content */}
+          <TabsContent value="overview" className="space-y-2 sm:space-y-4">
+            {/* Main Financial Metrics */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Net Deposits for day</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent className="pt-0 p-2">
+              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {dayLoading ? "..." : `$${((dayBreakdown?.netDepositsValue ?? 0) / 1000000).toFixed(2)}M`}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+              <CardTitle className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Authorizations</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="pt-0 p-2">
+              <div className={`text-xl sm:text-2xl font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {dayLoading ? "..." : `$${((dayBreakdown?.transactionAmountsValue ?? 0) / 1000000).toFixed(2)}M`}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+
+
+
 
         {/* Mobile-Optimized Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

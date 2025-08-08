@@ -133,56 +133,56 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Merchants</CardTitle>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Merchants</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats?.totalMerchants || 0)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0">
+            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalMerchants || 0)}</div>
+            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Avg: {formatCurrency(stats?.avgAmountPerMerchant || 0)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Transactions</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats?.totalTransactions || 0)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0">
+            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalTransactions || 0)}</div>
+            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Volume: {formatCurrency(stats?.totalAmount || 0)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Amount</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats?.totalAmount || 0)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0">
+            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats?.totalAmount || 0)}</div>
+            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Net Deposits: {formatCurrency(stats?.totalNetDeposits || 0)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Terminals</CardTitle>
+        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Terminals</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats?.totalTerminals || 0)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="p-3 pt-0">
+            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalTerminals || 0)}</div>
+            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Max: {formatCurrency(stats?.maxMerchantVolume || 0)}
             </p>
           </CardContent>
@@ -190,23 +190,23 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
       </div>
 
       {/* Top 5 Merchant Volume Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
+      <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            <TrendingUp className="h-4 w-4" />
             Top 5 Merchants by Volume
           </CardTitle>
-          <CardDescription>
+          <CardDescription className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             Highest volume merchants with exclusion capability for deeper analysis
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {excludedMerchants.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium mb-2">Excluded Merchants:</h4>
+            <div className="mb-3">
+              <h4 className={`text-xs font-medium mb-2 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Excluded Merchants:</h4>
               <div className="flex flex-wrap gap-2">
                 {excludedMerchants.map(merchantId => (
-                  <Badge key={merchantId} variant="secondary" className="flex items-center gap-1">
+                  <Badge key={merchantId} variant="secondary" className={`flex items-center gap-1 text-xs transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-200 text-gray-700 border-gray-300'}`}>
                     {merchantId}
                     <Button
                       variant="ghost"
@@ -222,21 +222,21 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {topMerchants?.map((merchant, index) => (
-              <div key={merchant.merchantId} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline">#{index + 1}</Badge>
+              <div key={merchant.merchantId} className={`flex items-center justify-between p-2 border rounded-lg transition-colors ${isDarkMode ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">#{index + 1}</Badge>
                   <div>
-                    <div className="font-medium">{merchant.merchantName}</div>
-                    <div className="text-sm text-muted-foreground">ID: {merchant.merchantId}</div>
+                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantName}</div>
+                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>ID: {merchant.merchantId}</div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="font-medium">{formatCurrency(merchant.totalAmount)}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalAmount)}</div>
+                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {formatNumber(merchant.totalTransactions)} txns
                     </div>
                   </div>
@@ -245,6 +245,7 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
                     variant="outline"
                     size="sm"
                     onClick={() => handleExcludeMerchant(merchant.merchantId)}
+                    className="text-xs px-2 py-1"
                   >
                     Exclude
                   </Button>
@@ -256,16 +257,16 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
       </Card>
 
       {/* Merchant List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Merchants</CardTitle>
-          <CardDescription>
+      <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>All Merchants</CardTitle>
+          <CardDescription className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             Complete merchant volume data with search and sorting
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {/* Search */}
-          <div className="mb-4">
+          <div className="mb-3">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -275,54 +276,54 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="pl-8"
+                className={`pl-8 text-sm transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white border-gray-300'}`}
               />
             </div>
           </div>
 
           {/* Table */}
-          <div className="rounded-md border">
+          <div className={`rounded-md border transition-colors ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-b-gray-600' : 'bg-gray-50 border-b-gray-200'}`}>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('merchantId')}
                   >
                     Merchant ID {getSortIcon('merchantId')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('merchantName')}
                   >
                     Name {getSortIcon('merchantName')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
+                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('totalTransactions')}
                   >
                     Transactions {getSortIcon('totalTransactions')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
+                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('totalAmount')}
                   >
                     Total Amount {getSortIcon('totalAmount')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
+                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('totalNetDeposits')}
                   >
                     Net Deposits {getSortIcon('totalNetDeposits')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
+                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('uniqueTerminals')}
                   >
                     Terminals {getSortIcon('uniqueTerminals')}
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     onClick={() => handleSort('lastSeenDate')}
                   >
                     Last Seen {getSortIcon('lastSeenDate')}
@@ -344,23 +345,23 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
                   </TableRow>
                 ) : (
                   merchantsData?.data.map((merchant: Merchant) => (
-                    <TableRow key={merchant.merchantId}>
-                      <TableCell className="font-medium">{merchant.merchantId}</TableCell>
-                      <TableCell>
+                    <TableRow key={merchant.merchantId} className={`transition-colors ${isDarkMode ? 'hover:bg-gray-800 border-b-gray-700' : 'hover:bg-gray-50 border-b-gray-100'}`}>
+                      <TableCell className={`py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantId}</TableCell>
+                      <TableCell className="py-2">
                         <div>
-                          <div>{merchant.merchantName || 'N/A'}</div>
+                          <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantName || 'N/A'}</div>
                           {merchant.amexMerchantSellerName && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               Amex: {merchant.amexMerchantSellerName}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">{formatNumber(merchant.totalTransactions)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(merchant.totalAmount)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(merchant.totalNetDeposits)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(merchant.uniqueTerminals)}</TableCell>
-                      <TableCell>{new Date(merchant.lastSeenDate).toLocaleDateString()}</TableCell>
+                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(merchant.totalTransactions)}</TableCell>
+                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalAmount)}</TableCell>
+                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalNetDeposits)}</TableCell>
+                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(merchant.uniqueTerminals)}</TableCell>
+                      <TableCell className={`py-2 text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{new Date(merchant.lastSeenDate).toLocaleDateString()}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -370,8 +371,8 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
 
           {/* Pagination */}
           {merchantsData?.pagination && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between mt-3">
+              <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Showing {((merchantsData.pagination.currentPage - 1) * merchantsData.pagination.itemsPerPage) + 1} to{' '}
                 {Math.min(merchantsData.pagination.currentPage * merchantsData.pagination.itemsPerPage, merchantsData.pagination.totalItems)} of{' '}
                 {merchantsData.pagination.totalItems} merchants
@@ -382,6 +383,7 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
                   size="sm"
                   disabled={merchantsData.pagination.currentPage === 1}
                   onClick={() => setPage(page - 1)}
+                  className="text-xs px-2 py-1"
                 >
                   Previous
                 </Button>
@@ -390,6 +392,7 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode }: Tddf1Mercha
                   size="sm"
                   disabled={merchantsData.pagination.currentPage === merchantsData.pagination.totalPages}
                   onClick={() => setPage(page + 1)}
+                  className="text-xs px-2 py-1"
                 >
                   Next
                 </Button>
