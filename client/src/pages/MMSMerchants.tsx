@@ -30,7 +30,7 @@ import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, E
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
-// import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
+import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 
 interface TddfMerchant {
   merchantName: string;
@@ -344,9 +344,7 @@ export default function MMSMerchants() {
             </TabsContent>
             
             <TabsContent value="tddf1" className="mt-6">
-              <div className="text-center py-12">
-                <p className="text-gray-500">TDDF1 Merchants tab temporarily disabled</p>
-              </div>
+              <Tddf1MerchantVolumeTab />
             </TabsContent>
           </Tabs>
         )}

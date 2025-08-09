@@ -48,7 +48,7 @@ interface Tddf1MerchantsResponse {
   };
 }
 
-function Tddf1MerchantVolumeTab() {
+const Tddf1MerchantVolumeTab = () => {
   const [, setLocation] = useLocation();
   
   // State for filters and pagination
@@ -85,296 +85,221 @@ function Tddf1MerchantVolumeTab() {
     }
   });
 
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const handleMerchantClick = (merchantId: string) => {
+    setLocation(`/tddf1-merchant-daily-view/${merchantId}`);
+  };
+
   const merchants = data?.data || [];
   const pagination = data?.pagination;
 
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-  };
-
-  const getSortIcon = (column: string) => {
-    if (sortBy !== column) return <ArrowUpDown className="h-4 w-4" />;
-    return sortOrder === 'asc' ? '↑' : '↓';
-  };
-
-  const handleMerchantClick = (merchant: Tddf1Merchant) => {
-    // Navigate to merchant daily view with the last seen date
-    const dateStr = merchant.last_seen_date;
-    setLocation(`/merchant/${merchant.merchant_id}/${dateStr}`);
-  };
-
-  const formatTableDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading TDDF1 merchants...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600 mb-4">Failed to load TDDF1 merchants</p>
-        <Button onClick={() => refetch()} variant="outline">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            TDDF1 Merchants Summary
-          </CardTitle>
+      <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-600" />
+              TDDF1 Merchants ({pagination?.totalItems || 0})
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+              className="bg-white hover:bg-gray-50"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{formatNumber(pagination?.totalItems || 0)}</div>
-              <div className="text-sm text-muted-foreground">Total Merchants</div>
+        <CardContent className="p-6">
+          {/* Search and Controls */}
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-x-4 md:space-y-0 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search merchants by name or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white border-gray-200 focus:border-blue-300 focus:ring-blue-200"
+              />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {formatNumber(merchants.reduce((sum, m) => sum + m.total_transactions, 0))}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Transactions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {formatCurrency(merchants.reduce((sum, m) => sum + m.total_amount, 0))}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Amount</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {formatNumber(merchants.reduce((sum, m) => sum + m.unique_terminals, 0))}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Terminals</div>
-            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(parseInt(value))}>
+              <SelectTrigger className="w-32 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+                <SelectItem value="100">100 per page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Filters and Controls */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search merchants by ID or name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
+          {/* Merchants Table */}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-            
-            <div className="flex gap-2">
-              <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10 per page</SelectItem>
-                  <SelectItem value="20">20 per page</SelectItem>
-                  <SelectItem value="50">50 per page</SelectItem>
-                  <SelectItem value="100">100 per page</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button 
-                onClick={() => refetch()} 
-                variant="outline" 
-                size="sm"
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-red-600">Error loading merchants: {error.message}</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Merchants Table */}
-      <Card>
-        <CardContent className="p-0">
-          {merchants.length === 0 ? (
-            <div className="text-center py-8">
-              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No merchants found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Try adjusting your search criteria' : 'No TDDF1 merchant data available'}
-              </p>
+          ) : merchants.length === 0 ? (
+            <div className="text-center py-12">
+              <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-500">No merchants found</p>
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('merchant_id')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Merchant ID {getSortIcon('merchant_id')}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('merchant_name')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Merchant Name {getSortIcon('merchant_name')}
-                      </Button>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('total_transactions')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Transactions {getSortIcon('total_transactions')}
-                      </Button>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('total_amount')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Amount {getSortIcon('total_amount')}
-                      </Button>
-                    </TableHead>
-                    <TableHead className="text-right">
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('unique_terminals')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Terminals {getSortIcon('unique_terminals')}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('last_seen_date')}
-                        className="h-auto p-0 font-medium"
-                      >
-                        Last Seen {getSortIcon('last_seen_date')}
-                      </Button>
-                    </TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {merchants.map((merchant) => (
-                    <TableRow 
-                      key={merchant.merchant_id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleMerchantClick(merchant)}
-                    >
-                      <TableCell className="font-mono text-sm">
-                        {merchant.merchant_id}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          {merchant.merchant_name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">
-                          {formatNumber(merchant.total_transactions)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(merchant.total_amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Terminal className="h-3 w-3 text-muted-foreground" />
-                          {formatNumber(merchant.unique_terminals)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {formatTableDate(merchant.last_seen_date)}
-                      </TableCell>
-                      <TableCell>
+              <div className="rounded-lg overflow-hidden border border-gray-200 bg-white">
+                <Table>
+                  <TableHeader className="bg-gray-50">
+                    <TableRow>
+                      <TableHead>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMerchantClick(merchant);
-                          }}
+                          onClick={() => handleSort('merchant_name')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          Merchant Name
+                          <ArrowUpDown className="h-3 w-3" />
                         </Button>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('total_transactions')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Transactions
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('total_amount')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Transaction Amount
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('total_net_deposits')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Net Deposits
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('unique_terminals')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Terminals
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('last_seen_date')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Last Seen
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {merchants.map((merchant, index) => (
+                      <TableRow 
+                        key={index}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-blue-500" />
+                            {merchant.merchant_name}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {formatNumber(merchant.total_transactions)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium text-green-600">
+                          {formatCurrency(merchant.total_amount)}
+                        </TableCell>
+                        <TableCell className="font-medium text-blue-600">
+                          {formatCurrency(merchant.total_net_deposits)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Terminal className="h-3 w-3 text-gray-400" />
+                            {merchant.unique_terminals}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(merchant.last_seen_date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMerchantClick(merchant.merchant_id)}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between p-4 border-t">
-                  <div className="text-sm text-muted-foreground">
+                <div className="flex flex-col items-center space-y-4 md:flex-row md:justify-between md:space-y-0 mt-6">
+                  <p className="text-sm text-gray-600">
                     Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
                     {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
                     {pagination.totalItems} merchants
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
+                  </p>
+                  <div className="flex space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage === 1}
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
                     >
                       Previous
                     </Button>
-                    
-                    <span className="text-sm">
-                      Page {pagination.currentPage} of {pagination.totalPages}
-                    </span>
-                    
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage === pagination.totalPages}
+                      onClick={() => setCurrentPage(Math.min(pagination.totalPages, currentPage + 1))}
+                      disabled={currentPage === pagination.totalPages}
                     >
                       Next
                     </Button>
@@ -387,6 +312,7 @@ function Tddf1MerchantVolumeTab() {
       </Card>
     </div>
   );
-}
+};
 
 export default Tddf1MerchantVolumeTab;
+export { Tddf1MerchantVolumeTab };

@@ -4,7 +4,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
 import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
-// import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
+import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -235,9 +235,7 @@ export default function Merchants() {
           </TabsContent>
           
           <TabsContent value="tddf1" className="mt-6">
-            <div className="text-center py-12">
-              <p className="text-gray-500">TDDF1 Merchants tab temporarily disabled</p>
-            </div>
+            <Tddf1MerchantVolumeTab />
           </TabsContent>
         </Tabs>
       </div>
