@@ -20267,7 +20267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let paramCount = 0;
       
       // Add status filter
-      if (status) {
+      if (status && status !== 'all') {
         whereConditions.push(`f.status = $${++paramCount}`);
         params.push(status as string);
       }
