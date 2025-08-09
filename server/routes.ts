@@ -20034,12 +20034,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const crypto = require('crypto');
       const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       
-      // Store in object storage
-      const storageService = new ReplitStorageService();
-      const storagePath = `TDDF_API_Data/${Date.now()}_${req.file.originalname}`;
+      // Store file locally (simplified for now)
+      const storagePath = `uploads/tddf-api/${Date.now()}_${req.file.originalname}`;
+      const uploadDir = path.dirname(path.join(process.cwd(), storagePath));
       
-      // Upload to object storage
-      await storageService.uploadFromBuffer(fileBuffer, storagePath);
+      // Ensure upload directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      // Copy file to permanent location
+      fs.copyFileSync(req.file.path, path.join(process.cwd(), storagePath));
       
       // Save file record
       const result = await pool.query(`
