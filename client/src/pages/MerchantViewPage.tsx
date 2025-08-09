@@ -72,6 +72,8 @@ interface TerminalSummary {
   transactionCount: number;
   totalAmount: number;
   cardTypes: string[];
+  mccCodes?: string[];
+  transactionTypes?: string[];
   firstSeen: string;
   lastSeen: string;
 }
@@ -104,9 +106,10 @@ export default function MerchantViewPage() {
   };
 
   // Get merchant transaction data
-  const { data: merchantData, isLoading } = useQuery<MerchantViewData>({
+  const { data: merchantData, isLoading, error } = useQuery<MerchantViewData>({
     queryKey: ['/api/tddf1/merchant-view', merchantId, selectedDate],
     enabled: !!merchantId && !!selectedDate,
+    retry: false, // Don't retry on 404 errors
   });
 
   // Get terminal summary data
@@ -157,6 +160,75 @@ export default function MerchantViewPage() {
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           <p>Loading merchant data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error response with suggested dates
+  if (error && !isLoading) {
+    const errorData = (error as any)?.response?.data;
+    const suggestedDates = errorData?.suggestedDates || [];
+    const merchantName = errorData?.merchantName || `Merchant ${merchantId}`;
+    
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center space-y-6">
+          <div className="flex items-center gap-4 justify-center">
+            <Button variant="outline" asChild>
+              <Link href="/tddf1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to TDDF1
+              </Link>
+            </Button>
+          </div>
+          
+          <div>
+            <h2 className="text-2xl font-bold mb-2">No Data Found</h2>
+            <p className="text-muted-foreground mb-4">
+              No transaction data found for {merchantName} on {formatDate(selectedDate)}
+            </p>
+          </div>
+          
+          {suggestedDates.length > 0 && (
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="text-lg">Available Data Dates</CardTitle>
+                <CardDescription>
+                  Transaction data is available for {merchantName} on the following dates:
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2">
+                  {suggestedDates.slice(0, 10).map((dateInfo: any) => (
+                    <Button
+                      key={dateInfo.date}
+                      variant="outline"
+                      className="justify-between"
+                      onClick={() => {
+                        const dateStr = new Date(dateInfo.date).toISOString().split('T')[0];
+                        setSelectedDate(dateStr);
+                        navigate(`/merchant/${merchantId}/${dateStr}`);
+                      }}
+                    >
+                      <span>{formatDate(dateInfo.date)}</span>
+                      <Badge variant="secondary">
+                        {formatNumber(dateInfo.recordCount)} transactions
+                      </Badge>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {suggestedDates.length === 0 && (
+            <div className="bg-muted/50 rounded-lg p-6">
+              <p className="text-muted-foreground">
+                This merchant doesn't have any transaction data in the system.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -376,6 +448,22 @@ export default function MerchantViewPage() {
                       <div>
                         <div className="font-medium">
                           {tx.cardType && <Badge variant="outline" className="mr-2">{tx.cardType}</Badge>}
+                          {tx.extractedFields?.mccCode && (
+                            <Badge 
+                              variant={tx.extractedFields.mccCode === '6540' ? 'default' : 'secondary'} 
+                              className="mr-2 text-xs"
+                            >
+                              MCC {tx.extractedFields.mccCode}
+                            </Badge>
+                          )}
+                          {tx.extractedFields?.transactionTypeIndicator && tx.extractedFields.transactionTypeIndicator.trim() && (
+                            <Badge 
+                              variant={tx.extractedFields.transactionTypeIndicator === 'F64' ? 'destructive' : 'outline'} 
+                              className="mr-2 text-xs"
+                            >
+                              {tx.extractedFields.transactionTypeIndicator}
+                            </Badge>
+                          )}
                           {tx.authorizationNumber || tx.referenceNumber}
                         </div>
                         <div className="text-sm text-muted-foreground">
@@ -533,8 +621,9 @@ export default function MerchantViewPage() {
                       <TableHead className="text-right">Transactions</TableHead>
                       <TableHead className="text-right">Total Amount</TableHead>
                       <TableHead>Card Types</TableHead>
-                      <TableHead>First Transaction</TableHead>
-                      <TableHead>Last Transaction</TableHead>
+                      <TableHead>MCC Codes</TableHead>
+                      <TableHead>Transaction Types</TableHead>
+                      <TableHead>Activity Period</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -544,7 +633,7 @@ export default function MerchantViewPage() {
                         <TableCell className="text-right">{formatNumber(terminal.transactionCount)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(terminal.totalAmount)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
                             {terminal.cardTypes.map((cardType) => (
                               <Badge key={cardType} variant="outline" className="text-xs">
                                 {cardType}
@@ -552,8 +641,38 @@ export default function MerchantViewPage() {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs">{terminal.firstSeen}</TableCell>
-                        <TableCell className="text-xs">{terminal.lastSeen}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {terminal.mccCodes?.map((mccCode) => (
+                              <Badge 
+                                key={mccCode} 
+                                variant={mccCode === '6540' ? 'default' : 'secondary'} 
+                                className="text-xs"
+                              >
+                                {mccCode}
+                              </Badge>
+                            )) || <span className="text-muted-foreground text-xs">N/A</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {terminal.transactionTypes?.map((txType) => (
+                              <Badge 
+                                key={txType} 
+                                variant={txType === 'F64' ? 'destructive' : 'outline'} 
+                                className="text-xs"
+                              >
+                                {txType || 'STD'}
+                              </Badge>
+                            )) || <span className="text-muted-foreground text-xs">N/A</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="space-y-1">
+                            <div>From: {terminal.firstSeen}</div>
+                            <div>To: {terminal.lastSeen}</div>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

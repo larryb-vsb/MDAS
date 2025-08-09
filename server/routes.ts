@@ -18739,10 +18739,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const dtResult = await pool.query(`
             SELECT 
               id, record_type, source_filename, line_number,
-              merchant_id, merchant_name, 
+              merchant_id, field_data->>'merchantName' as merchant_name, 
               transaction_amount, net_deposit, transaction_date,
-              reference_number, authorization_number, card_type,
-              terminal_id, entry_run_number, raw_line
+              field_data->>'referenceNumber' as reference_number, 
+              field_data->>'authorizationNumber' as authorization_number, 
+              field_data->>'cardType' as card_type,
+              terminal_id, entry_run_number, raw_line,
+              SUBSTRING(raw_line, 273, 4) as mcc_code,
+              SUBSTRING(raw_line, 336, 3) as transaction_type_indicator
             FROM ${tableRow.table_name}
             WHERE record_type = 'DT' 
               AND merchant_id = $1
@@ -18785,7 +18789,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cardType: dtRecord.card_type,
               terminalId: dtRecord.terminal_id,
               fileName: dtRecord.source_filename,
-              extractedFields: {},
+              extractedFields: {
+                mccCode: dtRecord.mcc_code,
+                transactionTypeIndicator: dtRecord.transaction_type_indicator
+              },
               rawLine: dtRecord.raw_line,
               relatedRecords: []
             });
@@ -18794,6 +18801,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (tableError) {
           console.warn(`Error processing table ${tableRow.table_name}:`, tableError);
         }
+      }
+      
+      // If no data found, suggest alternative dates
+      if (allTransactions.length === 0 && allBatches.length === 0) {
+        // Get available dates for this merchant
+        const availableDatesResult = await pool.query(`
+          SELECT DISTINCT DATE(transaction_date) as available_date, COUNT(*) as record_count
+          FROM (
+            ${tablesResult.rows.map(tableRow => `
+              SELECT transaction_date 
+              FROM ${tableRow.table_name} 
+              WHERE merchant_id = $1 AND record_type = 'DT'
+            `).join(' UNION ALL ')}
+          ) AS combined_dates
+          GROUP BY DATE(transaction_date)
+          ORDER BY available_date DESC
+          LIMIT 10
+        `, [merchantId]);
+        
+        return res.status(404).json({ 
+          error: 'No data found for the specified date',
+          merchantName: merchant.merchant_name || 'Unknown Merchant',
+          requestedDate: formattedDate,
+          suggestedDates: availableDatesResult.rows.map(row => ({
+            date: row.available_date,
+            recordCount: parseInt(row.record_count)
+          }))
+        });
       }
       
       // Calculate summary
@@ -18853,9 +18888,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const terminalResult = await pool.query(`
             SELECT 
               terminal_id,
-              card_type,
+              field_data->>'cardType' as card_type,
               transaction_amount,
-              transaction_date
+              transaction_date,
+              SUBSTRING(raw_line, 273, 4) as mcc_code,
+              SUBSTRING(raw_line, 336, 3) as transaction_type_indicator
             FROM ${tableRow.table_name}
             WHERE record_type = 'DT' 
               AND merchant_id = $1
@@ -18884,6 +18921,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             terminal.totalAmount += parseFloat(row.transaction_amount || 0);
             terminal.cardTypes.add(row.card_type);
             
+            // Track MCC codes and transaction type indicators
+            if (!terminal.mccCodes) terminal.mccCodes = new Set();
+            if (!terminal.transactionTypes) terminal.transactionTypes = new Set();
+            
+            if (row.mcc_code && row.mcc_code.trim()) {
+              terminal.mccCodes.add(row.mcc_code.trim());
+            }
+            if (row.transaction_type_indicator && row.transaction_type_indicator.trim()) {
+              terminal.transactionTypes.add(row.transaction_type_indicator.trim());
+            }
+            
             if (new Date(row.transaction_date) < new Date(terminal.firstSeen)) {
               terminal.firstSeen = row.transaction_date;
             }
@@ -18900,7 +18948,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to array and format
       const terminals = Array.from(terminalSummaries.values()).map(terminal => ({
         ...terminal,
-        cardTypes: Array.from(terminal.cardTypes)
+        cardTypes: Array.from(terminal.cardTypes),
+        mccCodes: terminal.mccCodes ? Array.from(terminal.mccCodes) : [],
+        transactionTypes: terminal.transactionTypes ? Array.from(terminal.transactionTypes) : []
       }));
       
       console.log(`[MERCHANT-TERMINALS] Found ${terminals.length} terminals`);
