@@ -36,6 +36,8 @@ interface Tddf1Merchant {
   lastUpdated: string;
   sourceFiles: string[];
   lastProcessedFile: string;
+  batchCount?: number;        // BH records count
+  dtRecordCount?: number;     // DT records count
 }
 
 interface Tddf1MerchantsResponse {
@@ -180,10 +182,40 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
+                          onClick={() => handleSort('batchCount')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Batches (BH)
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('totalNetDeposits')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Net Deposit
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('dtRecordCount')}
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                        >
+                          Authorization (DT)
+                          <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
                           onClick={() => handleSort('totalTransactions')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
-                          Transactions
+                          Number DT Records
                           <ArrowUpDown className="h-3 w-3" />
                         </Button>
                       </TableHead>
@@ -200,30 +232,10 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalNetDeposits')}
-                          className="h-auto p-0 font-medium flex items-center gap-1"
-                        >
-                          Net Deposits
-                          <ArrowUpDown className="h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleSort('uniqueTerminals')}
-                          className="h-auto p-0 font-medium flex items-center gap-1"
-                        >
-                          Terminals
-                          <ArrowUpDown className="h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
                           onClick={() => handleSort('lastSeenDate')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
-                          Last Seen
+                          Terminals Last Seen
                           <ArrowUpDown className="h-3 w-3" />
                         </Button>
                       </TableHead>
@@ -243,24 +255,34 @@ const Tddf1MerchantVolumeTab = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                            {formatNumber(merchant.batchCount || 0)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium text-blue-600">
+                          {formatCurrency(merchant.totalNetDeposits)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            {formatNumber(merchant.dtRecordCount || 0)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
                             {formatNumber(merchant.totalTransactions)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium text-green-600">
                           {formatCurrency(merchant.totalAmount)}
                         </TableCell>
-                        <TableCell className="font-medium text-blue-600">
-                          {formatCurrency(merchant.totalNetDeposits)}
-                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Terminal className="h-3 w-3 text-gray-400" />
-                            {merchant.uniqueTerminals}
+                            <span className="text-sm">{merchant.uniqueTerminals}</span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              {new Date(merchant.lastSeenDate).toLocaleDateString()}
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(merchant.lastSeenDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-center">
                           <Button

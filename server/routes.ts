@@ -18320,8 +18320,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const dataResult = await pool.query(dataQuery, values);
       
-      res.json({
-        data: dataResult.rows.map(row => ({
+      // For each merchant, get BH and DT record counts from TDDF1 file tables
+      const enrichedData = await Promise.all(dataResult.rows.map(async (row) => {
+        let batchCount = 0;
+        let dtRecordCount = 0;
+        
+        try {
+          // Get all TDDF1 tables for this environment
+          const tablesQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+              AND table_name LIKE '${isDevelopment ? 'dev_' : ''}tddf1_file_%'
+          `;
+          const tablesResult = await pool.query(tablesQuery);
+          
+          // Count BH and DT records across all TDDF1 tables for this merchant
+          for (const tableRow of tablesResult.rows) {
+            const tableName = tableRow.table_name;
+            try {
+              const recordCountQuery = `
+                SELECT 
+                  record_type,
+                  COUNT(*) as count
+                FROM ${tableName}
+                WHERE merchant_id = $1 AND record_type IN ('BH', 'DT')
+                GROUP BY record_type
+              `;
+              const recordCountResult = await pool.query(recordCountQuery, [row.merchant_id]);
+              
+              for (const countRow of recordCountResult.rows) {
+                if (countRow.record_type === 'BH') {
+                  batchCount += parseInt(countRow.count);
+                } else if (countRow.record_type === 'DT') {
+                  dtRecordCount += parseInt(countRow.count);
+                }
+              }
+            } catch (tableError) {
+              // Skip tables that don't have the expected schema
+              console.log(`⚠️ Skipping table ${tableName} for merchant ${row.merchant_id}:`, tableError.message);
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not get BH/DT counts for merchant ${row.merchant_id}:`, error.message);
+        }
+        
+        return {
           merchantId: row.merchant_id,
           merchantName: row.merchant_name,
           amexMerchantSellerName: row.amex_merchant_seller_name,
@@ -18334,8 +18378,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recordCount: parseInt(row.record_count),
           lastUpdated: row.last_updated,
           sourceFiles: row.source_files || [],
-          lastProcessedFile: row.last_processed_file
-        })),
+          lastProcessedFile: row.last_processed_file,
+          batchCount: batchCount,
+          dtRecordCount: dtRecordCount
+        };
+      }));
+      
+      res.json({
+        data: enrichedData,
         pagination: {
           currentPage: pageNum,
           totalPages: Math.ceil(totalItems / limitNum),
