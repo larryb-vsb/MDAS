@@ -24,18 +24,18 @@ import { useLocation } from "wouter";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
 interface Tddf1Merchant {
-  merchant_id: string;
-  merchant_name: string;
-  total_transactions: number;
-  total_amount: number;
-  total_net_deposits: number;
-  unique_terminals: number;
-  first_seen_date: string;
-  last_seen_date: string;
-  record_count: number;
-  last_updated: string;
-  source_files: string[];
-  last_processed_file: string;
+  merchantId: string;
+  merchantName: string;
+  totalTransactions: number;
+  totalAmount: number;
+  totalNetDeposits: number;
+  uniqueTerminals: number;
+  firstSeenDate: string;
+  lastSeenDate: string;
+  recordCount: number;
+  lastUpdated: string;
+  sourceFiles: string[];
+  lastProcessedFile: string;
 }
 
 interface Tddf1MerchantsResponse {
@@ -55,7 +55,7 @@ const Tddf1MerchantVolumeTab = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [sortBy, setSortBy] = useState("total_transactions");
+  const [sortBy, setSortBy] = useState("totalTransactions");
   const [sortOrder, setSortOrder] = useState("desc");
 
   // Reset page to 1 when search query or itemsPerPage changes
@@ -170,7 +170,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('merchant_name')}
+                          onClick={() => handleSort('merchantName')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Merchant Name
@@ -180,7 +180,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('total_transactions')}
+                          onClick={() => handleSort('totalTransactions')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Transactions
@@ -190,7 +190,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('total_amount')}
+                          onClick={() => handleSort('totalAmount')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Transaction Amount
@@ -200,7 +200,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('total_net_deposits')}
+                          onClick={() => handleSort('totalNetDeposits')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Net Deposits
@@ -210,7 +210,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('unique_terminals')}
+                          onClick={() => handleSort('uniqueTerminals')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Terminals
@@ -220,7 +220,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('last_seen_date')}
+                          onClick={() => handleSort('lastSeenDate')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Last Seen
@@ -239,34 +239,34 @@ const Tddf1MerchantVolumeTab = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Building2 className="h-4 w-4 text-blue-500" />
-                            {merchant.merchant_name}
+                            {merchant.merchantName}
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">
-                            {formatNumber(merchant.total_transactions)}
+                            {formatNumber(merchant.totalTransactions)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium text-green-600">
-                          {formatCurrency(merchant.total_amount)}
+                          {formatCurrency(merchant.totalAmount)}
                         </TableCell>
                         <TableCell className="font-medium text-blue-600">
-                          {formatCurrency(merchant.total_net_deposits)}
+                          {formatCurrency(merchant.totalNetDeposits)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Terminal className="h-3 w-3 text-gray-400" />
-                            {merchant.unique_terminals}
+                            {merchant.uniqueTerminals}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(merchant.last_seen_date).toLocaleDateString()}
+                          {new Date(merchant.lastSeenDate).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-center">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMerchantClick(merchant.merchant_id)}
+                            onClick={() => handleMerchantClick(merchant.merchantId)}
                             className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                           >
                             <ExternalLink className="h-4 w-4" />
