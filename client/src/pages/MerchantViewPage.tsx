@@ -168,10 +168,13 @@ export default function MerchantViewPage() {
   // Handle error response with suggested dates
   if (error && !isLoading) {
     const errorData = (error as any)?.response?.data;
-    const suggestedDates = errorData?.suggestedDates || [];
-    const merchantName = errorData?.merchantName || `Merchant ${merchantId}`;
     
-    return (
+    // Check if this is a 404 error with enhanced response or a generic error
+    if (errorData && (errorData.suggestedDates || errorData.merchantName)) {
+      const suggestedDates = errorData.suggestedDates || [];
+      const merchantName = errorData.merchantName || `Merchant ${merchantId}`;
+      
+      return (
       <div className="container mx-auto p-6">
         <div className="text-center space-y-6">
           <div className="flex items-center gap-4 justify-center">
@@ -229,9 +232,82 @@ export default function MerchantViewPage() {
               </p>
             </div>
           )}
+          
+          {/* Day Navigation for enhanced error state */}
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
+              ← Previous Day
+            </Button>
+            
+            <div className="flex items-center gap-2 px-3 py-2 border rounded-md">
+              <Calendar className="h-4 w-4" />
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  navigate(`/merchant/${merchantId}/${e.target.value}`);
+                }}
+                className="border-none p-0 h-auto"
+              />
+            </div>
+            
+            <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
+              Next Day →
+            </Button>
+          </div>
         </div>
       </div>
     );
+    } else {
+      // Handle generic errors
+      return (
+        <div className="container mx-auto p-6">
+          <div className="text-center">
+            <div className="flex items-center gap-4 justify-center mb-6">
+              <Button variant="outline" asChild>
+                <Link href="/tddf1">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to TDDF1
+                </Link>
+              </Button>
+            </div>
+            
+            <h2 className="text-2xl font-bold mb-4">Error Loading Data</h2>
+            <p className="text-muted-foreground mb-4">
+              Failed to load data for merchant {merchantId} on {formatDate(selectedDate)}
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              {errorData?.error || 'An unexpected error occurred'}
+            </p>
+            
+            {/* Day Navigation for error state */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <Button variant="outline" size="sm" onClick={() => navigateDate('prev')}>
+                ← Previous Day
+              </Button>
+              
+              <div className="flex items-center gap-2 px-3 py-2 border rounded-md">
+                <Calendar className="h-4 w-4" />
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    navigate(`/merchant/${merchantId}/${e.target.value}`);
+                  }}
+                  className="border-none p-0 h-auto"
+                />
+              </div>
+              
+              <Button variant="outline" size="sm" onClick={() => navigateDate('next')}>
+                Next Day →
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 
   if (!merchantData) {
