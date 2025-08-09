@@ -314,7 +314,7 @@ export default function TddfApiDataPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{file.originalName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.fileSize)} • {format(new Date(file.uploadedAt), "MMM d, yyyy")}
+                          {formatFileSize(file.fileSize)} • {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
                         </p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(file.status)}>
@@ -573,7 +573,9 @@ export default function TddfApiDataPage() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>{format(new Date(file.uploadedAt), "MMM d, yyyy")}</TableCell>
+                        <TableCell>
+                          {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
+                        </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
                             <Button variant="ghost" size="sm">
