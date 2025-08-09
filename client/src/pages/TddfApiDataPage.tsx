@@ -329,9 +329,9 @@ export default function TddfApiDataPage() {
                   {files.slice(0, 5).map((file) => (
                     <div key={file.id} className="flex items-center justify-between p-2 border rounded">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{file.originalName}</p>
+                        <p className="text-sm font-medium truncate">{file.original_name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.fileSize)} • {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
+                          {formatFileSize(file.file_size)} • {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
                         </p>
                       </div>
                       <Badge variant={getStatusBadgeVariant(file.status)}>
@@ -566,11 +566,11 @@ export default function TddfApiDataPage() {
                     files.map((file) => (
                       <TableRow key={file.id}>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {file.originalName}
+                          {file.original_name}
                         </TableCell>
-                        <TableCell>{formatFileSize(file.fileSize)}</TableCell>
+                        <TableCell>{formatFileSize(file.file_size)}</TableCell>
                         <TableCell>
-                          {file.schemaName ? `${file.schemaName} v${file.schemaVersion}` : "None"}
+                          {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusBadgeVariant(file.status)}>
@@ -578,20 +578,20 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.recordCount > 0 ? file.recordCount.toLocaleString() : "-"}
+                          {file.record_count > 0 ? file.record_count.toLocaleString() : "-"}
                         </TableCell>
                         <TableCell>
-                          {file.recordCount > 0 && (
+                          {file.record_count > 0 && (
                             <div className="w-20">
                               <Progress 
-                                value={(file.processedRecords / file.recordCount) * 100} 
+                                value={(file.processed_records / file.record_count) * 100} 
                                 className="h-2"
                               />
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
+                          {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
