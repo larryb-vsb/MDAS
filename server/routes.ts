@@ -30,6 +30,39 @@ import { HeatMapCacheBuilder } from "./services/heat-map-cache-builder";
 import { heatMapCacheProcessingStats } from "@shared/schema";
 import { backfillUniversalTimestamps } from "./services/universal-timestamp";
 
+// Business day extraction utility for TDDF filenames
+function extractBusinessDayFromFilename(filename: string): { businessDay: Date | null, fileDate: string | null } {
+  // Pattern: VERMNTSB.6759_TDDF_830_10272022_001356.TSYSO
+  // Look for 8-digit date pattern: MMDDYYYY
+  const dateMatch = filename.match(/(\d{8})/);
+  
+  if (!dateMatch) {
+    return { businessDay: null, fileDate: null };
+  }
+  
+  const dateStr = dateMatch[1];
+  
+  // Parse MMDDYYYY format
+  if (dateStr.length === 8) {
+    const month = dateStr.substring(0, 2);
+    const day = dateStr.substring(2, 4);
+    const year = dateStr.substring(4, 8);
+    
+    try {
+      const businessDay = new Date(`${year}-${month}-${day}`);
+      // Validate the date is reasonable (not invalid)
+      if (isNaN(businessDay.getTime())) {
+        return { businessDay: null, fileDate: dateStr };
+      }
+      return { businessDay, fileDate: dateStr };
+    } catch (error) {
+      return { businessDay: null, fileDate: dateStr };
+    }
+  }
+  
+  return { businessDay: null, fileDate: dateStr };
+}
+
 // Cache naming utility following target_source_cache_yyyy format
 function getCacheTableName(target: string, source: string, year?: number): string {
   const cacheYear = year || new Date().getFullYear();
@@ -20029,6 +20062,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { schemaId } = req.body;
       const username = (req.user as any)?.username || 'system';
       
+      // Extract business day from filename
+      const { businessDay, fileDate } = extractBusinessDayFromFilename(req.file.originalname);
+      
       // Calculate file hash
       const fileBuffer = fs.readFileSync(req.file.path);
       const crypto = await import('crypto');
@@ -20046,11 +20082,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Copy file to permanent location
       fs.copyFileSync(req.file.path, path.join(process.cwd(), storagePath));
       
-      // Save file record
+      // Save file record with business day information
       const result = await pool.query(`
         INSERT INTO ${getTableName('tddf_api_files')} 
-        (filename, original_name, file_size, file_hash, storage_path, schema_id, uploaded_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (filename, original_name, file_size, file_hash, storage_path, schema_id, business_day, file_date, uploaded_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `, [
         req.file.filename,
@@ -20059,6 +20095,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileHash,
         storagePath,
         schemaId || null,
+        businessDay,
+        fileDate,
         username
       ]);
 
@@ -20211,18 +20249,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setInterval(processTddfApiQueue, 10000);
   console.log('[TDDF-API-PROCESSOR] Worker started - checking queue every 10 seconds');
 
-  // Get files list
+  // Get files list with date filtering
   app.get('/api/tddf-api/files', isAuthenticated, async (req, res) => {
     try {
-      const { limit = 50, offset = 0, status } = req.query;
+      const { 
+        limit = 50, 
+        offset = 0, 
+        status,
+        dateFrom,
+        dateTo,
+        businessDayFrom,
+        businessDayTo
+      } = req.query;
       
-      let whereClause = '';
-      const params = [limit, offset];
+      let whereConditions = [];
+      const params = [];
+      let paramCount = 0;
       
+      // Add status filter
       if (status) {
-        whereClause = 'WHERE f.status = $3';
+        whereConditions.push(`f.status = $${++paramCount}`);
         params.push(status as string);
       }
+      
+      // Add uploaded date range filter
+      if (dateFrom) {
+        whereConditions.push(`f.uploaded_at >= $${++paramCount}`);
+        params.push(new Date(dateFrom as string));
+      }
+      
+      if (dateTo) {
+        whereConditions.push(`f.uploaded_at <= $${++paramCount}`);
+        params.push(new Date(dateTo as string));
+      }
+      
+      // Add business day range filter
+      if (businessDayFrom) {
+        whereConditions.push(`f.business_day >= $${++paramCount}`);
+        params.push(new Date(businessDayFrom as string));
+      }
+      
+      if (businessDayTo) {
+        whereConditions.push(`f.business_day <= $${++paramCount}`);
+        params.push(new Date(businessDayTo as string));
+      }
+      
+      const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+      
+      // Add limit and offset
+      params.push(limit, offset);
       
       const files = await pool.query(`
         SELECT 
@@ -20235,8 +20310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
         LEFT JOIN ${getTableName('tddf_api_processing_queue')} q ON f.id = q.file_id
         ${whereClause}
-        ORDER BY f.uploaded_at DESC
-        LIMIT $1 OFFSET $2
+        ORDER BY f.business_day DESC NULLS LAST, f.uploaded_at DESC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params);
       
       res.json(files.rows);

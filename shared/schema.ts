@@ -2512,9 +2512,15 @@ export const tddApiFiles = pgTable(getTableName("tddf_api_files"), {
   processingCompleted: timestamp("processing_completed"),
   errorDetails: jsonb("error_details"),
   metadata: jsonb("metadata"), // File-specific metadata
+  businessDay: date("business_day"), // Extracted business day from filename
+  fileDate: text("file_date"), // Raw date string from filename (MMDDYYYY format)
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   uploadedBy: text("uploaded_by").notNull(),
-});
+}, (table) => ({
+  businessDayIdx: index("tddf_api_files_business_day_idx").on(table.businessDay),
+  statusIdx: index("tddf_api_files_status_idx").on(table.status),
+  uploadedAtIdx: index("tddf_api_files_uploaded_at_idx").on(table.uploadedAt)
+}));
 
 export const tddApiRecords = pgTable(getTableName("tddf_api_records"), {
   id: serial("id").primaryKey(),

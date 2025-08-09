@@ -47,6 +47,8 @@ interface TddfApiFile {
   processingCompleted?: string;
   errorDetails?: any;
   metadata?: any;
+  businessDay?: string;
+  fileDate?: string;
   uploadedAt: string;
   uploadedBy: string;
   schemaName?: string;
@@ -86,6 +88,15 @@ export default function TddfApiDataPage() {
   });
   const [createdApiKey, setCreatedApiKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  
+  // Date filtering state
+  const [dateFilters, setDateFilters] = useState({
+    dateFrom: "",
+    dateTo: "",
+    businessDayFrom: "",
+    businessDayTo: "",
+    status: ""
+  });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -96,10 +107,20 @@ export default function TddfApiDataPage() {
     queryFn: () => apiRequest("/api/tddf-api/schemas")
   });
 
-  // Fetch files
+  // Fetch files with filtering
   const { data: files = [], isLoading: filesLoading } = useQuery({
-    queryKey: ["/api/tddf-api/files"],
-    queryFn: () => apiRequest("/api/tddf-api/files")
+    queryKey: ["/api/tddf-api/files", dateFilters],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (dateFilters.dateFrom) params.append('dateFrom', dateFilters.dateFrom);
+      if (dateFilters.dateTo) params.append('dateTo', dateFilters.dateTo);
+      if (dateFilters.businessDayFrom) params.append('businessDayFrom', dateFilters.businessDayFrom);
+      if (dateFilters.businessDayTo) params.append('businessDayTo', dateFilters.businessDayTo);
+      if (dateFilters.status) params.append('status', dateFilters.status);
+      
+      const queryString = params.toString();
+      return apiRequest(`/api/tddf-api/files${queryString ? '?' + queryString : ''}`);
+    }
   });
 
   // Fetch API keys
@@ -540,12 +561,111 @@ export default function TddfApiDataPage() {
             </Dialog>
           </div>
 
+          {/* Date Filtering Controls */}
           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Date Filters
+              </CardTitle>
+              <CardDescription>
+                Filter files by upload date or business day extracted from filenames
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div>
+                  <Label htmlFor="date-from">Upload Date From</Label>
+                  <Input
+                    id="date-from"
+                    type="date"
+                    value={dateFilters.dateFrom}
+                    onChange={(e) => setDateFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="date-to">Upload Date To</Label>
+                  <Input
+                    id="date-to"
+                    type="date"
+                    value={dateFilters.dateTo}
+                    onChange={(e) => setDateFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="business-day-from">Business Day From</Label>
+                  <Input
+                    id="business-day-from"
+                    type="date"
+                    value={dateFilters.businessDayFrom}
+                    onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="business-day-to">Business Day To</Label>
+                  <Input
+                    id="business-day-to"
+                    type="date"
+                    value={dateFilters.businessDayTo}
+                    onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status-filter">Status</Label>
+                  <Select value={dateFilters.status} onValueChange={(value) => setDateFilters(prev => ({ ...prev, status: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="uploaded">Uploaded</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setDateFilters({
+                    dateFrom: "",
+                    dateTo: "",
+                    businessDayFrom: "",
+                    businessDayTo: "",
+                    status: ""
+                  })}
+                >
+                  Clear Filters
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] })}
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Files ({files.length})</CardTitle>
+              <CardDescription>
+                TDDF files uploaded for processing. Business days are automatically extracted from filenames.
+              </CardDescription>
+            </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>File Name</TableHead>
+                    <TableHead>Business Day</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
@@ -558,7 +678,7 @@ export default function TddfApiDataPage() {
                 <TableBody>
                   {filesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center">
+                      <TableCell colSpan={9} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
@@ -566,11 +686,18 @@ export default function TddfApiDataPage() {
                     files.map((file) => (
                       <TableRow key={file.id}>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {file.original_name}
+                          {file.originalName}
                         </TableCell>
-                        <TableCell>{formatFileSize(file.file_size)}</TableCell>
                         <TableCell>
-                          {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
+                          {file.businessDay ? format(new Date(file.businessDay), "MMM d, yyyy") : (
+                            file.fileDate ? (
+                              <span className="text-muted-foreground">{file.fileDate}</span>
+                            ) : "-"
+                          )}
+                        </TableCell>
+                        <TableCell>{formatFileSize(file.fileSize)}</TableCell>
+                        <TableCell>
+                          {file.schemaName ? `${file.schemaName} v${file.schemaVersion}` : "None"}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusBadgeVariant(file.status)}>
@@ -578,20 +705,20 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.record_count > 0 ? file.record_count.toLocaleString() : "-"}
+                          {file.recordCount > 0 ? file.recordCount.toLocaleString() : "-"}
                         </TableCell>
                         <TableCell>
-                          {file.record_count > 0 && (
+                          {file.recordCount > 0 && (
                             <div className="w-20">
                               <Progress 
-                                value={(file.processed_records / file.record_count) * 100} 
+                                value={(file.processedRecords / file.recordCount) * 100} 
                                 className="h-2"
                               />
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
+                          {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
