@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage, isFallbackStorage } from "./storage";
+import { storage, isFallbackStorage, DatabaseStorage } from "./storage";
 import { db, pool } from "./db";
 import { z } from "zod";
 import path from "path";
