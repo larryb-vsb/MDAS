@@ -134,8 +134,8 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode, onMerchantFoc
       onMerchantFocus(merchant.merchantId, merchant.merchantName);
     }
     
-    // Navigate to merchant view page with the correct selected date
-    setLocation(`/merchant/${merchant.merchantId}/${dateStr}`);
+    // Navigate to TDDF1 merchant view page with the correct selected date
+    setLocation(`/tddf1-merchant/${merchant.merchantId}/${dateStr}`);
   };
 
   const getDisplayName = (merchant: TopMerchant) => {
