@@ -447,11 +447,13 @@ export default function TddfApiDataPage() {
                         <TableCell>{schema.version}</TableCell>
                         <TableCell className="max-w-xs truncate">{schema.description}</TableCell>
                         <TableCell>
-                          <Badge variant={schema.isActive ? "default" : "secondary"}>
-                            {schema.isActive ? "Active" : "Inactive"}
+                          <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
+                            {schema.isActive !== false ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell>{format(new Date(schema.createdAt), "MMM d, yyyy")}</TableCell>
+                        <TableCell>
+                          {schema.createdAt ? format(new Date(schema.createdAt), "MMM d, yyyy") : "Unknown"}
+                        </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4" />
