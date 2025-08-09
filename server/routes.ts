@@ -20064,10 +20064,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add to processing queue
       await pool.query(`
-        INSERT INTO ${getTableName('tddf_api_processing_queue')} 
-        (file_id, priority)
-        VALUES ($1, $2)
-      `, [result.rows[0].id, 75]); // High priority for new uploads
+        INSERT INTO ${getTableName('tddf_api_queue')} 
+        (file_id, priority, status, queued_at, max_attempts)
+        VALUES ($1, $2, $3, NOW(), $4)
+      `, [result.rows[0].id, 75, 'queued', 3]);
 
       // Clean up temp file
       fs.unlinkSync(req.file.path);
@@ -20082,6 +20082,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to upload file' });
     }
   });
+
+  // TDDF API Processing Worker
+  let tddfApiProcessing = false;
+  
+  const processTddfApiQueue = async () => {
+    if (tddfApiProcessing) return;
+    
+    try {
+      tddfApiProcessing = true;
+      
+      // Get next queued file
+      const queueResult = await pool.query(`
+        SELECT q.*, f.filename, f.original_name, f.file_size, f.storage_path, f.schema_id,
+               s.name as schema_name, s.version as schema_version, s.schema_data
+        FROM ${getTableName('tddf_api_queue')} q
+        JOIN ${getTableName('tddf_api_files')} f ON q.file_id = f.id
+        LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
+        WHERE q.status = 'queued' 
+        ORDER BY q.priority DESC, q.queued_at ASC
+        LIMIT 1
+      `);
+      
+      if (queueResult.rows.length === 0) {
+        return; // No files to process
+      }
+      
+      const queueItem = queueResult.rows[0];
+      console.log(`[TDDF-API-PROCESSOR] Processing file: ${queueItem.original_name}`);
+      
+      // Update status to processing
+      await pool.query(`
+        UPDATE ${getTableName('tddf_api_queue')} 
+        SET status = 'processing', processing_started = NOW()
+        WHERE id = $1
+      `, [queueItem.id]);
+      
+      // Update file status
+      await pool.query(`
+        UPDATE ${getTableName('tddf_api_files')} 
+        SET status = 'processing', processing_started = NOW()
+        WHERE id = $1
+      `, [queueItem.file_id]);
+      
+      // Read and process the file
+      const filePath = path.join(process.cwd(), queueItem.storage_path);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      
+      let recordCount = 0;
+      let processedRecords = 0;
+      let errorRecords = 0;
+      const errors = [];
+      
+      // Process each line based on schema
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        recordCount++;
+        
+        try {
+          // Basic TDDF line processing (can be enhanced with schema-specific logic)
+          if (line.length < 10) {
+            throw new Error('Line too short for TDDF format');
+          }
+          
+          // For now, just validate the line has minimum TDDF structure
+          processedRecords++;
+        } catch (error) {
+          errorRecords++;
+          errors.push({
+            line: i + 1,
+            error: error.message,
+            data: line.substring(0, 50) + '...'
+          });
+        }
+      }
+      
+      // Update file with processing results
+      await pool.query(`
+        UPDATE ${getTableName('tddf_api_files')} 
+        SET status = $1, record_count = $2, processed_records = $3, 
+            error_records = $4, error_details = $5, processing_completed = NOW()
+        WHERE id = $6
+      `, [
+        errorRecords > 0 ? 'completed_with_errors' : 'completed',
+        recordCount,
+        processedRecords,
+        errorRecords,
+        JSON.stringify(errors.slice(0, 10)), // Store first 10 errors
+        queueItem.file_id
+      ]);
+      
+      // Update queue status
+      await pool.query(`
+        UPDATE ${getTableName('tddf_api_queue')} 
+        SET status = 'completed', processing_completed = NOW()
+        WHERE id = $1
+      `, [queueItem.id]);
+      
+      console.log(`[TDDF-API-PROCESSOR] Completed: ${queueItem.original_name} - ${processedRecords}/${recordCount} records processed`);
+      
+    } catch (error) {
+      console.error('[TDDF-API-PROCESSOR] Error:', error);
+      
+      // Update file status to error if processing failed
+      if (queueResult.rows.length > 0) {
+        const queueItem = queueResult.rows[0];
+        await pool.query(`
+          UPDATE ${getTableName('tddf_api_files')} 
+          SET status = 'error', error_details = $1, processing_completed = NOW()
+          WHERE id = $2
+        `, [JSON.stringify({ error: error.message }), queueItem.file_id]);
+        
+        await pool.query(`
+          UPDATE ${getTableName('tddf_api_queue')} 
+          SET status = 'error', processing_completed = NOW()
+          WHERE id = $1
+        `, [queueItem.id]);
+      }
+    } finally {
+      tddfApiProcessing = false;
+    }
+  };
+  
+  // Start TDDF API processing worker (runs every 10 seconds)
+  setInterval(processTddfApiQueue, 10000);
+  console.log('[TDDF-API-PROCESSOR] Worker started - checking queue every 10 seconds');
 
   // Get files list
   app.get('/api/tddf-api/files', isAuthenticated, async (req, res) => {
