@@ -19983,7 +19983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔍 Running storage analysis...');
       
-      const storage = await getStorage();
+      const storage = new DatabaseStorage();
       
       // Get database file statistics
       const uploaderStats = await storage.query(`
@@ -20070,7 +20070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { dryRun = true } = req.body;
       console.log(`🗑️ Storage cleanup - Dry Run: ${dryRun}`);
       
-      const storage = await getStorage();
+      const storage = new DatabaseStorage();
       
       // Get orphaned database entries (stuck uploads)
       const orphanedEntries = await storage.query(`
@@ -20141,7 +20141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🗑️ Database cleanup - removing stuck uploads...');
       
-      const storage = await getStorage();
+      const storage = new DatabaseStorage();
       
       // Remove entries stuck in 'started' status for more than 1 hour
       const result = await storage.query(`
