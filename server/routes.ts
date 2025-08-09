@@ -17653,6 +17653,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         netDepositsTotal += netDeposits;
         transactionAmountsTotal += transactionAmounts;
         
+        // Get actual BH and DT record counts from the TDDF1 table
+        if (breakdown && breakdown.rebuiltFrom) {
+          try {
+            const recordCountsResult = await pool.query(`
+              SELECT 
+                record_type,
+                COUNT(*) as count
+              FROM ${breakdown.rebuiltFrom}
+              WHERE record_type IN ('BH', 'DT')
+              GROUP BY record_type
+            `);
+            
+            // Add to record types breakdown
+            for (const countRow of recordCountsResult.rows) {
+              recordTypes[countRow.record_type] = (recordTypes[countRow.record_type] || 0) + parseInt(countRow.count);
+            }
+          } catch (recordCountError) {
+            console.log(`⚠️ Could not get record counts for table ${breakdown.rebuiltFrom}:`, recordCountError.message);
+          }
+        }
+        
         // Extract actual TSYSO filename from rebuiltFrom table reference
         let actualFilename = `File #${row.id || filesProcessed.length + 1}`;
         if (breakdown && breakdown.rebuiltFrom) {
@@ -17792,6 +17813,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting TDDF1 recent activity:", error);
       res.status(500).json({ error: "Failed to get recent activity" });
+    }
+  });
+
+  // TDDF1 Merchant Daily View - Detailed merchant data for a specific date
+  app.get("/api/tddf1/merchant/:merchantId/:date", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantId, date } = req.params;
+      console.log(`🏪 Getting TDDF1 merchant daily view for merchant ${merchantId} on ${date}`);
+      
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      console.log(`🏪 Environment: ${environment}, Using prefix: ${envPrefix}`);
+      
+      // Get merchant name from merchants table first
+      const merchantsTableName = `${envPrefix}tddf1_merchants`;
+      const merchantResult = await pool.query(`
+        SELECT merchant_name, total_transactions, first_seen, last_seen
+        FROM ${merchantsTableName}
+        WHERE merchant_id = $1
+      `, [merchantId]);
+      
+      if (merchantResult.rows.length === 0) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const merchantInfo = merchantResult.rows[0];
+      
+      // Find all TDDF1 file tables for the specific date
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+        ORDER BY table_name DESC
+      `, [`${envPrefix}tddf1_file_%`]);
+      
+      let allBatches: any[] = [];
+      let allTransactions: any[] = [];
+      let summary = {
+        totalTransactions: 0,
+        totalAmount: 0,
+        totalNetDeposits: 0,
+        totalBatches: 0
+      };
+      
+      // Query each table to find data for this merchant on the specific date
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const tableName = tableRow.table_name;
+          
+          // Check if this table has data for our date
+          const dateCheckResult = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM ${tableName}
+            WHERE parsed_datetime::date = $1
+            LIMIT 1
+          `, [date]);
+          
+          if (parseInt(dateCheckResult.rows[0].count) === 0) {
+            continue; // Skip tables without data for this date
+          }
+          
+          // Get BH (batch) records for this merchant
+          const batchesResult = await pool.query(`
+            SELECT 
+              merchant_id,
+              entry_run_number,
+              net_deposit_amount,
+              record_count,
+              parsed_datetime,
+              raw_line
+            FROM ${tableName}
+            WHERE record_type = 'BH' 
+              AND merchant_id = $1
+              AND parsed_datetime::date = $2
+            ORDER BY parsed_datetime ASC
+          `, [merchantId, date]);
+          
+          // Get DT (transaction) records for this merchant  
+          const transactionsResult = await pool.query(`
+            SELECT 
+              merchant_id,
+              transaction_amount,
+              reference_number,
+              authorization_number,
+              card_type,
+              terminal_id,
+              mcc_code,
+              transaction_type_indicator,
+              entry_run_number,
+              parsed_datetime
+            FROM ${tableName}
+            WHERE record_type = 'DT'
+              AND merchant_id = $1
+              AND parsed_datetime::date = $2
+            ORDER BY parsed_datetime ASC
+          `, [merchantId, date]);
+          
+          // Process batches
+          for (const batch of batchesResult.rows) {
+            allBatches.push({
+              batchId: batch.entry_run_number || 'Unknown',
+              entryRunNumber: batch.entry_run_number || 'Unknown',
+              netDeposit: parseFloat(batch.net_deposit_amount) || 0,
+              transactionCount: parseInt(batch.record_count) || 0,
+              totalAmount: 0, // Will be calculated from DT records
+              batchDate: batch.parsed_datetime,
+              tableName: tableName
+            });
+            
+            summary.totalBatches++;
+            summary.totalNetDeposits += parseFloat(batch.net_deposit_amount) || 0;
+          }
+          
+          // Process transactions
+          for (const transaction of transactionsResult.rows) {
+            const amount = parseFloat(transaction.transaction_amount) || 0;
+            
+            allTransactions.push({
+              id: `${tableName}_${transaction.reference_number || Math.random()}`,
+              transactionAmount: amount,
+              referenceNumber: transaction.reference_number,
+              authorizationNumber: transaction.authorization_number,
+              cardType: transaction.card_type,
+              terminalId: transaction.terminal_id,
+              mccCode: transaction.mcc_code,
+              transactionTypeIndicator: transaction.transaction_type_indicator,
+              entryRunNumber: transaction.entry_run_number,
+              merchantName: merchantInfo.merchant_name,
+              transactionDate: transaction.parsed_datetime,
+              tableName: tableName
+            });
+            
+            summary.totalTransactions++;
+            summary.totalAmount += amount;
+          }
+          
+        } catch (tableError) {
+          console.warn(`Error querying table ${tableRow.table_name}:`, tableError.message);
+        }
+      }
+      
+      console.log(`🏪 [MERCHANT-DAILY] Found ${summary.totalBatches} batches and ${summary.totalTransactions} transactions for merchant ${merchantId} on ${date}`);
+      
+      const response = {
+        merchantName: merchantInfo.merchant_name || `Merchant ${merchantId}`,
+        merchantId: merchantId,
+        date: date,
+        summary: summary,
+        batches: allBatches,
+        allTransactions: allTransactions,
+        merchantInfo: {
+          totalTransactions: merchantInfo.total_transactions,
+          firstSeen: merchantInfo.first_seen,
+          lastSeen: merchantInfo.last_seen
+        }
+      };
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error getting TDDF1 merchant daily view:", error);
+      res.status(500).json({ error: "Failed to get merchant daily view" });
     }
   });
 
