@@ -18311,7 +18311,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_count,
           last_updated,
           source_files,
-          last_processed_file
+          last_processed_file,
+          batch_count
         FROM ${merchantsTableName}
         ${whereClause}
         ORDER BY ${sortColumn} ${sortDirection}
@@ -18320,56 +18321,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const dataResult = await pool.query(dataQuery, values);
       
-      // Get BH and DT record counts efficiently for all merchants at once
+      // Get BH and DT record counts from the merchants table (uses batch_count column)
       const merchantBHDTCounts = {};
       
-      try {
-        // Get all TDDF1 tables for this environment
-        const tablesQuery = `
-          SELECT table_name 
-          FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-            AND table_name LIKE '${isDevelopment ? 'dev_' : ''}tddf1_file_%'
-        `;
-        const tablesResult = await pool.query(tablesQuery);
-        
-        // For performance, only query the most recent few tables (last 10 files)
-        const recentTables = tablesResult.rows.slice(-10);
-        
-        // Aggregate counts across all recent tables in one go
-        for (const tableRow of recentTables) {
-          const tableName = tableRow.table_name;
-          try {
-            const aggregateQuery = `
-              SELECT 
-                merchant_id,
-                record_type,
-                COUNT(*) as count
-              FROM ${tableName}
-              WHERE record_type IN ('BH', 'DT')
-              GROUP BY merchant_id, record_type
-            `;
-            const aggregateResult = await pool.query(aggregateQuery);
-            
-            for (const countRow of aggregateResult.rows) {
-              const merchantId = countRow.merchant_id;
-              if (!merchantBHDTCounts[merchantId]) {
-                merchantBHDTCounts[merchantId] = { batchCount: 0, dtRecordCount: 0 };
-              }
-              
-              if (countRow.record_type === 'BH') {
-                merchantBHDTCounts[merchantId].batchCount += parseInt(countRow.count);
-              } else if (countRow.record_type === 'DT') {
-                merchantBHDTCounts[merchantId].dtRecordCount += parseInt(countRow.count);
-              }
-            }
-          } catch (tableError) {
-            // Skip tables that don't have the expected schema
-            console.log(`⚠️ Skipping table ${tableName}:`, tableError.message);
-          }
-        }
-      } catch (error) {
-        console.log(`⚠️ Could not get BH/DT counts:`, error.message);
+      // Use the batch_count from merchants table instead of aggregating across all historical files
+      for (const row of dataResult.rows) {
+        merchantBHDTCounts[row.merchant_id] = {
+          batchCount: parseInt(row.batch_count || 0),
+          dtRecordCount: parseInt(row.total_transactions || 0)
+        };
       }
       
       // Map the data with BH/DT counts
