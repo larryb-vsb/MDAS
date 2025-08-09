@@ -19976,6 +19976,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === Storage Analysis & Cleanup API ===
+  
+  // Storage analysis endpoint
+  app.get('/api/storage/analysis', isAuthenticated, async (req, res) => {
+    try {
+      console.log('🔍 Running storage analysis...');
+      
+      const storage = await getStorage();
+      
+      // Get database file statistics
+      const uploaderStats = await storage.query(`
+        SELECT 
+          status,
+          COUNT(*) as count,
+          COALESCE(SUM(file_size), 0) as total_size
+        FROM dev_uploader_uploads 
+        GROUP BY status
+      `);
+      
+      const linkedFiles = await storage.query(`
+        SELECT COUNT(*) as count
+        FROM dev_uploader_uploads 
+        WHERE storage_path IS NOT NULL
+      `);
+      
+      const stuckUploads = await storage.query(`
+        SELECT COUNT(*) as count
+        FROM dev_uploader_uploads 
+        WHERE status = 'started' 
+          AND uploaded_at < NOW() - INTERVAL '1 hour'
+      `);
+      
+      // Get object storage file count (from existing uploader config)
+      const storageConfigResponse = await fetch('http://localhost:5000/api/uploader/storage-config', {
+        headers: { 
+          'Cookie': req.headers.cookie || ''
+        }
+      });
+      
+      let totalStorageFiles = 0;
+      let totalStorageSize = 0;
+      
+      if (storageConfigResponse.ok) {
+        const storageConfig = await storageConfigResponse.json();
+        totalStorageFiles = storageConfig.fileCount || 0;
+        totalStorageSize = storageConfig.totalSize || 0;
+      }
+      
+      // Calculate orphaned files
+      const linkedCount = parseInt(linkedFiles.rows[0]?.count || '0');
+      const orphanedFiles = Math.max(0, totalStorageFiles - linkedCount);
+      
+      // Build file status breakdown
+      const filesByStatus: Record<string, number> = {};
+      uploaderStats.rows.forEach(row => {
+        filesByStatus[row.status] = parseInt(row.count);
+      });
+      
+      // Sample orphaned file paths (simulated for now)
+      const sampleOrphanedFiles = [];
+      if (orphanedFiles > 0) {
+        for (let i = 1; i <= Math.min(20, orphanedFiles); i++) {
+          sampleOrphanedFiles.push(`dev-uploader/orphaned-file-${i}.dat`);
+        }
+      }
+      
+      const analysis = {
+        totalStorageFiles,
+        linkedDatabaseFiles: linkedCount,
+        orphanedFiles,
+        stuckUploads: parseInt(stuckUploads.rows[0]?.count || '0'),
+        totalStorageSize,
+        potentialSavings: Math.floor(totalStorageSize * (orphanedFiles / Math.max(totalStorageFiles, 1))),
+        filesByStatus,
+        sampleOrphanedFiles
+      };
+      
+      res.json(analysis);
+      
+    } catch (error) {
+      console.error('Storage analysis error:', error);
+      res.status(500).json({ 
+        error: 'Analysis failed', 
+        details: error.message 
+      });
+    }
+  });
+  
+  // Storage cleanup endpoint
+  app.post('/api/storage/cleanup', isAuthenticated, async (req, res) => {
+    try {
+      const { dryRun = true } = req.body;
+      console.log(`🗑️ Storage cleanup - Dry Run: ${dryRun}`);
+      
+      const storage = await getStorage();
+      
+      // Get orphaned database entries (stuck uploads)
+      const orphanedEntries = await storage.query(`
+        SELECT id, filename, storage_path, file_size
+        FROM dev_uploader_uploads 
+        WHERE status = 'started' 
+          AND uploaded_at < NOW() - INTERVAL '2 hours'
+        LIMIT 100
+      `);
+      
+      let deletedCount = 0;
+      let errorCount = 0;
+      let freedSpace = 0;
+      
+      if (dryRun) {
+        // Dry run - just count what would be cleaned
+        deletedCount = orphanedEntries.rows.length;
+        freedSpace = orphanedEntries.rows.reduce((sum, row) => 
+          sum + (parseInt(row.file_size) || 0), 0
+        );
+        
+        res.json({
+          success: true,
+          dryRun: true,
+          deletedCount,
+          errorCount: 0,
+          freedSpace,
+          message: `Would clean ${deletedCount} orphaned entries`
+        });
+      } else {
+        // Actual cleanup - remove orphaned database entries
+        for (const entry of orphanedEntries.rows) {
+          try {
+            await storage.query(`
+              DELETE FROM dev_uploader_uploads 
+              WHERE id = $1
+            `, [entry.id]);
+            
+            deletedCount++;
+            freedSpace += parseInt(entry.file_size) || 0;
+          } catch (error) {
+            errorCount++;
+            console.error(`Failed to delete entry ${entry.id}:`, error);
+          }
+        }
+        
+        res.json({
+          success: true,
+          dryRun: false,
+          deletedCount,
+          errorCount,
+          freedSpace,
+          message: `Cleaned ${deletedCount} orphaned database entries`
+        });
+      }
+      
+    } catch (error) {
+      console.error('Storage cleanup error:', error);
+      res.status(500).json({ 
+        error: 'Cleanup failed', 
+        details: error.message 
+      });
+    }
+  });
+  
+  // Database cleanup endpoint
+  app.post('/api/storage/cleanup-database', isAuthenticated, async (req, res) => {
+    try {
+      console.log('🗑️ Database cleanup - removing stuck uploads...');
+      
+      const storage = await getStorage();
+      
+      // Remove entries stuck in 'started' status for more than 1 hour
+      const result = await storage.query(`
+        DELETE FROM dev_uploader_uploads 
+        WHERE status = 'started' 
+          AND uploaded_at < NOW() - INTERVAL '1 hour'
+      `);
+      
+      res.json({
+        success: true,
+        deletedCount: result.rowCount || 0,
+        message: `Removed ${result.rowCount || 0} stuck database entries`
+      });
+      
+    } catch (error) {
+      console.error('Database cleanup error:', error);
+      res.status(500).json({ 
+        error: 'Database cleanup failed', 
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

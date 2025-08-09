@@ -39,6 +39,7 @@ import ProcessingDashboardPage from "@/pages/ProcessingDashboardPage";
 import ProcessingPage from "@/pages/ProcessingPage";
 import ProcessingDashboardV2 from "@/pages/ProcessingDashboardV2";
 import StorageManagement from "@/pages/StorageManagement";
+import ObjectStorageCleanup from "@/pages/ObjectStorageCleanup";
 import PreCacheManagement from "@/pages/PreCacheManagement";
 import ChartsPage from "@/pages/ChartsPage";
 function Router() {
@@ -80,6 +81,7 @@ function Router() {
       <ProtectedRoute path="/mms-uploader" component={MMSUploader} />
       <ProtectedRoute path="/subterminals" component={SubTerminals} />
       <ProtectedRoute path="/storage-management" component={StorageManagement} />
+      <ProtectedRoute path="/storage-cleanup" component={ObjectStorageCleanup} />
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
       <ProtectedRoute path="/charts" component={ChartsPage} />
