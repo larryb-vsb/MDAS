@@ -1,0 +1,236 @@
+Build new TDDF API data page and tables based on the included spec.  Also include API security and key control along with any appropriate monitoring in the requirements document. The object storage will be shared between Dev and Prod.   TDDF_API_Data Object folder, including object upload up to 500 mb support for production 40mb limitation.  This page will have access to all object storage management and cleanup search and other needed functionalities.  Note uploaded TDDF files will have their file business date available for search by day.   Keep all tapes and processing separate form TDDF1 and TDDF pages and tables. Prefix all data with tddf-a pages and tables. Separate from tddf1 and tddf areas. 
+
+VERMNTSB.6759_TDDF_2400_08012025_011442.TSYSO
+VERMNTSB.6759_TDDF_2400_08012025_011442.TSYSO
+
+Keep performance in mind volume can reach 5-10 million records a day. 
+
+# Flat File API Requirements Document
+
+## Project Overview
+
+Development of a comprehensive API system for processing position-based flat files from merchant transaction systems, with dynamic schema configuration and fast data retrieval for analytics applications.
+
+## System Architecture
+
+### Core Components
+
+- **API Service**: Central processing and data serving layer
+- **Admin Dashboard**: Configuration interface and system monitoring
+- **File Processing Engine**: Position-based record parsing with schema validation
+- **Caching Layer**: High-performance data retrieval system
+- **Queue Management**: Priority-based processing system
+- **Remote Agents**: Automated file upload via PowerShell scripts
+
+## Inputs
+
+### Primary Data Sources
+
+- **Daily Flat Files**: 2 files per day
+- **Current Volume**: ~100,000 records per file
+- **Projected Volume**: Up to 1,000,000 records per file
+- **Format**: Position-based variable length records
+- **Record Types**: Determined by position-based type codes
+
+### Schema Definition
+
+- **Format**: Excel or CSV file
+- **Contents**:
+ - Record type mappings
+ - Field positions and lengths
+ - Data types
+ - Field descriptions
+- **Dynamic Updates**: Schema changes trigger reprocessing
+
+### API Query Parameters
+
+- Date ranges
+- Transaction types
+- Record type filters
+- Field selection criteria
+- Pagination parameters
+
+## Outputs
+
+### JSON Response Format
+
+- **Structure**: Dynamically configured based on schema selection
+- **Field Selection**: Configurable per record type
+- **Pagination**: Support for large result sets
+- **Metadata**: Record counts, processing status, timestamps
+
+### Admin Dashboard Data
+
+- Real-time processing statistics
+- Queue depths and processing speeds
+- System health metrics
+- Performance monitoring data
+- Configuration management interface
+
+## Functional Requirements
+
+### File Processing
+
+1. **Upload Handling**
+- Manual file upload via admin console
+- Automated upload via PowerShell agents
+- File validation and format verification
+- Duplicate detection and handling
+1. **Record Parsing**
+- Position-based field extraction
+- Record type identification and routing
+- Schema-driven field mapping
+- Data type conversion and validation
+1. **Dynamic Configuration**
+- Field selection interface per record type
+- Real-time schema updates
+- Configuration persistence
+- Bulk configuration management
+
+### API Endpoints
+
+1. **Data Retrieval**
+- GET endpoints for record queries
+- Filtering by date, type, and custom criteria
+- Paginated responses
+- Field projection support
+1. **File Management**
+- POST endpoints for file upload
+- Processing status endpoints
+- Reprocessing triggers
+- File metadata retrieval
+1. **Configuration Management**
+- Schema upload and validation
+- Field selection configuration
+- Processing queue management
+- System settings
+
+### Caching Strategy
+
+- **In-Memory Caching**: Frequently accessed data
+- **Object Storage Integration**: Large dataset storage
+- **Cache Invalidation**: Automatic on schema changes
+- **Performance Optimization**: Based on access patterns
+
+## Performance Requirements
+
+### Processing Priorities
+
+1. **Immediate Priority**: Single record requests
+1. **High Priority**: Daily batch requests
+1. **Medium Priority**: Weekly range queries
+1. **Low Priority**: Monthly analytics workloads
+
+### Response Time Targets
+
+- To be determined through build-and-measure approach
+- Initial baseline establishment required
+- Performance optimization based on real usage data
+
+### Scalability Targets
+
+- Support growth from 200K to 2M+ records daily
+- Horizontal scaling capability
+- Resource utilization optimization
+
+## Technical Architecture
+
+### Development Platform Options
+
+- **Replit**: Browser-based development environment
+- **Cursor**: AI-assisted coding platform
+- **Lovable**: Rapid application development
+
+### Infrastructure Components
+
+- **Object Storage**: Platform-dependent (S3, Azure Blob, etc.)
+- **Caching Layer**: Redis or platform equivalent
+- **Queue System**: Priority-based processing queues
+- **Monitoring**: Built-in metrics and logging
+
+### Remote Agents
+
+- **Technology**: PowerShell scripts
+- **Functionality**:
+ - Directory monitoring
+ - File validation and checksums
+ - Scheduled or triggered uploads
+ - Error handling and retry logic
+
+## System Monitoring
+
+### Admin Dashboard Features
+
+- Real-time processing statistics
+- Queue depth monitoring
+- Performance metrics visualization
+- System health indicators
+- Alert management
+- Configuration interface
+
+### Metrics Collection
+
+- Processing speeds per priority level
+- Cache hit/miss ratios
+- API response times
+- Error rates and types
+- Resource utilization
+- Queue processing throughput
+
+## Implementation Phases
+
+### Phase 1: Core API Development
+
+- Basic file upload functionality
+- Record type identification
+- Schema-driven field parsing
+- Simple field selection interface
+- JSON output generation
+
+### Phase 2: Performance Optimization
+
+- Caching implementation
+- Queue system development
+- Performance monitoring integration
+- Load testing and optimization
+
+### Phase 3: Advanced Features
+
+- PowerShell agent development
+- Advanced analytics support
+- Automated reprocessing
+- Enhanced monitoring and alerting
+
+### Phase 4: Production Deployment
+
+- Full system integration
+- Documentation completion
+- User training and support
+- Production monitoring setup
+
+## Success Criteria
+
+- Successful processing of merchant transaction files
+- Fast API response times for operational queries
+- Configurable field selection without code changes
+- Scalable architecture supporting projected growth
+- Comprehensive monitoring and alerting system
+- Automated data pipeline with minimal manual intervention
+
+## Risk Considerations
+
+- File format variations from different merchants
+- Schema evolution and backward compatibility
+- Performance degradation with scale
+- Data integrity during processing
+- System availability and disaster recovery
+
+## Future Enhancements
+
+- Real-time streaming processing
+- Advanced analytics and reporting
+- Machine learning integration for pattern detection
+- Multi-tenant support
+- Enhanced security and compliance features
+
+

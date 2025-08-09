@@ -24,7 +24,7 @@
  * - 2.7.1: PATCH - Pre-deployment validation and schema synchronization fix for production readiness with comprehensive environment detection improvements  
  * - 2.8.0: MINOR FEATURE - Comprehensive Pre-Caching Tables System with dedicated page-specific tables, last update date/time tracking, metadata capture, and standardized performance optimization architecture
  */
-import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, timestamp, date, boolean, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -2478,3 +2478,148 @@ export const insertTddf1MerchantSchema = createInsertSchema(tddf1Merchants).omit
   id: true, createdAt: true, lastUpdated: true 
 });
 export type InsertTddf1Merchant = z.infer<typeof insertTddf1MerchantSchema>;
+
+// ===== TDDF API Data System Tables =====
+// Schema management for dynamic TDDF record processing
+
+export const tddApiSchemas = pgTable(getTableName("tddf_api_schemas"), {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  version: text("version").notNull(),
+  description: text("description"),
+  schemaData: jsonb("schema_data").notNull(), // Complete schema definition
+  isActive: boolean("is_active").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: text("created_by").notNull(),
+}, (table) => ({
+  uniqNameVersion: unique().on(table.name, table.version)
+}));
+
+export const tddApiFiles = pgTable(getTableName("tddf_api_files"), {
+  id: serial("id").primaryKey(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileHash: text("file_hash").notNull(),
+  storagePath: text("storage_path").notNull(),
+  schemaId: integer("schema_id").references(() => tddApiSchemas.id),
+  status: text("status").notNull().default("uploaded"), // uploaded, processing, completed, failed
+  recordCount: integer("record_count").default(0),
+  processedRecords: integer("processed_records").default(0),
+  errorRecords: integer("error_records").default(0),
+  processingStarted: timestamp("processing_started"),
+  processingCompleted: timestamp("processing_completed"),
+  errorDetails: jsonb("error_details"),
+  metadata: jsonb("metadata"), // File-specific metadata
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  uploadedBy: text("uploaded_by").notNull(),
+});
+
+export const tddApiRecords = pgTable(getTableName("tddf_api_records"), {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").references(() => tddApiFiles.id).notNull(),
+  recordType: text("record_type").notNull(),
+  lineNumber: integer("line_number").notNull(),
+  rawData: text("raw_data").notNull(),
+  parsedData: jsonb("parsed_data").notNull(), // Structured record data
+  isValid: boolean("is_valid").default(true),
+  validationErrors: jsonb("validation_errors"),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
+}, (table) => ({
+  fileRecordIdx: index("tddf_api_records_file_record_idx").on(table.fileId, table.recordType),
+  fileLineIdx: index("tddf_api_records_file_line_idx").on(table.fileId, table.lineNumber)
+}));
+
+export const tddApiKeys = pgTable(getTableName("tddf_api_keys"), {
+  id: serial("id").primaryKey(),
+  keyName: text("key_name").notNull(),
+  keyHash: text("key_hash").notNull(), // Hashed API key
+  keyPrefix: text("key_prefix").notNull(), // First 8 chars for identification
+  permissions: jsonb("permissions").notNull(), // Array of permission strings
+  isActive: boolean("is_active").default(true),
+  lastUsed: timestamp("last_used"),
+  requestCount: integer("request_count").default(0),
+  rateLimitPerMinute: integer("rate_limit_per_minute").default(100),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: text("created_by").notNull(),
+  expiresAt: timestamp("expires_at"),
+}, (table) => ({
+  keyHashIdx: index("tddf_api_keys_hash_idx").on(table.keyHash),
+  keyPrefixIdx: index("tddf_api_keys_prefix_idx").on(table.keyPrefix)
+}));
+
+export const tddApiRequestLogs = pgTable(getTableName("tddf_api_request_logs"), {
+  id: serial("id").primaryKey(),
+  apiKeyId: integer("api_key_id").references(() => tddApiKeys.id),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull(),
+  requestParams: jsonb("request_params"),
+  responseStatus: integer("response_status").notNull(),
+  responseTime: integer("response_time"), // milliseconds
+  requestSize: integer("request_size"), // bytes
+  responseSize: integer("response_size"), // bytes
+  userAgent: text("user_agent"),
+  ipAddress: text("ip_address"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+}, (table) => ({
+  apiKeyTimeIdx: index("tddf_api_requests_key_time_idx").on(table.apiKeyId, table.requestedAt),
+  endpointTimeIdx: index("tddf_api_requests_endpoint_time_idx").on(table.endpoint, table.requestedAt)
+}));
+
+export const tddApiFieldConfigs = pgTable(getTableName("tddf_api_field_configs"), {
+  id: serial("id").primaryKey(),
+  schemaId: integer("schema_id").references(() => tddApiSchemas.id).notNull(),
+  recordType: text("record_type").notNull(),
+  fieldName: text("field_name").notNull(),
+  isSelected: boolean("is_selected").default(true),
+  displayName: text("display_name"),
+  sortOrder: integer("sort_order").default(0),
+  isFilterable: boolean("is_filterable").default(false),
+  dataType: text("data_type"), // string, number, date, boolean
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: text("updated_by").notNull(),
+}, (table) => ({
+  schemaRecordFieldIdx: unique().on(table.schemaId, table.recordType, table.fieldName)
+}));
+
+export const tddApiProcessingQueue = pgTable(getTableName("tddf_api_processing_queue"), {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").references(() => tddApiFiles.id).notNull(),
+  priority: integer("priority").default(50), // 1-100, higher = more urgent
+  status: text("status").notNull().default("queued"), // queued, processing, completed, failed
+  attempts: integer("attempts").default(0),
+  maxAttempts: integer("max_attempts").default(3),
+  errorMessage: text("error_message"),
+  processingStarted: timestamp("processing_started"),
+  processingCompleted: timestamp("processing_completed"),
+  queuedAt: timestamp("queued_at").defaultNow().notNull(),
+}, (table) => ({
+  statusPriorityIdx: index("tddf_api_queue_status_priority_idx").on(table.status, table.priority),
+  queuedAtIdx: index("tddf_api_queue_queued_at_idx").on(table.queuedAt)
+}));
+
+// Zod schemas for TDDF API
+export const insertTddfApiSchemaSchema = createInsertSchema(tddApiSchemas);
+export const insertTddfApiFileSchema = createInsertSchema(tddApiFiles);
+export const insertTddfApiRecordSchema = createInsertSchema(tddApiRecords);
+export const insertTddfApiKeySchema = createInsertSchema(tddApiKeys);
+export const insertTddfApiRequestLogSchema = createInsertSchema(tddApiRequestLogs);
+export const insertTddfApiFieldConfigSchema = createInsertSchema(tddApiFieldConfigs);
+export const insertTddfApiProcessingQueueSchema = createInsertSchema(tddApiProcessingQueue);
+
+export type TddfApiSchema = typeof tddApiSchemas.$inferSelect;
+export type TddfApiFile = typeof tddApiFiles.$inferSelect;
+export type TddfApiRecord = typeof tddApiRecords.$inferSelect;
+export type TddfApiKey = typeof tddApiKeys.$inferSelect;
+export type TddfApiRequestLog = typeof tddApiRequestLogs.$inferSelect;
+export type TddfApiFieldConfig = typeof tddApiFieldConfigs.$inferSelect;
+export type TddfApiProcessingQueue = typeof tddApiProcessingQueue.$inferSelect;
+
+export type InsertTddfApiSchema = typeof insertTddfApiSchemaSchema._type;
+export type InsertTddfApiFile = typeof insertTddfApiFileSchema._type;
+export type InsertTddfApiRecord = typeof insertTddfApiRecordSchema._type;
+export type InsertTddfApiKey = typeof insertTddfApiKeySchema._type;
+export type InsertTddfApiRequestLog = typeof insertTddfApiRequestLogSchema._type;
+export type InsertTddfApiFieldConfig = typeof insertTddfApiFieldConfigSchema._type;
+export type InsertTddfApiProcessingQueue = typeof insertTddfApiProcessingQueueSchema._type;

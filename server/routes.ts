@@ -19976,6 +19976,364 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // === TDDF API Data System ===
+  
+  // Get all schemas
+  app.get('/api/tddf-api/schemas', isAuthenticated, async (req, res) => {
+    try {
+      const schemas = await pool.query(`
+        SELECT * FROM ${getTableName('tddf_api_schemas')}
+        ORDER BY created_at DESC
+      `);
+      res.json(schemas.rows);
+    } catch (error) {
+      console.error('Error fetching TDDF API schemas:', error);
+      res.status(500).json({ error: 'Failed to fetch schemas' });
+    }
+  });
+
+  // Create new schema
+  app.post('/api/tddf-api/schemas', isAuthenticated, async (req, res) => {
+    try {
+      const { name, version, description, schemaData } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      const result = await pool.query(`
+        INSERT INTO ${getTableName('tddf_api_schemas')} 
+        (name, version, description, schema_data, created_by)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [name, version, description, JSON.stringify(schemaData), username]);
+      
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error creating TDDF API schema:', error);
+      res.status(500).json({ error: 'Failed to create schema' });
+    }
+  });
+
+  // Upload TDDF file with 500MB support
+  const tddfStorage = multer({
+    dest: path.join(os.tmpdir(), 'tddf-api-uploads'),
+    limits: {
+      fileSize: 500 * 1024 * 1024 // 500MB limit for production
+    }
+  });
+
+  app.post('/api/tddf-api/upload', isAuthenticated, tddfStorage.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const { schemaId } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      // Calculate file hash
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const crypto = require('crypto');
+      const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      
+      // Store in object storage
+      const storageService = new ReplitStorageService();
+      const storagePath = `TDDF_API_Data/${Date.now()}_${req.file.originalname}`;
+      
+      // Upload to object storage
+      await storageService.uploadFromBuffer(fileBuffer, storagePath);
+      
+      // Save file record
+      const result = await pool.query(`
+        INSERT INTO ${getTableName('tddf_api_files')} 
+        (filename, original_name, file_size, file_hash, storage_path, schema_id, uploaded_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [
+        req.file.filename,
+        req.file.originalname,
+        req.file.size,
+        fileHash,
+        storagePath,
+        schemaId || null,
+        username
+      ]);
+
+      // Add to processing queue
+      await pool.query(`
+        INSERT INTO ${getTableName('tddf_api_processing_queue')} 
+        (file_id, priority)
+        VALUES ($1, $2)
+      `, [result.rows[0].id, 75]); // High priority for new uploads
+
+      // Clean up temp file
+      fs.unlinkSync(req.file.path);
+      
+      res.json({ 
+        success: true, 
+        fileId: result.rows[0].id,
+        message: 'File uploaded and queued for processing'
+      });
+    } catch (error) {
+      console.error('Error uploading TDDF API file:', error);
+      res.status(500).json({ error: 'Failed to upload file' });
+    }
+  });
+
+  // Get files list
+  app.get('/api/tddf-api/files', isAuthenticated, async (req, res) => {
+    try {
+      const { limit = 50, offset = 0, status } = req.query;
+      
+      let whereClause = '';
+      const params = [limit, offset];
+      
+      if (status) {
+        whereClause = 'WHERE f.status = $3';
+        params.push(status as string);
+      }
+      
+      const files = await pool.query(`
+        SELECT 
+          f.*,
+          s.name as schema_name,
+          s.version as schema_version,
+          q.status as queue_status,
+          q.priority as queue_priority
+        FROM ${getTableName('tddf_api_files')} f
+        LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
+        LEFT JOIN ${getTableName('tddf_api_processing_queue')} q ON f.id = q.file_id
+        ${whereClause}
+        ORDER BY f.uploaded_at DESC
+        LIMIT $1 OFFSET $2
+      `, params);
+      
+      res.json(files.rows);
+    } catch (error) {
+      console.error('Error fetching TDDF API files:', error);
+      res.status(500).json({ error: 'Failed to fetch files' });
+    }
+  });
+
+  // Get records with dynamic field selection
+  app.get('/api/tddf-api/records/:fileId', isAuthenticated, async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const { 
+        limit = 100, 
+        offset = 0, 
+        recordType, 
+        fields, 
+        dateFrom, 
+        dateTo,
+        search 
+      } = req.query;
+      
+      // Build dynamic query based on field selection
+      let selectFields = 'r.*';
+      if (fields) {
+        const fieldList = (fields as string).split(',');
+        const safeFields = fieldList.map(f => `r.parsed_data->>'${f}' as "${f}"`).join(', ');
+        selectFields = `r.id, r.record_type, r.line_number, ${safeFields}`;
+      }
+      
+      let whereClause = 'WHERE r.file_id = $1';
+      const params = [fileId];
+      let paramCount = 1;
+      
+      if (recordType) {
+        whereClause += ` AND r.record_type = $${++paramCount}`;
+        params.push(recordType as string);
+      }
+      
+      if (search) {
+        whereClause += ` AND r.raw_data ILIKE $${++paramCount}`;
+        params.push(`%${search}%`);
+      }
+      
+      params.push(limit, offset);
+      
+      const records = await pool.query(`
+        SELECT ${selectFields}
+        FROM ${getTableName('tddf_api_records')} r
+        ${whereClause}
+        ORDER BY r.line_number
+        LIMIT $${++paramCount} OFFSET $${++paramCount}
+      `, params);
+      
+      // Get total count
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as total
+        FROM ${getTableName('tddf_api_records')} r
+        ${whereClause}
+      `, params.slice(0, paramCount - 2));
+      
+      res.json({
+        records: records.rows,
+        total: parseInt(countResult.rows[0].total),
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string)
+      });
+    } catch (error) {
+      console.error('Error fetching TDDF API records:', error);
+      res.status(500).json({ error: 'Failed to fetch records' });
+    }
+  });
+
+  // Generate and manage API keys
+  app.post('/api/tddf-api/keys', isAuthenticated, async (req, res) => {
+    try {
+      const { keyName, permissions, rateLimitPerMinute, expiresAt } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      // Generate API key
+      const crypto = require('crypto');
+      const apiKey = `tddf_${crypto.randomBytes(32).toString('hex')}`;
+      const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+      const keyPrefix = apiKey.substring(0, 8);
+      
+      const result = await pool.query(`
+        INSERT INTO ${getTableName('tddf_api_keys')} 
+        (key_name, key_hash, key_prefix, permissions, rate_limit_per_minute, expires_at, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, key_name, key_prefix, permissions, rate_limit_per_minute, expires_at, created_at
+      `, [
+        keyName,
+        keyHash,
+        keyPrefix,
+        JSON.stringify(permissions || ['read']),
+        rateLimitPerMinute || 100,
+        expiresAt || null,
+        username
+      ]);
+      
+      res.json({
+        ...result.rows[0],
+        apiKey: apiKey // Only return the key once during creation
+      });
+    } catch (error) {
+      console.error('Error creating TDDF API key:', error);
+      res.status(500).json({ error: 'Failed to create API key' });
+    }
+  });
+
+  // Get API keys list (without actual keys)
+  app.get('/api/tddf-api/keys', isAuthenticated, async (req, res) => {
+    try {
+      const keys = await pool.query(`
+        SELECT 
+          id, key_name, key_prefix, permissions, is_active, 
+          last_used, request_count, rate_limit_per_minute,
+          created_at, expires_at
+        FROM ${getTableName('tddf_api_keys')}
+        ORDER BY created_at DESC
+      `);
+      
+      res.json(keys.rows);
+    } catch (error) {
+      console.error('Error fetching TDDF API keys:', error);
+      res.status(500).json({ error: 'Failed to fetch API keys' });
+    }
+  });
+
+  // Update field configuration
+  app.put('/api/tddf-api/field-config/:schemaId', isAuthenticated, async (req, res) => {
+    try {
+      const { schemaId } = req.params;
+      const { recordType, fieldConfigs } = req.body;
+      const username = (req.user as any)?.username || 'system';
+      
+      // Delete existing config for this schema/record type
+      await pool.query(`
+        DELETE FROM ${getTableName('tddf_api_field_configs')}
+        WHERE schema_id = $1 AND record_type = $2
+      `, [schemaId, recordType]);
+      
+      // Insert new configurations
+      for (const config of fieldConfigs) {
+        await pool.query(`
+          INSERT INTO ${getTableName('tddf_api_field_configs')}
+          (schema_id, record_type, field_name, is_selected, display_name, sort_order, is_filterable, data_type, updated_by)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          schemaId, recordType, config.fieldName, config.isSelected,
+          config.displayName, config.sortOrder, config.isFilterable,
+          config.dataType, username
+        ]);
+      }
+      
+      res.json({ success: true, message: 'Field configuration updated' });
+    } catch (error) {
+      console.error('Error updating field configuration:', error);
+      res.status(500).json({ error: 'Failed to update field configuration' });
+    }
+  });
+
+  // Get processing queue status
+  app.get('/api/tddf-api/queue', isAuthenticated, async (req, res) => {
+    try {
+      const queue = await pool.query(`
+        SELECT 
+          q.*,
+          f.original_name,
+          f.file_size,
+          f.uploaded_at
+        FROM ${getTableName('tddf_api_processing_queue')} q
+        JOIN ${getTableName('tddf_api_files')} f ON q.file_id = f.id
+        ORDER BY q.priority DESC, q.queued_at ASC
+      `);
+      
+      res.json(queue.rows);
+    } catch (error) {
+      console.error('Error fetching processing queue:', error);
+      res.status(500).json({ error: 'Failed to fetch queue' });
+    }
+  });
+
+  // API monitoring and request logs
+  app.get('/api/tddf-api/monitoring', isAuthenticated, async (req, res) => {
+    try {
+      const { timeRange = '24h' } = req.query;
+      
+      let timeFilter = '';
+      const params = [];
+      
+      if (timeRange === '24h') {
+        timeFilter = "WHERE requested_at >= NOW() - INTERVAL '24 hours'";
+      } else if (timeRange === '7d') {
+        timeFilter = "WHERE requested_at >= NOW() - INTERVAL '7 days'";
+      }
+      
+      const stats = await pool.query(`
+        SELECT 
+          COUNT(*) as total_requests,
+          AVG(response_time) as avg_response_time,
+          COUNT(CASE WHEN response_status >= 400 THEN 1 END) as error_count,
+          COUNT(DISTINCT api_key_id) as unique_api_keys
+        FROM ${getTableName('tddf_api_request_logs')}
+        ${timeFilter}
+      `);
+      
+      const topEndpoints = await pool.query(`
+        SELECT 
+          endpoint,
+          COUNT(*) as request_count,
+          AVG(response_time) as avg_response_time
+        FROM ${getTableName('tddf_api_request_logs')}
+        ${timeFilter}
+        GROUP BY endpoint
+        ORDER BY request_count DESC
+        LIMIT 10
+      `);
+      
+      res.json({
+        stats: stats.rows[0],
+        topEndpoints: topEndpoints.rows
+      });
+    } catch (error) {
+      console.error('Error fetching API monitoring data:', error);
+      res.status(500).json({ error: 'Failed to fetch monitoring data' });
+    }
+  });
+
   // === Storage Analysis & Cleanup API ===
   
   // Storage analysis endpoint

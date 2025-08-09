@@ -542,6 +542,19 @@ export interface IStorage {
   // Records gauge peak value from database (direct access)
   getRecordsPeakFromDatabase(): Promise<{peakRecords: number, allSamples: Array<{timestamp: string, totalRecords: number}>}>;
 
+  // TDDF API System methods
+  getTddfApiSchemas(): Promise<any[]>;
+  createTddfApiSchema(schemaData: any): Promise<any>;
+  getTddfApiFiles(limit?: number, offset?: number, status?: string): Promise<any[]>;
+  createTddfApiFile(fileData: any): Promise<any>;
+  getTddfApiRecords(fileId: number, options?: any): Promise<{ records: any[]; total: number }>;
+  createTddfApiRecord(recordData: any): Promise<any>;
+  getTddfApiKeys(): Promise<any[]>;
+  createTddfApiKey(keyData: any): Promise<any>;
+  getTddfApiProcessingQueue(): Promise<any[]>;
+  updateTddfApiProcessingQueue(queueId: number, updates: any): Promise<any>;
+  getTddfApiMonitoring(timeRange?: string): Promise<any>;
+  getApiUserByKey(apiKey: string): Promise<ApiUser | null>;
 
 }
 

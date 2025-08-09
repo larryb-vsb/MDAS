@@ -42,6 +42,7 @@ import StorageManagement from "@/pages/StorageManagement";
 import ObjectStorageCleanup from "@/pages/ObjectStorageCleanup";
 import PreCacheManagement from "@/pages/PreCacheManagement";
 import ChartsPage from "@/pages/ChartsPage";
+import TddfApiDataPage from "@/pages/TddfApiDataPage";
 function Router() {
   return (
     <Switch>
@@ -85,6 +86,7 @@ function Router() {
       <ProtectedRoute path="/pre-cache-management" component={PreCacheManagement} />
       <ProtectedRoute path="/pre-cache" component={PreCacheManagement} />
       <ProtectedRoute path="/charts" component={ChartsPage} />
+      <ProtectedRoute path="/tddf-api" component={TddfApiDataPage} />
       <ProtectedRoute path="/backups" component={Backups} />
       <ProtectedRoute path="/logs" component={Logs} />
       <Route path="/auth" component={AuthPage} />
