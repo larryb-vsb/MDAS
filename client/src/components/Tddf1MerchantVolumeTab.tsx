@@ -1,111 +1,92 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, TrendingUp, Users, DollarSign, CreditCard, Building2, X, MousePointer2 } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, ArrowUpDown, Building2, Terminal, CreditCard, Search, ExternalLink } from "lucide-react";
+import { useLocation } from "wouter";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 
-interface Merchant {
-  merchantId: string;
-  merchantName?: string;
-  amexMerchantSellerName?: string;
-  totalTransactions: number;
-  totalAmount: number;
-  totalNetDeposits: number;
-  uniqueTerminals: number;
-  firstSeenDate: string;
-  lastSeenDate: string;
-  recordCount: number;
-  lastUpdated: string;
-  sourceFiles: string[];
-  lastProcessedFile?: string;
+interface Tddf1Merchant {
+  merchant_id: string;
+  merchant_name: string;
+  total_transactions: number;
+  total_amount: number;
+  total_net_deposits: number;
+  unique_terminals: number;
+  first_seen_date: string;
+  last_seen_date: string;
+  record_count: number;
+  last_updated: string;
+  source_files: string[];
+  last_processed_file: string;
 }
 
-interface MerchantStats {
-  totalMerchants: number;
-  totalTransactions: number;
-  totalAmount: number;
-  totalNetDeposits: number;
-  totalTerminals: number;
-  avgAmountPerMerchant: number;
-  maxMerchantVolume: number;
-  minMerchantVolume: number;
+interface Tddf1MerchantsResponse {
+  data: Tddf1Merchant[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
 }
 
-interface TopMerchant {
-  merchantId: string;
-  merchantName: string;
-  totalTransactions: number;
-  totalAmount: number;
-  totalNetDeposits: number;
-  uniqueTerminals: number;
-  lastSeenDate: string;
-}
-
-interface Tddf1MerchantVolumeTabProps {
-  selectedDate: Date;
-  isDarkMode: boolean;
-  onMerchantFocus?: (merchantId: string, merchantName: string) => void;
-}
-
-export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode, onMerchantFocus }: Tddf1MerchantVolumeTabProps) {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState('totalAmount');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [excludedMerchants, setExcludedMerchants] = useState<string[]>([]);
+function Tddf1MerchantVolumeTab() {
   const [, setLocation] = useLocation();
+  
+  // State for filters and pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [sortBy, setSortBy] = useState("total_transactions");
+  const [sortOrder, setSortOrder] = useState("desc");
 
-  // Fetch merchant statistics
-  const { data: stats } = useQuery<MerchantStats>({
-    queryKey: ['/api/tddf1/merchants/stats'],
-    refetchInterval: 30000
-  });
+  // Reset page to 1 when search query or itemsPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
-  // Fetch top 5 merchants by volume (excluding selected ones)
-  const { data: topMerchants, refetch: refetchTopMerchants } = useQuery<TopMerchant[]>({
-    queryKey: ['/api/tddf1/merchants/top-volume', excludedMerchants],
+  // Query TDDF1 merchants
+  const { data, isLoading, error, refetch } = useQuery<Tddf1MerchantsResponse>({
+    queryKey: ['/api/tddf1/merchants', currentPage, itemsPerPage, searchQuery, sortBy, sortOrder],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        limit: '5'
-      });
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', itemsPerPage.toString());
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
       
-      if (excludedMerchants.length > 0) {
-        excludedMerchants.forEach(id => params.append('excludeIds', id));
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
       }
       
-      const response = await fetch(`/api/tddf1/merchants/top-volume?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch top merchants');
+      const response = await fetch(`/api/tddf1/merchants?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch TDDF1 merchants');
+      }
       return response.json();
-    },
-    refetchInterval: 30000
+    }
   });
 
-  // Fetch paginated merchant list
-  const { data: merchantsData, isLoading } = useQuery({
-    queryKey: ['/api/tddf1/merchants', page, search, sortBy, sortOrder],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        sortBy,
-        sortOrder
-      });
-      
-      if (search) {
-        params.set('search', search);
-      }
-      
-      const response = await fetch(`/api/tddf1/merchants?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch merchants');
-      return response.json();
-    },
-    refetchInterval: 30000
-  });
+  const merchants = data?.data || [];
+  const pagination = data?.pagination;
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -114,341 +95,298 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode, onMerchantFoc
       setSortBy(column);
       setSortOrder('desc');
     }
-    setPage(1);
   };
-
-  const handleExcludeMerchant = (merchantId: string) => {
-    setExcludedMerchants(prev => [...prev, merchantId]);
-  };
-
-  const handleIncludeMerchant = (merchantId: string) => {
-    setExcludedMerchants(prev => prev.filter(id => id !== merchantId));
-  };
-
-  const handleMerchantClick = (merchant: TopMerchant) => {
-    // Use the selected date from the Daily tab instead of today's date
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    
-    // Call focus callback if provided (for daily tab integration)
-    if (onMerchantFocus) {
-      onMerchantFocus(merchant.merchantId, merchant.merchantName);
-    }
-    
-    // Navigate to TDDF1 merchant view page with the correct selected date
-    setLocation(`/tddf1-merchant/${merchant.merchantId}/${dateStr}`);
-  };
-
-  const getDisplayName = (merchant: TopMerchant) => {
-    // Extract meaningful name from the merchant name field
-    if (merchant.merchantName && merchant.merchantName !== `Merchant ${merchant.merchantId}`) {
-      return merchant.merchantName;
-    }
-    
-    // Create a more readable format
-    return `Merchant ${merchant.merchantId.slice(-8)}`;
-  };
-
-  // Refetch top merchants when exclusions change
-  useEffect(() => {
-    refetchTopMerchants();
-  }, [excludedMerchants, refetchTopMerchants]);
 
   const getSortIcon = (column: string) => {
-    if (sortBy !== column) return null;
+    if (sortBy !== column) return <ArrowUpDown className="h-4 w-4" />;
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
-  return (
-    <div className="space-y-3">
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Merchants</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalMerchants || 0)}</div>
-            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Avg: {formatCurrency(stats?.avgAmountPerMerchant || 0)}
-            </p>
-          </CardContent>
-        </Card>
+  const handleMerchantClick = (merchant: Tddf1Merchant) => {
+    // Navigate to merchant daily view with the last seen date
+    const dateStr = merchant.last_seen_date;
+    setLocation(`/merchant/${merchant.merchant_id}/${dateStr}`);
+  };
 
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Transactions</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalTransactions || 0)}</div>
-            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Volume: {formatCurrency(stats?.totalAmount || 0)}
-            </p>
-          </CardContent>
-        </Card>
+  const formatTableDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Total Amount</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats?.totalAmount || 0)}</div>
-            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Net Deposits: {formatCurrency(stats?.totalNetDeposits || 0)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-            <CardTitle className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Terminals</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className={`text-lg font-bold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatNumber(stats?.totalTerminals || 0)}</div>
-            <p className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Max: {formatCurrency(stats?.maxMerchantVolume || 0)}
-            </p>
-          </CardContent>
-        </Card>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading TDDF1 merchants...</p>
+        </div>
       </div>
+    );
+  }
 
-      {/* Top 5 Merchant Volume Analysis */}
-      <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-            <TrendingUp className="h-4 w-4" />
-            Top 5 Merchants by Volume
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600 mb-4">Failed to load TDDF1 merchants</p>
+        <Button onClick={() => refetch()} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            TDDF1 Merchants Summary
           </CardTitle>
-          <CardDescription className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Click merchant names to focus on daily analysis. Shows accumulated net batch and authorization DT values.
-          </CardDescription>
         </CardHeader>
-        <CardContent className="pt-0">
-          {excludedMerchants.length > 0 && (
-            <div className="mb-3">
-              <h4 className={`text-xs font-medium mb-2 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Excluded Merchants:</h4>
-              <div className="flex flex-wrap gap-2">
-                {excludedMerchants.map(merchantId => (
-                  <Badge key={merchantId} variant="secondary" className={`flex items-center gap-1 text-xs transition-colors ${isDarkMode ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-200 text-gray-700 border-gray-300'}`}>
-                    {merchantId}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-0.5"
-                      onClick={() => handleIncludeMerchant(merchantId)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                ))}
-              </div>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold">{formatNumber(pagination?.totalItems || 0)}</div>
+              <div className="text-sm text-muted-foreground">Total Merchants</div>
             </div>
-          )}
-
-          <div className="space-y-2">
-            {topMerchants?.map((merchant, index) => (
-              <div key={merchant.merchantId} className={`flex items-center justify-between p-3 border rounded-lg transition-all hover:shadow-md ${isDarkMode ? 'border-gray-600 bg-gray-800 hover:bg-gray-750 hover:border-gray-500' : 'border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300'}`}>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-xs font-medium">#{index + 1}</Badge>
-                  <div className="flex-1">
-                    <div 
-                      className={`text-sm font-medium cursor-pointer transition-colors hover:underline flex items-center gap-2 ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
-                      onClick={() => handleMerchantClick(merchant)}
-                    >
-                      {getDisplayName(merchant)}
-                      <MousePointer2 className="h-3 w-3" />
-                    </div>
-                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      ID: {merchant.merchantId.slice(-8)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <div className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                      {formatCurrency(merchant.totalAmount)}
-                    </div>
-                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Net Deposits: {formatCurrency(merchant.totalNetDeposits)}
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {formatNumber(merchant.totalTransactions)} txns
-                    </div>
-                    <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {merchant.uniqueTerminals} terms
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleExcludeMerchant(merchant.merchantId);
-                    }}
-                    className="text-xs px-2 py-1"
-                  >
-                    Exclude
-                  </Button>
-                </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">
+                {formatNumber(merchants.reduce((sum, m) => sum + m.total_transactions, 0))}
               </div>
-            ))}
+              <div className="text-sm text-muted-foreground">Total Transactions</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">
+                {formatCurrency(merchants.reduce((sum, m) => sum + m.total_amount, 0))}
+              </div>
+              <div className="text-sm text-muted-foreground">Total Amount</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold">
+                {formatNumber(merchants.reduce((sum, m) => sum + m.unique_terminals, 0))}
+              </div>
+              <div className="text-sm text-muted-foreground">Total Terminals</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Merchant List */}
-      <Card className={`transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-600' : 'bg-gray-50 border-gray-300'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>All Merchants</CardTitle>
-          <CardDescription className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            Complete merchant volume data with search and sorting
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {/* Search */}
-          <div className="mb-3">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search merchants by ID or name..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className={`pl-8 text-sm transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-100' : 'bg-white border-gray-300'}`}
-              />
+      {/* Filters and Controls */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search merchants by ID or name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 per page</SelectItem>
+                  <SelectItem value="20">20 per page</SelectItem>
+                  <SelectItem value="50">50 per page</SelectItem>
+                  <SelectItem value="100">100 per page</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                onClick={() => refetch()} 
+                variant="outline" 
+                size="sm"
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Table */}
-          <div className={`rounded-md border transition-colors ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
-            <Table>
-              <TableHeader>
-                <TableRow className={`transition-colors ${isDarkMode ? 'bg-gray-800 border-b-gray-600' : 'bg-gray-50 border-b-gray-200'}`}>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('merchantId')}
-                  >
-                    Merchant ID {getSortIcon('merchantId')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('merchantName')}
-                  >
-                    Name {getSortIcon('merchantName')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('totalTransactions')}
-                  >
-                    Transactions {getSortIcon('totalTransactions')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('totalAmount')}
-                  >
-                    Total Amount {getSortIcon('totalAmount')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('totalNetDeposits')}
-                  >
-                    Net Deposits {getSortIcon('totalNetDeposits')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium text-right transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('uniqueTerminals')}
-                  >
-                    Terminals {getSortIcon('uniqueTerminals')}
-                  </TableHead>
-                  <TableHead 
-                    className={`cursor-pointer py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
-                    onClick={() => handleSort('lastSeenDate')}
-                  >
-                    Last Seen {getSortIcon('lastSeenDate')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+      {/* Merchants Table */}
+      <Card>
+        <CardContent className="p-0">
+          {merchants.length === 0 ? (
+            <div className="text-center py-8">
+              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No merchants found</h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? 'Try adjusting your search criteria' : 'No TDDF1 merchant data available'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      Loading merchants...
-                    </TableCell>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('merchant_id')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Merchant ID {getSortIcon('merchant_id')}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('merchant_name')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Merchant Name {getSortIcon('merchant_name')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_transactions')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Transactions {getSortIcon('total_transactions')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_amount')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Amount {getSortIcon('total_amount')}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('unique_terminals')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Terminals {getSortIcon('unique_terminals')}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('last_seen_date')}
+                        className="h-auto p-0 font-medium"
+                      >
+                        Last Seen {getSortIcon('last_seen_date')}
+                      </Button>
+                    </TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ) : merchantsData?.data.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No merchants found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  merchantsData?.data.map((merchant: Merchant) => (
-                    <TableRow key={merchant.merchantId} className={`transition-colors ${isDarkMode ? 'hover:bg-gray-800 border-b-gray-700' : 'hover:bg-gray-50 border-b-gray-100'}`}>
-                      <TableCell className={`py-2 text-xs font-medium transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantId}</TableCell>
-                      <TableCell className="py-2">
-                        <div>
-                          <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{merchant.merchantName || 'N/A'}</div>
-                          {merchant.amexMerchantSellerName && (
-                            <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                              Amex: {merchant.amexMerchantSellerName}
-                            </div>
-                          )}
+                </TableHeader>
+                <TableBody>
+                  {merchants.map((merchant) => (
+                    <TableRow 
+                      key={merchant.merchant_id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleMerchantClick(merchant)}
+                    >
+                      <TableCell className="font-mono text-sm">
+                        {merchant.merchant_id}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          {merchant.merchant_name}
                         </div>
                       </TableCell>
-                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(merchant.totalTransactions)}</TableCell>
-                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalAmount)}</TableCell>
-                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatCurrency(merchant.totalNetDeposits)}</TableCell>
-                      <TableCell className={`py-2 text-right text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(merchant.uniqueTerminals)}</TableCell>
-                      <TableCell className={`py-2 text-xs transition-colors ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>{new Date(merchant.lastSeenDate).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">
+                          {formatNumber(merchant.total_transactions)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(merchant.total_amount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Terminal className="h-3 w-3 text-muted-foreground" />
+                          {formatNumber(merchant.unique_terminals)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatTableDate(merchant.last_seen_date)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMerchantClick(merchant);
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
 
-          {/* Pagination */}
-          {merchantsData?.pagination && (
-            <div className="flex items-center justify-between mt-3">
-              <div className={`text-xs transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Showing {((merchantsData.pagination.currentPage - 1) * merchantsData.pagination.itemsPerPage) + 1} to{' '}
-                {Math.min(merchantsData.pagination.currentPage * merchantsData.pagination.itemsPerPage, merchantsData.pagination.totalItems)} of{' '}
-                {merchantsData.pagination.totalItems} merchants
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={merchantsData.pagination.currentPage === 1}
-                  onClick={() => setPage(page - 1)}
-                  className="text-xs px-2 py-1"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={merchantsData.pagination.currentPage === merchantsData.pagination.totalPages}
-                  onClick={() => setPage(page + 1)}
-                  className="text-xs px-2 py-1"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
+                    {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
+                    {pagination.totalItems} merchants
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(pagination.currentPage - 1)}
+                      disabled={pagination.currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <span className="text-sm">
+                      Page {pagination.currentPage} of {pagination.totalPages}
+                    </span>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(pagination.currentPage + 1)}
+                      disabled={pagination.currentPage === pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
+export default Tddf1MerchantVolumeTab;

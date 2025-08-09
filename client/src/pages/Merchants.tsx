@@ -4,12 +4,13 @@ import MainLayout from "@/components/layout/MainLayout";
 import MerchantFilters from "@/components/merchants/MerchantFilters";
 import MerchantList from "@/components/merchants/MerchantList";
 import TddfMerchantsTable from "@/components/tddf/TddfMerchantsTable";
+// import Tddf1MerchantVolumeTab from "@/components/Tddf1MerchantVolumeTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { RefreshCw, Building2, CreditCard } from "lucide-react";
+import { RefreshCw, Building2, CreditCard, FileText } from "lucide-react";
 import type { Merchant } from "@/lib/types";
 
 interface MerchantsResponse {
@@ -182,7 +183,7 @@ export default function Merchants() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
             <TabsTrigger value="ach" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               ACH Merchants
@@ -190,6 +191,10 @@ export default function Merchants() {
             <TabsTrigger value="tddf" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               TDDF Merchants
+            </TabsTrigger>
+            <TabsTrigger value="tddf1" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              TDDF1 Merchants
             </TabsTrigger>
           </TabsList>
           
@@ -227,6 +232,12 @@ export default function Merchants() {
           
           <TabsContent value="tddf" className="mt-6">
             <TddfMerchantsTable />
+          </TabsContent>
+          
+          <TabsContent value="tddf1" className="mt-6">
+            <div className="text-center py-12">
+              <p className="text-gray-500">TDDF1 Merchants tab temporarily disabled</p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
