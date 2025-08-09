@@ -26,6 +26,7 @@ import { formatCurrency, formatNumber } from "@/lib/utils";
 interface Tddf1Merchant {
   merchantId: string;
   merchantName: string;
+  dbaName?: string;
   totalTransactions: number;
   totalAmount: number;
   totalNetDeposits: number;
@@ -251,7 +252,12 @@ const Tddf1MerchantVolumeTab = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Building2 className="h-4 w-4 text-blue-500" />
-                            {merchant.merchantName}
+                            <div className="flex flex-col">
+                              <span>{merchant.merchantName}</span>
+                              {merchant.dbaName && (
+                                <span className="text-xs text-gray-500">{merchant.dbaName}</span>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
