@@ -48,6 +48,10 @@ interface Tddf1DayBreakdown {
   netDepositsValue?: number;
   transactionAmountsValue?: number;
   totalNetDepositBH?: number;
+  batchCount?: number;  // BH record count (batches with Net Deposits)
+  authorizationCount?: number;  // DT record count (individual Authorization transactions)
+  batchTotal?: number;  // BH Net Deposit total  
+  authorizationTotal?: number;  // DT Authorization transaction total
   fileCount: number;
   tables: string[];
   filesProcessed: Array<{
@@ -931,17 +935,19 @@ function Tddf1Page() {
                             
                             // Special layout for BH records showing Net Deposit prominently
                             if (type === 'BH') {
-                              const netDepositAmount = (dayBreakdown.netDepositsValue ?? dayBreakdown.totalNetDepositBH ?? 0);
+                              // Use new specific fields if available, fallback to old fields
+                              const batchCount = dayBreakdown.batchCount ?? displayCount ?? 0;
+                              const netDepositAmount = (dayBreakdown.batchTotal ?? dayBreakdown.netDepositsValue ?? dayBreakdown.totalNetDepositBH ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
                                   <div className="flex items-center justify-between mb-2">
                                     <div>
                                       <span className="text-sm font-bold">{config.label}</span>
-                                      <div className="text-xs opacity-80">{config.description}</div>
+                                      <div className="text-xs opacity-80">Batch Headers (Net Deposits)</div>
                                     </div>
                                     <div className="text-sm font-medium text-blue-700">
-                                      {(displayCount ?? 0).toLocaleString()} records
+                                      {batchCount.toLocaleString()} batches
                                     </div>
                                   </div>
                                   <div className="text-center">
@@ -956,24 +962,26 @@ function Tddf1Page() {
                             
                             // Special layout for DT records showing Transaction Amount prominently
                             if (type === 'DT') {
-                              const transactionAmount = (dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0);
+                              // Use new specific fields if available, fallback to old fields
+                              const authCount = dayBreakdown.authorizationCount ?? displayCount ?? 0;
+                              const transactionAmount = (dayBreakdown.authorizationTotal ?? dayBreakdown.transactionAmountsValue ?? dayBreakdown.transactionValue ?? 0);
                               
                               return (
                                 <div key={type} className={`rounded-lg p-3 border ${config.color}`}>
                                   <div className="flex items-center justify-between mb-2">
                                     <div>
                                       <span className="text-sm font-bold">{config.label}</span>
-                                      <div className="text-xs opacity-80">{config.description}</div>
+                                      <div className="text-xs opacity-80">Authorization Transactions</div>
                                     </div>
                                     <div className="text-sm font-medium text-green-700">
-                                      {(displayCount ?? 0).toLocaleString()} records
+                                      {authCount.toLocaleString()} authorizations
                                     </div>
                                   </div>
                                   <div className="text-center">
                                     <div className="text-2xl font-bold text-green-800">
                                       ${(transactionAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </div>
-                                    <div className="text-xs font-medium text-green-600">Authorizations Total</div>
+                                    <div className="text-xs font-medium text-green-600">Authorization Total</div>
                                   </div>
                                 </div>
                               );

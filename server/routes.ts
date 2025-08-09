@@ -17736,6 +17736,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         netDepositsTotal: netDepositsTotal, // Used by frontend
         netDepositsValue: netDepositsTotal, // New separate field
         transactionAmountsValue: transactionAmountsTotal, // New separate field
+        batchCount: recordTypes['BH'] || 0,  // BH record count (batches with Net Deposits)
+        authorizationCount: recordTypes['DT'] || 0,  // DT record count (individual Authorization transactions)
+        batchTotal: netDepositsTotal,  // BH Net Deposit total  
+        authorizationTotal: transactionAmountsTotal,  // DT Authorization transaction total
         fileCount: totalsResult.rows.length, // Use actual number of individual file entries
         tables: filesProcessed.map(f => f.tableName),
         filesProcessed: filesProcessed,
@@ -17743,6 +17747,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cacheSource: 'pre-cache totals table',
         timestamp: Date.now() // Force unique responses
       };
+      
+      // Debug logging for BH/DT breakdown
+      console.log(`📅 [DAILY-BREAKDOWN] BH (Batch) records: ${recordTypes['BH'] || 0}, Net Deposits: $${netDepositsTotal.toFixed(2)}`);
+      console.log(`📅 [DAILY-BREAKDOWN] DT (Authorization) records: ${recordTypes['DT'] || 0}, Transaction Amounts: $${transactionAmountsTotal.toFixed(2)}`);
       
       // Force no caching
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
