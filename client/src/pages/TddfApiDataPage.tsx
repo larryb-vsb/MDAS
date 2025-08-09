@@ -645,7 +645,9 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>{item.attempts}/{item.maxAttempts}</TableCell>
-                        <TableCell>{format(new Date(item.queuedAt), "MMM d, HH:mm")}</TableCell>
+                        <TableCell>
+                          {item.queuedAt ? format(new Date(item.queuedAt), "MMM d, HH:mm") : "Unknown"}
+                        </TableCell>
                         <TableCell>
                           {item.processingStarted && item.processingCompleted ? (
                             `${Math.round((new Date(item.processingCompleted).getTime() - new Date(item.processingStarted).getTime()) / 1000)}s`
