@@ -20031,7 +20031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate file hash
       const fileBuffer = fs.readFileSync(req.file.path);
-      const crypto = require('crypto');
+      const crypto = await import('crypto');
       const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       
       // Store file locally (simplified for now)
