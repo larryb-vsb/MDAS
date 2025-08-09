@@ -19986,7 +19986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storage = new DatabaseStorage();
       
       // Get database file statistics
-      const uploaderStats = await storage.query(`
+      const uploaderStats = await pool.query(`
         SELECT 
           status,
           COUNT(*) as count,
@@ -19995,13 +19995,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         GROUP BY status
       `);
       
-      const linkedFiles = await storage.query(`
+      const linkedFiles = await pool.query(`
         SELECT COUNT(*) as count
         FROM dev_uploader_uploads 
         WHERE storage_path IS NOT NULL
       `);
       
-      const stuckUploads = await storage.query(`
+      const stuckUploads = await pool.query(`
         SELECT COUNT(*) as count
         FROM dev_uploader_uploads 
         WHERE status = 'started' 
