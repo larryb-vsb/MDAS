@@ -202,7 +202,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('dtRecordCount')}
+                          onClick={() => handleSort('totalAmount')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Authorization (DT)
@@ -212,7 +212,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalTransactions')}
+                          onClick={() => handleSort('dtRecordCount')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Number DT Records
@@ -222,7 +222,7 @@ const Tddf1MerchantVolumeTab = () => {
                       <TableHead>
                         <Button
                           variant="ghost"
-                          onClick={() => handleSort('totalAmount')}
+                          onClick={() => handleSort('totalTransactions')}
                           className="h-auto p-0 font-medium flex items-center gap-1"
                         >
                           Transaction Amount
@@ -262,18 +262,16 @@ const Tddf1MerchantVolumeTab = () => {
                         <TableCell className="font-medium text-blue-600">
                           {formatCurrency(merchant.totalNetDeposits)}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            {formatNumber(merchant.dtRecordCount || 0)}
-                          </Badge>
+                        <TableCell className="font-medium text-green-600">
+                          {formatCurrency(merchant.totalAmount)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatNumber(merchant.totalTransactions)}
+                            {formatNumber(merchant.dtRecordCount || 0)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium text-green-600">
-                          {formatCurrency(merchant.totalAmount)}
+                        <TableCell className="font-medium text-gray-600">
+                          {formatNumber(merchant.totalTransactions)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
