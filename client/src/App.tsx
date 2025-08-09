@@ -66,6 +66,7 @@ function Router() {
       <ProtectedRoute path="/tddf1/monthly" component={Tddf1MonthlyView} />
       <ProtectedRoute path="/tddf1-monthly" component={Tddf1MonthlyView} />
       <ProtectedRoute path="/tddf1-merchant/:merchantId/:date" component={Tddf1MerchantDailyView} />
+      <ProtectedRoute path="/tddf1-merchant-daily-view/:merchantId" component={Tddf1MerchantDailyView} />
       <ProtectedRoute path="/merchant/:merchantId/:processingDate" component={MerchantViewPage} />
 
       <ProtectedRoute path="/settings" component={Settings} />
