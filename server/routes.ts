@@ -18675,6 +18675,243 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Frontend-compatible Merchant View API endpoints
+  app.get("/api/tddf1/merchant-view", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantId, processingDate } = req.query;
+      
+      if (!merchantId || !processingDate) {
+        return res.status(400).json({ error: "merchantId and processingDate are required" });
+      }
+      
+      console.log(`[MERCHANT-VIEW] Getting merchant view data for: ${merchantId} on ${processingDate}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      // Get merchant basic info from merchants table
+      const merchantsTableName = `${envPrefix}tddf1_merchants`;
+      const merchantResult = await pool.query(`
+        SELECT merchant_id, merchant_name, total_transactions, total_amount, total_net_deposits
+        FROM ${merchantsTableName}
+        WHERE merchant_id = $1
+      `, [merchantId]);
+      
+      if (merchantResult.rows.length === 0) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const merchant = merchantResult.rows[0];
+      
+      // Get file tables for the specified date
+      const dateObj = new Date(processingDate as string);
+      const formattedDate = dateObj.toISOString().split('T')[0];
+      
+      // Get all TDDF1 file tables
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+      `, [`${envPrefix}tddf1_file_%`]);
+      
+      let allBatches: any[] = [];
+      let allTransactions: any[] = [];
+      
+      // Search through file tables for merchant data on the specified date
+      for (const tableRow of tablesResult.rows) {
+        try {
+          // Get BH records (batches)
+          const bhResult = await pool.query(`
+            SELECT 
+              id, record_type, source_filename, line_number,
+              merchant_id, entry_run_number,
+              net_deposit, transaction_date, raw_line
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'BH' 
+              AND merchant_id = $1
+              AND DATE(transaction_date) = $2
+            ORDER BY entry_run_number
+          `, [merchantId, formattedDate]);
+          
+          // Get DT records (transactions)
+          const dtResult = await pool.query(`
+            SELECT 
+              id, record_type, source_filename, line_number,
+              merchant_id, merchant_name, 
+              transaction_amount, net_deposit, transaction_date,
+              reference_number, authorization_number, card_type,
+              terminal_id, entry_run_number, raw_line
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'DT' 
+              AND merchant_id = $1
+              AND DATE(transaction_date) = $2
+            ORDER BY line_number
+            LIMIT 500
+          `, [merchantId, formattedDate]);
+          
+          // Process batches
+          for (const bhRecord of bhResult.rows) {
+            allBatches.push({
+              batchId: bhRecord.entry_run_number,
+              entryRunNumber: bhRecord.entry_run_number,
+              merchantAccountNumber: bhRecord.merchant_id,
+              netDeposit: parseFloat(bhRecord.net_deposit || 0),
+              transactionCount: 0, // Will be calculated
+              totalAmount: 0, // Will be calculated
+              batchDate: bhRecord.transaction_date,
+              bhRecord: bhRecord,
+              dtRecords: [],
+              relatedRecords: []
+            });
+          }
+          
+          // Process transactions
+          for (const dtRecord of dtResult.rows) {
+            allTransactions.push({
+              id: dtRecord.id,
+              recordType: dtRecord.record_type,
+              lineNumber: dtRecord.line_number,
+              sequenceNumber: '',
+              entryRunNumber: dtRecord.entry_run_number,
+              merchantAccountNumber: dtRecord.merchant_id,
+              merchantName: dtRecord.merchant_name,
+              transactionAmount: parseFloat(dtRecord.transaction_amount || 0),
+              netDeposit: parseFloat(dtRecord.net_deposit || 0),
+              transactionDate: dtRecord.transaction_date,
+              referenceNumber: dtRecord.reference_number,
+              authorizationNumber: dtRecord.authorization_number,
+              cardType: dtRecord.card_type,
+              terminalId: dtRecord.terminal_id,
+              fileName: dtRecord.source_filename,
+              extractedFields: {},
+              rawLine: dtRecord.raw_line,
+              relatedRecords: []
+            });
+          }
+          
+        } catch (tableError) {
+          console.warn(`Error processing table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Calculate summary
+      const summary = {
+        totalTransactions: allTransactions.length,
+        totalAmount: allTransactions.reduce((sum, t) => sum + (t.transactionAmount || 0), 0),
+        totalNetDeposits: allTransactions.reduce((sum, t) => sum + (t.netDeposit || 0), 0),
+        totalBatches: allBatches.length
+      };
+      
+      const responseData = {
+        merchantName: merchant.merchant_name || 'Unknown Merchant',
+        summary,
+        batches: allBatches,
+        allTransactions: allTransactions
+      };
+      
+      console.log(`[MERCHANT-VIEW] Returning data: ${allTransactions.length} transactions, ${allBatches.length} batches`);
+      res.json(responseData);
+      
+    } catch (error: any) {
+      console.error('[MERCHANT-VIEW] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/tddf1/merchant-terminals", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantId, processingDate } = req.query;
+      
+      if (!merchantId || !processingDate) {
+        return res.status(400).json({ error: "merchantId and processingDate are required" });
+      }
+      
+      console.log(`[MERCHANT-TERMINALS] Getting terminal data for: ${merchantId} on ${processingDate}`);
+      
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      const dateObj = new Date(processingDate as string);
+      const formattedDate = dateObj.toISOString().split('T')[0];
+      
+      // Get all TDDF1 file tables
+      const tablesResult = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name LIKE $1
+      `, [`${envPrefix}tddf1_file_%`]);
+      
+      const terminalSummaries = new Map<string, any>();
+      
+      // Search through file tables for terminal data
+      for (const tableRow of tablesResult.rows) {
+        try {
+          const terminalResult = await pool.query(`
+            SELECT 
+              terminal_id,
+              card_type,
+              transaction_amount,
+              transaction_date
+            FROM ${tableRow.table_name}
+            WHERE record_type = 'DT' 
+              AND merchant_id = $1
+              AND DATE(transaction_date) = $2
+              AND terminal_id IS NOT NULL
+              AND terminal_id != ''
+            ORDER BY terminal_id, transaction_date
+          `, [merchantId, formattedDate]);
+          
+          for (const row of terminalResult.rows) {
+            const terminalId = row.terminal_id;
+            
+            if (!terminalSummaries.has(terminalId)) {
+              terminalSummaries.set(terminalId, {
+                terminalId,
+                transactionCount: 0,
+                totalAmount: 0,
+                cardTypes: new Set(),
+                firstSeen: row.transaction_date,
+                lastSeen: row.transaction_date
+              });
+            }
+            
+            const terminal = terminalSummaries.get(terminalId);
+            terminal.transactionCount++;
+            terminal.totalAmount += parseFloat(row.transaction_amount || 0);
+            terminal.cardTypes.add(row.card_type);
+            
+            if (new Date(row.transaction_date) < new Date(terminal.firstSeen)) {
+              terminal.firstSeen = row.transaction_date;
+            }
+            if (new Date(row.transaction_date) > new Date(terminal.lastSeen)) {
+              terminal.lastSeen = row.transaction_date;
+            }
+          }
+          
+        } catch (tableError) {
+          console.warn(`Error processing terminal data from table ${tableRow.table_name}:`, tableError);
+        }
+      }
+      
+      // Convert to array and format
+      const terminals = Array.from(terminalSummaries.values()).map(terminal => ({
+        ...terminal,
+        cardTypes: Array.from(terminal.cardTypes)
+      }));
+      
+      console.log(`[MERCHANT-TERMINALS] Found ${terminals.length} terminals`);
+      res.json({ terminals });
+      
+    } catch (error: any) {
+      console.error('[MERCHANT-TERMINALS] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // End of TDDF1 APIs
 
   // DUPLICATE ENDPOINT REMOVED - Using the first one only
