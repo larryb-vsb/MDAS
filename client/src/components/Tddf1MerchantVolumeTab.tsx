@@ -126,15 +126,15 @@ export function Tddf1MerchantVolumeTab({ selectedDate, isDarkMode, onMerchantFoc
   };
 
   const handleMerchantClick = (merchant: TopMerchant) => {
-    // Create a date string for today to simulate daily analysis
-    const dateStr = new Date().toISOString().split('T')[0];
+    // Use the selected date from the Daily tab instead of today's date
+    const dateStr = selectedDate.toISOString().split('T')[0];
     
     // Call focus callback if provided (for daily tab integration)
     if (onMerchantFocus) {
       onMerchantFocus(merchant.merchantId, merchant.merchantName);
     }
     
-    // Navigate to merchant view page 
+    // Navigate to merchant view page with the correct selected date
     setLocation(`/merchant/${merchant.merchantId}/${dateStr}`);
   };
 
