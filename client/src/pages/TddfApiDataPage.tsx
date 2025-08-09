@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
+import { RefreshCw } from "lucide-react";
 
 interface TddfApiSchema {
   id: number;
@@ -243,6 +244,22 @@ export default function TddfApiDataPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">System Overview</h2>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/monitoring"] });
+                toast({ title: "Data refreshed" });
+              }}
+              disabled={filesLoading || queueLoading}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -264,10 +281,10 @@ export default function TddfApiDataPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {files.reduce((sum, f) => sum + f.recordCount, 0).toLocaleString()}
+                  {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {files.reduce((sum, f) => sum + f.processedRecords, 0).toLocaleString()} processed
+                  {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()} processed
                 </p>
               </CardContent>
             </Card>
