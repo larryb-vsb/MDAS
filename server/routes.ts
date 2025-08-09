@@ -18320,50 +18320,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const dataResult = await pool.query(dataQuery, values);
       
-      // For each merchant, get BH and DT record counts from TDDF1 file tables
-      const enrichedData = await Promise.all(dataResult.rows.map(async (row) => {
-        let batchCount = 0;
-        let dtRecordCount = 0;
+      // Get BH and DT record counts efficiently for all merchants at once
+      const merchantBHDTCounts = {};
+      
+      try {
+        // Get all TDDF1 tables for this environment
+        const tablesQuery = `
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+            AND table_name LIKE '${isDevelopment ? 'dev_' : ''}tddf1_file_%'
+        `;
+        const tablesResult = await pool.query(tablesQuery);
         
-        try {
-          // Get all TDDF1 tables for this environment
-          const tablesQuery = `
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-              AND table_name LIKE '${isDevelopment ? 'dev_' : ''}tddf1_file_%'
-          `;
-          const tablesResult = await pool.query(tablesQuery);
-          
-          // Count BH and DT records across all TDDF1 tables for this merchant
-          for (const tableRow of tablesResult.rows) {
-            const tableName = tableRow.table_name;
-            try {
-              const recordCountQuery = `
-                SELECT 
-                  record_type,
-                  COUNT(*) as count
-                FROM ${tableName}
-                WHERE merchant_id = $1 AND record_type IN ('BH', 'DT')
-                GROUP BY record_type
-              `;
-              const recordCountResult = await pool.query(recordCountQuery, [row.merchant_id]);
-              
-              for (const countRow of recordCountResult.rows) {
-                if (countRow.record_type === 'BH') {
-                  batchCount += parseInt(countRow.count);
-                } else if (countRow.record_type === 'DT') {
-                  dtRecordCount += parseInt(countRow.count);
-                }
+        // For performance, only query the most recent few tables (last 10 files)
+        const recentTables = tablesResult.rows.slice(-10);
+        
+        // Aggregate counts across all recent tables in one go
+        for (const tableRow of recentTables) {
+          const tableName = tableRow.table_name;
+          try {
+            const aggregateQuery = `
+              SELECT 
+                merchant_id,
+                record_type,
+                COUNT(*) as count
+              FROM ${tableName}
+              WHERE record_type IN ('BH', 'DT')
+              GROUP BY merchant_id, record_type
+            `;
+            const aggregateResult = await pool.query(aggregateQuery);
+            
+            for (const countRow of aggregateResult.rows) {
+              const merchantId = countRow.merchant_id;
+              if (!merchantBHDTCounts[merchantId]) {
+                merchantBHDTCounts[merchantId] = { batchCount: 0, dtRecordCount: 0 };
               }
-            } catch (tableError) {
-              // Skip tables that don't have the expected schema
-              console.log(`⚠️ Skipping table ${tableName} for merchant ${row.merchant_id}:`, tableError.message);
+              
+              if (countRow.record_type === 'BH') {
+                merchantBHDTCounts[merchantId].batchCount += parseInt(countRow.count);
+              } else if (countRow.record_type === 'DT') {
+                merchantBHDTCounts[merchantId].dtRecordCount += parseInt(countRow.count);
+              }
             }
+          } catch (tableError) {
+            // Skip tables that don't have the expected schema
+            console.log(`⚠️ Skipping table ${tableName}:`, tableError.message);
           }
-        } catch (error) {
-          console.log(`⚠️ Could not get BH/DT counts for merchant ${row.merchant_id}:`, error.message);
         }
+      } catch (error) {
+        console.log(`⚠️ Could not get BH/DT counts:`, error.message);
+      }
+      
+      // Map the data with BH/DT counts
+      const enrichedData = dataResult.rows.map(row => {
+        const counts = merchantBHDTCounts[row.merchant_id] || { batchCount: 0, dtRecordCount: 0 };
         
         return {
           merchantId: row.merchant_id,
@@ -18379,10 +18390,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastUpdated: row.last_updated,
           sourceFiles: row.source_files || [],
           lastProcessedFile: row.last_processed_file,
-          batchCount: batchCount,
-          dtRecordCount: dtRecordCount
+          batchCount: counts.batchCount,
+          dtRecordCount: counts.dtRecordCount
         };
-      }));
+      });
       
       res.json({
         data: enrichedData,
