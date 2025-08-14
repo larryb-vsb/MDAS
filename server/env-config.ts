@@ -72,35 +72,47 @@ if (NODE_ENV === 'development') {
 const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
 const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
 
-// TABLE-LEVEL separation: Use Neon paid account when available, fallback to default
+// Environment-specific Neon database URLs with fallback to default
 export function getDatabaseUrl(): string {
-  // Temporarily use DATABASE_URL until Neon authentication is fixed
-  // TODO: Switch back to preferring NEON_DATABASE_URL once credentials are corrected
-  const neonUrl = process.env.NEON_DATABASE_URL;
+  // Get environment-specific Neon URLs
+  const neonDevUrl = process.env.NEON_DEV_DATABASE_URL;
+  const neonProdUrl = process.env.NEON_PROD_DATABASE_URL;
   const defaultUrl = process.env.DATABASE_URL;
   
-  // Try Neon first, fallback to default if there are issues
-  const selectedUrl = neonUrl || defaultUrl || '';
+  // Select appropriate URL based on environment
+  let selectedUrl = '';
+  let urlSource = '';
   
-  if (!selectedUrl) {
-    throw new Error('No database URL available. Please set DATABASE_URL');
+  if (isDev && neonDevUrl) {
+    selectedUrl = neonDevUrl;
+    urlSource = 'NEON_DEV_DATABASE_URL (development paid account)';
+  } else if (isProd && neonProdUrl) {
+    selectedUrl = neonProdUrl;
+    urlSource = 'NEON_PROD_DATABASE_URL (production paid account)';
+  } else if (defaultUrl) {
+    selectedUrl = defaultUrl;
+    urlSource = 'DATABASE_URL (fallback default)';
   }
   
-  const urlSource = neonUrl ? 'NEON_DATABASE_URL (paid account)' : 'DATABASE_URL (default)';
+  if (!selectedUrl) {
+    throw new Error(`No database URL available for ${NODE_ENV} environment. Please set NEON_${NODE_ENV.toUpperCase()}_DATABASE_URL or DATABASE_URL`);
+  }
   
   console.log(`[DB CONFIG] NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
   console.log(`[DB CONFIG] Using ${urlSource}`);
   console.log(`[DB CONFIG] Database URL: ${selectedUrl.substring(0, 80)}...`);
   
-  if (neonUrl) {
-    console.log(`[DB CONFIG] ⚠️  NEON_DATABASE_URL available but not used due to auth error`);
-    console.log(`[DB CONFIG] ⚠️  Please verify Neon credentials and pooler settings`);
+  // Log available Neon URLs for debugging
+  if (neonDevUrl && !isDev) {
+    console.log(`[DB CONFIG] ℹ️  NEON_DEV_DATABASE_URL available for development`);
+  }
+  if (neonProdUrl && !isProd) {
+    console.log(`[DB CONFIG] ℹ️  NEON_PROD_DATABASE_URL available for production`);
   }
   
-  // IMPORTANT: Use same database for both environments
-  // Separation is achieved through table prefixes (dev_merchants vs merchants)
-  console.log(`[DB CONFIG] Using table-level separation - same database, different table prefixes`);
-  console.log(`[DB CONFIG] ${NODE_ENV} tables: ${isDev ? 'dev_*' : 'main'} tables`);
+  // Table separation still applies within each environment's database
+  console.log(`[DB CONFIG] Using environment-specific database with table separation`);
+  console.log(`[DB CONFIG] ${NODE_ENV} tables: ${isDev ? 'dev_*' : 'production'} tables`);
   
   return selectedUrl;
 }
@@ -113,8 +125,10 @@ export const config = {
     useEnvVars: true,
     // Keep original URLs for reference
     originalUrl: process.env.DATABASE_URL,
-    neonUrl: process.env.NEON_DATABASE_URL,
-    usingNeon: !!process.env.NEON_DATABASE_URL
+    neonDevUrl: process.env.NEON_DEV_DATABASE_URL,
+    neonProdUrl: process.env.NEON_PROD_DATABASE_URL,
+    usingNeonDev: isDev && !!process.env.NEON_DEV_DATABASE_URL,
+    usingNeonProd: isProd && !!process.env.NEON_PROD_DATABASE_URL
   },
   
   // File storage paths
