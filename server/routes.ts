@@ -20063,6 +20063,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const username = (req.user as any)?.username || 'system';
       
       // Extract business day from filename
+      const extractBusinessDayFromFilename = (filename: string) => {
+        // Extract date patterns from TDDF filename (MMDDYYYY or YYYYMMDD)
+        const datePattern1 = filename.match(/(\d{2})(\d{2})(\d{4})/); // MMDDYYYY
+        const datePattern2 = filename.match(/(\d{4})(\d{2})(\d{2})/); // YYYYMMDD
+        
+        if (datePattern1) {
+          const [, month, day, year] = datePattern1;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return { businessDay: date, fileDate: date };
+        } else if (datePattern2) {
+          const [, year, month, day] = datePattern2;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return { businessDay: date, fileDate: date };
+        }
+        
+        return { businessDay: new Date(), fileDate: new Date() };
+      };
+      
       const { businessDay, fileDate } = extractBusinessDayFromFilename(req.file.originalname);
       
       // Calculate file hash
@@ -20308,7 +20326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           q.priority as queue_priority
         FROM ${getTableName('tddf_api_files')} f
         LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
-        LEFT JOIN ${getTableName('tddf_api_processing_queue')} q ON f.id = q.file_id
+        LEFT JOIN ${getTableName('tddf_api_queue')} q ON f.id = q.file_id
         ${whereClause}
         ORDER BY f.business_day DESC NULLS LAST, f.uploaded_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -20484,7 +20502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           f.original_name,
           f.file_size,
           f.uploaded_at
-        FROM ${getTableName('tddf_api_processing_queue')} q
+        FROM ${getTableName('tddf_api_queue')} q
         JOIN ${getTableName('tddf_api_files')} f ON q.file_id = f.id
         ORDER BY q.priority DESC, q.queued_at ASC
       `);

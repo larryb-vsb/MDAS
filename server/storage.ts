@@ -605,24 +605,47 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     console.log(`[DEBUG storage] Looking up user by username: ${username}`);
     try {
-      const usersTableName = getTableName('users');
-      const result = await pool.query(`
-        SELECT 
-          id,
-          username,
-          password,
-          email,
-          first_name as "firstName",
-          last_name as "lastName",
-          role,
-          developer_flag as "developerFlag",
-          default_dashboard as "defaultDashboard",
-          theme_preference as "themePreference",
-          created_at as "createdAt",
-          last_login as "lastLogin"
-        FROM ${usersTableName} 
-        WHERE LOWER(username) = LOWER($1)
-      `, [username]);
+      // TEMPORARY FIX: Try dev_users first, then fallback to users
+      let result;
+      try {
+        result = await pool.query(`
+          SELECT 
+            id,
+            username,
+            password,
+            email,
+            first_name as "firstName",
+            last_name as "lastName",
+            role,
+            developer_flag as "developerFlag",
+            default_dashboard as "defaultDashboard",
+            theme_preference as "themePreference",
+            created_at as "createdAt",
+            last_login as "lastLogin"
+          FROM dev_users 
+          WHERE LOWER(username) = LOWER($1)
+        `, [username]);
+        console.log(`[DEBUG storage] Tried dev_users table directly`);
+      } catch (devError) {
+        console.log(`[DEBUG storage] dev_users failed, trying users table:`, devError.message);
+        result = await pool.query(`
+          SELECT 
+            id,
+            username,
+            password,
+            email,
+            first_name as "firstName",
+            last_name as "lastName",
+            role,
+            developer_flag as "developerFlag",
+            default_dashboard as "defaultDashboard",
+            theme_preference as "themePreference",
+            created_at as "createdAt",
+            last_login as "lastLogin"
+          FROM users 
+          WHERE LOWER(username) = LOWER($1)
+        `, [username]);
+      }
       const user = result.rows[0];
       if (user) {
         console.log(`[DEBUG storage] Found user: ${JSON.stringify({

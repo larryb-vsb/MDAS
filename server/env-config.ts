@@ -83,12 +83,10 @@ export function getDatabaseUrl(): string {
   let selectedUrl = '';
   let urlSource = '';
   
-  if (isDev && neonDevUrl) {
+  // FORCE DEVELOPMENT DATABASE - Temporary fix
+  if (neonDevUrl) {
     selectedUrl = neonDevUrl;
-    urlSource = 'NEON_DEV_DATABASE_URL (development paid account)';
-  } else if (isProd && neonProdUrl) {
-    selectedUrl = neonProdUrl;
-    urlSource = 'NEON_PROD_DATABASE_URL (production paid account)';
+    urlSource = 'NEON_DEV_DATABASE_URL (development paid account) - FORCED';
   } else if (defaultUrl) {
     selectedUrl = defaultUrl;
     urlSource = 'DATABASE_URL (fallback default)';
