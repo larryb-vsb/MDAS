@@ -20023,10 +20023,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all schemas
   app.get('/api/tddf-api/schemas', isAuthenticated, async (req, res) => {
     try {
+      console.log('[TDDF-API-DEBUG] Schemas endpoint called');
+      console.log('[TDDF-API-DEBUG] Database URL:', process.env.DATABASE_URL?.slice(0, 50) + '...');
+      
+      // Test if the table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'dev_tddf_api_schemas'
+        );
+      `);
+      console.log('[TDDF-API-DEBUG] Table exists:', tableCheck.rows[0].exists);
+      
+      if (!tableCheck.rows[0].exists) {
+        console.log('[TDDF-API-DEBUG] Creating schemas table...');
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS dev_tddf_api_schemas (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            version VARCHAR(50) NOT NULL,
+            description TEXT,
+            schema_data JSONB NOT NULL,
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            created_by VARCHAR(100) NOT NULL
+          );
+        `);
+        
+        // Insert default schemas
+        await pool.query(`
+          INSERT INTO dev_tddf_api_schemas (name, version, description, schema_data, created_by)
+          VALUES 
+          ('TDDF Standard', '2025.1', 'Standard TDDF position-based file format', '{}', 'system'),
+          ('TDDF Extended', '2025.1', 'Extended TDDF format with additional merchant data', '{}', 'system'),
+          ('Custom Format', '1.0', 'User-defined custom format for specialized processing', '{}', 'system')
+          ON CONFLICT DO NOTHING;
+        `);
+      }
+      
+      const countResult = await pool.query('SELECT COUNT(*) as count FROM dev_tddf_api_schemas');
+      console.log('[TDDF-API-DEBUG] Schema count:', countResult.rows[0].count);
+      
       const schemas = await pool.query(`
-        SELECT * FROM ${getTableName('tddf_api_schemas')}
+        SELECT * FROM dev_tddf_api_schemas
         ORDER BY created_at DESC
       `);
+      console.log('[TDDF-API-DEBUG] Schemas query result:', schemas.rows.length, 'rows');
       res.json(schemas.rows);
     } catch (error) {
       console.error('Error fetching TDDF API schemas:', error);
@@ -20041,7 +20084,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const username = (req.user as any)?.username || 'system';
       
       const result = await pool.query(`
-        INSERT INTO ${getTableName('tddf_api_schemas')} 
+        INSERT INTO dev_tddf_api_schemas 
         (name, version, description, schema_data, created_by)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
@@ -20069,7 +20112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { schemaId } = req.body;
-      const username = (req.user as any)?.username || 'system';
+      const username = (req.user as any)?.username || 'test-user';
       
       // Extract business day from filename
       const extractBusinessDayFromFilename = (filename: string) => {
@@ -20111,7 +20154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Save file record with business day information
       const result = await pool.query(`
-        INSERT INTO ${getTableName('tddf_api_files')} 
+        INSERT INTO dev_tddf_api_files 
         (filename, original_name, file_size, file_hash, storage_path, schema_id, business_day, file_date, uploaded_by)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
@@ -20129,10 +20172,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add to processing queue
       await pool.query(`
-        INSERT INTO ${getTableName('tddf_api_queue')} 
-        (file_id, priority, status, queued_at, max_attempts)
-        VALUES ($1, $2, $3, NOW(), $4)
-      `, [result.rows[0].id, 75, 'queued', 3]);
+        INSERT INTO dev_tddf_api_queue 
+        (file_id, priority, status)
+        VALUES ($1, $2, $3)
+      `, [result.rows[0].id, 75, 'queued']);
 
       // Clean up temp file
       fs.unlinkSync(req.file.path);
@@ -20165,7 +20208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const queueResult = await pool.query(`
         SELECT * FROM ${resolvedTableName} 
         WHERE status = 'queued' 
-        ORDER BY priority DESC, queued_at ASC
+        ORDER BY priority DESC, created_at ASC
         LIMIT 1
       `);
       
@@ -20333,9 +20376,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           s.version as schema_version,
           q.status as queue_status,
           q.priority as queue_priority
-        FROM ${getTableName('tddf_api_files')} f
-        LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
-        LEFT JOIN ${getTableName('tddf_api_queue')} q ON f.id = q.file_id
+        FROM dev_tddf_api_files f
+        LEFT JOIN dev_tddf_api_schemas s ON f.schema_id = s.id
+        LEFT JOIN dev_tddf_api_queue q ON f.id = q.file_id
         ${whereClause}
         ORDER BY f.business_day DESC NULLS LAST, f.uploaded_at DESC
         LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -20513,7 +20556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           f.uploaded_at
         FROM ${getTableName('tddf_api_queue')} q
         JOIN ${getTableName('tddf_api_files')} f ON q.file_id = f.id
-        ORDER BY q.priority DESC, q.queued_at ASC
+        ORDER BY q.priority DESC, q.created_at ASC
       `);
       
       res.json(queue.rows);
