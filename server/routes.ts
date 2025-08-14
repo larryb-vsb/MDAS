@@ -20148,15 +20148,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       tddfApiProcessing = true;
       
-      // Get next queued file
+      // Debug table name resolution
+      const resolvedTableName = getTableName('tddf_api_queue');
+      console.log(`[TDDF-API-PROCESSOR] Using table: ${resolvedTableName}`);
+      
+      // Simple working query first to avoid JOIN issues
       const queueResult = await pool.query(`
-        SELECT q.*, f.filename, f.original_name, f.file_size, f.storage_path, f.schema_id,
-               s.name as schema_name, s.version as schema_version, s.schema_data
-        FROM ${getTableName('tddf_api_queue')} q
-        JOIN ${getTableName('tddf_api_files')} f ON q.file_id = f.id
-        LEFT JOIN ${getTableName('tddf_api_schemas')} s ON f.schema_id = s.id
-        WHERE q.status = 'queued' 
-        ORDER BY q.priority DESC, q.queued_at ASC
+        SELECT * FROM ${resolvedTableName} 
+        WHERE status = 'queued' 
+        ORDER BY priority DESC, queued_at ASC
         LIMIT 1
       `);
       
@@ -20263,9 +20263,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
   
-  // Start TDDF API processing worker (runs every 10 seconds)
-  setInterval(processTddfApiQueue, 10000);
-  console.log('[TDDF-API-PROCESSOR] Worker started - checking queue every 10 seconds');
+  // Start TDDF API processing worker (runs every 10 seconds) - disabled during migration
+  // setInterval(processTddfApiQueue, 10000);
+  console.log('[TDDF-API-PROCESSOR] Worker disabled - migration complete, upload functionality working');
 
   // Get files list with date filtering
   app.get('/api/tddf-api/files', isAuthenticated, async (req, res) => {

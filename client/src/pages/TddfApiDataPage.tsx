@@ -74,6 +74,7 @@ export default function TddfApiDataPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedSchema, setSelectedSchema] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [newSchemaData, setNewSchemaData] = useState({
     name: "",
     version: "",
@@ -170,6 +171,7 @@ export default function TddfApiDataPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/queue"] });
       setUploadFile(null);
+      setShowUploadDialog(false);
       toast({ title: "File uploaded successfully" });
     }
   });
@@ -509,9 +511,9 @@ export default function TddfApiDataPage() {
         <TabsContent value="files" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">File Management</h2>
-            <Dialog>
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => setShowUploadDialog(true)}>
                   <Upload className="mr-2 h-4 w-4" />
                   Upload File
                 </Button>
