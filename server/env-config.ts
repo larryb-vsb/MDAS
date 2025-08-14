@@ -72,20 +72,37 @@ if (NODE_ENV === 'development') {
 const BASE_UPLOAD_PATH = isProd ? './data/uploads' : './tmp_uploads';
 const BASE_BACKUP_PATH = isProd ? './data/backups' : './backups';
 
-// TABLE-LEVEL separation: Use same database with different table prefixes
+// TABLE-LEVEL separation: Use Neon paid account when available, fallback to default
 export function getDatabaseUrl(): string {
-  const baseUrl = process.env.DATABASE_URL || '';
-  if (!baseUrl) return '';
+  // Temporarily use DATABASE_URL until Neon authentication is fixed
+  // TODO: Switch back to preferring NEON_DATABASE_URL once credentials are corrected
+  const neonUrl = process.env.NEON_DATABASE_URL;
+  const defaultUrl = process.env.DATABASE_URL;
+  
+  // TEMPORARY: Use default URL until Neon auth is fixed
+  const selectedUrl = defaultUrl || '';
+  
+  if (!selectedUrl) {
+    throw new Error('No database URL available. Please set DATABASE_URL');
+  }
+  
+  const urlSource = 'DATABASE_URL (temporary - Neon auth pending)';
   
   console.log(`[DB CONFIG] NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
-  console.log(`[DB CONFIG] Base URL: ${baseUrl.substring(0, 80)}...`);
+  console.log(`[DB CONFIG] Using ${urlSource}`);
+  console.log(`[DB CONFIG] Database URL: ${selectedUrl.substring(0, 80)}...`);
+  
+  if (neonUrl) {
+    console.log(`[DB CONFIG] ⚠️  NEON_DATABASE_URL available but not used due to auth error`);
+    console.log(`[DB CONFIG] ⚠️  Please verify Neon credentials and pooler settings`);
+  }
   
   // IMPORTANT: Use same database for both environments
   // Separation is achieved through table prefixes (dev_merchants vs merchants)
   console.log(`[DB CONFIG] Using table-level separation - same database, different table prefixes`);
   console.log(`[DB CONFIG] ${NODE_ENV} tables: ${isDev ? 'dev_*' : 'main'} tables`);
   
-  return baseUrl;
+  return selectedUrl;
 }
 
 // Environment-specific configuration
@@ -94,8 +111,10 @@ export const config = {
   database: {
     url: getDatabaseUrl(),
     useEnvVars: true,
-    // Keep original URL for reference
-    originalUrl: process.env.DATABASE_URL
+    // Keep original URLs for reference
+    originalUrl: process.env.DATABASE_URL,
+    neonUrl: process.env.NEON_DATABASE_URL,
+    usingNeon: !!process.env.NEON_DATABASE_URL
   },
   
   // File storage paths
