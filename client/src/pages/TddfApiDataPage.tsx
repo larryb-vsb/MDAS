@@ -103,15 +103,21 @@ export default function TddfApiDataPage() {
   const queryClient = useQueryClient();
 
   // Fetch schemas
-  const { data: schemas = [], isLoading: schemasLoading } = useQuery({
+  const { data: schemas = [], isLoading: schemasLoading } = useQuery<TddfSchema[]>({
     queryKey: ["/api/tddf-api/schemas"],
-    queryFn: () => apiRequest("/api/tddf-api/schemas")
+    queryFn: async () => {
+      const response = await fetch("/api/tddf-api/schemas", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch schemas');
+      return response.json();
+    }
   });
 
   // Fetch files with filtering
-  const { data: files = [], isLoading: filesLoading } = useQuery({
+  const { data: files = [], isLoading: filesLoading } = useQuery<TddfFile[]>({
     queryKey: ["/api/tddf-api/files", dateFilters],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams();
       if (dateFilters.dateFrom) params.append('dateFrom', dateFilters.dateFrom);
       if (dateFilters.dateTo) params.append('dateTo', dateFilters.dateTo);
@@ -120,26 +126,48 @@ export default function TddfApiDataPage() {
       if (dateFilters.status) params.append('status', dateFilters.status);
       
       const queryString = params.toString();
-      return apiRequest(`/api/tddf-api/files${queryString ? '?' + queryString : ''}`);
+      const response = await fetch(`/api/tddf-api/files${queryString ? '?' + queryString : ''}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch files');
+      return response.json();
     }
   });
 
   // Fetch API keys
-  const { data: apiKeys = [], isLoading: keysLoading } = useQuery({
+  const { data: apiKeys = [], isLoading: keysLoading } = useQuery<TddfApiKey[]>({
     queryKey: ["/api/tddf-api/keys"],
-    queryFn: () => apiRequest("/api/tddf-api/keys")
+    queryFn: async () => {
+      const response = await fetch("/api/tddf-api/keys", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch API keys');
+      return response.json();
+    }
   });
 
   // Fetch processing queue
-  const { data: queue = [], isLoading: queueLoading } = useQuery({
+  const { data: queue = [], isLoading: queueLoading } = useQuery<any[]>({
     queryKey: ["/api/tddf-api/queue"],
-    queryFn: () => apiRequest("/api/tddf-api/queue")
+    queryFn: async () => {
+      const response = await fetch("/api/tddf-api/queue", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch queue');
+      return response.json();
+    }
   });
 
   // Fetch monitoring data
-  const { data: monitoring } = useQuery({
+  const { data: monitoring } = useQuery<any>({
     queryKey: ["/api/tddf-api/monitoring"],
-    queryFn: () => apiRequest("/api/tddf-api/monitoring")
+    queryFn: async () => {
+      const response = await fetch("/api/tddf-api/monitoring", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch monitoring');
+      return response.json();
+    }
   });
 
   // Create schema mutation
