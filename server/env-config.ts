@@ -79,14 +79,14 @@ export function getDatabaseUrl(): string {
   const neonUrl = process.env.NEON_DATABASE_URL;
   const defaultUrl = process.env.DATABASE_URL;
   
-  // TEMPORARY: Use default URL until Neon auth is fixed
-  const selectedUrl = defaultUrl || '';
+  // Try Neon first, fallback to default if there are issues
+  const selectedUrl = neonUrl || defaultUrl || '';
   
   if (!selectedUrl) {
     throw new Error('No database URL available. Please set DATABASE_URL');
   }
   
-  const urlSource = 'DATABASE_URL (temporary - Neon auth pending)';
+  const urlSource = neonUrl ? 'NEON_DATABASE_URL (paid account)' : 'DATABASE_URL (default)';
   
   console.log(`[DB CONFIG] NODE_ENV: ${NODE_ENV}, isProd: ${isProd}, isDev: ${isDev}`);
   console.log(`[DB CONFIG] Using ${urlSource}`);
