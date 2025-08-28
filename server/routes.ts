@@ -10546,7 +10546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           query += ` WHERE ${conditions.join(' AND ')}`;
         }
         
-        query += ` ORDER BY start_time DESC`;
+        query += ` ORDER BY created_at DESC`;
         
         const currentResult = await pool.query(query, params);
         allUploads = currentResult.rows;
@@ -10584,7 +10584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           query += ` WHERE ${conditions.join(' AND ')}`;
         }
         
-        query += ` ORDER BY start_time DESC`;
+        query += ` ORDER BY created_at DESC`;
         
         if (limit) {
           query += ` LIMIT $${params.length + 1}`;
@@ -10600,8 +10600,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allUploads = result.rows;
       }
       
-      // Sort all uploads by start_time descending
-      allUploads.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+      // Sort all uploads by created_at descending
+      allUploads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
       // Apply pagination after merging
       const limitNum = limit ? parseInt(limit as string) : allUploads.length;
