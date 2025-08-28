@@ -13961,7 +13961,15 @@ export class DatabaseStorage implements IStorage {
         params.push(options.offset);
       }
       
+      console.log(`[UPLOADER-STORAGE-DEBUG] Executing query: ${query}`);
+      console.log(`[UPLOADER-STORAGE-DEBUG] Query params:`, params);
+      
       const result = await pool.query(query, params);
+      
+      console.log(`[UPLOADER-STORAGE-DEBUG] Query returned ${result.rows.length} rows`);
+      if (result.rows.length > 0) {
+        console.log(`[UPLOADER-STORAGE-DEBUG] First row:`, result.rows[0]);
+      }
       
       // Convert snake_case database fields to camelCase for frontend compatibility
       return result.rows.map(row => ({
