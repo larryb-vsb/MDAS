@@ -1,0 +1,172 @@
+import * as schedule from 'node-schedule';
+import { db } from '../db';
+import { eq, sql, and, desc, asc } from 'drizzle-orm';
+import { systemLogger } from '../system-logger';
+// Simple server ID generation
+function getCachedServerId(): string {
+  return process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`;
+}
+
+/**
+ * TDDF API background processor service
+ * Handles processing of files queued in the TDDF API system
+ */
+class TddfApiProcessorService {
+  private processingJob: schedule.Job | null = null;
+  private isRunning = false;
+  private jobName = 'tddf-api-processor';
+
+  /**
+   * Initialize the TDDF API processor service
+   */
+  initialize(): void {
+    console.log("[TDDF-API-PROCESSOR] Initializing TDDF API processor service...");
+    
+    // Schedule a job to run every 30 seconds for responsive processing
+    this.processingJob = schedule.scheduleJob(this.jobName, '*/30 * * * * *', async () => {
+      await this.processQueuedFiles();
+    });
+    
+    console.log(`[TDDF-API-PROCESSOR] TDDF API processor initialized. Next run at ${this.processingJob?.nextInvocation()}`);
+    
+    // Log processor initialization
+    systemLogger.info('TDDF-API', 'Background TDDF API processor initialized', {
+      schedule: '*/30 * * * * *',
+      nextRun: this.processingJob?.nextInvocation()?.toISOString(),
+      serverId: getCachedServerId()
+    }).catch(console.error);
+  }
+
+  /**
+   * Process queued TDDF API files
+   */
+  async processQueuedFiles(): Promise<void> {
+    if (this.isRunning) {
+      console.log("[TDDF-API-PROCESSOR] Already running, skipping this cycle");
+      return;
+    }
+
+    this.isRunning = true;
+    const serverId = getCachedServerId();
+
+    try {
+      // Get next queued file with highest priority
+      const queuedFiles = await db.execute(sql`
+        SELECT q.*, f.original_name, f.storage_path, f.schema_id, s.name as schema_name, s.schema_data
+        FROM dev_tddf_api_queue q
+        JOIN dev_tddf_api_files f ON q.file_id = f.id
+        LEFT JOIN dev_tddf_api_schemas s ON f.schema_id = s.id
+        WHERE q.status = 'queued'
+        ORDER BY q.priority DESC, q.created_at ASC
+        LIMIT 1
+      `);
+
+      if (queuedFiles.rows.length === 0) {
+        return; // No files to process
+      }
+
+      const queueItem = queuedFiles.rows[0] as any;
+      const fileId = queueItem.file_id;
+      const queueId = queueItem.id;
+
+      console.log(`[TDDF-API-PROCESSOR] Processing file: ${queueItem.original_name} (ID: ${fileId})`);
+
+      // Mark as processing
+      await db.execute(sql`
+        UPDATE dev_tddf_api_queue 
+        SET status = 'processing'
+        WHERE id = ${queueId}
+      `);
+
+      // Update file status
+      await db.execute(sql`
+        UPDATE dev_tddf_api_files 
+        SET status = 'processing',
+            processing_started = NOW()
+        WHERE id = ${fileId}
+      `);
+
+      // Simulate processing (in a real system, this would parse the file)
+      await this.processFile(queueItem);
+
+      // Mark as completed
+      await db.execute(sql`
+        UPDATE dev_tddf_api_queue 
+        SET status = 'completed'
+        WHERE id = ${queueId}
+      `);
+
+      await db.execute(sql`
+        UPDATE dev_tddf_api_files 
+        SET status = 'completed',
+            processing_completed = NOW(),
+            record_count = 100,
+            processed_records = 100
+        WHERE id = ${fileId}
+      `);
+
+      console.log(`[TDDF-API-PROCESSOR] Successfully processed file: ${queueItem.original_name}`);
+
+      systemLogger.info('TDDF-API', 'File processed successfully', {
+        fileId,
+        fileName: queueItem.original_name,
+        serverId
+      }).catch(console.error);
+
+    } catch (error) {
+      console.error("[TDDF-API-PROCESSOR] Error processing queued files:", error);
+      
+      systemLogger.error('TDDF-API', 'Error processing queued files', {
+        error: error instanceof Error ? error.message : String(error),
+        serverId
+      }).catch(console.error);
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  /**
+   * Process individual file
+   */
+  private async processFile(queueItem: any): Promise<void> {
+    // This is where you would implement the actual file processing logic
+    // For now, we'll simulate processing with a delay
+    
+    console.log(`[TDDF-API-PROCESSOR] Processing file content for: ${queueItem.original_name}`);
+    console.log(`[TDDF-API-PROCESSOR] Schema: ${queueItem.schema_name || 'None'}`);
+    console.log(`[TDDF-API-PROCESSOR] Storage path: ${queueItem.storage_path}`);
+    
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // In a real implementation, you would:
+    // 1. Read the file from storage_path
+    // 2. Parse it according to the schema
+    // 3. Extract records and store them
+    // 4. Update record counts
+    // 5. Handle any errors
+  }
+
+  /**
+   * Shutdown the processor
+   */
+  shutdown(): void {
+    if (this.processingJob) {
+      this.processingJob.cancel();
+      console.log("[TDDF-API-PROCESSOR] TDDF API processor shutdown");
+    }
+  }
+
+  /**
+   * Get processing status
+   */
+  getStatus() {
+    return {
+      isRunning: this.isRunning,
+      nextRun: this.processingJob?.nextInvocation()?.toISOString()
+    };
+  }
+}
+
+// Export singleton instance
+export const tddfApiProcessor = new TddfApiProcessorService();

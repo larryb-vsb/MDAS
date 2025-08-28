@@ -8,6 +8,7 @@ import { ensureAppDirectories } from "./utils/fs-utils";
 import { config, NODE_ENV } from "./env-config";
 import { pool, db } from "./db";
 import { fileProcessorService } from "./services/file-processor";
+import { tddfApiProcessor } from "./services/tddf-api-processor";
 import { migrateDatabase } from "./database-migrate";
 import { systemLogger } from './system-logger';
 
@@ -266,6 +267,9 @@ app.use((req, res, next) => {
       
       // Start the file processor service to process uploaded files
       fileProcessorService.initialize();
+      
+      // Start the TDDF API processor service
+      tddfApiProcessor.initialize();
       
       // Log file processor initialization
       await systemLogger.info('Application', 'File processor service initialized', {
