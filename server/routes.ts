@@ -10355,14 +10355,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const upload = await storage.createUploaderUpload({
         id: uploadId,
         filename,
-        fileSize: fileSize,
-        storagePath: storageKey,
-        s3Bucket: 'mms-uploader-files', // Using same field for Replit bucket name
-        s3Key: storageKey, // Using same field for storage key
-        createdBy: (req.user as any)?.username || 'unknown',
-        sessionId: sessionId,
-        serverId: process.env.HOSTNAME || 'unknown',
-        keep_for_review: keep
+        file_size: fileSize,
+        storage_path: storageKey,
+        s3_bucket: 'mms-uploader-files', // Using same field for Replit bucket name
+        s3_key: storageKey, // Using same field for storage key
+        created_by: (req.user as any)?.username || 'unknown',
+        session_id: sessionId,
+        server_id: process.env.HOSTNAME || 'unknown',
+        keepForReview: keep
       });
       
       console.log(`[UPLOADER-REPLIT] Started upload: ${upload.id} for ${filename} with key: ${storageKey}`);
