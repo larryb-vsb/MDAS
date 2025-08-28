@@ -83,13 +83,19 @@ export function getDatabaseUrl(): string {
   let selectedUrl = '';
   let urlSource = '';
   
-  // FORCE DEVELOPMENT DATABASE - Temporary fix
-  if (neonDevUrl) {
-    selectedUrl = neonDevUrl;
-    urlSource = 'NEON_DEV_DATABASE_URL (development paid account) - FORCED';
-  } else if (defaultUrl) {
+  // FORCE EXTERNAL NEON DATABASE - Always use external Neon database
+  // Note: Our data is in DATABASE_URL (ep-young-frog) not NEON_DEV_DATABASE_URL (ep-shy-king)
+  if (defaultUrl) {
     selectedUrl = defaultUrl;
-    urlSource = 'DATABASE_URL (fallback default)';
+    urlSource = 'DATABASE_URL (external Neon database with test data)';
+  } else if (isDev && neonDevUrl) {
+    selectedUrl = neonDevUrl;
+    urlSource = 'NEON_DEV_DATABASE_URL (external Neon development database)';
+  } else if (isProd && neonProdUrl) {
+    selectedUrl = neonProdUrl;
+    urlSource = 'NEON_PROD_DATABASE_URL (external Neon production database)';
+  } else {
+    throw new Error(`External Neon database required. Please ensure DATABASE_URL, NEON_DEV_DATABASE_URL or NEON_PROD_DATABASE_URL is set. Current environment: ${NODE_ENV}`);
   }
   
   if (!selectedUrl) {
