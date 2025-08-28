@@ -13901,7 +13901,7 @@ export class DatabaseStorage implements IStorage {
       
       const result = await pool.query(`
         INSERT INTO ${uploaderTableName} (
-          id, filename, file_type, file_size, start_time, upload_status, 
+          id, filename, file_type, file_size, created_at, upload_status, 
           current_phase, created_by, server_id, session_id, keep_for_review
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
