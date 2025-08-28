@@ -34,27 +34,27 @@ interface TddfApiSchema {
 interface TddfApiFile {
   id: number;
   filename: string;
-  originalName: string;
-  fileSize: number;
-  fileHash: string;
-  storagePath: string;
-  schemaId?: number;
+  original_name: string;
+  file_size: number;
+  file_hash: string;
+  storage_path: string;
+  schema_id?: number;
   status: string;
-  recordCount: number;
-  processedRecords: number;
-  errorRecords: number;
-  processingStarted?: string;
-  processingCompleted?: string;
-  errorDetails?: any;
+  record_count: number;
+  processed_records: number;
+  error_records: number;
+  processing_started?: string;
+  processing_completed?: string;
+  error_details?: any;
   metadata?: any;
-  businessDay?: string;
-  fileDate?: string;
-  uploadedAt: string;
-  uploadedBy: string;
-  schemaName?: string;
-  schemaVersion?: string;
-  queueStatus?: string;
-  queuePriority?: number;
+  business_day?: string;
+  file_date?: string;
+  uploaded_at: string;
+  uploaded_by: string;
+  schema_name?: string;
+  schema_version?: string;
+  queue_status?: string;
+  queue_priority?: number;
 }
 
 interface TddfApiKey {
@@ -103,7 +103,7 @@ export default function TddfApiDataPage() {
   const queryClient = useQueryClient();
 
   // Fetch schemas
-  const { data: schemas = [], isLoading: schemasLoading } = useQuery<TddfSchema[]>({
+  const { data: schemas = [], isLoading: schemasLoading } = useQuery<TddfApiSchema[]>({
     queryKey: ["/api/tddf-api/schemas"],
     queryFn: async () => {
       const response = await fetch("/api/tddf-api/schemas", {
@@ -115,7 +115,7 @@ export default function TddfApiDataPage() {
   });
 
   // Fetch files with filtering
-  const { data: files = [], isLoading: filesLoading } = useQuery<TddfFile[]>({
+  const { data: files = [], isLoading: filesLoading } = useQuery<TddfApiFile[]>({
     queryKey: ["/api/tddf-api/files", dateFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -212,7 +212,7 @@ export default function TddfApiDataPage() {
     }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"] });
-      setCreatedApiKey(data.apiKey);
+      setCreatedApiKey(data.key || "");
       setNewApiKey({ keyName: "", permissions: ["read"], rateLimitPerMinute: 100, expiresAt: "" });
       toast({ title: "API key created successfully" });
     }
@@ -716,18 +716,18 @@ export default function TddfApiDataPage() {
                     files.map((file) => (
                       <TableRow key={file.id}>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {file.originalName}
+                          {file.original_name}
                         </TableCell>
                         <TableCell>
-                          {file.businessDay ? format(new Date(file.businessDay), "MMM d, yyyy") : (
-                            file.fileDate ? (
-                              <span className="text-muted-foreground">{file.fileDate}</span>
+                          {file.business_day ? format(new Date(file.business_day), "MMM d, yyyy") : (
+                            file.file_date ? (
+                              <span className="text-muted-foreground">{file.file_date}</span>
                             ) : "-"
                           )}
                         </TableCell>
-                        <TableCell>{formatFileSize(file.fileSize)}</TableCell>
+                        <TableCell>{formatFileSize(file.file_size)}</TableCell>
                         <TableCell>
-                          {file.schemaName ? `${file.schemaName} v${file.schemaVersion}` : "None"}
+                          {file.schema_name ? `${file.schema_name} v${file.schema_version}` : "None"}
                         </TableCell>
                         <TableCell>
                           <Badge variant={getStatusBadgeVariant(file.status)}>
@@ -735,20 +735,20 @@ export default function TddfApiDataPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {file.recordCount > 0 ? file.recordCount.toLocaleString() : "-"}
+                          {file.record_count > 0 ? file.record_count.toLocaleString() : "-"}
                         </TableCell>
                         <TableCell>
-                          {file.recordCount > 0 && (
+                          {file.record_count > 0 && (
                             <div className="w-20">
                               <Progress 
-                                value={(file.processedRecords / file.recordCount) * 100} 
+                                value={(file.processed_records / file.record_count) * 100} 
                                 className="h-2"
                               />
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          {file.uploadedAt ? format(new Date(file.uploadedAt), "MMM d, yyyy") : "Unknown"}
+                          {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, yyyy") : "Unknown"}
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
@@ -1061,7 +1061,7 @@ export default function TddfApiDataPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monitoring?.topEndpoints?.map((endpoint, index) => (
+                  {monitoring?.topEndpoints?.map((endpoint: any, index: number) => (
                     <TableRow key={index}>
                       <TableCell className="font-mono">{endpoint.endpoint}</TableCell>
                       <TableCell>{endpoint.request_count}</TableCell>
