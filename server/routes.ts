@@ -12904,67 +12904,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[RE-ENCODE] Processing ${lines.length} lines from actual file content`);
       
       let recordsCreated = 0;
+      const client = await pool.connect();
       
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.length < 2) continue; // Skip invalid lines
+      try {
+        // Start explicit transaction
+        await client.query('BEGIN');
+        console.log(`[RE-ENCODE] Started database transaction`);
         
-        // Extract record type from positions 18-19 as confirmed by user
-        let recordType = '';
-        if (line.length >= 19) {
-          // Search for known record types first
-          const searchArea = line.substring(0, 30);
-          if (searchArea.includes('BH')) {
-            recordType = 'BH';
-          } else if (searchArea.includes('DT')) {
-            recordType = 'DT';
-          } else if (searchArea.includes('P1')) {
-            recordType = 'P1';
-          } else if (searchArea.includes('P2')) {
-            recordType = 'P2';
+        // Prepare batch insert data
+        const insertPromises = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.length < 2) continue; // Skip invalid lines
+          
+          // Extract record type from positions 18-19 as confirmed by user
+          let recordType = '';
+          if (line.length >= 19) {
+            // Search for known record types first
+            const searchArea = line.substring(0, 30);
+            if (searchArea.includes('BH')) {
+              recordType = 'BH';
+            } else if (searchArea.includes('DT')) {
+              recordType = 'DT';
+            } else if (searchArea.includes('P1')) {
+              recordType = 'P1';
+            } else if (searchArea.includes('P2')) {
+              recordType = 'P2';
+            } else {
+              // Fallback to position-based extraction (positions 18-19)
+              recordType = line.substring(17, 19);
+            }
           } else {
-            // Fallback to position-based extraction (positions 18-19)
-            recordType = line.substring(17, 19);
+            recordType = line.substring(0, 2); // Fallback for short lines
           }
-        } else {
-          recordType = line.substring(0, 2); // Fallback for short lines
-        }
-        
-        console.log(`[RE-ENCODE] Line ${i+1}: Found record type "${recordType}" in line: "${line.substring(0, 30)}..."`);
-        
-        // Use real TDDF field extraction instead of sample data
-        let recordData;
-        try {
-          const { encodeTddfLineToJson } = await import('./tddf-json-encoder');
-          recordData = encodeTddfLineToJson(line, i + 1);
-          console.log(`[RE-ENCODE] Line ${i+1}: Successfully extracted ${Object.keys(recordData.extractedFields || {}).length} fields`);
-        } catch (encodingError: any) {
-          console.warn(`[RE-ENCODE] Line ${i+1}: TDDF encoding failed, using basic fallback: ${encodingError.message}`);
-          // Fallback to basic record structure
-          recordData = {
-            recordType: recordType,
-            lineNumber: i + 1,
-            rawLine: line,
-            extractedFields: {
-              record_type: recordType,
-              raw_content: line,
-              line_length: line.length
-            },
-            fieldCount: 3,
-            recordTypeName: recordType === 'BH' ? 'Batch Header' : 
-                           recordType === 'DT' ? 'Detail Transaction' : 
-                           recordType === 'P1' ? 'Purchasing Card 1' : 
-                           recordType === 'P2' ? 'Purchasing Card 2' : 
-                           recordType === 'E1' ? 'Electronic Check' :
-                           recordType === 'G2' ? 'Geographic Data' :
-                           recordType === 'AD' ? 'Application Data' :
-                           recordType === 'DR' ? 'Detail Record' :
-                           'Unknown Record'
-          };
-        }
-        
-        try {
-          await pool.query(`
+          
+          // Use real TDDF field extraction instead of sample data
+          let recordData;
+          try {
+            const { encodeTddfLineToJson } = await import('./tddf-json-encoder');
+            recordData = encodeTddfLineToJson(line, i + 1);
+          } catch (encodingError: any) {
+            console.warn(`[RE-ENCODE] Line ${i+1}: TDDF encoding failed, using basic fallback: ${encodingError.message}`);
+            // Fallback to basic record structure
+            recordData = {
+              recordType: recordType,
+              lineNumber: i + 1,
+              rawLine: line,
+              extractedFields: {
+                record_type: recordType,
+                raw_content: line,
+                line_length: line.length
+              },
+              fieldCount: 3,
+              recordTypeName: recordType === 'BH' ? 'Batch Header' : 
+                             recordType === 'DT' ? 'Detail Transaction' : 
+                             recordType === 'P1' ? 'Purchasing Card 1' : 
+                             recordType === 'P2' ? 'Purchasing Card 2' : 
+                             recordType === 'E1' ? 'Electronic Check' :
+                             recordType === 'G2' ? 'Geographic Data' :
+                             recordType === 'AD' ? 'Application Data' :
+                             recordType === 'DR' ? 'Detail Record' :
+                             'Unknown Record'
+            };
+          }
+          
+          // Queue insert operation within transaction
+          const insertPromise = client.query(`
             INSERT INTO ${jsonbTableName} 
             (upload_id, record_type, record_data, record_identifier, line_number, raw_line, field_count)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -12978,10 +12984,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recordData.fieldCount || Object.keys(recordData.extractedFields || {}).length || 1
           ]);
           
+          insertPromises.push(insertPromise);
           recordsCreated++;
-        } catch (insertError: any) {
-          console.warn(`[RE-ENCODE] Failed to insert record ${i + 1}: ${insertError.message}`);
         }
+        
+        // Execute all inserts within the transaction
+        console.log(`[RE-ENCODE] Executing ${insertPromises.length} inserts within transaction`);
+        await Promise.all(insertPromises);
+        
+        // Commit transaction
+        await client.query('COMMIT');
+        console.log(`[RE-ENCODE] Transaction committed successfully with ${recordsCreated} records`);
+        
+      } catch (transactionError: any) {
+        // Rollback on any error
+        await client.query('ROLLBACK');
+        console.error(`[RE-ENCODE] Transaction rolled back due to error: ${transactionError.message}`);
+        throw transactionError;
+      } finally {
+        // Always release the client
+        client.release();
       }
       
       console.log(`[RE-ENCODE] Created ${recordsCreated} real TDDF JSONB records with field extraction`);
