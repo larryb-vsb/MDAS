@@ -450,38 +450,19 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
     };
   }
   
-  // Extract and validate record type - enhanced detection
-  let recordType = '';
+  // Extract and validate record type from positions 18-19 (1-based)
+  const recordType = line.substring(17, 19); // Positions 18-19 (0-based indexing)
   
-  // Method 1: Traditional position 18-19 extraction
-  const standardRecordType = line.substring(17, 19); // Positions 18-19
-  
-  // Method 2: Search for known record types in the line (for formats where BH, DT etc appear embedded)
-  const knownRecordTypes = ['BH', 'DT', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE', 'TR'];
-  let foundRecordType = '';
-  
-  // Search for record type patterns in the first 50 characters
-  const searchArea = line.substring(0, Math.min(50, line.length));
-  for (const rt of knownRecordTypes) {
-    if (searchArea.includes(rt)) {
-      foundRecordType = rt;
-      break;
-    }
-  }
-  
-  // Use found record type if available, otherwise fall back to standard position
-  recordType = foundRecordType || standardRecordType;
-  
-  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Standard="${standardRecordType}", Found="${foundRecordType}", Final="${recordType}"`);
-  console.log(`[RECORD-TYPE-DETECTION] Search area: "${searchArea}"`);
+  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Record type="${recordType}" from positions 18-19`);
+  console.log(`[RECORD-TYPE-DETECTION] Line content around position 18-19: "${line.substring(15, 25)}"`);
   
   if (!recordType || recordType.trim().length === 0) {
     validationResults.isValid = false;
     validationResults.errors.push('Missing record type at positions 18-19');
   }
   
-  // Validate record type against known types
-  const validRecordTypes = ['DT', 'BH', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE', 'TR', '01', '02', '10', '47', '98', '99'];
+  // Validate record type against known TDDF types
+  const validRecordTypes = ['BH', 'DT', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE', 'TR', '01', '02', '10', '47', '98', '99'];
   if (!validRecordTypes.includes(recordType)) {
     validationResults.warnings.push(`Unknown record type: ${recordType}`);
   }
