@@ -709,8 +709,27 @@ export async function encodeTddfToJsonb(fileContent: string, upload: UploaderUpl
  * Direct TDDF to JSONB encoding with database storage
  */
 export async function encodeTddfToJsonbDirect(fileContent: string, upload: UploaderUpload): Promise<any> {
-  // Use the shared batch pool from db.ts to ensure King server connection
+  // KING SERVER FIX: Use batchPool that's configured for King server in db.ts
   const { batchPool } = await import('./db');
+  
+  console.log('[RE-ENCODE-DB-FIX] Using batchPool from db.ts configured for King server');
+  
+  // Test the connection to verify it's the King server
+  const testClient = await batchPool.connect();
+  try {
+    const result = await testClient.query('SELECT current_database(), inet_server_addr() as server_ip');
+    console.log('[RE-ENCODE-DB-FIX] Connected to database:', result.rows[0]);
+    
+    // Verify we're on King server
+    if (result.rows[0].server_ip && result.rows[0].server_ip.includes('169.254')) {
+      console.log('✅ [RE-ENCODE-DB-FIX] Confirmed connection to King server');
+    } else {
+      console.log('❌ [RE-ENCODE-DB-FIX] WARNING: Not connected to King server!');
+    }
+  } finally {
+    testClient.release();
+  }
+  
   const pool = batchPool;
   
   const startTime = Date.now();
