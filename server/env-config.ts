@@ -83,19 +83,18 @@ export function getDatabaseUrl(): string {
   let selectedUrl = '';
   let urlSource = '';
   
-  // SWITCH BACK TO DATABASE_URL - User data exists in ep-young-frog database
-  // Note: ep-shy-king (NEON_DEV_DATABASE_URL) has different schema and no data
-  if (defaultUrl) {
-    selectedUrl = defaultUrl;
-    urlSource = 'DATABASE_URL (ep-young-frog with user TDDF data)';
-  } else if (isDev && neonDevUrl) {
+  // SWITCH TO NEON_DEV_DATABASE_URL - User confirmed to use ep-shy-king-aasxdlh7 database
+  if (isDev && neonDevUrl) {
     selectedUrl = neonDevUrl;
-    urlSource = 'NEON_DEV_DATABASE_URL (ep-shy-king development database)';
+    urlSource = 'NEON_DEV_DATABASE_URL (ep-shy-king-aasxdlh7 development database)';
   } else if (isProd && neonProdUrl) {
     selectedUrl = neonProdUrl;
     urlSource = 'NEON_PROD_DATABASE_URL (external Neon production database)';
+  } else if (defaultUrl) {
+    selectedUrl = defaultUrl;
+    urlSource = 'DATABASE_URL (fallback database)';
   } else {
-    throw new Error(`External Neon database required. Please ensure DATABASE_URL, NEON_DEV_DATABASE_URL or NEON_PROD_DATABASE_URL is set. Current environment: ${NODE_ENV}`);
+    throw new Error(`External Neon database required. Please ensure NEON_DEV_DATABASE_URL, NEON_PROD_DATABASE_URL or DATABASE_URL is set. Current environment: ${NODE_ENV}`);
   }
   
   if (!selectedUrl) {
