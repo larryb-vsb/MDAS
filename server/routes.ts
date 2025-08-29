@@ -12798,6 +12798,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Re-encode upload with sample JSONB data (simplified version)
   app.post("/api/uploader/:id/re-encode", async (req, res) => {
+    const startTime = new Date();
+    let timingLogId: number | null = null;
+    
     try {
       const { id } = req.params;
       console.log(`[RE-ENCODE] Starting simplified re-encoding for upload ${id}`);
@@ -12806,6 +12809,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const upload = await storage.getUploaderUploadById(id);
       if (!upload) {
         return res.status(404).json({ error: "Upload not found" });
+      }
+
+      // Create timing log entry
+      try {
+        const { getTableName } = await import("./table-config");
+        const timingTableName = getTableName('processing_timing_logs');
+        const result = await pool.query(`
+          INSERT INTO ${timingTableName} (upload_id, operation_type, start_time, status, metadata)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id
+        `, [id, 're-encode', startTime, 'in_progress', JSON.stringify({ filename: upload.filename })]);
+        timingLogId = result.rows[0]?.id;
+        console.log(`[RE-ENCODE-TIMING] Created timing log ${timingLogId} for upload ${id}`);
+      } catch (timingError: any) {
+        console.warn(`[RE-ENCODE-TIMING] Could not create timing log: ${timingError.message}`);
       }
       
       // Clear existing JSONB records for this upload
@@ -12942,15 +12960,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[RE-ENCODE] Created ${recordsCreated} sample JSONB records for testing`);
       
+      // Complete timing log
+      const endTime = new Date();
+      const durationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+      const recordsPerSecond = recordsCreated > 0 ? (recordsCreated / durationSeconds) : 0;
+      
+      if (timingLogId) {
+        try {
+          const { getTableName } = await import("./table-config");
+          const timingTableName = getTableName('processing_timing_logs');
+          await pool.query(`
+            UPDATE ${timingTableName}
+            SET end_time = $1, duration_seconds = $2, total_records = $3, 
+                records_per_second = $4, status = $5
+            WHERE id = $6
+          `, [endTime, durationSeconds, recordsCreated, recordsPerSecond, 'completed', timingLogId]);
+          console.log(`[RE-ENCODE-TIMING] Completed timing log ${timingLogId}: ${durationSeconds}s, ${recordsCreated} records, ${recordsPerSecond.toFixed(2)} records/sec`);
+        } catch (timingError: any) {
+          console.warn(`[RE-ENCODE-TIMING] Could not complete timing log: ${timingError.message}`);
+        }
+      }
+      
       res.json({
         success: true,
         message: `Created ${recordsCreated} sample JSONB records for testing`,
         jsonbRecordsCreated: recordsCreated,
-        jsonbTableName: jsonbTableName
+        jsonbTableName: jsonbTableName,
+        timing: {
+          durationSeconds: durationSeconds,
+          recordsPerSecond: recordsPerSecond.toFixed(2),
+          totalRecords: recordsCreated
+        }
       });
       
     } catch (error: any) {
       console.error('Re-encode error:', error);
+      
+      // Mark timing log as failed
+      if (timingLogId) {
+        try {
+          const { getTableName } = await import("./table-config");
+          const timingTableName = getTableName('processing_timing_logs');
+          const endTime = new Date();
+          const durationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+          await pool.query(`
+            UPDATE ${timingTableName}
+            SET end_time = $1, duration_seconds = $2, status = $3, metadata = $4
+            WHERE id = $5
+          `, [endTime, durationSeconds, 'failed', JSON.stringify({ error: error.message }), timingLogId]);
+          console.log(`[RE-ENCODE-TIMING] Failed timing log ${timingLogId}: ${error.message}`);
+        } catch (timingError: any) {
+          console.warn(`[RE-ENCODE-TIMING] Could not update failed timing log: ${timingError.message}`);
+        }
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get processing timing logs for an upload
+  app.get("/api/uploader/:id/timing-logs", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { getTableName } = await import("./table-config");
+      const timingTableName = getTableName('processing_timing_logs');
+      
+      const result = await pool.query(`
+        SELECT 
+          id,
+          operation_type,
+          start_time,
+          end_time,
+          duration_seconds,
+          total_records,
+          records_per_second,
+          status,
+          metadata,
+          created_at
+        FROM ${timingTableName}
+        WHERE upload_id = $1
+        ORDER BY created_at DESC
+      `, [id]);
+      
+      res.json({
+        success: true,
+        timingLogs: result.rows,
+        uploadId: id
+      });
+    } catch (error: any) {
+      console.error('Get timing logs error:', error);
       res.status(500).json({ error: error.message });
     }
   });

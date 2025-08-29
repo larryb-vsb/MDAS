@@ -1312,6 +1312,26 @@ export const tddfJsonb = pgTable(getTableName("tddf_jsonb"), {
   recordTimeSourceIdx: index("tddf_jsonb_record_time_source_idx").on(table.recordTimeSource)
 }));
 
+// Processing timing logs table for performance tracking
+export const processingTimingLogs = pgTable(getTableName("processing_timing_logs"), {
+  id: serial("id").primaryKey(),
+  uploadId: text("upload_id").notNull().references(() => uploaderUploads.id, { onDelete: "cascade" }),
+  operationType: text("operation_type").notNull(), // 're-encode', 'initial-process', 'cache-build'
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  durationSeconds: integer("duration_seconds"),
+  totalRecords: integer("total_records"),
+  recordsPerSecond: numeric("records_per_second", { precision: 10, scale: 2 }),
+  status: text("status").notNull().default("in_progress"), // 'in_progress', 'completed', 'failed'
+  metadata: jsonb("metadata"), // Additional operation details
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uploadIdIdx: index("processing_timing_logs_upload_id_idx").on(table.uploadId),
+  operationTypeIdx: index("processing_timing_logs_operation_type_idx").on(table.operationType),
+  statusIdx: index("processing_timing_logs_status_idx").on(table.status),
+  startTimeIdx: index("processing_timing_logs_start_time_idx").on(table.startTime)
+}));
+
 // MasterCard Data Integrity records table for future expansion
 export const uploaderMastercardDiEditRecords = pgTable(getTableName("uploader_mastercard_di_edit_records"), {
   id: serial("id").primaryKey(),
@@ -1352,6 +1372,12 @@ export const insertUploaderMastercardDiEditRecordSchema = uploaderMastercardDiEd
   createdAt: true 
 });
 
+// Zod schemas for processing timing logs
+export const insertProcessingTimingLogSchema = createInsertSchema(processingTimingLogs).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
 // Export uploader types
 export type UploaderUpload = typeof uploaderUploads.$inferSelect;
 export type InsertUploaderUpload = typeof uploaderUploads.$inferInsert;
@@ -1361,6 +1387,8 @@ export type UploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferSele
 export type InsertUploaderTddfJsonbRecord = typeof uploaderTddfJsonbRecords.$inferInsert;
 export type UploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferSelect;
 export type InsertUploaderMastercardDiEditRecord = typeof uploaderMastercardDiEditRecords.$inferInsert;
+export type ProcessingTimingLog = typeof processingTimingLogs.$inferSelect;
+export type InsertProcessingTimingLog = z.infer<typeof insertProcessingTimingLogSchema>;
 
 // Security log table for authentication and access events
 export const securityLogs = pgTable("security_logs", {
