@@ -86,9 +86,14 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
                 {Object.entries(record.extracted_fields).map(([key, value]) => (
                   <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
                     <div className="font-medium text-gray-700 mb-1">
-                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      {key === 'merchantAccountNumber' ? 'Merchant Account Number' : 
+                       key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                     </div>
-                    <div className={`font-mono ${key === 'recordIdentifier' ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
+                    <div className={`font-mono ${
+                      key === 'recordIdentifier' ? 'text-red-600 font-bold' : 
+                      key === 'merchantAccountNumber' ? 'text-blue-600 font-semibold' : 
+                      'text-gray-900'
+                    }`}>
                       {formatFieldValue(key, value)}
                     </div>
                   </div>
@@ -652,6 +657,12 @@ export default function TddfJsonViewerPage() {
   const formatFieldValue = (key: string, value: any) => {
     if (value === null || value === undefined) return '-';
     if (typeof value === 'string' && value.trim() === '') return '-';
+    
+    // Special formatting for Merchant Account Number
+    if (key === 'merchantAccountNumber' && value) {
+      return value.toString().trim(); // Keep as-is but ensure clean display
+    }
+    
     if (typeof value === 'number') {
       // Format amounts with proper decimal places
       if (key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee')) {
