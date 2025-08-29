@@ -12847,34 +12847,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       console.log(`[RE-ENCODE] Starting simplified re-encoding for upload ${id}`);
       
-      // Get upload info
-      const upload = await storage.getUploaderUploadById(id);
-      if (!upload) {
-        return res.status(404).json({ error: "Upload not found" });
+      // Get upload info - Use separate connection to avoid transaction conflicts
+      let upload;
+      try {
+        upload = await storage.getUploaderUploadById(id);
+        if (!upload) {
+          console.error(`[RE-ENCODE] Upload ${id} not found in database`);
+          return res.status(404).json({ error: "Upload not found" });
+        }
+        console.log(`[RE-ENCODE] Found upload: ${upload.filename} (${upload.id})`);
+      } catch (uploadError: any) {
+        console.error(`[RE-ENCODE] Error retrieving upload: ${uploadError.message}`);
+        return res.status(500).json({ error: "Database error retrieving upload" });
       }
 
-      // Create timing log entry
+      // Create timing log entry with separate connection to avoid transaction conflicts
       try {
         const { getTableName } = await import("./table-config");
         const timingTableName = getTableName('processing_timing_logs');
-        const result = await pool.query(`
-          INSERT INTO ${timingTableName} (upload_id, operation_type, start_time, status, metadata)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING id
-        `, [id, 're-encode', startTime, 'in_progress', JSON.stringify({ filename: upload.filename })]);
-        timingLogId = result.rows[0]?.id;
-        console.log(`[RE-ENCODE-TIMING] Created timing log ${timingLogId} for upload ${id}`);
+        const separateClient = await pool.connect();
+        try {
+          const result = await separateClient.query(`
+            INSERT INTO ${timingTableName} (upload_id, operation_type, start_time, status, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+          `, [id, 're-encode', startTime, 'in_progress', JSON.stringify({ filename: upload.filename })]);
+          timingLogId = result.rows[0]?.id;
+          console.log(`[RE-ENCODE-TIMING] Created timing log ${timingLogId} for upload ${id}`);
+        } finally {
+          separateClient.release();
+        }
       } catch (timingError: any) {
         console.warn(`[RE-ENCODE-TIMING] Could not create timing log: ${timingError.message}`);
       }
       
-      // Clear existing JSONB records for this upload
+      // Clear existing JSONB records for this upload with separate connection
       const { getTableName } = await import("./table-config");
       const jsonbTableName = getTableName('uploader_tddf_jsonb_records');
       
       try {
-        await pool.query(`DELETE FROM ${jsonbTableName} WHERE upload_id = $1`, [id]);
-        console.log(`[RE-ENCODE] Cleared existing JSONB records for upload ${id}`);
+        const clearClient = await pool.connect();
+        try {
+          await clearClient.query(`DELETE FROM ${jsonbTableName} WHERE upload_id = $1`, [id]);
+          console.log(`[RE-ENCODE] Cleared existing JSONB records for upload ${id}`);
+        } finally {
+          clearClient.release();
+        }
       } catch (clearError: any) {
         console.warn(`[RE-ENCODE] Could not clear existing JSONB records: ${clearError.message}`);
       }
@@ -12907,13 +12925,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const client = await pool.connect();
       
       try {
-        // Start explicit transaction
-        await client.query('BEGIN');
-        console.log(`[RE-ENCODE] Started database transaction`);
+        // Process records in chunks to avoid connection timeouts
+        const CHUNK_SIZE = 100;
+        const chunks = [];
         
-        // Prepare batch insert data
-        const insertPromises = [];
-        
+        // Prepare all record data first
+        const allRecordData = [];
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           if (line.length < 2) continue; // Skip invalid lines
@@ -12969,32 +12986,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           }
           
-          // Queue insert operation within transaction
-          const insertPromise = client.query(`
-            INSERT INTO ${jsonbTableName} 
-            (upload_id, record_type, record_data, record_identifier, line_number, raw_line, field_count)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `, [
-            id,
-            recordData.recordType || recordType,
-            JSON.stringify(recordData),
-            `${recordData.recordType || recordType}-${i + 1}`,
-            i + 1,
-            line,
-            recordData.fieldCount || Object.keys(recordData.extractedFields || {}).length || 1
-          ]);
-          
-          insertPromises.push(insertPromise);
-          recordsCreated++;
+          allRecordData.push({
+            recordData,
+            recordType,
+            lineNumber: i + 1,
+            line
+          });
         }
         
-        // Execute all inserts within the transaction
-        console.log(`[RE-ENCODE] Executing ${insertPromises.length} inserts within transaction`);
-        await Promise.all(insertPromises);
+        // Split into chunks for processing
+        for (let i = 0; i < allRecordData.length; i += CHUNK_SIZE) {
+          chunks.push(allRecordData.slice(i, i + CHUNK_SIZE));
+        }
         
-        // Commit transaction
-        await client.query('COMMIT');
-        console.log(`[RE-ENCODE] Transaction committed successfully with ${recordsCreated} records`);
+        console.log(`[RE-ENCODE] Processing ${allRecordData.length} records in ${chunks.length} chunks of ${CHUNK_SIZE}`);
+        
+        // Process each chunk in its own transaction to avoid connection timeouts
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+          const chunk = chunks[chunkIndex];
+          
+          try {
+            await client.query('BEGIN');
+            console.log(`[RE-ENCODE] Started transaction for chunk ${chunkIndex + 1}/${chunks.length} (${chunk.length} records)`);
+            
+            // Process all records in this chunk
+            for (const record of chunk) {
+              await client.query(`
+                INSERT INTO ${jsonbTableName} 
+                (upload_id, record_type, record_data, record_identifier, line_number, raw_line, field_count)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+              `, [
+                id,
+                record.recordData.recordType || record.recordType,
+                JSON.stringify(record.recordData),
+                `${record.recordData.recordType || record.recordType}-${record.lineNumber}`,
+                record.lineNumber,
+                record.line,
+                record.recordData.fieldCount || Object.keys(record.recordData.extractedFields || {}).length || 1
+              ]);
+              recordsCreated++;
+            }
+            
+            // Commit this chunk
+            await client.query('COMMIT');
+            console.log(`[RE-ENCODE] Committed chunk ${chunkIndex + 1}/${chunks.length}: ${recordsCreated} total records so far`);
+            
+          } catch (chunkError: any) {
+            try {
+              await client.query('ROLLBACK');
+              console.error(`[RE-ENCODE] Rolled back chunk ${chunkIndex + 1} due to error: ${chunkError.message}`);
+            } catch (rollbackError: any) {
+              console.error(`[RE-ENCODE] Rollback failed: ${rollbackError.message}`);
+            }
+            // Continue with next chunk instead of failing completely
+          }
+        }
+        
+        console.log(`[RE-ENCODE] Chunk processing completed: ${recordsCreated} records processed successfully`);
         
       } catch (transactionError: any) {
         // Rollback on any error
