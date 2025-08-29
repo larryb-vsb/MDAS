@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, isFallbackStorage, DatabaseStorage } from "./storage";
-import { db, pool } from "./db";
+import { db, pool, batchPool } from "./db";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
@@ -12865,7 +12865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { getTableName } = await import("./table-config");
         const timingTableName = getTableName('processing_timing_logs');
-        const separateClient = await pool.connect();
+        const separateClient = await batchPool.connect();
         try {
           const result = await separateClient.query(`
             INSERT INTO ${timingTableName} (upload_id, operation_type, start_time, status, metadata)
@@ -12886,7 +12886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const jsonbTableName = getTableName('uploader_tddf_jsonb_records');
       
       try {
-        const clearClient = await pool.connect();
+        const clearClient = await batchPool.connect();
         try {
           await clearClient.query(`DELETE FROM ${jsonbTableName} WHERE upload_id = $1`, [id]);
           console.log(`[RE-ENCODE] Cleared existing JSONB records for upload ${id}`);
@@ -12922,7 +12922,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[RE-ENCODE] Processing ${lines.length} lines from actual file content`);
       
       let recordsCreated = 0;
-      const client = await pool.connect();
+      console.log('[RE-ENCODE-DB-FIX] Using batchPool for King server connection');
+      const client = await batchPool.connect();
+      
+      // Verify we're connected to King server
+      try {
+        const dbResult = await client.query('SELECT current_database(), inet_server_addr() as server_ip');
+        console.log('[RE-ENCODE-DB-FIX] Connected to database:', dbResult.rows[0]);
+        if (dbResult.rows[0].server_ip && dbResult.rows[0].server_ip.includes('169.254')) {
+          console.log('✅ [RE-ENCODE-DB-FIX] Confirmed connection to King server');
+        } else {
+          console.log('❌ [RE-ENCODE-DB-FIX] WARNING: Not connected to King server!');
+        }
+      } catch (verifyError) {
+        console.warn('[RE-ENCODE-DB-FIX] Could not verify database connection:', verifyError);
+      }
       
       try {
         // Process records in chunks to avoid connection timeouts
