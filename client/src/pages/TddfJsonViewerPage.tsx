@@ -4,10 +4,11 @@ import { useRoute, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3, Search, X } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface JsonbRecord {
@@ -322,6 +323,7 @@ export default function TddfJsonViewerPage() {
   
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
+  const [merchantAccountFilter, setMerchantAccountFilter] = useState<string>('');
   const [pageSize, setPageSize] = useState(10000); // Dynamic page size - show all records up to 10K
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
@@ -374,7 +376,25 @@ export default function TddfJsonViewerPage() {
 
   const allRecords: JsonbRecord[] = (jsonbData as any)?.data || [];
   
-  const records = allRecords;
+  const filteredRecords = allRecords.filter(record => {
+    // Record type filter
+    if (selectedRecordType && record.record_type !== selectedRecordType) {
+      return false;
+    }
+    
+    // Merchant account filter
+    if (merchantAccountFilter && merchantAccountFilter.trim() !== '') {
+      const merchantAccountNumber = record.extracted_fields?.merchantAccountNumber;
+      if (!merchantAccountNumber || 
+          !merchantAccountNumber.toString().toLowerCase().includes(merchantAccountFilter.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+  
+  const records = filteredRecords;
   const totalRecords = records.length;
   const totalPages = Math.ceil(totalRecords / pageSize);
   const timingMetadata = (jsonbData as any)?.timingMetadata;
@@ -394,6 +414,16 @@ export default function TddfJsonViewerPage() {
   const handleRecordTypeChange = (value: string) => {
     setSelectedRecordType(value === 'all' ? '' : value);
     setCurrentPage(0); // Reset to first page when filtering
+  };
+
+  const handleMerchantAccountFilterChange = (value: string) => {
+    setMerchantAccountFilter(value);
+    setCurrentPage(0); // Reset to first page when filtering
+  };
+
+  const clearMerchantAccountFilter = () => {
+    setMerchantAccountFilter('');
+    setCurrentPage(0);
   };
 
   // Check cache status
@@ -838,6 +868,27 @@ export default function TddfJsonViewerPage() {
               </SelectContent>
             </Select>
 
+            {/* Merchant Account Number Filter */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Filter by Merchant Account..."
+                value={merchantAccountFilter}
+                onChange={(e) => handleMerchantAccountFilterChange(e.target.value)}
+                className="pl-10 pr-10 w-64"
+              />
+              {merchantAccountFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearMerchantAccountFilter}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
+
             {/* Page Size Selector for Large Files */}
             {totalRecords > 1000 && (
               <Select value={pageSize.toString()} onValueChange={(value) => {
@@ -864,6 +915,7 @@ export default function TddfJsonViewerPage() {
               {viewMode === 'tree' ? 'Hierarchical view' : 
                 `Showing ${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalRecords)} of ${totalRecords.toLocaleString()} records`}
               {selectedRecordType && ` (${selectedRecordType} type)`}
+              {merchantAccountFilter && ` (Merchant: ${merchantAccountFilter})`}
               {totalRecords > 10000 && (
                 <span className="ml-2 text-blue-600 font-medium">Large dataset - use filters and pagination</span>
               )}
