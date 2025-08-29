@@ -13335,16 +13335,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transform data to match expected JSON viewer format
       const transformedData = result.rows.map(row => {
         // Parse record_data if it's a string (from JSONB column)
-        let extractedFields = {};
+        let recordData = {};
         try {
           if (typeof row.record_data === 'string') {
-            extractedFields = JSON.parse(row.record_data);
+            recordData = JSON.parse(row.record_data);
           } else if (typeof row.record_data === 'object' && row.record_data !== null) {
-            extractedFields = row.record_data;
+            recordData = row.record_data;
           }
         } catch (parseError) {
           console.warn(`[JSONB-API] Failed to parse record_data for row ${row.id}:`, parseError);
-          extractedFields = {};
+          recordData = {};
+        }
+        
+        // Extract the nested extractedFields if it exists
+        let extractedFields = {};
+        if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
+          extractedFields = recordData.extractedFields;
+        } else if (Object.keys(recordData).length > 0) {
+          // If no nested extractedFields, use the recordData directly
+          extractedFields = recordData;
         }
         
         return {
@@ -13387,6 +13396,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[JSONB-API] ✅ merchantAccountNumber found: "${fields.merchantAccountNumber}"`);
         } else {
           console.log(`[JSONB-API] ❌ merchantAccountNumber NOT found in extracted fields`);
+          // Debug the raw record_data structure
+          if (result.rows[0] && result.rows[0].record_data) {
+            console.log(`[JSONB-API] Raw record_data sample:`, JSON.stringify(result.rows[0].record_data, null, 2));
+          }
         }
       }
       
