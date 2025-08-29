@@ -20,6 +20,9 @@ if (!kingServerUrl) {
 // FORCE King server - ignore DATABASE_URL completely to avoid wrong server connections
 const databaseUrl = kingServerUrl;
 
+// CRITICAL: Override process.env.DATABASE_URL to force SQL tools to use King server
+process.env.DATABASE_URL = kingServerUrl;
+
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
