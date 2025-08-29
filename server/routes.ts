@@ -18251,8 +18251,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           SELECT 
             COUNT(*) as total_files,
             SUM(total_records) as total_records,
-            SUM(COALESCE(dt_transaction_amounts, 0)) as total_authorizations,
-            SUM(COALESCE(bh_net_deposits, 0)) as total_net_deposits,
+            SUM(COALESCE(total_transaction_amounts, 0)) as total_authorizations,
+            SUM(COALESCE(total_net_deposits, 0)) as total_net_deposits,
             COUNT(DISTINCT file_date) as active_tables,
             MAX(updated_at) as last_updated
           FROM ${totalsTableName}
@@ -18374,8 +18374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             SUM(total_files) as file_count,
             SUM(total_records) as total_records,
             SUM(total_transaction_value) as total_transaction_value,
-            SUM(COALESCE(bh_net_deposits, 0)) as total_net_deposits,
-            SUM(COALESCE(dt_transaction_amounts, 0)) as total_transaction_amounts,
+            SUM(COALESCE(total_net_deposits, 0)) as total_net_deposits,
+            SUM(COALESCE(total_transaction_amounts, 0)) as total_transaction_amounts,
             record_type_breakdown
           FROM ${totalsTableName}
         `);
@@ -18487,7 +18487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           created_at,
           id
         FROM ${totalsTableName}
-        WHERE processing_date = $1
+        WHERE file_date = $1
         ORDER BY created_at DESC
       `, [date]);
       
@@ -18886,12 +18886,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           $1 as month,
           COUNT(*) as total_files,
           SUM(total_records) as total_records,
-          SUM(dt_transaction_amounts) as total_transaction_value,
-          SUM(bh_net_deposits) as total_net_deposit_bh
+          SUM(total_transaction_amounts) as total_transaction_value,
+          SUM(total_net_deposits) as total_net_deposit_bh
         FROM ${totalsTableName} 
-        WHERE processing_date >= $2 AND processing_date <= $3
-          AND EXTRACT(YEAR FROM processing_date) = $4
-          AND EXTRACT(MONTH FROM processing_date) = $5
+        WHERE file_date >= $2 AND file_date <= $3
+          AND EXTRACT(YEAR FROM file_date) = $4
+          AND EXTRACT(MONTH FROM file_date) = $5
       `, [month, startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Get record type breakdown for the month using environment-aware table name
@@ -18900,9 +18900,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total_records, 
           JSONB_BUILD_OBJECT('BH', 1, 'DT', total_records - 1) as breakdown
         FROM ${totalsTableName} 
-        WHERE processing_date >= $1 AND processing_date <= $2
-          AND EXTRACT(YEAR FROM processing_date) = $3
-          AND EXTRACT(MONTH FROM processing_date) = $4
+        WHERE file_date >= $1 AND file_date <= $2
+          AND EXTRACT(YEAR FROM file_date) = $3
+          AND EXTRACT(MONTH FROM file_date) = $4
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       // Aggregate all record type breakdowns
@@ -18927,9 +18927,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id,
           created_at
         FROM ${totalsTableName} 
-        WHERE processing_date >= $1 AND processing_date <= $2
-          AND EXTRACT(YEAR FROM processing_date) = $3
-          AND EXTRACT(MONTH FROM processing_date) = $4
+        WHERE file_date >= $1 AND file_date <= $2
+          AND EXTRACT(YEAR FROM file_date) = $3
+          AND EXTRACT(MONTH FROM file_date) = $4
         ORDER BY processing_date, created_at
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
@@ -19006,9 +19006,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id,
             created_at
           FROM ${totalsTableName} 
-          WHERE processing_date >= $1 AND processing_date <= $2
-            AND EXTRACT(YEAR FROM processing_date) = $3
-            AND EXTRACT(MONTH FROM processing_date) = $4
+          WHERE file_date >= $1 AND file_date <= $2
+            AND EXTRACT(YEAR FROM file_date) = $3
+            AND EXTRACT(MONTH FROM file_date) = $4
           ORDER BY processing_date, created_at
         `, [startDate, endDate, parseInt(yr), parseInt(mth)]);
         
@@ -20194,9 +20194,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear existing entries for this specific month
       await pool.query(`
         DELETE FROM ${totalsTableName} 
-        WHERE processing_date >= $1 AND processing_date <= $2
-          AND EXTRACT(YEAR FROM processing_date) = $3
-          AND EXTRACT(MONTH FROM processing_date) = $4
+        WHERE file_date >= $1 AND file_date <= $2
+          AND EXTRACT(YEAR FROM file_date) = $3
+          AND EXTRACT(MONTH FROM file_date) = $4
       `, [startDate, endDate, parseInt(year), parseInt(monthNum)]);
       
       console.log(`🔄 Cleared existing entries for ${month}`);
