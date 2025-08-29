@@ -709,8 +709,9 @@ export async function encodeTddfToJsonb(fileContent: string, upload: UploaderUpl
  * Direct TDDF to JSONB encoding with database storage
  */
 export async function encodeTddfToJsonbDirect(fileContent: string, upload: UploaderUpload): Promise<any> {
-  const { Pool } = await import('@neondatabase/serverless');
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  // Use the shared batch pool from db.ts to ensure King server connection
+  const { batchPool } = await import('./db');
+  const pool = batchPool;
   
   const startTime = Date.now();
   const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
@@ -719,9 +720,9 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
   const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
   console.log(`[TDDF-DATETIME] Extracted from ${upload.filename}:`, tddfDatetime);
   
-  // Determine table name based on environment
+  // Use the correct uploader TDDF JSONB table
   const environment = process.env.NODE_ENV || 'development';
-  const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+  const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
   
   const results = {
     uploadId: upload.id,
