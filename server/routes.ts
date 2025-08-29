@@ -12701,11 +12701,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[RE-ENCODE] Record type breakdown:`, encodingResults.recordCounts.byType);
       console.log(`[RE-ENCODE] TDDF1 table: ${encodingResults.tableName}`);
       
+      // ALSO create JSONB records for the JSONB viewer
+      console.log(`[RE-ENCODE] Creating JSONB records for viewer...`);
+      
+      // Clear existing JSONB records for this upload
+      const { getTableName } = await import("./table-config");
+      const jsonbTableName = getTableName('uploader_tddf_jsonb_records');
+      
+      try {
+        await pool.query(`DELETE FROM ${jsonbTableName} WHERE upload_id = $1`, [id]);
+        console.log(`[RE-ENCODE] Cleared existing JSONB records for upload ${id}`);
+      } catch (clearError: any) {
+        console.warn(`[RE-ENCODE] Could not clear existing JSONB records: ${clearError.message}`);
+      }
+      
+      // Parse file content and create JSONB records
+      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+      let jsonbRecordsCreated = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        try {
+          // Basic TDDF record parsing
+          const recordType = line.substring(0, 2);
+          const recordData = {
+            line_length: line.length,
+            record_type_code: recordType,
+            raw_content: line,
+            parsed_at: new Date().toISOString()
+          };
+          
+          // Insert JSONB record using direct connection to ensure proper table access
+          const { Pool } = await import('@neondatabase/serverless');
+          const directPool = new Pool({ 
+            connectionString: process.env.NEON_DEV_DATABASE_URL || process.env.DATABASE_URL 
+          });
+          
+          await directPool.query(`
+            INSERT INTO ${jsonbTableName} 
+            (upload_id, record_type, record_data, record_identifier, line_number, raw_line, field_count)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [
+            id,
+            recordType,
+            JSON.stringify(recordData),
+            `${recordType}-${i + 1}`,
+            i + 1,
+            line,
+            Object.keys(recordData).length
+          ]);
+          
+          jsonbRecordsCreated++;
+          
+          await directPool.end();
+        } catch (jsonbError: any) {
+          console.warn(`[RE-ENCODE] Failed to create JSONB record for line ${i + 1}: ${jsonbError.message}`);
+        }
+      }
+      
+      console.log(`[RE-ENCODE] Created ${jsonbRecordsCreated} JSONB records`);
+      
       res.json({
         success: true,
-        message: `Re-encoded ${encodingResults.totalRecords} records with TDDF1 file-based encoding`,
+        message: `Re-encoded ${encodingResults.totalRecords} TDDF1 records and ${jsonbRecordsCreated} JSONB records`,
         recordsInserted: encodingResults.totalRecords,
+        jsonbRecordsCreated: jsonbRecordsCreated,
         tableName: encodingResults.tableName,
+        jsonbTableName: jsonbTableName,
         recordCounts: encodingResults.recordCounts
       });
       
