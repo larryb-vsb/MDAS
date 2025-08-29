@@ -443,6 +443,12 @@ export default function TddfJsonViewerPage() {
 
   // Group records into hierarchical structure
   const groupRecordsHierarchically = (records: JsonbRecord[]) => {
+    console.log(`[TREE-VIEW] Grouping ${records.length} records hierarchically`);
+    
+    // Debug: Log all record types present
+    const recordTypes = [...new Set(records.map(r => r.record_type))];
+    console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
+    
     const batches: Array<{
       batchHeader: JsonbRecord | null;
       transactions: Array<{
@@ -458,8 +464,8 @@ export default function TddfJsonViewerPage() {
     for (const record of records) {
       const recordType = record.record_type;
 
-      // Batch header records (01, BH, 10)
-      if (['01', 'BH', '10'].includes(recordType)) {
+      // Batch header records (01, BH, 10, 02)
+      if (['01', 'BH', '10', '02'].includes(recordType)) {
         // Start new batch
         if (currentBatch) {
           batches.push(currentBatch);
@@ -470,6 +476,7 @@ export default function TddfJsonViewerPage() {
           trailer: null
         };
         currentTransaction = null;
+        console.log(`[TREE-VIEW] Started new batch with header record type ${recordType}`);
       }
       // Detail transaction records (47, DT)
       else if (['47', 'DT'].includes(recordType)) {
@@ -480,29 +487,43 @@ export default function TddfJsonViewerPage() {
             transactions: [],
             trailer: null
           };
+          console.log(`[TREE-VIEW] Created implicit batch for transaction record type ${recordType}`);
         }
         currentTransaction = {
           dtRecord: record,
           extensions: []
         };
         currentBatch.transactions.push(currentTransaction);
+        console.log(`[TREE-VIEW] Added transaction record type ${recordType} to batch`);
       }
-      // Trailer records (98, TR)
-      else if (['98', 'TR'].includes(recordType)) {
+      // Trailer records (98, TR, 99)
+      else if (['98', 'TR', '99'].includes(recordType)) {
         if (currentBatch) {
           currentBatch.trailer = record;
+          console.log(`[TREE-VIEW] Added trailer record type ${recordType} to batch`);
         }
       }
-      // Extension records
+      // Extension records - all other types
       else {
         if (currentTransaction) {
           currentTransaction.extensions.push(record);
+          console.log(`[TREE-VIEW] Added extension record type ${recordType} to current transaction`);
         } else if (currentBatch) {
           // If no current transaction, add as batch-level extension
           if (!currentBatch.extensions) {
             currentBatch.extensions = [];
           }
           currentBatch.extensions.push(record);
+          console.log(`[TREE-VIEW] Added extension record type ${recordType} to batch level`);
+        } else {
+          // No batch or transaction, create implicit batch
+          currentBatch = {
+            batchHeader: null,
+            transactions: [],
+            trailer: null,
+            extensions: [record]
+          };
+          console.log(`[TREE-VIEW] Created implicit batch for orphaned record type ${recordType}`);
         }
       }
     }
@@ -511,6 +532,11 @@ export default function TddfJsonViewerPage() {
     if (currentBatch) {
       batches.push(currentBatch);
     }
+
+    console.log(`[TREE-VIEW] Created ${batches.length} batches`);
+    batches.forEach((batch, i) => {
+      console.log(`[TREE-VIEW] Batch ${i}: Header=${batch.batchHeader?.record_type || 'none'}, Transactions=${batch.transactions.length}, Trailer=${batch.trailer?.record_type || 'none'}`);
+    });
 
     return batches;
   };
