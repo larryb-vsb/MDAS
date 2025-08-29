@@ -13018,38 +13018,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get processing timing logs for an upload
-  app.get("/api/uploader/:id/timing-logs", async (req, res) => {
+  // Get latest processing timing for an upload
+  app.get("/api/uploader/:id/timing", async (req, res) => {
     try {
       const { id } = req.params;
-      // Use direct table name since this is a dev-only feature for now
-      const timingTableName = 'dev_processing_timing_logs';
+      
+      // Create table if it doesn't exist (graceful handling)
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS dev_processing_timing_logs (
+            id SERIAL PRIMARY KEY,
+            upload_id TEXT NOT NULL,
+            operation_type TEXT NOT NULL,
+            start_time TIMESTAMP NOT NULL,
+            end_time TIMESTAMP,
+            duration_seconds INTEGER,
+            total_records INTEGER,
+            records_per_second NUMERIC(10,2),
+            status TEXT NOT NULL DEFAULT 'in_progress',
+            metadata JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+          )
+        `);
+      } catch (createError) {
+        console.log('[TIMING] Table creation failed, continuing with query');
+      }
       
       const result = await pool.query(`
         SELECT 
-          id,
-          operation_type,
-          start_time,
-          end_time,
           duration_seconds,
-          total_records,
-          records_per_second,
+          end_time,
           status,
-          metadata,
-          created_at
-        FROM ${timingTableName}
+          total_records,
+          records_per_second
+        FROM dev_processing_timing_logs
         WHERE upload_id = $1
+          AND status = 'completed'
         ORDER BY created_at DESC
+        LIMIT 1
       `, [id]);
+      
+      if (result.rows.length === 0) {
+        return res.json({ success: true, hasTiming: false });
+      }
+      
+      const timing = result.rows[0];
+      
+      // Format duration as "X min Y sec" or "X sec"
+      let durationText = '';
+      if (timing.duration_seconds) {
+        const minutes = Math.floor(timing.duration_seconds / 60);
+        const seconds = timing.duration_seconds % 60;
+        if (minutes > 0) {
+          durationText = `${minutes} min ${seconds} sec`;
+        } else {
+          durationText = `${seconds} sec`;
+        }
+      }
       
       res.json({
         success: true,
-        timingLogs: result.rows,
-        uploadId: id
+        hasTiming: true,
+        duration: durationText,
+        completedAt: timing.end_time,
+        recordsProcessed: timing.total_records,
+        processingRate: timing.records_per_second
       });
     } catch (error: any) {
-      console.error('Get timing logs error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('Get timing error:', error);
+      // Return graceful fallback instead of error
+      res.json({ success: true, hasTiming: false });
     }
   });
 

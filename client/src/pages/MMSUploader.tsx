@@ -28,6 +28,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
+// Timing Display Component
+function TimingDisplay({ uploadId }: { uploadId: string }) {
+  const { data: timing } = useQuery({
+    queryKey: ['/api/uploader', uploadId, 'timing'],
+    queryFn: () => apiRequest(`/api/uploader/${uploadId}/timing`),
+    enabled: !!uploadId
+  });
+
+  if (!timing?.success || !timing?.hasTiming) {
+    return null; // Hide when no timing data
+  }
+
+  return (
+    <div className="text-xs text-blue-600 mt-1">
+      Last Encoding Time: {timing.duration}
+    </div>
+  );
+}
+
 // Extended type for UploaderUpload with storage key
 interface UploaderUploadWithPresigned extends UploaderUpload {
   storageKey?: string;
@@ -2642,7 +2661,7 @@ export default function MMSUploader() {
                               <span>Duration: {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || new Date()) : '0s'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
                               {(upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && (
-                                <span className="text-blue-600">encoding - view timing logs</span>
+                                <TimingDisplay uploadId={upload.id} />
                               )}
                               {/* Processing Notes for Cross-Env Transfer */}
                               {upload.sessionId === 'cross_env_transfer' && upload.processingNotes && (
