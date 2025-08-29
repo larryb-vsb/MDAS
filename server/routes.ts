@@ -13204,6 +13204,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global merchant account search across all TDDF files
+  app.get("/api/uploader/global-merchant-search", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantAccountNumber, limit = '50', offset = '0' } = req.query;
+      
+      if (!merchantAccountNumber) {
+        return res.status(400).json({ error: 'merchantAccountNumber parameter required' });
+      }
+      
+      console.log(`[GLOBAL-SEARCH] Searching for merchant account: ${merchantAccountNumber}`);
+      
+      const { getTableName } = await import("./table-config");
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Search across all files for the merchant account number
+      const query = `
+        SELECT 
+          id, upload_id, record_type, line_number, raw_line,
+          record_data, record_identifier, field_count, created_at,
+          -- Get upload filename for source tracking
+          (SELECT filename FROM ${getTableName('uploader_uploads')} WHERE id = upload_id) as filename
+        FROM ${tableName} 
+        WHERE (
+          record_data->>'merchantAccountNumber' ILIKE $1
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $1
+          OR raw_line ILIKE $1
+        )
+        ORDER BY upload_id, id ASC 
+        LIMIT $2 OFFSET $3
+      `;
+      
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${tableName} 
+        WHERE (
+          record_data->>'merchantAccountNumber' ILIKE $1
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $1
+          OR raw_line ILIKE $1
+        )
+      `;
+      
+      const searchPattern = `%${merchantAccountNumber}%`;
+      const params = [searchPattern, limit as string, offset as string];
+      const countParams = [searchPattern];
+      
+      const [result, countResult] = await Promise.all([
+        pool.query(query, params),
+        pool.query(countQuery, countParams)
+      ]);
+      
+      const total = parseInt(countResult.rows[0].total);
+      
+      // Transform data with merchant info extraction
+      const transformedData = result.rows.map(row => {
+        let recordData = {};
+        try {
+          if (typeof row.record_data === 'string') {
+            recordData = JSON.parse(row.record_data);
+          } else if (typeof row.record_data === 'object' && row.record_data !== null) {
+            recordData = row.record_data;
+          }
+        } catch (parseError) {
+          console.warn(`[GLOBAL-SEARCH] Failed to parse record_data for row ${row.id}:`, parseError);
+          recordData = {};
+        }
+        
+        // Extract fields
+        let extractedFields = {};
+        if (recordData.extractedFields && typeof recordData.extractedFields === 'object') {
+          extractedFields = recordData.extractedFields;
+        } else if (Object.keys(recordData).length > 0) {
+          extractedFields = recordData;
+        }
+        
+        // Extract merchant account number for direct access
+        let merchantAccountNumber = null;
+        if (extractedFields.merchantAccountNumber) {
+          merchantAccountNumber = extractedFields.merchantAccountNumber;
+        } else if (recordData.merchantAccountNumber) {
+          merchantAccountNumber = recordData.merchantAccountNumber;
+        }
+        
+        // Extract merchant name for direct access
+        let merchantName = null;
+        if (extractedFields.merchantName) {
+          merchantName = extractedFields.merchantName;
+        } else if (recordData.merchantName) {
+          merchantName = recordData.merchantName;
+        }
+        
+        return {
+          id: row.id,
+          upload_id: row.upload_id,
+          source_file: row.filename || 'Unknown',
+          record_type: row.record_type,
+          line_number: row.line_number || 0,
+          raw_line: row.raw_line || '',
+          extracted_fields: extractedFields,
+          record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
+          created_at: row.created_at,
+          merchant_account_number: merchantAccountNumber,
+          merchant_name: merchantName
+        };
+      });
+      
+      console.log(`[GLOBAL-SEARCH] Found ${transformedData.length} records, total: ${total}`);
+      
+      res.json({
+        data: transformedData,
+        total: total,
+        pagination: {
+          page: Math.floor(parseInt(offset as string) / parseInt(limit as string)) + 1,
+          limit: parseInt(limit as string),
+          total: total,
+          totalPages: Math.ceil(total / parseInt(limit as string))
+        },
+        searchTerm: merchantAccountNumber,
+        filesSearched: 'all'
+      });
+      
+    } catch (error: any) {
+      console.error('[GLOBAL-SEARCH] Error:', error);
+      res.status(500).json({ error: 'Failed to search merchant account numbers' });
+    }
+  });
+
   // Get JSONB data for a specific upload (temporarily remove auth for debugging)
   app.get("/api/uploader/:id/jsonb-data", async (req, res) => {
     try {

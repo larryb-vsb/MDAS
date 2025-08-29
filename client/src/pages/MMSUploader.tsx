@@ -228,70 +228,23 @@ export default function MMSUploader() {
         return;
       }
 
-      // Search all files in parallel
-      const searchPromises = encodedFiles.map(async (file) => {
-        try {
-          const params = new URLSearchParams({
-            limit: '1000', // Get more results per file for global search
-            offset: '0',
-            merchantAccountNumber: jsonbMerchantAccountQuery.trim()
-          });
-
-          const response = await apiRequest(`/api/uploader/${file.id}/jsonb-data?${params}`);
-          return {
-            fileId: file.id,
-            filename: file.filename,
-            results: response.data || [],
-            total: response.pagination?.total || 0
-          };
-        } catch (error) {
-          console.warn(`Failed to search file ${file.filename}:`, error);
-          return {
-            fileId: file.id,
-            filename: file.filename,
-            results: [],
-            total: 0,
-            error: error.message
-          };
-        }
+      // Use the new global search endpoint
+      const params = new URLSearchParams({
+        merchantAccountNumber: jsonbMerchantAccountQuery.trim(),
+        limit: '200', // Get more results for global search
+        offset: '0'
       });
 
-      const allResults = await Promise.all(searchPromises);
+      const response = await apiRequest(`/api/uploader/global-merchant-search?${params}`);
       
-      // Combine all results and add file metadata
-      const combinedResults = [];
-      const metadata = {
+      setJsonbQueryResults(response.data || []);
+      setJsonbTotalResults(response.total || 0);
+      setJsonbSearchMetadata({
         filesSearched: encodedFiles.length,
-        filesWithResults: 0,
-        totalMatches: 0,
-        fileBreakdown: []
-      };
-
-      allResults.forEach((fileResult) => {
-        if (fileResult.results.length > 0) {
-          metadata.filesWithResults++;
-          metadata.totalMatches += fileResult.results.length;
-          
-          // Add file metadata to each result
-          const resultsWithFileInfo = fileResult.results.map(record => ({
-            ...record,
-            source_file: fileResult.filename,
-            source_file_id: fileResult.fileId
-          }));
-          
-          combinedResults.push(...resultsWithFileInfo);
-          
-          metadata.fileBreakdown.push({
-            filename: fileResult.filename,
-            matches: fileResult.results.length,
-            error: fileResult.error
-          });
-        }
+        filesWithResults: response.data?.length > 0 ? 1 : 0,
+        totalMatches: response.total || 0,
+        searchTerm: jsonbMerchantAccountQuery.trim()
       });
-
-      setJsonbQueryResults(combinedResults);
-      setJsonbTotalResults(combinedResults.length);
-      setJsonbSearchMetadata(metadata);
 
       toast({
         title: "Search Complete",
@@ -2988,7 +2941,7 @@ export default function MMSUploader() {
                     Search across all {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
                     {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
                      uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
-                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files but none are encoded yet)</span>
+                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files in {uploads.filter(upload => upload.fileType === 'tddf')[0]?.currentPhase || 'unknown'} phase, need "encoded" phase)</span>
                     )}
                   </p>
                   <div className="flex gap-2">
@@ -3172,8 +3125,31 @@ export default function MMSUploader() {
                     <br />
                     <div className="mt-2 space-y-1">
                       {uploads.filter(upload => upload.fileType === 'tddf').slice(0, 3).map(file => (
-                        <div key={file.id} className="text-xs font-mono">
-                          {file.filename}: <span className="font-medium">{file.currentPhase}</span>
+                        <div key={file.id} className="text-xs font-mono flex items-center justify-between">
+                          <span>{file.filename}: <span className="font-medium">{file.currentPhase}</span></span>
+                          {file.currentPhase === 'encoding' && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="ml-2 h-6 text-xs"
+                              onClick={async () => {
+                                try {
+                                  await apiRequest(`/api/uploader/${file.id}/re-encode`, { method: 'POST' });
+                                  toast({ title: "Re-encoding triggered", description: `Processing ${file.filename}` });
+                                  // Refresh the uploads list
+                                  setTimeout(() => window.location.reload(), 2000);
+                                } catch (error: any) {
+                                  toast({ 
+                                    title: "Re-encoding failed", 
+                                    description: error.message,
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                            >
+                              Complete Encoding
+                            </Button>
+                          )}
                         </div>
                       ))}
                       {uploads.filter(upload => upload.fileType === 'tddf').length > 3 && (
