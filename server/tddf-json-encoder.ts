@@ -5,6 +5,7 @@
  */
 
 import { UploaderUpload } from '@shared/schema';
+import { parseTddfFilename } from './filename-parser';
 
 /**
  * Extract processing datetime from TDDF filename
@@ -739,6 +740,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
   const tddfDatetime = extractTddfProcessingDatetime(upload.filename);
   console.log(`[TDDF-DATETIME] Extracted from ${upload.filename}:`, tddfDatetime);
   
+  // Parse filename for enhanced metadata
+  const filenameMetadata = parseTddfFilename(upload.filename);
+  console.log(`[FILENAME-PARSER] Parsed metadata:`, filenameMetadata);
+  
   // Use the correct uploader TDDF JSONB table
   const environment = process.env.NODE_ENV || 'development';
   const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
@@ -851,25 +856,29 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
         const batchInsertStart = Date.now();
         const insertQuery = `
           INSERT INTO ${tableName} (
-            upload_id, filename, record_type, line_number, raw_line, 
-            extracted_fields, record_identifier, processing_time_ms, 
-            parsed_datetime, record_time_source, created_at
+            upload_id, record_type, line_number, raw_line, 
+            record_data, record_identifier, field_count, created_at,
+            original_filename, file_processing_date, file_sequence_number, 
+            file_processing_time, file_system_id, mainframe_process_data
           ) VALUES ${batchRecords.map((_, index) => 
-            `($${index * 10 + 1}, $${index * 10 + 2}, $${index * 10 + 3}, $${index * 10 + 4}, $${index * 10 + 5}, $${index * 10 + 6}, $${index * 10 + 7}, $${index * 10 + 8}, $${index * 10 + 9}, $${index * 10 + 10}, NOW())`
+            `($${index * 12 + 1}, $${index * 12 + 2}, $${index * 12 + 3}, $${index * 12 + 4}, $${index * 12 + 5}, $${index * 12 + 6}, $${index * 12 + 7}, NOW(), $${index * 12 + 8}, $${index * 12 + 9}, $${index * 12 + 10}, $${index * 12 + 11}, $${index * 12 + 12}, $${index * 12 + 13})`
           ).join(', ')}
         `;
         
         const values = batchRecords.flatMap(record => [
           record.upload_id,
-          record.filename,
           record.record_type,
           record.line_number,
           record.raw_line,
-          record.extracted_fields,
+          record.record_data,
           record.record_identifier,
-          record.processing_time_ms,
-          record.parsed_datetime,
-          record.record_time_source
+          record.field_count,
+          filenameMetadata.original_filename,
+          filenameMetadata.file_processing_date,
+          filenameMetadata.file_sequence_number,
+          filenameMetadata.file_processing_time,
+          filenameMetadata.file_system_id,
+          JSON.stringify(filenameMetadata.mainframe_process_data)
         ]);
         
         await pool.query(insertQuery, values);
