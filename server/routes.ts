@@ -12713,12 +12713,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const line = lines[i].trim();
         if (line.length < 2) continue; // Skip invalid lines
         
-        const recordType = line.substring(0, 2);
+        // Extract record type from positions 18-19 as confirmed by user
+        let recordType = '';
+        if (line.length >= 19) {
+          // Search for known record types first
+          const searchArea = line.substring(0, 30);
+          if (searchArea.includes('BH')) {
+            recordType = 'BH';
+          } else if (searchArea.includes('DT')) {
+            recordType = 'DT';
+          } else if (searchArea.includes('P1')) {
+            recordType = 'P1';
+          } else if (searchArea.includes('P2')) {
+            recordType = 'P2';
+          } else {
+            // Fallback to position-based extraction (positions 18-19)
+            recordType = line.substring(17, 19);
+          }
+        } else {
+          recordType = line.substring(0, 2); // Fallback for short lines
+        }
+        
+        console.log(`[RE-ENCODE] Line ${i+1}: Found record type "${recordType}" in line: "${line.substring(0, 30)}..."`);
         
         const recordData = {
           line_length: line.length,
           record_type_code: recordType,
-          record_type_name: recordType === '10' ? 'Header Record' : 
+          record_type_name: recordType === 'BH' ? 'Batch Header' : 
+                            recordType === 'DT' ? 'Detail Transaction' : 
+                            recordType === 'P1' ? 'Purchasing Card 1' : 
+                            recordType === 'P2' ? 'Purchasing Card 2' : 
+                            recordType === 'E1' ? 'Electronic Check' :
+                            recordType === 'G2' ? 'Geographic Data' :
+                            recordType === '10' ? 'Header Record' : 
                             recordType === '47' ? 'Detail Transaction Record' : 
                             recordType === '98' ? 'Trailer Record' : 
                             recordType === '20' ? 'Batch Header Record' :

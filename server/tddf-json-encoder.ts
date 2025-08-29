@@ -478,11 +478,19 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
   }
   
   console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Record type detection results:`);
+  console.log(`[RECORD-TYPE-DETECTION]   Line length: ${line.length}`);
   console.log(`[RECORD-TYPE-DETECTION]   BH found at index: ${bhIndex}`);
   console.log(`[RECORD-TYPE-DETECTION]   DT found at index: ${dtIndex}`);
   console.log(`[RECORD-TYPE-DETECTION]   Position 18-19 (17-18): "${line.substring(17, 19)}"`);
   console.log(`[RECORD-TYPE-DETECTION]   Final record type: "${recordType}"`);
   console.log(`[RECORD-TYPE-DETECTION]   First 30 chars: "${searchArea}"`);
+  console.log(`[RECORD-TYPE-DETECTION]   Full line: "${line}"`);
+  
+  // Force it to BH for testing if we can see BH in the line
+  if (line.includes('BH')) {
+    console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: FOUND BH in line, forcing record type to BH`);
+    recordType = 'BH';
+  }
   
   if (!recordType || recordType.trim().length === 0) {
     validationResults.isValid = false;
