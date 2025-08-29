@@ -11101,6 +11101,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF JSONB Cache API endpoints
+  app.post("/api/tddf-jsonb/build-cache/:uploadId", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId } = req.params;
+      console.log(`[TDDF-CACHE-API] Building cache for upload: ${uploadId}`);
+      
+      // Get upload details
+      const upload = await storage.getUploaderUpload(uploadId);
+      if (!upload) {
+        return res.status(404).json({ error: 'Upload not found' });
+      }
+
+      // Import and use simple cache service
+      const { SimpleTddfCache } = await import('./services/simple-tddf-cache');
+      const cacheService = new SimpleTddfCache();
+      
+      // Ensure tables exist
+      await cacheService.ensureCacheTable();
+      
+      // Build cache
+      const result = await cacheService.buildCache(uploadId, upload.filename);
+      
+      if (result.success) {
+        console.log(`[TDDF-CACHE-API] Cache built successfully: ${result.totalRecords} records, ${result.batchCount} batches`);
+        res.json({
+          success: true,
+          message: 'Cache built successfully',
+          stats: {
+            totalRecords: result.totalRecords,
+            batchCount: result.batchCount,
+            recordTypes: result.recordTypes
+          }
+        });
+      } else {
+        console.error(`[TDDF-CACHE-API] Cache build failed:`, result.error);
+        res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to build cache'
+        });
+      }
+    } catch (error: any) {
+      console.error('[TDDF-CACHE-API] Error in build-cache endpoint:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  app.get("/api/tddf-jsonb/cached-data/:uploadId", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      console.log(`[TDDF-CACHE-API] Getting cached data for upload: ${uploadId}, limit: ${limit}, offset: ${offset}`);
+      
+      const { TddfJsonbCacheService } = await import('./services/tddf-jsonb-cache-service');
+      const cacheService = new TddfJsonbCacheService();
+      
+      // Check if cache exists
+      const isCached = await cacheService.isCacheBuilt(uploadId);
+      if (!isCached) {
+        return res.status(404).json({ 
+          error: 'Cache not built for this upload',
+          action: 'build_cache_required'
+        });
+      }
+      
+      // Get cached data
+      const result = await cacheService.getCachedData(uploadId, limit, offset);
+      
+      res.json({
+        data: result.data,
+        tableName: `${process.env.NODE_ENV === 'production' ? '' : 'dev_'}tddf_jsonb_cache`,
+        timingMetadata: {
+          queryTime: Date.now() - Date.now(), // Minimal since it's cached
+          fromCache: true
+        },
+        pagination: result.pagination
+      });
+      
+    } catch (error: any) {
+      console.error('[TDDF-CACHE-API] Error in cached-data endpoint:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  app.get("/api/tddf-jsonb/tree-view/:uploadId", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      console.log(`[TDDF-CACHE-API] Getting tree view for upload: ${uploadId}, limit: ${limit}`);
+      
+      const { TddfJsonbCacheService } = await import('./services/tddf-jsonb-cache-service');
+      const cacheService = new TddfJsonbCacheService();
+      
+      // Check if cache exists
+      const isCached = await cacheService.isCacheBuilt(uploadId);
+      if (!isCached) {
+        return res.status(404).json({ 
+          error: 'Cache not built for this upload',
+          action: 'build_cache_required'
+        });
+      }
+      
+      // Get tree view data
+      const treeData = await cacheService.getTreeViewData(uploadId, limit);
+      
+      res.json({
+        treeData,
+        recordCount: treeData.length,
+        fromCache: true
+      });
+      
+    } catch (error: any) {
+      console.error('[TDDF-CACHE-API] Error in tree-view endpoint:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  app.get("/api/tddf-jsonb/cache-status/:uploadId", isAuthenticated, async (req, res) => {
+    try {
+      const { uploadId } = req.params;
+      
+      const { TddfJsonbCacheService } = await import('./services/tddf-jsonb-cache-service');
+      const cacheService = new TddfJsonbCacheService();
+      
+      const isCached = await cacheService.isCacheBuilt(uploadId);
+      
+      res.json({
+        uploadId,
+        isCached,
+        cacheExists: isCached,
+        action: isCached ? 'cache_ready' : 'build_cache_required'
+      });
+      
+    } catch (error: any) {
+      console.error('[TDDF-CACHE-API] Error in cache-status endpoint:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
   // Pre-cached dashboard metrics endpoint with JSONB database storage
   const DASHBOARD_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 

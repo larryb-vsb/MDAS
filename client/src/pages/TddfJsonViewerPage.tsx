@@ -388,6 +388,48 @@ export default function TddfJsonViewerPage() {
     setCurrentPage(0); // Reset to first page when filtering
   };
 
+  // Check cache status
+  const { data: cacheStatus } = useQuery({
+    queryKey: ['tddf-cache-status', uploadId],
+    queryFn: async () => {
+      try {
+        return await apiRequest(`/api/tddf-jsonb/cache-status/${uploadId}`);
+      } catch (error) {
+        console.warn('[TDDF-JSON-VIEWER] Cache status check failed, assuming no cache');
+        return { isCached: false };
+      }
+    },
+    enabled: !!uploadId,
+    staleTime: 30000,
+  });
+
+  const [isBuildingCache, setIsBuildingCache] = useState(false);
+  const [showCacheOption, setShowCacheOption] = useState(false);
+
+  const handleBuildCache = async () => {
+    setIsBuildingCache(true);
+    try {
+      console.log(`[TDDF-JSON-VIEWER] Building cache for upload ${uploadId}`);
+      
+      const result = await apiRequest(`/api/tddf-jsonb/build-cache/${uploadId}`, {
+        method: 'POST'
+      });
+      
+      console.log(`[TDDF-JSON-VIEWER] Cache build successful:`, result);
+      
+      // Refresh the data after cache building
+      setTimeout(() => {
+        refetch();
+        setShowCacheOption(false);
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error(`[TDDF-JSON-VIEWER] Cache build failed:`, error);
+    } finally {
+      setIsBuildingCache(false);
+    }
+  };
+
   const handleReEncode = async () => {
     setIsReEncoding(true);
     try {
@@ -721,6 +763,37 @@ export default function TddfJsonViewerPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Cache Build Button */}
+            {totalRecords > 1000 && !cacheStatus?.isCached && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleBuildCache}
+                disabled={isBuildingCache}
+                className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                {isBuildingCache ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Building Cache...
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4" />
+                    Build Cache
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* Cache Status Indicator */}
+            {cacheStatus?.isCached && (
+              <Badge variant="outline" className="flex items-center gap-1 text-green-600 border-green-200">
+                <Database className="w-3 h-3" />
+                Cached
+              </Badge>
+            )}
+            
             <Button 
               variant="outline" 
               size="sm" 
