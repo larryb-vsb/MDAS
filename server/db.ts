@@ -3,7 +3,6 @@ import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
-import { config, NODE_ENV } from "./env-config";
 
 // Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
@@ -15,8 +14,21 @@ const FORCE_KING_SERVER_URL = "postgresql://neondb_owner:npg_Dzy4oGqcr3SH@ep-shy
 console.log('🔧 [DATABASE-OVERRIDE] Forcing disconnection from ep-young-frog-a6mno10h');
 console.log('🔧 [DATABASE-OVERRIDE] Forcing connection to King server ep-shy-king-aasxdlh7');
 
-// FORCE King server - completely ignore all environment variables
-const databaseUrl = FORCE_KING_SERVER_URL;
+// Check what environment variable is being used
+console.log(`🔍 [ENV-CHECK] DATABASE_URL: ${process.env.DATABASE_URL?.includes('ep-young-frog') ? 'ep-young-frog (WRONG)' : process.env.DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
+console.log(`🔍 [ENV-CHECK] NEON_DEV_DATABASE_URL: ${process.env.NEON_DEV_DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
+
+// FORCE King server - Use NEON_DEV_DATABASE_URL which points to King server
+const databaseUrl = process.env.NEON_DEV_DATABASE_URL || FORCE_KING_SERVER_URL;
+
+// Override ALL environment variables to ensure King server connection
+process.env.DATABASE_URL = databaseUrl;
+process.env.NEON_DATABASE_URL = databaseUrl;
+
+console.log(`🔧 [FORCED] Using King server URL: ${databaseUrl?.includes('ep-shy-king') ? 'ep-shy-king (SUCCESS)' : 'FAILED'}`);
+
+// Import config after environment override
+import { config, NODE_ENV } from "./env-config";
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
