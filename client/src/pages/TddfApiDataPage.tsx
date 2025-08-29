@@ -399,10 +399,11 @@ export default function TddfApiDataPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="schemas">Schemas</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="processing">Processing</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
@@ -1022,6 +1023,327 @@ export default function TddfApiDataPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Data Analytics & Insights</h2>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+                toast({ title: "Data refreshed" });
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Analytics
+            </Button>
+          </div>
+
+          {/* Key Metrics Dashboard */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Data Volume</CardTitle>
+                <Database className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Across {files.length} files
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Processing Success Rate</CardTitle>
+                <Monitor className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {files.length > 0 
+                    ? ((files.filter(f => f.status === "completed").length / files.length) * 100).toFixed(1)
+                    : 0}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {files.filter(f => f.status === "completed").length} of {files.length} files
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Average File Size</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {files.length > 0 
+                    ? formatFileSize(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / files.length)
+                    : "0 B"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Per file average
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Data Quality Score</CardTitle>
+                <Monitor className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {files.length > 0 
+                    ? (100 - (files.filter(f => f.status === "failed" || f.status === "error").length / files.length) * 100).toFixed(1)
+                    : 100}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Based on error rate
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Data Distribution Charts */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>File Status Distribution</CardTitle>
+                <CardDescription>Current status of all uploaded files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {['completed', 'processing', 'uploaded', 'failed', 'error'].map((status) => {
+                    const count = files.filter(f => f.status === status).length;
+                    const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
+                    return (
+                      <div key={status} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(status)}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">{count} files</span>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                status === 'completed' ? 'bg-green-500' :
+                                status === 'processing' ? 'bg-blue-500' :
+                                status === 'uploaded' ? 'bg-yellow-500' :
+                                'bg-red-500'
+                              }`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium min-w-[3rem] text-right">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>File Size Distribution</CardTitle>
+                <CardDescription>Distribution of file sizes by category</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Small (< 1MB)', filter: (f: any) => f.file_size < 1024 * 1024 },
+                    { label: 'Medium (1-10MB)', filter: (f: any) => f.file_size >= 1024 * 1024 && f.file_size < 10 * 1024 * 1024 },
+                    { label: 'Large (10-100MB)', filter: (f: any) => f.file_size >= 10 * 1024 * 1024 && f.file_size < 100 * 1024 * 1024 },
+                    { label: 'Extra Large (100MB+)', filter: (f: any) => f.file_size >= 100 * 1024 * 1024 }
+                  ].map((category) => {
+                    const count = files.filter(category.filter).length;
+                    const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
+                    return (
+                      <div key={category.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium min-w-[7rem]">{category.label}</span>
+                          <span className="text-sm text-muted-foreground">{count} files</span>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="h-2 rounded-full bg-blue-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium min-w-[3rem] text-right">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Data Quality & Records Analysis */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Record Processing Stats</CardTitle>
+                <CardDescription>Analysis of record counts and processing efficiency</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Total Records</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Processed Records</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Processing Progress</span>
+                      <span>
+                        {files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
+                          ? ((files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100).toFixed(1)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
+                            ? (files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100
+                            : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Average records per file: {files.length > 0 
+                      ? Math.round(files.reduce((sum, f) => sum + (f.record_count || 0), 0) / files.length).toLocaleString()
+                      : 0}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Upload Trends</CardTitle>
+                <CardDescription>File upload patterns over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {files.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                          <div className="text-lg font-bold">
+                            {files.filter(f => {
+                              const uploadDate = new Date(f.uploaded_at || '');
+                              const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                              return uploadDate > dayAgo;
+                            }).length}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Last 24 Hours</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted rounded-lg">
+                          <div className="text-lg font-bold">
+                            {files.filter(f => {
+                              const uploadDate = new Date(f.uploaded_at || '');
+                              const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                              return uploadDate > weekAgo;
+                            }).length}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Last 7 Days</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Latest Upload Activity</div>
+                        {files.slice(0, 3).map((file) => (
+                          <div key={file.id} className="flex items-center justify-between text-xs p-2 bg-muted rounded">
+                            <span className="truncate max-w-[60%]">{file.original_name}</span>
+                            <span className="text-muted-foreground">
+                              {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, HH:mm") : "Unknown"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      No upload data available
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Schema Usage Analytics */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Schema Usage Analytics</CardTitle>
+              <CardDescription>How different schemas are being utilized across files</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {schemas.length > 0 ? (
+                  schemas.map((schema) => {
+                    const schemaFiles = files.filter(f => f.schema_name === schema.name);
+                    const usagePercentage = files.length > 0 ? (schemaFiles.length / files.length) * 100 : 0;
+                    return (
+                      <div key={schema.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
+                            {schema.name} v{schema.version}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {schemaFiles.length} files
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[200px]">
+                            <div 
+                              className="h-2 rounded-full bg-purple-500"
+                              style={{ width: `${usagePercentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium min-w-[3rem] text-right">
+                            {usagePercentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    No schemas available for analysis
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
