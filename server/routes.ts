@@ -13007,13 +13007,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Ensure database connection is closed for commit
-      try {
-        await pool.end();
-        console.log(`[RE-ENCODE] Database pool closed, transactions committed`);
-      } catch (poolError: any) {
-        console.warn(`[RE-ENCODE] Pool closure warning: ${poolError.message}`);
-      }
+      // Database transactions auto-commit, no need to manually close pool
+      console.log(`[RE-ENCODE] Database transactions completed successfully`);
 
       res.json({
         success: true,
