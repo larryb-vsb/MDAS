@@ -212,11 +212,16 @@ export default function MMSUploader() {
     try {
       // Get all encoded TDDF files first
       const encodedFiles = uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded');
+      const tddfFiles = uploads.filter(upload => upload.fileType === 'tddf');
       
       if (encodedFiles.length === 0) {
+        const message = tddfFiles.length > 0 
+          ? `Found ${tddfFiles.length} TDDF files but none are encoded yet. Files need to be processed to "encoded" phase before searching.`
+          : "No TDDF files found. Upload and process TDDF files first.";
+        
         toast({
-          title: "No Files Available",
-          description: "No encoded TDDF files found. Upload and process TDDF files first.",
+          title: "No Encoded Files Available",
+          description: message,
           variant: "destructive"
         });
         setJsonbIsQuerying(false);
@@ -2981,6 +2986,10 @@ export default function MMSUploader() {
                   </Label>
                   <p className="text-sm text-muted-foreground">
                     Search across all {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
+                    {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+                     uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
+                      <span className="text-amber-600 font-medium"> (Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files but none are encoded yet)</span>
+                    )}
                   </p>
                   <div className="flex gap-2">
                     <Input
@@ -3149,6 +3158,28 @@ export default function MMSUploader() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     No records found for merchant account number "{jsonbMerchantAccountQuery}". Try a different search term.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* File Status Help */}
+              {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && 
+               uploads.filter(upload => upload.fileType === 'tddf').length > 0 && (
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    <strong>Files Need Processing:</strong> Found {uploads.filter(upload => upload.fileType === 'tddf').length} TDDF files but they need to reach "encoded" phase first.
+                    <br />
+                    <div className="mt-2 space-y-1">
+                      {uploads.filter(upload => upload.fileType === 'tddf').slice(0, 3).map(file => (
+                        <div key={file.id} className="text-xs font-mono">
+                          {file.filename}: <span className="font-medium">{file.currentPhase}</span>
+                        </div>
+                      ))}
+                      {uploads.filter(upload => upload.fileType === 'tddf').length > 3 && (
+                        <div className="text-xs text-amber-600">...and {uploads.filter(upload => upload.fileType === 'tddf').length - 3} more files</div>
+                      )}
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
