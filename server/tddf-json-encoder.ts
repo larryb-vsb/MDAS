@@ -450,11 +450,30 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
     };
   }
   
-  // Extract and validate record type from positions 18-19 (1-based)
-  const recordType = line.substring(17, 19); // Positions 18-19 (0-based indexing)
+  // Extract and validate record type - search for BH/DT/etc patterns in the header area
+  let recordType = '';
   
-  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Record type="${recordType}" from positions 18-19`);
-  console.log(`[RECORD-TYPE-DETECTION] Line content around position 18-19: "${line.substring(15, 25)}"`);
+  // Search for 2-letter record identifiers in positions 15-25
+  const searchArea = line.substring(14, Math.min(25, line.length));
+  const knownRecordTypes = ['BH', 'DT', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE', 'TR'];
+  
+  for (const rt of knownRecordTypes) {
+    const index = searchArea.indexOf(rt);
+    if (index !== -1) {
+      recordType = rt;
+      console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Found "${rt}" at position ${14 + index + 1} in search area`);
+      break;
+    }
+  }
+  
+  // Fallback to position-based extraction if no known type found
+  if (!recordType) {
+    recordType = line.substring(17, 19); // Traditional positions 18-19
+    console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Fallback to positions 18-19: "${recordType}"`);
+  }
+  
+  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Final record type="${recordType}"`);
+  console.log(`[RECORD-TYPE-DETECTION] Search area (pos 15-25): "${searchArea}"`);
   
   if (!recordType || recordType.trim().length === 0) {
     validationResults.isValid = false;
