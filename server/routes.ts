@@ -11113,32 +11113,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Upload not found' });
       }
 
-      // Import and use simple cache service
-      const { SimpleTddfCache } = await import('./services/simple-tddf-cache');
-      const cacheService = new SimpleTddfCache();
+      // Use direct database access instead of cache service
+      const tableName = getTableName('uploader_tddf_jsonb_records');
       
-      // Ensure tables exist
-      await cacheService.ensureCacheTable();
+      // Check if records exist in database
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as total_count,
+               COUNT(DISTINCT record_type) as record_types,
+               COUNT(DISTINCT CASE WHEN record_type = 'BH' THEN line_number END) as batch_count
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `, [uploadId]);
       
-      // Build cache
-      const result = await cacheService.buildCache(uploadId, upload.filename);
+      const stats = countResult.rows[0];
       
-      if (result.success) {
-        console.log(`[TDDF-CACHE-API] Cache built successfully: ${result.totalRecords} records, ${result.batchCount} batches`);
+      if (stats.total_count > 0) {
+        console.log(`[TDDF-CACHE-API] Direct access enabled: ${stats.total_count} records available`);
         res.json({
           success: true,
-          message: 'Cache built successfully',
+          message: 'Direct database access enabled - no cache needed',
           stats: {
-            totalRecords: result.totalRecords,
-            batchCount: result.batchCount,
-            recordTypes: result.recordTypes
+            totalRecords: parseInt(stats.total_count),
+            batchCount: parseInt(stats.batch_count),
+            recordTypes: parseInt(stats.record_types),
+            accessType: 'direct_database'
           }
         });
       } else {
-        console.error(`[TDDF-CACHE-API] Cache build failed:`, result.error);
-        res.status(500).json({
+        res.status(404).json({
           success: false,
-          error: result.error || 'Failed to build cache'
+          error: 'No records found for this upload'
         });
       }
     } catch (error: any) {
@@ -11224,16 +11228,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { uploadId } = req.params;
       
-      const { TddfJsonbCacheService } = await import('./services/tddf-jsonb-cache-service');
-      const cacheService = new TddfJsonbCacheService();
+      // Check if records exist in database (direct access)
+      const tableName = getTableName('uploader_tddf_jsonb_records');
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as total_count
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `, [uploadId]);
       
-      const isCached = await cacheService.isCacheBuilt(uploadId);
+      const totalRecords = parseInt(countResult.rows[0].total_count);
+      const hasData = totalRecords > 0;
       
       res.json({
         uploadId,
-        isCached,
-        cacheExists: isCached,
-        action: isCached ? 'cache_ready' : 'build_cache_required'
+        isCached: hasData, // Direct database access means data is "cached"
+        cacheExists: hasData,
+        totalRecords,
+        accessType: 'direct_database',
+        action: hasData ? 'cache_ready' : 'build_cache_required'
       });
       
     } catch (error: any) {

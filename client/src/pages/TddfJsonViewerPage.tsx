@@ -786,8 +786,19 @@ export default function TddfJsonViewerPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Cache Build Button */}
-            {totalRecords > 1000 && !cacheStatus?.isCached && (
+            {/* Database Access Status */}
+            {totalRecords > 0 && (
+              <Badge 
+                variant="outline" 
+                className="text-green-700 bg-green-50 border-green-200 flex items-center gap-1"
+              >
+                <Database className="w-3 h-3" />
+                Direct Access ({totalRecords.toLocaleString()} records)
+              </Badge>
+            )}
+            
+            {/* Re-process Button */}
+            {totalRecords > 1000 && (
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -798,23 +809,15 @@ export default function TddfJsonViewerPage() {
                 {isBuildingCache ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    Building Cache...
+                    Processing...
                   </>
                 ) : (
                   <>
-                    <Database className="w-4 h-4" />
-                    Build Cache
+                    <RefreshCw className="w-4 h-4" />
+                    Re-process with Real Data
                   </>
                 )}
               </Button>
-            )}
-            
-            {/* Cache Status Indicator */}
-            {cacheStatus?.isCached && (
-              <Badge variant="outline" className="flex items-center gap-1 text-green-600 border-green-200">
-                <Database className="w-3 h-3" />
-                Cached
-              </Badge>
             )}
             
             {/* Enhanced Pagination for Large Datasets */}
