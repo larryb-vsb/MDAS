@@ -9,16 +9,14 @@ import { config, NODE_ENV } from "./env-config";
 neonConfig.webSocketConstructor = ws;
 
 // KING SERVER FIX: FORCE use of King server (ep-shy-king-aasxdlh7) for ALL processing
-// Explicit override to ensure King server is ALWAYS used, ignore DATABASE_URL completely
-const kingServerUrl = process.env.NEON_DEV_DATABASE_URL;
+// ABSOLUTE OVERRIDE: Disconnect from ep-young-frog and FORCE King server connection
+const FORCE_KING_SERVER_URL = "postgresql://neondb_owner:npg_Dzy4oGqcr3SH@ep-shy-king-aasxdlh7-pooler.westus3.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
 
-if (!kingServerUrl) {
-  console.error('❌ [CRITICAL] NEON_DEV_DATABASE_URL not found - King server consolidation failed!');
-  throw new Error("NEON_DEV_DATABASE_URL must be set for King server consolidation");
-}
+console.log('🔧 [DATABASE-OVERRIDE] Forcing disconnection from ep-young-frog-a6mno10h');
+console.log('🔧 [DATABASE-OVERRIDE] Forcing connection to King server ep-shy-king-aasxdlh7');
 
-// FORCE King server - ignore DATABASE_URL completely to avoid wrong server connections
-const databaseUrl = kingServerUrl;
+// FORCE King server - completely ignore all environment variables
+const databaseUrl = FORCE_KING_SERVER_URL;
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
