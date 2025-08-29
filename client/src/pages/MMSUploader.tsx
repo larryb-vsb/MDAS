@@ -210,23 +210,7 @@ export default function MMSUploader() {
 
     setJsonbIsQuerying(true);
     try {
-      // Get all encoded TDDF files first
-      const encodedFiles = uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded');
-      const tddfFiles = uploads.filter(upload => upload.fileType === 'tddf');
-      
-      if (encodedFiles.length === 0) {
-        const message = tddfFiles.length > 0 
-          ? `Found ${tddfFiles.length} TDDF files but none are encoded yet. Files need to be processed to "encoded" phase before searching.`
-          : "No TDDF files found. Upload and process TDDF files first.";
-        
-        toast({
-          title: "No Encoded Files Available",
-          description: message,
-          variant: "destructive"
-        });
-        setJsonbIsQuerying(false);
-        return;
-      }
+      // Note: Search works across all TDDF data in database, regardless of upload table status
 
       // Use the new global search endpoint
       const params = new URLSearchParams({
@@ -240,7 +224,7 @@ export default function MMSUploader() {
       setJsonbQueryResults(response.data || []);
       setJsonbTotalResults(response.total || 0);
       setJsonbSearchMetadata({
-        filesSearched: encodedFiles.length,
+        filesSearched: 'all database records',
         filesWithResults: response.data?.length > 0 ? 1 : 0,
         totalMatches: response.total || 0,
         searchTerm: jsonbMerchantAccountQuery.trim()
@@ -248,8 +232,8 @@ export default function MMSUploader() {
 
       toast({
         title: "Search Complete",
-        description: `Found ${combinedResults.length} matches across ${metadata.filesWithResults} files`,
-        variant: combinedResults.length > 0 ? "default" : "destructive"
+        description: `Found ${response.total || 0} matches across encoded TDDF files`,
+        variant: (response.total || 0) > 0 ? "default" : "destructive"
       });
 
     } catch (error: any) {
