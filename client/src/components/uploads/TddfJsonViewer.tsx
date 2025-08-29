@@ -73,24 +73,24 @@ function RecordCard({ record, getRecordTypeBadgeColor, formatFieldValue, compact
         </CardHeader>
       )}
       
-      <CardContent className={compact ? "p-3" : ""}>
+      <CardContent className={compact ? "p-2" : ""}>
         <Tabs defaultValue="fields" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="fields" className="flex items-center gap-1">
+          <TabsList className={`grid w-full grid-cols-2 ${compact ? 'h-8' : ''}`}>
+            <TabsTrigger value="fields" className={`flex items-center gap-1 ${compact ? 'text-xs' : ''}`}>
               <Eye className="w-3 h-3" />
-              Extracted Fields
+              Fields
             </TabsTrigger>
-            <TabsTrigger value="raw" className="flex items-center gap-1">
+            <TabsTrigger value="raw" className={`flex items-center gap-1 ${compact ? 'text-xs' : ''}`}>
               <FileJson className="w-3 h-3" />
-              Raw Line
+              Raw
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="fields" className="mt-3">
+          <TabsContent value="fields" className={compact ? "mt-2" : "mt-3"}>
             {record.extracted_fields && Object.keys(record.extracted_fields).length > 0 ? (
-              <div className={`grid gap-3 ${compact ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+              <div className={`grid gap-2 ${compact ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
                 {Object.entries(record.extracted_fields).map(([key, value]) => (
-                  <div key={key} className="bg-gray-50 p-2 rounded text-sm">
+                  <div key={key} className={`bg-gray-50 rounded ${compact ? 'p-1 text-xs' : 'p-2 text-sm'}`}>
                     <div className="font-medium text-gray-700 mb-1">
                       {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                     </div>
@@ -146,7 +146,7 @@ function TreeViewDisplay({
   const hierarchicalData = groupRecordsHierarchically(records);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {hierarchicalData.map((batch, batchIndex) => {
         const batchKey = `batch-${batchIndex}`;
         const isExpanded = expandedBatches.has(batchKey);
@@ -154,7 +154,7 @@ function TreeViewDisplay({
         return (
           <Card key={batchIndex} className="border-l-4 border-l-green-500">
             {/* Batch Header */}
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-1 py-2">
               <div 
                 className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-3 p-3 rounded"
                 onClick={() => onToggleBatch(batchIndex)}
@@ -192,7 +192,7 @@ function TreeViewDisplay({
               <CardContent className="pt-0">
                 {/* Batch Header Details */}
                 {batch.batchHeader && (
-                  <div className="mb-4 ml-6">
+                  <div className="mb-2 ml-4">
                     <RecordCard 
                       record={batch.batchHeader}
                       getRecordTypeBadgeColor={getRecordTypeBadgeColor}
@@ -203,14 +203,14 @@ function TreeViewDisplay({
                 )}
 
                 {/* Transactions */}
-                <div className="space-y-2 ml-6">
+                <div className="space-y-1 ml-4">
                   {batch.transactions.map((transaction: any, transactionIndex: number) => {
                     const transactionKey = `transaction-${batchIndex}-${transactionIndex}`;
                     const isTransactionExpanded = expandedTransactions.has(transactionKey);
                     
                     return (
                       <Card key={transactionIndex} className="border-l-4 border-l-blue-500 bg-blue-50/30">
-                        <CardHeader className="pb-2">
+                        <CardHeader className="pb-1 py-2">
                           <div 
                             className="flex items-center gap-2 cursor-pointer hover:bg-blue-100/50 -m-3 p-3 rounded"
                             onClick={() => onToggleTransaction(batchIndex, transactionIndex)}
@@ -260,10 +260,10 @@ function TreeViewDisplay({
 
                             {/* Extension Records */}
                             {transaction.extensions.length > 0 && (
-                              <div className="ml-4 space-y-2">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">Extensions:</h4>
+                              <div className="ml-2 space-y-1">
+                                <h4 className="text-xs font-medium text-gray-700 mb-1">Extensions:</h4>
                                 {transaction.extensions.map((extension: JsonbRecord, extIndex: number) => (
-                                  <div key={extIndex} className="ml-2">
+                                  <div key={extIndex} className="ml-1">
                                     <RecordCard 
                                       record={extension}
                                       getRecordTypeBadgeColor={getRecordTypeBadgeColor}
@@ -283,9 +283,9 @@ function TreeViewDisplay({
 
                 {/* Trailer */}
                 {batch.trailer && (
-                  <div className="mt-4 ml-6">
+                  <div className="mt-2 ml-4">
                     <Card className="border-l-4 border-l-red-500 bg-red-50/30">
-                      <CardHeader className="pb-2">
+                      <CardHeader className="pb-1 py-2">
                         <div className="flex items-center gap-2">
                           <Badge className={`text-white ${getRecordTypeBadgeColor(batch.trailer.record_type)}`}>
                             {batch.trailer.record_type}
@@ -558,7 +558,7 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-6xl h-[90vh] flex flex-col">
+      <Card className="w-full max-w-4xl h-[80vh] flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
