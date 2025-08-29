@@ -948,11 +948,11 @@ export default function TddfApiDataPage() {
                     queue.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium max-w-xs truncate">
-                          {item.original_name}
+                          {item.original_name || item.filename || `File ${item.file_id}`}
                         </TableCell>
                         <TableCell>
                           <Badge variant={item.priority > 75 ? "destructive" : item.priority > 50 ? "secondary" : "outline"}>
-                            {item.priority}
+                            {item.priority || 75}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -960,14 +960,14 @@ export default function TddfApiDataPage() {
                             {item.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>{item.attempts}/{item.maxAttempts}</TableCell>
+                        <TableCell>{item.attempts || 0}/{item.max_attempts || 3}</TableCell>
                         <TableCell>
-                          {item.queuedAt ? format(new Date(item.queuedAt), "MMM d, HH:mm") : "Unknown"}
+                          {item.created_at ? format(new Date(item.created_at), "MMM d, HH:mm") : "Unknown"}
                         </TableCell>
                         <TableCell>
-                          {item.processingStarted && item.processingCompleted ? (
-                            `${Math.round((new Date(item.processingCompleted).getTime() - new Date(item.processingStarted).getTime()) / 1000)}s`
-                          ) : item.processingStarted ? (
+                          {item.processing_started && item.processing_completed ? (
+                            `${Math.round((new Date(item.processing_completed).getTime() - new Date(item.processing_started).getTime()) / 1000)}s`
+                          ) : item.processing_started ? (
                             "Processing..."
                           ) : (
                             "-"
