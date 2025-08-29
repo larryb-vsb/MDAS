@@ -53,6 +53,8 @@ interface UploaderUploadWithPresigned extends UploaderUpload {
   storageKey?: string;
 }
 
+
+
 // 9-State Processing Workflow
 const PROCESSING_PHASES = [
   { id: 'started', name: 'Started', icon: Play, color: 'blue', description: 'Upload initialized' },
@@ -185,6 +187,15 @@ export default function MMSUploader() {
   
   // Selection state for bulk operations
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
+
+  // JSONB Query tab state
+  const [jsonbSelectedUploadId, setJsonbSelectedUploadId] = useState<string>('');
+  const [jsonbMerchantNameQuery, setJsonbMerchantNameQuery] = useState<string>('');
+  const [jsonbQueryResults, setJsonbQueryResults] = useState<any[]>([]);
+  const [jsonbIsQuerying, setJsonbIsQuerying] = useState(false);
+  const [jsonbCurrentPage, setJsonbCurrentPage] = useState(0);
+  const [jsonbPageSize] = useState(50);
+  const [jsonbTotalResults, setJsonbTotalResults] = useState(0);
 
   // Sub Terminals tab state
   const [editingTerminal, setEditingTerminal] = useState<any>(null);
@@ -1333,7 +1344,7 @@ export default function MMSUploader() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="upload">Upload Files</TabsTrigger>
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="cross-env">Cross-Env Transfer</TabsTrigger>
@@ -1341,6 +1352,7 @@ export default function MMSUploader() {
           <TabsTrigger value="encoding">Stage 5: Encoding</TabsTrigger>
           <TabsTrigger value="storage-browse">Storage Browse</TabsTrigger>
           <TabsTrigger value="monitor">Processing Monitor</TabsTrigger>
+          <TabsTrigger value="jsonb-query">JSONB Query</TabsTrigger>
           <TabsTrigger value="phases">Phase Details</TabsTrigger>
         </TabsList>
 
@@ -2836,6 +2848,269 @@ export default function MMSUploader() {
 
         <TabsContent value="monitor" className="space-y-4">
           <ProcessingMonitor />
+        </TabsContent>
+
+        <TabsContent value="jsonb-query" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                JSONB Merchant Name Query
+              </CardTitle>
+              <CardDescription>
+                Search for merchant names in processed TDDF JSONB records
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* File Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="file-select">Select TDDF File</Label>
+                <Select value={jsonbSelectedUploadId} onValueChange={setJsonbSelectedUploadId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an encoded TDDF file..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').map((upload) => (
+                      <SelectItem key={upload.id} value={upload.id}>
+                        {upload.filename} ({formatFileSize(upload.fileSize)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No encoded TDDF files available. Upload and process a TDDF file first.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Merchant Name Query */}
+              <div className="space-y-2">
+                <Label htmlFor="merchant-query">Merchant Name</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="merchant-query"
+                    placeholder="Enter merchant name to search..."
+                    value={jsonbMerchantNameQuery}
+                    onChange={(e) => setJsonbMerchantNameQuery(e.target.value)}
+                    onKeyPress={async (e) => {
+                      if (e.key === 'Enter') {
+                        if (!jsonbSelectedUploadId || !jsonbMerchantNameQuery.trim()) {
+                          toast({
+                            title: "Search Requirements",
+                            description: "Please select a file and enter a merchant name to search",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+
+                        setJsonbIsQuerying(true);
+                        try {
+                          const params = new URLSearchParams({
+                            limit: jsonbPageSize.toString(),
+                            offset: (jsonbCurrentPage * jsonbPageSize).toString(),
+                            merchantName: jsonbMerchantNameQuery.trim()
+                          });
+
+                          const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
+                          setJsonbQueryResults(response.data || []);
+                          setJsonbTotalResults(response.total || response.data?.length || 0);
+                        } catch (error: any) {
+                          toast({
+                            title: "Query Failed", 
+                            description: error.message || "Failed to search merchant data",
+                            variant: "destructive"
+                          });
+                          setJsonbQueryResults([]);
+                          setJsonbTotalResults(0);
+                        } finally {
+                          setJsonbIsQuerying(false);
+                        }
+                      }
+                    }}
+                  />
+                  <Button onClick={async () => {
+                    if (!jsonbSelectedUploadId || !jsonbMerchantNameQuery.trim()) {
+                      toast({
+                        title: "Search Requirements",
+                        description: "Please select a file and enter a merchant name to search",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+
+                    setJsonbIsQuerying(true);
+                    try {
+                      const params = new URLSearchParams({
+                        limit: jsonbPageSize.toString(),
+                        offset: (jsonbCurrentPage * jsonbPageSize).toString(),
+                        merchantName: jsonbMerchantNameQuery.trim()
+                      });
+
+                      const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
+                      setJsonbQueryResults(response.data || []);
+                      setJsonbTotalResults(response.total || response.data?.length || 0);
+                    } catch (error: any) {
+                      toast({
+                        title: "Query Failed", 
+                        description: error.message || "Failed to search merchant data",
+                        variant: "destructive"
+                      });
+                      setJsonbQueryResults([]);
+                      setJsonbTotalResults(0);
+                    } finally {
+                      setJsonbIsQuerying(false);
+                    }
+                  }} disabled={jsonbIsQuerying}>
+                    <Search className="h-4 w-4 mr-2" />
+                    {jsonbIsQuerying ? 'Searching...' : 'Search'}
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    setJsonbMerchantNameQuery('');
+                    setJsonbQueryResults([]);
+                    setJsonbTotalResults(0);
+                    setJsonbCurrentPage(0);
+                  }}>
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {/* Results Section */}
+              {jsonbQueryResults.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Search Results</h3>
+                    <Badge variant="outline">
+                      {jsonbTotalResults.toLocaleString()} records found
+                    </Badge>
+                  </div>
+
+                  {/* Results Table */}
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Record Type</TableHead>
+                          <TableHead>Line #</TableHead>
+                          <TableHead>Merchant Account</TableHead>
+                          <TableHead>Extracted Fields</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {jsonbQueryResults.map((record, index) => (
+                          <TableRow key={record.id || index}>
+                            <TableCell>
+                              <Badge className={`
+                                ${record.record_type === 'BH' ? 'bg-green-500' :
+                                  record.record_type === 'DT' ? 'bg-blue-500' :
+                                  record.record_type === 'P1' ? 'bg-purple-500' :
+                                  record.record_type === 'E1' ? 'bg-pink-500' :
+                                  record.record_type === 'G2' ? 'bg-orange-500' :
+                                  'bg-gray-500'
+                                } text-white
+                              `}>
+                                {record.record_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {record.line_number}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <span className="bg-blue-100 px-2 py-1 rounded text-blue-800">
+                                {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-xs truncate text-sm">
+                                {record.extracted_fields ? 
+                                  Object.keys(record.extracted_fields).slice(0, 3).join(', ') + 
+                                  (Object.keys(record.extracted_fields).length > 3 ? '...' : '')
+                                  : 'No fields'
+                                }
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedFileForView({
+                                    ...record,
+                                    filename: `Record ${record.record_type} - Line ${record.line_number}`,
+                                    showJsonDetails: true
+                                  } as any);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination */}
+                  {Math.ceil(jsonbTotalResults / jsonbPageSize) > 1 && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {jsonbCurrentPage * jsonbPageSize + 1} to {Math.min((jsonbCurrentPage + 1) * jsonbPageSize, jsonbTotalResults)} of {jsonbTotalResults}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setJsonbCurrentPage(prev => Math.max(0, prev - 1))}
+                          disabled={jsonbCurrentPage === 0}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm">
+                          Page {jsonbCurrentPage + 1} of {Math.ceil(jsonbTotalResults / jsonbPageSize)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setJsonbCurrentPage(prev => Math.min(Math.ceil(jsonbTotalResults / jsonbPageSize) - 1, prev + 1))}
+                          disabled={jsonbCurrentPage >= Math.ceil(jsonbTotalResults / jsonbPageSize) - 1}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* No Results Message */}
+              {!jsonbIsQuerying && jsonbMerchantNameQuery && jsonbQueryResults.length === 0 && jsonbTotalResults === 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No records found for merchant name "{jsonbMerchantNameQuery}". Try a different search term.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Usage Instructions */}
+              {jsonbQueryResults.length === 0 && !jsonbMerchantNameQuery && (
+                <Alert>
+                  <Lightbulb className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>How to use:</strong> Select an encoded TDDF file from the dropdown, 
+                    then enter a merchant name to search through all JSONB records. 
+                    This will search merchant account numbers and related fields.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="phases" className="space-y-4">
