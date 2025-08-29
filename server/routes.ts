@@ -13417,6 +13417,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           extractedFields = recordData;
         }
         
+        // Extract merchant account number for direct access
+        let merchantAccountNumber = null;
+        if (extractedFields.merchantAccountNumber) {
+          merchantAccountNumber = extractedFields.merchantAccountNumber;
+        } else if (recordData.merchantAccountNumber) {
+          merchantAccountNumber = recordData.merchantAccountNumber;
+        }
+        
+        // Extract merchant name for direct access
+        let merchantName = null;
+        if (extractedFields.merchantName) {
+          merchantName = extractedFields.merchantName;
+        } else if (recordData.merchantName) {
+          merchantName = recordData.merchantName;
+        }
+        
         return {
           id: row.id,
           upload_id: row.upload_id,
@@ -13427,7 +13443,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           extracted_fields: extractedFields,
           record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
           processing_time_ms: row.field_count || 0,
-          created_at: row.created_at
+          created_at: row.created_at,
+          // Direct access fields for easier frontend handling
+          merchant_account_number: merchantAccountNumber,
+          merchant_name: merchantName
         };
       });
       

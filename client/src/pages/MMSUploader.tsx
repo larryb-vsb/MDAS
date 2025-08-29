@@ -2897,10 +2897,10 @@ export default function MMSUploader() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
-                JSONB Merchant Name Query
+                JSONB Merchant Query
               </CardTitle>
               <CardDescription>
-                Search for merchant names in processed TDDF JSONB records
+                Search for merchant names and account numbers in processed TDDF JSONB records
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -3004,6 +3004,7 @@ export default function MMSUploader() {
                           <TableHead>Record Type</TableHead>
                           <TableHead>Line #</TableHead>
                           <TableHead>Merchant Account</TableHead>
+                        <TableHead>Merchant Name</TableHead>
                           <TableHead>Extracted Fields</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -3029,7 +3030,12 @@ export default function MMSUploader() {
                             </TableCell>
                             <TableCell className="font-mono text-sm">
                               <span className="bg-blue-100 px-2 py-1 rounded text-blue-800">
-                                {record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                                {record.merchant_account_number || record.extracted_fields?.merchantAccountNumber || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <span className="bg-green-100 px-2 py-1 rounded text-green-800">
+                                {record.merchant_name || record.extracted_fields?.merchantName || 'N/A'}
                               </span>
                             </TableCell>
                             <TableCell>
