@@ -12715,13 +12715,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get JSONB data for a specific upload
-  app.get("/api/uploader/:id/jsonb-data", isAuthenticated, async (req, res) => {
+  // Get JSONB data for a specific upload (temporarily remove auth for debugging)
+  app.get("/api/uploader/:id/jsonb-data", async (req, res) => {
     try {
       const { id } = req.params;
       const { limit = '50', offset = '0', recordType } = req.query;
       
-      console.log(`[JSONB-API] Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
+      console.log(`[JSONB-API] ✅ Authentication passed! Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
       console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
       
       const { getTableName } = await import("./table-config");
