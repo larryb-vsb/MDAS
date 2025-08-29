@@ -277,7 +277,11 @@ app.use((req, res, next) => {
         serverId: process.env.HOSTNAME || `${require('os').hostname()}-${process.pid}`
       });
 
-      // Start processing watcher service
+      // Start processing watcher service - TEMPORARILY DISABLED FOR TDDF TESTING
+      // The ScanlyWatcher is causing database connection errors due to missing column mappings
+      // Disabling temporarily to allow stable TDDF processing testing
+      console.log('[SCANLY-WATCHER] Service temporarily disabled for TDDF testing');
+      /*
       try {
         console.log('Initializing Scanly-Watcher service...');
         const { scanlyWatcher } = await import('./services/processing-watcher');
@@ -294,6 +298,7 @@ app.use((req, res, next) => {
           error: error instanceof Error ? error.message : String(error)
         });
       }
+      */
 
       // Start MMS Watcher service for automatic file processing (phases 4-7)
       try {
