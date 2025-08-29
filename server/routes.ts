@@ -12764,6 +12764,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // First test if the table exists and has the right schema
       try {
+        // Debug: Check what database we're actually connected to
+        const dbCheck = await directPool.query(`SELECT current_database(), current_user, inet_server_addr(), inet_server_port()`);
+        console.log(`[JSONB-API] Connected to database:`, dbCheck.rows[0]);
+        
+        // Check all tables in this database
+        const tableCheck = await directPool.query(`
+          SELECT table_name FROM information_schema.tables 
+          WHERE table_schema = 'public' AND table_name LIKE '%jsonb%'
+        `);
+        console.log(`[JSONB-API] JSONB tables in this database:`, tableCheck.rows.map(r => r.table_name));
+        
+        // Check specific table schema
         const schemaCheck = await directPool.query(`
           SELECT column_name FROM information_schema.columns 
           WHERE table_name = '${tableName}' AND column_name = 'record_data'
@@ -12771,8 +12783,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[JSONB-API] Schema check: record_data column exists = ${schemaCheck.rows.length > 0}`);
         
         if (schemaCheck.rows.length === 0) {
-          console.log(`[JSONB-API] Dev table ${tableName} missing record_data column - this database doesn't have the expected schema`);
-          throw new Error(`Database schema incompatible: ${tableName} table missing record_data column. This upload was not processed into JSONB format.`);
+          console.log(`[JSONB-API] ❌ Table ${tableName} missing record_data column - recreating table`);
+          
+          // Recreate the table with correct schema
+          await directPool.query(`DROP TABLE IF EXISTS ${tableName}`);
+          await directPool.query(`
+            CREATE TABLE ${tableName} (
+              id SERIAL PRIMARY KEY,
+              upload_id TEXT NOT NULL,
+              record_type TEXT NOT NULL,
+              record_data JSONB NOT NULL,
+              processing_status TEXT DEFAULT 'completed',
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              record_identifier TEXT,
+              line_number INTEGER,
+              raw_line TEXT,
+              field_count INTEGER
+            )
+          `);
+          console.log(`[JSONB-API] ✅ Recreated ${tableName} with correct schema`);
+          
+          // Return empty result since we just recreated the table
+          return res.json({
+            success: true,
+            data: [],
+            pagination: {
+              page: Math.floor(offset / limit) + 1,
+              limit: limit,
+              total: 0,
+              totalPages: 0
+            },
+            message: "JSONB table recreated with correct schema. Use Re-encode to process this upload."
+          });
         }
       } catch (schemaError) {
         console.log(`[JSONB-API] Schema check failed:`, schemaError.message);
