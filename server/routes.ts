@@ -13334,6 +13334,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform data to match expected JSON viewer format
       const transformedData = result.rows.map(row => {
+        // Parse record_data if it's a string (from JSONB column)
+        let extractedFields = {};
+        try {
+          if (typeof row.record_data === 'string') {
+            extractedFields = JSON.parse(row.record_data);
+          } else if (typeof row.record_data === 'object' && row.record_data !== null) {
+            extractedFields = row.record_data;
+          }
+        } catch (parseError) {
+          console.warn(`[JSONB-API] Failed to parse record_data for row ${row.id}:`, parseError);
+          extractedFields = {};
+        }
+        
         return {
           id: row.id,
           upload_id: row.upload_id,
@@ -13341,9 +13354,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_type: row.record_type,
           line_number: row.line_number || 0,
           raw_line: row.raw_line || '',
-          extracted_fields: row.record_data || {}, // Fixed: use record_data column
+          extracted_fields: extractedFields,
           record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
-          processing_time_ms: row.field_count || 0, // Fixed: use field_count column
+          processing_time_ms: row.field_count || 0,
           created_at: row.created_at
         };
       });
@@ -13365,6 +13378,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] Found ${result.rows.length} records, total: ${total}`);
       console.log(`[JSONB-API] Sample record data structure:`, result.rows[0] ? Object.keys(result.rows[0]) : 'No records');
       console.log(`[JSONB-API] Sample transformed data:`, transformedData[0] ? Object.keys(transformedData[0]) : 'No data');
+      
+      // Debug: Check if merchantAccountNumber is in extracted fields
+      if (transformedData[0] && transformedData[0].extracted_fields) {
+        const fields = transformedData[0].extracted_fields;
+        console.log(`[JSONB-API] Sample extracted fields:`, Object.keys(fields));
+        if (fields.merchantAccountNumber) {
+          console.log(`[JSONB-API] ✅ merchantAccountNumber found: "${fields.merchantAccountNumber}"`);
+        } else {
+          console.log(`[JSONB-API] ❌ merchantAccountNumber NOT found in extracted fields`);
+        }
+      }
       
       // Get timing metadata from uploader uploads table
       let timingMetadata = null;
