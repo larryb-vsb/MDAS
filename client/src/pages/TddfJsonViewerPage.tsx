@@ -374,6 +374,21 @@ export default function TddfJsonViewerPage() {
     refetchOnWindowFocus: false
   });
 
+  // Get upload details for file size and line count
+  const { data: uploadDetails } = useQuery({
+    queryKey: ['/api/uploader', uploadId, 'details'],
+    queryFn: async () => {
+      try {
+        return await apiRequest(`/api/uploader/${uploadId}`);
+      } catch (error) {
+        console.warn('[TDDF-JSON-VIEWER] Upload details fetch failed');
+        return null;
+      }
+    },
+    enabled: !!uploadId,
+    refetchOnWindowFocus: false
+  });
+
   const allRecords: JsonbRecord[] = (jsonbData as any)?.data || [];
   
   const filteredRecords = allRecords.filter(record => {
@@ -1121,12 +1136,53 @@ export default function TddfJsonViewerPage() {
                         <p className="text-sm text-gray-900 font-mono">{uploadId}</p>
                       </div>
                       <div>
+                        <label className="text-sm font-medium text-gray-700">File Size:</label>
+                        <p className="text-sm text-gray-900">
+                          {uploadDetails?.file_size ? 
+                            `${(uploadDetails.file_size / 1024 / 1024).toFixed(2)} MB` : 
+                            'N/A'
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Total Lines:</label>
+                        <p className="text-sm text-gray-900">
+                          {uploadDetails?.line_count ? 
+                            uploadDetails.line_count.toLocaleString() : 
+                            'N/A'
+                          }
+                        </p>
+                      </div>
+                      <div>
                         <label className="text-sm font-medium text-gray-700">Total Records:</label>
                         <p className="text-sm text-gray-900">{allRecords.length.toLocaleString()}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-700">Database Table:</label>
                         <p className="text-sm text-gray-900 font-mono">{(jsonbData as any)?.tableName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Upload Date:</label>
+                        <p className="text-sm text-gray-900">
+                          {uploadDetails?.start_time ? 
+                            new Date(uploadDetails.start_time).toLocaleString() : 
+                            'N/A'
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Status:</label>
+                        <p className="text-sm text-gray-900">
+                          <Badge className={`
+                            ${uploadDetails?.current_phase === 'encoded' ? 'bg-green-500' : 
+                              uploadDetails?.current_phase === 'encoding' ? 'bg-yellow-500' :
+                              uploadDetails?.current_phase === 'uploaded' ? 'bg-blue-500' :
+                              'bg-gray-500'
+                            } text-white
+                          `}>
+                            {uploadDetails?.current_phase || 'Unknown'}
+                          </Badge>
+                        </p>
                       </div>
                     </div>
                   </CardContent>
