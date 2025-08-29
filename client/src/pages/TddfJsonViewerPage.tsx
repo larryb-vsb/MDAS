@@ -753,6 +753,38 @@ export default function TddfJsonViewerPage() {
           {/* Data Display */}
           {!isLoading && !error && records.length > 0 && (
             <div className="p-6">
+              {/* Re-encode button always available when there's data */}
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    TDDF Records ({records.length} total)
+                  </h3>
+                  {records.length <= 10 && (
+                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                      Sample Data
+                    </span>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleReEncode}
+                  disabled={isReEncoding}
+                  size="sm"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  {isReEncoding ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Re-processing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Re-process with Real Data
+                    </>
+                  )}
+                </Button>
+              </div>
+
               {viewMode === 'tree' ? (
                 <TreeViewDisplay 
                   records={records}
