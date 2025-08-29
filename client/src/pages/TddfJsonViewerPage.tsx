@@ -449,6 +449,43 @@ export default function TddfJsonViewerPage() {
     const recordTypes = [...new Set(records.map(r => r.record_type))];
     console.log(`[TREE-VIEW] Record types found: ${recordTypes.join(', ')}`);
     
+    // For TDDF files where all records are type "02", treat every 1-3 records as a batch
+    // This is common in certain TDDF formats where 02 records contain different data types
+    if (recordTypes.length === 1 && recordTypes[0] === '02') {
+      console.log(`[TREE-VIEW] Special handling: All records are type 02, creating logical batches`);
+      
+      const batches: Array<{
+        batchHeader: JsonbRecord | null;
+        transactions: Array<{
+          dtRecord: JsonbRecord;
+          extensions: JsonbRecord[];
+        }>;
+        trailer: JsonbRecord | null;
+      }> = [];
+
+      // Group every 1-2 records as a logical batch for display
+      for (let i = 0; i < records.length; i += 2) {
+        const headerRecord = records[i];
+        const transactionRecord = records[i + 1];
+        
+        const batch = {
+          batchHeader: headerRecord,
+          transactions: transactionRecord ? [{
+            dtRecord: transactionRecord,
+            extensions: []
+          }] : [],
+          trailer: null
+        };
+        
+        batches.push(batch);
+        console.log(`[TREE-VIEW] Created logical batch ${batches.length}: Header line ${headerRecord.line_number}, Transaction line ${transactionRecord?.line_number || 'none'}`);
+      }
+
+      console.log(`[TREE-VIEW] Created ${batches.length} logical batches for type-02 records`);
+      return batches;
+    }
+    
+    // Original hierarchical grouping for mixed record types
     const batches: Array<{
       batchHeader: JsonbRecord | null;
       transactions: Array<{
