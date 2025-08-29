@@ -450,30 +450,39 @@ function encodeTddfLineToJson(line: string, lineNumber: number): any {
     };
   }
   
-  // Extract and validate record type - search for BH/DT/etc patterns in the header area
+  // Extract record type - user confirmed BH is at positions 18-19 in "02595100156470002BH"
+  // Let's count manually: 0,2,5,9,5,1,0,0,1,5,6,4,7,0,0,0,2,B,H = positions 1-19
+  // So BH should be at indices 17-18 (0-based) = substring(17,19)
+  
+  // But let's also search for patterns to be sure
+  const searchArea = line.substring(0, 30);
+  const bhIndex = searchArea.indexOf('BH');
+  const dtIndex = searchArea.indexOf('DT');
+  const p1Index = searchArea.indexOf('P1');
+  const p2Index = searchArea.indexOf('P2');
+  
   let recordType = '';
   
-  // Search for 2-letter record identifiers in positions 15-25
-  const searchArea = line.substring(14, Math.min(25, line.length));
-  const knownRecordTypes = ['BH', 'DT', 'P1', 'P2', 'E1', 'G2', 'AD', 'DR', 'CK', 'LG', 'GE', 'TR'];
-  
-  for (const rt of knownRecordTypes) {
-    const index = searchArea.indexOf(rt);
-    if (index !== -1) {
-      recordType = rt;
-      console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Found "${rt}" at position ${14 + index + 1} in search area`);
-      break;
-    }
+  // Priority: Use pattern search first since positions might vary
+  if (bhIndex !== -1) {
+    recordType = 'BH';
+  } else if (dtIndex !== -1) {
+    recordType = 'DT';
+  } else if (p1Index !== -1) {
+    recordType = 'P1';
+  } else if (p2Index !== -1) {
+    recordType = 'P2';
+  } else {
+    // Fallback to position-based extraction
+    recordType = line.substring(17, 19);
   }
   
-  // Fallback to position-based extraction if no known type found
-  if (!recordType) {
-    recordType = line.substring(17, 19); // Traditional positions 18-19
-    console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Fallback to positions 18-19: "${recordType}"`);
-  }
-  
-  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Final record type="${recordType}"`);
-  console.log(`[RECORD-TYPE-DETECTION] Search area (pos 15-25): "${searchArea}"`);
+  console.log(`[RECORD-TYPE-DETECTION] Line ${lineNumber}: Record type detection results:`);
+  console.log(`[RECORD-TYPE-DETECTION]   BH found at index: ${bhIndex}`);
+  console.log(`[RECORD-TYPE-DETECTION]   DT found at index: ${dtIndex}`);
+  console.log(`[RECORD-TYPE-DETECTION]   Position 18-19 (17-18): "${line.substring(17, 19)}"`);
+  console.log(`[RECORD-TYPE-DETECTION]   Final record type: "${recordType}"`);
+  console.log(`[RECORD-TYPE-DETECTION]   First 30 chars: "${searchArea}"`);
   
   if (!recordType || recordType.trim().length === 0) {
     validationResults.isValid = false;
