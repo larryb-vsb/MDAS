@@ -429,7 +429,7 @@ function extractFieldValue(line: string, field: TddfFieldDefinition): {
 /**
  * Enhanced TDDF line encoding with comprehensive row validation
  */
-function encodeTddfLineToJson(line: string, lineNumber: number): any {
+export function encodeTddfLineToJson(line: string, lineNumber: number): any {
   const validationResults = {
     isValid: true,
     errors: [] as string[],

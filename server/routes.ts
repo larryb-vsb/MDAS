@@ -12838,8 +12838,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Re-encode upload with sample JSONB data (simplified version)
-  app.post("/api/uploader/:id/re-encode", async (req, res) => {
+  // Re-encode upload with real TDDF field extraction
+  app.post("/api/uploader/:id/re-encode", isAuthenticated, async (req, res) => {
     const startTime = new Date();
     let timingLogId: number | null = null;
     
@@ -12891,28 +12891,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[RE-ENCODE] Successfully read ${fileContent.length} characters from storage`);
       } catch (storageError: any) {
         console.warn(`[RE-ENCODE] Could not read from storage: ${storageError.message}`);
-        // Fall back to using encodeTddfToJsonbDirect with proper parameters
-        try {
-          const result = await encodeTddfToJsonbDirect(upload.filename, fileContent || undefined, {
-            uploadId: id,
-            tableName: jsonbTableName
-          });
-          if (result.success) {
-            return res.json({
-              success: true,
-              message: `Processed with encoder: ${result.message}`,
-              jsonbRecordsCreated: result.recordsCreated,
-              jsonbTableName: jsonbTableName
-            });
-          }
-        } catch (encodeError: any) {
-          console.warn(`[RE-ENCODE] Encoding fallback failed: ${encodeError.message}`);
-        }
-        
-        // Final fallback to error response
+        // Fall back to creating sample data if real file content not available
+        console.warn(`[RE-ENCODE] File content not available, cannot process real TDDF data`);
         return res.status(500).json({ 
-          error: "Could not read file content from storage or process with encoder",
-          details: storageError.message
+          error: "Cannot process file without real content - will not generate sample data",
+          details: "Real TDDF file content required for processing"
         });
       }
       
@@ -12949,35 +12932,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`[RE-ENCODE] Line ${i+1}: Found record type "${recordType}" in line: "${line.substring(0, 30)}..."`);
         
-        const recordData = {
-          line_length: line.length,
-          record_type_code: recordType,
-          record_type_name: recordType === 'BH' ? 'Batch Header' : 
-                            recordType === 'DT' ? 'Detail Transaction' : 
-                            recordType === 'P1' ? 'Purchasing Card 1' : 
-                            recordType === 'P2' ? 'Purchasing Card 2' : 
-                            recordType === 'E1' ? 'Electronic Check' :
-                            recordType === 'G2' ? 'Geographic Data' :
-                            recordType === '10' ? 'Header Record' : 
-                            recordType === '47' ? 'Detail Transaction Record' : 
-                            recordType === '98' ? 'Trailer Record' : 
-                            recordType === '20' ? 'Batch Header Record' :
-                            recordType === '25' ? 'Batch Trailer Record' :
-                            recordType === 'G2' ? 'G2 Extension Record' :
-                            recordType === 'A1' ? 'A1 Extension Record' :
-                            recordType === 'P1' ? 'P1 Extension Record' :
-                            'Unknown Record',
-          field_count: Math.floor(line.length / 10), // Rough estimate
-          extracted_fields: {
-            record_type: recordType,
-            sequence_number: line.length >= 12 ? line.substring(2, 12) : '',
-            data_field_1: line.length >= 25 ? line.substring(12, 25) : '',
-            data_field_2: line.length >= 35 ? line.substring(25, 35) : '',
-            full_content: line
-          },
-          raw_content: line,
-          parsed_at: new Date().toISOString()
-        };
+        // Use real TDDF field extraction instead of sample data
+        let recordData;
+        try {
+          const { encodeTddfLineToJson } = await import('./tddf-json-encoder');
+          recordData = encodeTddfLineToJson(line, i + 1);
+          console.log(`[RE-ENCODE] Line ${i+1}: Successfully extracted ${Object.keys(recordData.extractedFields || {}).length} fields`);
+        } catch (encodingError: any) {
+          console.warn(`[RE-ENCODE] Line ${i+1}: TDDF encoding failed, using basic fallback: ${encodingError.message}`);
+          // Fallback to basic record structure
+          recordData = {
+            recordType: recordType,
+            lineNumber: i + 1,
+            rawLine: line,
+            extractedFields: {
+              record_type: recordType,
+              raw_content: line,
+              line_length: line.length
+            },
+            fieldCount: 3,
+            recordTypeName: recordType === 'BH' ? 'Batch Header' : 
+                           recordType === 'DT' ? 'Detail Transaction' : 
+                           recordType === 'P1' ? 'Purchasing Card 1' : 
+                           recordType === 'P2' ? 'Purchasing Card 2' : 
+                           recordType === 'E1' ? 'Electronic Check' :
+                           recordType === 'G2' ? 'Geographic Data' :
+                           recordType === 'AD' ? 'Application Data' :
+                           recordType === 'DR' ? 'Detail Record' :
+                           'Unknown Record'
+          };
+        }
         
         try {
           await pool.query(`
@@ -12986,12 +12970,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             VALUES ($1, $2, $3, $4, $5, $6, $7)
           `, [
             id,
-            recordType,
+            recordData.recordType || recordType,
             JSON.stringify(recordData),
-            `${recordType}-${i + 1}`,
+            `${recordData.recordType || recordType}-${i + 1}`,
             i + 1,
             line,
-            Math.floor(line.length / 10)
+            recordData.fieldCount || Object.keys(recordData.extractedFields || {}).length || 1
           ]);
           
           recordsCreated++;
@@ -13000,7 +12984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log(`[RE-ENCODE] Created ${recordsCreated} sample JSONB records for testing`);
+      console.log(`[RE-ENCODE] Created ${recordsCreated} real TDDF JSONB records with field extraction`);
       
       // Complete timing log
       const endTime = new Date();
@@ -13023,9 +13007,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Ensure database connection is closed for commit
+      try {
+        await pool.end();
+        console.log(`[RE-ENCODE] Database pool closed, transactions committed`);
+      } catch (poolError: any) {
+        console.warn(`[RE-ENCODE] Pool closure warning: ${poolError.message}`);
+      }
+
       res.json({
         success: true,
-        message: `Created ${recordsCreated} sample JSONB records for testing`,
+        message: `Created ${recordsCreated} real TDDF JSONB records with field extraction`,
         jsonbRecordsCreated: recordsCreated,
         jsonbTableName: jsonbTableName,
         timing: {
