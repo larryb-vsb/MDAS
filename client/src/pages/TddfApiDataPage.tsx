@@ -10,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square } from "lucide-react";
 import { format } from "date-fns";
 import { RefreshCw } from "lucide-react";
 
@@ -89,6 +91,10 @@ export default function TddfApiDataPage() {
   });
   const [createdApiKey, setCreatedApiKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  
+  // File selection state
+  const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   // Date filtering state
   const [dateFilters, setDateFilters] = useState({
@@ -218,6 +224,25 @@ export default function TddfApiDataPage() {
     }
   });
 
+  // Delete files mutation
+  const deleteFilesMutation = useMutation({
+    mutationFn: async (fileIds: number[]) => {
+      return apiRequest("/api/tddf-api/files/delete", {
+        method: "POST",
+        body: JSON.stringify({ fileIds })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+      setSelectedFiles(new Set());
+      setShowDeleteDialog(false);
+      toast({ title: "Files deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete files", description: error.message, variant: "destructive" });
+    }
+  });
+
   const handleSchemaCreate = () => {
     try {
       const parsedSchemaData = JSON.parse(newSchemaData.schemaData);
@@ -267,6 +292,31 @@ export default function TddfApiDataPage() {
       case "failed": return "destructive";
       case "queued": return "outline";
       default: return "secondary";
+    }
+  };
+
+  // File selection helper functions
+  const toggleFileSelection = (fileId: number) => {
+    const newSelection = new Set(selectedFiles);
+    if (newSelection.has(fileId)) {
+      newSelection.delete(fileId);
+    } else {
+      newSelection.add(fileId);
+    }
+    setSelectedFiles(newSelection);
+  };
+
+  const toggleAllFiles = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedFiles.size > 0) {
+      deleteFilesMutation.mutate(Array.from(selectedFiles));
     }
   };
 
@@ -685,15 +735,67 @@ export default function TddfApiDataPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Files ({files.length})</CardTitle>
-              <CardDescription>
-                TDDF files uploaded for processing. Business days are automatically extracted from filenames.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Files ({files.length})</CardTitle>
+                  <CardDescription>
+                    TDDF files uploaded for processing. Business days are automatically extracted from filenames.
+                  </CardDescription>
+                </div>
+                {selectedFiles.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedFiles.size} selected
+                    </span>
+                    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete Selected
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Selected Files</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedFiles.size} selected file(s)? 
+                            This action cannot be undone and will remove all associated processing data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteSelected}
+                            disabled={deleteFilesMutation.isPending}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {deleteFilesMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              'Delete Files'
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={files.length > 0 && selectedFiles.size === files.length}
+                        onCheckedChange={toggleAllFiles}
+                        aria-label="Select all files"
+                      />
+                    </TableHead>
                     <TableHead>File Name</TableHead>
                     <TableHead>Business Day</TableHead>
                     <TableHead>Size</TableHead>
@@ -708,13 +810,20 @@ export default function TddfApiDataPage() {
                 <TableBody>
                   {filesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center">
+                      <TableCell colSpan={10} className="text-center">
                         <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : (
                     files.map((file) => (
-                      <TableRow key={file.id}>
+                      <TableRow key={file.id} className={selectedFiles.has(file.id) ? "bg-muted/50" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedFiles.has(file.id)}
+                            onCheckedChange={() => toggleFileSelection(file.id)}
+                            aria-label={`Select ${file.original_name}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium max-w-xs truncate">
                           {file.original_name}
                         </TableCell>
@@ -758,6 +867,39 @@ export default function TddfApiDataPage() {
                             <Button variant="ghost" size="sm">
                               <Download className="h-4 w-4" />
                             </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete File</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{file.original_name}"? 
+                                    This action cannot be undone and will remove all associated processing data.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteFilesMutation.mutate([file.id])}
+                                    disabled={deleteFilesMutation.isPending}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {deleteFilesMutation.isPending ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      'Delete File'
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </TableRow>

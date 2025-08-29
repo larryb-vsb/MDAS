@@ -21210,6 +21210,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF API - Delete files endpoint
+  app.post('/api/tddf-api/files/delete', isAuthenticated, async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      
+      if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+        return res.status(400).json({ error: 'File IDs are required' });
+      }
+
+      // Validate file IDs are numbers
+      const validFileIds = fileIds.filter(id => Number.isInteger(id) && id > 0);
+      if (validFileIds.length === 0) {
+        return res.status(400).json({ error: 'Valid file IDs are required' });
+      }
+
+      await pool.query('BEGIN');
+
+      try {
+        // First, get file information including storage paths
+        const placeholders = validFileIds.map((_, i) => `$${i + 1}`).join(',');
+        const filesResult = await pool.query(`
+          SELECT id, filename, storage_path 
+          FROM dev_tddf_api_files 
+          WHERE id IN (${placeholders})
+        `, validFileIds);
+
+        const filesToDelete = filesResult.rows;
+        
+        // Delete files from filesystem
+        filesToDelete.forEach(file => {
+          try {
+            if (file.storage_path && fs.existsSync(file.storage_path)) {
+              fs.unlinkSync(file.storage_path);
+              console.log(`[TDDF-API-DELETE] Deleted file: ${file.storage_path}`);
+            }
+          } catch (error) {
+            console.error(`[TDDF-API-DELETE] Error deleting file ${file.storage_path}:`, error);
+          }
+        });
+
+        // Delete from queue first (foreign key constraint)
+        await pool.query(`
+          DELETE FROM dev_tddf_api_queue 
+          WHERE file_id IN (${placeholders})
+        `, validFileIds);
+
+        // Delete from files table
+        const deleteResult = await pool.query(`
+          DELETE FROM dev_tddf_api_files 
+          WHERE id IN (${placeholders})
+        `, validFileIds);
+
+        await pool.query('COMMIT');
+
+        console.log(`[TDDF-API-DELETE] Successfully deleted ${deleteResult.rowCount} files`);
+        res.json({ 
+          success: true, 
+          deletedCount: deleteResult.rowCount,
+          message: `Successfully deleted ${deleteResult.rowCount} file(s)` 
+        });
+
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
+      }
+
+    } catch (error) {
+      console.error('Error deleting TDDF API files:', error);
+      res.status(500).json({ error: 'Failed to delete files' });
+    }
+  });
+
   // Get records with dynamic field selection
   app.get('/api/tddf-api/records/:fileId', isAuthenticated, async (req, res) => {
     try {
