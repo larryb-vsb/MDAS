@@ -71,6 +71,8 @@ const formatFileSize = (bytes: number | null | undefined): string => {
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 };
 
+
+
 const formatDuration = (startTime: string | Date, endTime?: string | Date): string => {
   const start = new Date(startTime);
   const end = endTime ? new Date(endTime) : new Date();
@@ -82,6 +84,21 @@ const formatDuration = (startTime: string | Date, endTime?: string | Date): stri
     return `${diffMin}m ${diffSec % 60}s`;
   }
   return `${diffSec}s`;
+};
+
+// Format processing duration for timing logs display
+const formatProcessingDuration = (durationSeconds: number): string => {
+  const hours = Math.floor(durationSeconds / 3600);
+  const minutes = Math.floor((durationSeconds % 3600) / 60);
+  const seconds = Math.floor(durationSeconds % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
 };
 
 // Storage status bulb color determination
@@ -2624,6 +2641,9 @@ export default function MMSUploader() {
                               <span>Started {upload.uploadStartedAt ? new Date(upload.uploadStartedAt).toLocaleDateString() + ' ' + new Date(upload.uploadStartedAt).toLocaleTimeString() : 'recently'}</span>
                               <span>Duration: {upload.uploadStartedAt ? formatDuration(upload.uploadStartedAt, upload.uploadedAt || new Date()) : '0s'}</span>
                               {upload.lineCount && upload.lineCount > 0 && <span>{upload.lineCount.toLocaleString()} lines</span>}
+                              {(upload.currentPhase === 'encoded' || upload.currentPhase === 'completed') && (
+                                <span className="text-blue-600">encoding - view timing logs</span>
+                              )}
                               {/* Processing Notes for Cross-Env Transfer */}
                               {upload.sessionId === 'cross_env_transfer' && upload.processingNotes && (
                                 <span className="text-purple-600 text-xs">

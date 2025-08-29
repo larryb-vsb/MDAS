@@ -13022,8 +13022,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/uploader/:id/timing-logs", async (req, res) => {
     try {
       const { id } = req.params;
-      const { getTableName } = await import("./table-config");
-      const timingTableName = getTableName('processing_timing_logs');
+      // Use direct table name since this is a dev-only feature for now
+      const timingTableName = 'dev_processing_timing_logs';
       
       const result = await pool.query(`
         SELECT 
