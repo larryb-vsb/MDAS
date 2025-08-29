@@ -317,7 +317,7 @@ export default function TddfJsonViewerPage() {
   
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
-  const [pageSize, setPageSize] = useState(2000); // Dynamic page size - show more records
+  const [pageSize, setPageSize] = useState(10000); // Dynamic page size - show all records up to 10K
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -771,6 +771,9 @@ export default function TddfJsonViewerPage() {
                   <SelectItem value="200">200</SelectItem>
                   <SelectItem value="500">500</SelectItem>
                   <SelectItem value="1000">1000</SelectItem>
+                  <SelectItem value="2000">2000</SelectItem>
+                  <SelectItem value="5000">5000</SelectItem>
+                  <SelectItem value="10000">All (10K)</SelectItem>
                 </SelectContent>
               </Select>
             )}
