@@ -12750,6 +12750,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       params.push(limit as string, offset as string);
       
       console.log(`[JSONB-API] Executing query with ${params.length} parameters`);
+      console.log(`[JSONB-API] Final query: ${query}`);
+      console.log(`[JSONB-API] Query params: ${JSON.stringify(params)}`);
+      
       const result = await pool.query(query, params);
       console.log(`[JSONB-API] Query returned ${result.rows.length} rows`);
       
