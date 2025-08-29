@@ -2910,17 +2910,32 @@ export default function MMSUploader() {
       </Dialog>
       
       {/* JSONB Data Viewer Modal */}
-      {selectedUploadForJsonb && (
-        <TddfJsonViewer
-          uploadId={selectedUploadForJsonb.id}
-          filename={selectedUploadForJsonb.filename}
-          isOpen={jsonbViewerOpen}
-          onClose={() => {
-            setJsonbViewerOpen(false);
-            setSelectedUploadForJsonb(null);
-          }}
-        />
-      )}
+      <Dialog open={jsonbViewerOpen && !!selectedUploadForJsonb} onOpenChange={(open) => {
+        if (!open) {
+          setJsonbViewerOpen(false);
+          setSelectedUploadForJsonb(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>TDDF JSONB Data Viewer</DialogTitle>
+            <DialogDescription>
+              View hierarchical TDDF file structure and extracted field data
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUploadForJsonb && (
+            <TddfJsonViewer
+              uploadId={selectedUploadForJsonb.id}
+              filename={selectedUploadForJsonb.filename}
+              isOpen={jsonbViewerOpen}
+              onClose={() => {
+                setJsonbViewerOpen(false);
+                setSelectedUploadForJsonb(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
