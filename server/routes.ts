@@ -12643,28 +12643,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Re-encode upload with real data (debug endpoint) - temporarily bypass auth for testing
+  // Re-encode upload with sample JSONB data (simplified version)
   app.post("/api/uploader/:id/re-encode", async (req, res) => {
     try {
       const { id } = req.params;
-      
-      console.log(`[RE-ENCODE] Starting re-encoding for upload ${id}`);
+      console.log(`[RE-ENCODE] Starting simplified re-encoding for upload ${id}`);
       
       // Get upload info
       const upload = await storage.getUploaderUploadById(id);
       if (!upload) {
         return res.status(404).json({ error: "Upload not found" });
       }
-      
-      // For testing JSONB functionality, create sample TDDF records
-      console.log(`[RE-ENCODE] Creating sample JSONB records for testing...`);
-      
-      // Skip storage reading for now and create sample JSONB data directly
-      console.log(`[RE-ENCODE] Creating sample JSONB records to demonstrate functionality`);
-      
-      // Skip the TDDF1 file-based encoding and go straight to JSONB creation
-      
-      console.log(`[RE-ENCODE] Creating JSONB records for viewer...`);
       
       // Clear existing JSONB records for this upload
       const { getTableName } = await import("./table-config");
@@ -12677,46 +12666,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn(`[RE-ENCODE] Could not clear existing JSONB records: ${clearError.message}`);
       }
       
-      // Create sample JSONB records directly for testing
-      const sampleTddfLines = [
+      // Create sample JSONB records for testing
+      const sampleLines = [
         "10832000011          00011  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "47832000011          000000000000000002000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "47832000011          000000000000000003000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "98832000011          00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
       ];
       
-      let jsonbRecordsCreated = 0;
+      let recordsCreated = 0;
       
-      for (let i = 0; i < sampleTddfLines.length; i++) {
-        const line = sampleTddfLines[i];
+      for (let i = 0; i < sampleLines.length; i++) {
+        const line = sampleLines[i];
+        const recordType = line.substring(0, 2);
+        
+        const recordData = {
+          line_length: line.length,
+          record_type_code: recordType,
+          record_type_name: recordType === '10' ? 'Header Record' : 
+                            recordType === '47' ? 'Detail Transaction Record' : 
+                            recordType === '98' ? 'Trailer Record' : 'Unknown Record',
+          field_count: 15,
+          sample_fields: {
+            record_type: recordType,
+            sequence_number: line.substring(2, 12),
+            data_field_1: line.substring(12, 25),
+            data_field_2: line.substring(25, 35)
+          },
+          raw_content: line,
+          parsed_at: new Date().toISOString()
+        };
         
         try {
-          // Basic TDDF record parsing
-          const recordType = line.substring(0, 2);
-          const recordData = {
-            line_length: line.length,
-            record_type_code: recordType,
-            record_type_name: recordType === '10' ? 'Header Record' : 
-                              recordType === '47' ? 'Detail Transaction Record' : 
-                              recordType === '98' ? 'Trailer Record' : 'Unknown Record',
-            field_count: 15, // Sample field count
-            sample_fields: {
-              record_type: recordType,
-              sequence_number: line.substring(2, 12),
-              data_field_1: line.substring(12, 25),
-              data_field_2: line.substring(25, 35)
-            },
-            raw_content: line,
-            parsed_at: new Date().toISOString()
-          };
-          
-          // Insert JSONB record using direct connection to ensure proper table access
-          const { Pool } = await import('@neondatabase/serverless');
-          const directPool = new Pool({ 
-            connectionString: process.env.NEON_DEV_DATABASE_URL || process.env.DATABASE_URL 
-          });
-          
-          await directPool.query(`
+          await pool.query(`
             INSERT INTO ${jsonbTableName} 
             (upload_id, record_type, record_data, record_identifier, line_number, raw_line, field_count)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -12727,25 +12709,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `${recordType}-${i + 1}`,
             i + 1,
             line,
-            Object.keys(recordData).length
+            15
           ]);
           
-          jsonbRecordsCreated++;
-          
-          await directPool.end();
-        } catch (jsonbError: any) {
-          console.warn(`[RE-ENCODE] Failed to create JSONB record for line ${i + 1}: ${jsonbError.message}`);
+          recordsCreated++;
+        } catch (insertError: any) {
+          console.warn(`[RE-ENCODE] Failed to insert record ${i + 1}: ${insertError.message}`);
         }
       }
       
-      console.log(`[RE-ENCODE] Created ${jsonbRecordsCreated} JSONB records`);
+      console.log(`[RE-ENCODE] Created ${recordsCreated} sample JSONB records for testing`);
       
       res.json({
         success: true,
-        message: `Created ${jsonbRecordsCreated} sample JSONB records for testing`,
-        jsonbRecordsCreated: jsonbRecordsCreated,
-        jsonbTableName: jsonbTableName,
-        sampleData: true
+        message: `Created ${recordsCreated} sample JSONB records for testing`,
+        jsonbRecordsCreated: recordsCreated,
+        jsonbTableName: jsonbTableName
       });
       
     } catch (error: any) {
