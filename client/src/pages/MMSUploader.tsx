@@ -191,11 +191,53 @@ export default function MMSUploader() {
   // JSONB Query tab state
   const [jsonbSelectedUploadId, setJsonbSelectedUploadId] = useState<string>('');
   const [jsonbMerchantNameQuery, setJsonbMerchantNameQuery] = useState<string>('');
+  const [jsonbMerchantAccountQuery, setJsonbMerchantAccountQuery] = useState<string>('');
   const [jsonbQueryResults, setJsonbQueryResults] = useState<any[]>([]);
   const [jsonbIsQuerying, setJsonbIsQuerying] = useState(false);
   const [jsonbCurrentPage, setJsonbCurrentPage] = useState(0);
   const [jsonbPageSize] = useState(50);
   const [jsonbTotalResults, setJsonbTotalResults] = useState(0);
+
+  // JSONB search handler function
+  const handleJsonbSearch = async () => {
+    if (!jsonbSelectedUploadId || (!jsonbMerchantNameQuery.trim() && !jsonbMerchantAccountQuery.trim())) {
+      toast({
+        title: "Search Requirements",
+        description: "Please select a file and enter a merchant name or account number to search",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setJsonbIsQuerying(true);
+    try {
+      const params = new URLSearchParams({
+        limit: jsonbPageSize.toString(),
+        offset: (jsonbCurrentPage * jsonbPageSize).toString()
+      });
+
+      if (jsonbMerchantNameQuery.trim()) {
+        params.append('merchantName', jsonbMerchantNameQuery.trim());
+      }
+      if (jsonbMerchantAccountQuery.trim()) {
+        params.append('merchantAccountNumber', jsonbMerchantAccountQuery.trim());
+      }
+
+      const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
+      setJsonbQueryResults(response.data || []);
+      setJsonbTotalResults(response.total || response.data?.length || 0);
+    } catch (error: any) {
+      toast({
+        title: "Query Failed", 
+        description: error.message || "Failed to search merchant data",
+        variant: "destructive"
+      });
+      setJsonbQueryResults([]);
+      setJsonbTotalResults(0);
+    } finally {
+      setJsonbIsQuerying(false);
+    }
+  };
 
   // Sub Terminals tab state
   const [editingTerminal, setEditingTerminal] = useState<any>(null);
@@ -2887,10 +2929,12 @@ export default function MMSUploader() {
                 )}
               </div>
 
-              {/* Merchant Name Query */}
-              <div className="space-y-2">
-                <Label htmlFor="merchant-query">Merchant Name</Label>
-                <div className="flex gap-2">
+              {/* Search Queries */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Merchant Name Search */}
+                <div className="space-y-2">
+                  <Label htmlFor="merchant-query">Merchant Name</Label>
+                  <div className="flex gap-2">
                   <Input
                     id="merchant-query"
                     placeholder="Enter merchant name to search..."
@@ -2898,78 +2942,17 @@ export default function MMSUploader() {
                     onChange={(e) => setJsonbMerchantNameQuery(e.target.value)}
                     onKeyPress={async (e) => {
                       if (e.key === 'Enter') {
-                        if (!jsonbSelectedUploadId || !jsonbMerchantNameQuery.trim()) {
-                          toast({
-                            title: "Search Requirements",
-                            description: "Please select a file and enter a merchant name to search",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-
-                        setJsonbIsQuerying(true);
-                        try {
-                          const params = new URLSearchParams({
-                            limit: jsonbPageSize.toString(),
-                            offset: (jsonbCurrentPage * jsonbPageSize).toString(),
-                            merchantName: jsonbMerchantNameQuery.trim()
-                          });
-
-                          const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
-                          setJsonbQueryResults(response.data || []);
-                          setJsonbTotalResults(response.total || response.data?.length || 0);
-                        } catch (error: any) {
-                          toast({
-                            title: "Query Failed", 
-                            description: error.message || "Failed to search merchant data",
-                            variant: "destructive"
-                          });
-                          setJsonbQueryResults([]);
-                          setJsonbTotalResults(0);
-                        } finally {
-                          setJsonbIsQuerying(false);
-                        }
+                        await handleJsonbSearch();
                       }
                     }}
                   />
-                  <Button onClick={async () => {
-                    if (!jsonbSelectedUploadId || !jsonbMerchantNameQuery.trim()) {
-                      toast({
-                        title: "Search Requirements",
-                        description: "Please select a file and enter a merchant name to search",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-
-                    setJsonbIsQuerying(true);
-                    try {
-                      const params = new URLSearchParams({
-                        limit: jsonbPageSize.toString(),
-                        offset: (jsonbCurrentPage * jsonbPageSize).toString(),
-                        merchantName: jsonbMerchantNameQuery.trim()
-                      });
-
-                      const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
-                      setJsonbQueryResults(response.data || []);
-                      setJsonbTotalResults(response.total || response.data?.length || 0);
-                    } catch (error: any) {
-                      toast({
-                        title: "Query Failed", 
-                        description: error.message || "Failed to search merchant data",
-                        variant: "destructive"
-                      });
-                      setJsonbQueryResults([]);
-                      setJsonbTotalResults(0);
-                    } finally {
-                      setJsonbIsQuerying(false);
-                    }
-                  }} disabled={jsonbIsQuerying}>
+                  <Button onClick={handleJsonbSearch} disabled={jsonbIsQuerying}>
                     <Search className="h-4 w-4 mr-2" />
                     {jsonbIsQuerying ? 'Searching...' : 'Search'}
                   </Button>
                   <Button variant="outline" onClick={() => {
                     setJsonbMerchantNameQuery('');
+                    setJsonbMerchantAccountQuery('');
                     setJsonbQueryResults([]);
                     setJsonbTotalResults(0);
                     setJsonbCurrentPage(0);
@@ -2977,6 +2960,29 @@ export default function MMSUploader() {
                     <X className="h-4 w-4 mr-2" />
                     Clear
                   </Button>
+                </div>
+                </div>
+
+                {/* Merchant Account Number Search */}
+                <div className="space-y-2">
+                  <Label htmlFor="merchant-account-query">Merchant Account Number</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="merchant-account-query"
+                      placeholder="Enter merchant account number..."
+                      value={jsonbMerchantAccountQuery}
+                      onChange={(e) => setJsonbMerchantAccountQuery(e.target.value)}
+                      onKeyPress={async (e) => {
+                        if (e.key === 'Enter') {
+                          await handleJsonbSearch();
+                        }
+                      }}
+                    />
+                    <Button onClick={handleJsonbSearch} disabled={jsonbIsQuerying}>
+                      <Search className="h-4 w-4 mr-2" />
+                      {jsonbIsQuerying ? 'Searching...' : 'Search'}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -3089,23 +3095,23 @@ export default function MMSUploader() {
               )}
 
               {/* No Results Message */}
-              {!jsonbIsQuerying && jsonbMerchantNameQuery && jsonbQueryResults.length === 0 && jsonbTotalResults === 0 && (
+              {!jsonbIsQuerying && (jsonbMerchantNameQuery || jsonbMerchantAccountQuery) && jsonbQueryResults.length === 0 && jsonbTotalResults === 0 && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    No records found for merchant name "{jsonbMerchantNameQuery}". Try a different search term.
+                    No records found for "{jsonbMerchantNameQuery || jsonbMerchantAccountQuery}". Try a different search term.
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Usage Instructions */}
-              {jsonbQueryResults.length === 0 && !jsonbMerchantNameQuery && (
+              {jsonbQueryResults.length === 0 && !jsonbMerchantNameQuery && !jsonbMerchantAccountQuery && (
                 <Alert>
                   <Lightbulb className="h-4 w-4" />
                   <AlertDescription>
                     <strong>How to use:</strong> Select an encoded TDDF file from the dropdown, 
-                    then enter a merchant name to search through all JSONB records. 
-                    This will search merchant account numbers and related fields.
+                    then enter a merchant name or account number to search through all JSONB records. 
+                    You can search by merchant name, account number, or both.
                   </AlertDescription>
                 </Alert>
               )}

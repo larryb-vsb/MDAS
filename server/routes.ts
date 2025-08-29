@@ -13208,7 +13208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/uploader/:id/jsonb-data", async (req, res) => {
     try {
       const { id } = req.params;
-      const { limit = '50', offset = '0', recordType } = req.query;
+      const { limit = '50', offset = '0', recordType, merchantName, merchantAccountNumber } = req.query;
       
       console.log(`[JSONB-API] ✅ Authentication passed! Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
       console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
@@ -13322,6 +13322,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paramIndex++;
       }
       
+      // Add merchant name search (search in JSON fields)
+      if (merchantName) {
+        query += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
+          OR record_data->'extractedFields'->>'merchantName' ILIKE $${paramIndex + 2}
+          OR raw_line ILIKE $${paramIndex + 3}
+        )`;
+        const searchPattern = `%${merchantName}%`;
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        paramIndex += 4;
+      }
+      
+      // Add merchant account number search  
+      if (merchantAccountNumber) {
+        query += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${paramIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${paramIndex + 1}
+        )`;
+        const accountPattern = `%${merchantAccountNumber}%`;
+        params.push(accountPattern, accountPattern);
+        paramIndex += 2;
+      }
+      
+      // Add count query for pagination
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${tableName} 
+        WHERE upload_id = $1
+      `;
+      const countParams = [id];
+      let countParamIndex = 2;
+      
+      if (recordType && recordType !== 'all') {
+        countQuery += ` AND record_type = $${countParamIndex}`;
+        countParams.push(recordType as string);
+        countParamIndex++;
+      }
+      
+      if (merchantName) {
+        countQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
+          OR record_data->'extractedFields'->>'merchantName' ILIKE $${countParamIndex + 2}
+          OR raw_line ILIKE $${countParamIndex + 3}
+        )`;
+        const searchPattern = `%${merchantName}%`;
+        countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        countParamIndex += 4;
+      }
+      
+      if (merchantAccountNumber) {
+        countQuery += ` AND (
+          record_data->>'merchantAccountNumber' ILIKE $${countParamIndex}
+          OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $${countParamIndex + 1}
+        )`;
+        const accountPattern = `%${merchantAccountNumber}%`;
+        countParams.push(accountPattern, accountPattern);
+        countParamIndex += 2;
+      }
+      
       query += ` ORDER BY id ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit as string, offset as string);
       
@@ -13370,17 +13431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Also get total count
-      let countQuery = `SELECT COUNT(*) as total FROM ${tableName} WHERE upload_id = $1`;
-      const countParams = [id];
-      
-      if (recordType && recordType !== 'all') {
-        countQuery += ` AND record_type = $2`;
-        countParams.push(recordType as string);
-      }
-      
-      // At this point schema check passed, so we can proceed with count query
-      
+      // Execute main query and count query
       const countResult = await directPool.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].total);
       
