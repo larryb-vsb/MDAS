@@ -12725,14 +12725,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
       
       const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_tddf_jsonb' : 'tddf_jsonb';
+      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
       
       console.log(`[JSONB-API] Detected environment: "${environment}", selected table: "${tableName}"`);
       
       let query = `
         SELECT 
           id, upload_id, record_type, line_number, raw_line,
-          extracted_fields, record_identifier, processing_time_ms, created_at
+          record_data as extracted_fields, record_identifier, field_count as processing_time_ms, created_at
         FROM ${tableName} 
         WHERE upload_id = $1
       `;
