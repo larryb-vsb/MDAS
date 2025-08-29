@@ -21282,6 +21282,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TDDF API - Get file content endpoint
+  app.get('/api/tddf-api/files/:fileId/content', isAuthenticated, async (req, res) => {
+    try {
+      const fileId = parseInt(req.params.fileId);
+      
+      if (!fileId || isNaN(fileId)) {
+        return res.status(400).json({ error: 'Valid file ID is required' });
+      }
+
+      // Get file information
+      const fileResult = await pool.query(`
+        SELECT id, filename, original_name, storage_path, file_size 
+        FROM dev_tddf_api_files 
+        WHERE id = $1
+      `, [fileId]);
+
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const file = fileResult.rows[0];
+      
+      // Check if file exists on filesystem
+      if (!file.storage_path || !fs.existsSync(file.storage_path)) {
+        return res.status(404).json({ error: 'File not found on storage' });
+      }
+
+      // Read file content with size limit for viewing
+      const maxSize = 10 * 1024 * 1024; // 10MB limit for viewing
+      if (file.file_size > maxSize) {
+        // For large files, read only first portion
+        const buffer = Buffer.alloc(maxSize);
+        const fd = fs.openSync(file.storage_path, 'r');
+        const bytesRead = fs.readSync(fd, buffer, 0, maxSize, 0);
+        fs.closeSync(fd);
+        
+        const content = buffer.toString('utf8', 0, bytesRead);
+        const truncatedMessage = `\n\n... [File truncated - showing first ${maxSize} bytes of ${file.file_size} total bytes]`;
+        
+        res.set('Content-Type', 'text/plain; charset=utf-8');
+        res.send(content + truncatedMessage);
+      } else {
+        // Read entire file for smaller files
+        const content = fs.readFileSync(file.storage_path, 'utf8');
+        res.set('Content-Type', 'text/plain; charset=utf-8');
+        res.send(content);
+      }
+
+    } catch (error) {
+      console.error('Error reading TDDF API file content:', error);
+      res.status(500).json({ error: 'Failed to read file content' });
+    }
+  });
+
   // Get records with dynamic field selection
   app.get('/api/tddf-api/records/:fileId', isAuthenticated, async (req, res) => {
     try {

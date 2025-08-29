@@ -99,6 +99,11 @@ export default function TddfApiDataPage() {
   // Drag and drop state
   const [isDragOver, setIsDragOver] = useState(false);
   
+  // File viewer state
+  const [viewFileDialog, setViewFileDialog] = useState(false);
+  const [selectedFileForView, setSelectedFileForView] = useState<TddfApiFile | null>(null);
+  const [fileContent, setFileContent] = useState<string>("");
+  
   // Date filtering state
   const [dateFilters, setDateFilters] = useState({
     dateFrom: "",
@@ -357,6 +362,25 @@ export default function TddfApiDataPage() {
     if (files.length > 0) {
       const file = files[0]; // Take the first file
       setUploadFile(file);
+    }
+  };
+
+  // File viewing handler
+  const handleViewFile = async (file: TddfApiFile) => {
+    setSelectedFileForView(file);
+    setViewFileDialog(true);
+    setFileContent("Loading...");
+    
+    try {
+      const response = await fetch(`/api/tddf-api/files/${file.id}/content`);
+      if (response.ok) {
+        const content = await response.text();
+        setFileContent(content);
+      } else {
+        setFileContent("Error loading file content");
+      }
+    } catch (error) {
+      setFileContent("Error loading file content");
     }
   };
 
@@ -947,10 +971,15 @@ export default function TddfApiDataPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewFile(file)}
+                              title="View raw file contents"
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" title="Download file">
                               <Download className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
@@ -1308,6 +1337,23 @@ export default function TddfApiDataPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* File Viewer Dialog */}
+      <Dialog open={viewFileDialog} onOpenChange={setViewFileDialog}>
+        <DialogContent className="max-w-6xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Raw File Contents</DialogTitle>
+            <DialogDescription>
+              {selectedFileForView?.original_name} - {selectedFileForView ? formatFileSize(selectedFileForView.file_size) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] w-full">
+            <pre className="text-xs font-mono whitespace-pre-wrap p-4 bg-muted rounded-md">
+              {fileContent}
+            </pre>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
