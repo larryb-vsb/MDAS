@@ -317,7 +317,7 @@ export default function TddfJsonViewerPage() {
   
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedRecordType, setSelectedRecordType] = useState<string>('');
-  const [pageSize] = useState(50); // Increased for full page view
+  const [pageSize, setPageSize] = useState(50); // Dynamic page size
   const [isReEncoding, setIsReEncoding] = useState(false);
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
@@ -755,10 +755,33 @@ export default function TddfJsonViewerPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Page Size Selector for Large Files */}
+            {totalRecords > 1000 && (
+              <Select value={pageSize.toString()} onValueChange={(value) => {
+                setPageSize(parseInt(value));
+                setCurrentPage(0);
+              }}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1000</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             
             <div className="text-sm text-gray-600">
-              {viewMode === 'tree' ? 'Hierarchical view' : `Showing ${records.length} of ${totalRecords} records`}
+              {viewMode === 'tree' ? 'Hierarchical view' : 
+                `Showing ${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalRecords)} of ${totalRecords.toLocaleString()} records`}
               {selectedRecordType && ` (${selectedRecordType} type)`}
+              {totalRecords > 10000 && (
+                <span className="ml-2 text-blue-600 font-medium">Large dataset - use filters and pagination</span>
+              )}
             </div>
           </div>
 
@@ -794,27 +817,71 @@ export default function TddfJsonViewerPage() {
               </Badge>
             )}
             
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handlePreviousPage}
-              disabled={currentPage === 0 || viewMode === 'tree'}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-            <span className="text-sm px-3">
-              {viewMode === 'tree' ? 'All' : `Page ${currentPage + 1} of ${Math.max(totalPages, 1)}`}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleNextPage}
-              disabled={currentPage >= totalPages - 1 || viewMode === 'tree'}
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            {/* Enhanced Pagination for Large Datasets */}
+            {viewMode === 'flat' && (
+              <>
+                {/* First/Previous */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(0)}
+                  disabled={currentPage === 0}
+                  className="flex items-center gap-1"
+                >
+                  First
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                {/* Page Info with Jump */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Page</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    value={currentPage + 1}
+                    onChange={(e) => {
+                      const page = parseInt(e.target.value) - 1;
+                      if (page >= 0 && page < totalPages) {
+                        setCurrentPage(page);
+                      }
+                    }}
+                    className="w-16 px-2 py-1 text-sm border rounded text-center"
+                  />
+                  <span className="text-sm">of {totalPages.toLocaleString()}</span>
+                </div>
+                
+                {/* Next/Last */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages - 1}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setCurrentPage(totalPages - 1)}
+                  disabled={currentPage >= totalPages - 1}
+                  className="flex items-center gap-1"
+                >
+                  Last
+                </Button>
+              </>
+            )}
+            
+            {viewMode === 'tree' && (
+              <span className="text-sm px-3">Hierarchical View</span>
+            )}
           </div>
         </div>
 
