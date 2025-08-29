@@ -8963,6 +8963,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get processing status for real-time monitor
+  app.get("/api/uploader/processing-status", isAuthenticated, async (req, res) => {
+    try {
+      const uploaderTableName = getTableName('uploader_uploads');
+      const tddfJsonbTableName = getTableName('uploader_tddf_jsonb_records');
+      
+      // Get processing statistics
+      const statusResult = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN current_phase IN ('encoding', 'processing', 'uploading') THEN 1 END) as active_processing,
+          COUNT(CASE WHEN current_phase IN ('uploaded', 'identified') THEN 1 END) as queued_files,
+          COUNT(CASE WHEN current_phase IN ('completed', 'encoded') AND last_updated > NOW() - INTERVAL '1 hour' THEN 1 END) as recently_completed,
+          MAX(last_updated) as last_activity
+        FROM ${uploaderTableName}
+      `);
+      
+      // Get TDDF records count on King server
+      const tddfCountResult = await pool.query(`
+        SELECT COUNT(*) as record_count 
+        FROM ${tddfJsonbTableName}
+      `);
+      
+      const stats = statusResult.rows[0];
+      const tddfCount = tddfCountResult.rows[0];
+      
+      const processingStatus = {
+        activeProcessing: parseInt(stats.active_processing || 0) > 0,
+        queuedFiles: parseInt(stats.queued_files || 0),
+        recentlyCompleted: parseInt(stats.recently_completed || 0),
+        systemStatus: parseInt(stats.active_processing || 0) > 0 ? 'busy' : 'healthy',
+        tddfRecordsCount: parseInt(tddfCount.record_count || 0),
+        lastActivity: stats.last_activity,
+        timestamp: new Date().toISOString()
+      };
+      
+      res.json(processingStatus);
+    } catch (error) {
+      console.error('Error fetching processing status:', error);
+      res.status(500).json({ error: 'Failed to fetch processing status' });
+    }
+  });
+
   // Get last new data date from uploader uploads
   app.get("/api/uploader/last-new-data-date", isAuthenticated, async (req, res) => {
     try {

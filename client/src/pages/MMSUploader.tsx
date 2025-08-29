@@ -23,6 +23,7 @@ import ObjectStorageFileBrowser from '@/components/storage/ObjectStorageFileBrow
 import OrphanFileUploader from '@/components/uploads/OrphanFileUploader';
 import OrphanFilesDetector from '@/components/uploads/OrphanFilesDetector';
 import CrossEnvironmentTransfer from '@/components/uploads/CrossEnvironmentTransfer';
+import ProcessingMonitor from '@/components/uploads/ProcessingMonitor';
 import { formatDistanceToNow } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
@@ -2834,17 +2835,7 @@ export default function MMSUploader() {
         </TabsContent>
 
         <TabsContent value="monitor" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Processing Monitor</CardTitle>
-              <CardDescription>Monitor and track file processing status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Processing monitor functionality coming soon
-              </div>
-            </CardContent>
-          </Card>
+          <ProcessingMonitor />
         </TabsContent>
 
         <TabsContent value="phases" className="space-y-4">
