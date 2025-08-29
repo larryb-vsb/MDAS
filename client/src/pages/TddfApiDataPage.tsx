@@ -911,7 +911,7 @@ export default function TddfApiDataPage() {
                     <TableHead>Size</TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Records</TableHead>
+                    <TableHead>Lines</TableHead>
                     <TableHead>Progress</TableHead>
                     <TableHead>Uploaded</TableHead>
                     <TableHead>Actions</TableHead>
