@@ -12672,19 +12672,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fileContent = '';
       try {
         // Try to get file content from storage using ReplitStorageService
-        const storageService = new ReplitStorageService();
         const storagePath = upload.storagePath || `${upload.filename}`;
-        fileContent = await storageService.readFileAsString(storagePath);
+        console.log(`[RE-ENCODE] Attempting to read from storage path: ${storagePath}`);
+        fileContent = await ReplitStorageService.getFileContent(storagePath);
         console.log(`[RE-ENCODE] Successfully read ${fileContent.length} characters from storage`);
       } catch (storageError: any) {
         console.warn(`[RE-ENCODE] Could not read from storage: ${storageError.message}`);
-        // Fall back to using encodeTddfToJsonbDirect which might have sample data handling
+        // Fall back to using encodeTddfToJsonbDirect with proper parameters
         try {
-          const result = await encodeTddfToJsonbDirect(id, upload.filename);
+          const result = await encodeTddfToJsonbDirect(upload.filename, fileContent || undefined, {
+            uploadId: id,
+            tableName: jsonbTableName
+          });
           if (result.success) {
             return res.json({
               success: true,
-              message: result.message,
+              message: `Processed with encoder: ${result.message}`,
               jsonbRecordsCreated: result.recordsCreated,
               jsonbTableName: jsonbTableName
             });
