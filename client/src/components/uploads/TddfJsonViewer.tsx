@@ -230,9 +230,9 @@ export default function TddfJsonViewer({ uploadId, filename, isOpen, onClose }: 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {allRecordTypes?.map((type: string) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                  {allRecordTypes?.map((type) => (
+                    <SelectItem key={type as string} value={type as string}>
+                      {type as string}
                     </SelectItem>
                   ))}
                 </SelectContent>

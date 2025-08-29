@@ -12,7 +12,7 @@ export class ReplitStorageService {
         
         if (bucketId) {
           console.log(`[REPLIT-STORAGE] Initializing with bucket ID: ${bucketId}`);
-          this.client = new Client({ bucket_id: bucketId });
+          this.client = new Client({ bucketId: bucketId });
         } else {
           console.log('[REPLIT-STORAGE] No bucket ID found, using default configuration');
           this.client = new Client();
@@ -170,7 +170,21 @@ export class ReplitStorageService {
       const result = await client.downloadAsBytes(key);
       
       if (result.ok) {
-        const content = result.value.toString('utf8');
+        // Convert the downloaded bytes to string properly
+        let content: string;
+        if (Buffer.isBuffer(result.value)) {
+          // If it's already a Buffer, convert directly
+          content = result.value.toString('utf-8');
+        } else if (result.value instanceof ArrayBuffer) {
+          // If it's an ArrayBuffer, convert via Buffer
+          content = Buffer.from(result.value).toString('utf-8');
+        } else if (result.value instanceof Uint8Array) {
+          // If it's a Uint8Array, convert via Buffer
+          content = Buffer.from(result.value).toString('utf-8');
+        } else {
+          // Fallback for other types
+          content = String(result.value);
+        }
         console.log(`[REPLIT-STORAGE] File content read successfully: ${key} (${content.length} chars)`);
         return content;
       } else {
