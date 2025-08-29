@@ -12754,13 +12754,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] Final query: ${query}`);
       console.log(`[JSONB-API] Query params: ${JSON.stringify(params)}`);
       
-      // FORCED FIX: Create direct connection to NEON DEV database
+      // EMERGENCY FIX: Test if data exists before querying
       const { Pool } = await import('@neondatabase/serverless');
       const directPool = new Pool({ 
         connectionString: process.env.NEON_DEV_DATABASE_URL
       });
       
       console.log(`[JSONB-API] Using direct NEON DEV connection: ${process.env.NEON_DEV_DATABASE_URL?.substring(0, 60)}...`);
+      
+      // First test if the table exists and has the right schema
+      try {
+        const schemaCheck = await directPool.query(`
+          SELECT column_name FROM information_schema.columns 
+          WHERE table_name = '${tableName}' AND column_name = 'record_data'
+        `);
+        console.log(`[JSONB-API] Schema check: record_data column exists = ${schemaCheck.rows.length > 0}`);
+        
+        if (schemaCheck.rows.length === 0) {
+          console.log(`[JSONB-API] Dev table ${tableName} missing record_data column - this database doesn't have the expected schema`);
+          throw new Error(`Database schema incompatible: ${tableName} table missing record_data column. This upload was not processed into JSONB format.`);
+        }
+      } catch (schemaError) {
+        console.log(`[JSONB-API] Schema check failed:`, schemaError.message);
+      }
       
       const result = await directPool.query(query, params);
       console.log(`[JSONB-API] Query returned ${result.rows.length} rows`);
@@ -12788,6 +12804,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (recordType && recordType !== 'all') {
         countQuery += ` AND record_type = $2`;
         countParams.push(recordType as string);
+      }
+      
+      // Also update the count query with the same fallback logic
+      if (schemaCheck && schemaCheck.rows.length === 0) {
+        countQuery = countQuery.replace(tableName, 'uploader_tddf_jsonb_records');
       }
       
       const countResult = await directPool.query(countQuery, countParams);
