@@ -10824,7 +10824,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM ${tableName} tjr
         LEFT JOIN ${getTableName('uploader_uploads')} uu ON uu.id = tjr.upload_id
         WHERE (
-          tjr.record_data->>'merchantAccountNumber' ILIKE $1
+          tjr.merchant_account_number ILIKE $1
+          OR tjr.record_data->>'merchantAccountNumber' ILIKE $1
           OR tjr.record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $1
           OR tjr.raw_line ILIKE $1
         )
@@ -10836,7 +10837,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT COUNT(*) as total
         FROM ${tableName} 
         WHERE (
-          record_data->>'merchantAccountNumber' ILIKE $1
+          merchant_account_number ILIKE $1
+          OR record_data->>'merchantAccountNumber' ILIKE $1
           OR record_data->'extractedFields'->>'merchantAccountNumber' ILIKE $1
           OR raw_line ILIKE $1
         )
