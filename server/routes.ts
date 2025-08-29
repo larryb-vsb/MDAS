@@ -12666,18 +12666,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn(`[RE-ENCODE] Could not clear existing JSONB records: ${clearError.message}`);
       }
       
-      // Create sample JSONB records for testing
-      const sampleLines = [
-        "10832000011          00011  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        "47832000011          000000000000000002000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        "47832000011          000000000000000003000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        "98832000011          00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-      ];
+      // Read actual file content from storage and process it
+      console.log(`[RE-ENCODE] Reading file content for upload ${id} from storage`);
+      
+      let fileContent = '';
+      try {
+        // Try to get file content from storage using ReplitStorageService
+        const storageService = new ReplitStorageService();
+        const storagePath = upload.storagePath || `${upload.filename}`;
+        fileContent = await storageService.readFileAsString(storagePath);
+        console.log(`[RE-ENCODE] Successfully read ${fileContent.length} characters from storage`);
+      } catch (storageError: any) {
+        console.warn(`[RE-ENCODE] Could not read from storage: ${storageError.message}`);
+        // Fall back to using encodeTddfToJsonbDirect which might have sample data handling
+        try {
+          const result = await encodeTddfToJsonbDirect(id, upload.filename);
+          if (result.success) {
+            return res.json({
+              success: true,
+              message: result.message,
+              jsonbRecordsCreated: result.recordsCreated,
+              jsonbTableName: jsonbTableName
+            });
+          }
+        } catch (encodeError: any) {
+          console.warn(`[RE-ENCODE] Encoding fallback failed: ${encodeError.message}`);
+        }
+        
+        // Final fallback to error response
+        return res.status(500).json({ 
+          error: "Could not read file content from storage or process with encoder",
+          details: storageError.message
+        });
+      }
+      
+      // Process each line from the actual file content
+      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+      console.log(`[RE-ENCODE] Processing ${lines.length} lines from actual file content`);
       
       let recordsCreated = 0;
       
-      for (let i = 0; i < sampleLines.length; i++) {
-        const line = sampleLines[i];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.length < 2) continue; // Skip invalid lines
+        
         const recordType = line.substring(0, 2);
         
         const recordData = {
@@ -12685,13 +12717,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_type_code: recordType,
           record_type_name: recordType === '10' ? 'Header Record' : 
                             recordType === '47' ? 'Detail Transaction Record' : 
-                            recordType === '98' ? 'Trailer Record' : 'Unknown Record',
-          field_count: 15,
-          sample_fields: {
+                            recordType === '98' ? 'Trailer Record' : 
+                            recordType === '20' ? 'Batch Header Record' :
+                            recordType === '25' ? 'Batch Trailer Record' :
+                            recordType === 'G2' ? 'G2 Extension Record' :
+                            recordType === 'A1' ? 'A1 Extension Record' :
+                            recordType === 'P1' ? 'P1 Extension Record' :
+                            'Unknown Record',
+          field_count: Math.floor(line.length / 10), // Rough estimate
+          extracted_fields: {
             record_type: recordType,
-            sequence_number: line.substring(2, 12),
-            data_field_1: line.substring(12, 25),
-            data_field_2: line.substring(25, 35)
+            sequence_number: line.length >= 12 ? line.substring(2, 12) : '',
+            data_field_1: line.length >= 25 ? line.substring(12, 25) : '',
+            data_field_2: line.length >= 35 ? line.substring(25, 35) : '',
+            full_content: line
           },
           raw_content: line,
           parsed_at: new Date().toISOString()
@@ -12709,7 +12748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `${recordType}-${i + 1}`,
             i + 1,
             line,
-            15
+            Math.floor(line.length / 10)
           ]);
           
           recordsCreated++;
