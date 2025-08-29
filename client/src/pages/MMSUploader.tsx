@@ -188,22 +188,21 @@ export default function MMSUploader() {
   // Selection state for bulk operations
   const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
 
-  // JSONB Query tab state
-  const [jsonbSelectedUploadId, setJsonbSelectedUploadId] = useState<string>('');
-  const [jsonbMerchantNameQuery, setJsonbMerchantNameQuery] = useState<string>('');
+  // JSONB Query tab state - Global search across all files
   const [jsonbMerchantAccountQuery, setJsonbMerchantAccountQuery] = useState<string>('');
   const [jsonbQueryResults, setJsonbQueryResults] = useState<any[]>([]);
   const [jsonbIsQuerying, setJsonbIsQuerying] = useState(false);
   const [jsonbCurrentPage, setJsonbCurrentPage] = useState(0);
   const [jsonbPageSize] = useState(50);
   const [jsonbTotalResults, setJsonbTotalResults] = useState(0);
+  const [jsonbSearchMetadata, setJsonbSearchMetadata] = useState<any>({});
 
-  // JSONB search handler function
-  const handleJsonbSearch = async () => {
-    if (!jsonbSelectedUploadId || (!jsonbMerchantNameQuery.trim() && !jsonbMerchantAccountQuery.trim())) {
+  // Global JSONB search handler function - searches across all TDDF files
+  const handleGlobalJsonbSearch = async () => {
+    if (!jsonbMerchantAccountQuery.trim()) {
       toast({
         title: "Search Requirements",
-        description: "Please select a file and enter a merchant name or account number to search",
+        description: "Please enter a merchant account number to search",
         variant: "destructive"
       });
       return;
@@ -211,29 +210,99 @@ export default function MMSUploader() {
 
     setJsonbIsQuerying(true);
     try {
-      const params = new URLSearchParams({
-        limit: jsonbPageSize.toString(),
-        offset: (jsonbCurrentPage * jsonbPageSize).toString()
+      // Get all encoded TDDF files first
+      const encodedFiles = uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded');
+      
+      if (encodedFiles.length === 0) {
+        toast({
+          title: "No Files Available",
+          description: "No encoded TDDF files found. Upload and process TDDF files first.",
+          variant: "destructive"
+        });
+        setJsonbIsQuerying(false);
+        return;
+      }
+
+      // Search all files in parallel
+      const searchPromises = encodedFiles.map(async (file) => {
+        try {
+          const params = new URLSearchParams({
+            limit: '1000', // Get more results per file for global search
+            offset: '0',
+            merchantAccountNumber: jsonbMerchantAccountQuery.trim()
+          });
+
+          const response = await apiRequest(`/api/uploader/${file.id}/jsonb-data?${params}`);
+          return {
+            fileId: file.id,
+            filename: file.filename,
+            results: response.data || [],
+            total: response.pagination?.total || 0
+          };
+        } catch (error) {
+          console.warn(`Failed to search file ${file.filename}:`, error);
+          return {
+            fileId: file.id,
+            filename: file.filename,
+            results: [],
+            total: 0,
+            error: error.message
+          };
+        }
       });
 
-      if (jsonbMerchantNameQuery.trim()) {
-        params.append('merchantName', jsonbMerchantNameQuery.trim());
-      }
-      if (jsonbMerchantAccountQuery.trim()) {
-        params.append('merchantAccountNumber', jsonbMerchantAccountQuery.trim());
-      }
+      const allResults = await Promise.all(searchPromises);
+      
+      // Combine all results and add file metadata
+      const combinedResults = [];
+      const metadata = {
+        filesSearched: encodedFiles.length,
+        filesWithResults: 0,
+        totalMatches: 0,
+        fileBreakdown: []
+      };
 
-      const response = await apiRequest(`/api/uploader/${jsonbSelectedUploadId}/jsonb-data?${params}`);
-      setJsonbQueryResults(response.data || []);
-      setJsonbTotalResults(response.total || response.data?.length || 0);
+      allResults.forEach((fileResult) => {
+        if (fileResult.results.length > 0) {
+          metadata.filesWithResults++;
+          metadata.totalMatches += fileResult.results.length;
+          
+          // Add file metadata to each result
+          const resultsWithFileInfo = fileResult.results.map(record => ({
+            ...record,
+            source_file: fileResult.filename,
+            source_file_id: fileResult.fileId
+          }));
+          
+          combinedResults.push(...resultsWithFileInfo);
+          
+          metadata.fileBreakdown.push({
+            filename: fileResult.filename,
+            matches: fileResult.results.length,
+            error: fileResult.error
+          });
+        }
+      });
+
+      setJsonbQueryResults(combinedResults);
+      setJsonbTotalResults(combinedResults.length);
+      setJsonbSearchMetadata(metadata);
+
+      toast({
+        title: "Search Complete",
+        description: `Found ${combinedResults.length} matches across ${metadata.filesWithResults} files`,
+        variant: combinedResults.length > 0 ? "default" : "destructive"
+      });
+
     } catch (error: any) {
       toast({
-        title: "Query Failed", 
-        description: error.message || "Failed to search merchant data",
+        title: "Global Search Failed", 
+        description: error.message || "Failed to search across TDDF files",
         variant: "destructive"
       });
       setJsonbQueryResults([]);
       setJsonbTotalResults(0);
+      setJsonbSearchMetadata({});
     } finally {
       setJsonbIsQuerying(false);
     }
@@ -2904,86 +2973,54 @@ export default function MMSUploader() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* File Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="file-select">Select TDDF File</Label>
-                <Select value={jsonbSelectedUploadId} onValueChange={setJsonbSelectedUploadId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an encoded TDDF file..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').map((upload) => (
-                      <SelectItem key={upload.id} value={upload.id}>
-                        {upload.filename} ({formatFileSize(upload.fileSize)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length === 0 && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No encoded TDDF files available. Upload and process a TDDF file first.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-
-              {/* Search Queries */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Merchant Name Search */}
+              {/* Global Merchant Account Number Search */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="merchant-query">Merchant Name</Label>
-                  <div className="flex gap-2">
-                  <Input
-                    id="merchant-query"
-                    placeholder="Enter merchant name to search..."
-                    value={jsonbMerchantNameQuery}
-                    onChange={(e) => setJsonbMerchantNameQuery(e.target.value)}
-                    onKeyPress={async (e) => {
-                      if (e.key === 'Enter') {
-                        await handleJsonbSearch();
-                      }
-                    }}
-                  />
-                  <Button onClick={handleJsonbSearch} disabled={jsonbIsQuerying}>
-                    <Search className="h-4 w-4 mr-2" />
-                    {jsonbIsQuerying ? 'Searching...' : 'Search'}
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    setJsonbMerchantNameQuery('');
-                    setJsonbMerchantAccountQuery('');
-                    setJsonbQueryResults([]);
-                    setJsonbTotalResults(0);
-                    setJsonbCurrentPage(0);
-                  }}>
-                    <X className="h-4 w-4 mr-2" />
-                    Clear
-                  </Button>
-                </div>
-                </div>
-
-                {/* Merchant Account Number Search */}
-                <div className="space-y-2">
-                  <Label htmlFor="merchant-account-query">Merchant Account Number</Label>
+                  <Label htmlFor="global-merchant-account-query" className="text-lg font-medium">
+                    Merchant Account Number Search
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Search across all {uploads.filter(upload => upload.fileType === 'tddf' && upload.currentPhase === 'encoded').length} encoded TDDF files for merchant account numbers
+                  </p>
                   <div className="flex gap-2">
                     <Input
-                      id="merchant-account-query"
-                      placeholder="Enter merchant account number..."
+                      id="global-merchant-account-query"
+                      placeholder="Enter merchant account number (e.g., 0675900000002881)..."
                       value={jsonbMerchantAccountQuery}
                       onChange={(e) => setJsonbMerchantAccountQuery(e.target.value)}
                       onKeyPress={async (e) => {
                         if (e.key === 'Enter') {
-                          await handleJsonbSearch();
+                          await handleGlobalJsonbSearch();
                         }
                       }}
+                      className="text-lg"
                     />
-                    <Button onClick={handleJsonbSearch} disabled={jsonbIsQuerying}>
-                      <Search className="h-4 w-4 mr-2" />
-                      {jsonbIsQuerying ? 'Searching...' : 'Search'}
+                    <Button onClick={handleGlobalJsonbSearch} disabled={jsonbIsQuerying} size="lg">
+                      <Search className="h-5 w-5 mr-2" />
+                      {jsonbIsQuerying ? 'Searching...' : 'Search All Files'}
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={() => {
+                      setJsonbMerchantAccountQuery('');
+                      setJsonbQueryResults([]);
+                      setJsonbTotalResults(0);
+                      setJsonbCurrentPage(0);
+                      setJsonbSearchMetadata({});
+                    }}>
+                      <X className="h-5 w-5 mr-2" />
+                      Clear
                     </Button>
                   </div>
                 </div>
+
+                {/* Search Metadata Display */}
+                {jsonbSearchMetadata.filesSearched && (
+                  <Alert>
+                    <FileText className="h-4 w-4" />
+                    <AlertDescription>
+                      Searched {jsonbSearchMetadata.filesSearched} files • Found matches in {jsonbSearchMetadata.filesWithResults} files • Total records: {jsonbSearchMetadata.totalMatches}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               {/* Results Section */}
@@ -3001,10 +3038,11 @@ export default function MMSUploader() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Source File</TableHead>
                           <TableHead>Record Type</TableHead>
                           <TableHead>Line #</TableHead>
                           <TableHead>Merchant Account</TableHead>
-                        <TableHead>Merchant Name</TableHead>
+                          <TableHead>Merchant Name</TableHead>
                           <TableHead>Extracted Fields</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -3012,6 +3050,11 @@ export default function MMSUploader() {
                       <TableBody>
                         {jsonbQueryResults.map((record, index) => (
                           <TableRow key={record.id || index}>
+                            <TableCell className="text-sm font-mono">
+                              <span className="bg-gray-100 px-2 py-1 rounded text-gray-800 text-xs">
+                                {record.source_file || 'Unknown'}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               <Badge className={`
                                 ${record.record_type === 'BH' ? 'bg-green-500' :
@@ -3101,23 +3144,23 @@ export default function MMSUploader() {
               )}
 
               {/* No Results Message */}
-              {!jsonbIsQuerying && (jsonbMerchantNameQuery || jsonbMerchantAccountQuery) && jsonbQueryResults.length === 0 && jsonbTotalResults === 0 && (
+              {!jsonbIsQuerying && jsonbMerchantAccountQuery && jsonbQueryResults.length === 0 && jsonbTotalResults === 0 && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    No records found for "{jsonbMerchantNameQuery || jsonbMerchantAccountQuery}". Try a different search term.
+                    No records found for merchant account number "{jsonbMerchantAccountQuery}". Try a different search term.
                   </AlertDescription>
                 </Alert>
               )}
 
               {/* Usage Instructions */}
-              {jsonbQueryResults.length === 0 && !jsonbMerchantNameQuery && !jsonbMerchantAccountQuery && (
+              {jsonbQueryResults.length === 0 && !jsonbMerchantAccountQuery && (
                 <Alert>
                   <Lightbulb className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>How to use:</strong> Select an encoded TDDF file from the dropdown, 
-                    then enter a merchant name or account number to search through all JSONB records. 
-                    You can search by merchant name, account number, or both.
+                    <strong>How to use:</strong> Enter a merchant account number above to search 
+                    across all encoded TDDF files. The system will automatically search all 
+                    available files and combine the results.
                   </AlertDescription>
                 </Alert>
               )}
