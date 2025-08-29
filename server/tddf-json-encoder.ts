@@ -812,6 +812,9 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           lineNumber
         );
         
+        // Extract merchant account number for dedicated column
+        const merchantAccountNumber = jsonRecord.extractedFields?.merchantAccountNumber || null;
+        
         // Prepare database record with timing data and universal TDDF datetime
         const dbRecord = {
           upload_id: upload.id,
@@ -819,15 +822,18 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           record_type: jsonRecord.recordType,
           line_number: lineNumber,
           raw_line: batch[i],
-          extracted_fields: JSON.stringify(jsonRecord.extractedFields),
+          record_data: JSON.stringify(jsonRecord.extractedFields),
           record_identifier: jsonRecord.extractedFields.recordIdentifier || jsonRecord.recordType,
+          field_count: Object.keys(jsonRecord.extractedFields || {}).length,
           processing_time_ms: recordProcessingTime,
           // Add universal TDDF processing datetime fields for sorting/pagination
           tddf_processing_datetime: tddfDatetime.processingDatetime,
           tddf_processing_date: tddfDatetime.processingDate,
           // Add universal timestamp fields (Larry B. feature)
           parsed_datetime: universalTimestamp.parsedDatetime,
-          record_time_source: universalTimestamp.recordTimeSource
+          record_time_source: universalTimestamp.recordTimeSource,
+          // Add dedicated merchant account number column
+          merchant_account_number: merchantAccountNumber
         };
         
         batchRecords.push(dbRecord);
@@ -859,9 +865,10 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
             upload_id, record_type, line_number, raw_line, 
             record_data, record_identifier, field_count, created_at,
             original_filename, file_processing_date, file_sequence_number, 
-            file_processing_time, file_system_id, mainframe_process_data
+            file_processing_time, file_system_id, mainframe_process_data,
+            merchant_account_number
           ) VALUES ${batchRecords.map((_, index) => 
-            `($${index * 12 + 1}, $${index * 12 + 2}, $${index * 12 + 3}, $${index * 12 + 4}, $${index * 12 + 5}, $${index * 12 + 6}, $${index * 12 + 7}, NOW(), $${index * 12 + 8}, $${index * 12 + 9}, $${index * 12 + 10}, $${index * 12 + 11}, $${index * 12 + 12}, $${index * 12 + 13})`
+            `($${index * 13 + 1}, $${index * 13 + 2}, $${index * 13 + 3}, $${index * 13 + 4}, $${index * 13 + 5}, $${index * 13 + 6}, $${index * 13 + 7}, NOW(), $${index * 13 + 8}, $${index * 13 + 9}, $${index * 13 + 10}, $${index * 13 + 11}, $${index * 13 + 12}, $${index * 13 + 13}, $${index * 13 + 14})`
           ).join(', ')}
         `;
         
@@ -878,7 +885,8 @@ export async function encodeTddfToJsonbDirect(fileContent: string, upload: Uploa
           filenameMetadata.file_sequence_number,
           filenameMetadata.file_processing_time,
           filenameMetadata.file_system_id,
-          JSON.stringify(filenameMetadata.mainframe_process_data)
+          JSON.stringify(filenameMetadata.mainframe_process_data),
+          record.merchant_account_number
         ]);
         
         await pool.query(insertQuery, values);
