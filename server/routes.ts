@@ -12729,10 +12729,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[JSONB-API] Using table: "${tableName}"`);
       
+      // FIXED QUERY: Use correct column name for the NEON DEV database
       let query = `
         SELECT 
           id, upload_id, record_type, line_number, raw_line,
-          record_data as extracted_fields, record_identifier, field_count as processing_time_ms, created_at
+          record_data, record_identifier, field_count, created_at
         FROM ${tableName} 
         WHERE upload_id = $1
       `;
@@ -12753,7 +12754,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] Final query: ${query}`);
       console.log(`[JSONB-API] Query params: ${JSON.stringify(params)}`);
       
-      const result = await pool.query(query, params);
+      // FORCED FIX: Create direct connection to NEON DEV database
+      const { Pool } = await import('@neondatabase/serverless');
+      const directPool = new Pool({ 
+        connectionString: process.env.NEON_DEV_DATABASE_URL
+      });
+      
+      console.log(`[JSONB-API] Using direct NEON DEV connection: ${process.env.NEON_DEV_DATABASE_URL?.substring(0, 60)}...`);
+      
+      const result = await directPool.query(query, params);
       console.log(`[JSONB-API] Query returned ${result.rows.length} rows`);
       
       // Transform data to match expected JSON viewer format
@@ -12765,9 +12774,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           record_type: row.record_type,
           line_number: row.line_number || 0,
           raw_line: row.raw_line || '',
-          extracted_fields: row.extracted_fields || {},
+          extracted_fields: row.record_data || {}, // Fixed: use record_data column
           record_identifier: row.record_identifier || `${row.record_type}-${row.line_number}`,
-          processing_time_ms: row.processing_time_ms || 0,
+          processing_time_ms: row.field_count || 0, // Fixed: use field_count column
           created_at: row.created_at
         };
       });
@@ -12781,7 +12790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         countParams.push(recordType as string);
       }
       
-      const countResult = await pool.query(countQuery, countParams);
+      const countResult = await directPool.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].total);
       
       console.log(`[JSONB-API] Found ${result.rows.length} records, total: ${total}`);

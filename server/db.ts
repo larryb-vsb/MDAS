@@ -8,14 +8,23 @@ import { config, NODE_ENV } from "./env-config";
 // Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
 
-// Get the environment-specific database URL
-const databaseUrl = config.database.url;
+// FORCED FIX: Always use NEON DEV database (ep-shy-king-aasxdlh7) as requested by user
+const databaseUrl = process.env.NEON_DEV_DATABASE_URL || config.database.url;
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
-console.log(`Database URL for ${NODE_ENV}: ${databaseUrl}`);
+console.log(`[FORCED FIX] Database URL for ${NODE_ENV}: ${databaseUrl.substring(0, 80)}...`);
+
+// Verify we're connecting to the correct database
+if (databaseUrl.includes('ep-shy-king-aasxdlh7')) {
+  console.log(`✅ [DB-FIX] Connected to NEON DEV database (ep-shy-king-aasxdlh7)`);
+} else if (databaseUrl.includes('ep-young-frog')) {
+  console.log(`❌ [DB-FIX] WARNING: Still connecting to wrong database (ep-young-frog)`);
+} else {
+  console.log(`⚠️ [DB-FIX] Unknown database connection`);
+}
 
 // Extract database name from URL for logging
 try {
