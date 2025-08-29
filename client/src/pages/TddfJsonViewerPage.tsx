@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileJson, Database, Eye, RefreshCw, AlertTriangle, ChevronDown, ChevronRight as ChevronRightIcon, ArrowLeft, Info, FileText, BarChart3 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface JsonbRecord {
@@ -322,6 +322,7 @@ export default function TddfJsonViewerPage() {
   const [viewMode, setViewMode] = useState<'tree' | 'flat'>('tree');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<'all' | 'bh' | 'dt' | 'metadata'>('all');
 
   const { data: jsonbData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/uploader', uploadId, 'jsonb-data', { 
@@ -366,8 +367,24 @@ export default function TddfJsonViewerPage() {
     refetchOnWindowFocus: false
   });
 
-  const records: JsonbRecord[] = (jsonbData as any)?.data || [];
-  const totalRecords = (jsonbData as any)?.pagination?.total || 0;
+  const allRecords: JsonbRecord[] = (jsonbData as any)?.data || [];
+  
+  // Filter records based on active section
+  const getFilteredRecords = () => {
+    switch (activeSection) {
+      case 'bh':
+        return allRecords.filter(record => ['BH', '01'].includes(record.record_type));
+      case 'dt':
+        return allRecords.filter(record => ['DT', '47'].includes(record.record_type));
+      case 'metadata':
+        return []; // Metadata doesn't use records
+      default:
+        return allRecords;
+    }
+  };
+  
+  const records = getFilteredRecords();
+  const totalRecords = records.length;
   const totalPages = Math.ceil(totalRecords / pageSize);
   const timingMetadata = (jsonbData as any)?.timingMetadata;
 
@@ -729,6 +746,30 @@ export default function TddfJsonViewerPage() {
           </div>
         )}
 
+        {/* Section Navigation Tabs */}
+        <div className="mb-6">
+          <Tabs value={activeSection} onValueChange={(value) => setActiveSection(value as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                All Records
+              </TabsTrigger>
+              <TabsTrigger value="bh" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                BH Records
+              </TabsTrigger>
+              <TabsTrigger value="dt" className="flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                DT Records
+              </TabsTrigger>
+              <TabsTrigger value="metadata" className="flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                File Metadata
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* Controls */}
         <div className="flex items-center justify-between mb-6 p-4 bg-white rounded-lg border">
           <div className="flex items-center gap-4">
@@ -782,6 +823,11 @@ export default function TddfJsonViewerPage() {
               {viewMode === 'tree' ? 'Hierarchical view' : 
                 `Showing ${(currentPage * pageSize) + 1}-${Math.min((currentPage + 1) * pageSize, totalRecords)} of ${totalRecords.toLocaleString()} records`}
               {selectedRecordType && ` (${selectedRecordType} type)`}
+              {activeSection !== 'all' && (
+                <span className="ml-2 text-blue-600 font-medium">
+                  Filtered to {activeSection.toUpperCase()} records only
+                </span>
+              )}
               {totalRecords > 10000 && (
                 <span className="ml-2 text-blue-600 font-medium">Large dataset - use filters and pagination</span>
               )}
@@ -959,14 +1005,126 @@ export default function TddfJsonViewerPage() {
             </div>
           )}
 
+          {/* File Metadata Display */}
+          {!isLoading && !error && activeSection === 'metadata' && (
+            <div className="p-6">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Info className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-medium text-gray-900">File Metadata</h3>
+                </div>
+                
+                {/* File Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      File Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Filename:</label>
+                        <p className="text-sm text-gray-900 font-mono">{filename}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Upload ID:</label>
+                        <p className="text-sm text-gray-900 font-mono">{uploadId}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Total Records:</label>
+                        <p className="text-sm text-gray-900">{allRecords.length.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Database Table:</label>
+                        <p className="text-sm text-gray-900 font-mono">{(jsonbData as any)?.tableName || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Record Type Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      Record Type Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {allRecordTypes?.map((type) => {
+                        const count = allRecords.filter(r => r.record_type === type).length;
+                        return (
+                          <div key={type as string} className="text-center p-3 border rounded-lg">
+                            <Badge className={`mb-2 text-white ${getRecordTypeBadgeColor(type as string)}`}>
+                              {type as string}
+                            </Badge>
+                            <p className="text-lg font-semibold">{count.toLocaleString()}</p>
+                            <p className="text-sm text-gray-600">{getRecordTypeName(type as string)}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Processing Information */}
+                {timingMetadata && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Database className="w-5 h-5" />
+                        Processing Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Processing Time:</label>
+                          <p className="text-sm text-gray-900">{(timingMetadata.totalEncodingTimeMs / 1000).toFixed(2)}s</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Records/sec:</label>
+                          <p className="text-sm text-gray-900">{Math.round(timingMetadata.totalRecords / (timingMetadata.totalEncodingTimeMs / 1000)).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Started:</label>
+                          <p className="text-sm text-gray-900">{timingMetadata.encodingStartTime ? new Date(timingMetadata.encodingStartTime).toLocaleString() : 'N/A'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Query Time:</label>
+                          <p className="text-sm text-gray-900">{timingMetadata.queryTime || 'N/A'}ms</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* No Data State for Empty Sections */}
+          {!isLoading && !error && activeSection !== 'metadata' && records.length === 0 && allRecords.length > 0 && (
+            <div className="p-8 text-center space-y-4">
+              <FileJson className="w-16 h-16 text-gray-400 mx-auto" />
+              <h3 className="text-xl font-medium text-gray-900">No {activeSection.toUpperCase()} Records Found</h3>
+              <p className="text-gray-600">This section doesn't contain any {activeSection.toUpperCase()} records.</p>
+            </div>
+          )}
+
           {/* Data Display */}
-          {!isLoading && !error && records.length > 0 && (
+          {!isLoading && !error && activeSection !== 'metadata' && records.length > 0 && (
             <div className="p-6">
               {/* Re-encode button always available when there's data */}
               <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    TDDF Records ({records.length} total)
+                    {activeSection === 'all' ? 'All TDDF Records' : 
+                     activeSection === 'bh' ? 'Batch Header Records (BH)' :
+                     activeSection === 'dt' ? 'Detail Transaction Records (DT)' : 'Records'} 
+                    ({records.length} of {allRecords.length} total)
                   </h3>
                   {records.length <= 10 && (
                     <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
