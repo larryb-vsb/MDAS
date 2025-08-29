@@ -12724,10 +12724,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[JSONB-API] Request received for upload ${id}, limit: ${limit}, offset: ${offset}, recordType: ${recordType}`);
       console.log(`[JSONB-API] NODE_ENV: "${process.env.NODE_ENV}"`);
       
-      const environment = process.env.NODE_ENV || 'development';
-      const tableName = environment === 'development' ? 'dev_uploader_tddf_jsonb_records' : 'uploader_tddf_jsonb_records';
+      const { getTableName } = await import("./table-config");
+      const tableName = getTableName('uploader_tddf_jsonb_records');
       
-      console.log(`[JSONB-API] Detected environment: "${environment}", selected table: "${tableName}"`);
+      console.log(`[JSONB-API] Using table: "${tableName}"`);
       
       let query = `
         SELECT 
@@ -12788,9 +12788,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get timing metadata from uploader uploads table
       let timingMetadata = null;
       try {
+        const uploaderTableName = getTableName('uploader_uploads');
         const timingQuery = `
           SELECT processing_notes, created_at, updated_at
-          FROM ${environment === 'development' ? 'dev_uploader_uploads' : 'uploader_uploads'}
+          FROM ${uploaderTableName}
           WHERE id = $1
         `;
         const timingResult = await pool.query(timingQuery, [id]);
