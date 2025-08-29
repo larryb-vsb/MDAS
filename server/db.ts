@@ -8,8 +8,16 @@ import { config, NODE_ENV } from "./env-config";
 // Required for Neon serverless driver
 neonConfig.webSocketConstructor = ws;
 
-// FORCED FIX: Always use NEON DEV database (ep-shy-king-aasxdlh7) as requested by user
-const databaseUrl = process.env.NEON_DEV_DATABASE_URL || config.database.url;
+// KING SERVER FIX: Force use of King server (ep-shy-king-aasxdlh7) for all processing
+// Direct override to ensure King server is used
+const kingServerUrl = process.env.NEON_DEV_DATABASE_URL;
+const fallbackUrl = process.env.DATABASE_URL;
+
+if (!kingServerUrl) {
+  console.log('❌ [DB-FIX] NEON_DEV_DATABASE_URL not found, using fallback');
+}
+
+const databaseUrl = kingServerUrl || fallbackUrl;
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
