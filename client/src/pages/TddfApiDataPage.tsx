@@ -96,6 +96,9 @@ export default function TddfApiDataPage() {
   const [selectedFiles, setSelectedFiles] = useState<Set<number>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
+  // Drag and drop state
+  const [isDragOver, setIsDragOver] = useState(false);
+  
   // Date filtering state
   const [dateFilters, setDateFilters] = useState({
     dateFrom: "",
@@ -317,6 +320,43 @@ export default function TddfApiDataPage() {
   const handleDeleteSelected = () => {
     if (selectedFiles.size > 0) {
       deleteFilesMutation.mutate(Array.from(selectedFiles));
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if leaving the drop zone entirely
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const file = files[0]; // Take the first file
+      setUploadFile(file);
     }
   };
 
@@ -621,12 +661,58 @@ export default function TddfApiDataPage() {
                   </div>
                   <div>
                     <Label htmlFor="file-upload">File</Label>
-                    <Input
-                      id="file-upload"
-                      type="file"
-                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      accept=".tsyso,.txt,.csv,.dat"
-                    />
+                    
+                    {/* Drag and Drop Zone */}
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`
+                        relative border-2 border-dashed rounded-lg p-6 text-center transition-colors
+                        ${isDragOver 
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
+                          : 'border-gray-300 hover:border-gray-400 dark:border-gray-600'
+                        }
+                      `}
+                    >
+                      {uploadFile ? (
+                        <div className="space-y-2">
+                          <FileText className="mx-auto h-8 w-8 text-green-600" />
+                          <p className="text-sm font-medium text-green-600">
+                            Selected: {uploadFile.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUploadFile(null)}
+                            className="mt-2"
+                          >
+                            Remove File
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Upload className={`mx-auto h-8 w-8 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
+                          <p className={`text-sm font-medium ${isDragOver ? 'text-blue-600' : 'text-gray-600'}`}>
+                            {isDragOver ? 'Drop your file here' : 'Drag and drop your file here'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            or click to browse (.tsyso, .txt, .csv, .dat files up to 500MB)
+                          </p>
+                          <Input
+                            id="file-upload"
+                            type="file"
+                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                            accept=".tsyso,.txt,.csv,.dat"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Button 
                     onClick={handleFileUpload}
