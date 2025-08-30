@@ -2657,3 +2657,212 @@ export type InsertTddfApiKey = typeof insertTddfApiKeySchema._type;
 export type InsertTddfApiRequestLog = typeof insertTddfApiRequestLogSchema._type;
 export type InsertTddfApiFieldConfig = typeof insertTddfApiFieldConfigSchema._type;
 export type InsertTddfApiProcessingQueue = typeof insertTddfApiProcessingQueueSchema._type;
+
+// TDDF Daily View System Tables - Complete isolation from existing systems
+// Master table containing all TDDF records organized for daily view
+export const tddfDatamaster = pgTable(getTableName("tddf_datamaster"), {
+  id: serial("id").primaryKey(),
+  
+  // Core Header Fields (positions 1-23)
+  sequenceNumber: text("sequence_number"), // Positions 1-7
+  entryRunNumber: text("entry_run_number"), // Positions 8-13
+  sequenceWithinRun: text("sequence_within_run"), // Positions 14-17
+  recordIdentifier: text("record_identifier"), // Positions 18-19: BH, DT, P1, P2, etc.
+  bankNumber: text("bank_number"), // Positions 20-23
+  
+  // Account & Merchant Fields (positions 24-55)
+  merchantAccountNumber: text("merchant_account_number"), // Positions 24-39 (16 chars)
+  associationNumber: text("association_number"), // Positions 40-45 (6 chars)
+  groupNumber: text("group_number"), // Positions 46-51 (6 chars)
+  transactionCode: text("transaction_code"), // Positions 52-55
+  
+  // Critical Date Fields for Daily Organization
+  batchDate: date("batch_date"), // Primary daily grouping field
+  transactionDate: date("transaction_date"), // Positions 85-92 MMDDCCYY
+  authorizationDateTime: timestamp("authorization_date_time"), // Authorization timestamp
+  
+  // Transaction & Financial Fields
+  referenceNumber: text("reference_number"), // Positions 62-84 (23 chars)
+  transactionAmount: numeric("transaction_amount", { precision: 15, scale: 2 }), // Positions 93-103
+  netDeposit: numeric("net_deposit", { precision: 17, scale: 2 }), // Positions 109-123
+  cardholderAccountNumber: text("cardholder_account_number"), // Positions 124-142
+  
+  // Authorization & Processing Fields
+  authAmount: numeric("auth_amount", { precision: 14, scale: 2 }), // Positions 192-203
+  authResponseCode: text("auth_response_code"), // Positions 208-209
+  posEntryMode: text("pos_entry_mode"), // Positions 214-215
+  debitCreditIndicator: text("debit_credit_indicator"), // Position 216
+  reversalFlag: text("reversal_flag"), // Position 217
+  merchantName: text("merchant_name"), // Positions 218-242 (25 chars)
+  authorizationNumber: text("authorization_number"), // Positions 243-248
+  cardType: text("card_type"), // Positions 253-254
+  
+  // MCC and Terminal Info
+  mccCode: text("mcc_code"), // Positions 273-276
+  terminalId: text("terminal_id"), // Positions 277-284
+  transactionTypeIdentifier: text("transaction_type_identifier"), // Positions 336-338
+  
+  // Data Integrity & Traceability Fields
+  sourceFileId: text("source_file_id"),
+  sourceRowNumber: integer("source_row_number"),
+  rawData: jsonb("raw_data"), // Complete original record
+  mmsRawLine: text("mms_raw_line"), // Original line before processing
+  filename: text("filename"), // Original TDDF filename
+  processingTimestamp: timestamp("processing_timestamp").defaultNow(),
+  
+  // Daily Organization Fields
+  processingDate: date("processing_date"), // Date for daily grouping
+  recordTypeClean: text("record_type_clean"), // Standardized: BH, DT, P1, P2
+  dailyBatchId: text("daily_batch_id"), // Organize records within daily batches
+  importSessionId: text("import_session_id"), // Track import session
+  
+  // Audit fields
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  batchDateIdx: index("tddf_datamaster_batch_date_idx").on(table.batchDate),
+  transactionDateIdx: index("tddf_datamaster_transaction_date_idx").on(table.transactionDate),
+  merchantAccountIdx: index("tddf_datamaster_merchant_account_idx").on(table.merchantAccountNumber),
+  recordTypeIdx: index("tddf_datamaster_record_type_idx").on(table.recordTypeClean),
+  processingDateIdx: index("tddf_datamaster_processing_date_idx").on(table.processingDate),
+  sourceFileIdx: index("tddf_datamaster_source_file_idx").on(table.sourceFileId)
+}));
+
+// Daily Stats Cache Table
+export const tddfApiDailyStats = pgTable(getTableName("tddf_api_daily_stats"), {
+  id: serial("id").primaryKey(),
+  processingDate: date("processing_date").notNull(),
+  totalRecords: integer("total_records").default(0),
+  totalFiles: integer("total_files").default(0),
+  totalTransactionAmount: numeric("total_transaction_amount", { precision: 18, scale: 2 }).default("0"),
+  totalNetDeposits: numeric("total_net_deposits", { precision: 18, scale: 2 }).default("0"),
+  totalAuthAmount: numeric("total_auth_amount", { precision: 18, scale: 2 }).default("0"),
+  bhRecordCount: integer("bh_record_count").default(0), // Batch count
+  dtRecordCount: integer("dt_record_count").default(0), // Transaction count
+  p1RecordCount: integer("p1_record_count").default(0),
+  p2RecordCount: integer("p2_record_count").default(0),
+  otherRecordCount: integer("other_record_count").default(0),
+  uniqueMerchants: integer("unique_merchants").default(0),
+  uniqueTerminals: integer("unique_terminals").default(0),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  cacheBuiltAt: timestamp("cache_built_at").defaultNow().notNull()
+}, (table) => ({
+  processingDateIdx: unique().on(table.processingDate)
+}));
+
+// Daily Merchant Totals Cache Table
+export const tddfApiDailyMerchantTotals = pgTable(getTableName("tddf_api_daily_merchant_totals"), {
+  id: serial("id").primaryKey(),
+  processingDate: date("processing_date").notNull(),
+  merchantAccountNumber: text("merchant_account_number").notNull(),
+  merchantName: text("merchant_name"),
+  transactionCount: integer("transaction_count").default(0),
+  batchCount: integer("batch_count").default(0),
+  totalTransactionAmount: numeric("total_transaction_amount", { precision: 15, scale: 2 }).default("0"),
+  totalNetDeposits: numeric("total_net_deposits", { precision: 17, scale: 2 }).default("0"),
+  totalAuthAmount: numeric("total_auth_amount", { precision: 14, scale: 2 }).default("0"),
+  recordTypeBreakdown: jsonb("record_type_breakdown"), // {BH: 5, DT: 245, P1: 12}
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  cacheBuiltAt: timestamp("cache_built_at").defaultNow().notNull()
+}, (table) => ({
+  dailyMerchantIdx: unique().on(table.processingDate, table.merchantAccountNumber),
+  processingDateIdx: index("tddf_api_daily_merchant_processing_date_idx").on(table.processingDate)
+}));
+
+// Daily Record Breakdown Cache Table  
+export const tddfApiDailyRecordBreakdown = pgTable(getTableName("tddf_api_daily_record_breakdown"), {
+  id: serial("id").primaryKey(),
+  processingDate: date("processing_date").notNull(),
+  recordType: text("record_type").notNull(), // BH, DT, P1, P2, etc.
+  recordCount: integer("record_count").default(0),
+  totalAmount: numeric("total_amount", { precision: 18, scale: 2 }).default("0"),
+  uniqueMerchants: integer("unique_merchants").default(0),
+  uniqueTerminals: integer("unique_terminals").default(0),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  cacheBuiltAt: timestamp("cache_built_at").defaultNow().notNull()
+}, (table) => ({
+  dailyRecordTypeIdx: unique().on(table.processingDate, table.recordType),
+  processingDateIdx: index("tddf_api_daily_breakdown_processing_date_idx").on(table.processingDate)
+}));
+
+// Daily Import Status Table
+export const tddfApiDailyImportStatus = pgTable(getTableName("tddf_api_daily_import_status"), {
+  id: serial("id").primaryKey(),
+  sourceFileId: text("source_file_id").notNull(), // From TDDF API files
+  sourceRecordCount: integer("source_record_count").default(0),
+  importedRecordCount: integer("imported_record_count").default(0),
+  importStatus: text("import_status").default("pending"), // pending, processing, completed, failed
+  importStarted: timestamp("import_started"),
+  importCompleted: timestamp("import_completed"),
+  errorMessage: text("error_message"),
+  processingDate: date("processing_date"), // Date this import represents
+  importSessionId: text("import_session_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => ({
+  sourceFileIdx: index("tddf_api_daily_import_source_file_idx").on(table.sourceFileId),
+  importSessionIdx: index("tddf_api_daily_import_session_idx").on(table.importSessionId),
+  processingDateIdx: index("tddf_api_daily_import_processing_date_idx").on(table.processingDate)
+}));
+
+// Daily Cache Metadata Table
+export const tddfApiDailyCacheMetadata = pgTable(getTableName("tddf_api_daily_cache_metadata"), {
+  id: serial("id").primaryKey(),
+  tableName: text("table_name").notNull(), // Which cache table this represents
+  processingDate: date("processing_date"), // Date range covered (null for all-time caches)
+  lastCacheBuild: timestamp("last_cache_build").defaultNow(),
+  cacheStatus: text("cache_status").default("stale"), // fresh, stale, building, error
+  recordCount: integer("record_count").default(0),
+  buildDurationMs: integer("build_duration_ms"),
+  sourceRecordCount: integer("source_record_count"), // From datamaster
+  buildNotes: text("build_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  tableNameDateIdx: unique().on(table.tableName, table.processingDate),
+  lastBuildIdx: index("tddf_api_daily_cache_last_build_idx").on(table.lastCacheBuild)
+}));
+
+// Daily Processing Log Table
+export const tddfApiDailyProcessingLog = pgTable(getTableName("tddf_api_daily_processing_log"), {
+  id: serial("id").primaryKey(),
+  operation: text("operation").notNull(), // import, cache_build, data_refresh
+  operationDetails: text("operation_details"),
+  status: text("status").notNull(), // started, completed, failed
+  recordsProcessed: integer("records_processed").default(0),
+  processingDate: date("processing_date"),
+  startTime: timestamp("start_time").defaultNow(),
+  endTime: timestamp("end_time"),
+  durationMs: integer("duration_ms"),
+  errorMessage: text("error_message"),
+  sessionId: text("session_id"),
+  createdBy: text("created_by").default("system")
+}, (table) => ({
+  operationDateIdx: index("tddf_api_daily_log_operation_date_idx").on(table.operation, table.processingDate),
+  sessionIdx: index("tddf_api_daily_log_session_idx").on(table.sessionId),
+  startTimeIdx: index("tddf_api_daily_log_start_time_idx").on(table.startTime)
+}));
+
+// Zod schemas for TDDF Daily View System
+export const insertTddfDatamasterSchema = createInsertSchema(tddfDatamaster);
+export const insertTddfApiDailyStatsSchema = createInsertSchema(tddfApiDailyStats);
+export const insertTddfApiDailyMerchantTotalsSchema = createInsertSchema(tddfApiDailyMerchantTotals);
+export const insertTddfApiDailyRecordBreakdownSchema = createInsertSchema(tddfApiDailyRecordBreakdown);
+export const insertTddfApiDailyImportStatusSchema = createInsertSchema(tddfApiDailyImportStatus);
+export const insertTddfApiDailyCacheMetadataSchema = createInsertSchema(tddfApiDailyCacheMetadata);
+export const insertTddfApiDailyProcessingLogSchema = createInsertSchema(tddfApiDailyProcessingLog);
+
+export type TddfDatamaster = typeof tddfDatamaster.$inferSelect;
+export type TddfApiDailyStats = typeof tddfApiDailyStats.$inferSelect;
+export type TddfApiDailyMerchantTotals = typeof tddfApiDailyMerchantTotals.$inferSelect;
+export type TddfApiDailyRecordBreakdown = typeof tddfApiDailyRecordBreakdown.$inferSelect;
+export type TddfApiDailyImportStatus = typeof tddfApiDailyImportStatus.$inferSelect;
+export type TddfApiDailyCacheMetadata = typeof tddfApiDailyCacheMetadata.$inferSelect;
+export type TddfApiDailyProcessingLog = typeof tddfApiDailyProcessingLog.$inferSelect;
+
+export type InsertTddfDatamaster = typeof insertTddfDatamasterSchema._type;
+export type InsertTddfApiDailyStats = typeof insertTddfApiDailyStatsSchema._type;
+export type InsertTddfApiDailyMerchantTotals = typeof insertTddfApiDailyMerchantTotalsSchema._type;
+export type InsertTddfApiDailyRecordBreakdown = typeof insertTddfApiDailyRecordBreakdownSchema._type;
+export type InsertTddfApiDailyImportStatus = typeof insertTddfApiDailyImportStatusSchema._type;
+export type InsertTddfApiDailyCacheMetadata = typeof insertTddfApiDailyCacheMetadataSchema._type;
+export type InsertTddfApiDailyProcessingLog = typeof insertTddfApiDailyProcessingLogSchema._type;

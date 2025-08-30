@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +16,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft } from "lucide-react";
+import { format, addDays, subDays, isToday } from "date-fns";
 import { RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { TddfApiDailyView } from "@/components/TddfApiDailyView";
 
 interface TddfApiSchema {
   id: number;
@@ -57,6 +61,58 @@ interface TddfApiFile {
   schema_version?: string;
   queue_status?: string;
   queue_priority?: number;
+}
+
+// Daily View Interfaces for TDDF API Data
+interface TddfApiDailyStats {
+  totalFiles: number;
+  totalRecords: number;
+  totalTransactionValue: number;
+  totalNetDeposits?: number;
+  totalAuthAmount?: number;
+  recordTypeBreakdown: Record<string, number>;
+  lastProcessedDate: string | null;
+  cached?: boolean;
+  cacheDate?: string;
+  lastUpdated?: string;
+}
+
+interface TddfApiDayBreakdown {
+  date: string;
+  totalRecords: number;
+  recordTypes: Record<string, number>;
+  transactionValue: number;
+  netDepositsValue?: number;
+  authAmountValue?: number;
+  batchCount?: number;
+  authorizationCount?: number;
+  fileCount: number;
+  filesProcessed: Array<{
+    fileName: string;
+    recordCount: number;
+    processingTime?: number;
+    fileSize?: string;
+  }>;
+}
+
+interface TddfApiRecentActivity {
+  id: string;
+  fileName: string;
+  recordCount: number;
+  processedAt: string;
+  status: string;
+  importSessionId: string;
+}
+
+// Draggable Circles for Daily View
+interface DraggableCircle {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  value: string;
+  label: string;
+  isDragging: boolean;
 }
 
 interface TddfApiKey {
@@ -484,6 +540,316 @@ export default function TddfApiDataPage() {
             </Card>
           </div>
 
+          {/* Advanced Analytics Section */}
+          <div className="border-t pt-6 mt-6">
+            <h3 className="text-xl font-semibold mb-4">Advanced Analytics & Insights</h3>
+            
+            {/* Key Metrics Dashboard */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Data Volume</CardTitle>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Across {files.length} files
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Processing Success Rate</CardTitle>
+                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {files.length > 0 
+                      ? ((files.filter(f => f.status === "completed").length / files.length) * 100).toFixed(1)
+                      : 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {files.filter(f => f.status === "completed").length} of {files.length} files
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Average File Size</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {files.length > 0 
+                      ? formatFileSize(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / files.length)
+                      : "0 B"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Per file average
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Data Quality Score</CardTitle>
+                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {files.length > 0 
+                      ? (100 - (files.filter(f => f.status === "failed" || f.status === "error").length / files.length) * 100).toFixed(1)
+                      : 100}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Based on error rate
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Data Distribution Charts */}
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>File Status Distribution</CardTitle>
+                  <CardDescription>Current status of all uploaded files</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {['completed', 'processing', 'uploaded', 'failed', 'error'].map((status) => {
+                      const count = files.filter(f => f.status === status).length;
+                      const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
+                      return (
+                        <div key={status} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={getStatusBadgeVariant(status)}>
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">{count} files</span>
+                          </div>
+                          <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full ${
+                                  status === 'completed' ? 'bg-green-500' :
+                                  status === 'processing' ? 'bg-blue-500' :
+                                  status === 'uploaded' ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium min-w-[3rem] text-right">
+                              {percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>File Size Distribution</CardTitle>
+                  <CardDescription>Distribution of file sizes by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Small (< 1MB)', filter: (f: any) => f.file_size < 1024 * 1024 },
+                      { label: 'Medium (1-10MB)', filter: (f: any) => f.file_size >= 1024 * 1024 && f.file_size < 10 * 1024 * 1024 },
+                      { label: 'Large (10-100MB)', filter: (f: any) => f.file_size >= 10 * 1024 * 1024 && f.file_size < 100 * 1024 * 1024 },
+                      { label: 'Extra Large (100MB+)', filter: (f: any) => f.file_size >= 100 * 1024 * 1024 }
+                    ].map((category) => {
+                      const count = files.filter(category.filter).length;
+                      const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
+                      return (
+                        <div key={category.label} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium min-w-[7rem]">{category.label}</span>
+                            <span className="text-sm text-muted-foreground">{count} files</span>
+                          </div>
+                          <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="h-2 rounded-full bg-blue-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium min-w-[3rem] text-right">
+                              {percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Data Quality & Records Analysis */}
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Record Processing Stats</CardTitle>
+                  <CardDescription>Analysis of record counts and processing efficiency</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total Records</div>
+                      </div>
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Processed Records</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Processing Progress</span>
+                        <span>
+                          {files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
+                            ? ((files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100).toFixed(1)
+                            : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div 
+                          className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
+                              ? (files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100
+                              : 0}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      Average records per file: {files.length > 0 
+                        ? Math.round(files.reduce((sum, f) => sum + (f.record_count || 0), 0) / files.length).toLocaleString()
+                        : 0}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Upload Trends</CardTitle>
+                  <CardDescription>File upload patterns over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {files.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-3 bg-muted rounded-lg">
+                            <div className="text-lg font-bold">
+                              {files.filter(f => {
+                                const uploadDate = new Date(f.uploaded_at || '');
+                                const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                                return uploadDate > dayAgo;
+                              }).length}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Last 24 Hours</div>
+                          </div>
+                          <div className="text-center p-3 bg-muted rounded-lg">
+                            <div className="text-lg font-bold">
+                              {files.filter(f => {
+                                const uploadDate = new Date(f.uploaded_at || '');
+                                const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                                return uploadDate > weekAgo;
+                              }).length}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Last 7 Days</div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">Latest Upload Activity</div>
+                          {files.slice(0, 3).map((file) => (
+                            <div key={file.id} className="flex items-center justify-between text-xs p-2 bg-muted rounded">
+                              <span className="truncate max-w-[60%]">{file.original_name}</span>
+                              <span className="text-muted-foreground">
+                                {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, HH:mm") : "Unknown"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        No upload data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Schema Usage Analytics */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Schema Usage Analytics</CardTitle>
+                <CardDescription>How different schemas are being utilized across files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {schemas.length > 0 ? (
+                    schemas.map((schema) => {
+                      const schemaFiles = files.filter(f => f.schema_name === schema.name);
+                      const usagePercentage = files.length > 0 ? (schemaFiles.length / files.length) * 100 : 0;
+                      return (
+                        <div key={schema.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
+                              {schema.name} v{schema.version}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {schemaFiles.length} files
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[200px]">
+                              <div 
+                                className="h-2 rounded-full bg-purple-500"
+                                style={{ width: `${usagePercentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium min-w-[3rem] text-right">
+                              {usagePercentage.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center text-muted-foreground py-4">
+                      No schemas available for analysis
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -1028,324 +1394,25 @@ export default function TddfApiDataPage() {
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Data Analytics & Insights</h2>
+          {/* Daily View - Based on TDDF1 Template */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold">TDDF Daily View</h2>
+              <p className="text-muted-foreground">Day-by-day analysis of TDDF transaction data from the datamaster system</p>
+            </div>
             <Button 
               variant="outline"
               onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
-                toast({ title: "Data refreshed" });
+                queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/daily"] });
+                toast({ title: "Daily data refreshed" });
               }}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Analytics
+              Refresh Daily Data
             </Button>
           </div>
-
-          {/* Key Metrics Dashboard */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Data Volume</CardTitle>
-                <Database className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Across {files.length} files
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Processing Success Rate</CardTitle>
-                <Monitor className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {files.length > 0 
-                    ? ((files.filter(f => f.status === "completed").length / files.length) * 100).toFixed(1)
-                    : 0}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {files.filter(f => f.status === "completed").length} of {files.length} files
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average File Size</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {files.length > 0 
-                    ? formatFileSize(files.reduce((sum, f) => sum + (f.file_size || 0), 0) / files.length)
-                    : "0 B"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Per file average
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Data Quality Score</CardTitle>
-                <Monitor className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {files.length > 0 
-                    ? (100 - (files.filter(f => f.status === "failed" || f.status === "error").length / files.length) * 100).toFixed(1)
-                    : 100}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Based on error rate
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Data Distribution Charts */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>File Status Distribution</CardTitle>
-                <CardDescription>Current status of all uploaded files</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {['completed', 'processing', 'uploaded', 'failed', 'error'].map((status) => {
-                    const count = files.filter(f => f.status === status).length;
-                    const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
-                    return (
-                      <div key={status} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getStatusBadgeVariant(status)}>
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">{count} files</span>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                status === 'completed' ? 'bg-green-500' :
-                                status === 'processing' ? 'bg-blue-500' :
-                                status === 'uploaded' ? 'bg-yellow-500' :
-                                'bg-red-500'
-                              }`}
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium min-w-[3rem] text-right">
-                            {percentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>File Size Distribution</CardTitle>
-                <CardDescription>Distribution of file sizes by category</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { label: 'Small (< 1MB)', filter: (f: any) => f.file_size < 1024 * 1024 },
-                    { label: 'Medium (1-10MB)', filter: (f: any) => f.file_size >= 1024 * 1024 && f.file_size < 10 * 1024 * 1024 },
-                    { label: 'Large (10-100MB)', filter: (f: any) => f.file_size >= 10 * 1024 * 1024 && f.file_size < 100 * 1024 * 1024 },
-                    { label: 'Extra Large (100MB+)', filter: (f: any) => f.file_size >= 100 * 1024 * 1024 }
-                  ].map((category) => {
-                    const count = files.filter(category.filter).length;
-                    const percentage = files.length > 0 ? (count / files.length) * 100 : 0;
-                    return (
-                      <div key={category.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium min-w-[7rem]">{category.label}</span>
-                          <span className="text-sm text-muted-foreground">{count} files</span>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full bg-blue-500"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium min-w-[3rem] text-right">
-                            {percentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Data Quality & Records Analysis */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Record Processing Stats</CardTitle>
-                <CardDescription>Analysis of record counts and processing efficiency</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {files.reduce((sum, f) => sum + (f.record_count || 0), 0).toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Total Records</div>
-                    </div>
-                    <div className="text-center p-3 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {files.reduce((sum, f) => sum + (f.processed_records || 0), 0).toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Processed Records</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Processing Progress</span>
-                      <span>
-                        {files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
-                          ? ((files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100).toFixed(1)
-                          : 0}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div 
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${files.reduce((sum, f) => sum + (f.record_count || 0), 0) > 0 
-                            ? (files.reduce((sum, f) => sum + (f.processed_records || 0), 0) / files.reduce((sum, f) => sum + (f.record_count || 0), 0)) * 100
-                            : 0}%`
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Average records per file: {files.length > 0 
-                      ? Math.round(files.reduce((sum, f) => sum + (f.record_count || 0), 0) / files.length).toLocaleString()
-                      : 0}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Upload Trends</CardTitle>
-                <CardDescription>File upload patterns over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {files.length > 0 ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-3 bg-muted rounded-lg">
-                          <div className="text-lg font-bold">
-                            {files.filter(f => {
-                              const uploadDate = new Date(f.uploaded_at || '');
-                              const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                              return uploadDate > dayAgo;
-                            }).length}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Last 24 Hours</div>
-                        </div>
-                        <div className="text-center p-3 bg-muted rounded-lg">
-                          <div className="text-lg font-bold">
-                            {files.filter(f => {
-                              const uploadDate = new Date(f.uploaded_at || '');
-                              const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                              return uploadDate > weekAgo;
-                            }).length}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Last 7 Days</div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium">Latest Upload Activity</div>
-                        {files.slice(0, 3).map((file) => (
-                          <div key={file.id} className="flex items-center justify-between text-xs p-2 bg-muted rounded">
-                            <span className="truncate max-w-[60%]">{file.original_name}</span>
-                            <span className="text-muted-foreground">
-                              {file.uploaded_at ? format(new Date(file.uploaded_at), "MMM d, HH:mm") : "Unknown"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                      No upload data available
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Schema Usage Analytics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Schema Usage Analytics</CardTitle>
-              <CardDescription>How different schemas are being utilized across files</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {schemas.length > 0 ? (
-                  schemas.map((schema) => {
-                    const schemaFiles = files.filter(f => f.schema_name === schema.name);
-                    const usagePercentage = files.length > 0 ? (schemaFiles.length / files.length) * 100 : 0;
-                    return (
-                      <div key={schema.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={schema.isActive !== false ? "default" : "secondary"}>
-                            {schema.name} v{schema.version}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {schemaFiles.length} files
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0 flex-1 ml-4">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[200px]">
-                            <div 
-                              className="h-2 rounded-full bg-purple-500"
-                              style={{ width: `${usagePercentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium min-w-[3rem] text-right">
-                            {usagePercentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="text-center text-muted-foreground py-4">
-                    No schemas available for analysis
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          
+          <TddfApiDailyView />
         </TabsContent>
 
         <TabsContent value="processing" className="space-y-4">
