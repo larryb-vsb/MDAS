@@ -20062,9 +20062,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const statsResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
-          COUNT(DISTINCT file_id) as total_files,
-          SUM(CASE WHEN transaction_amount IS NOT NULL THEN transaction_amount ELSE 0 END) as total_transaction_value,
-          SUM(CASE WHEN net_deposit_amount IS NOT NULL THEN net_deposit_amount ELSE 0 END) as total_net_deposits,
+          COUNT(DISTINCT tddf_api_file_id) as total_files,
+          SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as total_transaction_value,
+          SUM(CASE WHEN batch_net_amount IS NOT NULL THEN batch_net_amount ELSE 0 END) as total_net_deposits,
           MAX(batch_date) as last_processed_date
         FROM ${datamasterTable}
       `);
@@ -20119,8 +20119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dayResult = await pool.query(`
         SELECT 
           COUNT(*) as total_records,
-          SUM(CASE WHEN transaction_amount IS NOT NULL THEN transaction_amount ELSE 0 END) as transaction_value,
-          COUNT(DISTINCT file_id) as file_count,
+          SUM(CASE WHEN transaction_auth_amount IS NOT NULL THEN transaction_auth_amount ELSE 0 END) as transaction_value,
+          COUNT(DISTINCT tddf_api_file_id) as file_count,
           batch_date
         FROM ${datamasterTable}
         WHERE batch_date = $1
