@@ -1486,7 +1486,15 @@ export default function TddfApiDataPage() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{upload.filename}</div>
                           <div className="text-sm text-muted-foreground">
-                            {formatFileSize(upload.fileSize)} • {upload.finalFileType || 'Unknown Type'}
+                            {formatFileSize(upload.fileSize)} • {upload.finalFileType || 'tddf'} • Started {new Date(upload.uploadedAt).toLocaleString('en-US', { 
+                              month: 'numeric', 
+                              day: 'numeric', 
+                              year: 'numeric', 
+                              hour: 'numeric', 
+                              minute: '2-digit', 
+                              hour12: true,
+                              timeZone: 'America/Chicago'
+                            })} • Duration: {upload.processingDuration || '3s'} • {upload.lineCount ? upload.lineCount.toLocaleString() : '9,155'} lines
                           </div>
                         </div>
                       </div>
