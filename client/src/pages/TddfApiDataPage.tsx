@@ -528,17 +528,31 @@ export default function TddfApiDataPage() {
 
       try {
         // Start upload session
-        await startUploadMutation.mutateAsync(file);
+        const uploadResponse = await startUploadMutation.mutateAsync(file);
         
-        // Upload file
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('sessionId', sessionId);
-        formData.append('filename', file.name);
-        formData.append('fileType', selectedFileType);
-        formData.append('keepForReview', keep.toString());
-
-        await uploadFileMutation.mutateAsync(formData);
+        if (uploadResponse?.id) {
+          // Upload file to object storage
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('sessionId', sessionId);
+          
+          const uploadApiResponse = await fetch(`/api/uploader/${uploadResponse.id}/upload`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+          
+          if (!uploadApiResponse.ok) {
+            throw new Error(`Upload failed: ${uploadApiResponse.status}`);
+          }
+          
+          // Update to uploaded status
+          await updatePhaseMutation.mutateAsync({
+            uploadId: uploadResponse.id,
+            phase: 'uploaded',
+            phaseData: { uploadProgress: 100 }
+          });
+        }
         
         toast({ title: `${file.name} uploaded successfully` });
       } catch (error) {
@@ -1268,7 +1282,7 @@ export default function TddfApiDataPage() {
                   
                   <div className="relative">
                     <div 
-                      className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors duration-300 bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer group"
+                      className="border-2 border-dashed border-blue-300 rounded-lg p-3 text-center hover:border-blue-400 transition-colors duration-300 bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer group"
                       onClick={() => document.getElementById('tddf-file-input')?.click()}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -1290,24 +1304,16 @@ export default function TddfApiDataPage() {
                         }
                       }}
                     >
-                      <div className="mb-4">
-                        <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                          <Upload className="w-8 h-8 text-blue-500 group-hover:animate-bounce" />
+                      <div className="flex items-center justify-center space-x-3">
+                        <Upload className="h-6 w-6 text-blue-400" />
+                        <div>
+                          <p className="font-medium text-blue-600">File Upload Zone</p>
+                          <p className="text-xs text-blue-500/80">Drag & drop TDDF files here, or click to browse</p>
                         </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold text-gray-700">File Upload Zone</h3>
-                        <p className="text-sm text-gray-500">
-                          Drag & drop TDDF files here, or click to browse
-                        </p>
-                        
-                        <div className="pt-2">
-                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 transition-colors duration-200">
-                            <Upload className="h-4 w-4" />
-                            Browse Files
-                          </div>
-                        </div>
+                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600">
+                          <Upload className="h-3 w-3 mr-1" />
+                          Browse Files
+                        </Button>
                       </div>
                     </div>
                     
