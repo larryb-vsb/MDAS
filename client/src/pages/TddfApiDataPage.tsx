@@ -280,9 +280,9 @@ export default function TddfApiDataPage() {
       method: "POST",
       body: JSON.stringify(keyData)
     }),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/keys"] });
-      setCreatedApiKey(data.key || "");
+      setCreatedApiKey(data?.key || "");
       setNewApiKey({ keyName: "", permissions: ["read"], rateLimitPerMinute: 100, expiresAt: "" });
       toast({ title: "API key created successfully" });
     }
