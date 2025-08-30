@@ -19,11 +19,38 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft } from "lucide-react";
+import { Loader2, Upload, Database, Key, Settings, Monitor, Download, FileText, Search, Filter, Eye, Copy, Check, Trash2, CheckSquare, Square, Calendar as CalendarIcon, ChevronLeft, ChevronRight, BarChart3, TrendingUp, DollarSign, Activity, ArrowLeft, CheckCircle, AlertCircle, Clock, Play, Zap, MoreVertical, ChevronUp, ChevronDown, Pause, EyeOff, ExternalLink, X, Lightbulb, RefreshCw } from "lucide-react";
 import { format, addDays, subDays, isToday } from "date-fns";
-import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TddfApiDailyView } from "@/components/TddfApiDailyView";
+import { UploaderUpload } from '@shared/schema';
+import { formatDistanceToNow } from 'date-fns';
+
+// File types for upload
+const FILE_TYPES = [
+  { value: 'tddf', label: 'TDDF (.TSYSO)', description: 'TSYS Transaction Daily Detail File .TSYSO file 2400 or 0830 ex VERMNTSB.6759_TDDF_2400_07112025_003301.TSYSO' },
+  { value: 'ach_merchant', label: 'ACH Merchant (.csv)', description: 'Custom Merchant Demographics .csv file' },
+  { value: 'ach_transactions', label: 'ACH Transactions (.csv)', description: 'Horizon Core ACH Processing Detail File AH0314P1 .csv file' },
+  { value: 'mastercard_di', label: 'MasterCard DI Report (.xlms)', description: 'MasterCard Data Integrity Edit Report records .xlms file' }
+];
+
+// Helper functions
+const formatFileSize = (bytes: number | null | undefined): string => {
+  if (!bytes) return 'Unknown';
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+};
+
+const getStatusBadgeVariant = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'completed': return 'default';
+    case 'processing': return 'secondary';
+    case 'failed':
+    case 'error': return 'destructive';
+    default: return 'outline';
+  }
+};
 
 interface TddfApiSchema {
   id: number;
@@ -169,6 +196,23 @@ export default function TddfApiDataPage() {
     status: ""
   });
 
+  // Uploader functionality state
+  const [selectedUploadFiles, setSelectedUploadFiles] = useState<FileList | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<string>('tddf');
+  const [sessionId] = useState(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [keep, setKeep] = useState<boolean>(false);
+  const [auto45Enabled, setAuto45Enabled] = useState<boolean>(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fileTypeFilter, setFileTypeFilter] = useState('all');
+  const [filenameFilter, setFilenameFilter] = useState('');
+  const [environmentFilter, setEnvironmentFilter] = useState('current');
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
+  const [selectedUploads, setSelectedUploads] = useState<string[]>([]);
+  const [uploaderFileForView, setUploaderFileForView] = useState<UploaderUpload | null>(null);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -227,6 +271,37 @@ export default function TddfApiDataPage() {
       return response.json();
     }
   });
+
+  // Fetch uploader files
+  const { data: uploaderResponse, isLoading: uploadsLoading } = useQuery({
+    queryKey: ["/api/uploader", { 
+      status: statusFilter, 
+      fileType: fileTypeFilter, 
+      filename: filenameFilter,
+      environment: environmentFilter,
+      sortBy,
+      sortOrder,
+      limit: itemsPerPage,
+      offset: currentPage * itemsPerPage
+    }],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('phase', statusFilter);
+      if (fileTypeFilter !== 'all') params.append('fileType', fileTypeFilter);
+      if (filenameFilter) params.append('filename', filenameFilter);
+      if (environmentFilter !== 'current') params.append('environment', environmentFilter);
+      params.append('sortBy', sortBy);
+      params.append('sortOrder', sortOrder);
+      params.append('limit', itemsPerPage.toString());
+      params.append('offset', (currentPage * itemsPerPage).toString());
+      
+      return apiRequest(`/api/uploader?${params.toString()}`);
+    },
+    refetchInterval: 5000
+  });
+
+  const uploads = uploaderResponse?.uploads || [];
+  const totalCount = uploaderResponse?.totalCount || 0;
 
   // Fetch monitoring data
   const { data: monitoring } = useQuery<any>({
@@ -288,6 +363,61 @@ export default function TddfApiDataPage() {
     }
   });
 
+
+  // Start upload mutation
+  const startUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const response = await apiRequest('/api/uploader/start', {
+        method: 'POST',
+        body: {
+          filename: file.name,
+          fileSize: file.size,
+          sessionId,
+          finalFileType: selectedFileType,
+          userClassifiedType: selectedFileType,
+          keep: keep
+        }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+    }
+  });
+
+  // Update phase mutation
+  const updatePhaseMutation = useMutation({
+    mutationFn: async ({ uploadId, phase, phaseData }: { 
+      uploadId: string; 
+      phase: string; 
+      phaseData?: Record<string, any> 
+    }) => {
+      const response = await apiRequest(`/api/uploader/${uploadId}/phase/${phase}`, {
+        method: 'POST',
+        body: phaseData || {}
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+    }
+  });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (uploadIds: string[]) => {
+      const response = await apiRequest('/api/uploader/bulk-delete', {
+        method: 'DELETE',
+        body: { uploadIds }
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/uploader'] });
+      setSelectedUploads([]);
+    }
+  });
+
   // Delete files mutation
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
@@ -342,22 +472,6 @@ export default function TddfApiDataPage() {
     toast({ title: "Copied to clipboard" });
   };
 
-  const formatFileSize = (bytes: number) => {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "completed": return "default";
-      case "processing": return "secondary";
-      case "failed": return "destructive";
-      case "queued": return "outline";
-      default: return "secondary";
-    }
-  };
 
   // File selection helper functions
   const toggleFileSelection = (fileId: number) => {
@@ -381,6 +495,67 @@ export default function TddfApiDataPage() {
   const handleDeleteSelected = () => {
     if (selectedFiles.size > 0) {
       deleteFilesMutation.mutate(Array.from(selectedFiles));
+    }
+  };
+
+  // Upload handler functions
+  const handleUploadFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      setSelectedUploadFiles(files);
+      if (selectedFileType) {
+        setTimeout(() => handleStartUpload(files), 100);
+      }
+    }
+  };
+
+  const handleStartUpload = async (files: FileList) => {
+    if (!selectedFileType) {
+      toast({ title: "Please select a file type first", variant: "destructive" });
+      return;
+    }
+
+    for (const file of Array.from(files)) {
+      // Create upload session
+      const sessionData = {
+        sessionId,
+        filename: file.name,
+        fileSize: file.size,
+        fileType: selectedFileType,
+        keepForReview: keep,
+        auto45Enabled
+      };
+
+      try {
+        // Start upload session
+        await startUploadMutation.mutateAsync(sessionData);
+        
+        // Upload file
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('sessionId', sessionId);
+        formData.append('filename', file.name);
+        formData.append('fileType', selectedFileType);
+        formData.append('keepForReview', keep.toString());
+
+        await uploadMutation.mutateAsync(formData);
+        
+        toast({ title: `${file.name} uploaded successfully` });
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast({ title: `Failed to upload ${file.name}`, variant: "destructive" });
+      }
+    }
+
+    // Reset selection
+    setSelectedUploadFiles(null);
+    const fileInput = document.getElementById('tddf-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedUploads.length > 0) {
+      bulkDeleteMutation.mutate(selectedUploads);
     }
   };
 
@@ -439,6 +614,7 @@ export default function TddfApiDataPage() {
       setFileContent("Error loading file content");
     }
   };
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -1018,205 +1194,362 @@ export default function TddfApiDataPage() {
         </TabsContent>
 
         <TabsContent value="files" className="space-y-4">
+          {/* Combined Upload & Files Tab */}
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">File Management</h2>
-            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-              <DialogTrigger asChild>
-                <Button onClick={() => setShowUploadDialog(true)}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload File
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Upload TDDF File</DialogTitle>
-                  <DialogDescription>
-                    Upload files up to 500MB for production processing
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="schema-select">Processing Schema</Label>
-                    <Select value={selectedSchema?.toString()} onValueChange={(value) => setSelectedSchema(parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a schema (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {schemas.map((schema) => (
-                          <SelectItem key={schema.id} value={schema.id.toString()}>
-                            {schema.name} v{schema.version}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="file-upload">File</Label>
-                    
-                    {/* Drag and Drop Zone */}
-                    <div
-                      onDragOver={handleDragOver}
-                      onDragEnter={handleDragEnter}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={`
-                        relative border-2 border-dashed rounded-lg p-6 text-center transition-colors
-                        ${isDragOver 
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
-                          : 'border-gray-300 hover:border-gray-400 dark:border-gray-600'
-                        }
-                      `}
-                    >
-                      {uploadFile ? (
-                        <div className="space-y-2">
-                          <FileText className="mx-auto h-8 w-8 text-green-600" />
-                          <p className="text-sm font-medium text-green-600">
-                            Selected: {uploadFile.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setUploadFile(null)}
-                            className="mt-2"
-                          >
-                            Remove File
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Upload className={`mx-auto h-8 w-8 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
-                          <p className={`text-sm font-medium ${isDragOver ? 'text-blue-600' : 'text-gray-600'}`}>
-                            {isDragOver ? 'Drop your file here' : 'Drag and drop your file here'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            or click to browse (.tsyso, .txt, .csv, .dat files up to 500MB)
-                          </p>
-                          <Input
-                            id="file-upload"
-                            type="file"
-                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                            accept=".tsyso,.txt,.csv,.dat"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={handleFileUpload}
-                    disabled={!uploadFile || uploadFileMutation.isPending}
-                    className="w-full"
-                  >
-                    {uploadFileMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Upload File
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <h2 className="text-2xl font-bold">TDDF Upload & Files</h2>
+            <Badge variant="outline">
+              {uploads.length} Uploads | {files.length} Processed Files
+            </Badge>
           </div>
 
-          {/* Date Filtering Controls */}
+          {/* Upload Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Date Filters
+                <Upload className="h-5 w-5" />
+                File Upload
               </CardTitle>
               <CardDescription>
-                Filter files by upload date or business day extracted from filenames
+                Session-controlled upload for TDDF files to the King database system
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div>
-                  <Label htmlFor="date-from">Upload Date From</Label>
-                  <Input
-                    id="date-from"
-                    type="date"
-                    value={dateFilters.dateFrom}
-                    onChange={(e) => setDateFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                  />
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                {/* File Type Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">File Type:</label>
+                  <div className="flex flex-wrap gap-2">
+                    {FILE_TYPES.map((type) => (
+                      <button
+                        key={type.value}
+                        onClick={() => {
+                          setSelectedFileType(type.value);
+                          if (selectedUploadFiles && selectedUploadFiles.length > 0) {
+                            setTimeout(() => handleStartUpload(selectedUploadFiles), 100);
+                          }
+                        }}
+                        className={`
+                          relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105
+                          ${selectedFileType === type.value 
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }
+                        `}
+                        title={type.description}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`
+                            w-2 h-2 rounded-full transition-all duration-300
+                            ${selectedFileType === type.value 
+                              ? 'bg-white animate-pulse' 
+                              : 'bg-gray-400'
+                            }
+                          `} />
+                          {type.label}
+                        </div>
+                        
+                        {selectedFileType === type.value && (
+                          <div className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-20" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {selectedFileType && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded-md border-l-4 border-blue-500">
+                      {FILE_TYPES.find(t => t.value === selectedFileType)?.description}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label htmlFor="date-to">Upload Date To</Label>
-                  <Input
-                    id="date-to"
-                    type="date"
-                    value={dateFilters.dateTo}
-                    onChange={(e) => setDateFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                  />
+
+                {/* File Upload Zone */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Files</label>
+                  
+                  <div className="relative">
+                    <div 
+                      className="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors duration-300 bg-blue-50/30 hover:bg-blue-50/50 cursor-pointer group"
+                      onClick={() => document.getElementById('tddf-file-input')?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        const files = e.dataTransfer?.files;
+                        if (files) {
+                          setSelectedUploadFiles(files);
+                          if (selectedFileType) {
+                            setTimeout(() => handleStartUpload(files), 100);
+                          }
+                        }
+                      }}
+                    >
+                      <div className="mb-4">
+                        <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <Upload className="w-8 h-8 text-blue-500 group-hover:animate-bounce" />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-gray-700">File Upload Zone</h3>
+                        <p className="text-sm text-gray-500">
+                          Drag & drop TDDF files here, or click to browse
+                        </p>
+                        
+                        <div className="pt-2">
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 transition-colors duration-200">
+                            <Upload className="h-4 w-4" />
+                            Browse Files
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <input
+                      id="tddf-file-input"
+                      type="file"
+                      multiple
+                      onChange={handleUploadFileSelect}
+                      className="hidden"
+                      accept={selectedFileType === 'tddf' ? '.TSYSO,.tsyso' : selectedFileType === 'mastercard_di' ? '.xlms,.xlsx' : '.csv'}
+                    />
+                  </div>
+                  
+                  {selectedUploadFiles && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex items-center gap-2 text-sm text-green-700">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="font-medium">
+                          {selectedUploadFiles.length} file(s) selected
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        {Array.from(selectedUploadFiles).map((file, index) => (
+                          <div key={index} className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                            {file.name} ({Math.round(file.size / 1024)}KB)
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label htmlFor="business-day-from">Business Day From</Label>
-                  <Input
-                    id="business-day-from"
-                    type="date"
-                    value={dateFilters.businessDayFrom}
-                    onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
-                  />
+
+                {/* Review Mode Switch */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Pause className="h-5 w-5 text-amber-600" />
+                      <div>
+                        <div className="font-medium text-amber-800">Keep for Review</div>
+                        <div className="text-sm text-amber-600">
+                          Hold uploads for manual review instead of auto-processing
+                        </div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={keep}
+                      onCheckedChange={setKeep}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="business-day-to">Business Day To</Label>
-                  <Input
-                    id="business-day-to"
-                    type="date"
-                    value={dateFilters.businessDayTo}
-                    onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status-filter">Status</Label>
-                  <Select value={dateFilters.status} onValueChange={(value) => setDateFilters(prev => ({ ...prev, status: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
-                      <SelectItem value="uploaded">Uploaded</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                      <SelectItem value="error">Error</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setDateFilters({
-                    dateFrom: "",
-                    dateTo: "",
-                    businessDayFrom: "",
-                    businessDayTo: "",
-                    status: ""
-                  })}
-                >
-                  Clear Filters
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] })}
-                >
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Refresh
-                </Button>
               </div>
             </CardContent>
           </Card>
 
+          {/* Files Management Section */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Files ({files.length})</CardTitle>
+                  <CardTitle>Uploaded Files ({uploads.length})</CardTitle>
                   <CardDescription>
-                    TDDF files uploaded for processing. Business days are automatically extracted from filenames.
+                    Files in the upload pipeline system - phases 1-5 processing
+                  </CardDescription>
+                </div>
+                {selectedUploads.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedUploads.length} selected
+                    </span>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleteMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete Selected
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <Label>Status Filter</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Files</SelectItem>
+                      <SelectItem value="started">Started</SelectItem>
+                      <SelectItem value="uploading">Uploading</SelectItem>
+                      <SelectItem value="uploaded">Uploaded</SelectItem>
+                      <SelectItem value="identified">Identified</SelectItem>
+                      <SelectItem value="encoding">Encoding</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="encoded">Encoded</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>File Type</Label>
+                  <Select value={fileTypeFilter} onValueChange={setFileTypeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="tddf">TDDF</SelectItem>
+                      <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
+                      <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                      <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Search Filename</Label>
+                  <Input
+                    placeholder="Filter by filename..."
+                    value={filenameFilter}
+                    onChange={(e) => setFilenameFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Sort</Label>
+                  <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                    const [field, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+                    setSortBy(field);
+                    setSortOrder(order);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date-desc">Date (Newest)</SelectItem>
+                      <SelectItem value="date-asc">Date (Oldest)</SelectItem>
+                      <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                      <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                      <SelectItem value="size-desc">Size (Largest)</SelectItem>
+                      <SelectItem value="size-asc">Size (Smallest)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {uploadsLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                  <p className="text-muted-foreground mt-2">Loading uploads...</p>
+                </div>
+              ) : uploads.length === 0 ? (
+                <div className="text-center py-8">
+                  <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground mt-2">No files uploaded yet</p>
+                  <p className="text-sm text-muted-foreground">Upload TDDF files to see them here</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {uploads.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((upload) => (
+                    <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedUploads.includes(upload.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedUploads(prev => [...prev, upload.id]);
+                            } else {
+                              setSelectedUploads(prev => prev.filter(id => id !== upload.id));
+                            }
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{upload.filename}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatFileSize(upload.fileSize)} • {upload.finalFileType || 'Unknown Type'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={upload.currentPhase === 'completed' || upload.currentPhase === 'encoded' ? 'default' : 'secondary'}>
+                          {upload.currentPhase || 'started'}
+                        </Badge>
+                        {upload.uploadProgress !== undefined && upload.uploadProgress < 100 && (
+                          <div className="w-16">
+                            <Progress value={upload.uploadProgress} className="h-2" />
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setUploaderFileForView(upload)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {uploads.length > itemsPerPage && (
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {currentPage * itemsPerPage + 1} to {Math.min((currentPage + 1) * itemsPerPage, uploads.length)} of {uploads.length} uploads
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                      disabled={currentPage === 0}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm">{currentPage + 1}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={(currentPage + 1) * itemsPerPage >= uploads.length}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Processed Files Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Processed TDDF Files ({files.length})</CardTitle>
+                  <CardDescription>
+                    Files that have completed processing and are available in the daily view
                   </CardDescription>
                 </div>
                 {selectedFiles.size > 0 && (
@@ -1263,13 +1596,103 @@ export default function TddfApiDataPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Date Filtering Controls */}
+              <div className="mb-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div>
+                    <Label htmlFor="date-from">Upload Date From</Label>
+                    <Input
+                      id="date-from"
+                      type="date"
+                      value={dateFilters.dateFrom}
+                      onChange={(e) => setDateFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="date-to">Upload Date To</Label>
+                    <Input
+                      id="date-to"
+                      type="date"
+                      value={dateFilters.dateTo}
+                      onChange={(e) => setDateFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-day-from">Business Day From</Label>
+                    <Input
+                      id="business-day-from"
+                      type="date"
+                      value={dateFilters.businessDayFrom}
+                      onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayFrom: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business-day-to">Business Day To</Label>
+                    <Input
+                      id="business-day-to"
+                      type="date"
+                      value={dateFilters.businessDayTo}
+                      onChange={(e) => setDateFilters(prev => ({ ...prev, businessDayTo: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="status-filter">Status</Label>
+                    <Select value={dateFilters.status} onValueChange={(value) => setDateFilters(prev => ({ ...prev, status: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All statuses</SelectItem>
+                        <SelectItem value="uploaded">Uploaded</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="error">Error</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setDateFilters({
+                      dateFrom: "",
+                      dateTo: "",
+                      businessDayFrom: "",
+                      businessDayTo: "",
+                      status: ""
+                    })}
+                  >
+                    Clear Filters
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ["/api/tddf-api/files"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/uploader"] });
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
                         checked={files.length > 0 && selectedFiles.size === files.length}
-                        onCheckedChange={toggleAllFiles}
+                        onCheckedChange={() => {
+                          if (selectedFiles.size === files.length) {
+                            setSelectedFiles(new Set());
+                          } else {
+                            setSelectedFiles(new Set(files.map(f => f.id)));
+                          }
+                        }}
                         aria-label="Select all files"
                       />
                     </TableHead>
@@ -1278,7 +1701,7 @@ export default function TddfApiDataPage() {
                     <TableHead>Size</TableHead>
                     <TableHead>Schema</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Lines</TableHead>
+                    <TableHead>Records</TableHead>
                     <TableHead>Progress</TableHead>
                     <TableHead>Uploaded</TableHead>
                     <TableHead>Actions</TableHead>
@@ -1297,7 +1720,15 @@ export default function TddfApiDataPage() {
                         <TableCell>
                           <Checkbox
                             checked={selectedFiles.has(file.id)}
-                            onCheckedChange={() => toggleFileSelection(file.id)}
+                            onCheckedChange={(checked) => {
+                              const newSelection = new Set(selectedFiles);
+                              if (checked) {
+                                newSelection.add(file.id);
+                              } else {
+                                newSelection.delete(file.id);
+                              }
+                              setSelectedFiles(newSelection);
+                            }}
                             aria-label={`Select ${file.original_name}`}
                           />
                         </TableCell>
