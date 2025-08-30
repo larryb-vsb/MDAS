@@ -300,8 +300,8 @@ export default function TddfApiDataPage() {
     refetchInterval: 5000
   });
 
-  const uploads = uploaderResponse?.uploads || [];
-  const totalCount = uploaderResponse?.totalCount || 0;
+  const uploads = (uploaderResponse as any)?.uploads || [];
+  const totalCount = (uploaderResponse as any)?.totalCount || 0;
 
   // Fetch monitoring data
   const { data: monitoring } = useQuery<any>({
@@ -528,7 +528,7 @@ export default function TddfApiDataPage() {
 
       try {
         // Start upload session
-        await startUploadMutation.mutateAsync(sessionData);
+        await startUploadMutation.mutateAsync(file);
         
         // Upload file
         const formData = new FormData();
@@ -538,7 +538,7 @@ export default function TddfApiDataPage() {
         formData.append('fileType', selectedFileType);
         formData.append('keepForReview', keep.toString());
 
-        await uploadMutation.mutateAsync(formData);
+        await uploadFileMutation.mutateAsync(formData);
         
         toast({ title: `${file.name} uploaded successfully` });
       } catch (error) {
@@ -1470,7 +1470,7 @@ export default function TddfApiDataPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {uploads.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((upload) => (
+                  {uploads.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage).map((upload: any) => (
                     <div key={upload.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <Checkbox
