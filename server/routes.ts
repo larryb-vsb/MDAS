@@ -20205,6 +20205,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Initialize TDDF API Daily View tables on King server
+  app.post("/api/tddf-api/daily/init-tables", isAuthenticated, async (req, res) => {
+    try {
+      console.log("🏗️ Initializing TDDF API daily tables on King server");
+      
+      // Detect environment and use appropriate naming
+      const environment = process.env.NODE_ENV || 'development';
+      const isDevelopment = environment === 'development';
+      const envPrefix = isDevelopment ? 'dev_' : '';
+      
+      console.log(`🏗️ Environment: ${environment}, Using prefix: ${envPrefix}`);
+      
+      // Create main datamaster table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${envPrefix}tddf_datamaster (
+          id SERIAL PRIMARY KEY,
+          record_id VARCHAR(50),
+          raw_line TEXT,
+          record_type VARCHAR(10),
+          batch_date DATE,
+          transaction_date DATE,
+          authorization_datetime TIMESTAMP,
+          merchant_account_number VARCHAR(50),
+          batch_net_amount NUMERIC(15,2),
+          transaction_auth_amount NUMERIC(15,2),
+          card_number_masked VARCHAR(20),
+          processing_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          import_session_id VARCHAR(100),
+          original_filename VARCHAR(255),
+          line_number INTEGER,
+          tddf_api_file_id INTEGER,
+          record_data JSONB,
+          extracted_fields JSONB
+        )
+      `);
+      
+      // Create import log table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ${envPrefix}tddf_import_log (
+          id SERIAL PRIMARY KEY,
+          source_filename VARCHAR(255) NOT NULL,
+          import_start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          import_end_time TIMESTAMP,
+          records_imported INTEGER DEFAULT 0,
+          import_status VARCHAR(50) DEFAULT 'pending',
+          error_message TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      console.log("🏗️ Tables created successfully on King server");
+      res.json({ 
+        success: true, 
+        message: "TDDF API daily tables initialized on King server",
+        environment: environment,
+        tablesCreated: [`${envPrefix}tddf_datamaster`, `${envPrefix}tddf_import_log`]
+      });
+      
+    } catch (error: any) {
+      console.error('[TDDF-API-INIT-TABLES] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Import TDDF data from TDDF-API files system
   app.post("/api/tddf-api/daily/import", isAuthenticated, async (req, res) => {
     try {
