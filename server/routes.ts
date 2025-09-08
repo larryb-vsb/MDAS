@@ -6497,6 +6497,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete MMS merchants
+  app.delete("/api/mms/merchants/bulk-delete", isAuthenticated, async (req, res) => {
+    try {
+      const { merchantIds } = req.body;
+      
+      if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        return res.status(400).json({ error: "merchantIds array is required" });
+      }
+      
+      console.log(`[MMS MERCHANTS BULK DELETE] Deleting ${merchantIds.length} merchants:`, merchantIds);
+      
+      const apiMerchantsTableName = 'dev_api_merchants'; // Direct table name for King database
+      
+      // Build the DELETE query with parameterized values
+      const placeholders = merchantIds.map((_, index) => `$${index + 1}`).join(',');
+      const deleteQuery = `DELETE FROM ${apiMerchantsTableName} WHERE id IN (${placeholders})`;
+      
+      const deleteResult = await pool.query(deleteQuery, merchantIds);
+      
+      console.log(`[MMS MERCHANTS BULK DELETE] Successfully deleted ${deleteResult.rowCount} merchants`);
+      
+      res.json({
+        success: true,
+        deletedCount: deleteResult.rowCount,
+        message: `Successfully deleted ${deleteResult.rowCount} merchant(s)`
+      });
+      
+    } catch (error) {
+      console.error('Error deleting MMS merchants:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to delete merchants" 
+      });
+    }
+  });
+
   // Get TDDF merchants aggregated from DT records
   app.get("/api/tddf/merchants", isAuthenticated, async (req, res) => {
     try {

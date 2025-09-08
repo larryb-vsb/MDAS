@@ -26,7 +26,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye, Search, Calendar, X, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { RefreshCw, ArrowUpDown, Building2, CreditCard, Monitor, ExternalLink, Eye, Search, Calendar, X, FileText, Trash2 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { formatTableDate } from "@/lib/date-utils";
 import MerchantActivityHeatMap from "@/components/merchants/MerchantActivityHeatMap";
@@ -67,11 +69,79 @@ export default function MMSMerchants() {
   const [sortBy, setSortBy] = useState("totalTransactions");
   const [sortOrder, setSortOrder] = useState("desc");
   const [selectedMerchant, setSelectedMerchant] = useState<TddfMerchant | null>(null);
+  
+  // Group selection state
+  const [selectedMerchants, setSelectedMerchants] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Reset page to 1 when search query or itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, itemsPerPage]);
+
+  // Selection handlers
+  const handleSelectMerchant = (merchantId: string, checked: boolean) => {
+    setSelectedMerchants(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(merchantId);
+      } else {
+        newSet.delete(merchantId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = merchants.map(m => m.id || m.merchantAccountNumber || m.client_mid);
+      setSelectedMerchants(new Set(allIds.filter(Boolean)));
+    } else {
+      setSelectedMerchants(new Set());
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedMerchants.size === 0) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/mms/merchants/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          merchantIds: Array.from(selectedMerchants)
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete merchants');
+      }
+
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${selectedMerchants.size} merchant(s)`,
+      });
+
+      // Clear selection and refresh data
+      setSelectedMerchants(new Set());
+      queryClient.invalidateQueries({ queryKey: ['/api/mms/merchants'] });
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete merchants. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Query MMS merchants from imported data
   const { data, isLoading, error } = useQuery<TddfMerchantsResponse>({
@@ -150,6 +220,25 @@ export default function MMSMerchants() {
                 ACH Merchants
               </TabsTrigger>
             </TabsList>
+
+            {/* Bulk Actions Bar - only show for ACH tab when items are selected */}
+            {activeTab === "ach" && selectedMerchants.size > 0 && (
+              <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg mt-4">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedMerchants.size} merchant(s) selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isDeleting ? 'Deleting...' : 'Delete Selected'}
+                </Button>
+              </div>
+            )}
             
             <TabsContent value="tddf" className="mt-6">
               <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
@@ -403,6 +492,13 @@ export default function MMSMerchants() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
+                            <TableHead className="w-12">
+                              <Checkbox
+                                checked={selectedMerchants.size === merchants.length && merchants.length > 0}
+                                onCheckedChange={handleSelectAll}
+                                aria-label="Select all merchants"
+                              />
+                            </TableHead>
                             <TableHead>Name</TableHead>
                             <TableHead>Client MID</TableHead>
                             <TableHead>City</TableHead>
@@ -413,25 +509,40 @@ export default function MMSMerchants() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {merchants.filter(m => m.merchant_type === 'ACH' || true).map((merchant: any) => (
-                            <TableRow key={merchant.id} className="hover:bg-gray-50">
-                              <TableCell className="font-medium">{merchant.name}</TableCell>
-                              <TableCell>{merchant.client_mid}</TableCell>
-                              <TableCell>{merchant.city}</TableCell>
-                              <TableCell>{merchant.state}</TableCell>
-                              <TableCell>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  merchant.status === 'Active' 
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {merchant.status}
-                                </span>
-                              </TableCell>
-                              <TableCell>{merchant.sale_amt ? formatCurrency(merchant.sale_amt) : '-'}</TableCell>
-                              <TableCell>{merchant.credit_amt ? formatCurrency(merchant.credit_amt) : '-'}</TableCell>
-                            </TableRow>
-                          ))}
+                          {merchants.filter(m => m.merchant_type === 'ACH' || true).map((merchant: any) => {
+                            const merchantId = merchant.id || merchant.client_mid;
+                            return (
+                              <TableRow 
+                                key={merchantId} 
+                                className={`hover:bg-gray-50 transition-colors ${
+                                  selectedMerchants.has(merchantId) ? 'bg-blue-50' : ''
+                                }`}
+                              >
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedMerchants.has(merchantId)}
+                                    onCheckedChange={(checked) => handleSelectMerchant(merchantId, checked as boolean)}
+                                    aria-label={`Select ${merchant.name}`}
+                                  />
+                                </TableCell>
+                                <TableCell className="font-medium">{merchant.name}</TableCell>
+                                <TableCell>{merchant.client_mid}</TableCell>
+                                <TableCell>{merchant.city}</TableCell>
+                                <TableCell>{merchant.state}</TableCell>
+                                <TableCell>
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    merchant.status === 'Active' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {merchant.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell>{merchant.sale_amt ? formatCurrency(merchant.sale_amt) : '-'}</TableCell>
+                                <TableCell>{merchant.credit_amt ? formatCurrency(merchant.credit_amt) : '-'}</TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
