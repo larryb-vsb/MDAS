@@ -21394,9 +21394,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
   
-  // Start TDDF API processing worker (runs every 10 seconds) - disabled during migration
-  // setInterval(processTddfApiQueue, 10000);
-  console.log('[TDDF-API-PROCESSOR] Worker disabled - migration complete, upload functionality working');
+  // Start TDDF API processing worker (runs every 10 seconds) - RE-ENABLED for King database
+  setInterval(processTddfApiQueue, 10000);
+  console.log('[TDDF-API-PROCESSOR] Worker ENABLED - processing uploaded files to King database every 10 seconds');
 
   // Get files list with date filtering
   app.get('/api/tddf-api/files', isAuthenticated, async (req, res) => {
