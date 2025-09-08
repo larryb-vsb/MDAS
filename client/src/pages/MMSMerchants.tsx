@@ -275,28 +275,28 @@ export default function MMSMerchants() {
                               <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
                                   <Building2 className="h-4 w-4 text-blue-500" />
-                                  {merchant.merchantName}
+                                  {merchant.merchantName || merchant.name || 'Unknown Merchant'}
                                 </div>
                               </TableCell>
                               <TableCell className="font-mono text-sm">
-                                {merchant.merchantAccountNumber}
+                                {merchant.merchantAccountNumber || merchant.client_mid || 'N/A'}
                               </TableCell>
                               <TableCell>
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  {merchant.totalTransactions.toLocaleString()}
+                                  {merchant.totalTransactions?.toLocaleString() || '0'}
                                 </span>
                               </TableCell>
                               <TableCell className="font-medium text-green-600">
-                                {formatCurrency(merchant.totalAmount)}
+                                {formatCurrency(merchant.totalAmount || merchant.sale_amt || 0)}
                               </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-1">
                                   <Monitor className="h-3 w-3 text-gray-400" />
-                                  {merchant.terminalCount}
+                                  {merchant.terminalCount || 0}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {formatTableDate(merchant.lastTransactionDate)}
+                                {formatTableDate(merchant.lastTransactionDate || merchant.created_at)}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
