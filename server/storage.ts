@@ -4112,9 +4112,9 @@ export class DatabaseStorage implements IStorage {
             console.log(`Processing merchant update: ${merchant.id} - ${merchant.name}`);
             
             // @ENVIRONMENT-CRITICAL - Merchant existence check for CSV processing
-            // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-            const merchantsTableName = getTableName('merchants');
-            const existingMerchantResult = await pool.query(`SELECT * FROM ${merchantsTableName} WHERE id = $1`, [merchant.id]);
+            // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API merchants
+            const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
+            const existingMerchantResult = await pool.query(`SELECT * FROM ${apiMerchantsTableName} WHERE id = $1`, [merchant.id]);
             const existingMerchant = existingMerchantResult.rows;
             
             if (existingMerchant.length > 0) {
@@ -4153,15 +4153,15 @@ export class DatabaseStorage implements IStorage {
               console.log(`Update data: ${JSON.stringify(updateData)}`);
               
               // @ENVIRONMENT-CRITICAL - Merchant CSV processing update operations
-              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-              const merchantsTableName = getTableName('merchants');
+              // @DEPLOYMENT-CHECK - Fixed to use API merchants table
+              const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
               
               const updateColumns = Object.keys(updateData);
               const updateValues = Object.values(updateData);
               const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
               
               const updateQuery = `
-                UPDATE ${merchantsTableName}
+                UPDATE ${apiMerchantsTableName}
                 SET ${setClause}
                 WHERE id = $${updateColumns.length + 1}
               `;
@@ -4169,7 +4169,7 @@ export class DatabaseStorage implements IStorage {
               await pool.query(updateQuery, [...updateValues, merchant.id]);
             } else {
               // @ENVIRONMENT-CRITICAL - Merchant insertion operations
-              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
+              // @DEPLOYMENT-CHECK - Fixed to use API merchants table
               console.log(`Inserting new merchant: ${merchant.id} - ${merchant.name}`);
               stats.newMerchants++;
               createdMerchantsList.push({
@@ -4179,9 +4179,9 @@ export class DatabaseStorage implements IStorage {
                 asOfDate: merchant.asOfDate
               });
               
-              const merchantsTableName = getTableName('merchants');
+              const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
               await pool.query(`
-                INSERT INTO ${merchantsTableName} (
+                INSERT INTO ${apiMerchantsTableName} (
                   id, name, merchant_type, client_since_date, as_of_date, 
                   created_at, last_upload_date, edit_date, updated_by
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
