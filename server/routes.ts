@@ -6500,9 +6500,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk delete MMS merchants
   app.delete("/api/mms/merchants/bulk-delete", isAuthenticated, async (req, res) => {
     try {
+      console.log(`[MMS MERCHANTS BULK DELETE] Request body:`, req.body);
       const { merchantIds } = req.body;
       
       if (!merchantIds || !Array.isArray(merchantIds) || merchantIds.length === 0) {
+        console.log(`[MMS MERCHANTS BULK DELETE] Invalid merchantIds:`, merchantIds);
         return res.status(400).json({ error: "merchantIds array is required" });
       }
       
@@ -6513,6 +6515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build the DELETE query with parameterized values
       const placeholders = merchantIds.map((_, index) => `$${index + 1}`).join(',');
       const deleteQuery = `DELETE FROM ${apiMerchantsTableName} WHERE id IN (${placeholders})`;
+      
+      console.log(`[MMS MERCHANTS BULK DELETE] SQL Query:`, deleteQuery);
+      console.log(`[MMS MERCHANTS BULK DELETE] Query params:`, merchantIds);
       
       const deleteResult = await pool.query(deleteQuery, merchantIds);
       
@@ -6525,7 +6530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error) {
-      console.error('Error deleting MMS merchants:', error);
+      console.error('[MMS MERCHANTS BULK DELETE] Error deleting MMS merchants:', error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to delete merchants" 
       });
