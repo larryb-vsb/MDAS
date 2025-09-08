@@ -6430,6 +6430,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get MMS merchants from dev_api_merchants table (imported from TDDF)
+  app.get("/api/mms/merchants", isAuthenticated, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const search = req.query.search as string;
+      const sortBy = req.query.sortBy as string || 'name';
+      const sortOrder = req.query.sortOrder as string || 'asc';
+      
+      console.log('[MMS MERCHANTS API] Query params:', {
+        page, limit, search, sortBy, sortOrder
+      });
+      
+      const apiMerchantsTableName = getTableName('api_merchants');
+      const offset = (page - 1) * limit;
+      
+      // Build WHERE clause for search
+      let whereClause = '';
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+      
+      if (search?.trim()) {
+        whereClause = `WHERE (name ILIKE $${paramIndex} OR client_mid ILIKE $${paramIndex} OR city ILIKE $${paramIndex} OR state ILIKE $${paramIndex})`;
+        queryParams.push(`%${search.trim()}%`);
+        paramIndex++;
+      }
+      
+      // Build ORDER BY clause
+      const validSortColumns = ['name', 'status', 'city', 'state', 'sale_amt', 'credit_amt', 'created_at'];
+      const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'name';
+      const safeSortOrder = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+      
+      // Get total count
+      const countQuery = `SELECT COUNT(*) as total FROM ${apiMerchantsTableName} ${whereClause}`;
+      const countResult = await pool.query(countQuery, queryParams);
+      const totalCount = parseInt(countResult.rows[0].total);
+      
+      // Get paginated data
+      const dataQuery = `
+        SELECT * FROM ${apiMerchantsTableName} 
+        ${whereClause}
+        ORDER BY ${safeSortBy} ${safeSortOrder}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      queryParams.push(limit, offset);
+      
+      const dataResult = await pool.query(dataQuery, queryParams);
+      
+      console.log(`[MMS MERCHANTS API] Found ${dataResult.rows.length} merchants (total: ${totalCount})`);
+      
+      res.json({
+        data: dataResult.rows,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalItems: totalCount,
+          itemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching MMS merchants:', error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Failed to fetch MMS merchants" 
+      });
+    }
+  });
+
   // Get TDDF merchants aggregated from DT records
   app.get("/api/tddf/merchants", isAuthenticated, async (req, res) => {
     try {

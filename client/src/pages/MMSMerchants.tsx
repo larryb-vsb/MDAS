@@ -73,9 +73,9 @@ export default function MMSMerchants() {
     setCurrentPage(1);
   }, [searchQuery, itemsPerPage]);
 
-  // Query TDDF merchants
+  // Query MMS merchants from imported data
   const { data, isLoading, error } = useQuery<TddfMerchantsResponse>({
-    queryKey: ['/api/tddf/merchants', currentPage, itemsPerPage, searchQuery, sortBy, sortOrder],
+    queryKey: ['/api/mms/merchants', currentPage, itemsPerPage, searchQuery, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', currentPage.toString());
@@ -87,9 +87,9 @@ export default function MMSMerchants() {
         params.append('search', searchQuery.trim());
       }
       
-      const response = await fetch(`/api/tddf/merchants?${params.toString()}`);
+      const response = await fetch(`/api/mms/merchants?${params.toString()}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch TDDF merchants');
+        throw new Error('Failed to fetch MMS merchants');
       }
       return response.json();
     }
