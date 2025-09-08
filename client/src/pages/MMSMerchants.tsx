@@ -136,7 +136,7 @@ export default function MMSMerchants() {
           />
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
               <TabsTrigger value="tddf" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 TDDF Merchants
@@ -144,6 +144,10 @@ export default function MMSMerchants() {
               <TabsTrigger value="tddf1" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 TDDF1 Merchants
+              </TabsTrigger>
+              <TabsTrigger value="ach" className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                ACH Merchants
               </TabsTrigger>
             </TabsList>
             
@@ -345,6 +349,127 @@ export default function MMSMerchants() {
             
             <TabsContent value="tddf1" className="mt-6">
               <Tddf1MerchantVolumeTab />
+            </TabsContent>
+
+            <TabsContent value="ach" className="mt-6">
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                    ACH Merchants ({data?.pagination?.totalItems || 0})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {/* Search and Controls */}
+                  <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-x-4 md:space-y-0 mb-6">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search ACH merchants by name, MID, or city..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 bg-white border-gray-200 focus:border-blue-300 focus:ring-blue-200"
+                      />
+                    </div>
+                    <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(parseInt(value))}>
+                      <SelectTrigger className="w-32 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 per page</SelectItem>
+                        <SelectItem value="20">20 per page</SelectItem>
+                        <SelectItem value="50">50 per page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* ACH Merchants Table */}
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-64">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center py-12">
+                      <p className="text-red-600">Error loading ACH merchants: {error.message}</p>
+                    </div>
+                  ) : merchants.filter(m => m.merchant_type === 'ACH' || true).length === 0 ? (
+                    <div className="text-center py-12">
+                      <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-gray-500">No ACH merchants found</p>
+                      <p className="text-sm text-gray-400 mt-2">Upload VSB merchant files to see ACH merchants here</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg overflow-hidden border border-gray-200 bg-white">
+                      <Table>
+                        <TableHeader className="bg-gray-50">
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Client MID</TableHead>
+                            <TableHead>City</TableHead>
+                            <TableHead>State</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Sale Amount</TableHead>
+                            <TableHead>Credit Amount</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {merchants.filter(m => m.merchant_type === 'ACH' || true).map((merchant: any) => (
+                            <TableRow key={merchant.id} className="hover:bg-gray-50">
+                              <TableCell className="font-medium">{merchant.name}</TableCell>
+                              <TableCell>{merchant.client_mid}</TableCell>
+                              <TableCell>{merchant.city}</TableCell>
+                              <TableCell>{merchant.state}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  merchant.status === 'Active' 
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {merchant.status}
+                                </span>
+                              </TableCell>
+                              <TableCell>{merchant.sale_amt ? formatCurrency(merchant.sale_amt) : '-'}</TableCell>
+                              <TableCell>{merchant.credit_amt ? formatCurrency(merchant.credit_amt) : '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  {pagination && pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6">
+                      <div className="text-sm text-gray-700">
+                        Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
+                        {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
+                        {pagination.totalItems} ACH merchants
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={pagination.currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-sm font-medium">
+                          Page {pagination.currentPage} of {pagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                          disabled={pagination.currentPage === pagination.totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         )}
