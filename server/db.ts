@@ -90,7 +90,7 @@ const getPoolConfig = (poolType: 'app' | 'batch' | 'session') => {
   };
   
   return {
-    connectionString: databaseUrl,
+    connectionString: FORCE_KING_SERVER_URL, // FORCE King server connection
     ...configs[poolType]
   };
 };
