@@ -18,8 +18,8 @@ console.log('🔧 [DATABASE-OVERRIDE] Forcing connection to King server ep-shy-k
 console.log(`🔍 [ENV-CHECK] DATABASE_URL: ${process.env.DATABASE_URL?.includes('ep-young-frog') ? 'ep-young-frog (WRONG)' : process.env.DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
 console.log(`🔍 [ENV-CHECK] NEON_DEV_DATABASE_URL: ${process.env.NEON_DEV_DATABASE_URL?.includes('ep-shy-king') ? 'ep-shy-king (CORRECT)' : 'unknown'}`);
 
-// FORCE King server - Use NEON_DEV_DATABASE_URL which points to King server
-const databaseUrl = process.env.NEON_DEV_DATABASE_URL || FORCE_KING_SERVER_URL;
+// FORCE King server - Use hardcoded King server URL to ensure correct connection
+const databaseUrl = FORCE_KING_SERVER_URL;
 
 // Override ALL environment variables to ensure King server connection
 process.env.DATABASE_URL = databaseUrl;
