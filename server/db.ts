@@ -11,6 +11,9 @@ neonConfig.webSocketConstructor = ws;
 // ABSOLUTE OVERRIDE: Disconnect from ep-young-frog and FORCE King server connection
 const FORCE_KING_SERVER_URL = "postgresql://neondb_owner:npg_Dzy4oGqcr3SH@ep-shy-king-aasxdlh7-pooler.westus3.azure.neon.tech/neondb?sslmode=require&channel_binding=require";
 
+// IMMEDIATELY override environment variable
+process.env.DATABASE_URL = FORCE_KING_SERVER_URL;
+
 console.log('🔧 [DATABASE-OVERRIDE] Forcing disconnection from ep-young-frog-a6mno10h');
 console.log('🔧 [DATABASE-OVERRIDE] Forcing connection to King server ep-shy-king-aasxdlh7');
 
@@ -21,10 +24,10 @@ console.log(`🔍 [ENV-CHECK] NEON_DEV_DATABASE_URL: ${process.env.NEON_DEV_DATA
 // FORCE King server - ABSOLUTE OVERRIDE to King server
 const databaseUrl = FORCE_KING_SERVER_URL;
 
-// Override ALL environment variables to ensure King server connection
-process.env.DATABASE_URL = databaseUrl;
-process.env.NEON_DATABASE_URL = databaseUrl;
-process.env.NEON_DEV_DATABASE_URL = databaseUrl;
+// Override ALL environment variables AGAIN to ensure King server connection
+process.env.DATABASE_URL = FORCE_KING_SERVER_URL;
+process.env.NEON_DATABASE_URL = FORCE_KING_SERVER_URL;
+process.env.NEON_DEV_DATABASE_URL = FORCE_KING_SERVER_URL;
 
 console.log(`🔧 [ABSOLUTE-FORCE] Hardcoded King server URL: ${databaseUrl.substring(0, 50)}...${databaseUrl.includes('ep-shy-king') ? ' (KING SERVER ✅)' : databaseUrl.includes('ep-young-frog') ? ' (FROG SERVER ❌)' : ' (UNKNOWN)'}`);
 
