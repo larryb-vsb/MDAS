@@ -6443,7 +6443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page, limit, search, sortBy, sortOrder
       });
       
-      const apiMerchantsTableName = getTableName('api_merchants');
+      const apiMerchantsTableName = 'dev_api_merchants'; // Direct table name for King database
       const offset = (page - 1) * limit;
       
       // Build WHERE clause for search
