@@ -13,19 +13,19 @@ export const merchantFieldMappings = {
   // Database field: CSV field name
   id: "ClientMID", // Use ClientMID as our primary merchant ID
   name: "ClientLegalName",
-  clientMID: "ClientNumber", // Map to clientMID
-  otherClientNumber1: null, // Not in current import
+  clientMID: "ClientNum", // Map to clientMID - FIXED to match VSB format
+  otherClientNumber1: "ClientNum", // Also map ClientNum here for backup
   otherClientNumber2: "MID2", // Parent MID from CSV
   status: "Status", // Merchant status field (Open = Active, Delete = Inactive)
   merchantType: "Mtype", // Merchant Type field (numeric: 1=Online, 2=Retail, 3=Mixed, 4=B2B, 5=Wholesale)
   association: "Association", // Business association field
   mcc: "MCC", // Merchant Category Code
   masterMID: "POS Merchant #", // Master Merchant ID from TSYS (POS Merchant # field)
-  address: "ClientPAddress1", 
-  city: "ClientPAddressCity",
-  state: "ClientPAddressState",
-  zipCode: "ClientPAddressZip",
-  country: "ClientPAddressCountry",
+  address: "ClientPAddr1", // FIXED to match VSB format
+  city: "ClientPAddr2", // Use ClientPAddr2 for city since VSB format splits address
+  state: "ClientState", // FIXED to match VSB format
+  zipCode: "ClientPAddr7", // Use ClientPAddr7 for zip code
+  country: "ClientPAddr6", // Use ClientPAddr6 for country
   category: null, // Default in code
   clientSinceDate: "ClientSinceDate",
   asOfDate: "AsOfDate" // Date from demographic import file
@@ -165,8 +165,9 @@ export const defaultMerchantValues = {
 
 // CSV header variations that might occur in different files
 export const merchantIdAliases = [
-  "ClientNumber", // Primary merchant ID for demographics files
-  "ClientMID", 
+  "ClientMID", // Primary merchant ID for VSB files
+  "ClientNum", // Alternative merchant ID for VSB files 
+  "ClientNumber", // Legacy format
   "MerchantID", 
   "Merchant_ID", 
   "ClientID"
