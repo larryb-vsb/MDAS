@@ -47,20 +47,20 @@ export default function TerminalsPage() {
   const { paginatedTerminals, pagination, filteredTotal } = useMemo(() => {
     let filteredTerminals = terminals.filter((terminal) => {
       const matchesSearch = 
-        terminal.v_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.dba_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.pos_merchant_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.vNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.dbaName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        terminal.posMerchantNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         terminal.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        terminal.term_number?.toString().toLowerCase().includes(searchQuery.toLowerCase());
+        terminal.termNumber?.toString().toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "all" || terminal.status === statusFilter;
-      const matchesType = terminalTypeFilter === "all" || terminal.terminal_type === terminalTypeFilter;
+      const matchesType = terminalTypeFilter === "all" || terminal.terminalType === terminalTypeFilter;
 
       // Enhanced date filtering when heat map date is selected
       let matchesDate = true;
       if (selectedDate) {
-        const terminalActivityDate = terminal.last_activity ? 
-          new Date(terminal.last_activity).toISOString().split('T')[0] : null;
+        const terminalActivityDate = terminal.lastActivity ? 
+          new Date(terminal.lastActivity).toISOString().split('T')[0] : null;
         matchesDate = terminalActivityDate === selectedDate;
       }
 
@@ -71,8 +71,8 @@ export default function TerminalsPage() {
     if (sortField) {
       filteredTerminals.sort((a, b) => {
         if (sortField === 'termNumber') {
-          const aValue = a.term_number || '';
-          const bValue = b.term_number || '';
+          const aValue = a.termNumber || '';
+          const bValue = b.termNumber || '';
           
           // Convert to numbers if they're numeric, otherwise compare as strings
           const aNum = parseInt(aValue, 10);
@@ -90,11 +90,11 @@ export default function TerminalsPage() {
           let bValue: Date | null = null;
 
           if (sortField === 'lastActivity') {
-            aValue = a.last_activity ? new Date(a.last_activity) : null;
-            bValue = b.last_activity ? new Date(b.last_activity) : null;
+            aValue = a.lastActivity ? new Date(a.lastActivity) : null;
+            bValue = b.lastActivity ? new Date(b.lastActivity) : null;
           } else if (sortField === 'lastUpdate') {
-            aValue = a.last_update ? new Date(a.last_update) : null;
-            bValue = b.last_update ? new Date(b.last_update) : null;
+            aValue = a.lastUpdate ? new Date(a.lastUpdate) : null;
+            bValue = b.lastUpdate ? new Date(b.lastUpdate) : null;
           }
 
           // Enhanced null handling with performance optimization
@@ -200,7 +200,7 @@ export default function TerminalsPage() {
     onSuccess: (data) => {
       toast({
         title: "Terminal Import Complete",
-        description: `Successfully imported ${data.imported} new terminals and updated ${data.updated} existing ones from ${data.filename}`,
+        description: "Successfully imported terminals",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
     },
@@ -362,8 +362,8 @@ export default function TerminalsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {terminals.filter(t => t.last_update && 
-                  new Date(t.last_update) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                {terminals.filter(t => t.lastUpdate && 
+                  new Date(t.lastUpdate) > new Date(Date.now() - 24 * 60 * 60 * 1000)
                 ).length}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -561,30 +561,30 @@ export default function TerminalsPage() {
                         <Checkbox
                           checked={selectedTerminals.includes(terminal.id)}
                           onCheckedChange={() => handleSelectTerminal(terminal.id)}
-                          aria-label={`Select terminal ${terminal.v_number}`}
+                          aria-label={`Select terminal ${terminal.vNumber}`}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          {getTerminalTypeIcon(terminal.terminal_type)}
-                          {terminal.v_number}
+                          {getTerminalTypeIcon(terminal.terminalType)}
+                          {terminal.vNumber}
                         </div>
                       </TableCell>
-                      <TableCell>{terminal.dba_name || "-"}</TableCell>
+                      <TableCell>{terminal.dbaName || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {terminal.pos_merchant_number || "-"}
+                        {terminal.posMerchantNumber || "-"}
                       </TableCell>
                       <TableCell className="font-mono text-sm font-medium text-blue-600">
-                        {terminal.term_number || "-"}
+                        {terminal.termNumber || "-"}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(terminal.status || "Unknown")}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.last_activity?.toString() || null)}
+                        {formatTableDate(terminal.lastActivity?.toString() || null)}
                       </TableCell>
                       <TableCell>
-                        {formatTableDate(terminal.last_update?.toString() || null)}
+                        {formatTableDate(terminal.lastUpdate?.toString() || null)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
