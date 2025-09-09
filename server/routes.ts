@@ -5174,6 +5174,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual terminal CSV re-processing endpoint
+  app.post('/api/terminals/reprocess-csv', isAuthenticated, async (req, res) => {
+    try {
+      const { fileId } = req.body;
+      console.log(`[TERMINAL-REPROCESS] Manual re-processing requested for file: ${fileId}`);
+      
+      if (!fileId) {
+        return res.status(400).json({ error: 'File ID is required' });
+      }
+
+      // Get file details from uploader table
+      const { pool } = await import('./db');
+      
+      const fileResult = await pool.query(`
+        SELECT id, original_filename, s3_key, detected_file_type, final_file_type, content_base64
+        FROM dev_uploader_uploads 
+        WHERE id = $1
+      `, [fileId]);
+      
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+      
+      const fileRecord = fileResult.rows[0];
+      console.log(`[TERMINAL-REPROCESS] Found file: ${fileRecord.original_filename}`);
+      
+      // Get file content from Replit Object Storage if needed
+      let fileContent = fileRecord.content_base64;
+      if (!fileContent && fileRecord.s3_key) {
+        const { ReplitStorageService } = await import('./replit-storage-service.js');
+        fileContent = await ReplitStorageService.getFileContent(fileRecord.s3_key);
+        console.log(`[TERMINAL-REPROCESS] Retrieved content from storage, length: ${fileContent ? fileContent.length : 0}`);
+      }
+      
+      if (!fileContent) {
+        return res.status(400).json({ error: 'File content not available' });
+      }
+      
+      // Process terminal CSV using fixed storage method
+      console.log(`[TERMINAL-REPROCESS] Processing terminal CSV content...`);
+      const processingResult = await storage.processTerminalFileFromContent(
+        fileContent,
+        fileRecord.id,
+        fileRecord.original_filename
+      );
+      
+      console.log(`[TERMINAL-REPROCESS] ✅ Processing completed:`, processingResult);
+      
+      // Update file status to reflect re-processing
+      await storage.updateUploaderPhase(fileId, 'encoded', {
+        encodingCompletedAt: new Date(),
+        encodingStatus: 'completed',
+        encodingNotes: `Manual re-processing successful: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
+        processingNotes: `Manual re-processing by ${req.user?.username || 'user'}: ${processingResult.rowsProcessed} rows processed`,
+        recordsProcessed: processingResult.rowsProcessed,
+        recordsCreated: processingResult.terminalsCreated,
+        recordsUpdated: processingResult.terminalsUpdated,
+        processingErrors: processingResult.errors
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Terminal CSV re-processed successfully',
+        results: processingResult
+      });
+      
+    } catch (error) {
+      console.error('[TERMINAL-REPROCESS] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to re-process terminal CSV', 
+        details: error.message 
+      });
+    }
+  });
+
   // Bulk delete terminals
   app.delete("/api/terminals", isAuthenticated, async (req, res) => {
     try {
