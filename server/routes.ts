@@ -8688,6 +8688,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force reprocess failed CSV file with enhanced extraction (bypass auth for debugging)
+  app.post('/api/debug/reprocess-csv/:uploadId', async (req, res) => {
+    console.log('[CSV-REPROCESS] Force reprocessing failed CSV with enhanced extraction');
+    try {
+      const uploadId = req.params.uploadId;
+      const uploadsTable = getTableName('uploader_uploads');
+      
+      // Get upload info
+      const uploadResult = await pool.query(`SELECT * FROM ${uploadsTable} WHERE id = $1`, [uploadId]);
+      
+      if (uploadResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Upload not found' });
+      }
+      
+      const upload = uploadResult.rows[0];
+      console.log(`[CSV-REPROCESS] Reprocessing file: ${upload.original_filename}`);
+      
+      // Get file content
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3_key);
+      
+      // Force reprocess with enhanced extraction  
+      console.log(`[CSV-REPROCESS] Starting enhanced extraction for ${upload.original_filename}...`);
+      console.log(`[CSV-REPROCESS] File content length: ${fileContent.length} characters`);
+      
+      // Convert content to base64 for processTransactionFileFromContent
+      const base64Content = Buffer.from(fileContent, 'utf8').toString('base64');
+      const result = await storage.processTransactionFileFromContent(base64Content, uploadId);
+      
+      // Update upload status
+      await pool.query(`UPDATE ${uploadsTable} SET processing_errors = $1, current_phase = 'encoded' WHERE id = $2`, [
+        null, // Clear errors
+        uploadId
+      ]);
+      
+      res.json({
+        success: true,
+        message: 'CSV reprocessed successfully with enhanced extraction',
+        uploadId: uploadId,
+        results: result
+      });
+    } catch (error) {
+      console.error('[CSV-REPROCESS] Error reprocessing file:', error);
+      res.status(500).json({ error: error.message, details: error.stack });
+    }
+  });
+
   // Quick status check for uploader files (bypass auth for debugging)  
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
