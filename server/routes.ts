@@ -12027,10 +12027,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mmcTodayCount = parseInt(mmcTodayResult.rows[0]?.count || '0');
       const mmcTodayTotal = parseFloat(mmcTodayResult.rows[0]?.total || '0');
       
-      // Get terminals data
-      const terminalQuery = `SELECT COUNT(*) as count FROM ${getTableName('terminals')}`;
+      // Get terminals data from api_terminals table with better categorization
+      const terminalQuery = `
+        SELECT 
+          COUNT(*) as total_count,
+          COUNT(CASE WHEN terminal_type = 'POS' OR terminal_type = 'countertop' OR terminal_type = 'mobile' OR terminal_type = 'integrated' THEN 1 END) as mmc_count,
+          COUNT(CASE WHEN terminal_type = 'ACH' OR terminal_type != 'POS' AND terminal_type != 'countertop' AND terminal_type != 'mobile' AND terminal_type != 'integrated' THEN 1 END) as ach_count
+        FROM ${getTableName('api_terminals')}
+      `;
       const terminalResult = await db.query(terminalQuery);
-      const terminalCount = parseInt(terminalResult.rows[0]?.count || '0');
+      const terminalCount = parseInt(terminalResult.rows[0]?.total_count || '0');
+      const mmcTerminalCount = parseInt(terminalResult.rows[0]?.mmc_count || '0'); 
+      const achTerminalCount = parseInt(terminalResult.rows[0]?.ach_count || '0');
       
       // Calculate averages
       const achAvgTransaction = achTransactionCount > 0 ? achTransactionTotal / achTransactionCount : 0;
@@ -12075,8 +12083,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         totalTerminals: {
           total: terminalCount,
-          ach: Math.round(terminalCount * 0.42), // Estimated split
-          mmc: Math.round(terminalCount * 0.58)
+          ach: achTerminalCount,
+          mmc: mmcTerminalCount
         }
       };
       
@@ -13270,10 +13278,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Debug logging for merchant counts
       console.log(`[DASHBOARD-BUILD] Merchant counts - ACH: ${achMerchants}, MCC: ${mccMerchants}, Total: ${achMerchants + mccMerchants}`);
       
-      // Terminals data
-      const terminalsQuery = `SELECT COUNT(*) as total FROM ${getTableName('terminals')}`;
+      // Terminals data with better categorization
+      const terminalsQuery = `
+        SELECT 
+          COUNT(*) as total_count,
+          COUNT(CASE WHEN terminal_type = 'POS' OR terminal_type = 'countertop' OR terminal_type = 'mobile' OR terminal_type = 'integrated' THEN 1 END) as mmc_count,
+          COUNT(CASE WHEN terminal_type = 'ACH' OR terminal_type != 'POS' AND terminal_type != 'countertop' AND terminal_type != 'mobile' AND terminal_type != 'integrated' THEN 1 END) as ach_count
+        FROM ${getTableName('api_terminals')}
+      `;
       const terminalsResult = await pool.query(terminalsQuery);
-      const totalTerminals = parseInt(terminalsResult.rows[0]?.total || '0');
+      const totalTerminals = parseInt(terminalsResult.rows[0]?.total_count || '0');
+      const mmcTerminals = parseInt(terminalsResult.rows[0]?.mmc_count || '0');
+      const achTerminals = parseInt(terminalsResult.rows[0]?.ach_count || '0');
       
       // TDDF transaction data (optimized with timeout and fallbacks)
       const tddfQuery = `
@@ -13345,8 +13361,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         totalTerminals: {
           total: totalTerminals,
-          ach: Math.round(totalTerminals * 0.42),
-          mmc: Math.round(totalTerminals * 0.58)
+          ach: achTerminals,
+          mmc: mmcTerminals
         },
         cacheMetadata: {
           lastRefreshed: new Date().toISOString(),
