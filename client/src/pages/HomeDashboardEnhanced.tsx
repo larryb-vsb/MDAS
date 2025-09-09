@@ -240,7 +240,7 @@ function ClickableMetricCard({
                   {mmcLink ? (
                     <Link href={mmcLink}>
                       <div className="flex justify-between items-center text-sm cursor-pointer hover:bg-green-50 p-1 rounded">
-                        <span className="text-green-600 font-medium">MCC (TDDF-DT)</span>
+                        <span className="text-green-600 font-medium">MCC</span>
                         <span className="font-medium">{formatValue(mmc)}</span>
                       </div>
                     </Link>

@@ -169,7 +169,7 @@ export default function Dashboard3() {
                     <span className="font-medium">{dashboardMetrics?.merchants.ach.toLocaleString() || '0'}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="text-muted-foreground">MCC:</span>
                     <span className="font-medium">{dashboardMetrics?.merchants.mmc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export default function Dashboard3() {
                     <span className="font-medium">{dashboardMetrics?.newMerchants30Day.ach.toLocaleString() || '0'}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="text-muted-foreground">MCC:</span>
                     <span className="font-medium">{dashboardMetrics?.newMerchants30Day.mmc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
@@ -219,7 +219,7 @@ export default function Dashboard3() {
                     <span className="font-medium">{dashboardMetrics?.todayTransactions.ach.toLocaleString() || '0'}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="text-muted-foreground">MCC:</span>
                     <span className="font-medium">{dashboardMetrics?.todayTransactions.mmc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export default function Dashboard3() {
                     <span className="font-medium">{dashboardMetrics?.totalTerminals.ach.toLocaleString() || '0'}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">MasterCard:</span>
+                    <span className="text-muted-foreground">MCC:</span>
                     <span className="font-medium">{dashboardMetrics?.totalTerminals.mmc.toLocaleString() || '0'}</span>
                   </div>
                 </div>
