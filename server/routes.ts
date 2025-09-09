@@ -4045,8 +4045,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = req.query.endDate as string | undefined;
       const type = req.query.type as string | undefined;
       const transactionId = req.query.transactionId as string | undefined;
+      const sortBy = req.query.sortBy as string || 'date';
+      const sortOrder = req.query.sortOrder as string || 'desc';
       
-      console.log("ACH Transaction query params:", { page, limit, merchantId, startDate, endDate, type, transactionId });
+      console.log("ACH Transaction query params:", { page, limit, merchantId, startDate, endDate, type, transactionId, sortBy, sortOrder });
       
       // Use ACH transactions table directly
       const offset = (page - 1) * limit;
@@ -4086,6 +4088,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
       
+      // Build ORDER BY clause
+      let orderByClause = 'ORDER BY transaction_date DESC, created_at DESC'; // Default sorting
+      const validSortColumns = {
+        'transactionId': 'account_number',
+        'merchantName': 'merchant_name', 
+        'type': 'description',
+        'date': 'transaction_date',
+        'amount': 'amount'
+      };
+      
+      if (sortBy && validSortColumns[sortBy as keyof typeof validSortColumns]) {
+        const columnName = validSortColumns[sortBy as keyof typeof validSortColumns];
+        const direction = sortOrder && sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+        orderByClause = `ORDER BY ${columnName} ${direction}`;
+        
+        // Add secondary sort for consistent ordering
+        if (sortBy !== 'date') {
+          orderByClause += ', transaction_date DESC';
+        }
+        if (sortBy !== 'transactionId') {
+          orderByClause += ', account_number ASC';
+        }
+      }
+      
       // Get total count
       const countResult = await pool.query(`
         SELECT COUNT(*) as count FROM dev_api_achtransactions ${whereClause}
@@ -4110,7 +4136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           created_at
         FROM dev_api_achtransactions 
         ${whereClause}
-        ORDER BY transaction_date DESC, created_at DESC
+        ${orderByClause}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `, [...queryParams, limit, offset]);
       

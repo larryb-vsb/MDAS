@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatTableDate } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RefreshCw, Eye } from "lucide-react";
+import { RefreshCw, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -202,6 +202,10 @@ export default function Transactions() {
   const [transactionType, setTransactionType] = useState<string | undefined>(undefined);
   const [transactionId, setTransactionId] = useState<string>("");
   
+  // Sorting state
+  const [sortBy, setSortBy] = useState<string>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
   // Text input state for dates
   const [startDateText, setStartDateText] = useState("");
   const [endDateText, setEndDateText] = useState("");
@@ -311,7 +315,7 @@ export default function Transactions() {
   
   // Fetch transactions with filters
   const { data, isLoading, error, refetch } = useQuery<TransactionsResponse>({
-    queryKey: ['/api/transactions', page, limit, merchantId, startDate, endDate, transactionType, transactionId],
+    queryKey: ['/api/transactions', page, limit, merchantId, startDate, endDate, transactionType, transactionId, sortBy, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('page', page.toString());
@@ -322,6 +326,8 @@ export default function Transactions() {
       if (endDate) params.append('endDate', endDate.toISOString());
       if (transactionType) params.append('type', transactionType);
       if (transactionId.trim()) params.append('transactionId', transactionId.trim());
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
       
       console.log('Frontend query state:', { 
         page, limit, merchantId, transactionType,
@@ -424,6 +430,29 @@ export default function Transactions() {
   const handleLimitChange = (newLimit: string) => {
     setLimit(parseInt(newLimit));
     setPage(1); // Reset to page 1 when limit changes
+  };
+
+  // Handle sorting
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      // Same column, toggle order
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to desc for most columns, asc for text columns
+      setSortBy(column);
+      setSortOrder(column === 'transactionId' || column === 'merchantName' ? 'asc' : 'desc');
+    }
+    setPage(1); // Reset to page 1 when sorting changes
+  };
+
+  // Get sort icon for a column
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+    return sortOrder === 'asc' ? 
+      <ArrowUp className="h-4 w-4 text-blue-600" /> : 
+      <ArrowDown className="h-4 w-4 text-blue-600" />;
   };
 
   // Handle refresh functionality
@@ -762,6 +791,8 @@ export default function Transactions() {
                   setTransactionId("");
                   setStartDateText("");
                   setEndDateText("");
+                  setSortBy('date');
+                  setSortOrder('desc');
                   handleFilterChange();
                 }}
               >
@@ -844,11 +875,51 @@ export default function Transactions() {
                           aria-label="Select all transactions"
                         />
                       </TableHead>
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Merchant</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>
+                        <button
+                          className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded transition-colors"
+                          onClick={() => handleSort('transactionId')}
+                        >
+                          Transaction ID
+                          {getSortIcon('transactionId')}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button
+                          className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded transition-colors"
+                          onClick={() => handleSort('merchantName')}
+                        >
+                          Merchant
+                          {getSortIcon('merchantName')}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button
+                          className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded transition-colors"
+                          onClick={() => handleSort('type')}
+                        >
+                          Type
+                          {getSortIcon('type')}
+                        </button>
+                      </TableHead>
+                      <TableHead>
+                        <button
+                          className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded transition-colors"
+                          onClick={() => handleSort('date')}
+                        >
+                          Date
+                          {getSortIcon('date')}
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <button
+                          className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded transition-colors ml-auto"
+                          onClick={() => handleSort('amount')}
+                        >
+                          Amount
+                          {getSortIcon('amount')}
+                        </button>
+                      </TableHead>
                       <TableHead className="w-[50px]">CSV</TableHead>
                       <TableHead className="w-[50px]">Actions</TableHead>
                     </TableRow>
