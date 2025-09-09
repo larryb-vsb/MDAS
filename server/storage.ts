@@ -4966,7 +4966,8 @@ export class DatabaseStorage implements IStorage {
                 const merchantsTableName = getTableName('merchants');
                 const columns = Object.keys(newMerchant).join(', ');
                 const values = Object.values(newMerchant).map((_, index) => `$${index + 1}`).join(', ');
-                await pool.query(`INSERT INTO ${merchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
+                const apiMerchantsTableName = 'dev_api_merchants'; // Fixed: Use correct table for VSB merchant imports
+                await pool.query(`INSERT INTO ${apiMerchantsTableName} (${columns}) VALUES (${values})`, Object.values(newMerchant));
                 console.log(`Created merchant ${newMerchant.id} with actual name: ${newMerchant.name}`);
               } else {
                 console.log(`[SKIP MERCHANT] No name available for ${merchantId}, will skip transactions for this merchant to avoid bad data`);
