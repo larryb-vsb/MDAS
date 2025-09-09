@@ -7461,7 +7461,10 @@ export class DatabaseStorage implements IStorage {
       'updateSource': 'update_source',
       'createdBy': 'created_by',
       'updatedBy': 'updated_by',
-      'syncStatus': 'sync_status'
+      'syncStatus': 'sync_status',
+      // Additional form field mappings
+      'mType': 'm_type_local',
+      'mLocation': 'm_location_local'
     };
     
     // Map field names and prepare values
