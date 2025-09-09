@@ -8784,6 +8784,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create dashboard cache table if missing (bypass auth for debugging)
+  app.post('/api/debug/create-dashboard-table', async (req, res) => {
+    console.log('[DASHBOARD-DEBUG] Creating missing dashboard cache table');
+    try {
+      const tableName = getTableName('dashboard_cache');
+      
+      // Check if table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = '${tableName.replace(/"/g, '')}'
+        ) as exists
+      `);
+      
+      if (tableCheck.rows[0].exists) {
+        return res.json({
+          success: true,
+          message: 'Dashboard cache table already exists',
+          tableName: tableName
+        });
+      }
+      
+      // Create the table with proper structure
+      await pool.query(`
+        CREATE TABLE ${tableName} (
+          id SERIAL PRIMARY KEY,
+          cache_key VARCHAR(255) UNIQUE NOT NULL,
+          cache_data JSONB NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          build_time_ms INTEGER NOT NULL DEFAULT 0,
+          record_count INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        )
+      `);
+      
+      // Create index on cache_key for performance
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_cache_key ON ${tableName} (cache_key)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_expires_at ON ${tableName} (expires_at)`);
+      
+      console.log(`[DASHBOARD-DEBUG] Successfully created table: ${tableName}`);
+      
+      res.json({
+        success: true,
+        message: 'Dashboard cache table created successfully',
+        tableName: tableName
+      });
+    } catch (error) {
+      console.error('[DASHBOARD-DEBUG] Error creating dashboard table:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Quick status check for uploader files (bypass auth for debugging)  
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
