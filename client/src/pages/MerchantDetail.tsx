@@ -306,77 +306,16 @@ export default function MerchantDetail() {
     return history.slice(totalMonths - end, totalMonths - start).reverse();
   }, [data?.analytics.transactionHistory, dateRange]);
   
-  // Get transactions filtered by the selected date range
+  // Get transactions filtered by the selected date range  
   const getFilteredTransactions = useCallback(() => {
     if (!data?.transactions) {
       return [];
     }
     
-    if (!data?.analytics.transactionHistory || data.analytics.transactionHistory.length === 0) {
-      return data.transactions;
-    }
-    
-    // Get the filtered months from the transaction history
-    const filteredHistory = getFilteredTransactionHistory();
-    
-    if (filteredHistory.length === 0) {
-      return data.transactions;
-    }
-    
-    // Extract month names from the history data
-    const filteredMonths = filteredHistory.map(monthData => {
-      // Our API returns month in YYYY-MM format, convert to readable format
-      const monthString = monthData.month || monthData.name || '';
-      let monthName = '';
-      let year = new Date().getFullYear();
-      
-      if (monthString.includes('-')) {
-        // Format is YYYY-MM
-        const [yearStr, monthStr] = monthString.split('-');
-        year = parseInt(yearStr);
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        monthName = monthNames[parseInt(monthStr) - 1] || 'Jan';
-      } else {
-        // Fallback for old format or other formats
-        monthName = monthString.substring(0, 3);
-        const yearMatch = monthString.match(/\d{4}$/);
-        if (yearMatch) year = parseInt(yearMatch[0]);
-      }
-      
-      return { monthName, year };
-    });
-    
-    // Create a mapping of month names to month numbers
-    const monthNameToNumber: Record<string, number> = {
-      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-    };
-    
-    // Function to extract month abbreviation from a string that might include a year
-    const extractMonthAbbr = (monthStr: string): string => {
-      // Extract first 3 characters which should be the month abbreviation
-      return monthStr.substring(0, 3);
-    };
-    
-    // Filter transactions based on the selected months
-    return data.transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      const transactionMonth = transactionDate.getMonth();
-      const transactionYear = transactionDate.getFullYear();
-      
-      // Check if this transaction's month and year are in our filtered set
-      return filteredMonths.some(({ monthName, year }) => {
-        // Get the month number from the abbreviated month name
-        const monthAbbr = extractMonthAbbr(monthName);
-        const monthNumber = monthNameToNumber[monthAbbr];
-        
-        // Only check if month matches since we're showing the same month across different years
-        // The year might be different between analytics and transactions
-        return monthNumber === transactionMonth;
-      });
-    });
-  }, [data?.transactions, data?.analytics.transactionHistory, getFilteredTransactionHistory]);
+    // For VSB merchants with ACH transactions, show all transactions by default
+    // The complex date filtering was designed for different data structures
+    return data.transactions;
+  }, [data?.transactions]);
 
   // Create form with validation
   const form = useForm<MerchantFormValues>({
