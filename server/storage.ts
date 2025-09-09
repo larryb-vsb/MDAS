@@ -6210,18 +6210,26 @@ export class DatabaseStorage implements IStorage {
       parser.on("data", (row) => {
         rowCount++;
         try {
-          // Enhanced logging for ALL first 10 rows to debug field mapping
-          if (rowCount <= 10) {
-            console.log(`\n=== ENHANCED DEBUG: Processing terminal row ${rowCount} ===`);
-            console.log(`Row data: ${JSON.stringify(row)}`);
-            console.log(`Available columns (${Object.keys(row).length} total): ${Object.keys(row).join(", ")}`);
+          // Enhanced logging for ALL first 20 rows to debug field mapping - SCREENSHOT BASED
+          if (rowCount <= 20) {
+            console.log(`\n=== 🔍 TERMINAL DEBUG ROW ${rowCount} ===`);
+            console.log(`📋 Raw row data: ${JSON.stringify(row)}`);
+            console.log(`📊 Available columns (${Object.keys(row).length} total): ${Object.keys(row).join(", ")}`);
             
-            // Check for V Number variations
-            const vNumberVariations = ["V Number", "VAR Number", "vNumber", "var_number", "V_Number", "VAR_NUMBER", "VNumber", "VARNumber", "Terminal_ID", "TerminalID", "Terminal ID", "TERMINAL_ID"];
-            const foundVNumbers = vNumberVariations.filter(key => row[key] !== undefined);
-            console.log(`V Number field matches: ${foundVNumbers.length > 0 ? foundVNumbers.join(", ") : "NONE FOUND"}`);
+            // Check for exact V Number variations from screenshot
+            const vNumberVariations = ["V Number", "Terminal #", "VAR Number", "vNumber", "var_number", "V_Number", "VAR_NUMBER", "VNumber", "VARNumber", "Terminal_ID", "TerminalID", "Terminal ID", "TERMINAL_ID"];
+            const foundVNumbers = vNumberVariations.filter(key => row[key] !== undefined && row[key] !== "");
+            console.log(`🔸 V Number field matches: ${foundVNumbers.length > 0 ? foundVNumbers.map(k => `${k}="${row[k]}"`).join(", ") : "❌ NONE FOUND"}`);
             
-            // Check for Master MID variations  
+            // Check for exact Master MID from screenshot
+            const masterMIDVariations = ["POS Merchant #", "Master MID", "masterMID", "pos_merchant", "POS_Merchant_#", "POS_MERCHANT_#", "POSMerchant#"];
+            const foundMasterMIDs = masterMIDVariations.filter(key => row[key] !== undefined && row[key] !== "");
+            console.log(`🔸 Master MID field matches: ${foundMasterMIDs.length > 0 ? foundMasterMIDs.map(k => `${k}="${row[k]}"`).join(", ") : "❌ NONE FOUND"}`);
+            
+            // Show actual values being used
+            console.log(`✅ Final vNumber value: "${vNumber}"`);
+            console.log(`✅ Final masterMID value: "${masterMID}"`);
+            console.log(`---`);  
             const midVariations = ["POS Merchant #", "Master MID", "masterMID", "pos_merchant", "POS_Merchant_#", "POS_MERCHANT_#", "POSMerchant#", "POS Merchant Number", "MasterMID", "Master_MID", "MASTER_MID", "Merchant_ID", "MerchantID", "Merchant ID", "MERCHANT_ID", "POS_Merchant_Number"];
             const foundMIDs = midVariations.filter(key => row[key] !== undefined);
             console.log(`Master MID field matches: ${foundMIDs.length > 0 ? foundMIDs.join(", ") : "NONE FOUND"}`);
@@ -6229,23 +6237,22 @@ export class DatabaseStorage implements IStorage {
             console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
           }
           
-          // Find V Number (VAR Number) - required field - EXPANDED HEADER SUPPORT + CSV HEADERS
+          // Find V Number (VAR Number) - required field - EXACT HEADERS FROM SCREENSHOT
           const vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"] || 
                          row["V_Number"] || row["VAR_NUMBER"] || row["VNumber"] || row["VARNumber"] ||
                          row["Terminal_ID"] || row["TerminalID"] || row["Terminal ID"] || row["TERMINAL_ID"] ||
-                         row["Terminal ID"]; // Added from CSV screenshot
+                         row["Terminal #"]; // Exact header from screenshot
           if (!vNumber || !vNumber.trim()) {
             console.log(`[SKIP ROW ${rowCount}] No V Number found. Available keys: ${Object.keys(row).join(", ")}`);
             console.log(`[SKIP ROW ${rowCount}] Row data: ${JSON.stringify(row)}`);
             return;
           }
           
-          // Find Master MID (POS Merchant #) - required field to link to merchants - EXPANDED HEADER SUPPORT + CSV HEADERS  
+          // Find Master MID (POS Merchant #) - required field to link to merchants - EXACT HEADERS FROM SCREENSHOT
           const masterMID = row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
-                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"] ||
-                           row["POS Merchant Number"]; // Added from CSV screenshot
+                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"]; // Exact header from screenshot: "POS Merchant #"
           if (!masterMID || !masterMID.trim()) {
             console.log(`[SKIP ROW] No Master MID found in row ${rowCount}, skipping`);
             return;
