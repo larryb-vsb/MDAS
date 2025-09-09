@@ -865,6 +865,19 @@ class MMSWatcher {
       console.log(`[MMS-WATCHER] [DEBUG] Checking ALL file phases...`);
       try {
         const allFiles = await this.storage.getUploaderUploads({});
+        
+        // Show ACH/transaction files specifically
+        const achFiles = allFiles.filter(f => f.filename && (
+          f.filename.toLowerCase().includes('ach') || 
+          f.filename.toLowerCase().includes('801203_') ||
+          f.finalFileType === 'transaction_csv' ||
+          f.detectedFileType === 'transaction_csv'
+        ));
+        console.log(`[MMS-WATCHER] [DEBUG] Found ${achFiles.length} ACH/transaction files total:`);
+        achFiles.forEach(file => {
+          console.log(`[MMS-WATCHER] [DEBUG]   ACH file: ${file.filename}, phase: ${file.currentPhase}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
+        });
+        
         const terminalFiles = allFiles.filter(f => f.filename && f.filename.toLowerCase().includes('terminal'));
         console.log(`[MMS-WATCHER] [DEBUG] Found ${terminalFiles.length} terminal files total:`);
         terminalFiles.forEach(file => {
