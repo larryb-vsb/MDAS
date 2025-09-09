@@ -5299,6 +5299,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SIMPLE TERMINAL IMPORT - USES SAME METHOD AS ACTION BUTTON  
+  app.post('/api/terminals/simple-import', isAuthenticated, async (req, res) => {
+    try {
+      console.log('🚀 [SIMPLE-TERMINAL-IMPORT] Starting import using action button method...');
+      
+      // Find latest terminal file in uploader
+      const uploads = await storage.getUploaderUploads({});
+      const terminalFile = uploads.find(f => 
+        f.filename && 
+        f.filename.toLowerCase().includes('terminal') &&
+        ['uploaded', 'identified', 'encoding', 'encoded', 'processing', 'completed'].includes(f.currentPhase || '')
+      );
+      
+      if (!terminalFile) {
+        return res.status(404).json({ error: 'No terminal file found in uploader system' });
+      }
+      
+      console.log(`✅ [SIMPLE-TERMINAL-IMPORT] Found file: ${terminalFile.filename} (${terminalFile.currentPhase})`);
+      
+      // Get content using SAME METHOD as action button - from object storage
+      if (!terminalFile.s3Key) {
+        return res.status(404).json({ error: "Storage file location not found" });
+      }
+
+      const { ReplitStorageService } = await import('./replit-storage-service');
+      
+      console.log(`📦 [SIMPLE-TERMINAL-IMPORT] Reading from storage: ${terminalFile.s3Key}`);
+      
+      // Use EXACT same method as working action button
+      const fileBuffer = await ReplitStorageService.getFileContent(terminalFile.s3Key);
+      const fileContent = fileBuffer.toString('utf-8');
+      
+      if (!fileContent) {
+        return res.status(404).json({ error: 'File content not found in storage' });
+      }
+      
+      // Parse CSV content - SAME METHOD as action button
+      const lines = fileContent.split('\n').filter(line => line.trim());
+      
+      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] CSV has ${lines.length} lines`);
+      
+      if (lines.length < 2) {
+        return res.status(400).json({ error: 'CSV must have headers and data rows' });
+      }
+      
+      // Parse headers
+      const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+      console.log(`📋 [SIMPLE-TERMINAL-IMPORT] Headers: ${headers.join(', ')}`);
+      
+      // Find required columns
+      const vNumberCol = headers.findIndex(h => h === 'V Number' || h === 'Terminal #');
+      const posCol = headers.findIndex(h => h === 'POS Merchant #');
+      const dbaCol = headers.findIndex(h => h === 'DBA Name');
+      const mccCol = headers.findIndex(h => h === 'PRR MCC' || h === 'Terminal Visa MCC');
+      
+      if (vNumberCol === -1 || posCol === -1) {
+        return res.status(400).json({ 
+          error: `Missing required columns. Found: ${headers.join(', ')}. Need: 'V Number' and 'POS Merchant #'` 
+        });
+      }
+      
+      console.log(`✅ [SIMPLE-TERMINAL-IMPORT] V Number: col ${vNumberCol}, POS Merchant #: col ${posCol}`);
+      
+      // Count current terminals
+      const beforeTerminals = await storage.getTerminals();
+      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Current terminals: ${beforeTerminals.length}`);
+      
+      // Process data rows
+      let imported = 0;
+      let updated = 0;
+      let errors = 0;
+      
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const values = lines[i].split(',').map(v => v.trim().replace(/['"]/g, ''));
+          
+          if (values.length < Math.max(vNumberCol, posCol) + 1) continue; // Skip incomplete rows
+          
+          const vNumber = values[vNumberCol];
+          const posMerchant = values[posCol];
+          
+          if (!vNumber || !posMerchant) continue; // Skip rows without required fields
+          
+          // Create terminal object
+          const terminal = {
+            vNumber,
+            posMerchantNumber: posMerchant,
+            dbaName: dbaCol >= 0 ? values[dbaCol] || '' : '',
+            status: 'Active',
+            mcc: mccCol >= 0 ? values[mccCol] || '' : '',
+            terminalType: 'POS'
+          };
+          
+          // Check if terminal exists
+          const existing = beforeTerminals.find(t => t.v_number === vNumber);
+          
+          if (existing) {
+            // Update existing
+            await storage.updateTerminal(existing.id, terminal);
+            updated++;
+          } else {
+            // Create new
+            await storage.createTerminal(terminal);
+            imported++;
+          }
+          
+          if ((imported + updated) % 100 === 0) {
+            console.log(`📈 [SIMPLE-TERMINAL-IMPORT] Processed ${imported + updated} terminals...`);
+          }
+          
+        } catch (rowError) {
+          console.error(`❌ [SIMPLE-TERMINAL-IMPORT] Error processing row ${i}:`, rowError.message);
+          errors++;
+        }
+      }
+      
+      // Count after
+      const afterTerminals = await storage.getTerminals();
+      
+      console.log(`✅ [SIMPLE-TERMINAL-IMPORT] Import complete!`);
+      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Results: ${imported} new, ${updated} updated, ${errors} errors`);
+      console.log(`📊 [SIMPLE-TERMINAL-IMPORT] Total terminals: ${beforeTerminals.length} → ${afterTerminals.length}`);
+      
+      res.json({
+        success: true,
+        filename: terminalFile.filename,
+        imported,
+        updated,
+        errors,
+        totalRows: lines.length - 1,
+        beforeCount: beforeTerminals.length,
+        afterCount: afterTerminals.length
+      });
+      
+    } catch (error) {
+      console.error('❌ [SIMPLE-TERMINAL-IMPORT] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ==================== SUBTERMINAL DATA EXTRACTION ROUTE ====================
   
   // Get SubTerminal data from encoded xlsx file with VNumber matching
