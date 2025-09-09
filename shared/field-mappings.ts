@@ -100,10 +100,10 @@ export const terminalFieldMappings: Record<string, string | null> = {
   posMerchantNumber: "POS Merchant #", // Links to merchants.masterMID
   bin: "BIN", // Bank Identification Number
   dbaName: "DBA Name", // Doing Business As name
-  dailyAuth: "Daily Auth", // Daily authorization limit
-  dialPay: "Dial Pay", // Dial payment configuration
+  dailyAuth: "Daily Auth Count", // Daily authorization limit
+  dialPay: "Dial Pay Passcode", // Dial payment configuration
   encryption: "Encryption", // Payment encryption settings
-  prr: "PRR", // Processing rate/rule
+  prr: "PRR MCC", // Processing rate/rule
   mcc: "Terminal Visa MCC", // Merchant Category Code (mapped from Terminal Visa MCC field)
   ssl: "SSL", // SSL security configuration
   tokenization: "Tokenization", // Tokenization settings
