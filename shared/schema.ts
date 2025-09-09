@@ -150,8 +150,8 @@ export const apiMerchants = pgTable(getTableName("api_merchants"), {
   riskNotes: text("risk_notes")
 });
 
-// Terminals table - based on TSYS Merchant Export structure
-export const terminals = pgTable(getTableName("terminals"), {
+// API Terminals table - based on TSYS Merchant Export structure
+export const apiTerminals = pgTable(getTableName("api_terminals"), {
   id: serial("id").primaryKey(),
   vNumber: text("v_number").notNull().unique(), // VAR Number from TSYS (unique terminal identifier)
   posMerchantNumber: text("pos_merchant_number").notNull(), // Links to merchants.masterMID (POS Merchant # from TSYS)
@@ -1077,8 +1077,8 @@ export type TddfRecord = typeof tddfRecords.$inferSelect;
 export type InsertTddfRecord = typeof tddfRecords.$inferInsert;
 export type TddfRawImport = typeof tddfRawImport.$inferSelect;
 export type InsertTddfRawImport = typeof tddfRawImport.$inferInsert;
-export type Terminal = typeof terminals.$inferSelect;
-export type InsertTerminal = typeof terminals.$inferInsert;
+export type Terminal = typeof apiTerminals.$inferSelect;
+export type InsertTerminal = typeof apiTerminals.$inferInsert;
 
 // Audit log table with performance optimizations
 export const auditLogs = pgTable(getTableName("audit_logs"), {
@@ -1548,7 +1548,7 @@ export type ProcessingMetrics = typeof processingMetrics.$inferSelect;
 export type InsertProcessingMetrics = typeof processingMetrics.$inferInsert;
 
 // Terminal schema for validation and types - handles string dates from forms
-export const insertTerminalSchema = createInsertSchema(terminals).omit({
+export const insertTerminalSchema = createInsertSchema(apiTerminals).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
