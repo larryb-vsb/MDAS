@@ -2885,9 +2885,9 @@ export class DatabaseStorage implements IStorage {
   }> {
     try {
       // Get all transactions for this merchant using environment-specific table
-      const transactionsTableName = getTableName('transactions');
+      const transactionsTableName = getTableName('api_achtransactions');
       const transactionsQuery = await db.execute(sql`
-        SELECT id, amount, date, type FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
+        SELECT id, amount, date, transaction_type FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
       `);
       const allTransactions = transactionsQuery.rows;
         
