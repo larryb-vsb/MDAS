@@ -6204,13 +6204,20 @@ export class DatabaseStorage implements IStorage {
       parser.on("data", (row) => {
         rowCount++;
         try {
-          console.log(`\n--- Processing terminal row ${rowCount} ---`);
-          console.log(`Row data: ${JSON.stringify(row)}`);
+          // Only log first 5 rows to avoid spam
+          if (rowCount <= 5) {
+            console.log(`\n--- Processing terminal row ${rowCount} ---`);
+            console.log(`Row data: ${JSON.stringify(row)}`);
+            console.log(`Available columns: ${Object.keys(row).join(", ")}`);
+          } else if (rowCount % 100 === 0) {
+            console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
+          }
           
           // Find V Number (VAR Number) - required field
           const vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"];
           if (!vNumber || !vNumber.trim()) {
-            console.log(`[SKIP ROW] No V Number found in row ${rowCount}, skipping`);
+            console.log(`[SKIP ROW ${rowCount}] No V Number found. Available keys: ${Object.keys(row).join(", ")}`);
+            console.log(`[SKIP ROW ${rowCount}] Row data: ${JSON.stringify(row)}`);
             return;
           }
           
