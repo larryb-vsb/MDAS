@@ -6179,6 +6179,9 @@ export class DatabaseStorage implements IStorage {
     
     // Decode base64 content
     const csvContent = Buffer.from(base64Content, 'base64').toString('utf8');
+    console.log(`[TERMINAL-DEBUG] CSV content length: ${csvContent.length} characters`);
+    console.log(`[TERMINAL-DEBUG] CSV content lines: ${csvContent.split('\n').length}`);
+    console.log(`[TERMINAL-DEBUG] First 500 chars: ${csvContent.substring(0, 500)}`);
     
     // Import field mappings and utility functions
     const { terminalFieldMappings } = await import("@shared/field-mappings");
@@ -6186,7 +6189,7 @@ export class DatabaseStorage implements IStorage {
     return new Promise((resolve, reject) => {
       console.log("Starting terminal CSV parsing from content...");
       
-      // Parse CSV content using string-based parsing
+      // Parse CSV content using string-based parsing with proper encoding
       const parser = parseCSV({
         columns: true,
         skip_empty_lines: true,
@@ -6194,7 +6197,10 @@ export class DatabaseStorage implements IStorage {
         relax_quotes: true,
         relax: true,
         trim: true,
-        bom: true
+        bom: true,
+        max_record_size: 1000000, // Increase max record size
+        raw: false,
+        encoding: 'utf8'
       });
       
       let terminals: InsertTerminal[] = [];
