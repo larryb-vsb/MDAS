@@ -12027,18 +12027,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mmcTodayCount = parseInt(mmcTodayResult.rows[0]?.count || '0');
       const mmcTodayTotal = parseFloat(mmcTodayResult.rows[0]?.total || '0');
       
-      // Get terminals data from api_terminals table with better categorization
-      const terminalQuery = `
-        SELECT 
-          COUNT(*) as total_count,
-          COUNT(CASE WHEN terminal_type = 'POS' OR terminal_type = 'countertop' OR terminal_type = 'mobile' OR terminal_type = 'integrated' THEN 1 END) as mmc_count,
-          COUNT(CASE WHEN terminal_type = 'ACH' OR terminal_type != 'POS' AND terminal_type != 'countertop' AND terminal_type != 'mobile' AND terminal_type != 'integrated' THEN 1 END) as ach_count
-        FROM ${getTableName('api_terminals')}
-      `;
+      // Get terminals data from api_terminals table - all terminals are MCC
+      const terminalQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
       const terminalResult = await db.query(terminalQuery);
       const terminalCount = parseInt(terminalResult.rows[0]?.total_count || '0');
-      const mmcTerminalCount = parseInt(terminalResult.rows[0]?.mmc_count || '0'); 
-      const achTerminalCount = parseInt(terminalResult.rows[0]?.ach_count || '0');
+      const mmcTerminalCount = terminalCount; // All terminals are MCC
+      const achTerminalCount = 0; // No ACH terminals
       
       // Calculate averages
       const achAvgTransaction = achTransactionCount > 0 ? achTransactionTotal / achTransactionCount : 0;
@@ -13278,18 +13272,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Debug logging for merchant counts
       console.log(`[DASHBOARD-BUILD] Merchant counts - ACH: ${achMerchants}, MCC: ${mccMerchants}, Total: ${achMerchants + mccMerchants}`);
       
-      // Terminals data with better categorization
-      const terminalsQuery = `
-        SELECT 
-          COUNT(*) as total_count,
-          COUNT(CASE WHEN terminal_type = 'POS' OR terminal_type = 'countertop' OR terminal_type = 'mobile' OR terminal_type = 'integrated' THEN 1 END) as mmc_count,
-          COUNT(CASE WHEN terminal_type = 'ACH' OR terminal_type != 'POS' AND terminal_type != 'countertop' AND terminal_type != 'mobile' AND terminal_type != 'integrated' THEN 1 END) as ach_count
-        FROM ${getTableName('api_terminals')}
-      `;
+      // Terminals data - all terminals are MCC
+      const terminalsQuery = `SELECT COUNT(*) as total_count FROM ${getTableName('api_terminals')}`;
       const terminalsResult = await pool.query(terminalsQuery);
       const totalTerminals = parseInt(terminalsResult.rows[0]?.total_count || '0');
-      const mmcTerminals = parseInt(terminalsResult.rows[0]?.mmc_count || '0');
-      const achTerminals = parseInt(terminalsResult.rows[0]?.ach_count || '0');
+      const mmcTerminals = totalTerminals; // All terminals are MCC
+      const achTerminals = 0; // No ACH terminals
       
       // TDDF transaction data (optimized with timeout and fallbacks)
       const tddfQuery = `
