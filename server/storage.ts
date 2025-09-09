@@ -7353,11 +7353,15 @@ export class DatabaseStorage implements IStorage {
     // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
     const terminalsTableName = getTableName('api_terminals');
     
+    console.log(`[TERMINALS-STORAGE] Querying table: ${terminalsTableName}`);
+    
     try {
       const result = await pool.query(`SELECT * FROM ${terminalsTableName} ORDER BY v_number ASC`);
+      console.log(`[TERMINALS-STORAGE] Found ${result.rows.length} terminals in ${terminalsTableName}`);
       return result.rows;
     } catch (error) {
       console.error(`[TERMINALS-STORAGE] Error fetching from ${terminalsTableName}:`, error);
+      console.error(`[TERMINALS-STORAGE] Full error details:`, error);
       return [];
     }
   }
