@@ -1179,7 +1179,7 @@ export const subMerchantTerminals = pgTable(getTableName("sub_merchant_terminals
   deviceName: text("device_name").notNull(), // DeviceName - terminal device name
   dNumber: text("d_number").notNull(), // D_Number - Terminal Number (maps to terminal.v_number)
   merchantId: text("merchant_id").references(() => merchants.id), // Link to merchant table
-  terminalId: integer("terminal_id").references(() => terminals.id), // Link to terminal table
+  terminalId: integer("terminal_id").references(() => apiTerminals.id), // Link to API terminals table
   matchType: text("match_type"), // Type of match: "exact", "fuzzy", "manual"
   matchScore: numeric("match_score", { precision: 5, scale: 2 }), // Fuzzy match confidence score (0.00-1.00)
   fuzzyMatchDetails: jsonb("fuzzy_match_details"), // Details about the fuzzy matching process
