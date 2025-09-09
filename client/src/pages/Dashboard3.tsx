@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Moon, Sun, Database, Clock, RefreshCw, Users, Calendar, Activity, Terminal } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import CacheControlWidget from "@/components/shared/CacheControlWidget";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface SystemInfo {
   environment: {
@@ -57,6 +60,8 @@ interface DashboardMetrics {
 
 export default function Dashboard3() {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch system information for environment badge
   const { data: systemInfo } = useQuery<SystemInfo>({
@@ -78,7 +83,31 @@ export default function Dashboard3() {
     refetchInterval: 1000 * 60, // Refresh every minute
   });
 
-  // Cache expiration controls removed - cache refreshes once daily on server restart only
+  // Cache refresh mutation
+  const refreshCacheMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("/api/dashboard/refresh-cache", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      // Invalidate both cache status and metrics queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cache-status-only"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/cached-metrics"] });
+      toast({
+        title: "Cache Refreshed",
+        description: "Dashboard metrics have been updated with the latest data.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Refresh Failed",
+        description: `Failed to refresh cache: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
+  });
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -302,6 +331,20 @@ export default function Dashboard3() {
                           isDarkMode={isDarkMode}
                           initialExpiration="30"
                         />
+                        
+                        {/* Manual Refresh Button */}
+                        <div className="pt-3 border-t">
+                          <Button
+                            onClick={() => refreshCacheMutation.mutate()}
+                            disabled={refreshCacheMutation.isPending}
+                            size="sm"
+                            className="w-full text-xs"
+                            variant="outline"
+                          >
+                            <RefreshCw className={`h-3 w-3 mr-2 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                            {refreshCacheMutation.isPending ? 'Refreshing...' : 'Refresh Now'}
+                          </Button>
+                        </div>
                       </div>
                     </>
                   ) : (
