@@ -12913,10 +12913,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tddfTransactions = parseInt(tddfResult.rows[0]?.total_transactions || '82271');
       const tddfAmount = parseFloat(tddfResult.rows[0]?.total_amount || '7142133.99');
       
-      // Regular transactions data
-      const transactionsQuery = `SELECT COUNT(*) as total FROM ${getTableName('transactions')}`;
-      const transactionsResult = await pool.query(transactionsQuery);
-      const regularTransactions = parseInt(transactionsResult.rows[0]?.total || '0');
+      // ACH transactions data (using api_achtransactions table)
+      const achTransactionsQuery = `SELECT COUNT(*) as total, SUM(CAST(amount AS NUMERIC)) as total_amount FROM ${getTableName('api_achtransactions')}`;
+      const achTransactionsResult = await pool.query(achTransactionsQuery);
+      const achTransactions = parseInt(achTransactionsResult.rows[0]?.total || '0');
+      const achTotalAmount = parseFloat(achTransactionsResult.rows[0]?.total_amount || '0');
       
       // Today's transactions (simplified with fallback)
       const todayTddfQuery = `
@@ -12942,29 +12943,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mmc: Math.round(mccMerchants * 0.05)
         },
         monthlyProcessingAmount: {
-          ach: `$${(tddfAmount * 0.42).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${(tddfAmount * 0.58).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ach: `$${achTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${tddfAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTransactions: {
-          total: todayTddfCount + regularTransactions,
-          ach: regularTransactions,
+          total: todayTddfCount + achTransactions,
+          ach: achTransactions,
           mmc: todayTddfCount
         },
         avgTransValue: {
-          total: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0,
-          ach: Math.round((tddfAmount * 0.42) / Math.max(tddfTransactions * 0.42, 1)),
-          mmc: Math.round((tddfAmount * 0.58) / Math.max(tddfTransactions * 0.58, 1))
+          total: (achTransactions + tddfTransactions) > 0 ? Math.round((achTotalAmount + tddfAmount) / (achTransactions + tddfTransactions)) : 0,
+          ach: achTransactions > 0 ? Math.round(achTotalAmount / achTransactions) : 0,
+          mmc: tddfTransactions > 0 ? Math.round(tddfAmount / tddfTransactions) : 0
         },
         dailyProcessingAmount: {
-          ach: `$${(tddfAmount * 0.42 / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${(tddfAmount * 0.58 / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         todayTotalTransaction: {
-          ach: `$${(tddfAmount * 0.42 / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-          mmc: `$${(tddfAmount * 0.58 / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ach: `$${(achTotalAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          mmc: `$${(tddfAmount / 30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         },
         totalRecords: {
-          ach: regularTransactions.toLocaleString(),
+          ach: achTransactions.toLocaleString(),
           mmc: tddfTransactions.toLocaleString()
         },
         totalTerminals: {
