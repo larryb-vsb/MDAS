@@ -4615,7 +4615,7 @@ export class DatabaseStorage implements IStorage {
         return 'default';
       };
       
-      // Optimized unified Transaction ID extraction function
+      // Enhanced unified Transaction ID extraction function with flexible matching
       const extractTransactionId = (row: any): string => {
         // Priority-based Transaction ID extraction across all possible column names
         const transactionIdColumns = [
@@ -4624,25 +4624,58 @@ export class DatabaseStorage implements IStorage {
           'BatchID', 'SequenceNumber', 'ConfirmationNumber'
         ];
         
+        // Get available column names for case-insensitive matching
+        const availableColumns = Object.keys(row);
+        
+        // First, try exact matches
         for (const column of transactionIdColumns) {
           if (row[column] && row[column].toString().trim()) {
-            console.log(`[TRANSACTION ID] Found ${column}: ${row[column]}`);
+            console.log(`[TRANSACTION ID] ✅ Exact match - Found ${column}: ${row[column]}`);
             return row[column].toString().trim();
           }
         }
         
-        console.error(`[TRANSACTION ID ERROR] No valid Transaction ID found in row ${rowCount}!`);
+        // Second, try case-insensitive matches
+        for (const expectedCol of transactionIdColumns) {
+          for (const actualCol of availableColumns) {
+            if (expectedCol.toLowerCase() === actualCol.toLowerCase() && row[actualCol] && row[actualCol].toString().trim()) {
+              console.log(`[TRANSACTION ID] ✅ Case-insensitive match - Found ${actualCol} (expected: ${expectedCol}): ${row[actualCol]}`);
+              return row[actualCol].toString().trim();
+            }
+          }
+        }
+        
+        // Third, try partial matches (contains)
+        for (const expectedCol of transactionIdColumns) {
+          for (const actualCol of availableColumns) {
+            if ((actualCol.toLowerCase().includes(expectedCol.toLowerCase()) || 
+                 expectedCol.toLowerCase().includes(actualCol.toLowerCase())) &&
+                row[actualCol] && row[actualCol].toString().trim()) {
+              console.log(`[TRANSACTION ID] ✅ Partial match - Found ${actualCol} (partial: ${expectedCol}): ${row[actualCol]}`);
+              return row[actualCol].toString().trim();
+            }
+          }
+        }
+        
+        console.error(`[TRANSACTION ID ERROR] ❌ No valid Transaction ID found in row ${rowCount}!`);
         console.error(`[TRANSACTION ID ERROR] Expected columns: [${transactionIdColumns.join(', ')}]`);
         console.error(`[TRANSACTION ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
-        console.error(`[TRANSACTION ID ERROR] Row data: ${JSON.stringify(row)}`);
+        console.error(`[TRANSACTION ID ERROR] Row data sample: ${JSON.stringify(row).substring(0, 200)}...`);
         return null;
       };
 
-      // Optimized unified Merchant ID extraction function  
+      // Enhanced unified Merchant ID extraction function with flexible matching
       const extractMerchantId = (row: any): string => {
         // Try advanced merchant ID extraction first
-        let merchantId = findMerchantId(row, transactionMerchantIdAliases);
-        if (merchantId) return merchantId.trim();
+        try {
+          let merchantId = findMerchantId(row, transactionMerchantIdAliases);
+          if (merchantId) {
+            console.log(`[MERCHANT ID] ✅ Advanced extraction: ${merchantId.trim()}`);
+            return merchantId.trim();
+          }
+        } catch (err) {
+          console.log(`[MERCHANT ID] Advanced extraction failed, using fallback`);
+        }
         
         // Priority-based merchant ID extraction
         const merchantIdColumns = [
@@ -4650,18 +4683,46 @@ export class DatabaseStorage implements IStorage {
           'Name', 'MerchantName', 'ClientMID', 'CompanyID', 'StoreID'
         ];
         
+        // Get available column names for case-insensitive matching
+        const availableColumns = Object.keys(row);
+        
+        // First, try exact matches
         for (const column of merchantIdColumns) {
           if (row[column] && row[column].toString().trim()) {
             const extracted = row[column].toString().trim();
-            console.log(`[MERCHANT ID] Found ${column}: ${extracted}`);
+            console.log(`[MERCHANT ID] ✅ Exact match - Found ${column}: ${extracted}`);
             return extracted;
           }
         }
         
-        console.error(`[MERCHANT ID ERROR] No valid Merchant ID found in row ${rowCount}!`);
+        // Second, try case-insensitive matches
+        for (const expectedCol of merchantIdColumns) {
+          for (const actualCol of availableColumns) {
+            if (expectedCol.toLowerCase() === actualCol.toLowerCase() && row[actualCol] && row[actualCol].toString().trim()) {
+              const extracted = row[actualCol].toString().trim();
+              console.log(`[MERCHANT ID] ✅ Case-insensitive match - Found ${actualCol} (expected: ${expectedCol}): ${extracted}`);
+              return extracted;
+            }
+          }
+        }
+        
+        // Third, try partial matches (contains)
+        for (const expectedCol of merchantIdColumns) {
+          for (const actualCol of availableColumns) {
+            if ((actualCol.toLowerCase().includes(expectedCol.toLowerCase()) || 
+                 expectedCol.toLowerCase().includes(actualCol.toLowerCase())) &&
+                row[actualCol] && row[actualCol].toString().trim()) {
+              const extracted = row[actualCol].toString().trim();
+              console.log(`[MERCHANT ID] ✅ Partial match - Found ${actualCol} (partial: ${expectedCol}): ${extracted}`);
+              return extracted;
+            }
+          }
+        }
+        
+        console.error(`[MERCHANT ID ERROR] ❌ No valid Merchant ID found in row ${rowCount}!`);
         console.error(`[MERCHANT ID ERROR] Expected columns: [${merchantIdColumns.join(', ')}]`);
         console.error(`[MERCHANT ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
-        console.error(`[MERCHANT ID ERROR] Row data: ${JSON.stringify(row)}`);
+        console.error(`[MERCHANT ID ERROR] Row data sample: ${JSON.stringify(row).substring(0, 200)}...`);
         return null;
       };
 
