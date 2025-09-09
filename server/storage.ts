@@ -6210,11 +6210,21 @@ export class DatabaseStorage implements IStorage {
       parser.on("data", (row) => {
         rowCount++;
         try {
-          // Only log first 5 rows to avoid spam
-          if (rowCount <= 5) {
-            console.log(`\n--- Processing terminal row ${rowCount} ---`);
+          // Enhanced logging for ALL first 10 rows to debug field mapping
+          if (rowCount <= 10) {
+            console.log(`\n=== ENHANCED DEBUG: Processing terminal row ${rowCount} ===`);
             console.log(`Row data: ${JSON.stringify(row)}`);
-            console.log(`Available columns: ${Object.keys(row).join(", ")}`);
+            console.log(`Available columns (${Object.keys(row).length} total): ${Object.keys(row).join(", ")}`);
+            
+            // Check for V Number variations
+            const vNumberVariations = ["V Number", "VAR Number", "vNumber", "var_number", "V_Number", "VAR_NUMBER", "VNumber", "VARNumber", "Terminal_ID", "TerminalID", "Terminal ID", "TERMINAL_ID"];
+            const foundVNumbers = vNumberVariations.filter(key => row[key] !== undefined);
+            console.log(`V Number field matches: ${foundVNumbers.length > 0 ? foundVNumbers.join(", ") : "NONE FOUND"}`);
+            
+            // Check for Master MID variations  
+            const midVariations = ["POS Merchant #", "Master MID", "masterMID", "pos_merchant", "POS_Merchant_#", "POS_MERCHANT_#", "POSMerchant#", "POS Merchant Number", "MasterMID", "Master_MID", "MASTER_MID", "Merchant_ID", "MerchantID", "Merchant ID", "MERCHANT_ID", "POS_Merchant_Number"];
+            const foundMIDs = midVariations.filter(key => row[key] !== undefined);
+            console.log(`Master MID field matches: ${foundMIDs.length > 0 ? foundMIDs.join(", ") : "NONE FOUND"}`);
           } else if (rowCount % 100 === 0) {
             console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
           }

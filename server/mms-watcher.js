@@ -859,9 +859,16 @@ class MMSWatcher {
         phase: 'identified'
       });
 
+      console.log(`[MMS-WATCHER] [DEBUG] Found ${identifiedFiles.length} files in 'identified' phase`);
+      
       if (identifiedFiles.length === 0) {
         return; // No files to process
       }
+      
+      // Debug: Show what files were found
+      identifiedFiles.forEach(file => {
+        console.log(`[MMS-WATCHER] [DEBUG] Identified file: ${file.filename}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
+      });
 
       // Filter for files that need encoding (TDDF files, merchant CSV files, and terminal CSV files)
       const encodableFiles = identifiedFiles.filter(upload => 
