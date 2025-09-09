@@ -1254,9 +1254,9 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`[GET MERCHANTS] Using direct query (filters applied or cache unavailable)`);
       
-      // @DEPLOYMENT-CHECK: Verify table prefix in logs
-      const merchantsTableName = getTableName('merchants');
-      console.log(`[GET MERCHANTS] Using table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
+      // Use VSB API merchants table directly for merchant listing
+      const merchantsTableName = 'dev_api_merchants';
+      console.log(`[GET MERCHANTS] Using VSB API table: ${merchantsTableName} for environment: ${process.env.NODE_ENV || 'development'}`);
       
       // Build WHERE conditions for raw SQL
       const conditions = [];
