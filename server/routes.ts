@@ -22345,3 +22345,5 @@ function parseAmount(amountStr: string): number | null {
   // Convert from cents to dollars (divide by 100)
   return amount / 100;
 }
+
+export { router };
