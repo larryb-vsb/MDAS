@@ -4631,7 +4631,10 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        console.warn(`[TRANSACTION ID] No valid Transaction ID found in row, available columns: ${Object.keys(row).join(', ')}`);
+        console.error(`[TRANSACTION ID ERROR] No valid Transaction ID found in row ${rowCount}!`);
+        console.error(`[TRANSACTION ID ERROR] Expected columns: [${transactionIdColumns.join(', ')}]`);
+        console.error(`[TRANSACTION ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
+        console.error(`[TRANSACTION ID ERROR] Row data: ${JSON.stringify(row)}`);
         return null;
       };
 
@@ -4655,7 +4658,10 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        console.warn(`[MERCHANT ID] No valid Merchant ID found in row, skipping row to avoid bad merchant IDs`);
+        console.error(`[MERCHANT ID ERROR] No valid Merchant ID found in row ${rowCount}!`);
+        console.error(`[MERCHANT ID ERROR] Expected columns: [${merchantIdColumns.join(', ')}]`);
+        console.error(`[MERCHANT ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
+        console.error(`[MERCHANT ID ERROR] Row data: ${JSON.stringify(row)}`);
         return null;
       };
 
@@ -4666,8 +4672,12 @@ export class DatabaseStorage implements IStorage {
         if (rowCount === 1) {
           sampleRow = row;
           detectedFormat = detectFileFormat(row);
-          console.log(`First row: ${JSON.stringify(row)}`);
+          console.log(`\n=================== CSV COLUMN ANALYSIS ===================`);
+          console.log(`Available columns in CSV: [${Object.keys(row).join(', ')}]`);
+          console.log(`Total columns: ${Object.keys(row).length}`);
+          console.log(`First row data: ${JSON.stringify(row)}`);
           console.log(`Detected format: ${detectedFormat}`);
+          console.log(`=====================================================\n`);
         }
         
         try {
@@ -4677,17 +4687,19 @@ export class DatabaseStorage implements IStorage {
           
           // Skip row if no Transaction ID found (critical data missing)
           if (!transactionId) {
-            console.error(`[SKIP ROW] Row ${rowCount} has no Transaction ID, skipping to avoid timestamp fallback`);
+            console.error(`[SKIP ROW ${rowCount}] ❌ TRANSACTION ID MISSING - Cannot process row without transaction identifier`);
             errorCount++;
             return;
           }
           
           // Skip row if no Merchant ID found (avoid bad merchant ID generation)
           if (!merchantId) {
-            console.error(`[SKIP ROW] Row ${rowCount} has no Merchant ID, skipping to avoid AUTO_ merchant IDs`);
+            console.error(`[SKIP ROW ${rowCount}] ❌ MERCHANT ID MISSING - Cannot process row without merchant identifier`);
             errorCount++;
             return;
           }
+          
+          console.log(`[PROCESS ROW ${rowCount}] ✅ Found TransactionID: "${transactionId}", MerchantID: "${merchantId}"`);
           
           // Store original merchant name for advanced matching
           let originalMerchantName = null;
@@ -4757,7 +4769,9 @@ export class DatabaseStorage implements IStorage {
           
         } catch (error) {
           errorCount++;
-          console.error(`Error processing transaction row ${rowCount}:`, error);
+          console.error(`[ROW ERROR ${rowCount}] ❌ Processing failed:`, error);
+          console.error(`[ROW ERROR ${rowCount}] Row data: ${JSON.stringify(row)}`);
+          console.error(`[ROW ERROR ${rowCount}] Available columns: [${Object.keys(row).join(', ')}]`);
         }
       });
       

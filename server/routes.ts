@@ -8643,7 +8643,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quick status check for uploader files (bypass auth for debugging)
+  // Debug endpoint to examine failed CSV files (bypass auth)
+  app.get('/api/debug/csv-content/:uploadId', async (req, res) => {
+    console.log('[CSV-DEBUG] Bypassing auth to examine failed CSV file');
+    try {
+      const uploadId = req.params.uploadId;
+      const uploadsTable = getTableName('uploader_uploads');
+      
+      // Get upload info
+      const uploadResult = await pool.query(`SELECT * FROM ${uploadsTable} WHERE id = $1`, [uploadId]);
+      
+      if (uploadResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Upload not found' });
+      }
+      
+      const upload = uploadResult.rows[0];
+      
+      // Get file content
+      const { ReplitStorageService } = await import('./replit-storage-service.js');
+      const fileContent = await ReplitStorageService.getFileContent(upload.s3_key);
+      
+      // Parse first few lines to show CSV structure
+      const lines = fileContent.split('\n').slice(0, 10);
+      const headers = lines[0] ? lines[0].split(',').map(h => h.trim().replace(/"/g, '')) : [];
+      
+      res.json({
+        uploadInfo: {
+          id: upload.id,
+          filename: upload.original_filename,
+          phase: upload.current_phase,
+          detectedType: upload.detected_file_type,
+          errors: upload.processing_errors
+        },
+        csvStructure: {
+          totalLines: fileContent.split('\n').length,
+          headers: headers,
+          headerCount: headers.length,
+          sampleLines: lines
+        }
+      });
+    } catch (error) {
+      console.error('[CSV-DEBUG] Error examining file:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Quick status check for uploader files (bypass auth for debugging)  
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
     try {
