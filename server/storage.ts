@@ -7350,35 +7350,50 @@ export class DatabaseStorage implements IStorage {
   // Terminal operations
   async getTerminals(): Promise<Terminal[]> {
     // @ENVIRONMENT-CRITICAL - Terminal data retrieval
-    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-    const terminalsTableName = getTableName('terminals');
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
+    const terminalsTableName = getTableName('api_terminals');
     
-    const result = await pool.query(`SELECT * FROM ${terminalsTableName} ORDER BY v_number ASC`);
-    return result.rows;
+    try {
+      const result = await pool.query(`SELECT * FROM ${terminalsTableName} ORDER BY v_number ASC`);
+      return result.rows;
+    } catch (error) {
+      console.error(`[TERMINALS-STORAGE] Error fetching from ${terminalsTableName}:`, error);
+      return [];
+    }
   }
 
   async getTerminalById(terminalId: number): Promise<Terminal | undefined> {
     // @ENVIRONMENT-CRITICAL - Terminal lookup by ID
-    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-    const terminalsTableName = getTableName('terminals');
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
+    const terminalsTableName = getTableName('api_terminals');
     
-    const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
-    return result.rows[0] || undefined;
+    try {
+      const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
+      return result.rows[0] || undefined;
+    } catch (error) {
+      console.error(`[TERMINALS-STORAGE] Error fetching terminal by ID from ${terminalsTableName}:`, error);
+      return undefined;
+    }
   }
 
   async getTerminalsByMasterMID(masterMID: string): Promise<Terminal[]> {
     // @ENVIRONMENT-CRITICAL - Terminal lookup by Master MID
-    // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-    const terminalsTableName = getTableName('terminals');
+    // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
+    const terminalsTableName = getTableName('api_terminals');
     
-    const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE pos_merchant_number = $1`, [masterMID]);
-    return result.rows;
+    try {
+      const result = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE pos_merchant_number = $1`, [masterMID]);
+      return result.rows;
+    } catch (error) {
+      console.error(`[TERMINALS-STORAGE] Error fetching terminals by Master MID from ${terminalsTableName}:`, error);
+      return [];
+    }
   }
 
   async createTerminal(insertTerminal: InsertTerminal): Promise<Terminal> {
-    // @ENVIRONMENT-CRITICAL - Terminal creation with environment-aware table naming
+    // @ENVIRONMENT-CRITICAL - Terminal creation with environment-aware table naming for API terminals
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
-    const terminalsTableName = getTableName('terminals');
+    const terminalsTableName = getTableName('api_terminals');
     
     const columns = Object.keys(insertTerminal).join(', ');
     const placeholders = Object.keys(insertTerminal).map((_, i) => `$${i + 1}`).join(', ');
@@ -7394,9 +7409,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTerminal(terminalId: number, terminalData: Partial<InsertTerminal>): Promise<Terminal> {
-    // @ENVIRONMENT-CRITICAL - Terminal update with environment-aware table naming
+    // @ENVIRONMENT-CRITICAL - Terminal update with environment-aware table naming for API terminals
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
-    const terminalsTableName = getTableName('terminals');
+    const terminalsTableName = getTableName('api_terminals');
     
     const setClause = Object.keys(terminalData)
       .map((key, i) => `${key} = $${i + 2}`)

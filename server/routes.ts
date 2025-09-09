@@ -8837,6 +8837,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create API terminals table using existing terminals schema (bypass auth for debugging)
+  app.post('/api/debug/create-api-terminals-table', async (req, res) => {
+    console.log('[TERMINALS-DEBUG] Creating dev_api_terminals table');
+    try {
+      const tableName = getTableName('api_terminals');
+      
+      // Check if table exists
+      const tableCheck = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = '${tableName.replace(/"/g, '')}'
+        ) as exists
+      `);
+      
+      if (tableCheck.rows[0].exists) {
+        return res.json({
+          success: true,
+          message: 'API terminals table already exists',
+          tableName: tableName
+        });
+      }
+      
+      // Create the table with comprehensive terminals schema
+      await pool.query(`
+        CREATE TABLE ${tableName} (
+          id SERIAL PRIMARY KEY,
+          v_number TEXT NOT NULL UNIQUE,
+          pos_merchant_number TEXT NOT NULL,
+          bin TEXT,
+          dba_name TEXT,
+          daily_auth TEXT,
+          dial_pay TEXT,
+          encryption TEXT,
+          prr TEXT,
+          mcc TEXT,
+          ssl TEXT,
+          tokenization TEXT,
+          agent TEXT,
+          chain TEXT,
+          store TEXT,
+          terminal_info TEXT,
+          record_status TEXT,
+          board_date TIMESTAMP,
+          terminal_visa TEXT,
+          bank_number TEXT,
+          association_number_1 TEXT,
+          transaction_code TEXT,
+          auth_source TEXT,
+          network_identifier_debit TEXT,
+          pos_entry_mode TEXT,
+          auth_response_code TEXT,
+          validation_code TEXT,
+          cat_indicator TEXT,
+          online_entry TEXT,
+          ach_flag TEXT,
+          cardholder_id_method TEXT,
+          terminal_id TEXT,
+          discover_pos_entry_mode TEXT,
+          purchase_id TEXT,
+          pos_data_code TEXT,
+          terminal_type TEXT,
+          status TEXT NOT NULL DEFAULT 'Active',
+          location TEXT,
+          m_type TEXT,
+          m_location TEXT,
+          installation_date TIMESTAMP,
+          hardware_model TEXT,
+          manufacturer TEXT,
+          firmware_version TEXT,
+          network_type TEXT,
+          ip_address TEXT,
+          term_number TEXT,
+          generic_field_2 TEXT,
+          description TEXT,
+          notes TEXT,
+          internal_notes TEXT,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          created_by TEXT,
+          updated_by TEXT,
+          last_activity TIMESTAMP,
+          last_update TIMESTAMP,
+          update_source TEXT,
+          last_sync_date TIMESTAMP,
+          sync_status TEXT DEFAULT 'Pending'
+        )
+      `);
+      
+      // Create indexes for performance
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_v_number ON ${tableName} (v_number)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_pos_merchant_number ON ${tableName} (pos_merchant_number)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_status ON ${tableName} (status)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_${tableName.replace(/"/g, '')}_terminal_type ON ${tableName} (terminal_type)`);
+      
+      console.log(`[TERMINALS-DEBUG] Successfully created table: ${tableName}`);
+      
+      res.json({
+        success: true,
+        message: 'API terminals table created successfully',
+        tableName: tableName
+      });
+    } catch (error) {
+      console.error('[TERMINALS-DEBUG] Error creating API terminals table:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Quick status check for uploader files (bypass auth for debugging)  
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
