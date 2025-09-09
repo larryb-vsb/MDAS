@@ -8735,6 +8735,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check ACH transaction data in database (bypass auth for debugging)
+  app.get('/api/debug/ach-data-check', async (req, res) => {
+    console.log('[ACH-DEBUG] Checking ACH transaction data in database');
+    try {
+      const tables = ['transactions', 'api_achtransactions', 'api_merchants'];
+      const results = {};
+      
+      for (const table of tables) {
+        try {
+          const tableName = getTableName(table);
+          console.log(`[ACH-DEBUG] Checking table: ${tableName}`);
+          
+          const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
+          const count = parseInt(countResult.rows[0]?.count || '0');
+          
+          if (count > 0) {
+            const sampleResult = await pool.query(`SELECT * FROM ${tableName} LIMIT 3`);
+            const totalAmountResult = table === 'transactions' 
+              ? await pool.query(`SELECT SUM(CAST(amount AS NUMERIC)) as total FROM ${tableName}`)
+              : await pool.query(`SELECT COUNT(*) as total FROM ${tableName}`);
+            
+            results[table] = {
+              exists: true,
+              count: count,
+              sample: sampleResult.rows,
+              totalAmount: totalAmountResult.rows[0]?.total || 0
+            };
+          } else {
+            results[table] = { exists: true, count: 0 };
+          }
+        } catch (error) {
+          results[table] = { 
+            exists: false, 
+            error: error.message.includes('does not exist') ? 'Table does not exist' : error.message 
+          };
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: 'ACH data check completed',
+        results: results
+      });
+    } catch (error) {
+      console.error('[ACH-DEBUG] Error checking ACH data:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Quick status check for uploader files (bypass auth for debugging)  
   app.get('/api/uploader/debug-status', async (req, res) => {
     console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
