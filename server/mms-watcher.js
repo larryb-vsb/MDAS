@@ -600,12 +600,19 @@ class MMSWatcher {
     let validationErrors = [];
 
     try {
-      // SubMerchantTerminals file detection - check filename patterns first
-      if (this.detectSubMerchantTerminalsFile(filename)) {
-        detectedType = 'sub_merchant_terminals';
+      // Terminal file detection - check user selection first, then filename patterns, then CSV header content
+      if (userSelectedFileType === 'terminals' || userSelectedFileType === 'terminal') {
+        detectedType = 'terminal';
+        format = filename.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
+        hasHeaders = true;
+        console.log('[MMS-WATCHER] Detected terminal format (user selected terminals)');
+      }
+      // Terminal filename patterns detection
+      else if (this.detectSubMerchantTerminalsFile(filename)) {
+        detectedType = 'terminal';  // Changed from 'sub_merchant_terminals' to 'terminal'
         format = filename.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
         hasHeaders = true; // Terminal files typically have headers
-        console.log('[MMS-WATCHER] Detected SubMerchantTerminals format');
+        console.log('[MMS-WATCHER] Detected terminal format from filename patterns');
       }
       // TDDF file detection (.tsyso extension or specific TDDF patterns)
       else if (filename.toLowerCase().endsWith('.tsyso') || this.detectTddfPattern(lines)) {
@@ -861,7 +868,8 @@ class MMSWatcher {
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
         upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv' ||
         upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv' ||
-        upload.finalFileType === 'terminal' || upload.detectedFileType === 'terminal' || upload.fileType === 'terminal'
+        upload.finalFileType === 'terminal' || upload.detectedFileType === 'terminal' || upload.fileType === 'terminal' ||
+        upload.finalFileType === 'sub_merchant_terminals' || upload.detectedFileType === 'sub_merchant_terminals' || upload.fileType === 'sub_merchant_terminals'
       );
 
       if (encodableFiles.length === 0) {
@@ -992,33 +1000,42 @@ class MMSWatcher {
         }
       }
       else if (fileType === 'sub_merchant_terminals') {
-        // SubMerchantTerminals file processing
-        console.log(`[MMS-WATCHER] Processing SubMerchantTerminals file: ${upload.filename}`);
+        // SubMerchantTerminals file processing - treat as terminal CSV for auto-processing
+        console.log(`[MMS-WATCHER] Processing SubMerchantTerminals as Terminal CSV file: ${upload.filename}`);
         
-        // For Excel files, we'll mark as processed but note they need manual handling
-        if (upload.filename.toLowerCase().endsWith('.xlsx') || upload.filename.toLowerCase().endsWith('.xls')) {
+        try {
+          // Process terminal CSV directly using storage method
+          const processingResult = await this.storage.processTerminalFileFromContent(
+            fileContent,
+            upload.id,
+            upload.filename
+          );
+          
           await this.storage.updateUploaderPhase(upload.id, 'encoded', {
             encodingCompletedAt: new Date(),
             encodingStatus: 'completed',
-            encodingNotes: `SubMerchantTerminals Excel file identified and ready for manual processing`,
-            processingNotes: `SubMerchantTerminals Excel file detected - requires manual import via MerchantDetail page SubMerchantTerminals component`,
-            fileTypeIdentified: 'sub_merchant_terminals',
-            requiresManualImport: true
+            encodingNotes: `Successfully processed terminal CSV file: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
+            processingNotes: `Auto-processed by MMS Watcher: Terminal CSV processed and added to dev_api_terminals table`,
+            fileTypeIdentified: 'terminal',
+            recordsProcessed: processingResult.rowsProcessed,
+            recordsCreated: processingResult.terminalsCreated,
+            recordsUpdated: processingResult.terminalsUpdated,
+            processingErrors: processingResult.errors
           });
           
-          console.log(`[MMS-WATCHER] ✅ SubMerchantTerminals Excel file identified: ${upload.filename} - ready for manual import`);
-        } else {
-          // For CSV files, we could potentially auto-process them
-          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+          console.log(`[MMS-WATCHER] ✅ Terminal CSV processed: ${upload.filename} -> ${processingResult.terminalsCreated} terminals created, ${processingResult.terminalsUpdated} updated`);
+        } catch (error) {
+          console.error(`[MMS-WATCHER] Error processing terminal CSV ${upload.filename}:`, error);
+          
+          await this.storage.updateUploaderPhase(upload.id, 'failed', {
             encodingCompletedAt: new Date(),
-            encodingStatus: 'completed',
-            encodingNotes: `SubMerchantTerminals CSV file identified and ready for processing`,
-            processingNotes: `SubMerchantTerminals CSV file detected - can be imported via MerchantDetail page`,
-            fileTypeIdentified: 'sub_merchant_terminals',
-            requiresManualImport: true
+            encodingStatus: 'failed',
+            encodingNotes: `Terminal CSV processing failed: ${error.message}`,
+            processingNotes: `Terminal CSV processing failed: ${error.message}`,
+            fileTypeIdentified: 'terminal'
           });
           
-          console.log(`[MMS-WATCHER] ✅ SubMerchantTerminals CSV file identified: ${upload.filename} - ready for import`);
+          throw error;
         }
       }
       else if (fileType === 'terminal') {
