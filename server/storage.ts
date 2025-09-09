@@ -6229,21 +6229,23 @@ export class DatabaseStorage implements IStorage {
             console.log(`\n--- Processing terminal row ${rowCount} (every 100th) ---`);
           }
           
-          // Find V Number (VAR Number) - required field - EXPANDED HEADER SUPPORT
+          // Find V Number (VAR Number) - required field - EXPANDED HEADER SUPPORT + CSV HEADERS
           const vNumber = row["V Number"] || row["VAR Number"] || row["vNumber"] || row["var_number"] || 
                          row["V_Number"] || row["VAR_NUMBER"] || row["VNumber"] || row["VARNumber"] ||
-                         row["Terminal_ID"] || row["TerminalID"] || row["Terminal ID"] || row["TERMINAL_ID"];
+                         row["Terminal_ID"] || row["TerminalID"] || row["Terminal ID"] || row["TERMINAL_ID"] ||
+                         row["Terminal ID"]; // Added from CSV screenshot
           if (!vNumber || !vNumber.trim()) {
             console.log(`[SKIP ROW ${rowCount}] No V Number found. Available keys: ${Object.keys(row).join(", ")}`);
             console.log(`[SKIP ROW ${rowCount}] Row data: ${JSON.stringify(row)}`);
             return;
           }
           
-          // Find Master MID (POS Merchant #) - required field to link to merchants - EXPANDED HEADER SUPPORT
+          // Find Master MID (POS Merchant #) - required field to link to merchants - EXPANDED HEADER SUPPORT + CSV HEADERS  
           const masterMID = row["POS Merchant #"] || row["Master MID"] || row["masterMID"] || row["pos_merchant"] ||
                            row["POS_Merchant_#"] || row["POS_MERCHANT_#"] || row["POSMerchant#"] || row["POS Merchant Number"] ||
                            row["MasterMID"] || row["Master_MID"] || row["MASTER_MID"] || row["Merchant_ID"] ||
-                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"];
+                           row["MerchantID"] || row["Merchant ID"] || row["MERCHANT_ID"] || row["POS_Merchant_Number"] ||
+                           row["POS Merchant Number"]; // Added from CSV screenshot
           if (!masterMID || !masterMID.trim()) {
             console.log(`[SKIP ROW] No Master MID found in row ${rowCount}, skipping`);
             return;

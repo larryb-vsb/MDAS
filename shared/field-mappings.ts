@@ -96,12 +96,17 @@ export const alternateTransactionMappings = {
 
 // Terminal field mappings for TSYS export
 export const terminalFieldMappings: Record<string, string | null> = {
-  vNumber: "V Number", // VAR Number from TSYS (unique identifier)
-  posMerchantNumber: "POS Merchant #", // Links to merchants.masterMID
+  vNumber: "V Number", // VAR Number from TSYS (unique identifier) 
+  posMerchantNumber: "POS Merchant Number", // Updated to match CSV screenshot
+  // Additional fields from CSV screenshot
+  dbaName: "DBA Name",
+  dailyAuth: "Daily Auth", 
+  dialPay: "Dial Pay",
+  mcc: "MCC",
+  recordStatus: "Record Status",
+  boardDate: "Board Date",
+  terminalVisa: "Terminal Visa",
   bin: "BIN", // Bank Identification Number
-  dbaName: "DBA Name", // Doing Business As name
-  dailyAuth: "Daily Auth Count", // Daily authorization limit
-  dialPay: "Dial Pay Passcode", // Dial payment configuration
   encryption: "Encryption", // Payment encryption settings
   prr: "PRR MCC", // Processing rate/rule
   mcc: "Terminal Visa MCC", // Merchant Category Code (mapped from Terminal Visa MCC field)
