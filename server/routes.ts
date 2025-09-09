@@ -159,7 +159,7 @@ import {
   schemaVersions,
   backupSchedules as backupSchedulesTable,
   users as usersTable,
-  terminals as terminalsTable,
+  apiTerminals as terminalsTable,
   tddfRecords as tddfRecordsTable,
   insertTerminalSchema,
   tddfRecordsSchema,
