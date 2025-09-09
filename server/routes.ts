@@ -3714,12 +3714,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/merchants/:id", async (req, res) => {
     try {
       const merchantId = req.params.id;
-      const merchantDetails = await storage.getMerchantById(merchantId);
       
-      // API returns complete merchant details with user tracking
+      // Use VSB API merchants table directly
+      const result = await pool.query(`
+        SELECT 
+          id,
+          name,
+          client_mid,
+          merchant_type,
+          status,
+          address,
+          city,
+          state,
+          zip_code,
+          country,
+          category,
+          created_at,
+          last_upload_date,
+          edit_date,
+          updated_by
+        FROM dev_api_merchants 
+        WHERE id = $1
+      `, [merchantId]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: `VSB Merchant with ID ${merchantId} not found` });
+      }
+      
+      const merchant = result.rows[0];
+      
+      // Get related transactions for this merchant
+      const transactionsResult = await pool.query(`
+        SELECT COUNT(*) as transaction_count, SUM(amount) as total_amount
+        FROM dev_api_achtransactions 
+        WHERE merchant_id = $1
+      `, [merchantId]);
+      
+      const transactionStats = transactionsResult.rows[0];
+      
+      // Format response matching expected merchant details structure
+      const merchantDetails = {
+        id: merchant.id,
+        name: merchant.name,
+        clientMID: merchant.client_mid,
+        merchantType: merchant.merchant_type,
+        status: merchant.status,
+        address: merchant.address,
+        city: merchant.city,
+        state: merchant.state,
+        zipCode: merchant.zip_code,
+        country: merchant.country,
+        category: merchant.category,
+        createdAt: merchant.created_at,
+        lastUploadDate: merchant.last_upload_date,
+        editDate: merchant.edit_date,
+        updatedBy: merchant.updated_by,
+        transactionCount: parseInt(transactionStats.transaction_count) || 0,
+        totalAmount: parseFloat(transactionStats.total_amount) || 0
+      };
       
       res.json(merchantDetails);
     } catch (error) {
+      console.error("Error fetching VSB merchant details:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Failed to fetch merchant details" 
       });
