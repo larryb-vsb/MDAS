@@ -73,6 +73,7 @@ const FILE_TYPES = [
   { value: 'tddf', label: 'TDDF (.TSYSO)', description: 'TSYS Transaction Daily Detail File .TSYSO file 2400 or 0830 ex VERMNTSB.6759_TDDF_2400_07112025_003301.TSYSO' },
   { value: 'ach_merchant', label: 'ACH Merchant (.csv)', description: 'Custom Merchant Demographics .csv file' },
   { value: 'ach_transactions', label: 'ACH Transactions (.csv)', description: 'Horizon Core ACH Processing Detail File AH0314P1 .csv file' },
+  { value: 'terminals', label: 'Terminals (.csv)', description: 'TSYS Terminal Export CSV file with V Number, POS Merchant #, DBA Name, etc.' },
   { value: 'mastercard_di', label: 'MasterCard DI Report (.xlms)', description: 'MasterCard Data Integrity Edit Report records .xlms file' }
 ];
 
@@ -2438,6 +2439,7 @@ export default function MMSUploader() {
                         <SelectItem value="tddf">TDDF</SelectItem>
                         <SelectItem value="ach_merchant">ACH Merchant</SelectItem>
                         <SelectItem value="ach_transactions">ACH Transactions</SelectItem>
+                        <SelectItem value="terminals">Terminals</SelectItem>
                         <SelectItem value="mastercard_di">MasterCard DI</SelectItem>
                       </SelectContent>
                     </Select>

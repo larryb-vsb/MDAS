@@ -1926,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No files provided" });
       }
 
-      if (!fileType || !["merchant", "transaction", "terminal", "tddf", "merchant-risk"].includes(fileType)) {
+      if (!fileType || !["merchant", "transaction", "terminal", "terminals", "tddf", "merchant-risk"].includes(fileType)) {
         return res.status(400).json({ error: "Invalid file type" });
       }
 
@@ -2871,7 +2871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processorStatus,
         filters: {
           status: ['all', 'uploading', 'queued', 'processing', 'completed', 'errors'],
-          fileType: ['all', 'merchant', 'transaction', 'terminal', 'tddf'],
+          fileType: ['all', 'merchant', 'transaction', 'terminal', 'terminals', 'tddf'],
           sortBy: ['uploadDate', 'processingTime', 'filename']
         }
       });

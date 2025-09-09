@@ -619,8 +619,18 @@ class MMSWatcher {
         format = 'csv';
         hasHeaders = this.detectCsvHeaders(lines);
         
+        // Check if user selected a terminals file type or if headers match terminal patterns
+        if (userSelectedFileType === 'terminals' || userSelectedFileType === 'terminal') {
+          detectedType = 'terminal';
+          console.log('[MMS-WATCHER] Detected terminals CSV format (user selected terminals) with headers:', hasHeaders);
+        }
+        // Check for terminal CSV patterns in content (V Number, POS Merchant #, etc.)
+        else if (this.detectTerminalCsvPatterns(lines)) {
+          detectedType = 'terminal';
+          console.log('[MMS-WATCHER] Detected terminal CSV format based on headers with headers:', hasHeaders);
+        }
         // Check if user selected a specific merchant file type
-        if (userSelectedFileType === 'ach_merchant' || userSelectedFileType === 'merchant') {
+        else if (userSelectedFileType === 'ach_merchant' || userSelectedFileType === 'merchant') {
           detectedType = 'merchant_csv';
           console.log('[MMS-WATCHER] Detected merchant CSV format (user selected ach_merchant) with headers:', hasHeaders);
         }
@@ -760,6 +770,32 @@ class MMSWatcher {
     return keywordCount >= 3;
   }
 
+  detectTerminalCsvPatterns(lines) {
+    // Check if CSV headers match terminal export patterns
+    if (lines.length === 0) return false;
+    
+    const headerLine = lines[0].toLowerCase();
+    const terminalHeaders = [
+      'v number', 'v_number', 'vnumber', 'var number', 'var_number',
+      'pos merchant', 'pos_merchant', 'pos merchant #', 'pos_merchant_number',
+      'dba name', 'dba_name', 'dbaname', 'terminal', 'bin',
+      'daily auth', 'daily_auth', 'encryption', 'mcc', 'ssl'
+    ];
+    
+    // Check if at least 2 terminal-specific headers are present
+    const matchedHeaders = terminalHeaders.filter(header => 
+      headerLine.includes(header)
+    );
+    
+    const isTerminalCsv = matchedHeaders.length >= 2;
+    
+    if (isTerminalCsv) {
+      console.log(`[MMS-WATCHER] Detected terminal CSV headers: ${matchedHeaders.join(', ')}`);
+    }
+    
+    return isTerminalCsv;
+  }
+
   detectSubMerchantTerminalsFile(filename) {
     if (!filename) return false;
     
@@ -820,11 +856,12 @@ class MMSWatcher {
         return; // No files to process
       }
 
-      // Filter for files that need encoding (TDDF files and merchant CSV files)
+      // Filter for files that need encoding (TDDF files, merchant CSV files, and terminal CSV files)
       const encodableFiles = identifiedFiles.filter(upload => 
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
         upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv' ||
-        upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv'
+        upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv' ||
+        upload.finalFileType === 'terminal' || upload.detectedFileType === 'terminal' || upload.fileType === 'terminal'
       );
 
       if (encodableFiles.length === 0) {
@@ -982,6 +1019,45 @@ class MMSWatcher {
           });
           
           console.log(`[MMS-WATCHER] ✅ SubMerchantTerminals CSV file identified: ${upload.filename} - ready for import`);
+        }
+      }
+      else if (fileType === 'terminal') {
+        // Terminal CSV file processing - auto-process to dev_api_terminals table
+        console.log(`[MMS-WATCHER] Processing terminal CSV file: ${upload.filename}`);
+        
+        try {
+          // Process terminal CSV directly using storage method
+          const processingResult = await this.storage.processTerminalFileFromContent(
+            fileContent,
+            upload.id,
+            upload.filename
+          );
+          
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `Successfully processed terminal CSV file: ${processingResult.terminalsCreated} created, ${processingResult.terminalsUpdated} updated`,
+            processingNotes: `Auto-processed by MMS Watcher: Terminal CSV processed and added to dev_api_terminals table`,
+            fileTypeIdentified: 'terminal',
+            recordsProcessed: processingResult.rowsProcessed,
+            recordsCreated: processingResult.terminalsCreated,
+            recordsUpdated: processingResult.terminalsUpdated,
+            processingErrors: processingResult.errors
+          });
+          
+          console.log(`[MMS-WATCHER] ✅ Terminal CSV processed: ${upload.filename} -> ${processingResult.terminalsCreated} terminals created, ${processingResult.terminalsUpdated} updated`);
+        } catch (error) {
+          console.error(`[MMS-WATCHER] Error processing terminal CSV ${upload.filename}:`, error);
+          
+          await this.storage.updateUploaderPhase(upload.id, 'failed', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'failed',
+            encodingNotes: `Terminal CSV processing failed: ${error.message}`,
+            processingNotes: `Terminal CSV processing failed: ${error.message}`,
+            fileTypeIdentified: 'terminal'
+          });
+          
+          throw error;
         }
       }
       else {
