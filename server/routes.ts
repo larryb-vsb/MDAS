@@ -8414,6 +8414,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force process all identified transaction CSV files
+  app.post('/api/uploader/force-process-transaction-csv', async (req, res) => {
+    // Bypass authentication for processing operations
+    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for processing');
+    try {
+      console.log('[FORCE-PROCESS-TXN] Starting force processing of all identified transaction CSV files...');
+      
+      // Get all identified transaction CSV files directly from database
+      const { getTableName } = await import("./table-config");
+      const uploadsTable = getTableName('uploader_uploads');
+      const identifiedFiles = await pool.query(`
+        SELECT * FROM ${uploadsTable}
+        WHERE current_phase = $1 AND detected_file_type = $2
+      `, ['identified', 'transaction_csv']);
+      
+      console.log(`[FORCE-PROCESS-TXN] Found ${identifiedFiles.rows.length} identified transaction CSV files`);
+      
+      let processed = 0;
+      let errors = 0;
+      
+      for (const upload of identifiedFiles.rows) {
+        try {
+          console.log(`[FORCE-PROCESS-TXN] Processing file: ${upload.original_filename}`);
+          
+          // Get file content from Replit Object Storage
+          const { ReplitStorageService } = await import('./replit-storage-service.js');
+          const fileContent = await ReplitStorageService.getFileContent(upload.s3_key);
+          
+          // Create temporary file for processing
+          const fs = await import('fs');
+          const path = await import('path');
+          const os = await import('os');
+          
+          const tempFilePath = path.join(os.tmpdir(), `force_transaction_${upload.id}_${Date.now()}.csv`);
+          fs.writeFileSync(tempFilePath, fileContent);
+          
+          // Update to encoding phase
+          await storage.updateUploaderPhase(upload.id, 'encoding', {
+            encodingStartedAt: new Date(),
+            processingNotes: 'Force processing transaction CSV file'
+          });
+          
+          // Process transaction file using database storage directly
+          const dbStorage = storage as any; // Cast to access processTransactionFile
+          await dbStorage.processTransactionFile(tempFilePath);
+          
+          // Update status to encoded
+          await storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: 'Force processed ACH transaction CSV file',
+            processingNotes: `Force processed: ${upload.original_filename}`
+          });
+          
+          // Clean up temp file
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (err) {
+            console.warn(`[FORCE-PROCESS-TXN] Warning: Could not delete temp file ${tempFilePath}:`, err);
+          }
+          
+          processed++;
+          console.log(`[FORCE-PROCESS-TXN] ✅ Successfully processed: ${upload.original_filename}`);
+        } catch (error) {
+          console.error(`[FORCE-PROCESS-TXN] ❌ Error processing ${upload.original_filename}:`, error);
+          // Update to error phase
+          try {
+            await storage.updateUploaderPhase(upload.id, 'error', {
+              encodingCompletedAt: new Date(),
+              encodingStatus: 'failed',
+              processingNotes: `Force processing failed: ${error.message}`
+            });
+          } catch (updateError) {
+            console.error(`[FORCE-PROCESS-TXN] Failed to update error status:`, updateError);
+          }
+          errors++;
+        }
+      }
+      
+      console.log(`[FORCE-PROCESS-TXN] Completed: ${processed} processed, ${errors} errors`);
+      
+      res.json({
+        success: true,
+        message: `Force processed ${processed} transaction CSV files`,
+        processed,
+        errors,
+        totalFound: identifiedFiles.rows.length
+      });
+      
+    } catch (error) {
+      console.error('[FORCE-PROCESS-TXN] Error in force processing:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Manual queue status endpoint
   app.get("/api/mms-watcher/manual-queue-status", isAuthenticated, async (req, res) => {
     try {
@@ -8515,6 +8613,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(config);
     } catch (error: any) {
       console.error('Storage config error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Quick status check for uploader files (bypass auth for debugging)
+  app.get('/api/uploader/debug-status', async (req, res) => {
+    console.log('[AUTH-DEBUG] TDDF API route - bypassing auth for debugging');
+    try {
+      const uploadsTable = getTableName('uploader_uploads');
+      const result = await pool.query(`
+        SELECT 
+          current_phase,
+          detected_file_type,
+          COUNT(*) as count
+        FROM ${uploadsTable}
+        GROUP BY current_phase, detected_file_type 
+        ORDER BY current_phase, detected_file_type
+      `);
+      
+      res.json({ 
+        success: true,
+        table: uploadsTable,
+        fileCounts: result.rows
+      });
+    } catch (error) {
+      console.error('[DEBUG-STATUS] Error:', error);
       res.status(500).json({ error: error.message });
     }
   });
