@@ -1050,6 +1050,9 @@ class MMSWatcher {
         try {
           // Process transaction CSV file using existing storage method
           console.log(`[MMS-WATCHER] [TRANSACTION-CSV] Processing ${upload.filename} via processTransactionFile...`);
+          console.log(`[MMS-WATCHER] [TRANSACTION-CSV] Temp file path: ${tempFilePath}`);
+          console.log(`[MMS-WATCHER] [TRANSACTION-CSV] File size: ${fileContent.length} characters`);
+          
           await this.storage.processTransactionFile(tempFilePath);
           console.log(`[MMS-WATCHER] [TRANSACTION-CSV] processTransactionFile completed for ${upload.filename}`);
           
@@ -1062,6 +1065,18 @@ class MMSWatcher {
           });
 
           console.log(`[MMS-WATCHER] ✅ Transaction CSV processed: ${upload.filename} -> ACH transactions added to database`);
+        } catch (transactionError) {
+          console.error(`[MMS-WATCHER] ❌ Transaction CSV processing failed for ${upload.filename}:`, transactionError);
+          
+          // Mark as failed with error details
+          await this.storage.updateUploaderPhase(upload.id, 'failed', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'failed',
+            encodingNotes: `Transaction CSV processing failed: ${transactionError.message}`,
+            processingNotes: `Failed during auto-processing: ${transactionError.message}`
+          });
+          
+          throw transactionError; // Re-throw to be caught by outer try-catch
         } finally {
           // Clean up temp file
           try {
