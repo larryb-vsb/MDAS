@@ -823,7 +823,8 @@ class MMSWatcher {
       // Filter for files that need encoding (TDDF files and merchant CSV files)
       const encodableFiles = identifiedFiles.filter(upload => 
         upload.finalFileType === 'tddf' || upload.detectedFileType === 'tddf' || upload.fileType === 'tddf' ||
-        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv'
+        upload.finalFileType === 'merchant_csv' || upload.detectedFileType === 'merchant_csv' || upload.fileType === 'merchant_csv' ||
+        upload.finalFileType === 'transaction_csv' || upload.detectedFileType === 'transaction_csv' || upload.fileType === 'transaction_csv'
       );
 
       if (encodableFiles.length === 0) {
@@ -913,6 +914,37 @@ class MMSWatcher {
           });
 
           console.log(`[MMS-WATCHER] ✅ Merchant CSV processed: ${upload.filename} -> ${processingResults.merchantsCreated || 0} merchants created, ${processingResults.merchantsUpdated || 0} updated`);
+        } finally {
+          // Clean up temp file
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (err) {
+            console.warn(`[MMS-WATCHER] Warning: Could not delete temp file ${tempFilePath}:`, err);
+          }
+        }
+      }
+      else if (fileType === 'transaction_csv') {
+        // Save content to temporary file for transaction CSV processing
+        const fs = await import('fs');
+        const path = await import('path');
+        const os = await import('os');
+        
+        const tempFilePath = path.join(os.tmpdir(), `temp_transaction_${upload.id}_${Date.now()}.csv`);
+        fs.writeFileSync(tempFilePath, fileContent);
+        
+        try {
+          // Process transaction CSV file using existing storage method
+          await this.storage.processTransactionFile(tempFilePath);
+          
+          // Update to encoded phase with transaction results
+          await this.storage.updateUploaderPhase(upload.id, 'encoded', {
+            encodingCompletedAt: new Date(),
+            encodingStatus: 'completed',
+            encodingNotes: `Successfully processed ACH transaction CSV file`,
+            processingNotes: `Auto-processed by MMS Watcher: ACH transaction CSV processed and added to database`
+          });
+
+          console.log(`[MMS-WATCHER] ✅ Transaction CSV processed: ${upload.filename} -> ACH transactions added to database`);
         } finally {
           // Clean up temp file
           try {
