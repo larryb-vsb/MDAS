@@ -3752,25 +3752,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const transactionStats = transactionsResult.rows[0];
       
+      // Get recent transactions for this merchant
+      const recentTransactionsResult = await pool.query(`
+        SELECT 
+          id,
+          merchant_name,
+          account_number,
+          amount,
+          transaction_date as date,
+          description as type,
+          code,
+          company,
+          trace_number
+        FROM dev_api_achtransactions 
+        WHERE merchant_id = $1
+        ORDER BY transaction_date DESC, created_at DESC
+        LIMIT 50
+      `, [merchantId]);
+      
       // Format response matching expected merchant details structure
       const merchantDetails = {
-        id: merchant.id,
-        name: merchant.name,
-        clientMID: merchant.client_mid,
-        merchantType: merchant.merchant_type,
-        status: merchant.status,
-        address: merchant.address,
-        city: merchant.city,
-        state: merchant.state,
-        zipCode: merchant.zip_code,
-        country: merchant.country,
-        category: merchant.category,
-        createdAt: merchant.created_at,
-        lastUploadDate: merchant.last_upload_date,
-        editDate: merchant.edit_date,
-        updatedBy: merchant.updated_by,
-        transactionCount: parseInt(transactionStats.transaction_count) || 0,
-        totalAmount: parseFloat(transactionStats.total_amount) || 0
+        merchant: {
+          id: merchant.id,
+          name: merchant.name,
+          clientMID: merchant.client_mid,
+          merchantType: merchant.merchant_type,
+          status: merchant.status,
+          address: merchant.address,
+          city: merchant.city,
+          state: merchant.state,
+          zipCode: merchant.zip_code,
+          country: merchant.country,
+          category: merchant.category,
+          createdAt: merchant.created_at,
+          lastUploadDate: merchant.last_upload_date,
+          editDate: merchant.edit_date,
+          updatedBy: merchant.updated_by
+        },
+        analytics: {
+          transactionHistory: [{
+            month: new Date().toISOString().slice(0, 7), // Current month YYYY-MM format
+            transactions: parseInt(transactionStats.transaction_count) || 0,
+            amount: parseFloat(transactionStats.total_amount) || 0,
+            date: merchant.last_upload_date || merchant.created_at
+          }],
+          totalTransactions: parseInt(transactionStats.transaction_count) || 0,
+          totalAmount: parseFloat(transactionStats.total_amount) || 0
+        },
+        transactions: recentTransactionsResult.rows.map(row => ({
+          id: row.id.toString(),
+          transactionId: row.account_number,
+          merchantName: row.merchant_name,
+          amount: row.amount,
+          date: row.date,
+          type: row.type,
+          code: row.code,
+          company: row.company,
+          traceNumber: row.trace_number
+        }))
       };
       
       res.json(merchantDetails);
