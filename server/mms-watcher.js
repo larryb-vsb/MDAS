@@ -1049,7 +1049,9 @@ class MMSWatcher {
         
         try {
           // Process transaction CSV file using existing storage method
+          console.log(`[MMS-WATCHER] [TRANSACTION-CSV] Processing ${upload.filename} via processTransactionFile...`);
           await this.storage.processTransactionFile(tempFilePath);
+          console.log(`[MMS-WATCHER] [TRANSACTION-CSV] processTransactionFile completed for ${upload.filename}`);
           
           // Update to encoded phase with transaction results
           await this.storage.updateUploaderPhase(upload.id, 'encoded', {
