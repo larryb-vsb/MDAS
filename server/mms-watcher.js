@@ -62,9 +62,11 @@ class MMSWatcher {
           console.log('[MMS-WATCHER] [AUTO-45] Processing identified files for encoding');
           await this.processIdentifiedFiles();
         } else {
-          // Force debug check even when no identified files found
-          console.log('[MMS-WATCHER] [AUTO-45] No identified files found, running debug check...');
-          await this.debugAllFiles();
+          // Force debug check even when no identified files found - run every few cycles
+          if (Math.random() < 0.3) { // 30% chance to run debug to avoid spam
+            console.log('[MMS-WATCHER] [AUTO-45] No identified files found, running debug check...');
+            await this.debugAllFiles();
+          }
         }
       }
       
@@ -620,6 +622,15 @@ class MMSWatcher {
         phaseCount[f.currentPhase] = (phaseCount[f.currentPhase] || 0) + 1;
       });
       console.log(`[MMS-WATCHER] [FORCE-DEBUG] Files by phase:`, phaseCount);
+      
+      // Show specific ACH files status
+      const achSpecificFiles = allFiles.filter(f => 
+        f.filename && f.filename.includes('801203_AH0314P1_2024090')  // Your 3 specific files
+      );
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Your 3 specific ACH files (801203_AH0314P1_2024090*):`);
+      achSpecificFiles.forEach(file => {
+        console.log(`[MMS-WATCHER] [FORCE-DEBUG]     ${file.filename}: phase=${file.currentPhase}, type=${file.finalFileType || file.detectedFileType}, id=${file.id}`);
+      });
       
     } catch (error) {
       console.log(`[MMS-WATCHER] [FORCE-DEBUG] Error getting files: ${error.message}`);
