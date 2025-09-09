@@ -325,10 +325,25 @@ export default function MerchantDetail() {
     
     // Extract month names from the history data
     const filteredMonths = filteredHistory.map(monthData => {
-      const monthName = monthData.name;
-      // Year might be included in the name (e.g. "Jan 2024")
-      const yearMatch = monthData.name.match(/\d{4}$/);
-      const year = yearMatch ? parseInt(yearMatch[0]) : new Date().getFullYear();
+      // Our API returns month in YYYY-MM format, convert to readable format
+      const monthString = monthData.month || monthData.name || '';
+      let monthName = '';
+      let year = new Date().getFullYear();
+      
+      if (monthString.includes('-')) {
+        // Format is YYYY-MM
+        const [yearStr, monthStr] = monthString.split('-');
+        year = parseInt(yearStr);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        monthName = monthNames[parseInt(monthStr) - 1] || 'Jan';
+      } else {
+        // Fallback for old format or other formats
+        monthName = monthString.substring(0, 3);
+        const yearMatch = monthString.match(/\d{4}$/);
+        if (yearMatch) year = parseInt(yearMatch[0]);
+      }
+      
       return { monthName, year };
     });
     
