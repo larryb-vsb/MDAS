@@ -1148,20 +1148,20 @@ export default function MerchantDetail() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Daily Transactions</h3>
-                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.dailyStats.transactions}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
+                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.totalTransactions || 0}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Daily Revenue</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.dailyStats.revenue || '0')}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Total Amount</h3>
+                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.totalAmount || 0)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Monthly Transactions</h3>
-                      <p className="mt-1 text-2xl font-semibold">{data?.analytics.monthlyStats.transactions}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Merchant Type</h3>
+                      <p className="mt-1 text-2xl font-semibold">{data?.merchant.merchantType || 'N/A'}</p>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-500">Monthly Revenue</h3>
-                      <p className="mt-1 text-2xl font-semibold text-green-600">{formatCurrency(data?.analytics.monthlyStats.revenue || '0')}</p>
+                      <h3 className="text-sm font-medium text-gray-500">Status</h3>
+                      <p className="mt-1 text-2xl font-semibold text-blue-600">{data?.merchant.status || 'Unknown'}</p>
                     </div>
                   </div>
                 )}
