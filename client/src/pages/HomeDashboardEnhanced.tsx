@@ -570,12 +570,41 @@ function TddfProcessingDatetimeWidget() {
 }
 
 export default function HomeDashboard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   // Main dashboard metrics query - cache set to never expire, only refreshes on server restart
   const { data: dashboardMetrics, isLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/cached-metrics'],
     refetchOnWindowFocus: false,
     staleTime: Infinity, // Never consider data stale
     gcTime: Infinity, // Keep in cache indefinitely
+  });
+
+  // Cache refresh mutation
+  const refreshCacheMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("/api/dashboard/refresh-cache", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      // Invalidate both cache status and metrics queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/cached-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/cache-status-only'] });
+      toast({
+        title: "Cache Refreshed",
+        description: "Dashboard metrics have been updated with the latest terminal counts.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Refresh Failed",
+        description: `Failed to refresh cache: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
   });
 
   // Fallback data while loading
@@ -643,6 +672,25 @@ export default function HomeDashboard() {
                 )}
               </div>
             )}
+          </div>
+          
+          {/* Refresh Button */}
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              onClick={() => refreshCacheMutation.mutate()}
+              disabled={refreshCacheMutation.isPending}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
+              {refreshCacheMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
+            </Button>
+            <CacheControlWidget 
+              isDarkMode={false}
+              initialExpiration="never"
+              className="w-48"
+            />
           </div>
           
           {/* Cache Control Widget */}
