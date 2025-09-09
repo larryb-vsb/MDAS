@@ -255,6 +255,16 @@ class FileProcessorService {
       
       console.log(`[FILE PROCESSOR] Using table: ${uploadsTableName} for environment: ${currentEnvironment}, server: ${serverId}`);
       
+      // First check if the table exists and what records are in it
+      try {
+        const tableCheck = await db.execute(sql`
+          SELECT COUNT(*) as count FROM ${sql.identifier(uploadsTableName)}
+        `);
+        console.log(`[FILE PROCESSOR] Total records in ${uploadsTableName}: ${tableCheck.rows[0]?.count || 0}`);
+      } catch (error) {
+        console.log(`[FILE PROCESSOR] Error checking table ${uploadsTableName}:`, error.message);
+      }
+      
       // Database-level concurrency control: only fetch files that are NOT currently being processed
       // This prevents multiple nodes from picking up the same files
       const result = await db.execute(sql`
