@@ -3951,27 +3951,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const type = req.query.type as string | undefined;
       const transactionId = req.query.transactionId as string | undefined;
       
-      console.log("Transaction query params:", { page, limit, merchantId, startDate, endDate, type, transactionId });
-      console.log("Storage type:", storage.constructor.name);
+      console.log("ACH Transaction query params:", { page, limit, merchantId, startDate, endDate, type, transactionId });
       
-      const transactions = await storage.getTransactions(
-        page,
-        limit,
-        merchantId,
-        startDate,
-        endDate,
-        type,
-        transactionId
-      );
+      // Use ACH transactions table directly
+      const offset = (page - 1) * limit;
+      let whereConditions = [];
+      let queryParams = [];
+      let paramIndex = 1;
       
-      console.log(`Returning ${transactions.transactions.length} transactions, total: ${transactions.pagination.totalItems}`);
-      console.log("Transaction result sample:", transactions.transactions.slice(0, 2));
+      if (merchantId) {
+        whereConditions.push(`merchant_id = $${paramIndex}`);
+        queryParams.push(merchantId);
+        paramIndex++;
+      }
       
-      res.json(transactions);
+      if (startDate) {
+        whereConditions.push(`transaction_date >= $${paramIndex}`);
+        queryParams.push(startDate);
+        paramIndex++;
+      }
+      
+      if (endDate) {
+        whereConditions.push(`transaction_date <= $${paramIndex}`);
+        queryParams.push(endDate);
+        paramIndex++;
+      }
+      
+      if (type) {
+        whereConditions.push(`description ILIKE $${paramIndex}`);
+        queryParams.push(`%${type}%`);
+        paramIndex++;
+      }
+      
+      if (transactionId) {
+        whereConditions.push(`account_number ILIKE $${paramIndex}`);
+        queryParams.push(`%${transactionId}%`);
+        paramIndex++;
+      }
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      // Get total count
+      const countResult = await pool.query(`
+        SELECT COUNT(*) as count FROM dev_api_achtransactions ${whereClause}
+      `, queryParams);
+      
+      const totalItems = parseInt(countResult.rows[0].count);
+      
+      // Get transactions
+      const result = await pool.query(`
+        SELECT 
+          id,
+          merchant_name,
+          merchant_id,
+          account_number,
+          amount,
+          transaction_date as date,
+          code,
+          description,
+          company,
+          trace_number,
+          file_source,
+          created_at
+        FROM dev_api_achtransactions 
+        ${whereClause}
+        ORDER BY transaction_date DESC, created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, [...queryParams, limit, offset]);
+      
+      const transactions = result.rows.map(row => ({
+        id: row.id.toString(),
+        transactionId: row.account_number,
+        merchantId: row.merchant_id,
+        merchantName: row.merchant_name,
+        amount: row.amount,
+        date: row.date,
+        type: row.description,
+        code: row.code,
+        company: row.company,
+        traceNumber: row.trace_number,
+        source: row.file_source,
+        createdAt: row.created_at
+      }));
+      
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      const response = {
+        transactions,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems,
+          itemsPerPage: limit
+        }
+      };
+      
+      console.log(`Returning ${transactions.length} ACH transactions, total: ${totalItems}`);
+      res.json(response);
     } catch (error) {
-      console.error("Error fetching transactions:", error);
+      console.error("Error fetching ACH transactions:", error);
       res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to fetch transactions" 
+        error: error instanceof Error ? error.message : "Failed to fetch ACH transactions" 
       });
     }
   });
