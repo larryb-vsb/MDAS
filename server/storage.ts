@@ -6192,7 +6192,9 @@ export class DatabaseStorage implements IStorage {
         skip_empty_lines: true,
         relax_column_count: true,
         relax_quotes: true,
-        relax: true
+        relax: true,
+        trim: true,
+        bom: true
       });
       
       let terminals: InsertTerminal[] = [];
