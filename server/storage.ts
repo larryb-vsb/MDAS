@@ -6323,8 +6323,8 @@ export class DatabaseStorage implements IStorage {
           for (const terminal of terminals) {
             try {
               // @ENVIRONMENT-CRITICAL - Terminal existence check during CSV processing
-              // @DEPLOYMENT-CHECK - Uses environment-aware table naming
-              const terminalsTableName = getTableName('terminals');
+              // @DEPLOYMENT-CHECK - Uses environment-aware table naming for API terminals
+              const terminalsTableName = getTableName('api_terminals');
               
               // Check if terminal already exists (by V Number)
               const existingTerminalResult = await pool.query(`SELECT * FROM ${terminalsTableName} WHERE v_number = $1 LIMIT 1`, [terminal.vNumber]);
@@ -7429,11 +7429,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTerminal(terminalId: number): Promise<void> {
-    // @ENVIRONMENT-CRITICAL - Terminal deletion with environment-aware table naming
+    // @ENVIRONMENT-CRITICAL - Terminal deletion with environment-aware table naming for API terminals
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
-    const terminalsTableName = getTableName('terminals');
+    const terminalsTableName = getTableName('api_terminals');
     
-    await pool.query(`DELETE FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
+    try {
+      await pool.query(`DELETE FROM ${terminalsTableName} WHERE id = $1`, [terminalId]);
+    } catch (error) {
+      console.error(`[TERMINALS-STORAGE] Error deleting terminal from ${terminalsTableName}:`, error);
+      throw error;
+    }
   }
 
   // SubMerchantTerminals operations
