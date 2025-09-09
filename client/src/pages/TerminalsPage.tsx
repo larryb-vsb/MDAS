@@ -189,6 +189,30 @@ export default function TerminalsPage() {
 
   const { toast } = useToast();
 
+  // Simple terminal import mutation
+  const simpleImportMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("/api/terminals/simple-import", {
+        method: "POST",
+        body: {}
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Terminal Import Complete",
+        description: `Successfully imported ${data.imported} new terminals and updated ${data.updated} existing ones from ${data.filename}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/terminals"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Terminal Import Failed", 
+        description: error.message || "Failed to import terminals",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete selected terminals mutation
   const deleteMutation = useMutation({
     mutationFn: async (terminalIds: number[]) => {
@@ -265,6 +289,15 @@ export default function TerminalsPage() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => simpleImportMutation.mutate()}
+              disabled={simpleImportMutation.isPending}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {simpleImportMutation.isPending ? 'Importing...' : 'Import Terminals'}
             </Button>
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
