@@ -14,7 +14,7 @@ import {
   auditLogs as auditLogsTable,
   systemLogs,
   securityLogs,
-  terminals as terminalsTable,
+  apiTerminals as terminalsTable,
   tddfRecords as tddfRecordsTable,
   tddfRawImport as tddfRawImportTable,
   tddfBatchHeaders,
