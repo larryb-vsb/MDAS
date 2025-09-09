@@ -7517,10 +7517,69 @@ export class DatabaseStorage implements IStorage {
     // @DEPLOYMENT-CHECK - Uses raw SQL for dev/prod separation
     const terminalsTableName = getTableName('api_terminals');
     
-    const setClause = Object.keys(terminalData)
-      .map((key, i) => `${key} = $${i + 2}`)
+    // Field mapping from camelCase to snake_case (same as createTerminal)
+    const fieldMapping: { [key: string]: string } = {
+      'vNumber': 'v_number',
+      'posMerchantNumber': 'pos_merchant_number',
+      'dbaName': 'dba_name',
+      'dailyAuth': 'daily_auth',
+      'dialPay': 'dial_pay',
+      'terminalInfo': 'terminal_info',
+      'recordStatus': 'record_status',
+      'boardDate': 'board_date',
+      'terminalVisa': 'terminal_visa',
+      'bankNumber': 'bank_number',
+      'associationNumber1': 'association_number_1',
+      'transactionCode': 'transaction_code',
+      'authSource': 'auth_source',
+      'networkIdentifierDebit': 'network_identifier_debit',
+      'posEntryMode': 'pos_entry_mode',
+      'authResponseCode': 'auth_response_code',
+      'validationCode': 'validation_code',
+      'catIndicator': 'cat_indicator',
+      'onlineEntry': 'online_entry',
+      'achFlag': 'ach_flag',
+      'cardholderIdMethod': 'cardholder_id_method',
+      'terminalId': 'terminal_id',
+      'discoverPosEntryMode': 'discover_pos_entry_mode',
+      'purchaseId': 'purchase_id',
+      'posDataCode': 'pos_data_code',
+      'terminalType': 'terminal_type',
+      'businessName': 'business_name',
+      'locationAddress': 'location_address',
+      'locationCity': 'location_city',
+      'locationState': 'location_state',
+      'locationZip': 'location_zip',
+      'contactPhone': 'contact_phone',
+      'supportEmail': 'support_email',
+      'installDate': 'install_date',
+      'warrantyExpiry': 'warranty_expiry',
+      'lastMaintenance': 'last_maintenance',
+      'nextMaintenance': 'next_maintenance',
+      'firmwareVersion': 'firmware_version',
+      'hardwareSerial': 'hardware_serial',
+      'createdAt': 'created_at',
+      'updatedAt': 'updated_at',
+      'lastUpdate': 'last_update',
+      'updateSource': 'update_source',
+      'createdBy': 'created_by',
+      'updatedBy': 'updated_by',
+      'syncStatus': 'sync_status',
+      // Additional form field mappings
+      'mType': 'm_type',
+      'mLocation': 'm_location'
+    };
+    
+    // Map field names from camelCase to snake_case
+    const mappedEntries = Object.entries(terminalData).map(([key, value]) => [
+      fieldMapping[key] || key, // Use mapped name or original if no mapping
+      value
+    ]);
+    
+    const setClause = mappedEntries
+      .map(([column], i) => `${column} = $${i + 2}`)
       .join(', ');
-    const values = [terminalId, ...Object.values(terminalData)];
+    const values = [terminalId, ...mappedEntries.map(([, value]) => value)];
     
     const result = await pool.query(`
       UPDATE ${terminalsTableName} 
