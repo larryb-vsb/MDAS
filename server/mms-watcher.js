@@ -55,10 +55,16 @@ class MMSWatcher {
     this.encodingIntervalId = setInterval(async () => {
       // Auto 4-5 encoding (continuous)
       if (this.auto45Enabled) {
+        console.log('[MMS-WATCHER] [AUTO-45] Checking for identified files...');
         const hasAutoFiles = await this.hasFilesInPhase('identified');
+        console.log(`[MMS-WATCHER] [AUTO-45] Found identified files: ${hasAutoFiles}`);
         if (hasAutoFiles) {
           console.log('[MMS-WATCHER] [AUTO-45] Processing identified files for encoding');
           await this.processIdentifiedFiles();
+        } else {
+          // Force debug check even when no identified files found
+          console.log('[MMS-WATCHER] [AUTO-45] No identified files found, running debug check...');
+          await this.debugAllFiles();
         }
       }
       
@@ -587,6 +593,37 @@ class MMSWatcher {
     });
 
     console.log(`[MMS-WATCHER] ✅ File identified: ${upload.filename} -> ${identification.detectedType} (${identification.lineCount} lines)`);
+  }
+
+  // Debug method to show all files
+  async debugAllFiles() {
+    try {
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Getting all files...`);
+      const allFiles = await this.storage.getUploaderUploads({});
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Found ${allFiles.length} total files`);
+      
+      // Show ACH/transaction files specifically
+      const achFiles = allFiles.filter(f => f.filename && (
+        f.filename.toLowerCase().includes('ach') || 
+        f.filename.toLowerCase().includes('801203_') ||
+        f.finalFileType === 'transaction_csv' ||
+        f.detectedFileType === 'transaction_csv'
+      ));
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Found ${achFiles.length} ACH/transaction files:`);
+      achFiles.forEach(file => {
+        console.log(`[MMS-WATCHER] [FORCE-DEBUG]   ACH file: ${file.filename}, phase: ${file.currentPhase}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
+      });
+      
+      // Show all phases
+      const phaseCount = {};
+      allFiles.forEach(f => {
+        phaseCount[f.currentPhase] = (phaseCount[f.currentPhase] || 0) + 1;
+      });
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Files by phase:`, phaseCount);
+      
+    } catch (error) {
+      console.log(`[MMS-WATCHER] [FORCE-DEBUG] Error getting files: ${error.message}`);
+    }
   }
 
   async analyzeFileContent(fileContent, filename, userSelectedFileType) {
