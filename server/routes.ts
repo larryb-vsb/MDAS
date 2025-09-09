@@ -13477,7 +13477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateUploaderUpload(uploadId, updateData);
           
           processedCount++;
-          console.log(`[UPLOADER API] Moved upload ${uploadId} (${upload.filename}) from ${upload.currentPhase} to ${newPhase}`);
+          console.log(`[UPLOADER API] ✅ PHASE TRANSITION: Moved upload ${uploadId} (${upload.filename}) from ${upload.currentPhase} to ${newPhase}`);
+          console.log(`[UPLOADER API] ✅ UPDATE DATA: ${JSON.stringify(updateData)}`);
           
         } catch (error: any) {
           console.error(`Error setting previous level for upload ${uploadId}:`, error);

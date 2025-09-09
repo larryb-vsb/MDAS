@@ -861,11 +861,24 @@ class MMSWatcher {
 
       console.log(`[MMS-WATCHER] [DEBUG] Found ${identifiedFiles.length} files in 'identified' phase`);
       
+      // Debug: Show ALL files and their phases first
+      console.log(`[MMS-WATCHER] [DEBUG] Checking ALL file phases...`);
+      try {
+        const allFiles = await this.storage.getUploaderUploads({});
+        const terminalFiles = allFiles.filter(f => f.filename && f.filename.toLowerCase().includes('terminal'));
+        console.log(`[MMS-WATCHER] [DEBUG] Found ${terminalFiles.length} terminal files total:`);
+        terminalFiles.forEach(file => {
+          console.log(`[MMS-WATCHER] [DEBUG]   Terminal file: ${file.filename}, phase: ${file.currentPhase}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
+        });
+      } catch (error) {
+        console.log(`[MMS-WATCHER] [DEBUG] Error getting all files: ${error.message}`);
+      }
+      
       if (identifiedFiles.length === 0) {
         return; // No files to process
       }
       
-      // Debug: Show what files were found
+      // Debug: Show what files were found in identified phase
       identifiedFiles.forEach(file => {
         console.log(`[MMS-WATCHER] [DEBUG] Identified file: ${file.filename}, type: ${file.finalFileType || file.detectedFileType}, id: ${file.id}`);
       });
