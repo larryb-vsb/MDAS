@@ -1578,7 +1578,11 @@ export class DatabaseStorage implements IStorage {
           country: merchant.country || null,
           category: merchant.category || '',
           editDate: merchant.edit_date ? new Date(merchant.edit_date).toISOString() : null,
-          updatedBy: merchant.updated_by ? String(merchant.updated_by).trim() : null
+          updatedBy: merchant.updated_by ? String(merchant.updated_by).trim() : null,
+          stats: {
+            daily: stats.daily,
+            monthly: stats.monthly
+          }
         },
         transactions: formattedTransactions,
         analytics: {
