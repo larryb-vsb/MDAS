@@ -5169,11 +5169,11 @@ export class DatabaseStorage implements IStorage {
                         }
                       };
                       
-                      const existingDate = parseDate(existingTransaction[0].date);
+                      const existingDate = parseDate(existingTransaction[0].transaction_date || existingTransaction[0].date);
                       const newDate = parseDate(finalTransaction.date);
                       
                       if (!existingDate || !newDate) {
-                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existingTransaction[0].date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
+                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existingTransaction[0].transaction_date || existingTransaction[0].date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
                         throw new Error('Date parsing failed');
                       }
                       
@@ -6145,11 +6145,11 @@ export class DatabaseStorage implements IStorage {
                         }
                       };
                       
-                      const existingDate = parseDate(existing.date);
+                      const existingDate = parseDate(existing.transaction_date || existing.date);
                       const newDate = parseDate(finalTransaction.date);
                       
                       if (!existingDate || !newDate) {
-                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existing.date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
+                        console.log(`[DATE PARSE ERROR] Could not parse dates - existing: ${existing.transaction_date || existing.date}, new: ${finalTransaction.date}. Skipping duplicate check.`);
                         throw new Error('Date parsing failed');
                       }
                       
