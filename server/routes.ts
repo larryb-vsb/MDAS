@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: new Date()
         });
       } catch (auditError) {
-        console.warn("Audit logging skipped due to database size limit:", auditError.message);
+        console.warn("Audit logging skipped due to database size limit:", (auditError as Error).message);
       }
       
       res.status(201).json(user);
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: new Date()
         });
       } catch (auditError) {
-        console.warn("Audit logging skipped due to database size limit:", auditError.message);
+        console.warn("Audit logging skipped due to database size limit:", (auditError as Error).message);
       }
       
       res.json(updatedUser);
@@ -650,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date()
           });
         } catch (auditError) {
-          console.warn("Audit logging skipped due to database size limit:", auditError.message);
+          console.warn("Audit logging skipped due to database size limit:", (auditError as Error).message);
         }
         
         return res.json({ success: true });
@@ -676,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: new Date()
           });
         } catch (auditError) {
-          console.warn("Audit logging skipped due to database size limit:", auditError.message);
+          console.warn("Audit logging skipped due to database size limit:", (auditError as Error).message);
         }
         
         return res.json({ success: true });
