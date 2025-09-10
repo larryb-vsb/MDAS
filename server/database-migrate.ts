@@ -335,11 +335,15 @@ async function createSystemLogsTable() {
 
 // Security logs table
 async function createSecurityLogsTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS security_logs (
+  // Use environment-aware table naming for user reference
+  const { getTableName } = await import('./table-config');
+  const usersTable = getTableName('users');
+  
+  await db.execute(sql.raw(`
+    CREATE TABLE IF NOT EXISTS ${getTableName('security_logs')} (
       id SERIAL PRIMARY KEY,
       event_type TEXT NOT NULL,
-      user_id INTEGER REFERENCES users(id),
+      user_id INTEGER REFERENCES ${usersTable}(id),
       username TEXT,
       timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
       ip_address TEXT,
@@ -352,13 +356,14 @@ async function createSecurityLogsTable() {
       session_id TEXT,
       reason TEXT
     )
-  `);
+  `));
   
   // Create indexes for better query performance
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS security_logs_event_type_idx ON security_logs (event_type)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS security_logs_username_idx ON security_logs (username)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS security_logs_timestamp_idx ON security_logs (timestamp)`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS security_logs_result_idx ON security_logs (result)`);
+  const securityLogsTable = getTableName('security_logs');
+  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_event_type_idx ON ${securityLogsTable} (event_type)`));
+  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_username_idx ON ${securityLogsTable} (username)`));
+  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_timestamp_idx ON ${securityLogsTable} (timestamp)`));
+  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${securityLogsTable}_result_idx ON ${securityLogsTable} (result)`));
 }
 
 /**
