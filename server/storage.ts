@@ -6086,8 +6086,12 @@ export class DatabaseStorage implements IStorage {
                 break; // Success, exit the retry loop
                 
               } catch (insertError) {
-                // Check if it's a duplicate key error
-                if (insertError.code === '23505' && insertError.constraint === 'transactions_pkey') {
+                // Check if it's a duplicate key error (handle both ACH and regular transaction tables)
+                const isDuplicateError = insertError.code === '23505' && 
+                  (insertError.constraint === 'transactions_pkey' || 
+                   insertError.constraint === 'dev_api_achtransactions_pkey' ||
+                   insertError.constraint?.includes('_pkey'));
+                if (isDuplicateError) {
                   // First, check if the existing transaction has the same date
                   console.log(`[DUPLICATE DETECTED] Transaction ID ${originalId} already exists. Checking date match...`);
                   
