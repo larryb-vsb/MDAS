@@ -2813,14 +2813,25 @@ export class DatabaseStorage implements IStorage {
     year?: number;
   }[]> {
     try {
-      // Fetch all transactions for this merchant using environment-specific table
-      const transactionsTableName = getTableName('transactions');
-      const transactionsQuery = await db.execute(sql`
-        SELECT id, amount, date FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
-      `);
-      const allMerchantTransactions = transactionsQuery.rows;
-        
-      console.log(`Found ${allMerchantTransactions.length} total transactions for merchant ${merchantId}`);
+      // Try VSB API transactions table first, then fallback to legacy transactions table
+      let allMerchantTransactions;
+      try {
+        // Try dev_api_achtransactions first (VSB API table)
+        const apiTransactionsTableName = getTableName('api_achtransactions');
+        const apiTransactionsQuery = await db.execute(sql`
+          SELECT id, amount, transaction_date as date, description as type FROM ${sql.identifier(apiTransactionsTableName)} WHERE merchant_id = ${merchantId}
+        `);
+        allMerchantTransactions = apiTransactionsQuery.rows;
+        console.log(`Found ${allMerchantTransactions.length} total transactions in VSB API table for merchant ${merchantId}`);
+      } catch (error) {
+        // Fallback to legacy transactions table
+        const transactionsTableName = getTableName('transactions');
+        const transactionsQuery = await db.execute(sql`
+          SELECT id, amount, date, type FROM ${sql.identifier(transactionsTableName)} WHERE merchant_id = ${merchantId}
+        `);
+        allMerchantTransactions = transactionsQuery.rows;
+        console.log(`Found ${allMerchantTransactions.length} total transactions in legacy table for merchant ${merchantId}`);
+      }
       
       // If no transactions, return empty months
       if (allMerchantTransactions.length === 0) {
@@ -2860,26 +2871,23 @@ export class DatabaseStorage implements IStorage {
         
         console.log(`Looking for transactions for merchant ${merchantId} between ${month.toISOString()} and ${nextMonth.toISOString()}`);
         
-        // Get transactions for this month using environment-specific table
-        const monthQuery = await db.execute(sql`
-          SELECT id, amount, type, date 
-          FROM ${sql.identifier(transactionsTableName)}
-          WHERE merchant_id = ${merchantId} 
-          AND date >= ${month.toISOString()} 
-          AND date <= ${nextMonth.toISOString()}
-        `);
-        const monthTransactions = monthQuery.rows;
+        // Filter transactions for this month from the already fetched data
+        const monthTransactions = allMerchantTransactions.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate >= month && txDate <= nextMonth;
+        });
         
         console.log(`Found ${monthTransactions.length} transactions in ${month.toLocaleString('default', { month: 'short' })} ${month.getFullYear()} for merchant ${merchantId}`);
         
-        // Calculate revenue
+        // Calculate revenue (handle both description and type columns)
         const revenue = monthTransactions.reduce((sum, tx) => {
           const amount = parseFloat(tx.amount.toString());
+          const transactionType = tx.type || tx.description || '';
           // Credit means money into the account (positive)
           // Debit means money out of the account (negative)
-          if (tx.type === "Credit") {
+          if (transactionType === "Credit") {
             return sum + amount;
-          } else if (tx.type === "Debit") {
+          } else if (transactionType === "Debit") {
             return sum - amount;
           }
           // For other types like "Sale", treat as positive revenue
