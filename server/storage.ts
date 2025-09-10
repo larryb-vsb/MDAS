@@ -5997,7 +5997,7 @@ export class DatabaseStorage implements IStorage {
                 const dbTransaction = {};
                 Object.keys(finalTransaction).forEach(key => {
                   // Skip fields that don't exist in ACH table
-                  if (key === 'rawdata' || key === 'rawData') {
+                  if (key === 'rawdata' || key === 'rawData' || key === 'sourceRowNumber') {
                     return; // Skip this field entirely
                   }
                   const dbColumn = fieldMapping[key] || key; // Use mapping or original key
