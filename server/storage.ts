@@ -5172,24 +5172,9 @@ export class DatabaseStorage implements IStorage {
                         
                         console.log(`[DATE MATCH] Same date ${newDateStr}. Existing: $${existingAmount} (${existingType}), New: $${newAmount} (${newType})`);
                         
-                        // If values are different (use floating point safe comparison), update the existing transaction
-                        if (Math.abs(existingAmount - newAmount) > 0.01 || existingType !== newType) {
-                          console.log(`[UPDATING] Values differ, updating existing transaction ${originalId}`);
-                          
-                          await db.update(transactionsTable)
-                            .set({
-                              amount: finalTransaction.amount,
-                              type: finalTransaction.type,
-                              description: finalTransaction.description
-                            })
-                            .where(eq(transactionsTable.id, originalId));
-                          
-                          console.log(`[UPDATED] Transaction ${originalId} updated with new values`);
-                          break; // Exit without counting as inserted
-                        } else {
-                          console.log(`[SKIP] Identical transaction ${originalId} (trace number, date, and amount all match) already exists. Skipping duplicate...`);
-                          break; // Exit without counting as inserted
-                        }
+                        // Same trace number and date - skip regardless of amount differences
+                        console.log(`[SKIP] Transaction ${originalId} (trace number and date match) already exists. Skipping duplicate...`);
+                        break; // Exit without counting as inserted
                       } else {
                         // Different date - increment the ID
                         console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
@@ -6145,44 +6130,17 @@ export class DatabaseStorage implements IStorage {
                         const existingAmount = parseFloat(existing.amount.toString());
                         const newAmount = parseFloat(finalTransaction.amount.toString());
                         
-                        if (Math.abs(existingAmount - newAmount) > 0.01 || existing.type !== finalTransaction.type) {
-                          // Values are different, update the existing transaction
-                          console.log(`[UPDATE] Updating transaction ${originalId}: Amount ${existingAmount} -> ${newAmount}, Type ${existing.type} -> ${finalTransaction.type}`);
-                          
-                          const updateQuery = `
-                            UPDATE ${transactionsTableName}
-                            SET amount = $1, type = $2, merchant_id = $3
-                            WHERE id = $4
-                          `;
-                          
-                          await pool.query(updateQuery, [
-                            finalTransaction.amount,
-                            finalTransaction.type, 
-                            finalTransaction.merchantId,
-                            originalId
-                          ]);
-                          
-                          console.log(`[UPDATE SUCCESS] Transaction ${originalId} updated successfully`);
-                          insertedCount++; // Count as processed
-                          insertedTransactionsList.push({
-                            id: originalId,
-                            merchantId: finalTransaction.merchantId,
-                            amount: finalTransaction.amount
-                          });
-                          break; // Exit the retry loop
-                        } else {
-                          // Same values, skip this transaction
-                          console.log(`[SKIP] Transaction ${originalId} with same date and values already exists. Skipping...`);
-                          
-                          // Set duplicate info for statistics (skipped)
-                          duplicateInfo = { increments: 0, wasSkipped: true };
-                          
-                          // Update file processor statistics for skipped transaction
-                          const { fileProcessorService } = await import("./services/file-processor");
-                          fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
-                          
-                          break; // Exit the retry loop without counting as inserted
-                        }
+                        // Same trace number and date - skip regardless of amount differences
+                        console.log(`[SKIP] Transaction ${originalId} with same trace number and date already exists. Skipping...`);
+                        
+                        // Set duplicate info for statistics (skipped)
+                        duplicateInfo = { increments: 0, wasSkipped: true };
+                        
+                        // Update file processor statistics for skipped transaction
+                        const { fileProcessorService } = await import("./services/file-processor");
+                        fileProcessorService.updateProcessingStats(originalId, duplicateInfo);
+                        
+                        break; // Exit the retry loop without counting as inserted
                       } else {
                         // Different date - increment the ID as before
                         console.log(`[DATE MISMATCH] Existing date: ${existingDateStr}, New date: ${newDateStr}. Creating incremented ID...`);
