@@ -2287,12 +2287,20 @@ export class DatabaseStorage implements IStorage {
   // @DEPLOYMENT-CHECK - Uses environment-aware table naming
   async getTransactionsByMerchantId(merchantId: string): Promise<Transaction[]> {
     try {
-      const transactionsTableName = getTableName('transactions');
+      // Use the correct API ACH transactions table instead of legacy transactions table
+      const apiTransactionsTableName = getTableName('api_achtransactions');
       
       const result = await pool.query(`
-        SELECT * FROM ${transactionsTableName} 
+        SELECT 
+          id,
+          merchant_id,
+          amount,
+          transaction_date as date,
+          description as type,
+          created_at as recorded_at
+        FROM ${apiTransactionsTableName} 
         WHERE merchant_id = $1 
-        ORDER BY date DESC
+        ORDER BY transaction_date DESC
       `, [merchantId]);
       
       return result.rows;
