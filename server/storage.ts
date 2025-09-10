@@ -4577,7 +4577,7 @@ export class DatabaseStorage implements IStorage {
     
     // Reset trace number counter for this file processing session
     TraceNumberMapper.resetCounter();
-    console.log(`🔄 [TRACE-MAPPER] Starting new CSV file processing session`);`
+    console.log(`[TRACE-MAPPER] Starting new CSV file processing session`);
     
     return new Promise((resolve, reject) => {
       console.log("Starting transaction CSV parsing from content...");
@@ -4628,7 +4628,7 @@ export class DatabaseStorage implements IStorage {
         // **TRACE NUMBER PRIORITY** - TraceNbr gets highest priority for mapping
         const transactionIdColumns = [
           'TraceNbr', 'TraceNumber', 'Trace_Number', 'TRACE_NBR', 'trace_number',
-          'TransactionID', 'TransactionId', 'TranID', 'ID', 
+          'TransactionID', 'TransactionId', 'TranID', 'ID',
           'Transaction_ID', 'TXN_ID', 'TxnID', 'RefNumber', 'ReferenceNumber',
           'BatchID', 'SequenceNumber', 'ConfirmationNumber'
         ];
@@ -4643,7 +4643,7 @@ export class DatabaseStorage implements IStorage {
           if (row[column] && row[column].toString().trim()) {
             extractedValue = row[column].toString().trim();
             sourceColumn = column;
-            console.log(`[TRANSACTION ID] ✅ Exact match - Found ${column}: ${extractedValue}`);
+            console.log('[TRANSACTION ID] ✅ Exact match - Found ' + column + ': ' + extractedValue);
             break;
           }
         }
@@ -4655,7 +4655,7 @@ export class DatabaseStorage implements IStorage {
               if (expectedCol.toLowerCase() === actualCol.toLowerCase() && row[actualCol] && row[actualCol].toString().trim()) {
                 extractedValue = row[actualCol].toString().trim();
                 sourceColumn = actualCol;
-                console.log(`[TRANSACTION ID] ✅ Case-insensitive match - Found ${actualCol} (expected: ${expectedCol}): ${extractedValue}`);
+                console.log('[TRANSACTION ID] ✅ Case-insensitive match - Found ' + actualCol + ' (expected: ' + expectedCol + '): ' + extractedValue);
                 break;
               }
             }
@@ -4672,7 +4672,7 @@ export class DatabaseStorage implements IStorage {
                   row[actualCol] && row[actualCol].toString().trim()) {
                 extractedValue = row[actualCol].toString().trim();
                 sourceColumn = actualCol;
-                console.log(`[TRANSACTION ID] ✅ Partial match - Found ${actualCol} (partial: ${expectedCol}): ${extractedValue}`);
+                console.log('[TRANSACTION ID] ✅ Partial match - Found ' + actualCol + ' (partial: ' + expectedCol + '): ' + extractedValue);
                 break;
               }
             }
@@ -4686,9 +4686,9 @@ export class DatabaseStorage implements IStorage {
           
           // Log mapping details
           if (sourceColumn && (sourceColumn.toLowerCase().includes('trace') || sourceColumn.toLowerCase().includes('nbr'))) {
-            console.log(`🔄 [TRACE-MAPPER] Mapped trace number from column '${sourceColumn}': ${extractedValue} → ${uniqueTransactionId}`);
+            console.log(`[TRACE-MAPPER] Mapped trace number from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
           } else {
-            console.log(`🔄 [TRACE-MAPPER] Mapped transaction ID from column '${sourceColumn}': ${extractedValue} → ${uniqueTransactionId}`);
+            console.log(`[TRACE-MAPPER] Mapped transaction ID from column '${sourceColumn}': ${extractedValue} -> ${uniqueTransactionId}`);
           }
           
           return uniqueTransactionId;
@@ -4702,7 +4702,7 @@ export class DatabaseStorage implements IStorage {
         
         // Generate fallback ID using TraceNumberMapper
         const fallbackId = TraceNumberMapper.generateTransactionId(null);
-        console.log(`🔄 [TRACE-MAPPER] Generated fallback ID: ${fallbackId}`);
+        console.log(`[TRACE-MAPPER] Generated fallback ID: ${fallbackId}`);
         return fallbackId;
       };
 
@@ -6200,9 +6200,19 @@ export class DatabaseStorage implements IStorage {
           console.log(`Merchants created: ${createdMerchants}`);
           console.log(`Merchants updated: ${updatedMerchants}`);
           
-          // Add trace number mapping statistics
-          const mappingStats = TraceNumberMapper.getStats();
+          // Display trace number mapping statistics
+          const traceStats = TraceNumberMapper.getStats();
           console.log(`\n--- TRACE NUMBER MAPPING STATISTICS ---`);
+          console.log(`Total transactions processed: ${traceStats.totalProcessed}`);
+          console.log(`Unique trace numbers found: ${traceStats.totalUniqueTraces}`);
+          console.log(`Duplicates handled: ${traceStats.duplicatesFound}`);
+          console.log(`Duplication rate: ${traceStats.duplicationRate.toFixed(1)}%`);
+          
+          if (traceStats.duplicatesFound > 0) {
+            console.log(`\n--- DUPLICATE TRACE NUMBER HANDLING ---`);
+            console.log(`When duplicates were found, they were automatically incremented:`);
+            console.log(`Example: trace123 -> trace123-1, trace123-2, etc.`);
+          }
           console.log(`Total trace numbers processed: ${mappingStats.totalProcessed}`);
           console.log(`Unique trace numbers: ${mappingStats.totalUniqueTraces}`);
           console.log(`Duplicate trace numbers found: ${mappingStats.duplicatesFound}`);
