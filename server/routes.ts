@@ -9144,7 +9144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dev Upload routes for compressed storage testing
   app.post("/api/uploader", isAuthenticated, async (req, res) => {
     try {
-      const { filename, compressed_payload, schema_info } = req.body;
+      const { filename, compressed_payload, schema_info, target_environment } = req.body;
       
       if (!filename || !compressed_payload || !schema_info) {
         return res.status(400).json({ 
@@ -9152,16 +9152,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const devUpload = await storage.createDevUpload({
-        id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        filename,
-        compressed_payload,
-        schema_info,
-        upload_date: new Date(),
-        status: 'uploaded'
-      });
+      // Validate and determine target environment (development or production)
+      const validEnvironments = ['development', 'production'] as const;
+      const targetEnv = validEnvironments.includes(target_environment) ? target_environment : 'development';
+      
+      if (target_environment && !validEnvironments.includes(target_environment)) {
+        console.warn(`[UPLOADER] ⚠️  Invalid target_environment '${target_environment}', defaulting to 'development'`);
+      }
+      
+      console.log(`[UPLOADER] Upload request for ${filename} targeting ${targetEnv} environment`);
 
-      res.json({ success: true, upload: devUpload });
+      // Use production storage and database for production uploads
+      if (targetEnv === 'production') {
+        console.log(`[UPLOADER-PROD] Production upload requested for ${filename} by user: ${(req.user as any)?.username}`);
+        
+        // SECURITY: Require admin role for production uploads
+        const user = req.user as any;
+        if (!user || user.role !== 'admin') {
+          console.warn(`[UPLOADER-PROD] ❌ Access denied: User ${user?.username || 'unknown'} attempted production upload without admin role`);
+          return res.status(403).json({ 
+            error: 'Access denied',
+            message: 'Production uploads require admin privileges',
+            required_role: 'admin',
+            current_role: user?.role || 'none'
+          });
+        }
+        
+        console.log(`[UPLOADER-PROD] ✅ Admin user ${user.username} authorized for production upload`);
+        
+        // Use production database connection
+        const { neon } = await import('@neondatabase/serverless');
+        const prodDatabaseUrl = process.env.NEON_PROD_DATABASE_URL;
+        
+        if (!prodDatabaseUrl) {
+          return res.status(500).json({ 
+            error: 'Production database not configured',
+            details: 'NEON_PROD_DATABASE_URL environment variable is required for production uploads'
+          });
+        }
+        
+        const prodDb = neon(prodDatabaseUrl);
+        const uploadId = `uploader_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Insert directly to production uploader_uploads table (no dev_ prefix)
+        const prodUploadResult = await prodDb`
+          INSERT INTO uploader_uploads (
+            id, filename, file_type, file_size, created_at, upload_status, 
+            current_phase, created_by, server_id, session_id, keep_for_review
+          ) VALUES (
+            ${uploadId},
+            ${filename},
+            ${'tddf'},
+            ${compressed_payload.length},
+            ${new Date()},
+            ${'started'},
+            ${'started'},
+            ${(req.user as any)?.username || 'system'},
+            ${process.env.REPL_ID || 'unknown'},
+            ${(req as any).sessionID || 'unknown'},
+            ${false}
+          )
+          RETURNING *
+        `;
+        
+        console.log(`[UPLOADER-PROD] ✅ Created production upload ${uploadId} by admin: ${user.username}`);
+        
+        // Audit log for production upload
+        console.log(`[UPLOADER-PROD-AUDIT] PRODUCTION_UPLOAD_CREATED: {
+          "upload_id": "${uploadId}",
+          "filename": "${filename}",
+          "created_by": "${user.username}",
+          "user_role": "${user.role}",
+          "timestamp": "${new Date().toISOString()}",
+          "server_id": "${process.env.REPL_ID || 'unknown'}",
+          "session_id": "${(req as any).sessionID || 'unknown'}"
+        }`);
+        
+        res.json({
+          success: true,
+          message: 'Production upload created successfully',
+          upload_id: uploadId,
+          target_environment: 'production',
+          upload_status: 'started',
+          database_table: 'uploader_uploads' // no dev_ prefix
+        });
+        
+      } else {
+        // Development upload (existing logic)
+        console.log(`[UPLOADER-DEV] Creating development upload for ${filename}`);
+        
+        const devUpload = await storage.createDevUpload({
+          id: `dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          filename,
+          compressed_payload,
+          schema_info,
+          upload_date: new Date(),
+          status: 'uploaded'
+        });
+
+        res.json({
+          success: true,
+          message: 'Development upload created successfully',
+          upload: devUpload,
+          target_environment: 'development',
+          database_table: 'dev_uploader_uploads' // dev_ prefix for development
+        });
+      }
     } catch (error: any) {
       console.error('Dev upload error:', error);
       res.status(500).json({ error: error.message });
