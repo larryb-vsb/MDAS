@@ -4467,9 +4467,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Use the correct environment-specific table name  
+      const achTransactionsTableName = getTableName('api_achtransactions');
+      
       // Get total count
       const countResult = await pool.query(`
-        SELECT COUNT(*) as count FROM dev_api_achtransactions ${whereClause}
+        SELECT COUNT(*) as count FROM ${achTransactionsTableName} ${whereClause}
       `, queryParams);
       
       const totalItems = parseInt(countResult.rows[0].count);
@@ -4489,7 +4492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trace_number,
           file_source,
           created_at
-        FROM dev_api_achtransactions 
+        FROM ${achTransactionsTableName} 
         ${whereClause}
         ${orderByClause}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
