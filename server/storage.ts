@@ -4572,6 +4572,13 @@ export class DatabaseStorage implements IStorage {
       normalizeMerchantId 
     } = await import("@shared/field-mappings");
     
+    // Import TraceNumberMapper for unique transaction ID generation
+    const { TraceNumberMapper } = await import("../services/trace-number-mapper");
+    
+    // Reset trace number counter for this file processing session
+    TraceNumberMapper.resetCounter();
+    console.log(`🔄 [TRACE-MAPPER] Starting new CSV file processing session`);`
+    
     return new Promise((resolve, reject) => {
       console.log("Starting transaction CSV parsing from content...");
       
@@ -4615,53 +4622,88 @@ export class DatabaseStorage implements IStorage {
         return 'default';
       };
       
-      // Enhanced unified Transaction ID extraction function with flexible matching
+      // Enhanced unified Transaction ID extraction function with trace number mapping
       const extractTransactionId = (row: any): string => {
         // Priority-based Transaction ID extraction across all possible column names
+        // **TRACE NUMBER PRIORITY** - TraceNbr gets highest priority for mapping
         const transactionIdColumns = [
-          'TransactionID', 'TransactionId', 'TranID', 'ID', 'TraceNbr', 'TraceNumber', 
+          'TraceNbr', 'TraceNumber', 'Trace_Number', 'TRACE_NBR', 'trace_number',
+          'TransactionID', 'TransactionId', 'TranID', 'ID', 
           'Transaction_ID', 'TXN_ID', 'TxnID', 'RefNumber', 'ReferenceNumber',
           'BatchID', 'SequenceNumber', 'ConfirmationNumber'
         ];
         
         // Get available column names for case-insensitive matching
         const availableColumns = Object.keys(row);
+        let extractedValue: string | null = null;
+        let sourceColumn: string | null = null;
         
         // First, try exact matches
         for (const column of transactionIdColumns) {
           if (row[column] && row[column].toString().trim()) {
-            console.log(`[TRANSACTION ID] ✅ Exact match - Found ${column}: ${row[column]}`);
-            return row[column].toString().trim();
+            extractedValue = row[column].toString().trim();
+            sourceColumn = column;
+            console.log(`[TRANSACTION ID] ✅ Exact match - Found ${column}: ${extractedValue}`);
+            break;
           }
         }
         
-        // Second, try case-insensitive matches
-        for (const expectedCol of transactionIdColumns) {
-          for (const actualCol of availableColumns) {
-            if (expectedCol.toLowerCase() === actualCol.toLowerCase() && row[actualCol] && row[actualCol].toString().trim()) {
-              console.log(`[TRANSACTION ID] ✅ Case-insensitive match - Found ${actualCol} (expected: ${expectedCol}): ${row[actualCol]}`);
-              return row[actualCol].toString().trim();
+        // Second, try case-insensitive matches if no exact match found
+        if (!extractedValue) {
+          for (const expectedCol of transactionIdColumns) {
+            for (const actualCol of availableColumns) {
+              if (expectedCol.toLowerCase() === actualCol.toLowerCase() && row[actualCol] && row[actualCol].toString().trim()) {
+                extractedValue = row[actualCol].toString().trim();
+                sourceColumn = actualCol;
+                console.log(`[TRANSACTION ID] ✅ Case-insensitive match - Found ${actualCol} (expected: ${expectedCol}): ${extractedValue}`);
+                break;
+              }
             }
+            if (extractedValue) break;
           }
         }
         
-        // Third, try partial matches (contains)
-        for (const expectedCol of transactionIdColumns) {
-          for (const actualCol of availableColumns) {
-            if ((actualCol.toLowerCase().includes(expectedCol.toLowerCase()) || 
-                 expectedCol.toLowerCase().includes(actualCol.toLowerCase())) &&
-                row[actualCol] && row[actualCol].toString().trim()) {
-              console.log(`[TRANSACTION ID] ✅ Partial match - Found ${actualCol} (partial: ${expectedCol}): ${row[actualCol]}`);
-              return row[actualCol].toString().trim();
+        // Third, try partial matches (contains) if still no match
+        if (!extractedValue) {
+          for (const expectedCol of transactionIdColumns) {
+            for (const actualCol of availableColumns) {
+              if ((actualCol.toLowerCase().includes(expectedCol.toLowerCase()) || 
+                   expectedCol.toLowerCase().includes(actualCol.toLowerCase())) &&
+                  row[actualCol] && row[actualCol].toString().trim()) {
+                extractedValue = row[actualCol].toString().trim();
+                sourceColumn = actualCol;
+                console.log(`[TRANSACTION ID] ✅ Partial match - Found ${actualCol} (partial: ${expectedCol}): ${extractedValue}`);
+                break;
+              }
             }
+            if (extractedValue) break;
           }
         }
         
+        // If we found a value, use TraceNumberMapper to ensure uniqueness
+        if (extractedValue) {
+          const uniqueTransactionId = TraceNumberMapper.generateTransactionId(extractedValue);
+          
+          // Log mapping details
+          if (sourceColumn && (sourceColumn.toLowerCase().includes('trace') || sourceColumn.toLowerCase().includes('nbr'))) {
+            console.log(`🔄 [TRACE-MAPPER] Mapped trace number from column '${sourceColumn}': ${extractedValue} → ${uniqueTransactionId}`);
+          } else {
+            console.log(`🔄 [TRACE-MAPPER] Mapped transaction ID from column '${sourceColumn}': ${extractedValue} → ${uniqueTransactionId}`);
+          }
+          
+          return uniqueTransactionId;
+        }
+        
+        // No valid ID found - generate fallback using TraceNumberMapper
         console.error(`[TRANSACTION ID ERROR] ❌ No valid Transaction ID found in row ${rowCount}!`);
         console.error(`[TRANSACTION ID ERROR] Expected columns: [${transactionIdColumns.join(', ')}]`);
         console.error(`[TRANSACTION ID ERROR] Available columns: [${Object.keys(row).join(', ')}]`);
         console.error(`[TRANSACTION ID ERROR] Row data sample: ${JSON.stringify(row).substring(0, 200)}...`);
-        return null;
+        
+        // Generate fallback ID using TraceNumberMapper
+        const fallbackId = TraceNumberMapper.generateTransactionId(null);
+        console.log(`🔄 [TRACE-MAPPER] Generated fallback ID: ${fallbackId}`);
+        return fallbackId;
       };
 
       // Enhanced unified Merchant ID extraction function with flexible matching
@@ -6157,6 +6199,25 @@ export class DatabaseStorage implements IStorage {
           console.log(`Transactions inserted: ${insertedCount}`);
           console.log(`Merchants created: ${createdMerchants}`);
           console.log(`Merchants updated: ${updatedMerchants}`);
+          
+          // Add trace number mapping statistics
+          const mappingStats = TraceNumberMapper.getStats();
+          console.log(`\n--- TRACE NUMBER MAPPING STATISTICS ---`);
+          console.log(`Total trace numbers processed: ${mappingStats.totalProcessed}`);
+          console.log(`Unique trace numbers: ${mappingStats.totalUniqueTraces}`);
+          console.log(`Duplicate trace numbers found: ${mappingStats.duplicatesFound}`);
+          console.log(`Duplication rate: ${mappingStats.duplicationRate.toFixed(1)}%`);
+          
+          if (mappingStats.duplicatesFound > 0) {
+            const detailedStats = TraceNumberMapper.getDetailedStats();
+            console.log(`\n--- DUPLICATE TRACE NUMBER DETAILS ---`);
+            detailedStats.duplicateDetails.slice(0, 5).forEach((detail, idx) => {
+              console.log(`${idx + 1}. Trace ${detail.traceNumber}: ${detail.occurrences} occurrences (mapped to ${detail.traceNumber}, ${detail.traceNumber}-1, ${detail.traceNumber}-2, etc.)`);
+            });
+            if (detailedStats.duplicateDetails.length > 5) {
+              console.log(`... and ${detailedStats.duplicateDetails.length - 5} more duplicates`);
+            }
+          }
           
           if (createdMerchants > 0) {
             console.log(`\n--- NEWLY CREATED MERCHANTS (${createdMerchants}) ---`);
