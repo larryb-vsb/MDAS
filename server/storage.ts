@@ -6579,7 +6579,7 @@ export class DatabaseStorage implements IStorage {
         
       // Create a temporary file to store the CSV
       const tempFilePath = path.join(os.tmpdir(), `transactions_export_${Date.now()}.csv`);
-      const csvFileStream = createWriteStream(tempFilePath);
+      const csvFileStream = fs.createWriteStream(tempFilePath);
       
       // Format transactions for CSV
       const formattedTransactions = transactions.map((transaction: any) => ({
@@ -6618,7 +6618,7 @@ export class DatabaseStorage implements IStorage {
       
       // Create a temporary file to store the CSV
       const tempFilePath = path.join(os.tmpdir(), `merchants_export_${Date.now()}.csv`);
-      const csvFileStream = createWriteStream(tempFilePath);
+      const csvFileStream = fs.createWriteStream(tempFilePath);
       
       // Format merchants for CSV
       const formattedMerchants = merchants.map(merchant => ({
@@ -6649,6 +6649,203 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // Export merchants to CSV with date filtering
+  async exportMerchantsToCSV(startDate?: string, endDate?: string): Promise<string> {
+    try {
+      console.log('[MERCHANT EXPORT] Starting merchant export to CSV', { startDate, endDate });
+      
+      // Use environment-aware table names
+      const merchantsTableName = getTableName('api_merchants');
+      const transactionsTableName = getTableName('api_achtransactions');
+      
+      console.log('[MERCHANT EXPORT] Using tables:', { merchantsTableName, transactionsTableName });
+      
+      // Simplified query without date filtering for now - just get all merchants with basic transaction stats
+      const query = `
+        SELECT 
+          m.id,
+          m.name,
+          m.status,
+          m.address,
+          m.city,
+          m.state,
+          m.zip_code,
+          m.category,
+          m.created_at,
+          m.last_upload_date,
+          COALESCE(t.transaction_count, 0) as transaction_count,
+          COALESCE(t.total_amount, 0) as total_amount
+        FROM ${merchantsTableName} m
+        LEFT JOIN (
+          SELECT 
+            merchant_id,
+            COUNT(*) as transaction_count,
+            SUM(CAST(amount AS NUMERIC)) as total_amount
+          FROM ${transactionsTableName}
+          WHERE date::date = $1
+          GROUP BY merchant_id
+        ) t ON m.id = t.merchant_id
+        ORDER BY m.name
+        LIMIT 10
+      `;
+      
+      console.log('[MERCHANT EXPORT] Executing query:', query);
+      const result = await pool.query(query, [startDate || '2024-03-11']);
+      const merchants = result.rows;
+      
+      console.log(`[MERCHANT EXPORT] Found ${merchants.length} merchants`);
+      
+      if (merchants.length === 0) {
+        console.log('[MERCHANT EXPORT] No merchants found for date range');
+        // Return empty CSV with just headers
+        const tempFilePath = `/tmp/merchants_export_empty_${Date.now()}.csv`;
+        const csvFileStream = fs.createWriteStream(tempFilePath);
+        
+        return new Promise((resolve, reject) => {
+          formatCSV([])
+            .pipe(csvFileStream)
+            .on("finish", () => {
+              console.log(`[MERCHANT EXPORT] Empty CSV file created: ${tempFilePath}`);
+              resolve(tempFilePath);
+            })
+            .on("error", reject);
+        });
+      }
+      
+      // Create temporary CSV file
+      const tempFilePath = `/tmp/merchants_export_${Date.now()}.csv`;
+      const csvFileStream = fs.createWriteStream(tempFilePath);
+      
+      // Format merchant data for CSV
+      const formattedMerchants = merchants.map((merchant: any) => ({
+        Merchant_ID: merchant.id,
+        Name: merchant.name || '',
+        Status: merchant.status || '',
+        Address: merchant.address || '',
+        City: merchant.city || '',
+        State: merchant.state || '',
+        Zip: merchant.zip_code || '',
+        Category: merchant.category || '',
+        Created_Date: merchant.created_at ? new Date(merchant.created_at).toISOString().split("T")[0] : '',
+        Last_Upload: merchant.last_upload_date ? new Date(merchant.last_upload_date).toISOString().split("T")[0] : 'Never',
+        Transaction_Count: merchant.transaction_count || 0,
+        Total_Amount: parseFloat(merchant.total_amount || 0).toFixed(2)
+      }));
+      
+      console.log(`[MERCHANT EXPORT] Formatted ${formattedMerchants.length} merchants for CSV`);
+      
+      // Generate CSV file
+      return new Promise((resolve, reject) => {
+        formatCSV(formattedMerchants)
+          .pipe(csvFileStream)
+          .on("finish", () => {
+            console.log(`[MERCHANT EXPORT] CSV file created: ${tempFilePath}`);
+            resolve(tempFilePath);
+          })
+          .on("error", reject);
+      });
+    } catch (error) {
+      console.error("[MERCHANT EXPORT] Error exporting merchants to CSV:", error);
+      throw new Error(`Failed to export merchants to CSV: ${error}`);
+    }
+  }
+
+  // Export all merchants for a specific date
+  async exportAllMerchantsForDateToCSV(targetDate: string): Promise<string> {
+    try {
+      console.log('[MERCHANT EXPORT ALL] Starting all merchants export for date:', targetDate);
+      
+      // Use environment-aware table names
+      const merchantsTableName = getTableName('api_merchants');
+      const transactionsTableName = getTableName('api_achtransactions');
+      
+      // Query all merchants with activity on the target date
+      const query = `
+        SELECT DISTINCT
+          m.id,
+          m.name,
+          m.status,
+          m.address,
+          m.city,
+          m.state,
+          m.zip_code,
+          m.category,
+          m.created_at,
+          m.last_upload_date,
+          t.transaction_count,
+          t.total_amount
+        FROM ${merchantsTableName} m
+        LEFT JOIN (
+          SELECT 
+            merchant_id,
+            COUNT(*) as transaction_count,
+            SUM(CAST(amount AS NUMERIC)) as total_amount
+          FROM ${transactionsTableName}
+          WHERE DATE(date) = $1
+          GROUP BY merchant_id
+        ) t ON m.id = t.merchant_id
+        WHERE t.merchant_id IS NOT NULL OR m.last_upload_date::date = $1
+        ORDER BY m.name
+      `;
+      
+      console.log('[MERCHANT EXPORT ALL] Executing query for date:', targetDate);
+      const result = await pool.query(query, [targetDate]);
+      const merchants = result.rows;
+      
+      console.log(`[MERCHANT EXPORT ALL] Found ${merchants.length} merchants for date ${targetDate}`);
+      
+      // Create temporary CSV file
+      const tempFilePath = `/tmp/all_merchants_${targetDate.replace(/-/g, '')}_${Date.now()}.csv`;
+      const csvFileStream = fs.createWriteStream(tempFilePath);
+      
+      // CSV headers
+      const headers = [
+        'Merchant_ID',
+        'Name',
+        'Status', 
+        'Address',
+        'City',
+        'State',
+        'Zip',
+        'Category',
+        'Created_Date',
+        'Last_Upload',
+        'Transactions_on_Date',
+        'Amount_on_Date'
+      ];
+      
+      // Format merchant data for CSV
+      const formattedMerchants = merchants.map((merchant: any) => ({
+        Merchant_ID: merchant.id,
+        Name: merchant.name || '',
+        Status: merchant.status || '',
+        Address: merchant.address || '',
+        City: merchant.city || '',
+        State: merchant.state || '',
+        Zip: merchant.zip_code || '',
+        Category: merchant.category || '',
+        Created_Date: merchant.created_at ? new Date(merchant.created_at).toISOString().split("T")[0] : '',
+        Last_Upload: merchant.last_upload_date ? new Date(merchant.last_upload_date).toISOString().split("T")[0] : 'Never',
+        Transactions_on_Date: merchant.transaction_count || 0,
+        Amount_on_Date: parseFloat(merchant.total_amount || 0).toFixed(2)
+      }));
+      
+      // Generate CSV file
+      return new Promise((resolve, reject) => {
+        formatCSV(formattedMerchants)
+          .pipe(csvFileStream)
+          .on("finish", () => {
+            console.log(`[MERCHANT EXPORT ALL] CSV file created: ${tempFilePath}`);
+            resolve(tempFilePath);
+          })
+          .on("error", reject);
+      });
+    } catch (error) {
+      console.error("[MERCHANT EXPORT ALL] Error exporting all merchants for date:", error);
+      throw new Error(`Failed to export all merchants to CSV: ${error}`);
+    }
+  }
+
   // Helper method to ensure audit log table exists
   private async ensureAuditLogTableExists(tableName: string): Promise<void> {
     try {
