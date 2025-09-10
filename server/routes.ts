@@ -23318,6 +23318,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual database schema sync endpoint to fix missing columns and production tables
+  app.post('/api/admin/sync-database-schema', async (req, res) => {
+    try {
+      console.log('[SCHEMA-SYNC] Starting manual database schema sync...');
+      
+      const results = {
+        columnsAdded: [],
+        tablesCreated: [],
+        errors: []
+      };
+      
+      // Fix uploaded_files table missing storage_path column
+      const uploadedFilesTable = getTableName('uploaded_files');
+      try {
+        // Check if storage_path column exists
+        const columnCheck = await db.execute(sql`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = ${uploadedFilesTable} 
+            AND column_name = 'storage_path'
+        `);
+        
+        if (columnCheck.rows.length === 0) {
+          // Add missing storage_path column
+          await db.execute(sql`
+            ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+            ADD COLUMN storage_path TEXT
+          `);
+          results.columnsAdded.push(`${uploadedFilesTable}.storage_path`);
+          console.log(`[SCHEMA-SYNC] Added storage_path column to ${uploadedFilesTable}`);
+        } else {
+          console.log(`[SCHEMA-SYNC] storage_path column already exists in ${uploadedFilesTable}`);
+        }
+      } catch (error) {
+        results.errors.push(`Error fixing ${uploadedFilesTable}: ${error.message}`);
+        console.error(`[SCHEMA-SYNC] Error fixing ${uploadedFilesTable}:`, error);
+      }
+      
+      // Create production tables if they don't exist (for when user switches to production)
+      if (NODE_ENV === 'development') {
+        const productionTables = [
+          'uploader_uploads',
+          'uploaded_files', 
+          'api_achtransactions',
+          'api_merchants',
+          'api_terminals'
+        ];
+        
+        for (const tableName of productionTables) {
+          try {
+            // Check if production table exists
+            const tableCheck = await db.execute(sql`
+              SELECT table_name 
+              FROM information_schema.tables 
+              WHERE table_name = ${tableName}
+                AND table_schema = 'public'
+            `);
+            
+            if (tableCheck.rows.length === 0) {
+              // Create production table by copying structure from dev table
+              const devTableName = `dev_${tableName}`;
+              
+              // Check if dev table exists to copy from
+              const devTableCheck = await db.execute(sql`
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_name = ${devTableName}
+                  AND table_schema = 'public'
+              `);
+              
+              if (devTableCheck.rows.length > 0) {
+                // Create production table with same structure as dev table
+                await db.execute(sql`
+                  CREATE TABLE ${sql.identifier(tableName)} 
+                  (LIKE ${sql.identifier(devTableName)} INCLUDING ALL)
+                `);
+                results.tablesCreated.push(tableName);
+                console.log(`[SCHEMA-SYNC] Created production table: ${tableName}`);
+              } else {
+                results.errors.push(`Dev table ${devTableName} not found to copy structure from`);
+              }
+            } else {
+              console.log(`[SCHEMA-SYNC] Production table ${tableName} already exists`);
+            }
+          } catch (error) {
+            results.errors.push(`Error creating production table ${tableName}: ${error.message}`);
+            console.error(`[SCHEMA-SYNC] Error creating ${tableName}:`, error);
+          }
+        }
+      }
+      
+      console.log('[SCHEMA-SYNC] Manual schema sync completed');
+      res.json({
+        success: true,
+        message: 'Database schema sync completed',
+        results: results
+      });
+      
+    } catch (error) {
+      console.error('[SCHEMA-SYNC] Fatal error during schema sync:', error);
+      res.status(500).json({ 
+        error: 'Schema sync failed', 
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
@@ -23551,4 +23658,3 @@ function parseAmount(amountStr: string): number | null {
   return amount / 100;
 }
 
-export { router };
