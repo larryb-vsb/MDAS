@@ -58,6 +58,13 @@ declare global {
   }
 }
 
+// Extend session data to include loginTime
+declare module 'express-session' {
+  interface SessionData {
+    loginTime?: string;
+  }
+}
+
 async function hashPassword(password: string) {
   const saltRounds = 10;
   const hash = await bcrypt.hash(password, saltRounds);
