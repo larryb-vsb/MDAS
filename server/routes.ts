@@ -23374,13 +23374,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { name: 'file_content', type: 'TEXT' },
           { name: 'file_size', type: 'INTEGER' },
           { name: 'mime_type', type: 'TEXT' },
+          { name: 'processed', type: 'BOOLEAN DEFAULT FALSE' },
           { name: 'processed_at', type: 'TIMESTAMP' },
           { name: 'processing_status', type: 'TEXT DEFAULT \'queued\'' },
           { name: 'processing_started_at', type: 'TIMESTAMP' },
           { name: 'processing_completed_at', type: 'TIMESTAMP' },
           { name: 'processing_server_id', type: 'TEXT' },
           { name: 'records_processed', type: 'INTEGER DEFAULT 0' },
-          { name: 'records_skipped', type: 'INTEGER DEFAULT 0' }
+          { name: 'records_skipped', type: 'INTEGER DEFAULT 0' },
+          { name: 'processing_errors', type: 'TEXT' },
+          { name: 'deleted', type: 'BOOLEAN DEFAULT FALSE' }
         ];
         
         for (const col of missingColumns) {
@@ -23415,11 +23418,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             CREATE TABLE ${sql.identifier(duplicateCacheTable)} (
               id TEXT PRIMARY KEY,
               created_at TIMESTAMP DEFAULT NOW(),
-              status TEXT DEFAULT 'active'
+              status TEXT DEFAULT 'active',
+              scan_status TEXT DEFAULT 'pending'
             )
           `);
           results.tablesCreated.push(duplicateCacheTable);
           console.log(`[SCHEMA-SYNC] Created missing table: ${duplicateCacheTable}`);
+        } else {
+          // Add missing scan_status column to existing table
+          const cacheColumns = await db.execute(sql`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = ${duplicateCacheTable}
+          `);
+          
+          const cacheColumnNames = cacheColumns.rows.map(row => row.column_name);
+          if (!cacheColumnNames.includes('scan_status')) {
+            await db.execute(sql`
+              ALTER TABLE ${sql.identifier(duplicateCacheTable)} 
+              ADD COLUMN scan_status TEXT DEFAULT 'pending'
+            `);
+            results.columnsAdded.push(`${duplicateCacheTable}.scan_status`);
+            console.log(`[SCHEMA-SYNC] Added scan_status column to ${duplicateCacheTable}`);
+          }
         }
         
         // Add missing tddf_processing_datetime column to various tables that need it
@@ -23534,6 +23555,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('[SCHEMA-SYNC] Fatal error during schema sync:', error);
       res.status(500).json({ 
         error: 'Schema sync failed', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Emergency fix for specific missing columns
+  app.post('/api/admin/emergency-column-fix', async (req, res) => {
+    try {
+      console.log('[EMERGENCY-FIX] Adding specific missing columns...');
+      
+      const results = {
+        columnsAdded: [],
+        errors: []
+      };
+      
+      // Add missing columns to dev_uploaded_files
+      const uploadedFilesTable = getTableName('uploaded_files');
+      try {
+        // Add processed column
+        await db.execute(sql`
+          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+          ADD COLUMN IF NOT EXISTS processed BOOLEAN DEFAULT FALSE
+        `);
+        results.columnsAdded.push(`${uploadedFilesTable}.processed`);
+        
+        // Add deleted column
+        await db.execute(sql`
+          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+          ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE
+        `);
+        results.columnsAdded.push(`${uploadedFilesTable}.deleted`);
+        
+        // Add processing_errors column
+        await db.execute(sql`
+          ALTER TABLE ${sql.identifier(uploadedFilesTable)} 
+          ADD COLUMN IF NOT EXISTS processing_errors TEXT
+        `);
+        results.columnsAdded.push(`${uploadedFilesTable}.processing_errors`);
+        
+        console.log(`[EMERGENCY-FIX] Added missing columns to ${uploadedFilesTable}`);
+      } catch (error) {
+        results.errors.push(`Error fixing ${uploadedFilesTable}: ${error.message}`);
+      }
+      
+      // Add scan_status to dev_duplicate_finder_cache
+      const cacheTable = getTableName('duplicate_finder_cache');
+      try {
+        await db.execute(sql`
+          ALTER TABLE ${sql.identifier(cacheTable)} 
+          ADD COLUMN IF NOT EXISTS scan_status TEXT DEFAULT 'pending'
+        `);
+        results.columnsAdded.push(`${cacheTable}.scan_status`);
+        console.log(`[EMERGENCY-FIX] Added scan_status to ${cacheTable}`);
+      } catch (error) {
+        results.errors.push(`Error fixing ${cacheTable}: ${error.message}`);
+      }
+      
+      console.log('[EMERGENCY-FIX] Emergency column fix completed');
+      res.json({
+        success: true,
+        message: 'Emergency column fixes applied',
+        results: results
+      });
+      
+    } catch (error) {
+      console.error('[EMERGENCY-FIX] Fatal error during emergency fix:', error);
+      res.status(500).json({ 
+        error: 'Emergency fix failed', 
         details: error.message 
       });
     }
