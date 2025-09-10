@@ -44,13 +44,70 @@ export const merchantFieldMappingsAlt = {
   asOfDate: "As Of Date"
 };
 
+/**
+ * Trace number to unique transaction ID mapping utility
+ * Handles duplicate trace numbers by incrementing
+ */
+export class TraceNumberMapper {
+  private static traceCounter: Map<string, number> = new Map();
+  
+  /**
+   * Maps a trace number to a unique transaction ID
+   * For duplicates, appends increment counter (trace-1, trace-2, etc.)
+   */
+  static generateTransactionId(traceNumber: string | null): string {
+    if (!traceNumber) {
+      // Generate a fallback ID if no trace number
+      return `txn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    // Clean trace number (remove any non-alphanumeric characters)
+    const cleanTrace = traceNumber.toString().replace(/[^a-zA-Z0-9]/g, '');
+    
+    // Check if we've seen this trace number before
+    if (this.traceCounter.has(cleanTrace)) {
+      // Increment counter for this trace number
+      const currentCount = this.traceCounter.get(cleanTrace)! + 1;
+      this.traceCounter.set(cleanTrace, currentCount);
+      return `${cleanTrace}-${currentCount}`;
+    } else {
+      // First time seeing this trace number
+      this.traceCounter.set(cleanTrace, 0);
+      return cleanTrace;
+    }
+  }
+  
+  /**
+   * Reset the counter (useful for testing or new file processing sessions)
+   */
+  static resetCounter(): void {
+    this.traceCounter.clear();
+  }
+  
+  /**
+   * Get current mapping statistics
+   */
+  static getStats(): { totalUniqueTraces: number; duplicatesFound: number } {
+    let duplicatesFound = 0;
+    for (const count of this.traceCounter.values()) {
+      if (count > 0) duplicatesFound++;
+    }
+    
+    return {
+      totalUniqueTraces: this.traceCounter.size,
+      duplicatesFound
+    };
+  }
+}
+
 export const transactionFieldMappings = {
   // Database field: CSV field name (standard format)
   id: "TransactionID",
   merchantId: "MerchantID", // Field that links to merchant table
   amount: "Amount",
   date: "Date",
-  type: "Type"
+  type: "Type",
+  traceNumber: "TraceNbr" // Maps to trace number field
 };
 
 // Alternative transaction field mappings for headers with spaces
