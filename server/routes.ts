@@ -213,6 +213,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // EMERGENCY: Admin user initialization endpoint for production database fixes
+  app.post("/api/system/init-admin", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      // Security check - require a secret to prevent abuse
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[EMERGENCY ADMIN INIT] Starting admin user initialization...");
+      
+      // Force admin user creation using the ensureAdminUser function
+      const { ensureAdminUser } = await import('./database-helpers');
+      await ensureAdminUser();
+      
+      console.log("[EMERGENCY ADMIN INIT] Admin user created/updated successfully");
+      res.json({ 
+        success: true, 
+        message: "Admin user initialized successfully",
+        credentials: "admin/admin123"
+      });
+      
+    } catch (error) {
+      console.error("[EMERGENCY ADMIN INIT] Error:", error);
+      res.status(500).json({ 
+        error: "Failed to initialize admin user", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Global pause/resume controls for processing
   app.post("/api/system/pause-processing", isAuthenticated, (req, res) => {
     processingPaused = true;
