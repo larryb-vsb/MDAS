@@ -11735,6 +11735,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No file uploaded" });
       }
       
+      // Import upload table configuration
+      const { getUploadTableName, getUploadStoragePrefix } = await import('./table-config');
+      const uploadStoragePrefix = getUploadStoragePrefix();
+      
+      console.log(`[UPLOAD] Using storage prefix: ${uploadStoragePrefix}, table: ${getUploadTableName('uploader_uploads')}`);
+      
       const uploadRecord = await storage.getUploaderUploadById(id);
       if (!uploadRecord) {
         return res.status(404).json({ error: "Upload record not found" });
@@ -23854,6 +23860,28 @@ Status: Ready for production uploads`;
         error: 'Production upload test failed',
         details: error.message
       });
+    }
+  });
+
+  // Production mode override for uploads
+  app.post('/api/admin/enable-production-uploads', async (req, res) => {
+    try {
+      // Override environment detection for upload system
+      process.env.UPLOAD_MODE = 'production';
+      console.log('[PRODUCTION-OVERRIDE] Production upload mode enabled');
+      
+      res.json({
+        success: true,
+        message: 'Production upload mode enabled',
+        environment: 'production-override',
+        tables: {
+          uploader: 'uploader_uploads',
+          files: 'uploaded_files',
+          storage: 'prod-uploader/'
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to enable production uploads' });
     }
   });
 

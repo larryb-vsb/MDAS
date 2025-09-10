@@ -48,6 +48,22 @@ export function getEnvironment() {
   return { NODE_ENV, isProd, isDev, isTest };
 }
 
+// Upload-specific environment detection (can be overridden)
+export function getUploadEnvironment(): { isProd: boolean; isDev: boolean; NODE_ENV: string } {
+  // Check for upload mode override
+  if (process.env.UPLOAD_MODE === 'production') {
+    console.log('[UPLOAD-ENV] Using production mode override for uploads');
+    return { 
+      NODE_ENV: 'production', 
+      isProd: true, 
+      isDev: false 
+    };
+  }
+  
+  // Fall back to regular environment
+  return { NODE_ENV, isProd, isDev };
+}
+
 console.log(`[ENV CONFIG] NODE_ENV from process.env: ${process.env.NODE_ENV}`);
 console.log(`[ENV CONFIG] Environment detection method: ${process.env.NODE_ENV ? 'explicit' : 'auto-detected'}`);
 if (!process.env.NODE_ENV) {
