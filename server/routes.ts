@@ -3996,7 +3996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Global transaction deletion endpoint (for orphaned transactions)
+  // Global transaction deletion endpoint (for ACH transactions)
   app.post("/api/transactions/delete", async (req, res) => {
     try {
       const schema = z.object({
@@ -4009,7 +4009,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No transaction IDs provided" });
       }
       
-      await storage.deleteTransactions(transactionIds);
+      // Delete from the correct ACH transactions table
+      const achTableName = `${process.env.NODE_ENV === 'development' ? 'dev_' : ''}api_achtransactions`;
+      
+      if (transactionIds.length === 1) {
+        await pool.query(`DELETE FROM ${achTableName} WHERE id = $1`, [transactionIds[0]]);
+      } else {
+        const placeholders = transactionIds.map((_, i) => `$${i + 1}`).join(',');
+        await pool.query(`DELETE FROM ${achTableName} WHERE id IN (${placeholders})`, transactionIds);
+      }
+      
+      console.log(`Successfully deleted ${transactionIds.length} ACH transactions from ${achTableName}`);
       
       res.json({ 
         success: true, 
