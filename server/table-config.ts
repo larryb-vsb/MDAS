@@ -3,9 +3,9 @@ import { getEnvironment } from './env-config';
 
 const { NODE_ENV } = getEnvironment();
 
-// FORCE DEVELOPMENT MODE - Temporary fix for authentication
-// Table name prefix for environment separation
-const TABLE_PREFIX = 'dev_'; // Force dev_ prefix for now
+// Environment-aware table prefix
+// Development: dev_ prefix, Production: no prefix
+const TABLE_PREFIX = NODE_ENV === 'production' ? '' : 'dev_';
 
 // Function to get environment-specific table name
 export function getTableName(baseName: string): string {
