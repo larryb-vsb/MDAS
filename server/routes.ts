@@ -213,6 +213,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // DATABASE ANALYSIS: Check table dependencies and constraints
+  app.get("/api/system/analyze-tables", async (req, res) => {
+    try {
+      console.log("[TABLE-ANALYSIS] Starting table dependency analysis...");
+      
+      // Check foreign key constraints that reference the users table
+      const userConstraints = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND (ccu.table_name = 'users' OR tc.table_name = 'users')
+        ORDER BY tc.table_name;
+      `);
+      
+      // Get all tables and their prefixes
+      const allTables = await db.execute(sql`
+        SELECT 
+          table_name,
+          CASE 
+            WHEN table_name LIKE 'dev_%' THEN 'dev_prefixed'
+            ELSE 'no_prefix'
+          END as prefix_type
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_type = 'BASE TABLE'
+        ORDER BY prefix_type, table_name;
+      `);
+      
+      // Check session table dependencies specifically  
+      const sessionConstraints = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND (ccu.table_name = 'session' OR tc.table_name = 'session');
+      `);
+      
+      const analysis = {
+        userTableConstraints: userConstraints.rows,
+        sessionTableConstraints: sessionConstraints.rows,
+        tablesByPrefix: {
+          dev_prefixed: allTables.rows.filter(r => r.prefix_type === 'dev_prefixed'),
+          no_prefix: allTables.rows.filter(r => r.prefix_type === 'no_prefix')
+        },
+        summary: {
+          total_tables: allTables.rows.length,
+          dev_prefixed_count: allTables.rows.filter(r => r.prefix_type === 'dev_prefixed').length,
+          no_prefix_count: allTables.rows.filter(r => r.prefix_type === 'no_prefix').length
+        }
+      };
+      
+      console.log("[TABLE-ANALYSIS] Analysis complete:", JSON.stringify(analysis, null, 2));
+      res.json(analysis);
+      
+    } catch (error) {
+      console.error("[TABLE-ANALYSIS] Error:", error);
+      res.status(500).json({
+        error: "Table analysis failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // LOGIN VERIFICATION: Test actual login flow with detailed logging
   app.post("/api/auth/test-login", async (req, res) => {
     try {
