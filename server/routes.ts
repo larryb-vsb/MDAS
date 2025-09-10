@@ -213,6 +213,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // LOGIN VERIFICATION: Test actual login flow with detailed logging
+  app.post("/api/auth/test-login", async (req, res) => {
+    try {
+      console.log("[LOGIN-TEST] Starting comprehensive login test...");
+      const { username = "admin", password = "admin123" } = req.body;
+      
+      console.log(`[LOGIN-TEST] Testing credentials: ${username} / ${password.length}-char password`);
+      
+      // Test getUserByUsername directly
+      console.log("[LOGIN-TEST] Testing getUserByUsername directly...");
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        console.log("[LOGIN-TEST] ❌ getUserByUsername returned null/undefined");
+        return res.json({
+          success: false,
+          stage: "user_lookup_failed",
+          message: "User not found in database"
+        });
+      }
+      
+      console.log(`[LOGIN-TEST] ✅ Found user: ${user.username}, role: ${user.role}`);
+      console.log(`[LOGIN-TEST] Password hash: ${user.password.substring(0, 10)}...`);
+      
+      // Test password comparison
+      const bcrypt = await import('bcrypt');
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      console.log(`[LOGIN-TEST] Password match result: ${passwordMatch}`);
+      
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        },
+        passwordMatch,
+        stage: "complete"
+      });
+      
+    } catch (error) {
+      console.error("[LOGIN-TEST] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        stage: "error"
+      });
+    }
+  });
+
   // AUTHENTICATION DIAGNOSTICS: Comprehensive login debugging endpoint
   app.get("/api/auth/diagnostics", async (req, res) => {
     try {
