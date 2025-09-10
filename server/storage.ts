@@ -5986,6 +5986,7 @@ export class DatabaseStorage implements IStorage {
                   'type': 'code',  // Map type to code column
                   'transactionType': 'code',
                   'originalMerchantName': 'company',  // Map originalMerchantName to company column
+                  'sourceFileId': 'file_source',  // Map sourceFileId to file_source column
                   'traceNumber': 'trace_number',
                   'fileSource': 'file_source',
                   'createdAt': 'created_at',
@@ -5995,6 +5996,10 @@ export class DatabaseStorage implements IStorage {
                 // Convert finalTransaction to use database column names
                 const dbTransaction = {};
                 Object.keys(finalTransaction).forEach(key => {
+                  // Skip fields that don't exist in ACH table
+                  if (key === 'rawdata' || key === 'rawData') {
+                    return; // Skip this field entirely
+                  }
                   const dbColumn = fieldMapping[key] || key; // Use mapping or original key
                   dbTransaction[dbColumn] = finalTransaction[key];
                 });
