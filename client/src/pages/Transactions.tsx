@@ -389,6 +389,8 @@ export default function Transactions() {
       });
       setSelectedTransactions([]);
       setShowDeleteDialog(false);
+      // Force invalidate and refetch the transactions cache
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       refetch(); // Refetch the transactions list
     },
     onError: (error: Error) => {
