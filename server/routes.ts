@@ -17672,7 +17672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
         pool.query(`SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total FROM ${achTransactionsTableName} WHERE DATE(transaction_date) = CURRENT_DATE`),
         pool.query(`SELECT COALESCE(SUM(CAST(extracted_fields->>'transactionAmount' AS DECIMAL)), 0) as total FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT' AND DATE(CAST(extracted_fields->>'transactionDate' AS DATE)) = CURRENT_DATE`),
-        pool.query(`SELECT COUNT(*) as count FROM ${transactionsTableName}`),
+        pool.query(`SELECT COUNT(*) as count FROM ${achTransactionsTableName}`),
         pool.query(`SELECT COUNT(*) as count FROM ${getTableName('tddf_jsonb')} WHERE record_type = 'DT'`),
         pool.query(`SELECT COUNT(*) as count FROM ${terminalsTableName}`),
         pool.query(`SELECT COUNT(*) as count FROM ${terminalsTableName}`)
