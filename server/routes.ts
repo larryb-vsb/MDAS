@@ -213,6 +213,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Import the restore function from restore-env-backup
   const { restoreBackupToEnvironment } = await import('./restore-env-backup');
 
+  // DATABASE CLEANUP: Drop users table and fix session table naming
+  app.post("/api/system/cleanup-tables", async (req, res) => {
+    try {
+      const { secret } = req.body;
+      
+      if (secret !== "emergency-admin-init-2025") {
+        return res.status(403).json({ error: "Invalid secret" });
+      }
+      
+      console.log("[DB-CLEANUP] Starting database table cleanup...");
+      const results = [];
+      
+      // Step 1: Check dependencies on users table
+      console.log("[DB-CLEANUP] Checking dependencies on users table...");
+      const userDependencies = await db.execute(sql`
+        SELECT 
+          tc.constraint_name,
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage AS ccu
+          ON ccu.constraint_name = tc.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND ccu.table_name = 'users';
+      `);
+      
+      results.push({
+        step: "check_dependencies",
+        dependencies: userDependencies.rows
+      });
+      
+      // Step 2: Drop users table with CASCADE
+      console.log("[DB-CLEANUP] Dropping users table with CASCADE...");
+      try {
+        await db.execute(sql`DROP TABLE IF EXISTS users CASCADE;`);
+        console.log("[DB-CLEANUP] ✅ users table dropped successfully");
+        results.push({
+          step: "drop_users_table",
+          success: true,
+          message: "users table dropped successfully"
+        });
+      } catch (dropError) {
+        console.log("[DB-CLEANUP] ❌ Failed to drop users table:", dropError);
+        results.push({
+          step: "drop_users_table", 
+          success: false,
+          error: dropError instanceof Error ? dropError.message : String(dropError)
+        });
+      }
+      
+      // Step 3: Check if session table exists
+      console.log("[DB-CLEANUP] Checking session table...");
+      const sessionExists = await db.execute(sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'session'
+        );
+      `);
+      
+      if (sessionExists.rows[0]?.exists) {
+        // Step 4: Rename session to dev_session
+        console.log("[DB-CLEANUP] Renaming session table to dev_session...");
+        try {
+          await db.execute(sql`ALTER TABLE session RENAME TO dev_session;`);
+          console.log("[DB-CLEANUP] ✅ session table renamed to dev_session");
+          results.push({
+            step: "rename_session_table",
+            success: true,
+            message: "session table renamed to dev_session"
+          });
+        } catch (renameError) {
+          console.log("[DB-CLEANUP] ❌ Failed to rename session table:", renameError);
+          results.push({
+            step: "rename_session_table",
+            success: false,
+            error: renameError instanceof Error ? renameError.message : String(renameError)
+          });
+        }
+      } else {
+        results.push({
+          step: "rename_session_table",
+          success: false,
+          message: "session table does not exist"
+        });
+      }
+      
+      console.log("[DB-CLEANUP] Database cleanup completed");
+      res.json({
+        success: true,
+        message: "Database cleanup completed",
+        results
+      });
+      
+    } catch (error) {
+      console.error("[DB-CLEANUP] Error:", error);
+      res.status(500).json({
+        error: "Database cleanup failed",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // DATABASE ANALYSIS: Check table dependencies and constraints
   app.get("/api/system/analyze-tables", async (req, res) => {
     try {

@@ -566,10 +566,14 @@ export class DatabaseStorage implements IStorage {
   
   constructor() {
     this.lastMerchantId = 1000;
-    // Initialize PostgreSQL session store
+    // Initialize PostgreSQL session store with environment-aware table naming
     const PostgresStore = connectPgSimple(session);
+    const sessionTableName = getTableName('session');
+    console.log(`[SESSION-STORE] Using session table: ${sessionTableName}`);
+    
     this.sessionStore = new PostgresStore({
       pool: sessionPool,
+      tableName: sessionTableName,
       createTableIfMissing: true
     });
     
