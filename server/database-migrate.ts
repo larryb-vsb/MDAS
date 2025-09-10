@@ -21,6 +21,9 @@ export async function migrateDatabase() {
       // Even if all tables exist, we still need to check for new columns
       await checkAndAddMerchantColumns();
       
+      // Fix production uploader_uploads table missing upload_status column
+      await fixProductionUploaderUploadsTable(db);
+      
       // Check and create TDDF cache tables for current environment
       await ensureTddfCacheTables();
       
@@ -28,6 +31,9 @@ export async function migrateDatabase() {
       await ensureProductionDatabaseHealth();
     } else {
       console.log('Schema update completed. Missing tables have been created.');
+      
+      // Fix production uploader_uploads table missing upload_status column
+      await fixProductionUploaderUploadsTable(db);
       
       // Always ensure TDDF cache tables exist after table creation
       await ensureTddfCacheTables();
@@ -879,4 +885,80 @@ async function createUploaderMastercardDiEditRecordsTable() {
   `);
   
   await db.execute(sql`CREATE INDEX IF NOT EXISTS ${sql.identifier(`idx_${tableName}_upload_id`)} ON ${sql.identifier(tableName)} (upload_id)`);
+}
+
+/**
+ * Fix missing upload_status column in production uploader_uploads table
+ * This resolves the production upload failure: 500: {"error":"column \"upload_status\" of relation \"uploader_uploads\" does not exist"}
+ */
+async function fixProductionUploaderUploadsTable(db: any) {
+  try {
+    console.log('[SCHEMA FIX] Checking production uploader_uploads table for missing upload_status column...');
+    
+    // Check if production uploader_uploads table exists
+    const tableCheck = await db.execute(sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'uploader_uploads'
+    `);
+    
+    if (tableCheck.rows.length === 0) {
+      console.log('[SCHEMA FIX] Production uploader_uploads table does not exist, skipping column fix');
+      return;
+    }
+    
+    // Check if upload_status column exists
+    const columnCheck = await db.execute(sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'uploader_uploads' 
+      AND column_name = 'upload_status'
+    `);
+    
+    if (columnCheck.rows.length > 0) {
+      console.log('[SCHEMA FIX] upload_status column already exists in production uploader_uploads table');
+      return;
+    }
+    
+    console.log('[SCHEMA FIX] Adding missing upload_status column to production uploader_uploads table...');
+    
+    // Add the missing upload_status column with proper default and constraints
+    await db.execute(sql`
+      ALTER TABLE uploader_uploads 
+      ADD COLUMN upload_status TEXT NOT NULL DEFAULT 'started'
+    `);
+    
+    // Add constraint to ensure valid status values
+    await db.execute(sql`
+      ALTER TABLE uploader_uploads 
+      ADD CONSTRAINT uploader_uploads_upload_status_check 
+      CHECK (upload_status IN ('started', 'uploading', 'uploaded', 'failed'))
+    `);
+    
+    // Create index for performance
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS uploader_uploads_upload_status_idx 
+      ON uploader_uploads (upload_status)
+    `);
+    
+    console.log('[SCHEMA FIX] ✅ Successfully added upload_status column to production uploader_uploads table');
+    
+    // Verify the fix worked
+    const verifyCheck = await db.execute(sql`
+      SELECT column_name, data_type, column_default, is_nullable
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'uploader_uploads' 
+      AND column_name = 'upload_status'
+    `);
+    
+    if (verifyCheck.rows.length > 0) {
+      console.log('[SCHEMA FIX] ✅ Column verification successful:', verifyCheck.rows[0]);
+    }
+    
+  } catch (error: any) {
+    console.error('[SCHEMA FIX] ❌ Error fixing production uploader_uploads table:', error);
+    // Don't throw - continue with other migrations
+  }
 }
