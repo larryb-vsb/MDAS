@@ -872,7 +872,7 @@ export default function MerchantDetail() {
         <TabsContent value="terminals">
           <SubMerchantTerminals 
             merchantId={id!} 
-            merchantName={data?.name}
+            merchantName={data?.merchant.name}
           />
         </TabsContent>
 
@@ -952,7 +952,7 @@ export default function MerchantDetail() {
                         if (data?.transactions && data.transactions.length > 0) {
                           if (filteredTransactions.length > 0) {
                             return filteredTransactions.map(transaction => (
-                              <TableRow key={transaction.id}>
+                              <TableRow key={transaction.transactionId || `temp-${Math.random()}`}>
                                 <TableCell>
                                   <Checkbox 
                                     checked={selectedTransactions.includes(transaction.transactionId)}
